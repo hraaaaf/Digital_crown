@@ -230,7 +230,7 @@ export const SuperAdminDashboard: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 pb-20 relative">
+    <div className="min-h-screen bg-background pb-20 relative">
       {/* HEADER */}
       <div className="bg-[#003380] text-white py-12 px-6 shadow-xl relative overflow-hidden">
         <div className="absolute inset-0 opacity-10 bg-[radial-gradient(circle_at_center,_var(--tw-gradient-stops))] from-white via-transparent to-transparent"></div>
@@ -270,30 +270,30 @@ export const SuperAdminDashboard: React.FC = () => {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 mt-8 space-y-6">
         <div className="grid gap-6 xl:grid-cols-[1.15fr_0.85fr]">
-          <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+          <div className="rounded-[2rem] border border-border-main bg-card p-6 shadow-sm">
             <div className="mb-5">
               <p className="text-[10px] font-black uppercase tracking-widest text-[#003380]">Après Démo</p>
-              <h2 className="mt-2 text-2xl font-black text-slate-900">Générer un code d'activation</h2>
-              <p className="mt-2 text-sm font-medium text-slate-500">Ce lien public active un essai cabinet de 30 jours puis envoie le praticien vers le setup au premier login.</p>
+              <h2 className="mt-2 text-2xl font-black text-text-main">Générer un code d'activation</h2>
+              <p className="mt-2 text-sm font-medium text-text-muted">Ce lien public active un essai cabinet de 30 jours puis envoie le praticien vers le setup au premier login.</p>
             </div>
 
             <form onSubmit={handleCreateTrialCode} className="grid gap-4 md:grid-cols-2">
-              <input value={trialForm.email} onChange={(e) => setTrialForm(prev => ({ ...prev, email: e.target.value }))} placeholder="Email professionnel" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" required />
-              <input value={trialForm.nom_complet} onChange={(e) => setTrialForm(prev => ({ ...prev, nom_complet: e.target.value }))} placeholder="Nom complet" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
-              <input value={trialForm.cabinet_name} onChange={(e) => setTrialForm(prev => ({ ...prev, cabinet_name: e.target.value }))} placeholder="Nom du cabinet" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
-              <input value={trialForm.notes} onChange={(e) => setTrialForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Notes internes" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
-              <input type="number" min={1} max={90} value={trialForm.trial_days} onChange={(e) => setTrialForm(prev => ({ ...prev, trial_days: Number(e.target.value) || 30 }))} placeholder="Durée essai" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
-              <input type="number" min={1} max={60} value={trialForm.expires_in_days} onChange={(e) => setTrialForm(prev => ({ ...prev, expires_in_days: Number(e.target.value) || 14 }))} placeholder="Validité du code" className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={trialForm.email} onChange={(e) => setTrialForm(prev => ({ ...prev, email: e.target.value }))} placeholder="Email professionnel" className="rounded-xl border border-border-main bg-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" required />
+              <input value={trialForm.nom_complet} onChange={(e) => setTrialForm(prev => ({ ...prev, nom_complet: e.target.value }))} placeholder="Nom complet" className="rounded-xl border border-border-main bg-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={trialForm.cabinet_name} onChange={(e) => setTrialForm(prev => ({ ...prev, cabinet_name: e.target.value }))} placeholder="Nom du cabinet" className="rounded-xl border border-border-main bg-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input value={trialForm.notes} onChange={(e) => setTrialForm(prev => ({ ...prev, notes: e.target.value }))} placeholder="Notes internes" className="rounded-xl border border-border-main bg-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input type="number" min={1} max={90} value={trialForm.trial_days} onChange={(e) => setTrialForm(prev => ({ ...prev, trial_days: Number(e.target.value) || 30 }))} placeholder="Durée essai" className="rounded-xl border border-border-main bg-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
+              <input type="number" min={1} max={60} value={trialForm.expires_in_days} onChange={(e) => setTrialForm(prev => ({ ...prev, expires_in_days: Number(e.target.value) || 14 }))} placeholder="Validité du code" className="rounded-xl border border-border-main bg-background px-4 py-3 font-semibold outline-none focus:ring-2 focus:ring-blue-500" />
               <button type="submit" className="md:col-span-2 rounded-2xl bg-[#003380] px-5 py-4 text-[11px] font-black uppercase tracking-widest text-white shadow-lg shadow-[#003380]/20 transition-all hover:bg-blue-900">
                 Générer Et Copier Le Lien
               </button>
             </form>
           </div>
 
-          <div className="rounded-[2rem] border border-slate-200 bg-slate-950 p-6 text-white shadow-2xl shadow-slate-900/10">
+          <div className="rounded-[2rem] border border-border-main bg-slate-950 p-6 text-white shadow-2xl shadow-slate-900/10">
             <p className="text-[10px] font-black uppercase tracking-widest text-blue-200">Distribution</p>
             <h2 className="mt-2 text-2xl font-black">Workflow commercial</h2>
-            <ol className="mt-5 space-y-3 text-sm text-slate-200">
+            <ol className="mt-5 space-y-3 text-sm text-text-muted">
               <li>1. Démo réalisée par l'équipe.</li>
               <li>2. Génération d'un code d'activation cabinet.</li>
               <li>3. Envoi du lien public au praticien.</li>
@@ -304,23 +304,23 @@ export const SuperAdminDashboard: React.FC = () => {
         </div>
         
         {/* Filters */}
-        <div className="flex flex-col sm:flex-row justify-between gap-4 bg-white p-4 rounded-2xl shadow-sm border border-slate-200">
+        <div className="flex flex-col sm:flex-row justify-between gap-4 bg-card p-4 rounded-2xl shadow-sm border border-border-main">
           <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
             <input 
               type="text" 
               placeholder="Rechercher un client (Nom, email)..." 
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
+              className="w-full pl-10 pr-4 py-2 bg-background border border-border-main rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-all outline-none"
             />
           </div>
           <div className="flex items-center gap-2">
-            <Filter size={18} className="text-slate-400" />
+            <Filter size={18} className="text-text-muted" />
             <select 
               value={filterStatus} 
               onChange={(e) => setFilterStatus(e.target.value)}
-              className="bg-slate-50 border border-slate-200 rounded-xl px-4 py-2 font-bold text-slate-700 outline-none focus:ring-2 focus:ring-blue-500"
+              className="bg-background border border-border-main rounded-xl px-4 py-2 font-bold text-text-main outline-none focus:ring-2 focus:ring-blue-500"
             >
               <option value="ALL">Tous les statuts</option>
               <option value="ACTIVE">Actifs</option>
@@ -331,36 +331,36 @@ export const SuperAdminDashboard: React.FC = () => {
           </div>
         </div>
 
-        <div className="rounded-[2rem] border border-slate-200 bg-white p-6 shadow-sm">
+        <div className="rounded-[2rem] border border-border-main bg-card p-6 shadow-sm">
           <div className="mb-4 flex items-center justify-between gap-4">
             <div>
-              <h2 className="text-xl font-black text-slate-900">Codes d'activation récents</h2>
-              <p className="text-sm font-medium text-slate-500">Copie rapide du lien d'activation ou révocation avant utilisation.</p>
+              <h2 className="text-xl font-black text-text-main">Codes d'activation récents</h2>
+              <p className="text-sm font-medium text-text-muted">Copie rapide du lien d'activation ou révocation avant utilisation.</p>
             </div>
-            <button onClick={fetchTrialCodes} className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100">
+            <button onClick={fetchTrialCodes} className="rounded-xl border border-border-main bg-background px-4 py-2 text-[10px] font-black uppercase tracking-widest text-text-muted hover:bg-input-field">
               Actualiser
             </button>
           </div>
 
           <div className="space-y-3">
             {trialCodes.length === 0 ? (
-              <p className="rounded-2xl bg-slate-50 px-4 py-6 text-center text-sm font-semibold text-slate-500">Aucun code d'activation généré pour le moment.</p>
+              <p className="rounded-2xl bg-background px-4 py-6 text-center text-sm font-semibold text-text-muted">Aucun code d'activation généré pour le moment.</p>
             ) : (
               trialCodes.slice(0, 8).map((code) => {
                 const isUsed = Boolean(code.consumed_at);
                 const isRevoked = Boolean(code.revoked_at);
                 return (
-                  <div key={code.id} className="rounded-2xl border border-slate-200 bg-slate-50 p-4">
+                  <div key={code.id} className="rounded-2xl border border-border-main bg-background p-4">
                     <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
                       <div>
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="text-sm font-black text-slate-900">{code.code}</span>
+                          <span className="text-sm font-black text-text-main">{code.code}</span>
                           <span className={`rounded-lg px-2 py-1 text-[10px] font-black uppercase tracking-widest ${isUsed ? 'bg-emerald-100 text-emerald-700' : isRevoked ? 'bg-rose-100 text-rose-700' : 'bg-blue-100 text-blue-700'}`}>
                             {isUsed ? 'Utilisé' : isRevoked ? 'Révoqué' : 'Actif'}
                           </span>
                         </div>
-                        <p className="mt-1 text-sm font-semibold text-slate-600">{code.email} {code.cabinet_name ? `• ${code.cabinet_name}` : ''}</p>
-                        <p className="mt-1 text-xs text-slate-400">Expire le {formatDate(code.expires_at)} • Essai {code.trial_days} jours</p>
+                        <p className="mt-1 text-sm font-semibold text-text-muted">{code.email} {code.cabinet_name ? `• ${code.cabinet_name}` : ''}</p>
+                        <p className="mt-1 text-xs text-text-muted">Expire le {formatDate(code.expires_at)} • Essai {code.trial_days} jours</p>
                       </div>
                       <div className="flex flex-wrap gap-2">
                         <button onClick={() => copyActivationLink(code.activation_url)} className="rounded-xl bg-[#003380] px-4 py-2 text-[10px] font-black uppercase tracking-widest text-white hover:bg-blue-900">
@@ -387,12 +387,12 @@ export const SuperAdminDashboard: React.FC = () => {
             const active = client.is_licensed && !expStatus.expired && !client.is_suspended && !client.is_archived;
             
             // Badge color logic
-            let badgeStyle = "bg-slate-100 text-slate-600 border-slate-200";
+            let badgeStyle = "bg-input-field text-text-muted border-border-main";
             let badgeText = "Inconnu";
             let BadgeIcon = AlertTriangle;
 
             if (client.is_archived) {
-              badgeStyle = "bg-slate-100 text-slate-500 border-slate-300";
+              badgeStyle = "bg-input-field text-text-muted border-border-hover";
               badgeText = "Archivé";
               BadgeIcon = Archive;
             } else if (client.is_suspended) {
@@ -417,12 +417,12 @@ export const SuperAdminDashboard: React.FC = () => {
             }
 
             return (
-              <div key={client.id} className={`bg-white border border-slate-200 rounded-[2rem] shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col group relative ${client.is_archived ? 'opacity-60' : ''}`}>
+              <div key={client.id} className={`bg-card border border-border-main rounded-[2rem] shadow-sm hover:shadow-xl transition-all overflow-hidden flex flex-col group relative ${client.is_archived ? 'opacity-60' : ''}`}>
                 
                 {/* Header Card */}
-                <div className={`p-6 border-b flex justify-between items-start transition-colors ${active ? 'bg-emerald-50/50 border-emerald-100' : 'bg-slate-50 border-slate-100'}`}>
+                <div className={`p-6 border-b flex justify-between items-start transition-colors ${active ? 'bg-emerald-50/50 border-emerald-100' : 'bg-background border-border-main'}`}>
                   <div>
-                    <h3 className="text-lg font-black text-slate-800 flex items-center gap-2">
+                    <h3 className="text-lg font-black text-text-main flex items-center gap-2">
                       {client.nom_complet || 'Sans Nom'}
                       {client.internal_notes && (
                         <div title={client.internal_notes} className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center cursor-help">
@@ -430,8 +430,8 @@ export const SuperAdminDashboard: React.FC = () => {
                         </div>
                       )}
                     </h3>
-                    <p className="text-sm font-bold text-slate-500">{client.cabinet_name || 'Cabinet N/A'}</p>
-                    <p className="text-xs text-slate-400 mt-1">{client.email} • {client.telephone}</p>
+                    <p className="text-sm font-bold text-text-muted">{client.cabinet_name || 'Cabinet N/A'}</p>
+                    <p className="text-xs text-text-muted mt-1">{client.email} • {client.telephone}</p>
                   </div>
                   <div className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 border shadow-sm ${badgeStyle}`}>
                     <BadgeIcon size={16} />
@@ -445,32 +445,32 @@ export const SuperAdminDashboard: React.FC = () => {
                   {/* Stats */}
                   <div className="grid grid-cols-2 gap-4 w-full sm:w-auto">
                     <div className="flex flex-col gap-1">
-                      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><CalendarRange size={12}/> Expiration</p>
-                      <p className={`font-black text-sm ${expStatus.expired ? 'text-rose-600' : 'text-slate-700'}`}>{formatDate(client.license_expires_at)}</p>
+                      <p className="text-text-muted text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><CalendarRange size={12}/> Expiration</p>
+                      <p className={`font-black text-sm ${expStatus.expired ? 'text-rose-600' : 'text-text-main'}`}>{formatDate(client.license_expires_at)}</p>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><UserPlus size={12}/> Patients</p>
-                      <p className="font-black text-sm text-slate-700">{client.stats?.total_patients || 0}</p>
+                      <p className="text-text-muted text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><UserPlus size={12}/> Patients</p>
+                      <p className="font-black text-sm text-text-main">{client.stats?.total_patients || 0}</p>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><Zap size={12}/> IA Pano</p>
-                      <p className="font-black text-sm text-slate-700">{client.stats?.total_ia_panoramique || 0}</p>
+                      <p className="text-text-muted text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><Zap size={12}/> IA Pano</p>
+                      <p className="font-black text-sm text-text-main">{client.stats?.total_ia_panoramique || 0}</p>
                     </div>
                     <div className="flex flex-col gap-1">
-                      <p className="text-slate-400 text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><Zap size={12}/> IA Ceph</p>
-                      <p className="font-black text-sm text-slate-700">{client.stats?.total_ia_cephalo || 0}</p>
+                      <p className="text-text-muted text-[10px] font-bold uppercase tracking-wider flex items-center gap-1"><Zap size={12}/> IA Ceph</p>
+                      <p className="font-black text-sm text-text-main">{client.stats?.total_ia_cephalo || 0}</p>
                     </div>
                   </div>
 
                   {/* Actions Rapides */}
-                  <div className="flex flex-col gap-2 min-w-[200px] border-l border-slate-100 pl-0 sm:pl-6">
+                  <div className="flex flex-col gap-2 min-w-[200px] border-l border-border-main pl-0 sm:pl-6">
                     <div className="flex items-center gap-2">
-                      <span className="text-[9px] font-black uppercase tracking-widest text-slate-400 shrink-0">Pack</span>
+                      <span className="text-[9px] font-black uppercase tracking-widest text-text-muted shrink-0">Pack</span>
                       <select
                         value={client.subscription_plan || 'GOLD'}
                         onChange={(e) => handleSetPlan(client.id, e.target.value)}
                         disabled={client.is_archived}
-                        className="flex-1 bg-slate-50 border border-slate-200 rounded-lg px-2 py-1.5 text-[11px] font-black text-slate-700 outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
+                        className="flex-1 bg-background border border-border-main rounded-lg px-2 py-1.5 text-[11px] font-black text-text-main outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
                       >
                         {PLAN_OPTIONS.map((p) => (
                           <option key={p} value={p}>{p}</option>
@@ -493,20 +493,20 @@ export const SuperAdminDashboard: React.FC = () => {
                     </div>
                     
                     {/* Admin Actions */}
-                    <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-slate-100">
-                      <button onClick={() => setNotesModal({isOpen: true, clientId: client.id, notes: client.internal_notes || ''})} title="Notes internes" className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
+                    <div className="flex flex-wrap gap-2 mt-2 pt-2 border-t border-border-main">
+                      <button onClick={() => setNotesModal({isOpen: true, clientId: client.id, notes: client.internal_notes || ''})} title="Notes internes" className="p-2 bg-input-field hover:bg-input-field text-text-muted rounded-lg transition-colors">
                         <MessageSquare size={14} />
                       </button>
-                      <button onClick={() => openHistory(client.id)} title="Historique Licences" className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors">
+                      <button onClick={() => openHistory(client.id)} title="Historique Licences" className="p-2 bg-input-field hover:bg-input-field text-text-muted rounded-lg transition-colors">
                         <History size={14} />
                       </button>
-                      <button onClick={() => handleSendRenewalEmail(client.id)} title="WhatsApp de relance" disabled={client.is_archived} className="p-2 bg-slate-100 hover:bg-blue-100 hover:text-blue-600 text-slate-600 rounded-lg transition-colors disabled:opacity-50">
+                      <button onClick={() => handleSendRenewalEmail(client.id)} title="WhatsApp de relance" disabled={client.is_archived} className="p-2 bg-input-field hover:bg-blue-100 hover:text-blue-600 text-text-muted rounded-lg transition-colors disabled:opacity-50">
                         <Mail size={14} />
                       </button>
-                      <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_suspended ? 'réactiver' : 'suspendre'} ce client ?`)) handleToggleSuspend(client.id); }} title={client.is_suspended ? 'Réactiver' : 'Suspendre'} className={`p-2 rounded-lg transition-colors ${client.is_suspended ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' : 'bg-slate-100 text-slate-600 hover:bg-orange-100 hover:text-orange-600'}`}>
+                      <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_suspended ? 'réactiver' : 'suspendre'} ce client ?`)) handleToggleSuspend(client.id); }} title={client.is_suspended ? 'Réactiver' : 'Suspendre'} className={`p-2 rounded-lg transition-colors ${client.is_suspended ? 'bg-orange-100 text-orange-600 hover:bg-orange-200' : 'bg-input-field text-text-muted hover:bg-orange-100 hover:text-orange-600'}`}>
                         <Ban size={14} />
                       </button>
-                      <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_archived ? 'désarchiver' : 'archiver'} ce client ?`)) handleToggleArchive(client.id); }} title={client.is_archived ? 'Désarchiver' : 'Archiver'} className={`p-2 rounded-lg transition-colors ${client.is_archived ? 'bg-rose-100 text-rose-600 hover:bg-rose-200' : 'bg-slate-100 text-slate-600 hover:bg-rose-100 hover:text-rose-600'}`}>
+                      <button onClick={() => { if(window.confirm(`Voulez-vous ${client.is_archived ? 'désarchiver' : 'archiver'} ce client ?`)) handleToggleArchive(client.id); }} title={client.is_archived ? 'Désarchiver' : 'Archiver'} className={`p-2 rounded-lg transition-colors ${client.is_archived ? 'bg-rose-100 text-rose-600 hover:bg-rose-200' : 'bg-input-field text-text-muted hover:bg-rose-100 hover:text-rose-600'}`}>
                         <Archive size={14} />
                       </button>
                     </div>
@@ -523,16 +523,16 @@ export const SuperAdminDashboard: React.FC = () => {
       {/* NOTES MODAL */}
       {notesModal.isOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-label="Notes internes SuperAdmin" className="bg-white rounded-3xl p-6 w-full max-w-md shadow-2xl">
-            <h3 className="text-xl font-black text-slate-800 mb-4 flex items-center gap-2"><MessageSquare size={20} className="text-blue-600"/> Notes Internes (SuperAdmin)</h3>
+          <div role="dialog" aria-modal="true" aria-label="Notes internes SuperAdmin" className="bg-card rounded-3xl p-6 w-full max-w-md shadow-2xl">
+            <h3 className="text-xl font-black text-text-main mb-4 flex items-center gap-2"><MessageSquare size={20} className="text-blue-600"/> Notes Internes (SuperAdmin)</h3>
             <textarea 
-              className="w-full h-32 p-3 bg-slate-50 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
+              className="w-full h-32 p-3 bg-background border border-border-main rounded-xl focus:ring-2 focus:ring-blue-500 outline-none resize-none"
               placeholder="Notes sur ce client (visibles uniquement par les super admins)..."
               value={notesModal.notes}
               onChange={(e) => setNotesModal({...notesModal, notes: e.target.value})}
             ></textarea>
             <div className="flex gap-3 mt-4">
-              <button onClick={() => setNotesModal({isOpen: false, clientId: null, notes: ''})} className="flex-1 py-3 font-bold text-slate-600 bg-slate-100 rounded-xl hover:bg-slate-200 transition-colors">Annuler</button>
+              <button onClick={() => setNotesModal({isOpen: false, clientId: null, notes: ''})} className="flex-1 py-3 font-bold text-text-muted bg-input-field rounded-xl hover:bg-input-field transition-colors">Annuler</button>
               <button onClick={saveNotes} className="flex-1 py-3 font-bold text-white bg-blue-600 rounded-xl hover:bg-blue-700 transition-colors">Enregistrer</button>
             </div>
           </div>
@@ -542,20 +542,20 @@ export const SuperAdminDashboard: React.FC = () => {
       {/* HISTORY MODAL */}
       {historyModal.isOpen && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div role="dialog" aria-modal="true" aria-label="Historique Licences" className="bg-white rounded-3xl p-6 w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
+          <div role="dialog" aria-modal="true" aria-label="Historique Licences" className="bg-card rounded-3xl p-6 w-full max-w-2xl shadow-2xl max-h-[80vh] flex flex-col">
             <div className="flex justify-between items-center mb-4">
-              <h3 className="text-xl font-black text-slate-800 flex items-center gap-2"><History size={20} className="text-blue-600"/> Historique Licences</h3>
-              <button onClick={() => setHistoryModal({isOpen: false, clientId: null, history: []})} aria-label="Fermer l’historique licences" className="p-2 bg-slate-100 hover:bg-slate-200 rounded-full"><XCircle size={20} className="text-slate-500"/></button>
+              <h3 className="text-xl font-black text-text-main flex items-center gap-2"><History size={20} className="text-blue-600"/> Historique Licences</h3>
+              <button onClick={() => setHistoryModal({isOpen: false, clientId: null, history: []})} aria-label="Fermer l’historique licences" className="p-2 bg-input-field hover:bg-input-field rounded-full"><XCircle size={20} className="text-text-muted"/></button>
             </div>
             <div className="overflow-y-auto flex-1 pr-2 space-y-3">
               {historyModal.history.length === 0 ? (
-                <p className="text-center text-slate-500 py-4">Aucun historique disponible.</p>
+                <p className="text-center text-text-muted py-4">Aucun historique disponible.</p>
               ) : (
                 historyModal.history.map((item, idx) => (
-                  <div key={idx} className="flex justify-between items-center p-3 bg-slate-50 rounded-xl border border-slate-100">
+                  <div key={idx} className="flex justify-between items-center p-3 bg-background rounded-xl border border-border-main">
                     <div>
-                      <p className="font-bold text-slate-700 capitalize">{item.action.replace('_', ' ')}</p>
-                      <p className="text-xs text-slate-400">{formatDate(item.timestamp)}</p>
+                      <p className="font-bold text-text-main capitalize">{item.action.replace('_', ' ')}</p>
+                      <p className="text-xs text-text-muted">{formatDate(item.timestamp)}</p>
                     </div>
                     {item.duration && (
                       <div className="bg-emerald-100 text-emerald-700 px-2 py-1 rounded-lg text-xs font-black">

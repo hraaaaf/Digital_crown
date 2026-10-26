@@ -218,13 +218,13 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
         subtitle="Contrôlez vos données cliniques et vos accès mobiles."
         icon={<Shield size={32} />}
       >
-        <div className="bg-slate-50 border border-slate-200 rounded-[2.5rem] p-[12px] sm:p-10 flex flex-col items-center justify-center text-center gap-6">
-          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-white rounded-full flex items-center justify-center shadow-xl text-slate-700 border border-slate-100">
+        <div className="bg-background border border-border-main rounded-[2.5rem] p-[12px] sm:p-10 flex flex-col items-center justify-center text-center gap-6">
+          <div className="w-20 h-20 sm:w-24 sm:h-24 bg-card rounded-full flex items-center justify-center shadow-xl text-text-main border border-border-main">
             <Database size={40} />
           </div>
           <div className="max-w-md">
-            <h4 className="font-black text-xl text-slate-800">Sauvegarde chiffrée vérifiée</h4>
-            <p className="text-sm text-slate-500 mt-2 font-medium">Crée une sauvegarde chiffrée du moteur de données actif, vérifie sa création puis télécharge le fichier avec son format réel.</p>
+            <h4 className="font-black text-xl text-text-main">Sauvegarde chiffrée vérifiée</h4>
+            <p className="text-sm text-text-muted mt-2 font-medium">Crée une sauvegarde chiffrée du moteur de données actif, vérifie sa création puis télécharge le fichier avec son format réel.</p>
           </div>
           <button
             onClick={handleExportDB}
@@ -244,10 +244,10 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
               </div>
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <h4 className="break-words text-xl font-black text-slate-900">Restauration guidée</h4>
+                  <h4 className="break-words text-xl font-black text-text-main">Restauration guidée</h4>
                   <span className="px-2.5 py-1 rounded-full text-[11px] font-black tracking-wide uppercase bg-amber-100 text-amber-800">Action sensible</span>
                 </div>
-                <p data-testid="guided-restore-description" className="mt-2 max-w-2xl break-words text-sm font-medium text-slate-600">
+                <p data-testid="guided-restore-description" className="mt-2 max-w-2xl break-words text-sm font-medium text-text-muted">
                   Analyse la sauvegarde, prépare un point de secours vérifié, puis exige une confirmation forte avant le redémarrage. La bascule destructive reste hors du processus actif et rollback automatiquement si le smoke check échoue.
                 </p>
               </div>
@@ -283,14 +283,14 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
           )}
 
           {restore && (
-            <div className="mt-6 rounded-3xl border border-slate-200 bg-white p-4 sm:p-6 shadow-sm">
+            <div className="mt-6 rounded-3xl border border-border-main bg-card p-4 sm:p-6 shadow-sm">
               <div className="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                 <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     {restore.compatible ? <CheckCircle2 size={20} className="text-emerald-600 shrink-0" /> : <AlertTriangle size={20} className="text-rose-600 shrink-0" />}
-                    <h5 className="font-black text-slate-900">{restore.compatible ? 'Préflight validé' : 'Préflight bloqué'}</h5>
+                    <h5 className="font-black text-text-main">{restore.compatible ? 'Préflight validé' : 'Préflight bloqué'}</h5>
                   </div>
-                  <p className="text-xs text-slate-500 mt-1 truncate max-w-xl" title={restore.original_name}>{restore.original_name}</p>
+                  <p className="text-xs text-text-muted mt-1 truncate max-w-xl" title={restore.original_name}>{restore.original_name}</p>
                 </div>
                 <span className={`self-start px-3 py-1.5 rounded-full text-xs font-black ${restore.compatible ? 'bg-emerald-100 text-emerald-800' : 'bg-rose-100 text-rose-800'}`}>
                   {restore.archive_type}
@@ -298,21 +298,21 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
               </div>
 
               <div className="mt-5 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-3">
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-[11px] uppercase tracking-wide font-black text-slate-400">Taille</p>
-                  <p className="font-black text-slate-800 mt-1">{formatBytes(restore.size_bytes)}</p>
+                <div className="rounded-2xl bg-background p-4">
+                  <p className="text-[11px] uppercase tracking-wide font-black text-text-muted">Taille</p>
+                  <p className="font-black text-text-main mt-1">{formatBytes(restore.size_bytes)}</p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-[11px] uppercase tracking-wide font-black text-slate-400">Base de données</p>
-                  <p className="font-black text-slate-800 mt-1">{restore.restore_database ? 'Restaurée' : 'Préservée'}</p>
+                <div className="rounded-2xl bg-background p-4">
+                  <p className="text-[11px] uppercase tracking-wide font-black text-text-muted">Base de données</p>
+                  <p className="font-black text-text-main mt-1">{restore.restore_database ? 'Restaurée' : 'Préservée'}</p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-[11px] uppercase tracking-wide font-black text-slate-400">Médias</p>
-                  <p className="font-black text-slate-800 mt-1">{restore.restore_media ? `Restaurés${restore.media_file_count ? ` · ${restore.media_file_count}` : ''}` : 'Préservés'}</p>
+                <div className="rounded-2xl bg-background p-4">
+                  <p className="text-[11px] uppercase tracking-wide font-black text-text-muted">Médias</p>
+                  <p className="font-black text-text-main mt-1">{restore.restore_media ? `Restaurés${restore.media_file_count ? ` · ${restore.media_file_count}` : ''}` : 'Préservés'}</p>
                 </div>
-                <div className="rounded-2xl bg-slate-50 p-4">
-                  <p className="text-[11px] uppercase tracking-wide font-black text-slate-400">Date backup</p>
-                  <p className="font-black text-slate-800 mt-1 break-words">{restore.backup_created_at || 'Non renseignée'}</p>
+                <div className="rounded-2xl bg-background p-4">
+                  <p className="text-[11px] uppercase tracking-wide font-black text-text-muted">Date backup</p>
+                  <p className="font-black text-text-main mt-1 break-words">{restore.backup_created_at || 'Non renseignée'}</p>
                 </div>
               </div>
 
@@ -332,10 +332,10 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
               )}
 
               {restore.compatible && restore.status === 'preflight_ready' && (
-                <div className="mt-6 pt-5 border-t border-slate-100">
-                  <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
-                    <p className="font-black text-sm text-slate-900">Étape 2 · Préparer la restauration</p>
-                    <p className="text-xs text-slate-600 mt-1">
+                <div className="mt-6 pt-5 border-t border-border-main">
+                  <div className="rounded-2xl border border-border-main bg-background p-4 sm:p-5">
+                    <p className="font-black text-sm text-text-main">Étape 2 · Préparer la restauration</p>
+                    <p className="text-xs text-text-muted mt-1">
                       Revalide le package, crée et vérifie un secours DB, puis fige l’empreinte des médias actuels si le package remplace des médias. Aucune bascule destructive à cette étape.
                     </p>
                     <button
@@ -352,14 +352,14 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
               )}
 
               {restore.compatible && restore.status === 'prepared' && (
-                <div className="mt-6 pt-5 border-t border-slate-100">
+                <div className="mt-6 pt-5 border-t border-border-main">
                   <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm font-bold text-emerald-900 flex items-start gap-3">
                     <CheckCircle2 size={18} className="mt-0.5 shrink-0" />
                     <span>Préparation sécurisée validée. Le package et le point de secours DB ont été vérifiés avant confirmation.</span>
                   </div>
                   <div className="mt-4 rounded-2xl bg-slate-950 p-4 sm:p-5 text-white">
                     <p className="font-black text-sm">Confirmation finale</p>
-                    <p className="text-xs text-slate-300 mt-1">Tapez <span className="font-black text-white">RESTAURER</span>. L’application s’arrêtera, revérifiera le secours exact puis basculera hors-processus.</p>
+                    <p className="text-xs text-text-muted mt-1">Tapez <span className="font-black text-white">RESTAURER</span>. L’application s’arrêtera, revérifiera le secours exact puis basculera hors-processus.</p>
                     <div className="mt-4 flex flex-col sm:flex-row gap-3">
                       <input
                         value={confirmation}
@@ -367,13 +367,13 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
                         disabled={restoreInFlight || isApplying}
                         placeholder="RESTAURER"
                         autoComplete="off"
-                        className="min-w-0 flex-1 rounded-xl border border-slate-700 bg-slate-900 px-4 py-3 text-sm font-black tracking-wide text-white placeholder:text-slate-600 outline-none focus:border-amber-400 disabled:opacity-60"
+                        className="min-w-0 flex-1 rounded-xl border border-border-hover bg-slate-900 px-4 py-3 text-sm font-black tracking-wide text-white placeholder:text-text-muted outline-none focus:border-amber-400 disabled:opacity-60"
                       />
                       <button
                         type="button"
                         onClick={handleApplyRestore}
                         disabled={!canApply}
-                        className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-3 text-sm font-black text-slate-950 transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                        className="rounded-xl bg-amber-500 hover:bg-amber-400 px-5 py-3 text-sm font-black text-text-main transition disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                       >
                         {isApplying || restoreInFlight ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
                         {restoreInFlight ? 'Restauration en cours...' : 'Redémarrer et restaurer'}
@@ -392,7 +392,7 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
 
               {!restoreInFlight && (
                 <div className="mt-4 flex justify-end">
-                  <button type="button" onClick={() => void handleCancelRestore()} className="px-4 py-2 text-sm font-black text-slate-500 hover:text-slate-800 flex items-center gap-2">
+                  <button type="button" onClick={() => void handleCancelRestore()} className="px-4 py-2 text-sm font-black text-text-muted hover:text-text-main flex items-center gap-2">
                     <X size={16} /> Fermer ce préflight
                   </button>
                 </div>
@@ -402,16 +402,16 @@ export const SecurityTab: React.FC<{ ownerVerified?: boolean }> = ({ ownerVerifi
         </div>
 
         {mayViewBlockedPrints && (
-          <div className="min-w-0 border-t border-slate-100 pt-10">
+          <div className="min-w-0 border-t border-border-main pt-10">
             <BlockedPrintJobsReadOnly ownerVerified />
           </div>
         )}
 
-        <div className="pt-10 border-t border-slate-100">
+        <div className="pt-10 border-t border-border-main">
           <MobileSecurity />
         </div>
 
-        <div className="pt-10 border-t border-slate-100">
+        <div className="pt-10 border-t border-border-main">
           <AuditLogViewer />
         </div>
       </SettingsSection>

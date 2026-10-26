@@ -159,13 +159,13 @@ const ExceptionModal: React.FC<{
         if (event.target === event.currentTarget && !saving) onClose();
       }}
     >
-      <div role="dialog" aria-modal="true" aria-labelledby="agenda-exception-title" className="w-full max-w-lg rounded-t-[2rem] bg-white p-6 shadow-2xl sm:rounded-[2rem] sm:p-8">
+      <div role="dialog" aria-modal="true" aria-labelledby="agenda-exception-title" className="w-full max-w-lg rounded-t-[2rem] bg-card p-6 shadow-2xl sm:rounded-[2rem] sm:p-8">
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Agenda du cabinet</p>
-            <h3 id="agenda-exception-title" className="mt-1 text-2xl font-black tracking-tight text-slate-900">Ajouter une fermeture</h3>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">Agenda du cabinet</p>
+            <h3 id="agenda-exception-title" className="mt-1 text-2xl font-black tracking-tight text-text-main">Ajouter une fermeture</h3>
           </div>
-          <button type="button" onClick={onClose} disabled={saving} aria-label="Fermer" className="rounded-xl border border-slate-200 p-2 text-slate-500 hover:bg-slate-50 disabled:opacity-40">
+          <button type="button" onClick={onClose} disabled={saving} aria-label="Fermer" className="rounded-xl border border-border-main p-2 text-text-muted hover:bg-background disabled:opacity-40">
             <X size={18} />
           </button>
         </div>
@@ -173,21 +173,21 @@ const ExceptionModal: React.FC<{
         <form onSubmit={submit} className="space-y-5">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <label className="space-y-2">
-              <span className="block text-xs font-black uppercase tracking-wider text-slate-500">Début *</span>
-              <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
+              <span className="block text-xs font-black uppercase tracking-wider text-text-muted">Début *</span>
+              <input type="date" value={startDate} onChange={(event) => setStartDate(event.target.value)} className="w-full rounded-2xl border border-border-main px-4 py-3 font-semibold text-text-main outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
             </label>
             <label className="space-y-2">
-              <span className="block text-xs font-black uppercase tracking-wider text-slate-500">Fin *</span>
-              <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
+              <span className="block text-xs font-black uppercase tracking-wider text-text-muted">Fin *</span>
+              <input type="date" value={endDate} onChange={(event) => setEndDate(event.target.value)} className="w-full rounded-2xl border border-border-main px-4 py-3 font-semibold text-text-main outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
             </label>
           </div>
           <label className="block space-y-2">
-            <span className="block text-xs font-black uppercase tracking-wider text-slate-500">Motif</span>
-            <input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={255} placeholder="Ex. Congés annuels" className="w-full rounded-2xl border border-slate-200 px-4 py-3 font-semibold text-slate-800 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
+            <span className="block text-xs font-black uppercase tracking-wider text-text-muted">Motif</span>
+            <input value={reason} onChange={(event) => setReason(event.target.value)} maxLength={255} placeholder="Ex. Congés annuels" className="w-full rounded-2xl border border-border-main px-4 py-3 font-semibold text-text-main outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100" />
           </label>
           {error && <p role="alert" className="rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{error}</p>}
           <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
-            <button type="button" onClick={onClose} disabled={saving} className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 hover:bg-slate-50 disabled:opacity-40">Annuler</button>
+            <button type="button" onClick={onClose} disabled={saving} className="rounded-2xl border border-border-main px-5 py-3 text-sm font-bold text-text-muted hover:bg-background disabled:opacity-40">Annuler</button>
             <button type="submit" disabled={saving} className="rounded-2xl bg-slate-900 px-5 py-3 text-sm font-black text-white hover:bg-black disabled:opacity-60">{saving ? 'Ajout…' : 'Ajouter'}</button>
           </div>
         </form>
@@ -283,45 +283,45 @@ export const AgendaTab: React.FC = () => {
 
   const openDays = useMemo(() => settings ? WEEKDAYS.filter(({ key }) => settings.weekly_schedule[key].is_open).length : 0, [settings]);
 
-  if (loading) return <div className="p-8 text-center text-slate-500">Chargement...</div>;
+  if (loading) return <div className="p-8 text-center text-text-muted">Chargement...</div>;
   if (readError) return <SettingsReadError title="Horaires indisponibles" message={readError} onRetry={fetchSettings} />;
   if (!settings) return null;
 
-  const timeInputClass = 'min-w-0 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5 text-sm font-bold text-slate-700 outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100';
+  const timeInputClass = 'min-w-0 w-full rounded-xl border border-border-main bg-background px-3 py-2.5 text-sm font-bold text-text-main outline-none focus:border-blue-400 focus:ring-4 focus:ring-blue-100';
 
   return (
     <div className="min-w-0 space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="flex items-center gap-3 text-2xl font-black tracking-tight text-slate-900 sm:text-3xl"><CalendarDays className="shrink-0 text-primary" size={30} />Horaires & Agenda</h2>
-          <p className="mt-2 max-w-2xl text-sm font-medium text-slate-500">Définissez les heures réellement utilisées par l'agenda et les fermetures du cabinet.</p>
+          <h2 className="flex items-center gap-3 text-2xl font-black tracking-tight text-text-main sm:text-3xl"><CalendarDays className="shrink-0 text-primary" size={30} />Horaires & Agenda</h2>
+          <p className="mt-2 max-w-2xl text-sm font-medium text-text-muted">Définissez les heures réellement utilisées par l'agenda et les fermetures du cabinet.</p>
         </div>
         {dirty && <span className="w-fit rounded-full bg-amber-50 px-3 py-1.5 text-[11px] font-black uppercase tracking-wide text-amber-700">Modifications non enregistrées</span>}
       </div>
 
-      <section className="min-w-0 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+      <section className="min-w-0 rounded-[2rem] border border-border-main bg-card p-5 shadow-sm sm:p-7">
         <div className="mb-6 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
           <div>
-            <h3 className="flex items-center gap-3 text-xl font-black text-slate-900"><Clock3 className="text-blue-500" />Semaine d'ouverture</h3>
-            <p className="mt-1 text-sm font-medium text-slate-500">{openDays} jour{openDays > 1 ? 's' : ''} ouvert{openDays > 1 ? 's' : ''} sur 7.</p>
+            <h3 className="flex items-center gap-3 text-xl font-black text-text-main"><Clock3 className="text-blue-500" />Semaine d'ouverture</h3>
+            <p className="mt-1 text-sm font-medium text-text-muted">{openDays} jour{openDays > 1 ? 's' : ''} ouvert{openDays > 1 ? 's' : ''} sur 7.</p>
           </div>
-          <p className="text-xs font-semibold text-slate-400">Chaque jour peut avoir sa propre amplitude.</p>
+          <p className="text-xs font-semibold text-text-muted">Chaque jour peut avoir sa propre amplitude.</p>
         </div>
 
         <div className="space-y-3">
           {WEEKDAYS.map(({ key, label, short }) => {
             const day = settings.weekly_schedule[key];
             return (
-              <article key={key} className={cn('rounded-2xl border p-4 transition-colors sm:p-5', day.is_open ? 'border-slate-200 bg-white' : 'border-slate-100 bg-slate-50/80')}>
+              <article key={key} className={cn('rounded-2xl border p-4 transition-colors sm:p-5', day.is_open ? 'border-border-main bg-card' : 'border-border-main bg-background/80')}>
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-3">
-                    <span className={cn('flex h-10 w-10 items-center justify-center rounded-xl text-xs font-black uppercase', day.is_open ? 'bg-blue-50 text-blue-700' : 'bg-slate-200 text-slate-500')}>{short}</span>
+                    <span className={cn('flex h-10 w-10 items-center justify-center rounded-xl text-xs font-black uppercase', day.is_open ? 'bg-blue-50 text-blue-700' : 'bg-input-field text-text-muted')}>{short}</span>
                     <div>
-                      <p className={cn('font-black', day.is_open ? 'text-slate-800' : 'text-slate-500')}>{label}</p>
-                      <p className="text-xs font-medium text-slate-400">{day.is_open ? (day.is_continuous ? 'Journée continue' : 'Avec pause') : 'Cabinet fermé'}</p>
+                      <p className={cn('font-black', day.is_open ? 'text-text-main' : 'text-text-muted')}>{label}</p>
+                      <p className="text-xs font-medium text-text-muted">{day.is_open ? (day.is_continuous ? 'Journée continue' : 'Avec pause') : 'Cabinet fermé'}</p>
                     </div>
                   </div>
-                  <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-slate-600">
+                  <label className="flex cursor-pointer items-center gap-2 text-sm font-bold text-text-muted">
                     <span className="hidden sm:inline">{day.is_open ? 'Ouvert' : 'Fermé'}</span>
                     <input type="checkbox" checked={day.is_open} onChange={(event) => updateDay(key, { is_open: event.target.checked })} className="h-5 w-5 accent-slate-900" aria-label={`${label} ouvert`} />
                   </label>
@@ -330,25 +330,25 @@ export const AgendaTab: React.FC = () => {
                 {day.is_open && (
                   <div className="mt-4 grid min-w-0 grid-cols-1 gap-4 xl:grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] xl:items-end">
                     <div className="min-w-0">
-                      <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">{day.is_continuous ? 'Ouverture' : 'Matin'}</p>
+                      <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-text-muted">{day.is_continuous ? 'Ouverture' : 'Matin'}</p>
                       <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                         <input type="time" value={day.morning_start} onChange={(event) => updateDay(key, { morning_start: event.target.value })} className={timeInputClass} aria-label={`${label} ouverture matin`} />
-                        <span className="text-center text-xs font-black text-slate-400">→</span>
+                        <span className="text-center text-xs font-black text-text-muted">→</span>
                         <input type="time" value={day.morning_end} onChange={(event) => updateDay(key, { morning_end: event.target.value })} className={timeInputClass} aria-label={`${label} fermeture matin`} />
                       </div>
                     </div>
 
-                    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-slate-50 px-3 py-2.5 text-xs font-bold text-slate-600 xl:mb-0">
+                    <label className="flex cursor-pointer items-center justify-between gap-3 rounded-xl bg-background px-3 py-2.5 text-xs font-bold text-text-muted xl:mb-0">
                       <span>Journée continue</span>
                       <input type="checkbox" checked={day.is_continuous} onChange={(event) => updateDay(key, { is_continuous: event.target.checked })} className="h-4 w-4 accent-slate-900" aria-label={`${label} journée continue`} />
                     </label>
 
                     {!day.is_continuous && (
                       <div className="min-w-0">
-                        <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-slate-400">Après-midi</p>
+                        <p className="mb-2 text-[10px] font-black uppercase tracking-wider text-text-muted">Après-midi</p>
                         <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-center gap-2">
                           <input type="time" value={day.afternoon_start} onChange={(event) => updateDay(key, { afternoon_start: event.target.value })} className={timeInputClass} aria-label={`${label} ouverture après-midi`} />
-                          <span className="text-center text-xs font-black text-slate-400">→</span>
+                          <span className="text-center text-xs font-black text-text-muted">→</span>
                           <input type="time" value={day.afternoon_end} onChange={(event) => updateDay(key, { afternoon_end: event.target.value })} className={timeInputClass} aria-label={`${label} fermeture après-midi`} />
                         </div>
                       </div>
@@ -361,11 +361,11 @@ export const AgendaTab: React.FC = () => {
         </div>
       </section>
 
-      <section className="min-w-0 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm sm:p-7">
+      <section className="min-w-0 rounded-[2rem] border border-border-main bg-card p-5 shadow-sm sm:p-7">
         <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
           <div>
-            <h3 className="flex items-center gap-3 text-xl font-black text-slate-900"><Calendar className="text-violet-500" />Fermetures & exceptions</h3>
-            <p className="mt-1 text-sm font-medium text-slate-500">Congés, fermeture ponctuelle ou indisponibilité du cabinet.</p>
+            <h3 className="flex items-center gap-3 text-xl font-black text-text-main"><Calendar className="text-violet-500" />Fermetures & exceptions</h3>
+            <p className="mt-1 text-sm font-medium text-text-muted">Congés, fermeture ponctuelle ou indisponibilité du cabinet.</p>
           </div>
           <button type="button" onClick={() => setShowExceptionModal(true)} className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-violet-50 px-4 py-2.5 text-sm font-black text-violet-700 hover:bg-violet-100 sm:w-auto">
             <Plus size={16} /> Ajouter une fermeture
@@ -373,29 +373,29 @@ export const AgendaTab: React.FC = () => {
         </div>
 
         {exceptions.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50/60 p-8 text-center">
-            <p className="font-bold text-slate-600">Aucune fermeture enregistrée</p>
-            <p className="mt-1 text-sm text-slate-400">L'agenda suit actuellement uniquement votre semaine d'ouverture.</p>
+          <div className="rounded-2xl border-2 border-dashed border-border-main bg-background/60 p-8 text-center">
+            <p className="font-bold text-text-muted">Aucune fermeture enregistrée</p>
+            <p className="mt-1 text-sm text-text-muted">L'agenda suit actuellement uniquement votre semaine d'ouverture.</p>
           </div>
         ) : (
           <div className="space-y-3">
             {exceptions.map((exception) => (
-              <article key={exception.id} className="flex flex-col gap-3 rounded-2xl border border-slate-200 p-4 sm:flex-row sm:items-center sm:justify-between">
+              <article key={exception.id} className="flex flex-col gap-3 rounded-2xl border border-border-main p-4 sm:flex-row sm:items-center sm:justify-between">
                 <div className="min-w-0">
-                  <p className="font-black text-slate-800">{exception.reason || 'Fermeture du cabinet'}</p>
-                  <p className="mt-1 text-sm font-medium text-slate-500">
+                  <p className="font-black text-text-main">{exception.reason || 'Fermeture du cabinet'}</p>
+                  <p className="mt-1 text-sm font-medium text-text-muted">
                     {formatDate(exception.start_date)}{exception.start_date.slice(0, 10) !== exception.end_date.slice(0, 10) ? ` → ${formatDate(exception.end_date)}` : ''}
                   </p>
                 </div>
                 {confirmDeleteId === exception.id ? (
                   <div className="flex shrink-0 gap-2">
-                    <button type="button" onClick={() => setConfirmDeleteId(null)} disabled={deletingId === exception.id} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600">Annuler</button>
+                    <button type="button" onClick={() => setConfirmDeleteId(null)} disabled={deletingId === exception.id} className="rounded-xl border border-border-main px-3 py-2 text-xs font-bold text-text-muted">Annuler</button>
                     <button type="button" onClick={() => void deleteException(exception.id)} disabled={deletingId === exception.id} className="inline-flex items-center gap-1.5 rounded-xl bg-rose-600 px-3 py-2 text-xs font-black text-white disabled:opacity-50">
                       <Trash2 size={14} /> {deletingId === exception.id ? 'Retrait…' : 'Confirmer'}
                     </button>
                   </div>
                 ) : (
-                  <button type="button" onClick={() => setConfirmDeleteId(exception.id)} className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-bold text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700">Retirer</button>
+                  <button type="button" onClick={() => setConfirmDeleteId(exception.id)} className="shrink-0 rounded-xl border border-border-main px-3 py-2 text-xs font-bold text-text-muted hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700">Retirer</button>
                 )}
               </article>
             ))}

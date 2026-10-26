@@ -34,7 +34,7 @@ const StatusBadge: React.FC<{ active: boolean }> = ({ active }) => (
   <span
     className={cn(
       'inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-wide',
-      active ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-500',
+      active ? 'bg-emerald-50 text-emerald-700' : 'bg-input-field text-text-muted',
     )}
   >
     {active ? <CheckCircle2 size={12} /> : <CircleOff size={12} />}
@@ -43,7 +43,7 @@ const StatusBadge: React.FC<{ active: boolean }> = ({ active }) => (
 );
 
 const FieldLabel: React.FC<React.PropsWithChildren> = ({ children }) => (
-  <span className="text-xs font-black uppercase tracking-wider text-slate-500">{children}</span>
+  <span className="text-xs font-black uppercase tracking-wider text-text-muted">{children}</span>
 );
 
 const CatalogFormModal: React.FC<{
@@ -169,19 +169,19 @@ const CatalogFormModal: React.FC<{
         role="dialog"
         aria-modal="true"
         aria-labelledby="catalog-modal-title"
-        className="max-h-[92vh] w-full overflow-y-auto rounded-t-[2rem] bg-white p-6 shadow-2xl sm:max-w-xl sm:rounded-[2rem] sm:p-8"
+        className="max-h-[92vh] w-full overflow-y-auto rounded-t-[2rem] bg-card p-6 shadow-2xl sm:max-w-xl sm:rounded-[2rem] sm:p-8"
       >
         <div className="mb-6 flex items-start justify-between gap-4">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-slate-400">Catalogue du cabinet</p>
-            <h3 id="catalog-modal-title" className="mt-1 text-2xl font-black tracking-tight text-slate-900">{title}</h3>
+            <p className="text-[11px] font-black uppercase tracking-[0.18em] text-text-muted">Catalogue du cabinet</p>
+            <h3 id="catalog-modal-title" className="mt-1 text-2xl font-black tracking-tight text-text-main">{title}</h3>
           </div>
           <button
             type="button"
             onClick={onClose}
             disabled={saving}
             aria-label="Fermer"
-            className="rounded-xl border border-slate-200 p-2 text-slate-500 transition-colors hover:bg-slate-50 disabled:opacity-40"
+            className="rounded-xl border border-border-main p-2 text-text-muted transition-colors hover:bg-background disabled:opacity-40"
           >
             <X size={18} />
           </button>
@@ -195,7 +195,7 @@ const CatalogFormModal: React.FC<{
               value={name}
               onChange={(event) => setName(event.target.value)}
               maxLength={255}
-              className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+              className="w-full rounded-2xl border border-border-main px-4 py-3 text-sm font-semibold text-text-main outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
               placeholder={modal.kind === 'act' ? 'Ex. Détartrage' : modal.kind === 'pathology' ? 'Ex. Gingivite' : 'Ex. Orthodontie'}
             />
           </label>
@@ -203,7 +203,7 @@ const CatalogFormModal: React.FC<{
           {modal.kind === 'specialty' && (
             <label className="block space-y-2">
               <FieldLabel>Couleur</FieldLabel>
-              <div className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
+              <div className="flex items-center gap-3 rounded-2xl border border-border-main p-3">
                 <input
                   type="color"
                   value={color}
@@ -211,16 +211,16 @@ const CatalogFormModal: React.FC<{
                   className="h-10 w-14 cursor-pointer rounded-lg border-0 bg-transparent p-0"
                   aria-label="Couleur de la spécialité"
                 />
-                <span className="text-sm font-bold uppercase text-slate-500">{color}</span>
+                <span className="text-sm font-bold uppercase text-text-muted">{color}</span>
               </div>
             </label>
           )}
 
           {modal.kind === 'act' && (
             <>
-              <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+              <div className="rounded-2xl border border-border-main bg-background px-4 py-3">
                 <FieldLabel>Spécialité</FieldLabel>
-                <p className="mt-1 text-sm font-black text-slate-800">{actSpecialty?.name || 'Spécialité inconnue'}</p>
+                <p className="mt-1 text-sm font-black text-text-main">{actSpecialty?.name || 'Spécialité inconnue'}</p>
               </div>
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
                 <label className="block space-y-2">
@@ -229,7 +229,7 @@ const CatalogFormModal: React.FC<{
                     value={code}
                     onChange={(event) => setCode(event.target.value)}
                     maxLength={50}
-                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                    className="w-full rounded-2xl border border-border-main px-4 py-3 text-sm font-semibold text-text-main outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
                     placeholder="Ex. DET"
                   />
                 </label>
@@ -239,14 +239,14 @@ const CatalogFormModal: React.FC<{
                     inputMode="decimal"
                     value={price}
                     onChange={(event) => setPrice(event.target.value)}
-                    className="w-full rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
+                    className="w-full rounded-2xl border border-border-main px-4 py-3 text-sm font-semibold text-text-main outline-none transition focus:border-sky-400 focus:ring-4 focus:ring-sky-100"
                     placeholder="Tarif à définir"
                   />
                 </label>
               </div>
               <label className="block space-y-2">
                 <FieldLabel>Couleur</FieldLabel>
-                <div className="flex items-center gap-3 rounded-2xl border border-slate-200 p-3">
+                <div className="flex items-center gap-3 rounded-2xl border border-border-main p-3">
                   <input
                     type="color"
                     value={color}
@@ -254,7 +254,7 @@ const CatalogFormModal: React.FC<{
                     className="h-10 w-14 cursor-pointer rounded-lg border-0 bg-transparent p-0"
                     aria-label="Couleur de l'acte"
                   />
-                  <span className="text-sm font-bold uppercase text-slate-500">{color}</span>
+                  <span className="text-sm font-bold uppercase text-text-muted">{color}</span>
                 </div>
               </label>
               <CatalogActApplicabilityEditor value={applicability} onChange={setApplicability} />
@@ -269,17 +269,17 @@ const CatalogFormModal: React.FC<{
                 onChange={(event) => setDescription(event.target.value)}
                 rows={3}
                 maxLength={1000}
-                className="w-full resize-none rounded-2xl border border-slate-200 px-4 py-3 text-sm font-semibold text-slate-800 outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
+                className="w-full resize-none rounded-2xl border border-border-main px-4 py-3 text-sm font-semibold text-text-main outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100"
                 placeholder="Description facultative"
               />
             </label>
           )}
 
           {modal.kind !== 'specialty' && modal.mode === 'edit' && (
-            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-slate-200 p-4">
+            <label className="flex cursor-pointer items-center justify-between gap-4 rounded-2xl border border-border-main p-4">
               <div>
-                <p className="font-bold text-slate-800">Disponible dans le catalogue</p>
-                <p className="mt-0.5 text-xs text-slate-500">Désactiver conserve l'historique sans supprimer la donnée.</p>
+                <p className="font-bold text-text-main">Disponible dans le catalogue</p>
+                <p className="mt-0.5 text-xs text-text-muted">Désactiver conserve l'historique sans supprimer la donnée.</p>
               </div>
               <input
                 type="checkbox"
@@ -300,7 +300,7 @@ const CatalogFormModal: React.FC<{
               type="button"
               onClick={onClose}
               disabled={saving}
-              className="rounded-2xl border border-slate-200 px-5 py-3 text-sm font-bold text-slate-600 transition hover:bg-slate-50 disabled:opacity-40"
+              className="rounded-2xl border border-border-main px-5 py-3 text-sm font-bold text-text-muted transition hover:bg-background disabled:opacity-40"
             >
               Annuler
             </button>
@@ -337,7 +337,7 @@ export const CatalogTab: React.FC = () => {
   }, [activeSpecialty, activeSpecialtyId]);
 
   if (loading && specialties.length === 0) {
-    return <div className="p-8 text-center text-sm font-bold uppercase tracking-widest text-slate-500 animate-pulse">Chargement du catalogue...</div>;
+    return <div className="p-8 text-center text-sm font-bold uppercase tracking-widest text-text-muted animate-pulse">Chargement du catalogue...</div>;
   }
 
   if (readError) {
@@ -348,8 +348,8 @@ export const CatalogTab: React.FC = () => {
     <div className="space-y-7 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
-          <h2 className="text-3xl font-black tracking-tight text-slate-900">Catalogue des actes</h2>
-          <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">Bibliothèque clinique de référence pré-remplie, entièrement modifiable. Ajoutez librement vos spécialités et vos actes ; les tarifs de référence restent volontairement à définir par le praticien.</p>
+          <h2 className="text-3xl font-black tracking-tight text-text-main">Catalogue des actes</h2>
+          <p className="mt-1 max-w-2xl text-sm font-medium text-text-muted">Bibliothèque clinique de référence pré-remplie, entièrement modifiable. Ajoutez librement vos spécialités et vos actes ; les tarifs de référence restent volontairement à définir par le praticien.</p>
         </div>
         <button
           type="button"
@@ -372,8 +372,8 @@ export const CatalogTab: React.FC = () => {
                 className={cn(
                   'flex items-stretch overflow-hidden rounded-[1.5rem] border transition-all duration-200',
                   selected
-                    ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/15'
-                    : 'border-slate-100 bg-white text-slate-700 hover:border-slate-300 hover:shadow-md',
+                    ? 'border-border-hover bg-slate-900 text-white shadow-xl shadow-slate-900/15'
+                    : 'border-border-main bg-card text-text-main hover:border-border-hover hover:shadow-md',
                 )}
               >
                 <button
@@ -381,12 +381,12 @@ export const CatalogTab: React.FC = () => {
                   onClick={() => setActiveSpecialtyId(specialty.id)}
                   className="flex min-w-0 flex-1 items-center gap-4 p-5 text-left"
                 >
-                  <span className={cn('shrink-0 rounded-2xl p-3', selected ? 'bg-white/10' : 'bg-slate-50')}>
-                    <Stethoscope size={22} className={selected ? 'text-white' : 'text-slate-600'} />
+                  <span className={cn('shrink-0 rounded-2xl p-3', selected ? 'bg-white/10' : 'bg-background')}>
+                    <Stethoscope size={22} className={selected ? 'text-white' : 'text-text-muted'} />
                   </span>
                   <span className="min-w-0">
                     <span className="block truncate text-[1.05rem] font-bold tracking-tight">{specialty.name}</span>
-                    <span className={cn('mt-1 block text-xs font-semibold', selected ? 'text-slate-300' : 'text-slate-500')}>
+                    <span className={cn('mt-1 block text-xs font-semibold', selected ? 'text-text-muted' : 'text-text-muted')}>
                       {activeActs} actif{activeActs > 1 ? 's' : ''}
                       {inactiveActs > 0 ? ` · ${inactiveActs} inactif${inactiveActs > 1 ? 's' : ''}` : ''}
                       {' · '}{specialty.pathologies.length} pathol.
@@ -400,7 +400,7 @@ export const CatalogTab: React.FC = () => {
                   title="Modifier la spécialité"
                   className={cn(
                     'flex w-12 shrink-0 items-center justify-center border-l transition-colors',
-                    selected ? 'border-white/10 text-slate-300 hover:bg-white/10 hover:text-white' : 'border-slate-100 text-slate-400 hover:bg-slate-50 hover:text-slate-700',
+                    selected ? 'border-white/10 text-text-muted hover:bg-white/10 hover:text-white' : 'border-border-main text-text-muted hover:bg-background hover:text-text-main',
                   )}
                 >
                   <Pencil size={16} />
@@ -410,8 +410,8 @@ export const CatalogTab: React.FC = () => {
           })}
 
           {specialties.length === 0 && (
-            <div className="rounded-[2rem] border-2 border-dashed border-slate-200 bg-slate-50/50 p-10 text-center text-slate-400">
-              <p className="mb-2 text-lg font-bold text-slate-500">Aucune spécialité</p>
+            <div className="rounded-[2rem] border-2 border-dashed border-border-main bg-background/50 p-10 text-center text-text-muted">
+              <p className="mb-2 text-lg font-bold text-text-muted">Aucune spécialité</p>
               <p className="text-sm">Ajoutez une spécialité pour construire le catalogue du cabinet.</p>
             </div>
           )}
@@ -419,12 +419,12 @@ export const CatalogTab: React.FC = () => {
 
         {activeSpecialty && (
           <div className="min-w-0 flex-1 space-y-6">
-            <section className="relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-5 shadow-xl shadow-slate-100/50 sm:p-8">
+            <section className="relative overflow-hidden rounded-[2rem] border border-border-main bg-card p-5 shadow-xl shadow-slate-100/50 sm:p-8">
               <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/3 rounded-full bg-sky-500/5 blur-3xl" />
               <div className="relative mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-slate-400">{activeSpecialty.name}</p>
-                  <h3 className="mt-1 flex items-center gap-3 text-xl font-black text-slate-900">
+                  <p className="text-[11px] font-black uppercase tracking-[0.16em] text-text-muted">{activeSpecialty.name}</p>
+                  <h3 className="mt-1 flex items-center gap-3 text-xl font-black text-text-main">
                     <span className="rounded-xl bg-sky-100 p-2 text-sky-600"><Activity size={20} /></span>
                     Actes cliniques
                   </h3>
@@ -444,24 +444,24 @@ export const CatalogTab: React.FC = () => {
                     key={act.id}
                     className={cn(
                       'flex min-w-0 items-center justify-between gap-4 rounded-[1.25rem] border p-4 shadow-sm transition-colors sm:p-5',
-                      act.is_active ? 'border-slate-100 bg-white hover:border-sky-200' : 'border-slate-200 bg-slate-50/80',
+                      act.is_active ? 'border-border-main bg-card hover:border-sky-200' : 'border-border-main bg-background/80',
                     )}
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className={cn('font-bold', act.is_active ? 'text-slate-700' : 'text-slate-500')}>{act.name}</p>
+                        <p className={cn('font-bold', act.is_active ? 'text-text-main' : 'text-text-muted')}>{act.name}</p>
                         <StatusBadge active={act.is_active} />
                       </div>
                       <div className="mt-2 flex flex-wrap items-center gap-2">
-                        {act.code && <span className="rounded bg-slate-100 px-1.5 py-0.5 font-mono text-[10px] font-bold text-slate-400">{act.code}</span>}
+                        {act.code && <span className="rounded bg-input-field px-1.5 py-0.5 font-mono text-[10px] font-bold text-text-muted">{act.code}</span>}
                         <span className="text-sm font-black text-sky-700">{Number(act.base_price) > 0 ? `${act.base_price} DHS` : 'Tarif à définir'}</span>
                         {act.last_used_at && (
-                          <span className="text-[10px] font-bold text-slate-400">
+                          <span className="text-[10px] font-bold text-text-muted">
                             Récent · {new Date(act.last_used_at).toLocaleDateString('fr-FR')}
                           </span>
                         )}
                         {act.usage_count > 0 && (
-                          <span className="text-[10px] font-bold text-slate-400">{act.usage_count} utilisation(s)</span>
+                          <span className="text-[10px] font-bold text-text-muted">{act.usage_count} utilisation(s)</span>
                         )}
                       </div>
                     </div>
@@ -471,13 +471,13 @@ export const CatalogTab: React.FC = () => {
                         onClick={() => void setActFavorite(act.id, !act.is_favorite)}
                         aria-label={act.is_favorite ? `Retirer ${act.name} des favoris` : `Ajouter ${act.name} aux favoris`}
                         title={act.is_favorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}
-                        className="rounded-xl border border-slate-200 p-2.5 transition hover:border-primary/30 hover:bg-primary/5"
+                        className="rounded-xl border border-border-main p-2.5 transition hover:border-primary/30 hover:bg-primary/5"
                       >
                         <Star
                           size={15}
                           className={cn(
                             'transition-colors',
-                            act.is_favorite ? 'fill-primary text-primary' : 'text-slate-400',
+                            act.is_favorite ? 'fill-primary text-primary' : 'text-text-muted',
                           )}
                         />
                       </button>
@@ -486,7 +486,7 @@ export const CatalogTab: React.FC = () => {
                         onClick={() => setModal({ kind: 'act', mode: 'edit', specialtyId: activeSpecialty.id, act })}
                         aria-label={`Modifier l'acte ${act.name}`}
                         title="Modifier l'acte"
-                        className="rounded-xl border border-slate-200 p-2.5 text-slate-500 transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
+                        className="rounded-xl border border-border-main p-2.5 text-text-muted transition hover:border-sky-200 hover:bg-sky-50 hover:text-sky-700"
                       >
                         <Pencil size={15} />
                       </button>
@@ -494,15 +494,15 @@ export const CatalogTab: React.FC = () => {
                   </article>
                 ))}
                 {activeSpecialty.acts.length === 0 && (
-                  <div className="col-span-full py-8 text-center text-sm font-medium text-slate-400">Aucun acte dans cette spécialité</div>
+                  <div className="col-span-full py-8 text-center text-sm font-medium text-text-muted">Aucun acte dans cette spécialité</div>
                 )}
               </div>
             </section>
 
-            <section className="relative overflow-hidden rounded-[2rem] border border-slate-100 bg-white p-5 shadow-xl shadow-slate-100/50 sm:p-8">
+            <section className="relative overflow-hidden rounded-[2rem] border border-border-main bg-card p-5 shadow-xl shadow-slate-100/50 sm:p-8">
               <div className="pointer-events-none absolute right-0 top-0 h-64 w-64 -translate-y-1/2 translate-x-1/3 rounded-full bg-rose-500/5 blur-3xl" />
               <div className="relative mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <h3 className="flex items-center gap-3 text-xl font-black text-slate-900">
+                <h3 className="flex items-center gap-3 text-xl font-black text-text-main">
                   <span className="rounded-xl bg-rose-100 p-2 text-rose-600"><FolderPlus size={20} /></span>
                   Pathologies
                 </h3>
@@ -521,29 +521,29 @@ export const CatalogTab: React.FC = () => {
                     key={pathology.id}
                     className={cn(
                       'flex min-w-0 items-center justify-between gap-3 rounded-xl border px-4 py-3 shadow-sm',
-                      pathology.is_active ? 'border-slate-200 bg-white' : 'border-slate-200 bg-slate-50/80',
+                      pathology.is_active ? 'border-border-main bg-card' : 'border-border-main bg-background/80',
                     )}
                   >
                     <div className="min-w-0">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className={cn('text-sm font-bold', pathology.is_active ? 'text-slate-700' : 'text-slate-500')}>{pathology.name}</p>
+                        <p className={cn('text-sm font-bold', pathology.is_active ? 'text-text-main' : 'text-text-muted')}>{pathology.name}</p>
                         <StatusBadge active={pathology.is_active} />
                       </div>
-                      {pathology.description && <p className="mt-1 line-clamp-2 text-xs text-slate-400">{pathology.description}</p>}
+                      {pathology.description && <p className="mt-1 line-clamp-2 text-xs text-text-muted">{pathology.description}</p>}
                     </div>
                     <button
                       type="button"
                       onClick={() => setModal({ kind: 'pathology', mode: 'edit', specialtyId: activeSpecialty.id, pathology })}
                       aria-label={`Modifier la pathologie ${pathology.name}`}
                       title="Modifier la pathologie"
-                      className="shrink-0 rounded-lg p-2 text-slate-400 transition hover:bg-rose-50 hover:text-rose-700"
+                      className="shrink-0 rounded-lg p-2 text-text-muted transition hover:bg-rose-50 hover:text-rose-700"
                     >
                       <Pencil size={14} />
                     </button>
                   </article>
                 ))}
                 {activeSpecialty.pathologies.length === 0 && (
-                  <div className="col-span-full py-8 text-center text-sm font-medium text-slate-400">Aucune pathologie dans cette spécialité</div>
+                  <div className="col-span-full py-8 text-center text-sm font-medium text-text-muted">Aucune pathologie dans cette spécialité</div>
                 )}
               </div>
             </section>

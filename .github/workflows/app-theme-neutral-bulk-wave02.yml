@@ -1,0 +1,57 @@
+name: App Theme Wave02 — Exact-Diff Neutral Tokens (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/theme-neutral-bulk-wave02-20261025
+  pull_request:
+    branches:
+      - master
+permissions:
+  contents: read
+jobs:
+  exact-diff-and-build:
+    name: 14 high-debt modules — exact cosmetic diff, TS, regression, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Prove exact whitelist-only change in 14 modules
+        run: python scripts/ci/theme_neutral_batch02.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Targeted accounting, settings and semantic theme regression
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/accounting/hooks/useAccountingController.g9Interactive.test.tsx \
+            src/features/admin/Settings/SettingsContainer.g5Interactive.test.tsx \
+            src/features/admin/Settings/tabs/AgendaTab.g5Interactive.test.tsx \
+            src/features/multiview/themeTokens.r2.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+      - name: Build (no deployment)
+        working-directory: frontend
+        run: npm run build
+      - name: Evidence classification
+        if: success()
+        run: |
+          echo "Exact source diff whitelist: UI color token substitutions only; no TS/JS structure or behavior changes." >> "$GITHUB_STEP_SUMMARY"
+          echo "No clinical HTTP writes, production release, feature flags or permission changes." >> "$GITHUB_STEP_SUMMARY"
+          echo "Global theme-compliance and all remaining status palettes remain OPEN." >> "$GITHUB_STEP_SUMMARY"

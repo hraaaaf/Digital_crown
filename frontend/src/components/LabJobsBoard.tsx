@@ -167,15 +167,15 @@ export const LabJobsBoard: React.FC = () => {
     <div className="flex h-full w-full flex-col relative">
       <div className="flex flex-wrap justify-between gap-3 items-center mb-4 px-4 pt-4">
         <div>
-          <h1 className="text-xl font-black text-slate-800 tracking-tight">Travaux prothétiques</h1>
-          <p className="mt-1 text-[11px] font-medium text-slate-500">
+          <h1 className="text-xl font-black text-text-main tracking-tight">Travaux prothétiques</h1>
+          <p className="mt-1 text-[11px] font-medium text-text-muted">
             Laboratoires du cabinet et matériaux issus de votre stock.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setShowLabManager(true)}
-            className="px-4 py-2.5 bg-white text-slate-700 border border-slate-200 rounded-xl font-bold text-xs shadow-sm hover:bg-slate-50 transition-colors"
+            className="px-4 py-2.5 bg-card text-text-main border border-border-main rounded-xl font-bold text-xs shadow-sm hover:bg-background transition-colors"
           >
             Gérer les laboratoires
           </button>
@@ -191,18 +191,18 @@ export const LabJobsBoard: React.FC = () => {
       <div className="flex space-x-4 overflow-x-auto p-4 flex-1">
         {STATUS_ORDER.map(status => (
           <div key={status} className="flex-1 min-w-[200px]">
-            <h2 className="text-center font-black text-sm mb-4 text-slate-700 tracking-tight">
+            <h2 className="text-center font-black text-sm mb-4 text-text-main tracking-tight">
               {STATUS_LABELS[status]}
             </h2>
             <div className="space-y-3">
               {jobs.filter(job => job.status === status).length === 0 ? (
-                <div className="p-4 rounded-xl border-2 border-dashed border-slate-200/60 bg-slate-50/50 text-center flex flex-col items-center justify-center min-h-[100px]">
-                  <p className="text-xs font-bold text-slate-400 mb-1">Aucun travail</p>
-                  {status === LabJobStatus.PRESCRIPTION && <p className="text-[10px] text-slate-400 leading-tight">Créez une demande depuis le dossier patient ou manuellement.</p>}
-                  {status === LabJobStatus.SENT && <p className="text-[10px] text-slate-400 leading-tight">Déplacez ici les travaux envoyés au laboratoire.</p>}
-                  {status === LabJobStatus.IN_PROGRESS && <p className="text-[10px] text-slate-400 leading-tight">Travaux en cours de fabrication.</p>}
-                  {status === LabJobStatus.TRY_IN && <p className="text-[10px] text-slate-400 leading-tight">Travaux en cours d’essayage clinique.</p>}
-                  {status === LabJobStatus.READY && <p className="text-[10px] text-slate-400 leading-tight">Travaux finalisés et prêts.</p>}
+                <div className="p-4 rounded-xl border-2 border-dashed border-border-main/60 bg-background/50 text-center flex flex-col items-center justify-center min-h-[100px]">
+                  <p className="text-xs font-bold text-text-muted mb-1">Aucun travail</p>
+                  {status === LabJobStatus.PRESCRIPTION && <p className="text-[10px] text-text-muted leading-tight">Créez une demande depuis le dossier patient ou manuellement.</p>}
+                  {status === LabJobStatus.SENT && <p className="text-[10px] text-text-muted leading-tight">Déplacez ici les travaux envoyés au laboratoire.</p>}
+                  {status === LabJobStatus.IN_PROGRESS && <p className="text-[10px] text-text-muted leading-tight">Travaux en cours de fabrication.</p>}
+                  {status === LabJobStatus.TRY_IN && <p className="text-[10px] text-text-muted leading-tight">Travaux en cours d’essayage clinique.</p>}
+                  {status === LabJobStatus.READY && <p className="text-[10px] text-text-muted leading-tight">Travaux finalisés et prêts.</p>}
                 </div>
               ) : (
                 jobs
@@ -210,20 +210,20 @@ export const LabJobsBoard: React.FC = () => {
                   .map(job => (
                     <div
                       key={job.id}
-                      className={`p-4 rounded-2xl shadow-sm bg-white border transition-all ${isAlert(job) ? "border-red-400 shadow-red-100" : "border-slate-200/60 hover:shadow-md"}`}
+                      className={`p-4 rounded-2xl shadow-sm bg-card border transition-all ${isAlert(job) ? "border-red-400 shadow-red-100" : "border-border-main/60 hover:shadow-md"}`}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <div className="font-black text-slate-800 text-sm">Dent {job.tooth_number || "—"}</div>
-                        <div className="text-[10px] font-bold text-slate-500 bg-slate-100 px-2 py-0.5 rounded-full">{job.type}</div>
+                        <div className="font-black text-text-main text-sm">Dent {job.tooth_number || "—"}</div>
+                        <div className="text-[10px] font-bold text-text-muted bg-input-field px-2 py-0.5 rounded-full">{job.type}</div>
                       </div>
-                      <div className="text-[11px] font-semibold text-slate-500">
+                      <div className="text-[11px] font-semibold text-text-muted">
                         {job.material || "Matériau non renseigné"}
                       </div>
-                      <div className={`text-xs font-bold mt-2 ${isAlert(job) ? "text-red-500" : "text-slate-500"}`}>
+                      <div className={`text-xs font-bold mt-2 ${isAlert(job) ? "text-red-500" : "text-text-muted"}`}>
                         ⏳ {formatDistanceToNowStrict(parseISO(job.deadline))}
                       </div>
                       <select
-                        className="mt-3 w-full text-xs font-bold text-slate-600 bg-slate-50 border border-slate-200 rounded-lg p-2 focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
+                        className="mt-3 w-full text-xs font-bold text-text-muted bg-background border border-border-main rounded-lg p-2 focus:ring-2 focus:ring-primary/20 outline-none transition-all cursor-pointer"
                         value={job.status}
                         onChange={event => void moveJob(job.id, event.target.value as LabJobStatus)}
                       >
@@ -241,27 +241,27 @@ export const LabJobsBoard: React.FC = () => {
 
       {showModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-xl w-full max-w-md border border-slate-200">
-            <h2 className="text-lg font-black text-slate-800 mb-1 tracking-tight">Nouvelle demande au laboratoire</h2>
-            <p className="mb-4 text-[11px] font-medium text-slate-500">Les listes proposées viennent uniquement de votre cabinet.</p>
+          <div className="bg-card rounded-3xl p-6 shadow-xl w-full max-w-md border border-border-main">
+            <h2 className="text-lg font-black text-text-main mb-1 tracking-tight">Nouvelle demande au laboratoire</h2>
+            <p className="mb-4 text-[11px] font-medium text-text-muted">Les listes proposées viennent uniquement de votre cabinet.</p>
 
             <div className="space-y-4">
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">N° patient *</label>
-                  <input aria-label="N° patient" type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.patient_id} onChange={event => setNewJob({...newJob, patient_id: event.target.value})} placeholder="Ex : 1" />
+                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">N° patient *</label>
+                  <input aria-label="N° patient" type="number" className="w-full text-sm font-bold text-text-main bg-background border border-border-main rounded-xl p-3" value={newJob.patient_id} onChange={event => setNewJob({...newJob, patient_id: event.target.value})} placeholder="Ex : 1" />
                 </div>
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">N° acte *</label>
-                  <input aria-label="N° acte" type="number" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.act_id} onChange={event => setNewJob({...newJob, act_id: event.target.value})} placeholder="Ex : 15" />
+                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">N° acte *</label>
+                  <input aria-label="N° acte" type="number" className="w-full text-sm font-bold text-text-main bg-background border border-border-main rounded-xl p-3" value={newJob.act_id} onChange={event => setNewJob({...newJob, act_id: event.target.value})} placeholder="Ex : 15" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Laboratoire</label>
+                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Laboratoire</label>
                 <select
                   aria-label="Laboratoire"
-                  className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3"
+                  className="w-full text-sm font-bold text-text-main bg-background border border-border-main rounded-xl p-3"
                   value={newJob.lab_id}
                   onChange={event => setNewJob({...newJob, lab_id: event.target.value})}
                 >
@@ -272,41 +272,41 @@ export const LabJobsBoard: React.FC = () => {
 
               <div className="flex gap-4">
                 <div className="flex-1">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Type de travail</label>
-                  <input aria-label="Type de travail" type="text" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3" value={newJob.type} onChange={event => setNewJob({...newJob, type: event.target.value})} />
+                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Type de travail</label>
+                  <input aria-label="Type de travail" type="text" className="w-full text-sm font-bold text-text-main bg-background border border-border-main rounded-xl p-3" value={newJob.type} onChange={event => setNewJob({...newJob, type: event.target.value})} />
                 </div>
                 <div className="w-24">
-                  <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Dent</label>
-                  <input aria-label="Dent" type="text" className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3 text-center" value={newJob.tooth_number} onChange={event => setNewJob({...newJob, tooth_number: event.target.value})} placeholder="46" />
+                  <label className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Dent</label>
+                  <input aria-label="Dent" type="text" className="w-full text-sm font-bold text-text-main bg-background border border-border-main rounded-xl p-3 text-center" value={newJob.tooth_number} onChange={event => setNewJob({...newJob, tooth_number: event.target.value})} placeholder="46" />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[10px] font-bold text-slate-500 uppercase tracking-wider mb-1">Matériau</label>
+                <label className="block text-[10px] font-bold text-text-muted uppercase tracking-wider mb-1">Matériau</label>
                 <input
                   aria-label="Matériau"
                   type="text"
                   list="cust05-materials"
-                  className="w-full text-sm font-bold text-slate-700 bg-slate-50 border border-slate-200 rounded-xl p-3"
+                  className="w-full text-sm font-bold text-text-main bg-background border border-border-main rounded-xl p-3"
                   value={newJob.material}
                   onChange={event => setNewJob({...newJob, material: event.target.value})}
                 />
                 <datalist id="cust05-materials">
                   {materials.map(material => <option key={material} value={material} />)}
                 </datalist>
-                <p className="mt-1 text-[10px] font-medium text-slate-400">
+                <p className="mt-1 text-[10px] font-medium text-text-muted">
                   Suggestions issues des matériaux enregistrés dans Stock. Saisie libre autorisée.
                 </p>
               </div>
 
               <label className="flex items-center gap-2 cursor-pointer mt-2">
-                <input type="checkbox" className="w-4 h-4 text-slate-900 rounded border-slate-300" checked={newJob.is_remake} onChange={event => setNewJob({...newJob, is_remake: event.target.checked})} />
-                <span className="text-xs font-bold text-slate-700">Réfection ou réparation</span>
+                <input type="checkbox" className="w-4 h-4 text-text-main rounded border-border-hover" checked={newJob.is_remake} onChange={event => setNewJob({...newJob, is_remake: event.target.checked})} />
+                <span className="text-xs font-bold text-text-main">Réfection ou réparation</span>
               </label>
             </div>
 
             <div className="flex justify-end gap-3 mt-8">
-              <button onClick={() => setShowModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-xs text-slate-500 hover:bg-slate-100">Annuler</button>
+              <button onClick={() => setShowModal(false)} className="px-5 py-2.5 rounded-xl font-bold text-xs text-text-muted hover:bg-input-field">Annuler</button>
               <button onClick={() => void handleCreate()} className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-bold text-xs shadow-md hover:bg-slate-800">Créer la demande</button>
             </div>
           </div>
@@ -315,16 +315,16 @@ export const LabJobsBoard: React.FC = () => {
 
       {showLabManager && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/40 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-3xl p-6 shadow-xl w-full max-w-md border border-slate-200">
-            <h2 className="text-lg font-black text-slate-800 tracking-tight">Laboratoires du cabinet</h2>
-            <p className="mt-1 text-[11px] font-medium text-slate-500">Ajoutez uniquement les laboratoires avec lesquels votre cabinet travaille.</p>
+          <div className="bg-card rounded-3xl p-6 shadow-xl w-full max-w-md border border-border-main">
+            <h2 className="text-lg font-black text-text-main tracking-tight">Laboratoires du cabinet</h2>
+            <p className="mt-1 text-[11px] font-medium text-text-muted">Ajoutez uniquement les laboratoires avec lesquels votre cabinet travaille.</p>
 
             <div className="mt-5 space-y-2">
               {labs.length ? labs.map(lab => (
-                <div key={lab.id} className="flex items-center justify-between gap-3 rounded-xl border border-slate-200 px-3 py-2.5">
+                <div key={lab.id} className="flex items-center justify-between gap-3 rounded-xl border border-border-main px-3 py-2.5">
                   <div className="min-w-0">
-                    <div className="truncate text-sm font-black text-slate-800">{lab.name}</div>
-                    {lab.phone && <div className="text-[10px] font-semibold text-slate-400">{lab.phone}</div>}
+                    <div className="truncate text-sm font-black text-text-main">{lab.name}</div>
+                    {lab.phone && <div className="text-[10px] font-semibold text-text-muted">{lab.phone}</div>}
                   </div>
                   <button
                     type="button"
@@ -335,25 +335,25 @@ export const LabJobsBoard: React.FC = () => {
                   </button>
                 </div>
               )) : (
-                <div className="rounded-xl border border-dashed border-slate-200 p-4 text-center text-[11px] font-semibold text-slate-400">
+                <div className="rounded-xl border border-dashed border-border-main p-4 text-center text-[11px] font-semibold text-text-muted">
                   Aucun laboratoire enregistré.
                 </div>
               )}
             </div>
 
-            <div className="mt-5 rounded-2xl bg-slate-50 p-4 space-y-3">
-              <div className="text-[10px] font-black uppercase tracking-wider text-slate-500">Ajouter un laboratoire</div>
+            <div className="mt-5 rounded-2xl bg-background p-4 space-y-3">
+              <div className="text-[10px] font-black uppercase tracking-wider text-text-muted">Ajouter un laboratoire</div>
               <input
                 value={newLabName}
                 onChange={event => setNewLabName(event.target.value)}
                 placeholder="Nom du laboratoire"
-                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700"
+                className="w-full rounded-xl border border-border-main bg-card p-3 text-sm font-bold text-text-main"
               />
               <input
                 value={newLabPhone}
                 onChange={event => setNewLabPhone(event.target.value)}
                 placeholder="Téléphone (optionnel)"
-                className="w-full rounded-xl border border-slate-200 bg-white p-3 text-sm font-bold text-slate-700"
+                className="w-full rounded-xl border border-border-main bg-card p-3 text-sm font-bold text-text-main"
               />
               {labError && <p role="alert" className="text-[10px] font-bold text-rose-600">{labError}</p>}
               <button
@@ -367,7 +367,7 @@ export const LabJobsBoard: React.FC = () => {
             </div>
 
             <div className="mt-6 flex justify-end">
-              <button onClick={() => setShowLabManager(false)} className="px-5 py-2.5 rounded-xl font-bold text-xs text-slate-600 hover:bg-slate-100">
+              <button onClick={() => setShowLabManager(false)} className="px-5 py-2.5 rounded-xl font-bold text-xs text-text-muted hover:bg-input-field">
                 Fermer
               </button>
             </div>
