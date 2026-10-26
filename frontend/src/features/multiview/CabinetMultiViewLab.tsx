@@ -366,7 +366,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
               </optgroup>
             </select>
           </div>
-          {r3FocusPilot && draft.slots.length>1 && (
+          {r3FocusPilot && draft.slots.length>1 && draft.slots.every(slot=>slot.module!=='cephalo') && (
             <div data-testid="r3-module-chooser" role="group" aria-label="Modules par panneau"
               className="flex flex-wrap items-center gap-1.5">
               {draft.slots.map((slot,index)=>(
