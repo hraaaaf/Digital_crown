@@ -15,7 +15,7 @@ vi.mock('../patients/components/PatientMediaTimeline',()=>({
 vi.mock('../ortho/OrthoLongitudinalComparePanel',()=>({
   OrthoLongitudinalComparePanel:({patientId}:{patientId:number})=><div data-testid="suivi-live">Longitudinal patient {patientId}</div>,
 }));
-import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled } from './CabinetMultiViewLab';
+import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled, isR3SplitLabEnabled } from './CabinetMultiViewLab';
 
 const patient={id:17,prenom:'Prénom-A',nom:'NOM-A',numero_dossier:'DOS-A'};
 const user=(permissions:Record<string,boolean>={patients:true,cephalo:true})=>({
@@ -58,6 +58,10 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(isCabinetMultiViewLabEnabled(true,undefined)).toBe(false);
     expect(isCabinetMultiViewLabEnabled(true,'true')).toBe(false);
     expect(isCabinetMultiViewLabEnabled(true,'1')).toBe(true);
+    expect(isR3SplitLabEnabled(false,'1')).toBe(false);
+    expect(isR3SplitLabEnabled(true,undefined)).toBe(false);
+    expect(isR3SplitLabEnabled(true,'true')).toBe(false);
+    expect(isR3SplitLabEnabled(true,'1')).toBe(true);
   });
 
   it('mounts the real MultiView imagerie adapter in read-only R mode',async()=>{
@@ -131,6 +135,47 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
     fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
     expect(screen.queryByTestId('suivi-live')).toBeNull();
+  });
+
+  it('R3-1 opt-in mounts an interactive split over the SAME verified real read-only modules',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()} enableR3Split/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    const sep=screen.getByRole('separator',{name:'Séparateur vertical des panneaux'});
+    expect(sep.getAttribute('aria-valuenow')).toBe('50');
+    fireEvent.keyDown(sep,{key:'ArrowRight'});
+    expect(sep.getAttribute('aria-valuenow')).toBe('55');
+    fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
+    expect(screen.getByRole('separator').getAttribute('aria-valuenow')).toBe('50');
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    fireEvent.change(select,{target:{value:'dossier-media-2rows'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByRole('separator',{name:'Séparateur horizontal des panneaux'})).toBeTruthy();
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+  });
+
+  it('R3 premium toolbar groups actions while retaining the R-only, nine-disabled-preset contract',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()} enableR3Split/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('r3-1-premium-actions')).toBeTruthy();
+    expect(screen.getByRole('group',{name:'Disposition des panneaux'})).toBeTruthy();
+    expect(screen.getByRole('group',{name:'Outils de disposition'})).toBeTruthy();
+    expect(screen.getByRole('group',{name:'Confirmation de disposition'})).toBeTruthy();
+    expect(screen.getByTestId('r3-1-dossier-readonly-help').textContent).toContain('consultation seule');
+    expect(screen.getByRole('combobox',{name:'Disposition MultiView'}).querySelectorAll('option:disabled')).toHaveLength(9);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getByRole('button',{name:'Appliquer'}).hasAttribute('disabled')).toBe(true);
+    fireEvent.change(screen.getByRole('combobox',{name:'Disposition MultiView'}),{target:{value:'dossier-media-2rows'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    expect(screen.getByTestId('multiview-schematic-preview')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByRole('separator',{name:'Séparateur horizontal des panneaux'})).toBeTruthy();
+    expect(screen.queryByTestId('multiview-schematic-preview')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
+    expect(screen.getByRole('separator',{name:'Séparateur vertical des panneaux'})).toBeTruthy();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
   });
 
   it('does not offer longitudinal comparison without the canonical cephalo permission',async()=>{
