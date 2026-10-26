@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exact-diff proof for waves 02–06: bounded neutral + semantic status Tailwind changes.
+"""Exact-diff proof for waves 02–07: bounded neutral + semantic status Tailwind changes.
 
 Status shades are mapped only to existing danger/success/warning role tokens;
 brand palettes, saturated button fills, chart meaning, printed content and
@@ -75,6 +75,26 @@ FILES = (
     "frontend/src/features/admin/DocumentStudio/StudioHeader.tsx",
     "frontend/src/features/patients/components/InstallmentPlanModal.tsx",
     "frontend/src/features/mobile/Dashboard/views/AgendaView.tsx",
+    "frontend/src/features/patients/components/PatientPhotoEditor.tsx",
+    "frontend/src/features/admin/components/LiveDocumentStudio.tsx",
+    "frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx",
+    "frontend/src/features/patients/components/RvgUploadModal.tsx",
+    "frontend/src/features/patients/components/PayActeModal.tsx",
+    "frontend/src/features/patients/CsvImportModal.tsx",
+    "frontend/src/features/admin/Settings/components/CatalogActApplicabilityEditor.tsx",
+    "frontend/src/features/dashboard/components/DashboardHeader.tsx",
+    "frontend/src/features/patients/components/PatientMobileBridge.tsx",
+    "frontend/src/features/admin/Settings/SettingsContainer.tsx",
+    "frontend/src/features/admin/SetupWizard/SetupWizard.tsx",
+    "frontend/src/features/admin/Settings/tabs/branding/StudioControlsCore.tsx",
+    "frontend/src/features/patients/PatientList.tsx",
+    "frontend/src/features/patients/components/PatientCompanionPanel.tsx",
+    "frontend/src/features/patients/components/PatientFinances.tsx",
+    "frontend/src/features/ortho/DocumentArchiveManager.tsx",
+    "frontend/src/features/ortho/OrthoSuperimpositionViewer.tsx",
+    "frontend/src/features/ortho/components/Step3Clinical.tsx",
+    "frontend/src/features/patient-companion/PatientCompanionFinance.tsx",
+    "frontend/src/features/clinical-ref/EliteLibrary.tsx",
 )
 STATUS_FILES = (
     "frontend/src/features/admin/AccountingStudioLegacy.tsx",
@@ -180,7 +200,7 @@ def test_exact_diff() -> int:
         results.append((file, count))
 
     total = sum(x[1] for x in results)
-    if total < 3090:
+    if total < 3330:
         print("THEME_NEUTRAL_BATCH_REDUCTION_TOO_SMALL", total)
         return 1
     css = (ROOT / "frontend/src/index.css").read_text(encoding="utf-8")
@@ -197,7 +217,7 @@ def test_exact_diff() -> int:
         if "[data-theme='" + theme + "']" not in css:
             print("THEME_NEUTRAL_BATCH_MISSING_THEME", theme)
             return 1
-    print("THEME_NEUTRAL_AND_STATUS_WAVES02_TO_06_PASS", {"files": len(results), "semanticColorsRemoved": total, "statusOnlyFiles": len(set(STATUS_FILES) - set(FILES)),
+    print("THEME_NEUTRAL_AND_STATUS_WAVES02_TO_07_PASS", {"files": len(results), "semanticColorsRemoved": total, "statusOnlyFiles": len(set(STATUS_FILES) - set(FILES)),
                                        "noBehaviorOrStructureChanges": True})
     return 0
 
