@@ -38,8 +38,9 @@ describe('LOT07 R3 panel module chooser — real adapters only',()=>{
     expect(chooseR3Module(columns,0,'documents',docsContext)?.slots.map(slot=>slot.module))
       .toEqual(['documents','imagerie']);
     const galleryContext={...photoContext,allowedModules:['dossier','imagerie','suivi','agenda','photos','galerie'] as const};
-    expect(chooseR3Module(columns,0,'galerie',galleryContext)?.slots.map(slot=>slot.module))
-      .toEqual(['galerie','imagerie']);
+    // A second media viewer outside the dedicated Imagerie preset must fail closed.
+    expect(chooseR3Module(columns,0,'galerie',galleryContext)).toBeNull();
+    expect(r3ModuleOptions(columns,0,galleryContext)).not.toContain('galerie');
     const imagerieLayout={...columns,id:'imagerie',
       slots:[{id:'radio',module:'imagerie' as const},{id:'photos',module:'galerie' as const}]};
     expect(chooseR3Module(imagerieLayout,0,'galerie',galleryContext)?.slots.map(slot=>slot.module))
