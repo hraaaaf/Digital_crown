@@ -10,6 +10,19 @@ on:
       - '.github/workflows/app-theme-neutral-bulk-wave02.yml'
       - 'scripts/ci/theme_neutral_batch02.py'
       - 'frontend/src/features/admin/AccountingStudioLegacy.tsx'
+      - 'frontend/src/features/superadmin/SuperAdminDashboard.tsx'
+      - 'frontend/src/features/agenda/AgendaModal.tsx'
+      - 'frontend/src/pages/AccountingPage.tsx'
+      - 'frontend/src/features/admin/TeamManager.tsx'
+      - 'frontend/src/features/admin/Settings/tabs/CatalogTab.tsx'
+      - 'frontend/src/pages/LandingPage.tsx'
+      - 'frontend/src/pages/Analytics.tsx'
+      - 'frontend/src/pages/StockPage.tsx'
+      - 'frontend/src/features/admin/Settings/tabs/AgendaTab.tsx'
+      - 'frontend/src/components/LabJobsBoard.tsx'
+      - 'frontend/src/features/admin/Settings/tabs/SecurityTab.tsx'
+      - 'frontend/src/features/accounting/components/TreasuryPanel.tsx'
+      - 'frontend/src/pages/ActivateTrialPage.tsx'
 permissions:
   contents: read
 jobs:
