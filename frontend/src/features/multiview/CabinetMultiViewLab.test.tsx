@@ -308,7 +308,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
     expect(select.querySelector('option[value="planification-traitements"]')).toBeTruthy();
     // Clinical permission does not imply Cephalo permission.
-    expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.disabled).toBe(true);
+    expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.hasAttribute('disabled')).toBe(true);
     expect(select.querySelector('option[value="presentation-patient"]')).toBeTruthy();
     fireEvent.change(select,{target:{value:'planification-traitements'}});
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
