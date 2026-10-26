@@ -202,7 +202,7 @@ test('trusted gate never tries posting an issue comment during approval', async 
 });
 
 function tokenWaiverFixture(options={}) {
-  const number=1097, pinned=TOKEN_ONLY_CERTIFIED_WAVES[number], actual=options.actual??pinned.sha;
+  const number=options.number??1097, pinned=TOKEN_ONLY_CERTIFIED_WAVES[number], actual=options.actual??pinned.sha;
   const labels=new Set(options.hasLabel?[APPROVAL_LABEL]:[]);
   let deletes=0;
   let headReads=0;
@@ -213,9 +213,9 @@ function tokenWaiverFixture(options={}) {
         return {head:{sha:options.raceAfterHeadGet&&headReads>=options.raceAfterHeadGet?'d'.repeat(40):actual}};
       }
       if(route.startsWith(`/pulls/${number}/files?`))return (options.files??[
-        {filename:'frontend/src/pages/Example.tsx'},
+        ...(pinned.sources??['frontend/src/pages/Example.tsx']).map(filename=>({filename})),
         {filename:pinned.path},
-        {filename:'scripts/ci/theme_neutral_batch02.py'}
+        {filename:pinned.oracle??'scripts/ci/theme_neutral_batch02.py'}
       ]);
       if(route.startsWith(`/issues/${number}/labels?`))return [...labels].map(name=>({name}));
       if(route===`/actions/runs/${pinned.proof}`)return {
@@ -284,12 +284,43 @@ test('automatic token-only waiver rejects workflow substitution',async()=>{
   await assert.rejects(f.run('labeled'),/workflow path mismatch/);
 });
 
-test('auto-waiver manifest covers only the seven previously verified cosmetic waves',()=>{
+test('auto-waiver manifest pins seven historical plus three new proven waves',()=>{
   assert.deepEqual(Object.keys(TOKEN_ONLY_CERTIFIED_WAVES).map(Number).sort((a,b)=>a-b),[
-    1097,1098,1100,1101,1102,1103,1104
+    1097,1098,1100,1101,1102,1103,1104,1112,1113,1114
   ]);
   assert.equal(TOKEN_ONLY_CERTIFIED_WAVES[1105],undefined);
 });
+for(const number of [1112,1113,1114]) {
+  test('new wave '+number+' automatically passes only on exact proof and file scope',async()=>{
+    const f=tokenWaiverFixture({number});
+    assert.deepEqual(await f.run('labeled'),{state:'auto-token-only-verified',head:TOKEN_ONLY_CERTIFIED_WAVES[number].sha});
+    assert.equal(f.deletes,0);
+    assert.equal(f.labels.has(APPROVAL_LABEL),false);
+  });
+  test('new wave '+number+' rejects changed HEAD',async()=>{
+    const f=tokenWaiverFixture({number,actual:'c'.repeat(40)});
+    await assert.rejects(f.run('labeled',{eventHead:'c'.repeat(40)}),/require explicit visual approval label/);
+  });
+  test('new wave '+number+' rejects missing source or oracle',async()=>{
+    const e=TOKEN_ONLY_CERTIFIED_WAVES[number];
+    for(const omitted of [e.sources[0],e.oracle]) {
+      const files=[...e.sources,e.path,e.oracle].filter(p=>p!==omitted).map(filename=>({filename}));
+      await assert.rejects(tokenWaiverFixture({number,files}).run('labeled'),/file inventory mismatch/);
+    }
+  });
+  test('new wave '+number+' rejects extra TSX',async()=>{
+    const e=TOKEN_ONLY_CERTIFIED_WAVES[number];
+    const files=[...e.sources,e.path,e.oracle,'frontend/src/extra.tsx'].map(filename=>({filename}));
+    await assert.rejects(tokenWaiverFixture({number,files}).run('labeled'),/file inventory mismatch/);
+  });
+  test('new wave '+number+' rejects substituted oracle or failing CI',async()=>{
+    const e=TOKEN_ONLY_CERTIFIED_WAVES[number];
+    const files=[...e.sources,e.path,'scripts/ci/not-approved.py'].map(filename=>({filename}));
+    await assert.rejects(tokenWaiverFixture({number,files}).run('labeled'),/unapproved path/);
+    await assert.rejects(tokenWaiverFixture({number,proofConclusion:'failure'}).run('labeled'),/CI proof is absent or not GREEN/);
+    await assert.rejects(tokenWaiverFixture({number,scopeConclusion:'failure'}).run('labeled'),/CI proof is absent or not GREEN/);
+  });
+}
 
 test('automatic waiver fails closed on a HEAD race during labeled evaluation',async()=>{
   const f=tokenWaiverFixture({raceAfterHeadGet:2});
