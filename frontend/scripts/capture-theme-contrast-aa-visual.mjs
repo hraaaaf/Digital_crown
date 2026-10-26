@@ -56,7 +56,7 @@ function ratio(a,b) {
 const report = {base_sha:baseSha,head_sha:headSha,component:'frontend/src/pages/WelcomeScreen.tsx',themes,viewports,changed,baseline:beforeColors,after:afterColors,checks:[],failures:[]};
 let browser, server;
 try {
-  server = await createServer({server:{host:'127.0.0.1',port:4229,strictPort:true},clearScreen:false,optimizeDeps:{include:['react','react-dom/client','react-router-dom','lucide-react']}});
+  server = await createServer({server:{host:'127.0.0.1',port:4229,strictPort:true},clearScreen:false,optimizeDeps:{include:['react','react-dom/client','react-router-dom','lucide-react','workbox-window']}});
   await server.listen();
   browser = await chromium.launch({headless:true});
   for (const theme of themes) for (const viewport of viewports) {
@@ -82,7 +82,11 @@ try {
         else document.documentElement.style.removeProperty('--text-muted');
       },{phase,color:beforeColors[theme]});
       await page.waitForTimeout(80);
-      const state=await page.evaluate(()=>{
+      let state;
+      for(let stableAttempt=1;stableAttempt<=4;stableAttempt++) {
+        await page.getByRole('heading',{name:/Digital Crown/}).waitFor({state:'visible',timeout:20000});
+        try {
+          state=await page.evaluate(()=>{
         const anchors=[
           ['page-heading','h1'],
           ['page-description','.max-w-4xl > .text-center p'],
@@ -103,7 +107,13 @@ try {
           return {label,color:getComputedStyle(el).color,background:closestOpaqueBackground(el),text:el.textContent?.trim().slice(0,70)};
         });
         return {samples,clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,computedMuted:getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim()};
-      });
+          });
+          break;
+        } catch (error) {
+          if(stableAttempt===4 || !/Missing production anchor|Execution context was destroyed/.test(String(error))) throw error;
+          await page.waitForTimeout(500);
+        }
+      }
       state.samples.forEach(x=>{x.ratio=ratio(x.color,x.background);if(phase==='after' && x.ratio<4.5) report.failures.push(theme+' '+viewport.width+' '+x.label+' contrast '+x.ratio.toFixed(2)+' < 4.5');});
       if(state.scrollWidth>state.clientWidth) report.failures.push(theme+' '+viewport.width+' horizontal overflow');
       if(errors.length) report.failures.push(theme+' '+viewport.width+' '+errors.join('; '));
