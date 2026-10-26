@@ -12,23 +12,30 @@ const themes = ['default', 'emerald', 'rose', 'ocean', 'graphite', 'prestige', '
 
 function declarations(selector: string): Record<string, string> {
   const marker = selector + ' {';
-  const pos = css.indexOf(marker);
-  if (pos < 0 || css.indexOf(marker, pos + marker.length) !== -1) {
-    throw new Error('Missing or ambiguous CSS block: ' + selector);
+  const candidates: Array<Record<string, string>> = [];
+  let from = 0;
+  while (true) {
+    const pos = css.indexOf(marker, from);
+    if (pos < 0) break;
+    const start = css.indexOf('{', pos) + 1;
+    let level = 1;
+    let end = start;
+    for (; end < css.length && level; end++) {
+      if (css[end] === '{') level++;
+      if (css[end] === '}') level--;
+    }
+    if (level) throw new Error('Unclosed CSS block: ' + selector);
+    const output: Record<string, string> = {};
+    for (const match of css.slice(start, end - 1).matchAll(/(--[a-z-]+):\s*([^;]+);/g)) {
+      output[match[1]] = match[2].trim();
+    }
+    if (output['--text-muted']) candidates.push(output);
+    from = end;
   }
-  const start = css.indexOf('{', pos) + 1;
-  let level = 1;
-  let end = start;
-  for (; end < css.length && level; end++) {
-    if (css[end] === '{') level++;
-    if (css[end] === '}') level--;
+  if (candidates.length !== 1) {
+    throw new Error('Expected precisely one theme palette definition: ' + selector);
   }
-  if (level) throw new Error('Unclosed CSS block: ' + selector);
-  const output: Record<string, string> = {};
-  for (const match of css.slice(start, end - 1).matchAll(/(--[a-z-]+):\s*([^;]+);/g)) {
-    output[match[1]] = match[2].trim();
-  }
-  return output;
+  return candidates[0];
 }
 
 function resolveColor(name: string, values: Record<string, string>, seen = new Set<string>()): string {
