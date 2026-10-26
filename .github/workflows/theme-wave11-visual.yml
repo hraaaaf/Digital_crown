@@ -81,7 +81,7 @@ jobs:
                   Object.assign(e,{prompt:async()=>{},userChoice:Promise.resolve({outcome:'dismissed',platform:'web'})});
                   window.dispatchEvent(e);
                 });
-                const expected=screen==='forgot'?'Récupération d’accès':screen==='pwa-ios'?'Comment installer sur iPhone':'Installer maintenant';
+                const expected=screen==='forgot'?'Récupération d'accès':screen==='pwa-ios'?'Comment installer sur iPhone':'Installer maintenant';
                 await page.getByText(expected,{exact:false}).first().waitFor({timeout:10000});
                 if (ios) await page.getByText('Comment installer sur iPhone').click();
                 const overflow=await page.evaluate(()=>document.documentElement.scrollWidth>window.innerWidth+1);
