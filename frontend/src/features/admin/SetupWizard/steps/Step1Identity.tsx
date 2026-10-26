@@ -39,7 +39,7 @@ export const Step1Identity: React.FC<Props> = ({
             cabinetType === 'PRIVE' ? "border-primary bg-card shadow-lg" : "border-border-main bg-card/70 opacity-70 hover:opacity-100"
           )}
         >
-          <div className="w-11 h-11 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-primary"><Building2 size={22} /></div>
+          <div className="w-11 h-11 shrink-0 rounded-xl bg-primary/10 flex items-center justify-center text-text-main"><Building2 size={22} /></div>
           <div>
             <span className="block font-black text-text-main text-sm">Cabinet Privé</span>
             <span className="text-[10px] text-text-muted">Structure d’exercice privée</span>
@@ -116,7 +116,7 @@ export const Step1Identity: React.FC<Props> = ({
             <button
               type="button"
               onClick={() => setShowArKeyboard({ show: true, target: 'identity' })}
-              className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-input-field rounded-lg text-text-muted hover:text-primary transition-colors"
+              className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-input-field rounded-lg text-text-muted hover:text-text-main transition-colors"
               aria-label="Ouvrir le clavier arabe"
             >
               <Type size={16} />
