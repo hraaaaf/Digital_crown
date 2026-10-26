@@ -58,7 +58,7 @@ export const Step2Specialties: React.FC<Props> = ({
               </div>
               <span className={cn(
                 "font-black text-xs transition-colors",
-                selectedSpecialties.includes(spec.id) ? "text-primary" : "text-text-main"
+                selectedSpecialties.includes(spec.id) ? "text-text-main" : "text-text-main"
               )}>{spec.fr}</span>
             </div>
             <div className="text-[10px] text-text-muted font-medium text-right font-arabic">{spec.ar}</div>
