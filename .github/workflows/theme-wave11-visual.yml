@@ -1,5 +1,6 @@
 name: Wave11 auth and PWA visual evidence (NO DEPLOY)
 on:
+  workflow_dispatch:
   pull_request:
     paths:
       - 'frontend/src/pages/ForgotPasswordPage.tsx'
