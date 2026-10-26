@@ -4,9 +4,9 @@ import { authorizeLayout, validLayout, type Layout, type ModuleKey, type Workspa
  * The nine roadmap presets remain disabled until each declared clinical adapter
  * has its own proof. The selection is volatile, never written to browser storage.
  */
-export const R3_REAL_MODULES = ['dossier', 'imagerie', 'suivi', 'agenda'] as const satisfies readonly ModuleKey[];
+export const R3_REAL_MODULES = ['dossier', 'imagerie', 'suivi', 'agenda', 'photos'] as const satisfies readonly ModuleKey[];
 export const R3_MODULE_LABEL: Readonly<Record<(typeof R3_REAL_MODULES)[number], string>> = {
-  dossier:'Dossier', imagerie:'Médias', suivi:'Suivi', agenda:'Agenda',
+  dossier:'Dossier', imagerie:'Médias', suivi:'Suivi', agenda:'Agenda', photos:'Photos',
 };
 
 export function chooseR3Module(
