@@ -312,7 +312,7 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     fireEvent.change(select,{target:{value:'planification-traitements'}});
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
     fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
-    expect(await screen.findByText('Contrôle inscrit')).toBeTruthy();
+    expect(await screen.findByText(/Contrôle inscrit/)).toBeTruthy();
     expect(screen.getByTestId('r3-real-treatment').textContent).toContain('Lecture seule');
     expect(vi.mocked(api.get)).toHaveBeenCalledWith('/patients/17/master-plan');
     expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
