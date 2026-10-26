@@ -15,7 +15,7 @@ export const WelcomeScreen: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#f8fafc] flex flex-col items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-background flex flex-col items-center justify-center p-4 relative overflow-hidden">
       {/* Background Halos */}
       <div className="absolute inset-0 z-0 pointer-events-none">
         <div className="absolute top-[-10%] left-[-10%] w-[50%] h-[50%] rounded-full bg-blue-100/40 blur-[120px]" />
@@ -25,7 +25,7 @@ export const WelcomeScreen: React.FC = () => {
       <div className="max-w-4xl w-full relative z-10">
         <div className="text-center mb-12">
           <div className="w-48 h-48 flex items-center justify-center mx-auto mb-6 animate-in zoom-in duration-700">
-            <img src={Logo} className="w-full h-full object-contain" alt="Digital Crown" />
+            <img src={Logo} className="w-full h-full object-contain dark:brightness-0 dark:invert" alt="Digital Crown" />
           </div>
           <h1 className="text-4xl font-black text-text-main mb-4 tracking-tight">
             Digital Crown <span className="text-primary">v1.1</span>
