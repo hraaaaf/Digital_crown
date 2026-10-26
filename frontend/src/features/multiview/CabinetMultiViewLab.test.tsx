@@ -238,6 +238,46 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
   });
 
+  it('offers 3/9 genuine roadmap layouts only when Agenda and patient permissions are verified',async()=>{
+    const actor=user({patients:true,cephalo:true,agenda:true});
+    useAuthStore.setState({user:actor,isAuthenticated:true});
+    vi.mocked(api.get).mockImplementation(async url =>
+      url.startsWith('/appointments/?') ? {data:[]} as never : {data:patient} as never);
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(6);
+    for(const id of ['vue-ensemble','consultation','agenda-cabinet'])
+      expect(select.querySelector('option[value="'+id+'"]')).toBeTruthy();
+    expect(select.querySelector('option[value="comparaison-orthodontique"]')).toBeNull();
+    fireEvent.change(select,{target:{value:'vue-ensemble'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(await screen.findByTestId('r3-real-agenda')).toBeTruthy();
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Agrandir le panneau 2 : agenda'}));
+    expect(screen.getByTestId('r3-2-single-focus')).toBeTruthy();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Restaurer les trois panneaux'}));
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+
+    fireEvent.change(select,{target:{value:'consultation'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('r3-real-agenda')).toBeTruthy();
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    fireEvent.change(select,{target:{value:'agenda-cabinet'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('r3-real-agenda')).toBeTruthy();
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+  });
+
   it('R3-2 triple-opt-in mounts exactly three TRUE R-only slots and focus unmounts the rest',async()=>{
     render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
       enableR3Split enableR3Focus/>);
