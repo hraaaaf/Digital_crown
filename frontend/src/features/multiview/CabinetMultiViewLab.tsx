@@ -68,7 +68,7 @@ export function selectablePilotLayouts(allowCephalo: boolean): readonly Layout[]
 export function selectableR3RoadmapLayouts(allowAgenda:boolean,allowCephalo:boolean): readonly Layout[] {
   const proven=[
     'imagerie',
-    ...(allowAgenda ? ['vue-ensemble','consultation','agenda-cabinet'] : []),
+    ...(allowAgenda ? ['vue-ensemble','consultation','agenda-cabinet','gestion-administrative'] : []),
     ...(allowCephalo ? ['suivi-clinique'] : []),
   ];
   return PRESETS.filter(layout=>proven.includes(layout.id));
@@ -218,7 +218,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     patientId:patientMatches && trustedPatient ? trustedPatient.id : null,
     cssViewportWidth:workspaceWidth,
     allowedModules: [
-      ...(canPatients ? ['dossier','imagerie','photos','galerie'] as ModuleKey[] : []),
+      ...(canPatients ? ['dossier','imagerie','photos','galerie','documents'] as ModuleKey[] : []),
       ...(canCephalo ? ['suivi'] as ModuleKey[] : []),
       ...(canAgenda ? ['agenda'] as ModuleKey[] : []),
     ],
@@ -257,6 +257,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly
       fixedAssetType={applied.id==='imagerie' ? 'RADIOGRAPH' : undefined}/>;
     if (slot.module==='galerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly fixedAssetType="PHOTO"/>;
+    if (slot.module==='documents') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly fixedAssetType="DOCUMENT"/>;
     if (slot.module==='photos') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly fixedAssetType="PHOTO"/>;
     if (slot.module==='agenda' && canAgenda && user)
       return <R3AgendaReadonlyPanel user={user}/>;
@@ -435,7 +436,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
                     slot.module === 'imagerie' ? <Images size={21} className="text-primary"/> :
                     <Activity size={21} className="text-primary"/>}
                   <span className="text-xs font-bold text-text-main">
-                    {slot.module === 'dossier' ? 'Dossier patient' : slot.module === 'imagerie' ? 'Médiathèque' : slot.module === 'photos' ? 'Photos' : slot.module === 'galerie' ? 'Galerie' : slot.module === 'agenda' ? 'Agenda' : 'Suivi longitudinal'}
+                    {slot.module === 'dossier' ? 'Dossier patient' : slot.module === 'imagerie' ? 'Médiathèque' : slot.module === 'photos' ? 'Photos' : slot.module === 'galerie' ? 'Galerie' : slot.module === 'documents' ? 'Documents' : slot.module === 'agenda' ? 'Agenda' : 'Suivi longitudinal'}
                   </span>
                   <span className="text-[11px] text-text-muted">Lecture seule</span>
                 </div>)}
@@ -474,7 +475,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
                 (slot.module==='imagerie' || slot.module==='photos') ? <Images size={21} className="text-primary"/> :
                 <Activity size={21} className="text-primary"/>}
               <span className="text-xs font-bold text-text-main">
-                {slot.module==='dossier' ? 'Dossier patient' : slot.module==='imagerie' ? 'Médiathèque' : slot.module==='photos' ? 'Photos' : slot.module==='galerie' ? 'Galerie' : slot.module==='agenda' ? 'Agenda' : 'Suivi longitudinal'}
+                {slot.module==='dossier' ? 'Dossier patient' : slot.module==='imagerie' ? 'Médiathèque' : slot.module==='photos' ? 'Photos' : slot.module==='galerie' ? 'Galerie' : slot.module==='documents' ? 'Documents' : slot.module==='agenda' ? 'Agenda' : 'Suivi longitudinal'}
               </span>
               <span className="text-[11px] text-text-muted">Lecture seule</span>
             </div>)}
