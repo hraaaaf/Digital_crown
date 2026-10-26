@@ -48,6 +48,30 @@ try {
     });
     pass('real authenticated synthetic media import '+timepoint,r.ok(),{status:r.status()});
   }
+  // P2: exercise the real read-only DOCUMENT and RADIOLOGY adapters with
+  // deliberately non-clinical, synthetic media in the disposable T2 database.
+  // Never intercept network responses or use patient files.
+  const syntheticPdf=Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R>>endobj\n4 0 obj<</Length 0>>stream\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF','utf8');
+  for (const asset of [
+    {kind:'DOCUMENT',name:'QA-R3-document-synthetique.pdf',mime:'application/pdf',buffer:syntheticPdf},
+    {kind:'RADIO',name:'QA-R3-radiographie-synthetique.png',mime:'image/png',buffer:fakePng},
+  ]) {
+    const imported=await api.post('/api/patients/'+patient.id+'/assets/import',{
+      headers:head,multipart:{file:{name:asset.name,mimeType:asset.mime,buffer:asset.buffer},
+        asset_type:asset.kind,source_kind:'UPLOAD'},
+    });
+    pass('real authenticated P2 synthetic '+asset.kind+' media import',imported.ok(),
+      {status:imported.status()});
+  }
+  const p2AssetsResponse=await api.get('/api/patients/'+patient.id+'/assets',{headers:head});
+  pass('real authenticated P2 synthetic asset index',p2AssetsResponse.status()===200,
+    {status:p2AssetsResponse.status()});
+  const p2Assets=await p2AssetsResponse.json();
+  for (const kind of ['DOCUMENT','RADIO']) {
+    pass('persisted synthetic '+kind+' exists in real patient asset API',
+      p2Assets.items?.some(item=>item.asset_type===kind),
+      {kind,total:p2Assets.items?.length});
+  }
   // A third clinical panel is meaningful only with genuine, seeded T0/T1 data.
   // Create an orthodontic case via the real authenticated API in the disposable T2 DB.
   const syntheticMediaList=await api.get('/api/patients/'+patient.id+'/assets',{headers:head});
