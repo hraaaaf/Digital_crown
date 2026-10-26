@@ -107,14 +107,14 @@ export const LegacyActeNotes = ({ acte, patientId }: LegacyActeNotesProps) => {
       <div className="flex items-center gap-2 justify-end mb-4">
         <button
           onClick={handleGeneratePrescription}
-          className="p-2 bg-slate-50 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm border border-slate-100 transition-colors"
+          className="p-2 bg-background text-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-lg shadow-sm border border-border-main transition-colors"
           title="Générer une ordonnance"
         >
           <FileSignature size={16} />
         </button>
         <button
           onClick={handleGenerateInvoice}
-          className="p-2 bg-slate-50 text-slate-500 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg shadow-sm border border-slate-100 transition-colors"
+          className="p-2 bg-background text-text-muted hover:text-emerald-600 hover:bg-emerald-50 rounded-lg shadow-sm border border-border-main transition-colors"
           title="Générer une note d'honoraires"
         >
           <Receipt size={16} />
@@ -122,11 +122,11 @@ export const LegacyActeNotes = ({ acte, patientId }: LegacyActeNotesProps) => {
       </div>
 
       {/* Notes section */}
-      <div className="bg-slate-50 rounded-2xl p-5 mb-4">
+      <div className="bg-background rounded-2xl p-5 mb-4">
         {isEditing ? (
           <div className="space-y-3">
             <textarea
-              className="w-full bg-white border border-slate-200 rounded-xl p-3 min-h-[100px] text-sm focus:ring-2 focus:ring-primary outline-none"
+              className="w-full bg-card border border-border-main rounded-xl p-3 min-h-[100px] text-sm focus:ring-2 focus:ring-primary outline-none"
               placeholder="Saisissez vos notes cliniques (Ex: ttt canalaire, LT = 21mm, particularités...)"
               value={editNotes}
               onChange={(e) => setEditNotes(e.target.value)}
@@ -134,7 +134,7 @@ export const LegacyActeNotes = ({ acte, patientId }: LegacyActeNotesProps) => {
             <div className="flex justify-end gap-2">
               <button
                 onClick={() => setIsEditing(false)}
-                className="px-4 py-2 text-sm font-bold text-slate-500 hover:bg-slate-200 rounded-lg"
+                className="px-4 py-2 text-sm font-bold text-text-muted hover:bg-input-field rounded-lg"
               >
                 Annuler
               </button>
@@ -149,17 +149,17 @@ export const LegacyActeNotes = ({ acte, patientId }: LegacyActeNotesProps) => {
         ) : (
           <div className="group/note relative min-h-[60px]">
             {acte.notes_cliniques ? (
-              <p className="text-slate-700 whitespace-pre-wrap text-sm leading-relaxed">
+              <p className="text-text-main whitespace-pre-wrap text-sm leading-relaxed">
                 {acte.notes_cliniques}
               </p>
             ) : (
-              <p className="text-slate-400 italic text-sm">
+              <p className="text-text-muted italic text-sm">
                 Aucune note clinique pour cette séance.
               </p>
             )}
             <button
               onClick={startEditing}
-              className="absolute top-0 right-0 p-2 bg-white rounded-lg shadow-sm border border-slate-200 text-slate-400 hover:text-primary opacity-0 group-hover/note:opacity-100 transition-opacity"
+              className="absolute top-0 right-0 p-2 bg-card rounded-lg shadow-sm border border-border-main text-text-muted hover:text-primary opacity-0 group-hover/note:opacity-100 transition-opacity"
             >
               <Edit2 size={16} />
             </button>
@@ -168,11 +168,11 @@ export const LegacyActeNotes = ({ acte, patientId }: LegacyActeNotesProps) => {
       </div>
 
       {/* Attachments (e.g., retro-alveolaire) */}
-      <div className="flex items-center gap-4 mt-4 pt-4 border-t border-slate-100">
+      <div className="flex items-center gap-4 mt-4 pt-4 border-t border-border-main">
         {acte.attachments && acte.attachments.length > 0 ? (
           <div className="flex gap-3">
             {acte.attachments.map((url, idx) => (
-              <div key={idx} className="w-16 h-16 rounded-xl bg-slate-200 overflow-hidden shadow-sm">
+              <div key={idx} className="w-16 h-16 rounded-xl bg-input-field overflow-hidden shadow-sm">
                 <AuthImg url={url} className="w-full h-full object-cover" />
               </div>
             ))}
@@ -189,7 +189,7 @@ export const LegacyActeNotes = ({ acte, patientId }: LegacyActeNotesProps) => {
           />
           <label
             htmlFor={`file-${acte.id}`}
-            className="flex items-center gap-2 px-3 py-1.5 border border-slate-200 rounded-lg text-xs font-bold text-slate-500 hover:bg-slate-50 hover:text-primary cursor-pointer transition-colors"
+            className="flex items-center gap-2 px-3 py-1.5 border border-border-main rounded-lg text-xs font-bold text-text-muted hover:bg-background hover:text-primary cursor-pointer transition-colors"
           >
             <ImageIcon size={14} /> Joindre Radio (Rétro)
           </label>

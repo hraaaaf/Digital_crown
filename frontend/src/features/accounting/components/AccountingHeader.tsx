@@ -28,7 +28,7 @@ export const AccountingHeader = ({
       </div>
       <div>
         <h1 className="text-3xl font-black tracking-tight" style={{ color: 'var(--primary)' }}>Comptabilité & Honoraires</h1>
-        <p className="text-slate-500 font-medium mt-1 uppercase text-[10px] tracking-widest flex items-center gap-2">
+        <p className="text-text-muted font-medium mt-1 uppercase text-[10px] tracking-widest flex items-center gap-2">
           <TrendingUp size={14} className="text-emerald-500" />
           Suivi des encaissements par assurance
         </p>
@@ -38,16 +38,16 @@ export const AccountingHeader = ({
     <div className="flex flex-wrap items-center gap-4">
       <div className="flex gap-2 mr-4">
         {Object.entries(breakdown).map(([ass, amount]) => amount > 0 && (
-          <div key={ass} className="px-3 py-2 bg-slate-50 border border-slate-100 rounded-xl flex flex-col items-center min-w-[80px]">
-            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{ass === 'MUTUELLE_FAR' ? 'FAR' : ass}</span>
+          <div key={ass} className="px-3 py-2 bg-background border border-border-main rounded-xl flex flex-col items-center min-w-[80px]">
+            <span className="text-[9px] font-black text-text-muted uppercase tracking-tighter">{ass === 'MUTUELLE_FAR' ? 'FAR' : ass}</span>
             <span className="text-[11px] font-bold" style={{ color: 'var(--primary)' }}>{amount.toLocaleString('fr-FR')}</span>
           </div>
         ))}
       </div>
       <div className="flex gap-2">
-        <div className="bg-slate-50 px-6 py-4 rounded-3xl border border-slate-100 flex flex-col items-end shadow-sm">
-          <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total Facturé</span>
-          <span className="text-xl font-black text-slate-400">{totalAmount.toLocaleString('fr-FR')} MAD</span>
+        <div className="bg-background px-6 py-4 rounded-3xl border border-border-main flex flex-col items-end shadow-sm">
+          <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Total Facturé</span>
+          <span className="text-xl font-black text-text-muted">{totalAmount.toLocaleString('fr-FR')} MAD</span>
         </div>
         <div className="bg-emerald-50 px-6 py-4 rounded-3xl border border-emerald-100 flex flex-col items-end shadow-sm">
           <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Total Encaissé</span>

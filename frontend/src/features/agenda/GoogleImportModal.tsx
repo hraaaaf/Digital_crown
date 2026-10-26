@@ -115,23 +115,23 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
           role="dialog"
           aria-modal="true"
           aria-label="Import Google Agenda"
-          className="relative w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+          className="relative w-full max-w-3xl bg-card rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
         >
           {/* Header */}
-          <div className="flex items-center justify-between p-6 border-b border-slate-100 bg-slate-50/50">
+          <div className="flex items-center justify-between p-6 border-b border-border-main bg-background/50">
             <div className="flex items-center gap-3">
               <div className="p-2.5 bg-primary/10 text-primary rounded-xl">
                 <Calendar size={24} />
               </div>
               <div>
-                <h2 className="text-xl font-bold text-slate-800">Import Google Agenda</h2>
-                <p className="text-sm text-slate-500">Importez vos rendez-vous via un fichier .ics</p>
+                <h2 className="text-xl font-bold text-text-main">Import Google Agenda</h2>
+                <p className="text-sm text-text-muted">Importez vos rendez-vous via un fichier .ics</p>
               </div>
             </div>
             <button
               onClick={onClose}
               aria-label="Fermer l’import Google Agenda"
-              className="p-2 text-slate-400 hover:text-slate-600 hover:bg-slate-100 rounded-full transition-colors"
+              className="p-2 text-text-muted hover:text-text-muted hover:bg-input-field rounded-full transition-colors"
             >
               <X size={20} />
             </button>
@@ -148,14 +148,14 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
 
             {step === 1 && (
               <div 
-                className="border-2 border-dashed border-slate-200 rounded-2xl p-12 text-center hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer group"
+                className="border-2 border-dashed border-border-main rounded-2xl p-12 text-center hover:border-primary hover:bg-primary/5 transition-colors cursor-pointer group"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <div className="w-16 h-16 bg-primary/10 text-primary rounded-full flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform">
                   <UploadCloud size={32} />
                 </div>
-                <h3 className="text-lg font-bold text-slate-700 mb-2">Sélectionnez un fichier .ics</h3>
-                <p className="text-slate-500 text-sm max-w-sm mx-auto">
+                <h3 className="text-lg font-bold text-text-main mb-2">Sélectionnez un fichier .ics</h3>
+                <p className="text-text-muted text-sm max-w-sm mx-auto">
                   Exportez votre calendrier depuis Google Agenda (Paramètres &gt; Exporter) et sélectionnez le fichier .ics.
                 </p>
                 <input 
@@ -186,11 +186,11 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
                   </button>
                 </div>
 
-                <div className="border border-slate-200 rounded-xl overflow-hidden max-h-[400px] overflow-y-auto">
+                <div className="border border-border-main rounded-xl overflow-hidden max-h-[400px] overflow-y-auto">
                   <table className="w-full text-left text-sm">
-                    <thead className="bg-slate-50 sticky top-0 border-b border-slate-200">
+                    <thead className="bg-background sticky top-0 border-b border-border-main">
                       <tr>
-                        <th className="p-3 font-semibold text-slate-600 w-12">
+                        <th className="p-3 font-semibold text-text-muted w-12">
                           <input
                             type="checkbox"
                             checked={selectedIds.size === events.length && events.length > 0}
@@ -198,17 +198,17 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
                             className="w-4 h-4 accent-primary rounded"
                           />
                         </th>
-                        <th className="p-3 font-semibold text-slate-600">Patient / Titre</th>
-                        <th className="p-3 font-semibold text-slate-600">Date & Heure</th>
-                        <th className="p-3 font-semibold text-slate-600">Durée</th>
+                        <th className="p-3 font-semibold text-text-muted">Patient / Titre</th>
+                        <th className="p-3 font-semibold text-text-muted">Date & Heure</th>
+                        <th className="p-3 font-semibold text-text-muted">Durée</th>
                       </tr>
                     </thead>
-                    <tbody className="divide-y divide-slate-100">
+                    <tbody className="divide-y divide-border-main">
                       {events.slice(0, 50).map((ev, idx) => {
                         const date = new Date(ev.datetime_start);
                         const isSelected = selectedIds.has(idx.toString());
                         return (
-                          <tr key={idx} className={isSelected ? 'bg-primary/5' : 'hover:bg-slate-50'}>
+                          <tr key={idx} className={isSelected ? 'bg-primary/5' : 'hover:bg-background'}>
                             <td className="p-3 w-12">
                               <input
                                 type="checkbox"
@@ -217,11 +217,11 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
                                 className="w-4 h-4 accent-primary rounded"
                               />
                             </td>
-                            <td className="p-3 font-medium text-slate-800">{ev.patient_name}</td>
-                            <td className="p-3 text-slate-600">
+                            <td className="p-3 font-medium text-text-main">{ev.patient_name}</td>
+                            <td className="p-3 text-text-muted">
                               {date.toLocaleDateString('fr-FR')} à {date.toLocaleTimeString('fr-FR', {hour: '2-digit', minute:'2-digit'})}
                             </td>
-                            <td className="p-3 text-slate-600">
+                            <td className="p-3 text-text-muted">
                               {ev.duration_minutes} min
                             </td>
                           </tr>
@@ -230,7 +230,7 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
                     </tbody>
                   </table>
                   {events.length > 50 && (
-                    <div className="p-3 text-center text-sm text-slate-500 bg-slate-50 border-t border-slate-200">
+                    <div className="p-3 text-center text-sm text-text-muted bg-background border-t border-border-main">
                       Et {events.length - 50} autres événements non affichés...
                     </div>
                   )}
@@ -240,10 +240,10 @@ export const GoogleImportModal: React.FC<GoogleImportModalProps> = ({ isOpen, on
           </div>
 
           {/* Footer */}
-          <div className="p-6 border-t border-slate-100 bg-slate-50/50 flex justify-end gap-3">
+          <div className="p-6 border-t border-border-main bg-background/50 flex justify-end gap-3">
             <button
               onClick={onClose}
-              className="px-5 py-2.5 text-slate-600 font-medium hover:bg-slate-200/50 rounded-xl transition-colors"
+              className="px-5 py-2.5 text-text-muted font-medium hover:bg-input-field/50 rounded-xl transition-colors"
             >
               Annuler
             </button>

@@ -27,10 +27,10 @@ export const WelcomeScreen: React.FC = () => {
           <div className="w-48 h-48 flex items-center justify-center mx-auto mb-6 animate-in zoom-in duration-700">
             <img src={Logo} className="w-full h-full object-contain" alt="Digital Crown" />
           </div>
-          <h1 className="text-4xl font-black text-slate-900 mb-4 tracking-tight">
+          <h1 className="text-4xl font-black text-text-main mb-4 tracking-tight">
             Digital Crown <span className="text-primary">v1.1</span>
           </h1>
-          <p className="text-slate-500 text-lg max-w-lg mx-auto">
+          <p className="text-text-muted text-lg max-w-lg mx-auto">
             Bienvenue dans votre nouvel écosystème clinique intelligent.
           </p>
         </div>
@@ -39,14 +39,14 @@ export const WelcomeScreen: React.FC = () => {
           {/* Mode Production (Mon Cabinet) */}
           <button
             onClick={handleSelectMode}
-            className="w-full group relative bg-white rounded-3xl border-2 border-slate-100 p-8 text-left transition-all duration-500 hover:border-primary hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2 overflow-hidden"
+            className="w-full group relative bg-card rounded-3xl border-2 border-border-main p-8 text-left transition-all duration-500 hover:border-primary hover:shadow-2xl hover:shadow-primary/10 hover:-translate-y-2 overflow-hidden"
           >
             <div className="relative z-10">
-              <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-500">
+              <div className="w-14 h-14 bg-input-field rounded-2xl flex items-center justify-center mb-6 group-hover:bg-primary group-hover:text-white transition-colors duration-500">
                 <ShieldCheck className="w-7 h-7" />
               </div>
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Mon Cabinet</h2>
-              <p className="text-slate-500 mb-8">
+              <h2 className="text-2xl font-bold text-text-main mb-2">Mon Cabinet</h2>
+              <p className="text-text-muted mb-8">
                 Accédez à vos dossiers patients réels et à votre base de données sécurisée.
               </p>
               <div className="flex items-center gap-2 text-primary font-bold group-hover:gap-4 transition-all">
@@ -55,12 +55,12 @@ export const WelcomeScreen: React.FC = () => {
               </div>
             </div>
             {/* Background Accent */}
-            <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-slate-50 rounded-full group-hover:bg-primary/5 transition-colors duration-500" />
+            <div className="absolute -right-12 -bottom-12 w-48 h-48 bg-background rounded-full group-hover:bg-primary/5 transition-colors duration-500" />
           </button>
         </div>
 
-        <p className="text-center mt-12 text-slate-400 text-sm">
-          Propulsé par <span className="font-bold text-slate-600">SANINOVA AI Engine</span>
+        <p className="text-center mt-12 text-text-muted text-sm">
+          Propulsé par <span className="font-bold text-text-muted">SANINOVA AI Engine</span>
         </p>
       </div>
     </div>
