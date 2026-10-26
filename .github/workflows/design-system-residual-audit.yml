@@ -1,0 +1,37 @@
+name: Design System Residual Color Audit (READ ONLY)
+on:
+  push:
+    branches:
+      - audit/design-system-residual-20261026
+    paths:
+      - scripts/ci/theme_residual_inventory.py
+      - .github/workflows/design-system-residual-audit.yml
+  pull_request:
+    paths:
+      - scripts/ci/theme_residual_inventory.py
+      - .github/workflows/design-system-residual-audit.yml
+permissions:
+  contents: read
+jobs:
+  inventory:
+    name: Read-only TSX/Tailwind debt inventory vs historical Wave02 base
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Inventory colors and produce per-file report (no edits, no deploy)
+        run: python scripts/ci/theme_residual_inventory.py
+      - name: Archive JSON and CSV evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: design-system-residual-color-audit
+          path: artifacts/theme-hardcode-audit/
+          if-no-files-found: warn
+          retention-days: 30
