@@ -10,7 +10,9 @@ import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
 const baseSha = process.env.THEME_CONTRAST_BASE_SHA || '';
-const headSha = process.env.GITHUB_SHA || '';
+const headSha = process.env.THEME_CONTRAST_HEAD_SHA || '';
+const checkedOutSha = execFileSync('git',['rev-parse','HEAD'],{cwd:'..',encoding:'utf8'}).trim();
+if (checkedOutSha !== headSha) throw new Error('Evidence HEAD mismatch: checkout='+checkedOutSha+' expected='+headSha);
 if (!/^[0-9a-f]{40}$/.test(baseSha) || !/^[0-9a-f]{40}$/.test(headSha)) throw new Error('Exact base/HEAD SHA required');
 const out = resolve('theme-contrast-visual-evidence');
 const html = resolve('theme-contrast-aa-visual.html');
