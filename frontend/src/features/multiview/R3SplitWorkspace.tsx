@@ -94,6 +94,7 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
   const paneClass = 'min-w-0 min-h-0 overflow-auto overscroll-contain rounded-lg border border-border-main bg-card';
   return <section aria-label={'R3-1 — ' + layout.label}
     data-r3-1-split={layout.geometry} data-r3-1-mode={mode}
+    data-v15-071-layout={layout.id}
     className="relative isolate min-w-0 rounded-xl border border-border-main bg-medical-pearl p-2.5 text-text-main sm:p-3">
     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-sm font-semibold">{layout.label} · R3-1</h2>

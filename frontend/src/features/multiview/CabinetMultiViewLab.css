@@ -513,3 +513,30 @@
 [data-v15-071-real-cabinet-lab] [data-testid="r3-real-agenda"] tbody tr:last-child td {
   padding-bottom: 12px;
 }
+
+/* R3-POLISH R3-1 actual split-grid, not the generic StudioLayoutFrame grid.
+ * The splitter uses its own inline height; selector targets only these named
+ * DEV presets and never changes its independently authorized ratio or minimum
+ * clinical slot widths. Both panes remain independently scrollable. */
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])[data-r3-1-split="two-columns"]
+  [data-testid="r3-1-grid"] {
+  height: min(48vh, 520px) !important;
+  min-height: 360px !important;
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])[data-r3-1-split="two-columns"]
+  [data-testid="r3-1-grid"]:has([data-r3-agenda-state="empty"]) {
+  height: 340px !important;
+  min-height: 340px !important;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="imagerie"][data-r3-1-split="two-columns"]
+  [data-testid="r3-1-grid"] {
+  height: min(66vh, 720px) !important;
+  min-height: 570px !important;
+}
