@@ -19,13 +19,17 @@ const three:Layout = {
 
 describe('LOT07 R3 panel module chooser — real adapters only',()=>{
   it('only offers existing authenticated read-only clinical modules',()=>{
-    expect(R3_REAL_MODULES).toEqual(['dossier','imagerie','suivi']);
+    expect(R3_REAL_MODULES).toEqual(['dossier','imagerie','suivi','agenda']);
     expect(r3ModuleOptions(columns,0,context)).toEqual(['dossier','imagerie','suivi']);
     expect(r3ModuleOptions(columns,0,{...context,allowedModules:['dossier','imagerie']}))
       .toEqual(['dossier','imagerie']);
     expect(chooseR3Module(columns,0,'agenda',context)).toBeNull();
     expect(chooseR3Module(columns,0,'documents',context)).toBeNull();
     expect(chooseR3Module(columns,0,'cephalo',context)).toBeNull();
+    const agendaContext={...context,allowedModules:['dossier','imagerie','suivi','agenda'] as const};
+    expect(chooseR3Module(columns,0,'agenda',agendaContext)?.slots.map(slot=>slot.module))
+      .toEqual(['agenda','imagerie']);
+    expect(r3ModuleOptions(columns,0,agendaContext)).toContain('agenda');
   });
 
   it('permutes existing modules rather than mounting a second media or cephalo viewer',()=>{
