@@ -22,6 +22,8 @@ interface PatientMediaTimelineProps {
   patientId: number;
   /** MultiView R-mode: hides editing actions; backend RBAC remains authoritative. */
   readOnly?: boolean;
+  /** Hard filter for certified R-only split panes, cannot be changed by toolbar. */
+  fixedAssetType?: 'PHOTO' | 'RADIOGRAPH' | 'DOCUMENT';
 }
 
 interface ViewerState {
@@ -121,7 +123,7 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
-export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => {
+export const PatientMediaTimeline = ({ patientId, readOnly = false, fixedAssetType }: PatientMediaTimelineProps) => {
   const [items, setItems] = useState<ClinicalAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -135,6 +137,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
+  const effectiveTypeFilter=readOnly && fixedAssetType ? fixedAssetType : typeFilter;
   const [timepointFilter, setTimepointFilter] = useState('ALL');
   const [compareIds, setCompareIds] = useState<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,7 +168,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
           limit: PAGE_SIZE,
           offset,
           q: debouncedSearch || undefined,
-          asset_type: typeFilter === 'ALL' ? undefined : typeFilter,
+          asset_type: effectiveTypeFilter === 'ALL' ? undefined : effectiveTypeFilter,
           timepoint: timepointFilter === 'ALL' ? undefined : (timepointFilter === 'Sans repère' ? '__NONE__' : timepointFilter),
         },
       });
@@ -185,7 +188,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
         setLoadingMore(false);
       }
     }
-  }, [debouncedSearch, patientId, timepointFilter, typeFilter]);
+  }, [debouncedSearch, patientId, timepointFilter, effectiveTypeFilter]);
 
   useEffect(() => {
     void loadAssets();
@@ -209,14 +212,14 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
   const filteredItems = useMemo(() => {
     const query = searchTerm.trim().toLocaleLowerCase('fr');
     return items.filter((item) => {
-      if (typeFilter !== 'ALL' && item.asset_type !== typeFilter) return false;
+      if (effectiveTypeFilter !== 'ALL' && item.asset_type !== effectiveTypeFilter) return false;
       const itemTimepoint = item.timepoint || 'Sans repère';
       if (timepointFilter !== 'ALL' && itemTimepoint !== timepointFilter) return false;
       if (!query) return true;
       const haystack = [assetTypeLabel[item.asset_type] || item.asset_type, item.asset_type, item.source_kind, itemTimepoint, formatDate(item.captured_at || item.created_at)].join(' ').toLocaleLowerCase('fr');
       return haystack.includes(query);
     });
-  }, [items, searchTerm, timepointFilter, typeFilter]);
+  }, [items, searchTerm, timepointFilter, effectiveTypeFilter]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, ClinicalAsset[]>();
@@ -354,7 +357,10 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
               <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
               <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher média…" aria-label="Rechercher un média" className="h-10 w-full rounded-xl border border-border-main bg-card-bg pl-9 pr-2 text-xs font-semibold text-main outline-none focus:border-primary focus:ring-2 focus:ring-blue-100" />
             </label>
-            <select aria-label="Filtrer par type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary">
+            <select aria-label="Filtrer par type" value={effectiveTypeFilter}
+              disabled={Boolean(readOnly && fixedAssetType)}
+              onChange={(event) => {if (!readOnly || !fixedAssetType) setTypeFilter(event.target.value);}}
+              className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary disabled:opacity-70">
               <option value="ALL">Tous types</option><option value="PHOTO">Photos</option><option value="RADIOGRAPH">Radios</option><option value="DOCUMENT">Documents</option>
             </select>
             <select aria-label="Filtrer par repère" value={timepointFilter} onChange={(event) => setTimepointFilter(event.target.value)} className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary">
