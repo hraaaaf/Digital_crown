@@ -26,8 +26,8 @@ export const Step2Specialties: React.FC<Props> = ({
 }) => (
   <div className="space-y-6 animate-in fade-in duration-300">
     <div className="text-center mb-6">
-      <h2 className="text-2xl font-black text-slate-900">Spécialités</h2>
-      <p className="text-sm text-slate-500">Sélectionnez vos domaines d'expertise.</p>
+      <h2 className="text-2xl font-black text-text-main">Spécialités</h2>
+      <p className="text-sm text-text-muted">Sélectionnez vos domaines d'expertise.</p>
     </div>
 
     <div className="flex flex-col gap-4">
@@ -51,20 +51,20 @@ export const Step2Specialties: React.FC<Props> = ({
               <div className={cn(
                 "w-16 h-16 rounded-2xl flex items-center justify-center transition-all duration-300",
                 selectedSpecialties.includes(spec.id)
-                  ? "bg-primary text-white shadow-xl shadow-primary/30 scale-105"
-                  : "bg-background text-text-muted group-hover:bg-primary/10 group-hover:text-primary group-hover:scale-105"
+                  ? "bg-primary text-on-primary shadow-xl shadow-primary/30 scale-105"
+                  : "bg-background text-text-muted group-hover:bg-primary/10 group-hover:text-text-main group-hover:scale-105"
               )}>
                 <spec.icon size={32} />
               </div>
               <span className={cn(
                 "font-black text-xs transition-colors",
-                selectedSpecialties.includes(spec.id) ? "text-primary" : "text-slate-900"
+                selectedSpecialties.includes(spec.id) ? "text-text-main" : "text-text-main"
               )}>{spec.fr}</span>
             </div>
-            <div className="text-[10px] text-slate-400 font-medium text-right font-arabic">{spec.ar}</div>
+            <div className="text-[10px] text-text-muted font-medium text-right font-arabic">{spec.ar}</div>
             {selectedSpecialties.includes(spec.id) && (
               <div className="absolute top-2 right-2 w-4 h-4 rounded-full bg-primary flex items-center justify-center">
-                <Check size={10} className="text-white" />
+                <Check size={10} className="text-on-primary" />
               </div>
             )}
           </button>
@@ -72,7 +72,7 @@ export const Step2Specialties: React.FC<Props> = ({
 
         <button
           onClick={() => setShowCustomModal(true)}
-          className="p-4 rounded-2xl border-2 border-dashed border-slate-200 flex items-center justify-center gap-2 text-slate-500 hover:border-primary hover:text-primary transition-all"
+          className="p-4 rounded-2xl border-2 border-dashed border-border-main flex items-center justify-center gap-2 text-text-muted hover:border-primary hover:text-text-main transition-all"
         >
           <Plus size={16} />
           <span className="font-bold text-xs">Autre spécialité...</span>
@@ -82,25 +82,25 @@ export const Step2Specialties: React.FC<Props> = ({
 
     {showCustomModal && (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm">
-        <div className="bg-white w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-white/20 animate-in zoom-in-95 duration-200">
+        <div className="bg-card w-full max-w-md rounded-[32px] overflow-hidden shadow-2xl border border-border-main animate-in zoom-in-95 duration-200">
           <div className="p-8 space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="text-xl font-black text-slate-900">Spécialité Personnalisée</h3>
-              <button onClick={() => setShowCustomModal(false)} className="p-2 rounded-full hover:bg-slate-100"><X size={20} /></button>
+              <h3 className="text-xl font-black text-text-main">Spécialité Personnalisée</h3>
+              <button onClick={() => setShowCustomModal(false)} className="p-2 rounded-full hover:bg-input-field"><X size={20} /></button>
             </div>
             <div className="space-y-4">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">En Français</label>
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">En Français</label>
                 <input
                   type="text"
                   value={customSpecialty.fr}
                   onChange={e => setCustomSpecialty(prev => ({ ...prev, fr: e.target.value }))}
-                  className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900"
+                  className="w-full p-4 rounded-xl border border-border-main focus:ring-2 focus:ring-primary/20 transition-all font-bold text-text-main"
                   placeholder="Ex: Pédodontie"
                 />
               </div>
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-1">En Arabe (Clavier)</label>
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-1">En Arabe (Clavier)</label>
                 <div className="relative">
                   <input
                     type="text"
@@ -108,12 +108,12 @@ export const Step2Specialties: React.FC<Props> = ({
                     value={customSpecialty.ar}
                     onChange={e => setCustomSpecialty(prev => ({ ...prev, ar: e.target.value }))}
                     onFocus={() => setShowArKeyboard({ show: true, target: 'custom_spec' })}
-                    className="w-full p-4 rounded-xl border border-slate-200 focus:ring-2 focus:ring-primary/20 transition-all font-bold text-slate-900 font-arabic text-lg"
+                    className="w-full p-4 rounded-xl border border-border-main focus:ring-2 focus:ring-primary/20 transition-all font-bold text-text-main font-arabic text-lg"
                     placeholder="Ex: طب أسنان الأطفال"
                   />
                   <button
                     onClick={() => setShowArKeyboard({ show: true, target: 'custom_spec' })}
-                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-slate-100 rounded-lg text-slate-400 hover:text-primary transition-colors"
+                    className="absolute left-3 top-1/2 -translate-y-1/2 p-2 bg-input-field rounded-lg text-text-muted hover:text-text-main transition-colors"
                   >
                     <Type size={16} />
                   </button>
@@ -122,7 +122,7 @@ export const Step2Specialties: React.FC<Props> = ({
             </div>
             <button
               onClick={() => setShowCustomModal(false)}
-              className="w-full py-4 bg-primary text-white rounded-2xl font-black text-sm"
+              className="w-full py-4 bg-primary text-on-primary rounded-2xl font-black text-sm"
             >
               Valider
             </button>
@@ -130,6 +130,6 @@ export const Step2Specialties: React.FC<Props> = ({
         </div>
       </div>
     )}
-    {errors.specialties && <p className="text-[10px] text-red-500 font-bold text-center">{errors.specialties}</p>}
+    {errors.specialties && <p className="text-[10px] text-danger font-bold text-center">{errors.specialties}</p>}
   </div>
 );
