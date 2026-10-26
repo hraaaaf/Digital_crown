@@ -246,6 +246,57 @@ try {
   await capture(page,'after-r3-1-two-rows-content-fit-high-contrast-1920.png');
   pass('nine unintegrated presets still unavailable',
     await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9);
+  // R3-2: the third opt-in is independent, and the three modules are TRUE
+  // authenticated patient views. Every focus transition unmounts other viewers.
+  if(process.env.VITE_V15_07_1_R3_2_FOCUS_LAB==='1') {
+    await select.selectOption('dossier-media-suivi-3cols');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const three=page.locator('[data-testid="r3-2-three-real-panes"]');
+    await three.waitFor({state:'visible',timeout:30000});
+    pass('R3-2 three authenticated read-only panel slots mounted',
+      await three.locator('[data-v15-071-viewslot]').count()===3 &&
+      await three.locator('[data-v15-071-viewslot="imagerie"]').count()===1 &&
+      await three.locator('[data-v15-071-viewslot="dossier"]').count()===1 &&
+      await three.locator('[data-v15-071-viewslot="suivi"]').count()===1);
+    pass('R3-2 single real media and true longitudinal source',
+      await three.locator('[data-testid="patient-media-timeline"]').count()===1 &&
+      await three.locator('[data-v15-071-viewslot="suivi"]').count()===1);
+    pass('R3-2 nine unintegrated product presets remain unavailable',
+      await select.locator('option:disabled').count()===9);
+    await three.scrollIntoViewIfNeeded();
+    await capture(page,'after-r3-2-three-columns-1920.png');
+
+    await page.getByRole('button',{name:'Agrandir le panneau 2 : imagerie'}).click();
+    const focused=page.locator('[data-testid="r3-2-single-focus"]');
+    await focused.waitFor({state:'visible'});
+    pass('R3-2 focus unmounts dossier and longitudinal rather than hiding them',
+      await focused.locator('[data-v15-071-viewslot]').count()===1 &&
+      await page.locator('[data-v15-071-viewslot="dossier"]').count()===0 &&
+      await page.locator('[data-v15-071-viewslot="suivi"]').count()===0);
+    pass('R3-2 focused media is still a single actual clinical viewer',
+      await focused.locator('[data-testid="patient-media-timeline"]').count()===1);
+    await capture(page,'after-r3-2-focus-media-1920.png');
+    await page.getByRole('button',{name:'Restaurer les trois panneaux'}).click();
+    pass('R3-2 restoration remounts all three authorized read-only views',
+      await page.locator('[data-testid="r3-2-three-real-panes"] [data-v15-071-viewslot]').count()===3);
+    await capture(page,'after-r3-2-restored-three-columns-1920.png');
+
+    await select.selectOption('dossier-media-suivi-hero');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const hero=page.locator('[data-testid="r3-2-three-real-panes"] [data-v15-071-geometry="hero-two"]');
+    await hero.waitFor({state:'visible'});
+    pass('R3-2 three REAL modules use 1+2 hierarchy',
+      await hero.locator('[data-v15-071-viewslot]').count()===3);
+    await hero.scrollIntoViewIfNeeded();
+    await capture(page,'after-r3-2-hero-two-1920.png');
+    await page.getByRole('button',{name:'Agrandir le panneau 3 : suivi'}).click();
+    pass('R3-2 longitudinal focus is sole active clinical pane',
+      await page.locator('[data-testid="r3-2-single-focus"] [data-v15-071-viewslot="suivi"]').count()===1 &&
+      await page.locator('[data-testid="patient-media-timeline"]').count()===0);
+    await capture(page,'after-r3-2-focus-suivi-1920.png');
+  }
   pass('no browser JavaScript errors',errors.length===0,{errors:errors.slice(0,4)});
   console.log('R3-1 AUTHENTIC AFTER PASS '+evidence.tests.length+' tests, '+evidence.screens.length+
     ' synthetic screenshots, exact HEAD '+sha);
