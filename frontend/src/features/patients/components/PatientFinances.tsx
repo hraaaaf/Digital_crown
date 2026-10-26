@@ -108,8 +108,8 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
       <div className="min-h-[320px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-danger-border bg-danger-surface/50 px-6 text-center">
         <AlertCircle size={36} className="text-danger" />
         <div>
-          <h3 className="font-black text-slate-800">Impossible de charger les finances</h3>
-          <p className="mt-1 text-sm text-slate-500">Aucun solde n’est déduit d’une lecture incomplète.</p>
+          <h3 className="font-black text-text-main">Impossible de charger les finances</h3>
+          <p className="mt-1 text-sm text-text-muted">Aucun solde n’est déduit d’une lecture incomplète.</p>
         </div>
         <button
           type="button"
@@ -137,7 +137,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card-bg p-5 sm:p-6 rounded-[2rem] border border-border-main shadow-sm min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Facturé</p>
-          <div className="text-2xl sm:text-3xl font-black text-slate-800 break-words">
+          <div className="text-2xl sm:text-3xl font-black text-text-main break-words">
             {hasBillingBase ? snapshot.total_billed.toLocaleString('fr-MA') : 'Indéterminé'}
           </div>
           <div className="text-xs text-text-muted font-bold mt-1">
@@ -163,7 +163,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
           <div className={cn(
             'text-2xl sm:text-3xl font-black break-words',
             !hasBillingBase
-              ? 'text-slate-500'
+              ? 'text-text-muted'
               : (snapshot.remaining_due ?? 0) > 0
                 ? 'text-danger'
                 : 'text-success',
@@ -210,7 +210,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border-main bg-slate-50/50">
+                <tr className="border-b border-border-main bg-background/50">
                   <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-text-muted">Date</th>
                   <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-text-muted">Acte</th>
                   <th className="px-5 py-3 text-right text-[10px] font-black uppercase tracking-widest text-text-muted">Montant</th>
@@ -233,7 +233,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
                         <p className="font-bold text-main truncate">{acte.libelle}</p>
                         {acte.type_acte && <p className="text-[10px] text-text-muted font-medium">{acte.type_acte}</p>}
                       </td>
-                      <td className="px-5 py-3 text-right font-black text-slate-700 whitespace-nowrap">{money(acte.montant)}</td>
+                      <td className="px-5 py-3 text-right font-black text-text-main whitespace-nowrap">{money(acte.montant)}</td>
                       <td className="px-5 py-3 text-right font-black text-success whitespace-nowrap">{money(acte.total_paid)}</td>
                       <td className="px-5 py-3 text-right whitespace-nowrap">
                         {isPaid ? <CheckCircle2 size={16} className="inline text-success" /> : <span className="font-black text-danger">{money(acte.remaining_due)}</span>}
@@ -295,7 +295,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
                     </div>
                     <div className="flex items-center gap-3 ml-3">
                       <span className={cn('text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border', statut.className)}>{statut.label}</span>
-                      <span className="text-sm font-black text-slate-800 whitespace-nowrap">{money(item.montant)}</span>
+                      <span className="text-sm font-black text-text-main whitespace-nowrap">{money(item.montant)}</span>
                     </div>
                   </div>
                 );
@@ -320,7 +320,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
           </div>
           {snapshot.upcoming_installments_count === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-text-muted">
-              <Calendar size={32} className="text-slate-300 mb-2" />
+              <Calendar size={32} className="text-text-muted mb-2" />
               <p className="text-sm font-bold">Aucune échéance à venir</p>
             </div>
           ) : (
@@ -346,7 +346,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
         </div>
         {snapshot.recent_payments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-text-muted">
-            <Clock size={32} className="text-slate-300 mb-2" />
+            <Clock size={32} className="text-text-muted mb-2" />
             <p className="text-sm font-bold">Aucun paiement enregistré</p>
           </div>
         ) : (

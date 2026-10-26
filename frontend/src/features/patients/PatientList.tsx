@@ -164,7 +164,7 @@ export const PatientList = () => {
         <div className="flex gap-3">
           <button
             onClick={() => setIsCsvModalOpen(true)}
-            className="px-5 py-4 rounded-2xl font-black flex items-center gap-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
+            className="px-5 py-4 rounded-2xl font-black flex items-center gap-2 border border-border-main bg-card text-text-muted hover:bg-background hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
           >
             <UploadCloud size={20} strokeWidth={2.5} /> Import CSV
           </button>
@@ -507,7 +507,7 @@ export const PatientList = () => {
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             placeholder={deleteModal.name}
-            className="w-full mt-2 border border-border-main rounded-xl p-3 text-sm bg-white/50 focus:outline-none focus:ring-2 focus:ring-red-500/30"
+            className="w-full mt-2 border border-border-main rounded-xl p-3 text-sm bg-card/50 focus:outline-none focus:ring-2 focus:ring-red-500/30"
           />
           <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 mt-8 sm:mt-10">
             <button

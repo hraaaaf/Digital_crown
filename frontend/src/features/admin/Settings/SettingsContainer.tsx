@@ -248,12 +248,12 @@ const SettingsContainer: React.FC = () => {
               <SettingsIcon size={28} />
             </div>
             <div className="min-w-0">
-              <h1 className="break-words [overflow-wrap:anywhere] text-2xl font-black text-slate-900 tracking-tight">Paramètres</h1>
-              <p className="break-words [overflow-wrap:anywhere] text-xs font-bold text-slate-400 uppercase tracking-widest mt-1">Paramètres du cabinet</p>
+              <h1 className="break-words [overflow-wrap:anywhere] text-2xl font-black text-text-main tracking-tight">Paramètres</h1>
+              <p className="break-words [overflow-wrap:anywhere] text-xs font-bold text-text-muted uppercase tracking-widest mt-1">Paramètres du cabinet</p>
             </div>
           </div>
 
-          <nav data-tour="settings-navigation" aria-label="Navigation des paramètres" className="flex w-full gap-2 overflow-x-auto bg-white/70 backdrop-blur-md p-2 rounded-2xl border border-slate-100 shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden 2xl:block 2xl:space-y-2 2xl:p-3 2xl:rounded-[2rem]">
+          <nav data-tour="settings-navigation" aria-label="Navigation des paramètres" className="flex w-full gap-2 overflow-x-auto bg-card/70 backdrop-blur-md p-2 rounded-2xl border border-border-main shadow-sm [scrollbar-width:none] [&::-webkit-scrollbar]:hidden 2xl:block 2xl:space-y-2 2xl:p-3 2xl:rounded-[2rem]">
             {tabs.map((tab) => (
               <TabButton
                 key={tab.id}
@@ -282,7 +282,7 @@ const SettingsContainer: React.FC = () => {
         </div>
 
         <div className={cn(
-          "flex-1 min-w-0 w-full bg-white rounded-[3rem] border border-slate-100 shadow-2xl shadow-slate-200/50 min-h-[800px] relative",
+          "flex-1 min-w-0 w-full bg-card rounded-[3rem] border border-border-main shadow-2xl shadow-slate-200/50 min-h-[800px] relative",
           activeTab === 'profil' && 'settings-profile-surface',
           activeTab === 'equipe' && 'settings-team-surface'
         )}>

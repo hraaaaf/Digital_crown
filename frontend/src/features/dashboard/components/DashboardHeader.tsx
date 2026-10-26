@@ -89,7 +89,7 @@ export const DashboardHeader = ({
           <div className="static md:relative flex items-center">
             {search.isExpanded ? (
               <div className="absolute inset-x-0 top-full z-50 mt-2 animate-in fade-in slide-in-from-right-4 md:inset-x-auto md:right-0 md:z-30">
-                <div className="flex w-full items-center rounded-full border border-border-main bg-white px-2 py-1 shadow-elite dark:bg-slate-800 md:w-72">
+                <div className="flex w-full items-center rounded-full border border-border-main bg-card px-2 py-1 shadow-elite dark:bg-slate-800 md:w-72">
                   {search.loading
                     ? <Loader2 size={18} className="text-primary ml-2 animate-spin flex-shrink-0" aria-hidden="true" />
                     : <Search size={18} className="text-text-muted ml-2 flex-shrink-0" aria-hidden="true" />}
@@ -125,7 +125,7 @@ export const DashboardHeader = ({
                   <div
                     id={SEARCH_RESULTS_ID}
                     role="list"
-                    className="absolute inset-x-0 top-full mt-2 overflow-hidden rounded-2xl border border-border-main bg-white shadow-2xl dark:bg-slate-800 md:inset-x-auto md:right-0 md:w-72"
+                    className="absolute inset-x-0 top-full mt-2 overflow-hidden rounded-2xl border border-border-main bg-card shadow-2xl dark:bg-slate-800 md:inset-x-auto md:right-0 md:w-72"
                   >
                     {search.results.map(patient => (
                       <button
@@ -157,7 +157,7 @@ export const DashboardHeader = ({
                   <div
                     id={SEARCH_RESULTS_ID}
                     role="status"
-                    className="absolute inset-x-0 top-full mt-2 rounded-2xl border border-border-main bg-white px-4 py-3 text-center text-sm font-medium text-text-muted shadow-xl dark:bg-slate-800 md:inset-x-auto md:right-0 md:w-72"
+                    className="absolute inset-x-0 top-full mt-2 rounded-2xl border border-border-main bg-card px-4 py-3 text-center text-sm font-medium text-text-muted shadow-xl dark:bg-slate-800 md:inset-x-auto md:right-0 md:w-72"
                   >
                     Aucun patient trouvé
                   </div>
@@ -169,7 +169,7 @@ export const DashboardHeader = ({
                 type="button"
                 onClick={search.open}
                 aria-label="Chercher un patient"
-                className="min-w-11 min-h-11 p-3 bg-white dark:bg-slate-800 text-text-muted hover:text-primary rounded-full shadow-sm border border-border-main transition-all"
+                className="min-w-11 min-h-11 p-3 bg-card dark:bg-slate-800 text-text-muted hover:text-primary rounded-full shadow-sm border border-border-main transition-all"
                 title="Chercher un patient"
               >
                 <Search size={20} aria-hidden="true" />
@@ -200,14 +200,14 @@ export const DashboardHeader = ({
                   ref={addMenuRef}
                   id={QUICK_ADD_MENU_ID}
                   role="menu"
-                  className="absolute top-14 right-0 bg-white dark:bg-slate-800 border border-border-main rounded-xl shadow-xl w-48 py-2 z-20 animate-in fade-in zoom-in-95"
+                  className="absolute top-14 right-0 bg-card dark:bg-slate-800 border border-border-main rounded-xl shadow-xl w-48 py-2 z-20 animate-in fade-in zoom-in-95"
                 >
                   {canReadPatients && (
                     <Link
                       to="/patients/new"
                       role="menuitem"
                       onClick={() => setIsAddMenuOpen(false)}
-                      className="min-h-11 flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
+                      className="min-h-11 flex items-center gap-3 px-4 py-2 hover:bg-background dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
                     >
                       <UserPlus size={16} className="text-primary" aria-hidden="true" />
                       Nouveau Patient
@@ -218,7 +218,7 @@ export const DashboardHeader = ({
                       to="/agenda"
                       role="menuitem"
                       onClick={() => setIsAddMenuOpen(false)}
-                      className="min-h-11 flex items-center gap-3 px-4 py-2 hover:bg-slate-50 dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
+                      className="min-h-11 flex items-center gap-3 px-4 py-2 hover:bg-background dark:hover:bg-slate-700 transition-colors text-sm font-semibold"
                     >
                       <Calendar size={16} className="text-emerald-500" aria-hidden="true" />
                       Nouveau RDV
@@ -250,7 +250,7 @@ export const DashboardHeader = ({
               <span className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">Statut système</span>
               <div className="flex items-center gap-2" role="status" aria-live="polite">
                 {systemStatus.isLoading
-                  ? <Loader2 size={12} className="text-slate-400 animate-spin" aria-hidden="true" />
+                  ? <Loader2 size={12} className="text-text-muted animate-spin" aria-hidden="true" />
                   : <div className={cn('w-2 h-2 rounded-full', systemStatus.dotClassName)} aria-hidden="true" />}
                 <span className="text-sm font-black text-main uppercase tracking-tighter" style={{ color: 'var(--text-main)' }}>
                   {systemStatus.label}

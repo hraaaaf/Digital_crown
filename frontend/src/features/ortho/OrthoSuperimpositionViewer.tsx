@@ -387,7 +387,7 @@ export const OrthoSuperimpositionViewer = ({
           {contextQuery.isLoading || analysesQuery.isLoading ? (
             <div className="flex min-h-[320px] items-center justify-center text-sm font-black text-text-muted">Chargement des sources canoniques…</div>
           ) : contextQuery.isError || analysesQuery.isError || !context || !referenceSrc || !movingSrc ? (
-            <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-border-main bg-slate-50 p-5 text-center">
+            <div className="mx-auto mt-8 max-w-xl rounded-2xl border border-border-main bg-background p-5 text-center">
               <AlertCircle className="mx-auto text-text-muted" size={24} />
               <p className="mt-3 text-sm font-black text-main">Superposition indisponible dans cet environnement</p>
               <p className="mt-1 text-xs font-bold text-text-muted">Le moteur F5 reste soumis à son gate scientifique et peut être désactivé hors environnement d’ingénierie.</p>
@@ -402,7 +402,7 @@ export const OrthoSuperimpositionViewer = ({
                 mode={mode}
               />
 
-              <div className="grid gap-3 rounded-2xl border border-border-main bg-slate-50/70 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
+              <div className="grid gap-3 rounded-2xl border border-border-main bg-background/70 p-3 sm:grid-cols-[1fr_auto] sm:items-center">
                 <label className="min-w-0">
                   <span className="text-[10px] font-black uppercase tracking-wide text-text-muted">Opacité T{toTimepoint.ordinal}</span>
                   <input
@@ -466,7 +466,7 @@ export const OrthoSuperimpositionViewer = ({
             </div>
           ) : (
             <div className="space-y-4">
-              <div className="rounded-2xl border border-border-main bg-slate-50/70 p-3 sm:p-4">
+              <div className="rounded-2xl border border-border-main bg-background/70 p-3 sm:p-4">
                 <div className="flex items-start gap-2">
                   <Eye size={16} className="mt-0.5 shrink-0 text-primary" />
                   <div>
@@ -496,7 +496,7 @@ export const OrthoSuperimpositionViewer = ({
               </div>
 
               {estimateError && (
-                <div role="alert" className="rounded-xl border border-border-main bg-slate-50 p-3 text-xs font-bold text-text-muted">
+                <div role="alert" className="rounded-xl border border-border-main bg-background p-3 text-xs font-bold text-text-muted">
                   {estimateError}
                 </div>
               )}
