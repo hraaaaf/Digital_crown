@@ -11,6 +11,7 @@ import { StudioLayoutFrame } from './StudioLayoutFrame';
 import { R3SplitWorkspace } from './R3SplitWorkspace';
 import { R3ThreePaneWorkspace } from './R3ThreePaneWorkspace';
 import { R3AgendaReadonlyPanel } from './R3AgendaReadonlyPanel';
+import { R3TreatmentReadonlyPanel } from './R3TreatmentReadonlyPanel';
 import { chooseR3Module, r3ModuleOptions, R3_MODULE_LABEL } from './R3ModuleChoice';
 import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
@@ -64,12 +65,13 @@ export function selectablePilotLayouts(allowCephalo: boolean): readonly Layout[]
   return PILOT_LAYOUTS.filter(layout => allowCephalo || layout.slots.every(slot => slot.module !== 'suivi'));
 }
 
-/** Roadmap presets with ALL actual, read-only adapters; no automatic activation of the other six. */
-export function selectableR3RoadmapLayouts(allowAgenda:boolean,allowCephalo:boolean): readonly Layout[] {
+/** Only proven authenticated read-only adapters are enabled; future presets fail closed. */
+export function selectableR3RoadmapLayouts(allowAgenda:boolean,allowCephalo:boolean,allowClinical=false): readonly Layout[] {
   const proven=[
     'imagerie',
     ...(allowAgenda ? ['vue-ensemble','consultation','agenda-cabinet','gestion-administrative'] : []),
     ...(allowCephalo ? ['suivi-clinique'] : []),
+    ...(allowClinical ? ['planification-traitements'] : []),
   ];
   return PRESETS.filter(layout=>proven.includes(layout.id));
 }
@@ -120,6 +122,8 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const canPatients = Boolean(activeIdentity && hasAccess(user,'patients'));
   const canCephalo = Boolean(activeIdentity && hasAccess(user,'cephalo'));
   const canAgenda = Boolean(activeIdentity && hasAccess(user,'agenda'));
+  // Same explicit clinical permission that gates the canonical master-plan GET.
+  const canClinical = Boolean(activeIdentity && hasAccess(user,'clinical'));
   const patientMatches = Boolean(patient && Number.isSafeInteger(patient.id) &&
     patient.id > 0 && String(patient.id) === routePatientId);
 
@@ -198,7 +202,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   // R3-2 is additive: only authorized real adapters, not nine fake presets.
   const r3FocusPilot = enableR3Split && enableR3Focus && import.meta.env.DEV;
   const possible=r3FocusPilot
-    ? [...selectablePilotLayouts(canCephalo),...selectableR3RoadmapLayouts(canAgenda,canCephalo)]
+    ? [...selectablePilotLayouts(canCephalo),...selectableR3RoadmapLayouts(canAgenda,canCephalo,canClinical)]
     : selectablePilotLayouts(canCephalo);
   const baseApplied=possible.find(item=>item.id===appliedId) || possible[0];
   const applied=r3FocusPilot && appliedCustom?.id===baseApplied.id ? appliedCustom : baseApplied;
@@ -221,6 +225,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
       ...(canPatients ? ['dossier','imagerie','photos','galerie','documents'] as ModuleKey[] : []),
       ...(canCephalo ? ['suivi'] as ModuleKey[] : []),
       ...(canAgenda ? ['agenda'] as ModuleKey[] : []),
+      ...(canClinical ? ['traitement'] as ModuleKey[] : []),
     ],
   };
   const mountedGate=authorizeLayout(mounted,context,ratio);
@@ -261,6 +266,8 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     if (slot.module==='photos') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly fixedAssetType="PHOTO"/>;
     if (slot.module==='agenda' && canAgenda && user)
       return <R3AgendaReadonlyPanel user={user}/>;
+    if (slot.module==='traitement' && canClinical)
+      return <R3TreatmentReadonlyPanel key={proofKey} patientId={trustedPatient.id}/>;
     if (slot.module==='dossier') return (
       <div data-testid="multiview-real-dossier" className="min-w-0 space-y-2.5 p-2.5 text-sm sm:p-3">
         <div className="rounded-2xl bg-gradient-to-br from-primary via-primary to-primary p-4 text-on-primary shadow-sm">

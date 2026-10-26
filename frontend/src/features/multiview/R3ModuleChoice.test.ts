@@ -19,12 +19,17 @@ const three:Layout = {
 
 describe('LOT07 R3 panel module chooser — real adapters only',()=>{
   it('only offers existing authenticated read-only clinical modules',()=>{
-    expect(R3_REAL_MODULES).toEqual(['dossier','imagerie','suivi','agenda','photos','galerie','documents']);
+    expect(R3_REAL_MODULES).toEqual(['dossier','imagerie','suivi','agenda','photos','galerie','documents','traitement']);
     expect(r3ModuleOptions(columns,0,context)).toEqual(['dossier','imagerie','suivi']);
     expect(r3ModuleOptions(columns,0,{...context,allowedModules:['dossier','imagerie']}))
       .toEqual(['dossier','imagerie']);
     expect(chooseR3Module(columns,0,'agenda',context)).toBeNull();
     expect(chooseR3Module(columns,0,'documents',context)).toBeNull();
+    expect(chooseR3Module(columns,0,'traitement',context)).toBeNull();
+    const clinicalContext={...context,allowedModules:['dossier','imagerie','suivi','traitement'] as const};
+    expect(chooseR3Module(columns,0,'traitement',clinicalContext)?.slots.map(s=>s.module))
+      .toEqual(['traitement','imagerie']);
+    expect(r3ModuleOptions(columns,0,clinicalContext)).toContain('traitement');
     expect(chooseR3Module(columns,0,'cephalo',context)).toBeNull();
     const agendaContext={...context,allowedModules:['dossier','imagerie','suivi','agenda'] as const};
     expect(chooseR3Module(columns,0,'agenda',agendaContext)?.slots.map(slot=>slot.module))

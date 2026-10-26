@@ -294,6 +294,43 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
   });
 
+  it('enables real R-only treatment planning only with clinical permission and exact verified patient',async()=>{
+    const actor=user({patients:true,cephalo:false,clinical:true});
+    useAuthStore.setState({user:actor,isAuthenticated:true});
+    const persisted={id:51,patient_id:17,created_at:'2026-10-01T10:00:00Z',updated_at:'2026-10-02T10:00:00Z',
+      steps:[{id:101,plan_id:51,title:'Contrôle inscrit',assistant:'Praticien',status:'pending',
+        date_str:'2026-11-03',order_index:0,catalog_snapshot:null}]};
+    vi.mocked(api.get).mockImplementation(async url =>
+      url==='/patients/17/master-plan' ? {data:persisted} as never : {data:patient} as never);
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelector('option[value="planification-traitements"]')).toBeTruthy();
+    expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.hasAttribute('disabled')).toBe(true);
+    expect(select.querySelector('option[value="future-presentation-patient"]')?.hasAttribute('disabled')).toBe(true);
+    fireEvent.change(select,{target:{value:'planification-traitements'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(await screen.findByText('Contrôle inscrit')).toBeTruthy();
+    expect(screen.getByTestId('r3-real-treatment').textContent).toContain('Lecture seule');
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/patients/17/master-plan');
+    expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button',{name:'Agrandir le panneau 1 : traitement'}));
+    expect(screen.getByTestId('r3-2-single-focus')).toBeTruthy();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Restaurer les trois panneaux'}));
+    expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    const revoked=user({patients:true,cephalo:false,clinical:false});
+    useAuthStore.setState({user:revoked,isAuthenticated:true});
+    rerender(<CabinetMultiViewLab patient={patient} routePatientId="17" user={revoked}
+      enableR3Split enableR3Focus/>);
+    expect(screen.queryByTestId('r3-real-treatment')).toBeNull();
+  });
+
   it('Imagerie preset uses independent real RADIOGRAPH and PHOTO media adapters, both R-only',async()=>{
     render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
       enableR3Split enableR3Focus/>);
