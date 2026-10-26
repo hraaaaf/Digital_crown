@@ -76,7 +76,7 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
       data-ordonnance-quick-entry
       data-ordonnance-premium="u3"
       aria-label="Saisie rapide de l'ordonnance"
-      className="relative min-w-0 space-y-3 rounded-[1.75rem] border border-slate-200/70 bg-white/60 p-3 shadow-lg shadow-slate-900/[0.03] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/50 sm:p-4"
+      className="relative min-w-0 space-y-3 rounded-[1.75rem] border border-border-main/70 bg-card/60 p-3 shadow-lg shadow-slate-900/[0.03] backdrop-blur-2xl dark:border-white/10 dark:bg-slate-900/50 sm:p-4"
     >
       <style>{`
         [data-ordonnance-hierarchy-header="primary"],
@@ -141,11 +141,11 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
             <Zap size={15} />
           </div>
           <div className="min-w-0">
-            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-800 dark:text-slate-100">Saisie rapide</div>
-            <div className="hidden text-[9px] font-semibold text-slate-400 dark:text-slate-500 sm:block">Médicament, dosage, forme et posologie en une ligne.</div>
+            <div className="text-[10px] font-black uppercase tracking-[0.18em] text-text-main dark:text-text-muted">Saisie rapide</div>
+            <div className="hidden text-[9px] font-semibold text-text-muted dark:text-text-muted sm:block">Médicament, dosage, forme et posologie en une ligne.</div>
           </div>
         </div>
-        <span className="hidden shrink-0 rounded-lg border border-slate-200/70 bg-white/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-slate-400 dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-500 sm:inline-flex">
+        <span className="hidden shrink-0 rounded-lg border border-border-main/70 bg-card/70 px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-text-muted dark:border-white/10 dark:bg-slate-950/50 dark:text-text-muted sm:inline-flex">
           {submitting ? 'Ajout…' : '↵ Ajouter'}
         </span>
       </div>
@@ -165,7 +165,7 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
             setQuickVal(v);
             onSearchChange(v);
           }}
-          className="min-h-14 w-full min-w-0 rounded-2xl border border-slate-200/80 bg-white/85 py-3.5 pl-12 pr-4 text-sm font-bold text-slate-800 outline-none shadow-sm backdrop-blur-xl transition-all placeholder:text-slate-300 focus:border-primary/30 focus:bg-white focus:ring-4 focus:ring-primary/10 disabled:opacity-60 dark:border-white/10 dark:bg-slate-950/60 dark:text-slate-100 dark:placeholder:text-slate-600 dark:focus:bg-slate-950 sm:pl-14 sm:pr-4 sm:text-base"
+          className="min-h-14 w-full min-w-0 rounded-2xl border border-border-main/80 bg-card/85 py-3.5 pl-12 pr-4 text-sm font-bold text-text-main outline-none shadow-sm backdrop-blur-xl transition-all placeholder:text-text-muted focus:border-primary/30 focus:bg-card focus:ring-4 focus:ring-primary/10 disabled:opacity-60 dark:border-white/10 dark:bg-slate-950/60 dark:text-text-muted dark:placeholder:text-text-muted dark:focus:bg-slate-950 sm:pl-14 sm:pr-4 sm:text-base"
           placeholder="Médicament, dosage, forme, posologie…"
           onKeyDown={async e => {
             if (e.key === 'ArrowDown') {
@@ -198,10 +198,10 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: 10 }}
-              className="absolute left-1 right-1 top-full z-[999] mt-2 overflow-hidden rounded-2xl border border-slate-200 bg-white py-2 shadow-2xl dark:border-white/10 dark:bg-slate-950 sm:left-3 sm:right-3"
+              className="absolute left-1 right-1 top-full z-[999] mt-2 overflow-hidden rounded-2xl border border-border-main bg-card py-2 shadow-2xl dark:border-white/10 dark:bg-slate-950 sm:left-3 sm:right-3"
             >
-              <div className="mb-1 border-b border-slate-100 px-4 py-2 dark:border-white/10 sm:px-5">
-                <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Suggestions de médicaments</span>
+              <div className="mb-1 border-b border-border-main px-4 py-2 dark:border-white/10 sm:px-5">
+                <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Suggestions de médicaments</span>
               </div>
               {quickSuggestions.map((s, i) => (
                 <button
@@ -218,7 +218,7 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
                     'flex min-h-11 w-full items-center justify-between px-5 py-2.5 text-left text-sm font-bold transition-all group disabled:opacity-50',
                     i === quickHighlightedIdx
                       ? 'bg-primary text-white'
-                      : 'text-slate-600 hover:bg-primary/5 hover:text-primary dark:text-slate-300 dark:hover:bg-white/5',
+                      : 'text-text-muted hover:bg-primary/5 hover:text-primary dark:text-text-muted dark:hover:bg-white/5',
                   )}
                 >
                   <span>{s}</span>
@@ -238,7 +238,7 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
               type="button"
               disabled={submitting}
               onClick={() => void submitDrug(name)}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/75 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:bg-white hover:text-primary disabled:opacity-50 dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border-main/80 bg-card/75 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-text-muted shadow-sm transition-colors hover:border-primary/30 hover:bg-card hover:text-primary disabled:opacity-50 dark:border-white/10 dark:bg-slate-950/50 dark:text-text-muted dark:hover:bg-slate-900"
               title="Médicament récent"
             >
               <Clock3 size={11} />{name}
@@ -250,7 +250,7 @@ export const QuickEntryBar: React.FC<QuickEntryBarProps> = ({
               type="button"
               disabled={submitting}
               onClick={() => void submitDrug(name)}
-              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-slate-200/80 bg-white/75 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-slate-600 shadow-sm transition-colors hover:border-primary/30 hover:bg-white hover:text-primary disabled:opacity-50 dark:border-white/10 dark:bg-slate-950/50 dark:text-slate-300 dark:hover:bg-slate-900"
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-xl border border-border-main/80 bg-card/75 px-3 py-2 text-[10px] font-black uppercase tracking-wide text-text-muted shadow-sm transition-colors hover:border-primary/30 hover:bg-card hover:text-primary disabled:opacity-50 dark:border-white/10 dark:bg-slate-950/50 dark:text-text-muted dark:hover:bg-slate-900"
               title="Médicament fréquent"
             >
               <TrendingUp size={11} />{name}

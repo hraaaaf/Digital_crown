@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exact-diff proof for wave02: only bounded neutral Tailwind classes changed.
+"""Exact-diff proof for waves 02+03: only bounded neutral Tailwind classes changed.
 
 No semantic status colors, chart meaning, printed content or clinical logic is
 transformed by this codemod; it deliberately leaves dark/neutrals used as
@@ -29,6 +29,21 @@ FILES = (
     "frontend/src/features/admin/Settings/tabs/SecurityTab.tsx",
     "frontend/src/features/accounting/components/TreasuryPanel.tsx",
     "frontend/src/pages/ActivateTrialPage.tsx",
+    "frontend/src/pages/PatientCompanionPage.tsx",
+    "frontend/src/features/agenda/MultiPractitionerTimelineView.tsx",
+    "frontend/src/features/agenda/WeeklyView.tsx",
+    "frontend/src/features/agenda/DailyView.tsx",
+    "frontend/src/features/admin/Settings/tabs/PractitionerAvailabilityPanel.tsx",
+    "frontend/src/features/admin/Security/MobileSecurity.tsx",
+    "frontend/src/features/admin/Security/AuditLogViewer.tsx",
+    "frontend/src/pages/WaitingRoomPage.tsx",
+    "frontend/src/features/admin/Settings/tabs/ProfileTab.tsx",
+    "frontend/src/pages/LoginPage.tsx",
+    "frontend/src/pages/PartnerCatalogAdminPage.tsx",
+    "frontend/src/features/admin/DocumentStudio/Forms/QuickEntryBar.tsx",
+    "frontend/src/features/admin/DocumentStudio/VigilanceRadar.tsx",
+    "frontend/src/features/patients/components/PatientJourney.tsx",
+    "frontend/src/features/agenda/MonthlyView.tsx",
 )
 NEUTRAL = re.compile(r"(?<![\w/-])((?:[\w-]+:)*)(bg|text|border|divide|placeholder)-(slate|gray|zinc)-(\d{2,3})(/\d+)?(?![\w/-])")
 WHITE = re.compile(r"(?<![\w/-])((?:[\w-]+:)*)bg-white(/(\d{1,3}))?(?![\w/-])")
@@ -79,7 +94,7 @@ def test_exact_diff() -> int:
         results.append((file, count))
 
     total = sum(x[1] for x in results)
-    if total < 1000:
+    if total < 1550:
         print("THEME_NEUTRAL_BATCH_REDUCTION_TOO_SMALL", total)
         return 1
     css = (ROOT / "frontend/src/index.css").read_text(encoding="utf-8")
@@ -93,7 +108,7 @@ def test_exact_diff() -> int:
         if "[data-theme='" + theme + "']" not in css:
             print("THEME_NEUTRAL_BATCH_MISSING_THEME", theme)
             return 1
-    print("THEME_NEUTRAL_BATCH_PASS", {"files": len(results), "neutralClassesRemoved": total,
+    print("THEME_NEUTRAL_WAVES02_03_PASS", {"files": len(results), "neutralClassesRemoved": total,
                                        "noBehaviorOrStructureChanges": True})
     return 0
 

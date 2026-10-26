@@ -111,13 +111,13 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
       case 'PRÉVU': return 'bg-primary/10 text-primary border-primary/20 hover:bg-primary/20';
       case 'EN_S_ATTENTE': return 'bg-amber-100 text-amber-700 border-amber-200 hover:bg-amber-200';
       case 'EN_FAUTEUIL': return 'bg-emerald-100 text-emerald-700 border-emerald-200 hover:bg-emerald-200';
-      case 'TERMINÉ': return 'bg-slate-100 text-slate-500 border-slate-200 opacity-60';
+      case 'TERMINÉ': return 'bg-input-field text-text-muted border-border-main opacity-60';
       case 'ANNULÉ': return 'bg-rose-50 text-rose-500 border-rose-200 line-through opacity-70';
       case 'EN_ATTENTE_DEMANDE': return 'bg-orange-100 text-orange-700 border-orange-400 hover:bg-orange-200';
       case 'EN_ATTENTE_CONFIRM': return 'bg-yellow-100 text-yellow-700 border-yellow-400 hover:bg-yellow-200';
       case 'CONFIRMÉ': return 'bg-blue-100 text-blue-700 border-blue-200 hover:bg-blue-200';
       case 'REFUSÉ': return 'bg-red-100 text-red-500 border-red-200 line-through opacity-70';
-      case 'EXPIRÉ': return 'bg-gray-100 text-gray-400 border-gray-200 opacity-50';
+      case 'EXPIRÉ': return 'bg-input-field text-text-muted border-border-main opacity-50';
       case 'ABSENT': return 'bg-rose-100 text-rose-600 border-rose-200 hover:bg-rose-200';
       default: return 'bg-primary/5 text-primary border-primary/10';
     }
@@ -168,14 +168,14 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
       
       {/* QUICK ACTIONS BAR */}
       <div className="flex justify-end gap-3 px-2">
-        <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
+        <button onClick={fetchAppointments} className="p-3 bg-card/50 border border-white hover:bg-card text-text-muted rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-primary")} />
         </button>
         <button 
           onClick={() => setIsModalOpen(true)}
           disabled={!dayOpen}
           title={!dayOpen ? 'Cabinet fermé ce jour' : 'Nouveau rendez-vous'}
-          className="px-4 sm:px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:bg-slate-300 disabled:text-slate-500 disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed"
+          className="px-4 sm:px-6 py-3 bg-primary text-white font-bold rounded-2xl shadow-xl shadow-primary/20 hover:brightness-110 hover:-translate-y-0.5 transition-all flex items-center gap-2 disabled:bg-slate-300 disabled:text-text-muted disabled:shadow-none disabled:hover:translate-y-0 disabled:cursor-not-allowed"
         >
           <Plus size={18} /> Nouveau RV
         </button>
@@ -189,12 +189,12 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
       )}
 
       {/* CSS GRID AGENDA */}
-      <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
+      <div className="bg-card/80 backdrop-blur-xl border border-white rounded-[2rem] shadow-[0_8px_30px_rgb(0,0,0,0.04)] overflow-hidden">
         
         {/* FLEXIBLE APPOINTMENTS HEADER */}
         {flexAppointments.length > 0 && (
-          <div className="border-b border-slate-100 bg-slate-50/50 p-4">
-            <h3 className="text-xs font-black text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+          <div className="border-b border-border-main bg-background/50 p-4">
+            <h3 className="text-xs font-black text-text-muted uppercase tracking-widest mb-3 flex items-center gap-2">
               <Calendar size={14} /> Planification Flexible
             </h3>
             <div className="flex flex-col gap-2">
@@ -216,7 +216,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
                     style={{ borderLeftColor: 'currentColor' }}
                   >
                     <div className="flex items-center gap-3">
-                      <span className="text-[10px] font-black uppercase tracking-widest bg-white/50 px-2 py-1 rounded-md">
+                      <span className="text-[10px] font-black uppercase tracking-widest bg-card/50 px-2 py-1 rounded-md">
                         {typeLabel}
                       </span>
                       <span className="inline-flex min-w-0 items-center gap-2 font-black text-sm">
@@ -247,17 +247,17 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
           <div className="flex relative overflow-y-auto" style={{ height: '700px' }}>
             
             {/* Colonne des heures (gauche) */}
-            <div className="w-20 flex-shrink-0 border-r border-slate-100 bg-slate-50/50 sticky left-0 z-20">
+            <div className="w-20 flex-shrink-0 border-r border-border-main bg-background/50 sticky left-0 z-20">
               {timeLabels.map((time) => (
-                <div key={time} className="h-24 relative border-b border-slate-100">
-                  <span className="absolute -top-3 left-0 w-full text-center text-xs font-black text-slate-400 tracking-wide">{time}</span>
+                <div key={time} className="h-24 relative border-b border-border-main">
+                  <span className="absolute -top-3 left-0 w-full text-center text-xs font-black text-text-muted tracking-wide">{time}</span>
                 </div>
               ))}
             </div>
 
             {/* Grille Principale (Droite) */}
             <div 
-              className="flex-1 relative bg-white/30 cursor-crosshair group" 
+              className="flex-1 relative bg-card/30 cursor-crosshair group" 
               onClick={handleGridClick}
               style={{
                 backgroundImage: 'linear-gradient(to bottom, transparent 95%, rgba(226, 232, 240, 0.5) 95%)',
@@ -275,7 +275,7 @@ export const DailyView: React.FC<DailyViewProps> = ({ selectedDate, agendaSettin
               {!loading && appointments.length === 0 && (
                 <div className="absolute inset-0 flex flex-col items-center justify-center pointer-events-none opacity-30">
                   <Calendar size={40} className="mb-2 text-primary" />
-                  <p className="text-sm font-black text-slate-500 uppercase tracking-widest">Aucun rendez-vous ce jour</p>
+                  <p className="text-sm font-black text-text-muted uppercase tracking-widest">Aucun rendez-vous ce jour</p>
                 </div>
               )}
 

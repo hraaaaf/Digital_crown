@@ -68,20 +68,20 @@ const STATUS_COLORS: Record<string, string> = {
   PRÉVU: 'bg-blue-100 text-blue-700 border-blue-200',
   EN_S_ATTENTE: 'bg-amber-100 text-amber-700 border-amber-200',
   EN_FAUTEUIL: 'bg-emerald-100 text-emerald-700 border-emerald-200',
-  TERMINÉ: 'bg-slate-100 text-slate-400 border-slate-200 opacity-70',
+  TERMINÉ: 'bg-input-field text-text-muted border-border-main opacity-70',
   ANNULÉ: 'bg-rose-50 text-rose-400 border-rose-200 line-through opacity-70',
   EN_ATTENTE_DEMANDE: 'bg-orange-100 text-orange-700 border-orange-200',
   EN_ATTENTE_CONFIRM: 'bg-yellow-100 text-yellow-700 border-yellow-200',
   CONFIRMÉ: 'bg-blue-100 text-blue-700 border-blue-200',
   REFUSÉ: 'bg-red-100 text-red-500 border-red-200 line-through opacity-70',
-  EXPIRÉ: 'bg-gray-100 text-gray-400 border-gray-200 opacity-60',
+  EXPIRÉ: 'bg-input-field text-text-muted border-border-main opacity-60',
   ABSENT: 'bg-rose-100 text-rose-600 border-rose-200',
 };
 
 const SLOT_STATE_CLASSES: Record<SlotState, string> = {
-  AVAILABLE: 'cursor-crosshair bg-white hover:bg-indigo-50',
-  GLOBAL_CLOSED: 'cursor-not-allowed bg-slate-200/80',
-  PRACTITIONER_HOURS: 'cursor-not-allowed bg-slate-50',
+  AVAILABLE: 'cursor-crosshair bg-card hover:bg-indigo-50',
+  GLOBAL_CLOSED: 'cursor-not-allowed bg-input-field/80',
+  PRACTITIONER_HOURS: 'cursor-not-allowed bg-background',
   PAUSE: 'cursor-not-allowed bg-amber-50/90',
   LEAVE: 'cursor-not-allowed bg-rose-50/90',
 };
@@ -309,7 +309,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   };
 
   if (loading) {
-    return <div className="py-20 text-center text-slate-400 font-bold animate-pulse">Chargement…</div>;
+    return <div className="py-20 text-center text-text-muted font-bold animate-pulse">Chargement…</div>;
   }
   if (!data) return null;
   if (data.error === 'PREMIUM') {
@@ -318,8 +318,8 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
         <div className="w-16 h-16 bg-indigo-50 rounded-3xl flex items-center justify-center">
           <Users size={32} className="text-indigo-400" />
         </div>
-        <h3 className="text-xl font-black text-slate-700">Vue multi-praticien</h3>
-        <p className="text-slate-400 font-medium text-center max-w-sm">
+        <h3 className="text-xl font-black text-text-main">Vue multi-praticien</h3>
+        <p className="text-text-muted font-medium text-center max-w-sm">
           Cette vue est disponible à partir du plan <strong>PREMIUM</strong> (2 dentistes et plus).
         </p>
       </div>
@@ -327,7 +327,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   }
   if (dentists.length === 0) {
     return (
-      <div className="rounded-[2rem] border border-slate-200 bg-white p-10 text-center text-sm font-bold text-slate-400">
+      <div className="rounded-[2rem] border border-border-main bg-card p-10 text-center text-sm font-bold text-text-muted">
         Aucun praticien assignable actif pour cette vue.
       </div>
     );
@@ -336,17 +336,17 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
   const gridColumns = `${TIME_AXIS_WIDTH}px repeat(${dentists.length}, minmax(${LANE_MIN_WIDTH}px, 1fr))`;
 
   return (
-    <div className="bg-white/70 backdrop-blur-2xl border border-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-slate-100 px-4 py-3 sm:px-5">
-        <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-wider text-slate-500">
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-300 bg-white" /> Libre</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-300 bg-slate-200" /> Cabinet fermé</span>
-          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-slate-200 bg-slate-50" /> Hors horaires praticien</span>
+    <div className="bg-card/70 backdrop-blur-2xl border border-white rounded-[2rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden">
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border-main px-4 py-3 sm:px-5">
+        <div className="flex flex-wrap items-center gap-3 text-[10px] font-black uppercase tracking-wider text-text-muted">
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-border-hover bg-card" /> Libre</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-border-hover bg-input-field" /> Cabinet fermé</span>
+          <span className="inline-flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded border border-border-main bg-background" /> Hors horaires praticien</span>
           <span className="inline-flex items-center gap-1.5 text-amber-700"><span className="h-2.5 w-2.5 rounded border border-amber-200 bg-amber-50" /> Pause</span>
           <span className="inline-flex items-center gap-1.5 text-rose-700"><span className="h-2.5 w-2.5 rounded border border-rose-200 bg-rose-50" /> Absence</span>
           <span className="inline-flex items-center gap-1.5 text-orange-700"><span className="h-2.5 w-2.5 rounded border border-orange-400 bg-orange-50" /> RDV non assigné</span>
         </div>
-        <span className="text-[10px] font-bold text-slate-400">Créneaux de 15 min · défilement horizontal sur petit écran</span>
+        <span className="text-[10px] font-bold text-text-muted">Créneaux de 15 min · défilement horizontal sur petit écran</span>
       </div>
 
       {flexibleLegacy.length > 0 && (
@@ -364,26 +364,26 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
       <div data-testid="multi-practitioner-scroll" className="max-h-[680px] overflow-auto overscroll-contain">
         <div style={{ minWidth: `${gridMinWidth}px` }}>
           <div
-            className="sticky top-0 z-40 grid border-b border-slate-200 bg-slate-50/95 backdrop-blur-xl"
+            className="sticky top-0 z-40 grid border-b border-border-main bg-background/95 backdrop-blur-xl"
             style={{ gridTemplateColumns: gridColumns }}
           >
-            <div className="sticky left-0 z-50 flex items-center justify-center border-r border-slate-200 bg-slate-50 px-2 py-4 text-[10px] font-black uppercase tracking-widest text-slate-400">
+            <div className="sticky left-0 z-50 flex items-center justify-center border-r border-border-main bg-background px-2 py-4 text-[10px] font-black uppercase tracking-widest text-text-muted">
               Heure
             </div>
             {dentists.map((dentist) => {
               const count = (dentist.appointments || []).filter((appointment) => isSameLocalDay(appointment.datetime_start, selectedDate)).length;
               return (
-                <div key={dentist.dentist_id} className="min-w-0 border-r border-slate-100 px-3 py-3 text-center last:border-r-0">
-                  <p className="truncate text-sm font-black text-slate-800">{dentist.dentist_name}</p>
-                  <p className="mt-0.5 text-[9px] font-bold text-slate-400">{count} RDV aujourd'hui · {dentist.availability?.inherits_cabinet === false ? 'horaires perso' : 'horaires cabinet'}</p>
+                <div key={dentist.dentist_id} className="min-w-0 border-r border-border-main px-3 py-3 text-center last:border-r-0">
+                  <p className="truncate text-sm font-black text-text-main">{dentist.dentist_name}</p>
+                  <p className="mt-0.5 text-[9px] font-bold text-text-muted">{count} RDV aujourd'hui · {dentist.availability?.inherits_cabinet === false ? 'horaires perso' : 'horaires cabinet'}</p>
                 </div>
               );
             })}
           </div>
 
           {hasFlexible && (
-            <div className="grid border-b border-slate-200 bg-slate-50/50" style={{ gridTemplateColumns: gridColumns }}>
-              <div className="sticky left-0 z-30 flex items-center justify-center border-r border-slate-200 bg-slate-50 px-2 py-2 text-[9px] font-black uppercase tracking-wider text-slate-400">
+            <div className="grid border-b border-border-main bg-background/50" style={{ gridTemplateColumns: gridColumns }}>
+              <div className="sticky left-0 z-30 flex items-center justify-center border-r border-border-main bg-background px-2 py-2 text-[9px] font-black uppercase tracking-wider text-text-muted">
                 Flexible
               </div>
               {dentists.map((dentist) => {
@@ -391,7 +391,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                   (appointment) => isSameLocalDay(appointment.datetime_start, selectedDate) && !isExact(appointment),
                 );
                 return (
-                  <div key={dentist.dentist_id} className="min-h-12 border-r border-slate-100 p-1.5 last:border-r-0">
+                  <div key={dentist.dentist_id} className="min-h-12 border-r border-border-main p-1.5 last:border-r-0">
                     <div className="flex flex-wrap gap-1">
                       {flexible.map((appointment) => (
                         <button
@@ -400,7 +400,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                           onClick={() => openEdit(appointment, dentist)}
                           className={cn(
                             'rounded-lg border px-2 py-1 text-left text-[9px] font-bold',
-                            STATUS_COLORS[appointment.status] || 'bg-slate-50 text-slate-600 border-slate-200',
+                            STATUS_COLORS[appointment.status] || 'bg-background text-text-muted border-border-main',
                           )}
                         >
                           <span className="flex min-w-0 items-center gap-1.5">
@@ -417,10 +417,10 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
           )}
 
           <div className="grid" style={{ gridTemplateColumns: `${TIME_AXIS_WIDTH}px 1fr` }}>
-            <div className="sticky left-0 z-30 border-r border-slate-200 bg-slate-50" style={{ height: `${timelineHeight}px` }}>
+            <div className="sticky left-0 z-30 border-r border-border-main bg-background" style={{ height: `${timelineHeight}px` }}>
               {Array.from({ length: totalHours }).map((_, index) => (
-                <div key={index} className="relative h-20 border-b border-slate-200">
-                  <span className="absolute left-2 top-1 text-[10px] font-black text-slate-500">
+                <div key={index} className="relative h-20 border-b border-border-main">
+                  <span className="absolute left-2 top-1 text-[10px] font-black text-text-muted">
                     {String(timelineBounds.startHour + index).padStart(2, '0')}:00
                   </span>
                 </div>
@@ -434,7 +434,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                     (appointment) => isSameLocalDay(appointment.datetime_start, selectedDate) && isExact(appointment),
                   );
                   return (
-                    <div key={dentist.dentist_id} className="relative border-r border-slate-100 last:border-r-0">
+                    <div key={dentist.dentist_id} className="relative border-r border-border-main last:border-r-0">
                       <div className="absolute inset-0 flex flex-col">
                         {Array.from({ length: totalSlots }).map((_, slotIndex) => {
                           const totalMinutes = timelineBounds.startHour * 60 + slotIndex * SLOT_MINUTES;
@@ -454,7 +454,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                               title={slot.available ? undefined : slot.label}
                               onClick={() => openCreate(dentist, time)}
                               className={cn(
-                                'h-5 shrink-0 border-b border-slate-100/80 transition-colors',
+                                'h-5 shrink-0 border-b border-border-main/80 transition-colors',
                                 slotIndex % SLOTS_PER_HOUR === SLOTS_PER_HOUR - 1 && 'border-b-slate-200',
                                 SLOT_STATE_CLASSES[slot.state],
                               )}
@@ -475,7 +475,7 @@ export const MultiPractitionerTimelineView: React.FC<MultiPractitionerTimelineVi
                             onClick={() => openEdit(appointment, dentist)}
                             className={cn(
                               'absolute left-1 right-1 z-20 overflow-hidden rounded-lg border px-2 py-1 text-left text-[10px] font-bold shadow-sm transition-transform hover:scale-[1.01]',
-                              STATUS_COLORS[appointment.status] || 'bg-slate-50 text-slate-600 border-slate-200',
+                              STATUS_COLORS[appointment.status] || 'bg-background text-text-muted border-border-main',
                             )}
                             style={{ top: `${top}px`, height: `${height}px` }}
                           >
