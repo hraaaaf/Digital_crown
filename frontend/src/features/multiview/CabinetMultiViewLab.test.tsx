@@ -191,6 +191,11 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
     fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
     expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    expect(screen.getByTestId('multiview-ronly-contract').textContent).toContain('R · lecture seule');
+    expect(screen.getByRole('heading',{name:'MultiView'})).toBeTruthy();
+    expect(screen.getByRole('button',{name:'Échanger les vues'})).toBeTruthy();
+    expect(screen.getByRole('button',{name:'Réinitialiser'})).toBeTruthy();
+    expect(screen.getByRole('button',{name:'Agrandir le panneau 2 : imagerie'}).textContent).toContain('Médias');
     expect(screen.getAllByRole('region',{name:/Panneau /})).toHaveLength(3);
     expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
