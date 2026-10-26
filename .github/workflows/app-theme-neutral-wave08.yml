@@ -1,0 +1,61 @@
+name: Theme Wave08 — Exact Token Diff (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/theme-neutral-wave08-20261026
+  pull_request:
+    branches:
+      - fix/theme-neutral-wave07-20261025
+permissions:
+  contents: read
+jobs:
+  exact-theme:
+    name: Wave08 exact cosmetic diff, agenda/payment/settings regression, TS, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify byte-exact semantic token-only modifications
+        run: python scripts/ci/theme_neutral_batch02.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - name: TypeScript
+        run: npx tsc --noEmit -p tsconfig.app.json
+        working-directory: frontend
+      - name: Targeted agenda, payments, settings, patient, document and theme regressions
+        run: |
+          npx vitest run \
+            src/features/admin/Settings/SettingsContainer.g5Interactive.test.tsx \
+            src/features/agenda/GoogleImportModal.g3Interactive.test.tsx \
+            src/features/patients/components/Payments.g4Interactive.test.tsx \
+            src/features/patients/AddPatientForm.g2Interactive.test.tsx \
+            src/features/patients/PatientDetails.g2Interactive.test.tsx \
+            src/features/admin/DocumentStudio/Forms/CertificateForm.p3a.test.tsx \
+            src/features/admin/DocumentStudio/Forms/InstallmentStudio.p5.test.tsx \
+            src/features/multiview/themeTokens.r2.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+        working-directory: frontend
+      - name: Production build (no deploy)
+        run: npm run build
+        working-directory: frontend
+      - name: Scope proof
+        if: success()
+        run: |
+          echo "Wave08 substitutes 200 neutral hardcoded UI classes in 12 additional components." >> "$GITHUB_STEP_SUMMARY"
+          echo "Cumulative stacked waves 02-08: 3,534 deterministic color token replacements." >> "$GITHUB_STEP_SUMMARY"
+          echo "No patient/business data, API, clinical decision, auth or permissions changes." >> "$GITHUB_STEP_SUMMARY"
+          echo "No merge, release, cabinet activation or deployment." >> "$GITHUB_STEP_SUMMARY"

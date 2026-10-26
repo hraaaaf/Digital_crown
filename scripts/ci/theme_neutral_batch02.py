@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Exact-diff proof for waves 02–07: bounded neutral + semantic status Tailwind changes.
+"""Exact-diff proof for waves 02–08: bounded neutral + semantic status Tailwind changes.
 
 Status shades are mapped only to existing danger/success/warning role tokens;
 brand palettes, saturated button fills, chart meaning, printed content and
@@ -95,6 +95,18 @@ FILES = (
     "frontend/src/features/ortho/components/Step3Clinical.tsx",
     "frontend/src/features/patient-companion/PatientCompanionFinance.tsx",
     "frontend/src/features/clinical-ref/EliteLibrary.tsx",
+    "frontend/src/pages/DownloadPage.tsx",
+    "frontend/src/pages/LegalPage.tsx",
+    "frontend/src/pages/WelcomeScreen.tsx",
+    "frontend/src/components/ErrorBoundary.tsx",
+    "frontend/src/features/agenda/GoogleImportModal.tsx",
+    "frontend/src/features/agenda/PendingRequestCard.tsx",
+    "frontend/src/features/patients/components/QuickPayModal.tsx",
+    "frontend/src/features/patients/components/LegacyActeNotes.tsx",
+    "frontend/src/features/accounting/components/AccountingHeader.tsx",
+    "frontend/src/features/accounting/components/InsightsPanel.tsx",
+    "frontend/src/features/admin/Settings/components/SharedUI.tsx",
+    "frontend/src/features/admin/SetupWizard/steps/Step3Contacts.tsx",
 )
 STATUS_FILES = (
     "frontend/src/features/admin/AccountingStudioLegacy.tsx",
@@ -200,7 +212,7 @@ def test_exact_diff() -> int:
         results.append((file, count))
 
     total = sum(x[1] for x in results)
-    if total < 3330:
+    if total != 3534:
         print("THEME_NEUTRAL_BATCH_REDUCTION_TOO_SMALL", total)
         return 1
     css = (ROOT / "frontend/src/index.css").read_text(encoding="utf-8")
@@ -217,7 +229,7 @@ def test_exact_diff() -> int:
         if "[data-theme='" + theme + "']" not in css:
             print("THEME_NEUTRAL_BATCH_MISSING_THEME", theme)
             return 1
-    print("THEME_NEUTRAL_AND_STATUS_WAVES02_TO_07_PASS", {"files": len(results), "semanticColorsRemoved": total, "statusOnlyFiles": len(set(STATUS_FILES) - set(FILES)),
+    print("THEME_NEUTRAL_AND_STATUS_WAVES02_TO_08_PASS", {"files": len(results), "semanticColorsRemoved": total, "statusOnlyFiles": len(set(STATUS_FILES) - set(FILES)),
                                        "noBehaviorOrStructureChanges": True})
     return 0
 

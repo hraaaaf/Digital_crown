@@ -60,28 +60,28 @@ export const LegalPage = ({ type }: { type: keyof typeof legalContent }) => {
   const content = legalContent[type];
 
   return (
-    <main className="min-h-screen bg-slate-50 px-6 py-10 text-slate-900">
+    <main className="min-h-screen bg-background px-6 py-10 text-text-main">
       <div className="mx-auto max-w-3xl">
         <Link to="/login" className="mb-8 inline-flex items-center gap-3">
           <img src={Logo} alt="Digital Crown" className="h-10 w-auto" />
-          <span className="text-sm font-bold text-slate-600">Retour</span>
+          <span className="text-sm font-bold text-text-muted">Retour</span>
         </Link>
 
-        <article className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">
+        <article className="rounded-2xl border border-border-main bg-card p-8 shadow-sm">
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-primary">Digital Crown</p>
-          <h1 className="mt-3 text-3xl font-black text-slate-950">{content.title}</h1>
-          <p className="mt-2 text-sm font-semibold text-slate-500">{content.updated}</p>
+          <h1 className="mt-3 text-3xl font-black text-text-main">{content.title}</h1>
+          <p className="mt-2 text-sm font-semibold text-text-muted">{content.updated}</p>
 
           <div className="mt-8 space-y-7">
             {content.sections.map((section) => (
               <section key={section.title}>
-                <h2 className="text-base font-black text-slate-900">{section.title}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{section.body}</p>
+                <h2 className="text-base font-black text-text-main">{section.title}</h2>
+                <p className="mt-2 text-sm leading-6 text-text-muted">{section.body}</p>
               </section>
             ))}
           </div>
 
-          <p className="mt-8 rounded-xl bg-slate-50 p-4 text-xs font-semibold leading-5 text-slate-500">
+          <p className="mt-8 rounded-xl bg-background p-4 text-xs font-semibold leading-5 text-text-muted">
             Ce texte est un socle operationnel pour l app. Il doit etre valide et adapte par un conseil juridique avant
             lancement commercial public.
           </p>

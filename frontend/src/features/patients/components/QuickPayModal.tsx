@@ -77,18 +77,18 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
             initial={{ scale: 0.95, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.95, opacity: 0, y: 20 }}
-            className="bg-white rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
+            className="bg-card rounded-3xl shadow-2xl w-full max-w-md relative z-10 overflow-hidden"
           >
-            <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
-              <h2 className="text-xl font-black text-slate-800 tracking-tight uppercase">Saisir un Paiement</h2>
-              <button onClick={handleClose} className="p-2 text-slate-400 hover:text-slate-600 rounded-full hover:bg-slate-100 transition-colors" aria-label="Fermer">
+            <div className="p-6 border-b border-border-main flex justify-between items-center bg-background/50">
+              <h2 className="text-xl font-black text-text-main tracking-tight uppercase">Saisir un Paiement</h2>
+              <button onClick={handleClose} className="p-2 text-text-muted hover:text-text-muted rounded-full hover:bg-input-field transition-colors" aria-label="Fermer">
                 <X size={20} />
               </button>
             </div>
 
             <form onSubmit={handleSubmit} className="p-6 space-y-6">
               <div>
-                <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Montant (MAD)</label>
+                <label className="block text-[11px] font-black uppercase tracking-widest text-text-muted mb-2">Montant (MAD)</label>
                 <div className="relative">
                   <input
                     type="number"
@@ -97,16 +97,16 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
                     required
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
-                    className="w-full text-3xl font-black text-slate-800 pl-4 pr-16 py-4 bg-slate-50 border border-slate-200 rounded-2xl outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
+                    className="w-full text-3xl font-black text-text-main pl-4 pr-16 py-4 bg-background border border-border-main rounded-2xl outline-none focus:border-primary focus:ring-4 focus:ring-primary/10 transition-all"
                     placeholder="0.00"
                     style={{ '--tw-ring-color': 'rgba(0,51,128,0.1)' } as React.CSSProperties}
                   />
-                  <span className="absolute right-6 top-1/2 -translate-y-1/2 text-slate-400 font-bold">MAD</span>
+                  <span className="absolute right-6 top-1/2 -translate-y-1/2 text-text-muted font-bold">MAD</span>
                 </div>
               </div>
 
               <div>
-                <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Méthode</label>
+                <label className="block text-[11px] font-black uppercase tracking-widest text-text-muted mb-2">Méthode</label>
                 <div className="grid grid-cols-2 gap-3">
                   {methods.map((m) => (
                     <button
@@ -117,7 +117,7 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
                         "flex items-center gap-3 p-4 rounded-2xl border transition-all",
                         method === m.id
                           ? "bg-primary/5 border-primary text-primary shadow-sm"
-                          : "bg-white border-slate-200 text-slate-500 hover:border-slate-300 hover:bg-slate-50"
+                          : "bg-card border-border-main text-text-muted hover:border-border-hover hover:bg-background"
                       )}
                     >
                       {m.icon}
@@ -128,13 +128,13 @@ export const QuickPayModal = ({ isOpen, onClose, patientId }: QuickPayModalProps
               </div>
 
               <div>
-                <label className="block text-[11px] font-black uppercase tracking-widest text-slate-500 mb-2">Notes (Optionnel)</label>
+                <label className="block text-[11px] font-black uppercase tracking-widest text-text-muted mb-2">Notes (Optionnel)</label>
                 <input
                   type="text"
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                   placeholder="Ex: Acompte traitement ortho..."
-                  className="w-full px-4 py-3 bg-white border border-slate-200 rounded-xl text-sm font-medium text-slate-700 outline-none focus:border-primary"
+                  className="w-full px-4 py-3 bg-card border border-border-main rounded-xl text-sm font-medium text-text-main outline-none focus:border-primary"
                 />
               </div>
 

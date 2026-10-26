@@ -78,7 +78,7 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
   const statusBg = {
     'EN_ATTENTE_DEMANDE': 'bg-orange-50 border-orange-200',
     'EN_ATTENTE_CONFIRM': 'bg-yellow-50 border-yellow-200',
-  }[request.status] || 'bg-gray-50 border-gray-200';
+  }[request.status] || 'bg-background border-border-main';
 
   return (
     <div className={`border-2 ${statusBg} rounded-xl p-4 shadow-md`}>
@@ -86,16 +86,16 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
         {statusIcon}
         <div className="flex-1">
           <h3 className="font-bold text-lg">{request.patient_name || "Demande de rendez-vous — identité masquée"}</h3>
-          {request.phone && <p className="text-sm text-gray-600">📱 {request.phone}</p>}
-          {request.motif && <p className="text-sm text-gray-600">💊 {request.motif}</p>}
+          {request.phone && <p className="text-sm text-text-muted">📱 {request.phone}</p>}
+          {request.motif && <p className="text-sm text-text-muted">💊 {request.motif}</p>}
         </div>
       </div>
 
       <div className="space-y-2 mb-4 text-sm">
-        <p className="text-gray-700">
+        <p className="text-text-main">
           <strong>Créneau :</strong> {dateStr} à {timeStr} ({request.duration_minutes} min)
         </p>
-        {request.source && <p className="text-gray-600"><strong>Source :</strong> {request.source}</p>}
+        {request.source && <p className="text-text-muted"><strong>Source :</strong> {request.source}</p>}
         {request.expires_at && (
           <p className="text-red-600 text-xs">
             ⏰ Expire {new Date(request.expires_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' })}
@@ -112,7 +112,7 @@ export const PendingRequestCard: React.FC<PendingRequestCardProps> = ({ request,
       )}
 
       {!request.patient_name && (
-        <p role="status" className="mb-3 text-xs text-gray-600">Informations réservées aux utilisateurs autorisés à consulter les patients.</p>
+        <p role="status" className="mb-3 text-xs text-text-muted">Informations réservées aux utilisateurs autorisés à consulter les patients.</p>
       )}
 
       <div className="flex gap-2">
