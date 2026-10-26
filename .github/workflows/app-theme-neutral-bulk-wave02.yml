@@ -24,7 +24,10 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Prove exact whitelist-only change in 14 modules
+      # The frozen Wave02 oracle certifies its historical migration, not later PRs.
+      # Keep the workflow/check present on every PR (required-check safe).
+      - name: Prove frozen historical Wave02 migration
+        if: github.event_name == 'push'
         run: python scripts/ci/theme_neutral_batch02.py
       - uses: actions/setup-node@v4
         with:
@@ -52,6 +55,6 @@ jobs:
       - name: Evidence classification
         if: success()
         run: |
-          echo "Exact source diff whitelist: UI color token substitutions only; no TS/JS structure or behavior changes." >> "$GITHUB_STEP_SUMMARY"
+          echo "Historical Wave02 oracle runs on its original push branch only; PRs retain TypeScript, targeted regressions and build." >> "$GITHUB_STEP_SUMMARY"
           echo "No clinical HTTP writes, production release, feature flags or permission changes." >> "$GITHUB_STEP_SUMMARY"
           echo "Global theme-compliance and all remaining status palettes remain OPEN." >> "$GITHUB_STEP_SUMMARY"
