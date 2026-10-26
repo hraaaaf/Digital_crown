@@ -76,6 +76,11 @@ try {
       '/timepoints/'+tpId+'/evidences',{headers:head,data:{clinical_asset_id:byTimepoint[timepoint]}});
     pass('real synthetic evidence linked '+timepoint,link.status()===201,{status:link.status()});
   }
+  // Master Plan seed via the REAL authenticated clinical API, never mocked.
+  const syntheticPlan=await api.put('/api/patients/'+patient.id+'/master-plan',{
+    headers:head,data:[{title:'Contrôle de suivi synthétique',assistant:'Clinique',status:'pending',date_str:'2026-11-01'}],
+  });
+  pass('real authenticated synthetic Master Plan stored',syntheticPlan.ok(),{status:syntheticPlan.status()});
   // Distinct patient B in the SAME disposable cabinet for real SPA A→B→A.
   const otherPatientResponse=await api.post('/api/patients/',{
     headers:head,data:{numero_dossier:'T2-0002',nom:'ISOLATION',prenom:'BETA',
@@ -135,7 +140,11 @@ try {
   const agendaRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="vue-ensemble"]').count()===1;
   const followupRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="suivi-clinique"]').count()===1;
   const imagerieRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="imagerie"]').count()===1;
-  const provenRoadmapCount=(agendaRoadmapReady ? 4 : 0)+(followupRoadmapReady ? 1 : 0)+(imagerieRoadmapReady ? 1 : 0);
+  const treatmentRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="planification-traitements"]').count()===1;
+  const orthoRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="comparaison-orthodontique"]').count()===1;
+  const presentationRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="presentation-patient"]').count()===1;
+  const provenRoadmapCount=(agendaRoadmapReady ? 4 : 0)+(followupRoadmapReady ? 1 : 0)+(imagerieRoadmapReady ? 1 : 0)
+    +(treatmentRoadmapReady?1:0)+(orthoRoadmapReady?1:0)+(presentationRoadmapReady?1:0);
   pass('only proven roadmap presets unlocked, all others denied',
     await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9-provenRoadmapCount);
 
@@ -339,6 +348,27 @@ try {
       await page.locator('[data-v15-071-viewslot]').first().scrollIntoViewIfNeeded();
       await capture(page,filename);
     }
+  }
+  if(process.env.VITE_V15_07_1_R3_2_FOCUS_LAB==='1') {
+    const chooser=page.getByRole('combobox',{name:'Disposition MultiView'});
+    await chooser.selectOption('planification-traitements');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const recorded=page.locator('[data-testid="r3-real-treatment"]');
+    await recorded.waitFor({state:'visible'});
+    await recorded.getByText(/Contrôle de suivi synthétique/).waitFor({state:'visible'});
+    pass('R3 treatment preset reads canonical authenticated plan, no editor',
+      await recorded.innerText().then(t=>t.includes('Lecture seule')&&t.includes('Contrôle de suivi synthétique')));
+    await capture(page,'after-r3-real-treatment-1920.png');
+    await chooser.selectOption('presentation-patient');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const presentation=page.locator('[data-testid="r3-patient-presentation"]');
+    await presentation.waitFor({state:'visible'});
+    pass('R3 patient presentation remains masked before explicit action',
+      await presentation.getByText('Présentation masquée').count()===1 &&
+      await page.locator('[data-testid="r3-presentation-visible"]').count()===0);
+    await capture(page,'after-r3-presentation-masked-1920.png');
   }
   pass('no browser JavaScript errors',errors.length===0,{errors:errors.slice(0,4)});
   console.log('R3-1 AUTHENTIC AFTER PASS '+evidence.tests.length+' tests, '+evidence.screens.length+

@@ -12,6 +12,8 @@ import { R3SplitWorkspace } from './R3SplitWorkspace';
 import { R3ThreePaneWorkspace } from './R3ThreePaneWorkspace';
 import { R3AgendaReadonlyPanel } from './R3AgendaReadonlyPanel';
 import { R3TreatmentReadonlyPanel } from './R3TreatmentReadonlyPanel';
+import { R3CephaloTimepointReadonlyPanel } from './R3CephaloTimepointReadonlyPanel';
+import { R3PatientPresentationPanel } from './R3PatientPresentationPanel';
 import { chooseR3Module, r3ModuleOptions, R3_MODULE_LABEL } from './R3ModuleChoice';
 import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
@@ -70,8 +72,8 @@ export function selectableR3RoadmapLayouts(allowAgenda:boolean,allowCephalo:bool
   const proven=[
     'imagerie',
     ...(allowAgenda ? ['vue-ensemble','consultation','agenda-cabinet','gestion-administrative'] : []),
-    ...(allowCephalo ? ['suivi-clinique'] : []),
-    ...(allowClinical ? ['planification-traitements'] : []),
+    ...(allowCephalo ? ['suivi-clinique','comparaison-orthodontique'] : []),
+    ...(allowClinical ? ['planification-traitements','presentation-patient'] : []),
   ];
   return PRESETS.filter(layout=>proven.includes(layout.id));
 }
@@ -221,11 +223,14 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     tenantId:tenantKey(user),
     patientId:patientMatches && trustedPatient ? trustedPatient.id : null,
     cssViewportWidth:workspaceWidth,
+    // Two separately keyed, GET-only timepoint adapters, never two CephaloWorkspace stores.
+    independentlyMountable:r3FocusPilot && (mounted.id==='comparaison-orthodontique' || draft.id==='comparaison-orthodontique')
+      ? ['cephalo'] : undefined,
     allowedModules: [
       ...(canPatients ? ['dossier','imagerie','photos','galerie','documents'] as ModuleKey[] : []),
-      ...(canCephalo ? ['suivi'] as ModuleKey[] : []),
+      ...(canCephalo ? ['suivi','cephalo'] as ModuleKey[] : []),
       ...(canAgenda ? ['agenda'] as ModuleKey[] : []),
-      ...(canClinical ? ['traitement'] as ModuleKey[] : []),
+      ...(canClinical ? ['traitement','presentation'] as ModuleKey[] : []),
     ],
   };
   const mountedGate=authorizeLayout(mounted,context,ratio);
@@ -257,7 +262,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     setAppliedCustom(null);setDraftCustom(null);
     setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);
   };
-  const renderSlot=(slot:{module:ModuleKey})=>{
+  const renderSlot=(slot:{id:string;module:ModuleKey})=>{
     if (!trustedPatient) return null;
     if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly
       fixedAssetType={applied.id==='imagerie' ? 'RADIOGRAPH' : undefined}/>;
@@ -268,6 +273,12 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
       return <R3AgendaReadonlyPanel user={user}/>;
     if (slot.module==='traitement' && canClinical)
       return <R3TreatmentReadonlyPanel key={proofKey} patientId={trustedPatient.id}/>;
+    if (slot.module==='cephalo' && canCephalo && applied.id==='comparaison-orthodontique' &&
+        (slot.id==='cephalo-t0' || slot.id==='cephalo-t1'))
+      return <R3CephaloTimepointReadonlyPanel key={proofKey+':'+slot.id}
+        patientId={trustedPatient.id} ordinal={slot.id==='cephalo-t0'?0:1}/>;
+    if (slot.module==='presentation' && canClinical && applied.id==='presentation-patient')
+      return <R3PatientPresentationPanel key={proofKey} patient={trustedPatient}/>;
     if (slot.module==='dossier') return (
       <div data-testid="multiview-real-dossier" className="min-w-0 space-y-2.5 p-2.5 text-sm sm:p-3">
         <div className="rounded-2xl bg-gradient-to-br from-primary via-primary to-primary p-4 text-on-primary shadow-sm">
