@@ -16,6 +16,7 @@ export function R3AgendaReadonlyPanel({user}:{user:AppUser}) {
   const authorized=hasAccess(user,'agenda');
   const projected=authorized ? projectReadOnlyAppointments(appointments,hasAccess(user,'patients')) : null;
   const ready=appointmentsState==='ready' && projected!==null;
+  const rows=projected ?? [];
   return <section data-testid="r3-real-agenda" aria-label="Agenda Cabinet lecture seule"
     className="min-w-0 space-y-2 p-3 text-text-main">
     <div className="flex items-center justify-between gap-2">
@@ -30,7 +31,7 @@ export function R3AgendaReadonlyPanel({user}:{user:AppUser}) {
         ? <p role="status" className="text-xs text-text-muted">Chargement…</p>
         : !ready
           ? <p role="alert" className="text-xs">Agenda indisponible.</p>
-          : projected.length===0
+          : rows.length===0
             ? <p role="status" className="text-xs text-text-muted">Aucun rendez-vous aujourd'hui.</p>
             : <div className="max-h-[390px] overflow-auto">
                 <table className="w-full text-left text-xs">
@@ -40,7 +41,7 @@ export function R3AgendaReadonlyPanel({user}:{user:AppUser}) {
                     <th scope="col" className="py-2">Rendez-vous</th>
                     <th scope="col" className="py-2">Statut</th>
                   </tr></thead>
-                  <tbody>{projected.map(item=><tr key={item.id} className="border-t border-border-main">
+                  <tbody>{rows.map(item=><tr key={item.id} className="border-t border-border-main">
                     <td className="py-2 tabular-nums">{item.time}</td>
                     <td className="py-2">{item.patientLabel}</td>
                     <td className="py-2">{item.status}</td>
