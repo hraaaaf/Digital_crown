@@ -278,6 +278,10 @@ describe('TeamManager commercial pack button matrix', () => {
     await waitFor(() => expect(vi.mocked(api.put)).toHaveBeenCalledWith('/team/11', { is_active: false }));
 
     vi.mocked(api.put).mockClear();
+    // A completed HTTP mock can precede TeamManager's final fetchMembers/
+    // mutationKey reset. Wait for the actual interactive contract rather
+    // than clicking a temporarily disabled action under CI load.
+    await waitFor(() => expect(screen.getByTitle("Réactiver l'accès")).not.toBeDisabled());
     fireEvent.click(screen.getByTitle("Réactiver l'accès"));
     await waitFor(() => expect(vi.mocked(api.put)).toHaveBeenCalledWith('/team/12', { is_active: true }));
 
