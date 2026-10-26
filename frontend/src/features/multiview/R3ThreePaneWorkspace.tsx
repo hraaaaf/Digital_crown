@@ -1,4 +1,5 @@
 import { useState, type ReactNode } from 'react';
+import { Maximize2, RotateCcw } from 'lucide-react';
 import { authorizeLayout, type Layout, type Slot, type WorkspaceContext } from './studioLayouts';
 import { StudioLayoutFrame } from './StudioLayoutFrame';
 
@@ -29,32 +30,30 @@ export function R3ThreePaneWorkspace({layout, context, renderSlot}: {
   return <section data-r3-2-focus-workspace className="min-w-0 rounded-xl border border-border-main bg-medical-pearl p-2.5 text-text-main sm:p-3"
       aria-label="R3-2 — trois panneaux et focus temporaire">
     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
-      <h2 className="text-sm font-semibold">Trois vues · lecture seule</h2>
+      <h2 className="text-sm font-semibold">{focusedSlot ? 'Focus' : '3 vues'}</h2>
       {focusedSlot
         ? <button type="button" data-testid="r3-2-restore" onClick={()=>setFocusId(null)}
-            className="min-h-10 rounded-lg border border-border-main bg-card px-3 py-2 text-xs font-semibold text-text-main focus-visible:outline-2 focus-visible:outline-primary">
-            Restaurer les trois panneaux
+            aria-label="Restaurer les trois panneaux" title="Restaurer les trois panneaux"
+            className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border-main bg-card px-3 py-2 text-xs font-semibold text-text-main focus-visible:outline-2 focus-visible:outline-primary">
+            <RotateCcw size={15} aria-hidden="true" /> 3 vues
           </button>
         : <div role="group" aria-label="Agrandir un panneau" className="flex flex-wrap gap-1.5">
             {layout.slots.map((slot,index)=><button key={slot.id} type="button"
               onClick={()=>setFocusId(slot.id)}
               aria-label={'Agrandir le panneau ' + (index+1) + ' : ' + slot.module}
-              className="min-h-10 rounded-lg border border-border-main bg-card px-3 py-2 text-xs text-text-main hover:bg-medical-pearl focus-visible:outline-2 focus-visible:outline-primary">
-              Focus {index+1}
+              title={'Agrandir : ' + slot.module}
+              className="inline-flex min-h-10 items-center gap-1.5 rounded-lg border border-border-main bg-card px-2.5 py-2 text-xs font-medium text-text-main hover:bg-medical-pearl focus-visible:outline-2 focus-visible:outline-primary">
+              <Maximize2 size={14} aria-hidden="true" />
+              {slot.module==='dossier'?'Dossier':slot.module==='imagerie'?'Médias':'Suivi'}
             </button>)}
           </div>}
     </div>
     <div data-testid={focusedSlot ? 'r3-2-single-focus' : 'r3-2-three-real-panes'}
-      className="min-w-0 [&_[data-v15-071-viewslot]]:overscroll-contain">
+      className="min-w-0 [&_[data-v15-071-viewslot]]:overscroll-contain [&_[data-v15-071-multiview-scaffold]>h2]:hidden">
       <StudioLayoutFrame
         layout={focusLayout ?? layout}
         context={context}
         renderSlot={renderSlot}/>
     </div>
-    <p className="mt-2 text-xs text-text-muted">
-      {focusedSlot ? 'Vue agrandie temporaire · aucun autre panneau clinique monté.' :
-        'Trois modules réels autorisés · aucun panneau supplémentaire simulé.'}
-      {' '}Aucun enregistrement de disposition ou de données patient.
-    </p>
   </section>;
 }
