@@ -65,9 +65,12 @@ export function selectablePilotLayouts(allowCephalo: boolean): readonly Layout[]
 }
 
 /** Roadmap presets with ALL actual, read-only adapters; no automatic activation of the other six. */
-export function selectableR3RoadmapLayouts(allowAgenda:boolean): readonly Layout[] {
-  return allowAgenda ? PRESETS.filter(layout =>
-    ['vue-ensemble','consultation','agenda-cabinet'].includes(layout.id)) : [];
+export function selectableR3RoadmapLayouts(allowAgenda:boolean,allowCephalo:boolean): readonly Layout[] {
+  const proven=[
+    ...(allowAgenda ? ['vue-ensemble','consultation','agenda-cabinet'] : []),
+    ...(allowCephalo ? ['suivi-clinique'] : []),
+  ];
+  return PRESETS.filter(layout=>proven.includes(layout.id));
 }
 
 function tenantKey(user: AppUser | null): string | null {
@@ -194,7 +197,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   // R3-2 is additive: only authorized real adapters, not nine fake presets.
   const r3FocusPilot = enableR3Split && enableR3Focus && import.meta.env.DEV;
   const possible=r3FocusPilot
-    ? [...selectablePilotLayouts(canCephalo),...selectableR3RoadmapLayouts(canAgenda)]
+    ? [...selectablePilotLayouts(canCephalo),...selectableR3RoadmapLayouts(canAgenda,canCephalo)]
     : selectablePilotLayouts(canCephalo);
   const baseApplied=possible.find(item=>item.id===appliedId) || possible[0];
   const applied=r3FocusPilot && appliedCustom?.id===baseApplied.id ? appliedCustom : baseApplied;
@@ -214,7 +217,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     patientId:patientMatches && trustedPatient ? trustedPatient.id : null,
     cssViewportWidth:workspaceWidth,
     allowedModules: [
-      ...(canPatients ? ['dossier','imagerie'] as ModuleKey[] : []),
+      ...(canPatients ? ['dossier','imagerie','photos'] as ModuleKey[] : []),
       ...(canCephalo ? ['suivi'] as ModuleKey[] : []),
       ...(canAgenda ? ['agenda'] as ModuleKey[] : []),
     ],
@@ -251,6 +254,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const renderSlot=(slot:{module:ModuleKey})=>{
     if (!trustedPatient) return null;
     if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>;
+    if (slot.module==='photos') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly fixedAssetType="PHOTO"/>;
     if (slot.module==='agenda' && canAgenda && user)
       return <R3AgendaReadonlyPanel user={user}/>;
     if (slot.module==='dossier') return (
@@ -428,7 +432,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
                     slot.module === 'imagerie' ? <Images size={21} className="text-primary"/> :
                     <Activity size={21} className="text-primary"/>}
                   <span className="text-xs font-bold text-text-main">
-                    {slot.module === 'dossier' ? 'Dossier patient' : slot.module === 'imagerie' ? 'Médiathèque' : 'Suivi longitudinal'}
+                    {slot.module === 'dossier' ? 'Dossier patient' : slot.module === 'imagerie' ? 'Médiathèque' : slot.module === 'photos' ? 'Photos' : slot.module === 'agenda' ? 'Agenda' : 'Suivi longitudinal'}
                   </span>
                   <span className="text-[11px] text-text-muted">Lecture seule</span>
                 </div>)}
@@ -464,10 +468,10 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
             {draft.slots.map((slot,index)=><div key={slot.id} style={geometrySlotStyle(draft.geometry,index)}
               className="flex min-w-0 min-h-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-border-main bg-medical-pearl px-2 text-center shadow-sm">
               {slot.module==='dossier' ? <FileText size={21} className="text-primary"/> :
-                slot.module==='imagerie' ? <Images size={21} className="text-primary"/> :
+                (slot.module==='imagerie' || slot.module==='photos') ? <Images size={21} className="text-primary"/> :
                 <Activity size={21} className="text-primary"/>}
               <span className="text-xs font-bold text-text-main">
-                {slot.module==='dossier' ? 'Dossier patient' : slot.module==='imagerie' ? 'Médiathèque' : 'Suivi longitudinal'}
+                {slot.module==='dossier' ? 'Dossier patient' : slot.module==='imagerie' ? 'Médiathèque' : slot.module==='photos' ? 'Photos' : slot.module==='agenda' ? 'Agenda' : 'Suivi longitudinal'}
               </span>
               <span className="text-[11px] text-text-muted">Lecture seule</span>
             </div>)}
