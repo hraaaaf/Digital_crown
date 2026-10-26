@@ -114,7 +114,9 @@ try {
           if(!el) throw new Error('Missing production anchor '+selector);
           return {label,color:getComputedStyle(el).color,background:closestOpaqueBackground(el),text:el.textContent?.trim().slice(0,70)};
         });
-        return {samples,clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,computedMuted:getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim()};
+        const logo=document.querySelector('img[alt="Digital Crown"]');
+        if(!logo) throw new Error('Missing production Digital Crown logo');
+        return {samples,logoFilter:getComputedStyle(logo).filter,clientWidth:document.documentElement.clientWidth,scrollWidth:document.documentElement.scrollWidth,computedMuted:getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim()};
           });
           break;
         } catch (error) {
@@ -124,6 +126,8 @@ try {
       }
       state.samples.forEach(x=>{x.ratio=ratio(x.color,x.background);if(phase==='after' && x.ratio<4.5) report.failures.push(theme+' '+viewport.width+' '+x.label+' contrast '+x.ratio.toFixed(2)+' < 4.5');});
       if(state.scrollWidth>state.clientWidth) report.failures.push(theme+' '+viewport.width+' horizontal overflow');
+      if(['dark','prestige'].includes(theme) && state.logoFilter!=='brightness(0) invert(1)') report.failures.push(theme+' '+viewport.width+' logo filter missing: '+state.logoFilter);
+      if(!['dark','prestige'].includes(theme) && state.logoFilter!=='none') report.failures.push(theme+' '+viewport.width+' unexpected logo filter: '+state.logoFilter);
       if(errors.length) report.failures.push(theme+' '+viewport.width+' '+errors.join('; '));
       const expected = phase==='before'?beforeColors[theme]:afterColors[theme];
       if(state.computedMuted.toLowerCase()!==expected) report.failures.push(theme+' '+viewport.width+' '+phase+' muted expected '+expected+' got '+state.computedMuted);
