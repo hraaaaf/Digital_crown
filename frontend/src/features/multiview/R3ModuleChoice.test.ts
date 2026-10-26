@@ -19,7 +19,7 @@ const three:Layout = {
 
 describe('LOT07 R3 panel module chooser — real adapters only',()=>{
   it('only offers existing authenticated read-only clinical modules',()=>{
-    expect(R3_REAL_MODULES).toEqual(['dossier','imagerie','suivi','agenda']);
+    expect(R3_REAL_MODULES).toEqual(['dossier','imagerie','suivi','agenda','photos']);
     expect(r3ModuleOptions(columns,0,context)).toEqual(['dossier','imagerie','suivi']);
     expect(r3ModuleOptions(columns,0,{...context,allowedModules:['dossier','imagerie']}))
       .toEqual(['dossier','imagerie']);
@@ -30,6 +30,10 @@ describe('LOT07 R3 panel module chooser — real adapters only',()=>{
     expect(chooseR3Module(columns,0,'agenda',agendaContext)?.slots.map(slot=>slot.module))
       .toEqual(['agenda','imagerie']);
     expect(r3ModuleOptions(columns,0,agendaContext)).toContain('agenda');
+    const photoContext={...agendaContext,allowedModules:['dossier','imagerie','suivi','agenda','photos'] as const};
+    expect(chooseR3Module(columns,0,'photos',photoContext)?.slots.map(slot=>slot.module))
+      .toEqual(['photos','imagerie']);
+    expect(r3ModuleOptions(columns,0,photoContext)).toContain('photos');
   });
 
   it('permutes existing modules rather than mounting a second media or cephalo viewer',()=>{
