@@ -46,6 +46,29 @@ describe('LOT07 R3-1: real two-pane splitter, isolated and R-only', () => {
     expect(screen.getByTestId('r3-1-grid').getAttribute('style')).toContain('50fr');
   });
 
+  it('gives the vertical/horizontal grip an accessible visible handle and two bounded read-only panes', () => {
+    const columns=render(<R3SplitWorkspace layout={getPreset('consultation')!} context={context} renderSlot={renderSlot}/>);
+    const columnGrip=screen.getByRole('separator',{name:'Séparateur vertical des panneaux'});
+    expect(columnGrip.querySelector('[aria-hidden="true"]')).toBeTruthy();
+    expect(columnGrip.className).toContain('focus-visible:outline');
+    columns.unmount();
+
+    render(<R3SplitWorkspace layout={getPreset('suivi-clinique')!} context={context} renderSlot={renderSlot}/>);
+    const grid=screen.getByTestId('r3-1-grid');
+    const rowGrip=screen.getByRole('separator',{name:'Séparateur horizontal des panneaux'});
+    expect(rowGrip.querySelector('[aria-hidden="true"]')).toBeTruthy();
+    expect(grid.getAttribute('style')).toContain('560px');
+    expect(grid.getAttribute('style')).toContain('460px');
+    const a=screen.getByRole('region',{name:'Panneau 1'});
+    const b=screen.getByRole('region',{name:'Panneau 2'});
+    expect(a).toBeTruthy();
+    expect(b).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Ajuster au contenu'}));
+    expect(screen.queryByRole('separator')).toBeNull();
+    expect(a.getAttribute('style')).toContain('340px');
+    expect(b.getAttribute('style')).toContain('220px');
+  });
+
   it('supports pointer drag on the divider with clamped percentage', () => {
     // JSDOM does not expose PointerEvent by default: use a MouseEvent-based
     // PointerEvent fixture preserving real pointerId/button/client coordinates.
