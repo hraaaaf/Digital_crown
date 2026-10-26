@@ -275,11 +275,11 @@ export const PractitionerAvailabilityPanel: React.FC<{ cabinetSchedule: CabinetW
   };
 
   return (
-    <section className="min-w-0 rounded-[2rem] border border-slate-100 bg-white p-5 shadow-sm sm:p-7" data-testid="practitioner-availability-panel">
+    <section className="min-w-0 rounded-[2rem] border border-border-main bg-card p-5 shadow-sm sm:p-7" data-testid="practitioner-availability-panel">
       <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
         <div>
-          <h3 className="flex items-center gap-3 text-xl font-black text-slate-900"><CalendarClock className="text-indigo-500" />Disponibilités par praticien</h3>
-          <p className="mt-1 max-w-2xl text-sm font-medium text-slate-500">Les horaires individuels ne peuvent jamais ouvrir le cabinet : disponibilité effective = cabinet ∩ praticien.</p>
+          <h3 className="flex items-center gap-3 text-xl font-black text-text-main"><CalendarClock className="text-indigo-500" />Disponibilités par praticien</h3>
+          <p className="mt-1 max-w-2xl text-sm font-medium text-text-muted">Les horaires individuels ne peuvent jamais ouvrir le cabinet : disponibilité effective = cabinet ∩ praticien.</p>
         </div>
         {selected && (
           <span className={cn('w-fit rounded-full px-3 py-1.5 text-[10px] font-black uppercase tracking-wide', settings?.inherits_cabinet !== false ? 'bg-emerald-50 text-emerald-700' : 'bg-indigo-50 text-indigo-700')}>
@@ -291,48 +291,48 @@ export const PractitionerAvailabilityPanel: React.FC<{ cabinetSchedule: CabinetW
       {formError && <p role="alert" className="mb-4 rounded-xl bg-rose-50 px-4 py-3 text-sm font-bold text-rose-700">{formError}</p>}
 
       {practitioners.length === 0 && !loading ? (
-        <div className="rounded-2xl border-2 border-dashed border-slate-200 bg-slate-50 p-7 text-center text-sm font-bold text-slate-500">Aucun praticien assignable actif.</div>
+        <div className="rounded-2xl border-2 border-dashed border-border-main bg-background p-7 text-center text-sm font-bold text-text-muted">Aucun praticien assignable actif.</div>
       ) : (
         <div className="space-y-5">
           <div className="flex gap-2 overflow-x-auto pb-1">
             {practitioners.map((practitioner) => (
-              <button key={practitioner.practitioner_id} type="button" onClick={() => setSelectedId(practitioner.practitioner_id)} className={cn('inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-black', selectedId === practitioner.practitioner_id ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-slate-200 bg-white text-slate-600 hover:bg-slate-50')}>
+              <button key={practitioner.practitioner_id} type="button" onClick={() => setSelectedId(practitioner.practitioner_id)} className={cn('inline-flex shrink-0 items-center gap-2 rounded-xl border px-4 py-2.5 text-sm font-black', selectedId === practitioner.practitioner_id ? 'border-indigo-200 bg-indigo-50 text-indigo-700' : 'border-border-main bg-card text-text-muted hover:bg-background')}>
                 <UserRound size={15} /> {practitioner.practitioner_name}
               </button>
             ))}
           </div>
 
           {loading ? (
-            <div className="py-8 text-center text-sm font-bold text-slate-400">Chargement…</div>
+            <div className="py-8 text-center text-sm font-bold text-text-muted">Chargement…</div>
           ) : selected && (
             <>
               {!draft ? (
                 <div className="flex flex-col gap-4 rounded-2xl border border-emerald-100 bg-emerald-50/60 p-5 sm:flex-row sm:items-center sm:justify-between">
                   <div>
-                    <p className="font-black text-slate-800">{selected.practitioner_name} suit les horaires du cabinet.</p>
-                    <p className="mt-1 text-sm font-medium text-slate-500">Aucune configuration individuelle : compatibilité totale avec les cabinets existants.</p>
+                    <p className="font-black text-text-main">{selected.practitioner_name} suit les horaires du cabinet.</p>
+                    <p className="mt-1 text-sm font-medium text-text-muted">Aucune configuration individuelle : compatibilité totale avec les cabinets existants.</p>
                   </div>
                   <button type="button" onClick={beginCustom} className="rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white">Personnaliser</button>
                 </div>
               ) : (
                 <div className="space-y-3">
                   {WEEKDAYS.map(({ key, label, short }) => (
-                    <article key={key} className="rounded-2xl border border-slate-200 p-4">
+                    <article key={key} className="rounded-2xl border border-border-main p-4">
                       <div className="flex items-center justify-between gap-3">
                         <div className="flex items-center gap-3">
                           <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-indigo-50 text-[11px] font-black uppercase text-indigo-700">{short}</span>
-                          <div><p className="font-black text-slate-800">{label}</p><p className="text-xs font-medium text-slate-400">{draft[key].intervals.length ? `${draft[key].intervals.length} plage${draft[key].intervals.length > 1 ? 's' : ''}` : 'Jour off'}</p></div>
+                          <div><p className="font-black text-text-main">{label}</p><p className="text-xs font-medium text-text-muted">{draft[key].intervals.length ? `${draft[key].intervals.length} plage${draft[key].intervals.length > 1 ? 's' : ''}` : 'Jour off'}</p></div>
                         </div>
                         <button type="button" onClick={() => addInterval(key)} className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-black text-indigo-700"><Plus size={14} />Plage</button>
                       </div>
                       {draft[key].intervals.length > 0 && (
                         <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                           {draft[key].intervals.map((interval, index) => (
-                            <div key={`${key}-${index}`} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 rounded-xl bg-slate-50 p-2">
-                              <input type="time" value={interval.start} onChange={(event) => updateInterval(key, index, 'start', event.target.value)} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold" aria-label={`${label} plage ${index + 1} début`} />
-                              <span className="text-xs font-black text-slate-400">→</span>
-                              <input type="time" value={interval.end} onChange={(event) => updateInterval(key, index, 'end', event.target.value)} className="min-w-0 rounded-lg border border-slate-200 bg-white px-2 py-2 text-xs font-bold" aria-label={`${label} plage ${index + 1} fin`} />
-                              <button type="button" onClick={() => removeInterval(key, index)} aria-label={`Retirer plage ${label} ${index + 1}`} className="rounded-lg p-2 text-slate-400 hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
+                            <div key={`${key}-${index}`} className="grid grid-cols-[1fr_auto_1fr_auto] items-center gap-2 rounded-xl bg-background p-2">
+                              <input type="time" value={interval.start} onChange={(event) => updateInterval(key, index, 'start', event.target.value)} className="min-w-0 rounded-lg border border-border-main bg-card px-2 py-2 text-xs font-bold" aria-label={`${label} plage ${index + 1} début`} />
+                              <span className="text-xs font-black text-text-muted">→</span>
+                              <input type="time" value={interval.end} onChange={(event) => updateInterval(key, index, 'end', event.target.value)} className="min-w-0 rounded-lg border border-border-main bg-card px-2 py-2 text-xs font-bold" aria-label={`${label} plage ${index + 1} fin`} />
+                              <button type="button" onClick={() => removeInterval(key, index)} aria-label={`Retirer plage ${label} ${index + 1}`} className="rounded-lg p-2 text-text-muted hover:bg-rose-50 hover:text-rose-600"><Trash2 size={14} /></button>
                             </div>
                           ))}
                         </div>
@@ -340,32 +340,32 @@ export const PractitionerAvailabilityPanel: React.FC<{ cabinetSchedule: CabinetW
                     </article>
                   ))}
                   <div className="flex flex-col gap-2 sm:flex-row sm:justify-end">
-                    <button type="button" onClick={() => void resetInheritance()} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-black text-slate-600 disabled:opacity-40"><RotateCcw size={15} />Hériter du cabinet</button>
+                    <button type="button" onClick={() => void resetInheritance()} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl border border-border-main px-4 py-2.5 text-sm font-black text-text-muted disabled:opacity-40"><RotateCcw size={15} />Hériter du cabinet</button>
                     <button type="button" onClick={() => void saveSchedule()} disabled={saving} className="inline-flex items-center justify-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-black text-white disabled:opacity-40"><Save size={15} />{saving ? 'Sauvegarde…' : 'Enregistrer'}</button>
                   </div>
                 </div>
               )}
 
-              <div className="rounded-2xl border border-slate-200 p-4 sm:p-5">
+              <div className="rounded-2xl border border-border-main p-4 sm:p-5">
                 <div className="mb-4">
-                  <h4 className="font-black text-slate-900">Absences & congés</h4>
-                  <p className="mt-1 text-xs font-medium text-slate-500">Ces blocages concernent uniquement {selected.practitioner_name}.</p>
+                  <h4 className="font-black text-text-main">Absences & congés</h4>
+                  <p className="mt-1 text-xs font-medium text-text-muted">Ces blocages concernent uniquement {selected.practitioner_name}.</p>
                 </div>
                 <div className="grid gap-3 lg:grid-cols-[1fr_1fr_1.2fr_auto] lg:items-end">
-                  <label className="space-y-1.5"><span className="text-[10px] font-black uppercase tracking-wide text-slate-400">Début</span><input type="datetime-local" value={absenceStart} onChange={(event) => setAbsenceStart(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold" /></label>
-                  <label className="space-y-1.5"><span className="text-[10px] font-black uppercase tracking-wide text-slate-400">Fin</span><input type="datetime-local" value={absenceEnd} onChange={(event) => setAbsenceEnd(event.target.value)} className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold" /></label>
-                  <label className="space-y-1.5"><span className="text-[10px] font-black uppercase tracking-wide text-slate-400">Motif</span><input value={absenceReason} onChange={(event) => setAbsenceReason(event.target.value)} placeholder="Congé, formation…" className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-bold" /></label>
+                  <label className="space-y-1.5"><span className="text-[10px] font-black uppercase tracking-wide text-text-muted">Début</span><input type="datetime-local" value={absenceStart} onChange={(event) => setAbsenceStart(event.target.value)} className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-bold" /></label>
+                  <label className="space-y-1.5"><span className="text-[10px] font-black uppercase tracking-wide text-text-muted">Fin</span><input type="datetime-local" value={absenceEnd} onChange={(event) => setAbsenceEnd(event.target.value)} className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-bold" /></label>
+                  <label className="space-y-1.5"><span className="text-[10px] font-black uppercase tracking-wide text-text-muted">Motif</span><input value={absenceReason} onChange={(event) => setAbsenceReason(event.target.value)} placeholder="Congé, formation…" className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-bold" /></label>
                   <button type="button" onClick={() => void addAbsence()} disabled={saving || !absenceStart || !absenceEnd} className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-slate-900 px-4 py-2.5 text-sm font-black text-white disabled:opacity-40"><Plus size={15} />Ajouter</button>
                 </div>
 
                 {exceptions.length === 0 ? (
-                  <p className="mt-4 rounded-xl bg-slate-50 px-4 py-3 text-sm font-semibold text-slate-400">Aucune indisponibilité individuelle enregistrée.</p>
+                  <p className="mt-4 rounded-xl bg-background px-4 py-3 text-sm font-semibold text-text-muted">Aucune indisponibilité individuelle enregistrée.</p>
                 ) : (
                   <div className="mt-4 space-y-2">
                     {exceptions.map((exception) => (
-                      <div key={exception.id} className="flex flex-col gap-2 rounded-xl bg-slate-50 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="min-w-0"><p className="truncate text-sm font-black text-slate-700">{exception.reason || 'Indisponibilité praticien'}</p><p className="mt-0.5 text-xs font-medium text-slate-400">{formatDateTime(exception.start_date)} → {formatDateTime(exception.end_date)}</p></div>
-                        <button type="button" onClick={() => void deleteAbsence(exception.id)} className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-slate-200 px-3 py-2 text-xs font-black text-slate-500 hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"><Trash2 size={13} />Retirer</button>
+                      <div key={exception.id} className="flex flex-col gap-2 rounded-xl bg-background px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0"><p className="truncate text-sm font-black text-text-main">{exception.reason || 'Indisponibilité praticien'}</p><p className="mt-0.5 text-xs font-medium text-text-muted">{formatDateTime(exception.start_date)} → {formatDateTime(exception.end_date)}</p></div>
+                        <button type="button" onClick={() => void deleteAbsence(exception.id)} className="inline-flex shrink-0 items-center justify-center gap-1.5 rounded-lg border border-border-main px-3 py-2 text-xs font-black text-text-muted hover:border-rose-200 hover:bg-rose-50 hover:text-rose-700"><Trash2 size={13} />Retirer</button>
                       </div>
                     ))}
                   </div>

@@ -318,15 +318,15 @@ export const PatientDetails = () => {
 
   if (fetchError) {
     return (
-      <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 text-center space-y-6">
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-card rounded-[2rem] shadow-xl border border-border-main p-8 text-center space-y-6">
           <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto"><AlertTriangle size={40} /></div>
           <div>
-            <h1 className="text-2xl font-black text-slate-800 mb-2">Impossible de charger le dossier</h1>
-            <p className="text-slate-500 font-medium text-sm">Erreur réseau ou patient introuvable. Vérifiez votre connexion et réessayez.</p>
+            <h1 className="text-2xl font-black text-text-main mb-2">Impossible de charger le dossier</h1>
+            <p className="text-text-muted font-medium text-sm">Erreur réseau ou patient introuvable. Vérifiez votre connexion et réessayez.</p>
           </div>
           <div className="flex gap-3">
-            <button onClick={() => navigate('/patients')} className="flex-1 px-4 py-2.5 text-sm font-bold text-slate-600 bg-slate-100 hover:bg-slate-200 rounded-lg transition-all">Retour</button>
+            <button onClick={() => navigate('/patients')} className="flex-1 px-4 py-2.5 text-sm font-bold text-text-muted bg-input-field hover:bg-input-field rounded-lg transition-all">Retour</button>
             <button onClick={() => fetchPatient()} className="flex-1 px-4 py-2.5 text-sm font-bold text-white bg-primary hover:bg-primary/90 rounded-lg transition-all flex items-center justify-center gap-2"><RefreshCcw size={16} /> Réessayer</button>
           </div>
         </div>
@@ -449,7 +449,7 @@ export const PatientDetails = () => {
                       const cabinetMotif = cabinetMotifs.find(item => item.id === motifId);
                       const motif = systemMotif || cabinetMotif;
                       if (!motif) {
-                        return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider bg-slate-100 text-slate-600 border border-slate-200', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs')}>{motifId}<span className="text-[9px] uppercase tracking-wider text-slate-400">Historique</span></div>;
+                        return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider bg-input-field text-text-muted border border-border-main', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs')}>{motifId}<span className="text-[9px] uppercase tracking-wider text-text-muted">Historique</span></div>;
                       }
                       const isUrgent = motif.urgency === 'urgence';
                       return <div key={motifId} className={cn('inline-flex items-center rounded-lg font-bold tracking-wider', isRadiology ? 'gap-1.5 px-2 py-1 text-[10px]' : 'gap-2 px-3 py-1.5 text-xs', isUrgent ? 'bg-danger-surface text-danger border border-danger-border' : 'bg-info-surface text-info border border-info-border')}>{motif.label}{cabinetMotif && <span className="text-[9px] uppercase tracking-wider opacity-60">{cabinetMotif.is_active ? 'Cabinet' : 'Historique'}</span>}{isUrgent && <span className="inline-block w-1.5 h-1.5 rounded-full bg-danger animate-pulse" />}</div>;
@@ -520,9 +520,9 @@ export const PatientDetails = () => {
                     <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6 sm:p-10">
-                      <div className="w-24 h-24 bg-slate-100 rounded-full flex items-center justify-center mb-6"><Activity className="w-12 h-12 text-slate-400" /></div>
-                      <h3 className="text-2xl font-black text-slate-800 mb-2">Module Céphalométrique Verrouillé</h3>
-                      <p className="text-slate-500 mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés céphalométriques.</p>
+                      <div className="w-24 h-24 bg-input-field rounded-full flex items-center justify-center mb-6"><Activity className="w-12 h-12 text-text-muted" /></div>
+                      <h3 className="text-2xl font-black text-text-main mb-2">Module Céphalométrique Verrouillé</h3>
+                      <p className="text-text-muted mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés céphalométriques.</p>
                       <button onClick={activateOrtho} className="px-8 py-4 bg-[#003380] text-white font-bold rounded-2xl hover:bg-[#002266] transition-all shadow-lg flex items-center gap-3"><Target className="w-5 h-5" /> Activer le Suivi Orthodontique</button>
                     </div>
                   )

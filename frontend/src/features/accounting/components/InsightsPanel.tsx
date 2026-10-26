@@ -24,32 +24,32 @@ export const InsightsPanel = ({ loadingInsights, financialData }: InsightsPanelP
       <>
         {/* KPIs Financiers */}
         <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenu Ce Mois</span>
+          <div className="bg-card p-8 rounded-[2rem] border border-border-main shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
+            <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Revenu Ce Mois</span>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-3xl font-black text-slate-800">
+              <span className="text-3xl font-black text-text-main">
                 {financialData?.revenue_this_month ? Math.round(financialData.revenue_this_month).toLocaleString('fr-FR') : 0}
               </span>
-              <span className="text-xs font-bold text-slate-400 ml-1">MAD</span>
+              <span className="text-xs font-bold text-text-muted ml-1">MAD</span>
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Revenu Mois Dernier</span>
+          <div className="bg-card p-8 rounded-[2rem] border border-border-main shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
+            <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Revenu Mois Dernier</span>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-3xl font-black text-slate-800">
+              <span className="text-3xl font-black text-text-main">
                 {financialData?.revenue_last_month ? Math.round(financialData.revenue_last_month).toLocaleString('fr-FR') : 0}
               </span>
-              <span className="text-xs font-bold text-slate-400 ml-1">MAD</span>
+              <span className="text-xs font-bold text-text-muted ml-1">MAD</span>
             </div>
           </div>
 
-          <div className="bg-white p-8 rounded-[2rem] border border-slate-200 shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
-            <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Taux de Recouvrement</span>
+          <div className="bg-card p-8 rounded-[2rem] border border-border-main shadow-sm flex flex-col gap-2 relative overflow-hidden group hover:border-primary/20 transition-all">
+            <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Taux de Recouvrement</span>
             <div className="flex items-baseline gap-2 mt-1">
-              <span className="text-3xl font-black text-slate-800">{financialData?.recovery_rate || 0}%</span>
+              <span className="text-3xl font-black text-text-main">{financialData?.recovery_rate || 0}%</span>
             </div>
-            <div className="w-full bg-slate-100 rounded-full h-1.5 mt-2 overflow-hidden">
+            <div className="w-full bg-input-field rounded-full h-1.5 mt-2 overflow-hidden">
               <div 
                 className="h-full rounded-full transition-all duration-1000" 
                 style={{ width: `${financialData?.recovery_rate || 0}%`, backgroundColor: 'var(--primary)' }}
@@ -75,10 +75,10 @@ export const InsightsPanel = ({ loadingInsights, financialData }: InsightsPanelP
         {/* GRAPHIQUES */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mt-8">
           {/* 1. Évolution Revenu */}
-          <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
+          <div className="bg-card border border-border-main/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
             <div>
               <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution du Revenu</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Chiffre d'Affaires Mensuel (6 derniers mois)</p>
+              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">Chiffre d'Affaires Mensuel (6 derniers mois)</p>
             </div>
             <div className="flex-1 min-h-0 w-full mt-6">
               <ResponsiveContainer width="100%" height="100%">
@@ -91,8 +91,8 @@ export const InsightsPanel = ({ loadingInsights, financialData }: InsightsPanelP
                       if (active && payload && payload.length) {
                         const item = payload[0];
                         return (
-                          <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.payload.name}</p>
+                          <div className="bg-card/95 backdrop-blur-md p-4 rounded-2xl border border-border-main shadow-2xl">
+                            <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">{item.payload.name}</p>
                             <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
                               {(item.value as number).toLocaleString('fr-FR')} MAD
                             </p>
@@ -109,10 +109,10 @@ export const InsightsPanel = ({ loadingInsights, financialData }: InsightsPanelP
           </div>
 
           {/* 2. Top Actes */}
-          <div className="bg-white border border-slate-200/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
+          <div className="bg-card border border-border-main/80 p-8 rounded-[2.5rem] shadow-sm flex flex-col h-[400px]">
             <div>
               <h3 className="text-base font-black tracking-tight" style={{ color: 'var(--primary)' }}>Actes les plus rentables</h3>
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mt-1">Top 5 actes (Chiffre d'Affaires généré)</p>
+              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mt-1">Top 5 actes (Chiffre d'Affaires généré)</p>
             </div>
             <div className="flex-1 min-h-0 w-full mt-6">
               <ResponsiveContainer width="100%" height="100%">
@@ -125,8 +125,8 @@ export const InsightsPanel = ({ loadingInsights, financialData }: InsightsPanelP
                       if (active && payload && payload.length) {
                         const item = payload[0];
                         return (
-                          <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
-                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{item.payload.name}</p>
+                          <div className="bg-card/95 backdrop-blur-md p-4 rounded-2xl border border-border-main shadow-2xl">
+                            <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">{item.payload.name}</p>
                             <p className="text-sm font-black text-primary" style={{ color: 'var(--primary)' }}>
                               {(item.value as number).toLocaleString('fr-FR')} MAD
                             </p>

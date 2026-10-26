@@ -164,7 +164,7 @@ export const PatientList = () => {
         <div className="flex gap-3">
           <button
             onClick={() => setIsCsvModalOpen(true)}
-            className="px-5 py-4 rounded-2xl font-black flex items-center gap-2 border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
+            className="px-5 py-4 rounded-2xl font-black flex items-center gap-2 border border-border-main bg-card text-text-muted hover:bg-background hover:-translate-y-0.5 transition-all duration-300 shadow-sm"
           >
             <UploadCloud size={20} strokeWidth={2.5} /> Import CSV
           </button>
@@ -333,7 +333,7 @@ export const PatientList = () => {
                             </div>
                             {show_patient_badges && <div data-testid="patient-list-score-badges" data-patient-id={p.id} className="w-full max-w-full min-w-0 md:w-auto"><PatientScoreBadge patientId={p.id!} className="origin-left md:scale-75" onUpdate={() => fetchPatients(true)} /></div>}
                             {p.id && fantomeIds.has(p.id) && (
-                              <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                              <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-danger border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
                                 <AlertTriangle size={10} /> Sans RDV futur
                               </span>
                             )}
@@ -371,7 +371,7 @@ export const PatientList = () => {
                             e.stopPropagation();
                             if(p.id) setDeleteModal({ open: true, id: p.id, name: `${p.prenom} ${p.nom}` });
                           }}
-                          className="p-3 text-text-muted hover:text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-2xl transition-all shadow-sm"
+                          className="p-3 text-text-muted hover:text-danger hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-2xl transition-all shadow-sm"
                           title="Supprimer définitivement"
                           aria-label="Supprimer définitivement"
                         >
@@ -428,7 +428,7 @@ export const PatientList = () => {
                             e.stopPropagation();
                             if(p.id) setDeleteModal({ open: true, id: p.id, name: `${p.prenom} ${p.nom}` });
                           }}
-                          className="p-2.5 text-text-muted hover:text-red-500 hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-xl transition-all shadow-sm"
+                          className="p-2.5 text-text-muted hover:text-danger hover:bg-red-500/10 border border-transparent hover:border-red-500/20 rounded-xl transition-all shadow-sm"
                           title="Supprimer"
                           aria-label="Supprimer"
                         >
@@ -444,7 +444,7 @@ export const PatientList = () => {
                           {p.nom.toUpperCase()} {p.prenom}
                         </h4>
                         {p.id && fantomeIds.has(p.id) && (
-                          <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-red-400 border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
+                          <span className="flex items-center gap-1 px-2 py-0.5 bg-red-500/10 text-danger border border-red-500/20 rounded-lg text-[9px] font-black uppercase tracking-widest">
                             <AlertTriangle size={10} /> Sans RDV futur
                           </span>
                         )}
@@ -491,7 +491,7 @@ export const PatientList = () => {
                <X size={24} />
              </button>
           </div>
-          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-500/10 text-red-500 rounded-3xl flex items-center justify-center mb-6">
+          <div className="w-16 h-16 sm:w-20 sm:h-20 bg-red-500/10 text-danger rounded-3xl flex items-center justify-center mb-6">
             <AlertTriangle size={40} />
           </div>
           <h3 className="text-2xl font-black text-main leading-tight tracking-tight" style={{ color: 'var(--text-main)' }}>Supprimer le dossier ?</h3>
@@ -507,7 +507,7 @@ export const PatientList = () => {
             value={deleteConfirmText}
             onChange={(e) => setDeleteConfirmText(e.target.value)}
             placeholder={deleteModal.name}
-            className="w-full mt-2 border border-border-main rounded-xl p-3 text-sm bg-white/50 focus:outline-none focus:ring-2 focus:ring-red-500/30"
+            className="w-full mt-2 border border-border-main rounded-xl p-3 text-sm bg-card/50 focus:outline-none focus:ring-2 focus:ring-red-500/30"
           />
           <div className="flex flex-col-reverse sm:flex-row gap-3 sm:gap-4 mt-8 sm:mt-10">
             <button

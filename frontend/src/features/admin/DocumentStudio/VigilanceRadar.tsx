@@ -27,16 +27,16 @@ export const VigilanceRadar = () => {
   };
 
   return (
-    <div className="bg-white dark:bg-slate-900 rounded-[2rem] p-6 shadow-sm border border-slate-200 dark:border-white/10 mt-6">
+    <div className="bg-card dark:bg-slate-900 rounded-[2rem] p-6 shadow-sm border border-border-main dark:border-white/10 mt-6">
       <div className="flex items-center gap-3 mb-6">
-        <div className="w-10 h-10 rounded-xl bg-slate-100 dark:bg-slate-800 flex items-center justify-center">
-          <ShieldCheck className="text-slate-600 dark:text-slate-300" size={20} />
+        <div className="w-10 h-10 rounded-xl bg-input-field dark:bg-slate-800 flex items-center justify-center">
+          <ShieldCheck className="text-text-muted dark:text-text-muted" size={20} />
         </div>
         <div>
-          <h3 className="text-sm font-black text-slate-800 dark:text-white uppercase tracking-widest">
+          <h3 className="text-sm font-black text-text-main dark:text-white uppercase tracking-widest">
             Radar de Vigilance
           </h3>
-          <p className="text-xs text-slate-500">Analyses et alertes en temps réel</p>
+          <p className="text-xs text-text-muted">Analyses et alertes en temps réel</p>
         </div>
       </div>
 
@@ -49,7 +49,7 @@ export const VigilanceRadar = () => {
               insight.type === 'safety' ? "bg-rose-50/50 border-rose-100 dark:bg-rose-900/10 dark:border-rose-900/30" :
               insight.type === 'financial_risk' ? "bg-amber-50/50 border-amber-100 dark:bg-amber-900/10 dark:border-amber-900/30" :
               insight.type === 'financial' ? "bg-emerald-50/50 border-emerald-100 dark:bg-emerald-900/10 dark:border-emerald-900/30" :
-              "bg-slate-50/50 border-slate-100 dark:bg-white/5 dark:border-white/5"
+              "bg-background/50 border-border-main dark:bg-white/5 dark:border-white/5"
             )}
           >
             <div className={cn(
@@ -69,16 +69,16 @@ export const VigilanceRadar = () => {
 
             <div className="flex-1">
               <div className="flex items-center gap-2 mb-1">
-                <h4 className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                <h4 className="text-xs font-bold text-text-main dark:text-text-muted">
                   {insight.title}
                 </h4>
                 {insight.source_type === 'DETERMINISTIC' && (
-                  <span className="px-1.5 py-0.5 rounded bg-slate-200/50 dark:bg-white/10 text-[8px] font-black tracking-widest text-slate-500">
+                  <span className="px-1.5 py-0.5 rounded bg-input-field/50 dark:bg-white/10 text-[8px] font-black tracking-widest text-text-muted">
                     VÉRIFIÉ
                   </span>
                 )}
               </div>
-              <p className="text-xs text-slate-600 dark:text-slate-400">
+              <p className="text-xs text-text-muted dark:text-text-muted">
                 {insight.content}
               </p>
               
@@ -98,7 +98,7 @@ export const VigilanceRadar = () => {
                         }
                       }
                     }}
-                    className="px-3 py-1.5 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-lg text-[10px] font-bold text-slate-700 dark:text-slate-300 hover:bg-slate-50 transition-colors shadow-sm"
+                    className="px-3 py-1.5 bg-card dark:bg-slate-800 border border-border-main dark:border-border-hover rounded-lg text-[10px] font-bold text-text-main dark:text-text-muted hover:bg-background transition-colors shadow-sm"
                   >
                     {insight.actionLabel}
                   </button>

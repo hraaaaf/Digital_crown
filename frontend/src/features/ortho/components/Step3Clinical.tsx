@@ -169,11 +169,11 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
           </div>
 
           <AccordionSection title="1. Note libre — Analyse dentaire et alvéolaire" icon={<Ruler size={13} style={{ color: P.accent }} />} P={P}>
-            <textarea value={diag.analyse_dentaire} onChange={e => handleDiagChange('analyse_dentaire', e.target.value)} className="mt-1 h-24 w-full rounded-lg border bg-white/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — origine non vérifiée ; à confirmer par le praticien." />
+            <textarea value={diag.analyse_dentaire} onChange={e => handleDiagChange('analyse_dentaire', e.target.value)} className="mt-1 h-24 w-full rounded-lg border bg-card/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — origine non vérifiée ; à confirmer par le praticien." />
           </AccordionSection>
 
           <AccordionSection title="2. Note libre — Analyse squelettique" icon={<Activity size={13} style={{ color: P.accent }} />} P={P}>
-            <textarea value={diag.diagnostic_squelettique} onChange={e => handleDiagChange('diagnostic_squelettique', e.target.value)} className="mt-1 h-24 w-full rounded-lg border bg-white/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — origine non vérifiée ; à confirmer par le praticien." />
+            <textarea value={diag.diagnostic_squelettique} onChange={e => handleDiagChange('diagnostic_squelettique', e.target.value)} className="mt-1 h-24 w-full rounded-lg border bg-card/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Saisie libre ou contenu historique — origine non vérifiée ; à confirmer par le praticien." />
           </AccordionSection>
         </div>
       </div>
@@ -185,19 +185,19 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
               <div className="mb-1.5 font-sans text-[8px] font-black uppercase tracking-wider" style={{ color: P.textMuted }}>Synthèse occlusale descriptive</div>
               {data.analyse_moulages_auto ? data.analyse_moulages_auto.split('\n').map((line, i) => <div key={i}>{line}</div>) : <span className="opacity-40 italic">En attente des données occlusales...</span>}
             </div>
-            <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="h-24 w-full rounded-lg border bg-white/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note libre — auteur non vérifié ; ne vaut pas validation clinique." />
+            <textarea value={diag.analyse_moulages} onChange={e => handleDiagChange('analyse_moulages', e.target.value)} className="h-24 w-full rounded-lg border bg-card/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note libre — auteur non vérifié ; ne vaut pas validation clinique." />
           </div>
         </AccordionSection>
 
         <AccordionSection title="4. Note diagnostique libre — à valider" icon={<Info size={13} style={{ color: P.accent }} />} defaultOpen P={P}>
-          <textarea value={diag.synthese_diagnostique} onChange={e => handleDiagChange('synthese_diagnostique', e.target.value)} className="mt-1 h-32 w-full rounded-lg border bg-white/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note diagnostique libre — à confirmer par le praticien." />
+          <textarea value={diag.synthese_diagnostique} onChange={e => handleDiagChange('synthese_diagnostique', e.target.value)} className="mt-1 h-32 w-full rounded-lg border bg-card/50 p-3 text-sm outline-none transition-all focus:ring-2" style={{ borderColor: P.border, color: P.text }} placeholder="Note diagnostique libre — à confirmer par le praticien." />
         </AccordionSection>
 
         <AccordionSection title="5. Note thérapeutique libre — à valider" icon={<Info size={13} style={{ color: P.accent }} />} P={P}>
           <textarea
             value={diag.strategie_therapeutique}
             onChange={e => handleDiagChange('strategie_therapeutique', e.target.value)}
-            className="mt-1 h-48 w-full resize-none overflow-y-auto rounded-lg border bg-white/50 p-4 text-sm leading-relaxed outline-none transition-all focus:ring-2"
+            className="mt-1 h-48 w-full resize-none overflow-y-auto rounded-lg border bg-card/50 p-4 text-sm leading-relaxed outline-none transition-all focus:ring-2"
             style={{ borderColor: P.border, color: P.text }}
             placeholder="Note thérapeutique libre — à confirmer par le praticien."
           />

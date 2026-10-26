@@ -226,7 +226,7 @@ export const PatientDocuments = () => {
     return (
       <div className="flex flex-col items-center justify-center py-40 gap-4">
         <Loader2 className="animate-spin text-primary" size={40} />
-        <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Chargement de la bibliothèque...</p>
+        <p className="text-text-muted font-black uppercase tracking-widest text-[10px]">Chargement de la bibliothèque...</p>
       </div>
     );
   }
@@ -234,10 +234,10 @@ export const PatientDocuments = () => {
   if (fetchError) {
     return (
       <div className="flex flex-col items-center justify-center py-28 gap-4 text-center">
-        <ArchiveX size={40} className="text-rose-400" />
+        <ArchiveX size={40} className="text-danger" />
         <div>
-          <h3 className="text-slate-800 font-black text-lg">Impossible de charger l'historique</h3>
-          <p className="text-slate-400 text-sm mt-1">Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé.</p>
+          <h3 className="text-text-main font-black text-lg">Impossible de charger l'historique</h3>
+          <p className="text-text-muted text-sm mt-1">Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé.</p>
         </div>
         <button type="button" onClick={() => setReloadKey(key => key + 1)} className="min-h-11 flex items-center gap-2 px-4 rounded-xl bg-primary text-white font-black text-xs uppercase tracking-widest">
           <RefreshCcw size={15} /> Réessayer
@@ -248,10 +248,10 @@ export const PatientDocuments = () => {
 
   return (
     <div className="space-y-6 animate-in fade-in duration-700 h-full flex flex-col">
-      <div className="flex items-center gap-4 bg-white/40 backdrop-blur-md p-3 rounded-2xl border border-white/60 shadow-sm shrink-0">
+      <div className="flex items-center gap-4 bg-card/40 backdrop-blur-md p-3 rounded-2xl border border-white/60 shadow-sm shrink-0">
         <div className="relative group flex-1">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
-          <input type="text" placeholder="Rechercher dans l'historique..." className="w-full pl-12 pr-4 py-3 bg-white/60 backdrop-blur-md border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
+          <input type="text" placeholder="Rechercher dans l'historique..." className="w-full pl-12 pr-4 py-3 bg-card/60 backdrop-blur-md border border-border-main rounded-2xl text-sm font-bold focus:ring-4 outline-none transition-all" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} />
         </div>
         <div className="flex items-center gap-2 px-4 py-3 bg-primary/5 rounded-xl border border-primary/10 shadow-sm text-primary">
           <Archive size={18} />
@@ -279,26 +279,26 @@ export const PatientDocuments = () => {
             <div key={doc.id} data-document-kind={isLegacy ? 'legacy' : 'canonical'} className={cn(
               'group backdrop-blur-xl p-6 rounded-[2.5rem] shadow-[0_4px_20px_rgb(0,0,0,0.03)] hover:-translate-y-1.5 transition-all duration-500 relative overflow-visible',
               doc.isDuplicate
-                ? 'bg-rose-50/80 border-2 border-rose-300 shadow-[0_4px_20px_rgba(225,29,72,0.1)]'
+                ? 'bg-danger-surface/80 border-2 border-danger-border shadow-[0_4px_20px_rgba(225,29,72,0.1)]'
                 : doc.file_exists === false
-                  ? 'bg-amber-50/60 border border-amber-200 opacity-80'
+                  ? 'bg-warning-surface/60 border border-warning-border opacity-80'
                   : 'bg-card border border-border-main hover:shadow-[0_8px_30px_rgba(var(--primary-rgb),0.12)]'
             )}>
               {doc.isDuplicate && <div className="absolute top-0 inset-x-0 bg-rose-500 text-white text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 shadow-md rounded-t-[2.5rem]">Contenu similaire à vérifier</div>}
-              {doc.file_exists === false && !doc.isDuplicate && <div className="absolute top-0 inset-x-0 bg-amber-400 text-amber-900 text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 flex items-center justify-center gap-1.5 rounded-t-[2.5rem]"><FileX2 size={10} /> Fichier physique manquant</div>}
+              {doc.file_exists === false && !doc.isDuplicate && <div className="absolute top-0 inset-x-0 bg-amber-400 text-warning text-[9px] font-black py-1.5 text-center tracking-widest uppercase z-20 flex items-center justify-center gap-1.5 rounded-t-[2.5rem]"><FileX2 size={10} /> Fichier physique manquant</div>}
 
               <div className="flex justify-between items-start mb-6 relative z-30">
-                <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors duration-500', doc.isDuplicate ? 'bg-rose-100 text-rose-600' : 'bg-gradient-to-br from-primary/5 to-white text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white')}>
+                <div className={cn('w-14 h-14 rounded-2xl flex items-center justify-center shadow-sm transition-colors duration-500', doc.isDuplicate ? 'bg-danger-surface text-danger' : 'bg-gradient-to-br from-primary/5 to-white text-primary border border-primary/20 group-hover:bg-primary group-hover:text-white')}>
                   {getDocIcon(doc.type, 'w-7 h-7')}
                 </div>
                 <div className="flex items-center gap-2 relative">
                   {!isLegacy && (
                     <div className="relative">
-                      <button data-m4c-touch type="button" onClick={() => setActionsOpenFor(current => current === doc.id ? null : doc.id)} aria-label={`Actions du document ${doc.name}`} aria-haspopup="menu" aria-expanded={actionsOpenFor === doc.id} aria-controls={`document-actions-${doc.id}`} className="min-w-11 min-h-11 rounded-xl bg-slate-50 text-slate-600 border border-slate-200 hover:bg-slate-100 inline-flex items-center justify-center transition-all shadow-sm">
+                      <button data-m4c-touch type="button" onClick={() => setActionsOpenFor(current => current === doc.id ? null : doc.id)} aria-label={`Actions du document ${doc.name}`} aria-haspopup="menu" aria-expanded={actionsOpenFor === doc.id} aria-controls={`document-actions-${doc.id}`} className="min-w-11 min-h-11 rounded-xl bg-background text-text-muted border border-border-main hover:bg-input-field inline-flex items-center justify-center transition-all shadow-sm">
                         <MoreHorizontal size={19} />
                       </button>
                       {actionsOpenFor === doc.id && (
-                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-0 top-full mt-2 z-50 w-56 max-h-[70vh] overflow-y-auto rounded-xl border border-slate-200/80 bg-white/95 shadow-xl backdrop-blur-xl p-1.5">
+                        <div id={`document-actions-${doc.id}`} data-document-action-menu role="menu" className="absolute left-0 top-full mt-2 z-50 w-56 max-h-[70vh] overflow-y-auto rounded-xl border border-border-main/80 bg-card/95 shadow-xl backdrop-blur-xl p-1.5">
                           {canRecordSignature && (
                             <>
                               <button
@@ -309,12 +309,12 @@ export const PatientDocuments = () => {
                                 type="button"
                                 disabled={signingDocId === doc.id}
                                 onClick={() => void handleSign(doc)}
-                                className="w-full min-h-11 px-3 rounded-lg hover:bg-emerald-50 text-emerald-700 font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
+                                className="w-full min-h-11 px-3 rounded-lg hover:bg-success-surface text-success font-bold text-xs inline-flex items-center gap-2 transition-colors disabled:opacity-60"
                               >
                                 {signingDocId === doc.id ? <Loader2 size={16} className="animate-spin" /> : <PenTool size={16} />}
                                 Enregistrer ma signature
                               </button>
-                              <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
+                              <div className="mx-2 my-0.5 h-px bg-input-field" aria-hidden="true" />
                             </>
                           )}
                           {canPrepareCnss && (
@@ -325,23 +325,23 @@ export const PatientDocuments = () => {
                                 onArchived={() => setReloadKey(key => key + 1)}
                                 onCloseMenu={() => setActionsOpenFor(null)}
                               />
-                              <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
+                              <div className="mx-2 my-0.5 h-px bg-input-field" aria-hidden="true" />
                             </>
                           )}
-                          <button data-document-action="edit" data-m4c-touch role="menuitem" type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-lg hover:bg-slate-50 text-slate-700 font-bold text-xs inline-flex items-center gap-2 transition-colors"><Edit size={16} className="text-amber-600" /> Modifier</button>
-                          <div className="mx-2 my-0.5 h-px bg-slate-100" aria-hidden="true" />
-                          <button data-document-action="trash" data-m4c-touch role="menuitem" type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-lg hover:bg-rose-50/80 text-rose-600 font-bold text-xs inline-flex items-center gap-2 transition-colors"><Trash2 size={16} /> Mettre à la corbeille</button>
+                          <button data-document-action="edit" data-m4c-touch role="menuitem" type="button" onClick={() => handleEdit(doc)} className="w-full min-h-11 px-3 rounded-lg hover:bg-background text-text-main font-bold text-xs inline-flex items-center gap-2 transition-colors"><Edit size={16} className="text-warning" /> Modifier</button>
+                          <div className="mx-2 my-0.5 h-px bg-input-field" aria-hidden="true" />
+                          <button data-document-action="trash" data-m4c-touch role="menuitem" type="button" onClick={() => void handleDelete(doc.id)} className="w-full min-h-11 px-3 rounded-lg hover:bg-danger-surface/80 text-danger font-bold text-xs inline-flex items-center gap-2 transition-colors"><Trash2 size={16} /> Mettre à la corbeille</button>
                         </div>
                       )}
                     </div>
                   )}
-                  <span className={cn('px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border', isLegacy ? 'bg-slate-100 text-slate-500 border-slate-200' : doc.type.toUpperCase() === 'NOTE' ? 'bg-emerald-50 text-emerald-600 border-emerald-100' : 'bg-primary/10 text-primary border-primary/20')}>{doc.type}</span>
+                  <span className={cn('px-3 py-1.5 rounded-lg text-[10px] font-black uppercase tracking-widest border', isLegacy ? 'bg-input-field text-text-muted border-border-main' : doc.type.toUpperCase() === 'NOTE' ? 'bg-success-surface text-success border-success-border' : 'bg-primary/10 text-primary border-primary/20')}>{doc.type}</span>
                 </div>
               </div>
 
               <div className="relative z-10 mb-4">
                 <h3 className="font-black text-text-main text-lg truncate pr-4 leading-tight">{doc.name}</h3>
-                <div className="flex items-center gap-2 text-slate-400 text-[11px] font-bold mt-2 uppercase tracking-wide"><Calendar size={14} className="text-primary/60" /> {isLegacy ? 'Ancien format · desktop uniquement' : `Généré le ${doc.date}`}</div>
+                <div className="flex items-center gap-2 text-text-muted text-[11px] font-bold mt-2 uppercase tracking-wide"><Calendar size={14} className="text-primary/60" /> {isLegacy ? 'Ancien format · desktop uniquement' : `Généré le ${doc.date}`}</div>
               </div>
 
               {!isLegacy && (
@@ -351,10 +351,10 @@ export const PatientDocuments = () => {
                   className={cn(
                     'relative z-10 mb-5 min-h-12 rounded-2xl border px-3 py-2.5 flex items-start gap-2.5 text-[11px]',
                     hasRecordedSignature
-                      ? 'border-emerald-200 bg-emerald-50 text-emerald-800'
+                      ? 'border-success-border bg-success-surface text-success'
                       : hasRecordedAuthor
-                        ? 'border-amber-200 bg-amber-50 text-amber-800'
-                        : 'border-slate-200 bg-slate-50 text-slate-500',
+                        ? 'border-warning-border bg-warning-surface text-warning'
+                        : 'border-border-main bg-background text-text-muted',
                   )}
                 >
                   {hasRecordedSignature ? <BadgeCheck size={17} className="mt-0.5 shrink-0" /> : <ShieldQuestion size={17} className="mt-0.5 shrink-0" />}
@@ -375,10 +375,10 @@ export const PatientDocuments = () => {
 
               <div className="grid grid-cols-2 gap-3 relative z-10">
                 {doc.file_exists === false ? (
-                  <div className="col-span-2 min-h-[48px] flex items-center justify-center gap-2 bg-amber-50 border border-amber-200 text-amber-600 rounded-2xl font-black text-xs uppercase tracking-widest"><FileX2 size={16} /> Fichier introuvable</div>
+                  <div className="col-span-2 min-h-[48px] flex items-center justify-center gap-2 bg-warning-surface border border-warning-border text-warning rounded-2xl font-black text-xs uppercase tracking-widest"><FileX2 size={16} /> Fichier introuvable</div>
                 ) : (
                   <>
-                    <button data-m4c-touch onClick={() => void handleView(doc.id)} className="min-h-[48px] flex items-center justify-center gap-2 bg-slate-50 border border-slate-100 hover:bg-slate-100 text-slate-600 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"><Eye size={16} /> Voir</button>
+                    <button data-m4c-touch onClick={() => void handleView(doc.id)} className="min-h-[48px] flex items-center justify-center gap-2 bg-background border border-border-main hover:bg-input-field text-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"><Eye size={16} /> Voir</button>
                     <button data-m4c-touch onClick={() => void handleDownload(doc.id, doc.name)} className="min-h-[48px] flex items-center justify-center gap-2 bg-gradient-to-br from-primary to-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"><Download size={16} /> Fichier</button>
                   </>
                 )}
@@ -386,7 +386,7 @@ export const PatientDocuments = () => {
 
               {isLegacy && (
                 <div className="relative z-10 mt-3">
-                  <div data-m4c-legacy-only className="min-h-[52px] rounded-2xl border border-slate-200 bg-slate-50 text-slate-400 inline-flex w-full items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest"><Monitor size={15} /> Non portable sur mobile</div>
+                  <div data-m4c-legacy-only className="min-h-[52px] rounded-2xl border border-border-main bg-background text-text-muted inline-flex w-full items-center justify-center gap-2 font-black text-[10px] uppercase tracking-widest"><Monitor size={15} /> Non portable sur mobile</div>
                 </div>
               )}
             </div>
@@ -395,9 +395,9 @@ export const PatientDocuments = () => {
 
         {filtered.length === 0 && (
           <div className="col-span-full py-20 text-center flex flex-col items-center">
-            <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2.5rem] bg-slate-50 border border-slate-100 mb-6 text-slate-300 shadow-inner"><ArchiveX size={40} /></div>
-            <h3 className="text-slate-800 font-black text-xl mb-1">Aucune archive médicale</h3>
-            <p className="text-slate-400 font-medium text-sm">Les documents générés apparaîtront ici.</p>
+            <div className="inline-flex items-center justify-center w-24 h-24 rounded-[2.5rem] bg-background border border-border-main mb-6 text-text-muted shadow-inner"><ArchiveX size={40} /></div>
+            <h3 className="text-text-main font-black text-xl mb-1">Aucune archive médicale</h3>
+            <p className="text-text-muted font-medium text-sm">Les documents générés apparaîtront ici.</p>
           </div>
         )}
       </div>

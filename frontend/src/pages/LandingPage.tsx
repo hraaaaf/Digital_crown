@@ -15,12 +15,12 @@ const cn = (...classes: (string | false | undefined)[]) => classes.filter(Boolea
 // ── sub-components ────────────────────────────────────────────────────────────
 
 const Feature: React.FC<{ icon: React.ReactNode; title: string; desc: string }> = ({ icon, title, desc }) => (
-  <div className="bg-white/70 backdrop-blur-sm border border-white rounded-3xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
+  <div className="bg-card/70 backdrop-blur-sm border border-white rounded-3xl p-6 hover:shadow-xl hover:-translate-y-1 transition-all duration-300 group">
     <div className="w-12 h-12 rounded-2xl bg-[#003380]/10 flex items-center justify-center mb-4 group-hover:bg-[#003380]/20 transition-colors">
       {icon}
     </div>
-    <h3 className="font-black text-slate-800 mb-2">{title}</h3>
-    <p className="text-slate-500 text-sm leading-relaxed">{desc}</p>
+    <h3 className="font-black text-text-main mb-2">{title}</h3>
+    <p className="text-text-muted text-sm leading-relaxed">{desc}</p>
   </div>
 );
 
@@ -32,14 +32,14 @@ const PlanCard: React.FC<{
     "rounded-3xl p-8 border flex flex-col gap-6 transition-all duration-300 hover:-translate-y-1",
     highlight
       ? "bg-[#003380] text-white border-[#003380] shadow-2xl shadow-[#003380]/30"
-      : "bg-white/80 text-slate-800 border-white shadow-lg hover:shadow-xl"
+      : "bg-card/80 text-text-main border-white shadow-lg hover:shadow-xl"
   )}>
     <div>
       <p className={cn("text-xs font-black uppercase tracking-widest mb-1", highlight ? "text-blue-200" : "text-[#003380]")}>{name}</p>
-      <p className={cn("text-4xl font-black", highlight ? "text-white" : "text-slate-800")}>{price}</p>
-      <p className={cn("text-sm mt-1", highlight ? "text-blue-200" : "text-slate-400")}>/ an</p>
+      <p className={cn("text-4xl font-black", highlight ? "text-white" : "text-text-main")}>{price}</p>
+      <p className={cn("text-sm mt-1", highlight ? "text-blue-200" : "text-text-muted")}>/ an</p>
     </div>
-    <div className={cn("text-sm space-y-1", highlight ? "text-blue-100" : "text-slate-500")}>
+    <div className={cn("text-sm space-y-1", highlight ? "text-blue-100" : "text-text-muted")}>
       <p>{dentists}</p>
       <p>{secretaries}</p>
     </div>
@@ -47,7 +47,7 @@ const PlanCard: React.FC<{
       {features.map((f, i) => (
         <li key={i} className="flex items-start gap-2 text-sm">
           <CheckCircle size={14} className={cn("mt-0.5 shrink-0", highlight ? "text-blue-300" : "text-emerald-500")} />
-          <span className={highlight ? "text-blue-50" : "text-slate-600"}>{f}</span>
+          <span className={highlight ? "text-blue-50" : "text-text-muted"}>{f}</span>
         </li>
       ))}
     </ul>
@@ -56,7 +56,7 @@ const PlanCard: React.FC<{
       className={cn(
         "block text-center py-3 rounded-2xl font-black text-sm transition-all",
         highlight
-          ? "bg-white text-[#003380] hover:bg-blue-50"
+          ? "bg-card text-[#003380] hover:bg-blue-50"
           : "bg-[#003380] text-white hover:bg-blue-900"
       )}
     >
@@ -91,7 +91,7 @@ export const LandingPage: React.FC = () => {
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50/30 to-indigo-50/20 font-sans">
 
       {/* ── NAVBAR ── */}
-      <nav className="sticky top-0 z-50 bg-white/80 backdrop-blur-xl border-b border-slate-100 shadow-sm">
+      <nav className="sticky top-0 z-50 bg-card/80 backdrop-blur-xl border-b border-border-main shadow-sm">
         <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-9 h-9 bg-[#003380] rounded-xl flex items-center justify-center">
@@ -99,20 +99,20 @@ export const LandingPage: React.FC = () => {
             </div>
             <span className="font-black text-xl text-[#003380]">DigitalCrown</span>
           </div>
-          <div className="hidden md:flex items-center gap-8 text-sm font-bold text-slate-500">
+          <div className="hidden md:flex items-center gap-8 text-sm font-bold text-text-muted">
             <a href="#features" className="hover:text-[#003380] transition-colors">Fonctionnalités</a>
             <a href="#pricing" className="hover:text-[#003380] transition-colors">Tarifs</a>
             <a href="#demo" className="hover:text-[#003380] transition-colors">Démo</a>
           </div>
           <div className="flex items-center gap-3">
-            <Link to="/login" className="hidden sm:inline-flex text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-4 py-2">
+            <Link to="/login" className="hidden sm:inline-flex text-sm font-bold text-text-muted hover:text-[#003380] transition-colors px-4 py-2">
               Connexion
             </Link>
             <div className="flex items-center gap-3">
               <Link to="/download" className="bg-[#003380] text-white text-sm font-black px-5 py-2.5 rounded-xl hover:bg-blue-900 transition-colors shadow-lg shadow-[#003380]/20">
                 Télécharger l'app
               </Link>
-              <a href="#demo" className="hidden md:inline-flex text-sm font-bold text-slate-600 hover:text-[#003380] transition-colors px-2 py-2">
+              <a href="#demo" className="hidden md:inline-flex text-sm font-bold text-text-muted hover:text-[#003380] transition-colors px-2 py-2">
                 Démo
               </a>
             </div>
@@ -126,11 +126,11 @@ export const LandingPage: React.FC = () => {
           <Sparkles size={12} />
           Logiciel dentaire nouvelle génération
         </div>
-        <h1 className="text-5xl md:text-7xl font-black text-slate-900 leading-tight mb-6 tracking-tight">
+        <h1 className="text-5xl md:text-7xl font-black text-text-main leading-tight mb-6 tracking-tight">
           Gérez votre cabinet<br />
           <span className="text-[#003380]">avec intelligence.</span>
         </h1>
-        <p className="text-xl text-slate-500 max-w-2xl mx-auto leading-relaxed mb-10 font-medium">
+        <p className="text-xl text-text-muted max-w-2xl mx-auto leading-relaxed mb-10 font-medium">
           DigitalCrown centralise patients, agenda, facturation et dossiers cliniques dans une interface moderne conçue pour les dentistes marocains.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
@@ -142,21 +142,21 @@ export const LandingPage: React.FC = () => {
           </a>
           <Link
             to="/download"
-            className="inline-flex items-center gap-2 bg-white text-slate-700 font-black px-8 py-4 rounded-2xl hover:bg-slate-50 transition-all border border-slate-200 shadow-sm text-base"
+            className="inline-flex items-center gap-2 bg-card text-text-main font-black px-8 py-4 rounded-2xl hover:bg-background transition-all border border-border-main shadow-sm text-base"
           >
             Télécharger l'application
           </Link>
         </div>
 
         {/* Social proof */}
-        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-8 text-slate-400">
+        <div className="mt-12 flex flex-col sm:flex-row items-center justify-center gap-8 text-text-muted">
           {[
             { val: '200+', label: 'Cabinets actifs' },
             { val: '50k+', label: 'Dossiers patients' },
             { val: '4.9', label: 'Note moyenne', icon: <Star size={12} className="text-amber-400 inline" /> },
           ].map(({ val, label, icon }) => (
             <div key={label} className="text-center">
-              <p className="text-2xl font-black text-slate-700">{val} {icon}</p>
+              <p className="text-2xl font-black text-text-main">{val} {icon}</p>
               <p className="text-xs font-bold uppercase tracking-widest mt-0.5">{label}</p>
             </div>
           ))}
@@ -166,8 +166,8 @@ export const LandingPage: React.FC = () => {
       {/* ── FEATURES ── */}
       <section id="features" className="max-w-7xl mx-auto px-6 py-20">
         <div className="text-center mb-14">
-          <h2 className="text-4xl font-black text-slate-900 mb-4">Tout ce dont vous avez besoin</h2>
-          <p className="text-slate-500 font-medium max-w-xl mx-auto">Un seul outil pour piloter votre cabinet de A à Z.</p>
+          <h2 className="text-4xl font-black text-text-main mb-4">Tout ce dont vous avez besoin</h2>
+          <p className="text-text-muted font-medium max-w-xl mx-auto">Un seul outil pour piloter votre cabinet de A à Z.</p>
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
           <Feature
@@ -206,8 +206,8 @@ export const LandingPage: React.FC = () => {
       {/* ── PRICING ── */}
       <section id="pricing" className="max-w-7xl mx-auto px-6 py-20">
         <div className="text-center mb-14">
-          <h2 className="text-4xl font-black text-slate-900 mb-4">Plans adaptés à chaque cabinet</h2>
-          <p className="text-slate-500 font-medium">Tous les plans incluent les mises à jour et le support.</p>
+          <h2 className="text-4xl font-black text-text-main mb-4">Plans adaptés à chaque cabinet</h2>
+          <p className="text-text-muted font-medium">Tous les plans incluent les mises à jour et le support.</p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8 items-start">
           <PlanCard
@@ -255,71 +255,71 @@ export const LandingPage: React.FC = () => {
 
       {/* ── DEMO FORM ── */}
       <section id="demo" className="max-w-3xl mx-auto px-6 py-20">
-        <div className="bg-white/80 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-2xl p-10">
+        <div className="bg-card/80 backdrop-blur-xl border border-white rounded-[2.5rem] shadow-2xl p-10">
           {sent ? (
             <div className="text-center py-10">
               <div className="w-16 h-16 bg-emerald-100 rounded-3xl flex items-center justify-center mx-auto mb-4">
                 <CheckCircle size={32} className="text-emerald-500" />
               </div>
-              <h3 className="text-2xl font-black text-slate-800 mb-2">Demande envoyée !</h3>
-              <p className="text-slate-500 font-medium">Notre équipe vous contactera sous 24h pour organiser votre démo personnalisée.</p>
+              <h3 className="text-2xl font-black text-text-main mb-2">Demande envoyée !</h3>
+              <p className="text-text-muted font-medium">Notre équipe vous contactera sous 24h pour organiser votre démo personnalisée.</p>
             </div>
           ) : (
             <>
               <div className="text-center mb-8">
-                <h2 className="text-3xl font-black text-slate-900 mb-2">Demandez votre démo gratuite</h2>
-                <p className="text-slate-500 font-medium">Un de nos experts vous contacte sous 24h.</p>
+                <h2 className="text-3xl font-black text-text-main mb-2">Demandez votre démo gratuite</h2>
+                <p className="text-text-muted font-medium">Un de nos experts vous contacte sous 24h.</p>
               </div>
               <form onSubmit={handleSubmit} className="space-y-4">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <div className="relative">
-                    <Users size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Users size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                     <input
                       required
                       placeholder="Votre nom *"
-                      className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
+                      className="w-full pl-10 pr-4 py-3.5 border border-border-main rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
                       value={form.nom}
                       onChange={e => setForm(f => ({ ...f, nom: e.target.value }))}
                     />
                   </div>
                   <div className="relative">
-                    <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                     <input
                       required
                       type="email"
                       placeholder="Email professionnel *"
-                      className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
+                      className="w-full pl-10 pr-4 py-3.5 border border-border-main rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
                       value={form.email}
                       onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                     />
                   </div>
                   <div className="relative">
-                    <Building2 size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Building2 size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                     <input
                       required
                       placeholder="Nom du cabinet *"
-                      className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
+                      className="w-full pl-10 pr-4 py-3.5 border border-border-main rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
                       value={form.cabinet}
                       onChange={e => setForm(f => ({ ...f, cabinet: e.target.value }))}
                     />
                   </div>
                   <div className="relative">
-                    <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                    <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                     <input
                       type="tel"
                       placeholder="Téléphone"
-                      className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
+                      className="w-full pl-10 pr-4 py-3.5 border border-border-main rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all"
                       value={form.telephone}
                       onChange={e => setForm(f => ({ ...f, telephone: e.target.value }))}
                     />
                   </div>
                 </div>
                 <div className="relative">
-                  <MessageSquare size={16} className="absolute left-4 top-4 text-slate-400" />
+                  <MessageSquare size={16} className="absolute left-4 top-4 text-text-muted" />
                   <textarea
                     rows={3}
                     placeholder="Message (optionnel)"
-                    className="w-full pl-10 pr-4 py-3.5 border border-slate-200 rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all resize-none"
+                    className="w-full pl-10 pr-4 py-3.5 border border-border-main rounded-2xl font-bold text-sm outline-none focus:ring-2 focus:ring-[#003380]/20 focus:border-[#003380]/40 transition-all resize-none"
                     value={form.message}
                     onChange={e => setForm(f => ({ ...f, message: e.target.value }))}
                   />
@@ -339,15 +339,15 @@ export const LandingPage: React.FC = () => {
       </section>
 
       {/* ── FOOTER ── */}
-      <footer className="border-t border-slate-100 bg-white/60 backdrop-blur-sm">
-        <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-slate-400">
-          <div className="flex items-center gap-2 font-black text-slate-600">
+      <footer className="border-t border-border-main bg-card/60 backdrop-blur-sm">
+        <div className="max-w-7xl mx-auto px-6 py-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-sm text-text-muted">
+          <div className="flex items-center gap-2 font-black text-text-muted">
             <Crown size={16} className="text-[#003380]" />
             DigitalCrown — Saninova
           </div>
           <div className="flex gap-6">
-            <Link to="/terms" className="hover:text-slate-600 transition-colors">Mentions légales</Link>
-            <Link to="/privacy" className="hover:text-slate-600 transition-colors">Confidentialité</Link>
+            <Link to="/terms" className="hover:text-text-muted transition-colors">Mentions légales</Link>
+            <Link to="/privacy" className="hover:text-text-muted transition-colors">Confidentialité</Link>
           </div>
           <p>© {new Date().getFullYear()} Saninova. Tous droits réservés.</p>
         </div>

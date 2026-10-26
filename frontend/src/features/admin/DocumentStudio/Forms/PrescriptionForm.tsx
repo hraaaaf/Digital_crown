@@ -71,8 +71,8 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
   coherenceWarnings = [],
   contextLibelle = ''
 }) => {
-  const inputClass = "w-full px-4 py-3 bg-white/70 border border-slate-200 rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300 shadow-sm font-medium text-slate-800";
-  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1";
+  const inputClass = "w-full px-4 py-3 bg-card/70 border border-border-main rounded-xl text-sm outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all duration-300 shadow-sm font-medium text-text-main";
+  const labelClass = "text-[10px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1";
 
   const suggestedPresetLabel = useMemo(
     () => contextLibelle ? detectPresetFromLibelle(contextLibelle) : null,
@@ -88,11 +88,11 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
     <div className="space-y-6 animate-in fade-in duration-500">
       
       {/* BARRE DE RACCOURCIS ELITE */}
-      <div className="flex flex-wrap gap-3 p-5 bg-slate-50/50 rounded-[2rem] border border-slate-100 shadow-sm relative overflow-hidden group/bar">
-        <div className="flex items-center gap-4 px-4 mr-2 border-r border-slate-200">
+      <div className="flex flex-wrap gap-3 p-5 bg-background/50 rounded-[2rem] border border-border-main shadow-sm relative overflow-hidden group/bar">
+        <div className="flex items-center gap-4 px-4 mr-2 border-r border-border-main">
           <Zap size={16} className="text-primary" />
           <div className="hidden sm:block">
-            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400 block mb-1">Raccourcis</span>
+            <span className="text-[9px] font-black uppercase tracking-[0.2em] text-text-muted block mb-1">Raccourcis</span>
             <span className="text-[10px] font-black uppercase tracking-widest text-primary">Protocoles Rapides</span>
           </div>
         </div>
@@ -134,7 +134,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                   <h4 className="text-sm font-black text-primary uppercase tracking-tight">
                     {loadingSmart ? "Analyse du dossier..." : "Suggestion"}
                   </h4>
-                  <p className="text-xs text-slate-500 font-medium">
+                  <p className="text-xs text-text-muted font-medium">
                     {loadingSmart ? "Recherche du meilleur protocole..." : <>Protocole détecté : <span className="font-bold text-primary">{smartSuggestion?.protocol_name}</span></>}
                   </p>
                 </div>
@@ -170,8 +170,8 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
             const fieldError = validationErrors.find(e => e.field === `drug_${idx}`);
             return (
               <motion.div initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} key={drug.id} className={cn(
-                "bg-white/40 p-5 rounded-[2rem] border transition-all group relative",
-                fieldError ? "border-red-200 bg-red-50/20" : "border-white/60 hover:bg-white/80"
+                "bg-card/40 p-5 rounded-[2rem] border transition-all group relative",
+                fieldError ? "border-red-200 bg-red-50/20" : "border-white/60 hover:bg-card/80"
               )}>
                 <div className="grid grid-cols-12 gap-6 items-start">
                   <div className="col-span-4">
@@ -198,14 +198,14 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                     </div>
                   </div>
                 <div className="col-span-1 flex justify-center pt-3">
-                  <button onClick={() => onRemoveDrug(drug.id)} className="p-2 text-slate-300 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
+                  <button onClick={() => onRemoveDrug(drug.id)} className="p-2 text-text-muted hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100"><Trash2 size={18} /></button>
                 </div>
               </div>
 
               {/* STUDIO DE FORME ELITE v2.0 */}
-              <div className="mt-6 p-4 bg-slate-50/50 rounded-2xl border border-slate-100/50 relative overflow-hidden group/form">
+              <div className="mt-6 p-4 bg-background/50 rounded-2xl border border-border-main/50 relative overflow-hidden group/form">
                 <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] flex items-center gap-2">
+                  <span className="text-[10px] font-black text-text-muted uppercase tracking-[0.2em] flex items-center gap-2">
                     <Zap size={12} className="text-primary" /> Architecture de la Forme
                   </span>
                   <div className="flex gap-1">
@@ -222,7 +222,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                             "px-2 py-1 rounded-md text-[9px] font-black transition-all border",
                             isSelected 
                               ? "bg-emerald-600 text-white border-emerald-500 shadow-sm" 
-                              : "bg-white text-slate-400 border-slate-200 hover:border-primary/30 hover:text-primary"
+                              : "bg-card text-text-muted border-border-main hover:border-primary/30 hover:text-primary"
                           )}
                         >
                           {q}
@@ -254,8 +254,8 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                         className={cn(
                           "group/btn flex items-center gap-2 px-3 py-2 rounded-xl text-[11px] font-bold transition-all border relative",
                           isSelected
-                            ? "bg-white text-primary border-primary shadow-md shadow-primary/10 ring-2 ring-primary/5"
-                            : "bg-white/50 text-slate-500 border-slate-200 hover:border-primary/40 hover:bg-white"
+                            ? "bg-card text-primary border-primary shadow-md shadow-primary/10 ring-2 ring-primary/5"
+                            : "bg-card/50 text-text-muted border-border-main hover:border-primary/40 hover:bg-card"
                         )}
                       >
                         <span className={cn("text-xs transition-transform", isSelected ? "scale-110" : "grayscale")}>{f.icon}</span>
@@ -274,7 +274,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
                   >
                     <input
                       type="text"
-                      className={cn(inputClass, "bg-white border-primary/20 text-primary font-bold h-10")}
+                      className={cn(inputClass, "bg-card border-primary/20 text-primary font-bold h-10")}
                       placeholder="Précisez la forme (ex: Radio, Analyse...)"
                       value={drug.forme.includes(':') ? drug.forme.split(':')[1].trim() : ''}
                       onChange={(e) => onUpdateDrug(drug.id, 'forme', `Autre: ${e.target.value}`)}
@@ -286,7 +286,7 @@ export const PrescriptionForm: React.FC<PrescriptionFormProps> = ({
           );
         })}
       </div>
-        <button onClick={onAddDrug} className="w-full py-4 border-2 border-dashed border-slate-200 text-slate-400 rounded-2xl flex items-center justify-center gap-2 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all font-bold mt-2"><Plus size={18} /> Ajouter une prescription</button>
+        <button onClick={onAddDrug} className="w-full py-4 border-2 border-dashed border-border-main text-text-muted rounded-2xl flex items-center justify-center gap-2 hover:border-primary hover:text-primary hover:bg-primary/5 transition-all font-bold mt-2"><Plus size={18} /> Ajouter une prescription</button>
       </div>
     </div>
   );

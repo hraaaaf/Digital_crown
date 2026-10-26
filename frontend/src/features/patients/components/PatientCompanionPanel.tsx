@@ -275,8 +275,8 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
           </div>
 
           {status?.active_accesses.map(access => (
-            <div key={access.access_id} className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-3">
-              <div className="flex items-center gap-3 min-w-0"><CheckCircle2 className="text-emerald-600 shrink-0" size={18} /><div className="min-w-0"><p className="text-sm font-black text-emerald-900">Accès actif · {relationshipLabels[access.relationship_type] || access.relationship_type}</p><p className="text-xs font-medium text-emerald-700">Activé depuis {formatDate(access.created_at)}</p></div></div>
+            <div key={access.access_id} className="mt-3 flex items-center justify-between gap-3 rounded-2xl border border-success-border bg-success-surface/70 px-4 py-3">
+              <div className="flex items-center gap-3 min-w-0"><CheckCircle2 className="text-success shrink-0" size={18} /><div className="min-w-0"><p className="text-sm font-black text-success">Accès actif · {relationshipLabels[access.relationship_type] || access.relationship_type}</p><p className="text-xs font-medium text-success">Activé depuis {formatDate(access.created_at)}</p></div></div>
             </div>
           ))}
         </div>
@@ -293,10 +293,10 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
           </div>
 
           {pending && !ephemeralInvitation && (
-            <div className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <p className="text-sm font-black text-amber-900">Invitation active jusqu’au {formatDate(pending.expires_at)}</p>
-              <p className="mt-1 text-xs font-medium text-amber-800">Le secret n’est pas récupérable après rechargement. Réémettez l’invitation pour afficher un nouveau QR/code.</p>
-              <button type="button" onClick={() => void revokePendingInvitation()} disabled={busyKey === 'pending-invite'} className="mt-3 text-xs font-black text-amber-900 underline underline-offset-4">Révoquer l’invitation</button>
+            <div className="mt-4 rounded-2xl border border-warning-border bg-warning-surface p-4">
+              <p className="text-sm font-black text-warning">Invitation active jusqu’au {formatDate(pending.expires_at)}</p>
+              <p className="mt-1 text-xs font-medium text-warning">Le secret n’est pas récupérable après rechargement. Réémettez l’invitation pour afficher un nouveau QR/code.</p>
+              <button type="button" onClick={() => void revokePendingInvitation()} disabled={busyKey === 'pending-invite'} className="mt-3 text-xs font-black text-warning underline underline-offset-4">Révoquer l’invitation</button>
             </div>
           )}
         </div>
@@ -306,7 +306,7 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
         <section className="scroll-mt-28 sm:scroll-mt-36 bg-card-bg rounded-2xl sm:rounded-[1.75rem] border border-primary/20 shadow-elite p-4 sm:p-5 md:p-6" data-ephemeral-invitation>
           <div className="flex items-start gap-3"><div className="w-10 h-10 rounded-xl bg-primary/10 text-primary flex items-center justify-center shrink-0"><QrCode size={20} /></div><div><h3 className="text-lg font-black text-main">Invitation à remettre au patient</h3><p className="text-sm text-text-muted font-medium">Visible uniquement dans cette session jusqu’au {formatDate(ephemeralInvitation.expiresAt)}.</p></div></div>
           <div className="mt-5 grid grid-cols-1 md:grid-cols-[220px_1fr] gap-5 items-center">
-            <div className="rounded-2xl border border-border-main bg-white p-3 flex items-center justify-center min-h-[180px] sm:min-h-[220px]">{ephemeralInvitation.qrDataUrl ? <img src={ephemeralInvitation.qrDataUrl} alt="QR d’activation Patient Companion" className="w-40 h-40 sm:w-48 sm:h-48 object-contain" /> : <QrCode size={96} className="text-slate-300" />}</div>
+            <div className="rounded-2xl border border-border-main bg-card p-3 flex items-center justify-center min-h-[180px] sm:min-h-[220px]">{ephemeralInvitation.qrDataUrl ? <img src={ephemeralInvitation.qrDataUrl} alt="QR d’activation Patient Companion" className="w-40 h-40 sm:w-48 sm:h-48 object-contain" /> : <QrCode size={96} className="text-text-muted" />}</div>
             <div className="space-y-3"><div className="rounded-2xl border border-border-main bg-background p-4"><p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Code manuel</p><div className="mt-2 flex items-center gap-3"><code className="text-xl sm:text-2xl font-black tracking-[0.14em] text-main break-all">{ephemeralInvitation.manualCode}</code><button type="button" onClick={() => void copyCode()} aria-label="Copier le code" className="w-10 h-10 rounded-xl border border-border-main bg-card-bg flex items-center justify-center text-text-muted hover:text-primary"><Copy size={16} /></button></div></div><p className="text-xs font-medium text-text-muted">Le QR et le code portent le même secret à usage unique. Ils ne sont pas stockés dans le navigateur.</p></div>
           </div>
         </section>
@@ -331,15 +331,15 @@ export const PatientCompanionPanel = ({ patientId, patientEmail }: PatientCompan
         </ResourceCard>
       </section>
 
-      <section className="rounded-2xl sm:rounded-[1.75rem] border border-rose-200 bg-rose-50/70 p-4 sm:p-5 md:p-6">
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"><div className="flex items-start gap-3"><AlertTriangle size={20} className="text-rose-600 mt-0.5 shrink-0" /><div><h3 className="font-black text-rose-950">Révoquer complètement l’accès Companion</h3><p className="mt-1 text-sm font-medium text-rose-800">Révoque les accès actifs et l’invitation en attente. Les données patient, documents et médias restent intacts.</p></div></div><button type="button" onClick={() => void revokeAllAccess()} disabled={busyKey === 'revoke-all' || (activeCount === 0 && !pending)} className="h-11 px-4 rounded-xl border border-rose-300 bg-white text-rose-700 font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"><Unlink size={16} /> Révoquer l’accès</button></div>
+      <section className="rounded-2xl sm:rounded-[1.75rem] border border-danger-border bg-danger-surface/70 p-4 sm:p-5 md:p-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4"><div className="flex items-start gap-3"><AlertTriangle size={20} className="text-danger mt-0.5 shrink-0" /><div><h3 className="font-black text-danger">Révoquer complètement l’accès Companion</h3><p className="mt-1 text-sm font-medium text-danger">Révoque les accès actifs et l’invitation en attente. Les données patient, documents et médias restent intacts.</p></div></div><button type="button" onClick={() => void revokeAllAccess()} disabled={busyKey === 'revoke-all' || (activeCount === 0 && !pending)} className="h-11 px-4 rounded-xl border border-danger-border bg-card text-danger font-black text-xs uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"><Unlink size={16} /> Révoquer l’accès</button></div>
       </section>
     </div>
   );
 };
 
 const StatusMetric = ({ icon, label, value, tone }: { icon: React.ReactNode; label: string; value: string; tone: 'good' | 'warn' | 'neutral' }) => (
-  <div className={cn('rounded-xl sm:rounded-2xl border px-2.5 py-2.5 sm:px-4 sm:py-3', tone === 'good' ? 'border-emerald-200 bg-emerald-50/70' : tone === 'warn' ? 'border-amber-200 bg-amber-50/70' : 'border-border-main bg-background')}><div className="flex items-center gap-1.5 text-text-muted"><span className="hidden sm:inline-flex">{icon}</span><span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.04em] sm:tracking-widest">{label}</span></div><p className="mt-1 text-sm sm:mt-2 sm:text-lg font-black leading-tight text-main">{value}</p></div>
+  <div className={cn('rounded-xl sm:rounded-2xl border px-2.5 py-2.5 sm:px-4 sm:py-3', tone === 'good' ? 'border-success-border bg-success-surface/70' : tone === 'warn' ? 'border-warning-border bg-warning-surface/70' : 'border-border-main bg-background')}><div className="flex items-center gap-1.5 text-text-muted"><span className="hidden sm:inline-flex">{icon}</span><span className="text-[8px] sm:text-[10px] font-black uppercase tracking-[0.04em] sm:tracking-widest">{label}</span></div><p className="mt-1 text-sm sm:mt-2 sm:text-lg font-black leading-tight text-main">{value}</p></div>
 );
 
 const ResourceCard = ({ title, icon, empty, children }: { title: string; icon: React.ReactNode; empty: string; children: React.ReactNode }) => {
@@ -348,5 +348,5 @@ const ResourceCard = ({ title, icon, empty, children }: { title: string; icon: R
 };
 
 const ResourceRow = ({ title, subtitle, shared, busy, onToggle }: { title: string; subtitle: string; shared: boolean; busy: boolean; onToggle: () => void }) => (
-  <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-main bg-background px-3.5 py-3"><div className="min-w-0"><p className="truncate text-sm font-black text-main">{title}</p><p className="mt-0.5 truncate text-xs font-medium text-text-muted">{subtitle}</p></div><button type="button" onClick={onToggle} disabled={busy} className={cn('shrink-0 h-9 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors disabled:opacity-60', shared ? 'border-rose-200 bg-rose-50 text-rose-700' : 'border-primary/20 bg-primary/5 text-primary')}>{busy ? <Loader2 className="animate-spin" size={14} /> : shared ? <Link2Off size={14} /> : <Link2 size={14} />}{shared ? 'Retirer' : 'Partager'}</button></div>
+  <div className="flex items-center justify-between gap-3 rounded-2xl border border-border-main bg-background px-3.5 py-3"><div className="min-w-0"><p className="truncate text-sm font-black text-main">{title}</p><p className="mt-0.5 truncate text-xs font-medium text-text-muted">{subtitle}</p></div><button type="button" onClick={onToggle} disabled={busy} className={cn('shrink-0 h-9 px-3 rounded-xl border text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-colors disabled:opacity-60', shared ? 'border-danger-border bg-danger-surface text-danger' : 'border-primary/20 bg-primary/5 text-primary')}>{busy ? <Loader2 className="animate-spin" size={14} /> : shared ? <Link2Off size={14} /> : <Link2 size={14} />}{shared ? 'Retirer' : 'Partager'}</button></div>
 );

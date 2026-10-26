@@ -408,22 +408,22 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
     }
   }, [items.length]);
 
-  const labelClass = "text-[9px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-1.5 ml-1";
+  const labelClass = "text-[9px] font-black text-text-muted uppercase tracking-[0.2em] block mb-1.5 ml-1";
 
   return (
     <div className="animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20 max-w-[95rem] mx-auto">
       {(validationErrors.length > 0 || coherenceWarnings.length > 0) && (
         <div className="space-y-2 px-2 mb-6">
           {validationErrors.map((err, idx) => (
-            <div key={`v-${idx}`} className="px-6 py-3 bg-red-50 border border-red-100 rounded-2xl text-[11px] text-red-600 font-black flex items-center gap-3 animate-in slide-in-from-top-2">
+            <div key={`v-${idx}`} className="px-6 py-3 bg-danger-surface border border-danger-border rounded-2xl text-[11px] text-danger font-black flex items-center gap-3 animate-in slide-in-from-top-2">
               <AlertCircle size={16} /> {err.message}
             </div>
           ))}
           {coherenceWarnings.map((w, idx) => (
             <div key={`c-${idx}`} className={cn(
               "px-6 py-3 rounded-2xl text-[11px] font-black flex items-center gap-3 animate-in slide-in-from-top-2",
-              w.level === 'warning' ? "bg-amber-50 border border-amber-100 text-amber-700"
-                : w.level === 'critical' ? "bg-red-50 border border-red-100 text-red-600"
+              w.level === 'warning' ? "bg-warning-surface border border-warning-border text-warning"
+                : w.level === 'critical' ? "bg-danger-surface border border-danger-border text-danger"
                 : "bg-blue-50 border border-blue-100 text-blue-600"
             )}>
               <AlertCircle size={16} className="shrink-0" /> {w.message}
@@ -434,11 +434,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
       <div className="flex flex-col gap-10 max-w-5xl mx-auto items-center">
         <div className="w-full space-y-6">
-          <div className="flex items-center justify-center gap-1.5 px-1 text-[9px] font-black uppercase tracking-normal text-slate-400 sm:gap-3 sm:px-2 sm:text-[10px] sm:tracking-[0.14em]" aria-label="Parcours du document">
+          <div className="flex items-center justify-center gap-1.5 px-1 text-[9px] font-black uppercase tracking-normal text-text-muted sm:gap-3 sm:px-2 sm:text-[10px] sm:tracking-[0.14em]" aria-label="Parcours du document">
             <span className="text-primary"><span className="sm:hidden">1 · Clinique</span><span className="hidden sm:inline">1 · Sélection clinique</span></span>
-            <ChevronDown size={11} className="-rotate-90 text-slate-300 sm:size-3" aria-hidden="true" />
+            <ChevronDown size={11} className="-rotate-90 text-text-muted sm:size-3" aria-hidden="true" />
             <span>2 · Prestations</span>
-            <ChevronDown size={11} className="-rotate-90 text-slate-300 sm:size-3" aria-hidden="true" />
+            <ChevronDown size={11} className="-rotate-90 text-text-muted sm:size-3" aria-hidden="true" />
             <span><span className="sm:hidden">3 · Récap.</span><span className="hidden sm:inline">3 · Récapitulatif</span></span>
           </div>
 
@@ -460,14 +460,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
                 exit={{ opacity: 0, height: 0 }}
-                className="pt-4 border-t border-slate-100 flex items-center justify-between"
+                className="pt-4 border-t border-border-main flex items-center justify-between"
               >
                 <div className="flex items-center gap-3">
                   <Brain className="w-5 h-5 text-primary animate-pulse" />
-                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Suggestions complémentaires :</span>
+                  <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Suggestions complémentaires :</span>
                   <div className="flex gap-2">
                     {suggestedBundles.map((b, i) => (
-                      <span key={i} className="px-2 py-1 bg-slate-50 rounded-lg text-[9px] font-bold text-slate-500">
+                      <span key={i} className="px-2 py-1 bg-background rounded-lg text-[9px] font-bold text-text-muted">
                         +{b.name}{b.priceSource === 'UNRESOLVED' ? ' • prix à saisir' : ''}
                       </span>
                     ))}
@@ -501,19 +501,19 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         </div>
 
         {showOdontoPanoramique && (
-          <div data-testid="document-plan-of-care" className="bg-white rounded-2xl sm:rounded-[2.5rem] border border-slate-100 shadow-sm overflow-hidden group">
+          <div data-testid="document-plan-of-care" className="bg-card rounded-2xl sm:rounded-[2.5rem] border border-border-main shadow-sm overflow-hidden group">
             <button 
               type="button"
               onClick={() => setIsOdontoOpen(!isOdontoOpen)}
-              className="w-full px-4 py-4 sm:px-8 sm:py-5 flex items-center justify-between gap-3 hover:bg-slate-50 transition-all"
+              className="w-full px-4 py-4 sm:px-8 sm:py-5 flex items-center justify-between gap-3 hover:bg-background transition-all"
             >
               <div className="flex items-center gap-4">
-                <div className="w-10 h-10 rounded-2xl bg-slate-100 flex items-center justify-center text-slate-500 group-hover:bg-primary/10 group-hover:text-primary transition-all">
+                <div className="w-10 h-10 rounded-2xl bg-input-field flex items-center justify-center text-text-muted group-hover:bg-primary/10 group-hover:text-primary transition-all">
                   <LayoutGrid size={20} />
                 </div>
                 <div className="text-left">
-                  <h4 className="text-sm font-black text-slate-800 tracking-tight">Plan de soins</h4>
-                  <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest">Odontogramme & catalogue</p>
+                  <h4 className="text-sm font-black text-text-main tracking-tight">Plan de soins</h4>
+                  <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">Odontogramme & catalogue</p>
                 </div>
               </div>
               <div className="flex items-center gap-3">
@@ -522,11 +522,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     {groupSelectedTeeth.length} Sélectionnée(s)
                   </span>
                 )}
-                {isOdontoOpen ? <ChevronUp size={20} className="text-slate-300" /> : <ChevronDown size={20} className="text-slate-300" />}
+                {isOdontoOpen ? <ChevronUp size={20} className="text-text-muted" /> : <ChevronDown size={20} className="text-text-muted" />}
               </div>
             </button>
             {isOdontoOpen && (
-              <div className="flex justify-stretch sm:justify-end border-t border-slate-100 bg-slate-50/40 px-4 py-2 sm:px-8">
+              <div className="flex justify-stretch sm:justify-end border-t border-border-main bg-background/40 px-4 py-2 sm:px-8">
                 <button
                   type="button"
                   onClick={() => {
@@ -548,9 +548,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   exit={{ height: 0, opacity: 0 }}
                   className="min-w-0 px-2 pb-3 sm:px-4 sm:pb-4"
                 >
-                  <div className="relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/80 bg-white/60 shadow-xl backdrop-blur-xl sm:rounded-[2.5rem] sm:shadow-2xl">
-                    <div className="p-3 sm:p-4 border-b border-slate-100 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 bg-white/20">
-                      <div className="grid grid-cols-2 w-full sm:w-auto bg-slate-100/50 p-1 rounded-xl border border-slate-100">
+                  <div className="relative flex min-w-0 flex-col overflow-hidden rounded-2xl border border-white/80 bg-card/60 shadow-xl backdrop-blur-xl sm:rounded-[2.5rem] sm:shadow-2xl">
+                    <div className="p-3 sm:p-4 border-b border-border-main flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5 sm:gap-4 shrink-0 bg-white/20">
+                      <div className="grid grid-cols-2 w-full sm:w-auto bg-input-field/50 p-1 rounded-xl border border-border-main">
                         {(['ADULT', 'PEDIATRIC'] as const).map(type => (
                           <button
                             key={type}
@@ -563,7 +563,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             }}
                             className={cn(
                               "w-full sm:w-auto px-3 sm:px-4 py-2 rounded-lg text-[9px] font-black uppercase tracking-wider sm:tracking-widest transition-all",
-                              odontogramType === type ? "bg-white text-slate-900 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                              odontogramType === type ? "bg-card text-text-main shadow-sm border border-border-main" : "text-text-muted hover:text-text-muted"
                             )}
                           >{type === 'ADULT' ? 'Adulte' : 'Enfant'}</button>
                         ))}
@@ -576,7 +576,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       </div>
                     </div>
 
-                    <div className="relative flex min-w-0 flex-col overflow-hidden bg-slate-50/20 p-2 sm:p-4">
+                    <div className="relative flex min-w-0 flex-col overflow-hidden bg-background/20 p-2 sm:p-4">
                       <div className="relative sm:absolute sm:top-4 sm:left-1/2 sm:-translate-x-1/2 z-30 mb-2 sm:mb-0 px-1 sm:px-0">
                         <div className="w-full sm:w-auto px-3 sm:px-5 py-2 sm:py-2.5 bg-primary/5 backdrop-blur-md text-primary rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-normal sm:tracking-widest flex items-center justify-center gap-2 sm:gap-3 border border-primary/20 shadow-sm text-center">
                           Sélectionnez une ou plusieurs dents
@@ -595,8 +595,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           />
                         </div>
 
-                        <details className="mt-2 w-full max-w-2xl rounded-xl border border-slate-100 bg-white/80 px-3 py-2 text-left shadow-sm">
-                          <summary className="cursor-pointer select-none text-[9px] font-black uppercase tracking-widest text-slate-400">
+                        <details className="mt-2 w-full max-w-2xl rounded-xl border border-border-main bg-card/80 px-3 py-2 text-left shadow-sm">
+                          <summary className="cursor-pointer select-none text-[9px] font-black uppercase tracking-widest text-text-muted">
                             Sélection rapide
                           </summary>
                           <div className="mt-2 flex flex-wrap gap-2">
@@ -605,13 +605,13 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 key={group}
                                 type="button"
                                 onClick={() => selectTeethGroup(group)}
-                                className="rounded-lg bg-slate-100 px-2.5 py-1.5 text-[9px] font-black text-slate-600 hover:bg-slate-200"
+                                className="rounded-lg bg-input-field px-2.5 py-1.5 text-[9px] font-black text-text-muted hover:bg-input-field"
                               >
                                 {group === 'maxillaire' ? 'Maxillaire' : group === 'mandibule' ? 'Mandibule' : group === 'all' ? 'Toutes' : group}
                               </button>
                             ))}
                             {groupSelectedTeeth.length > 0 && (
-                              <button type="button" onClick={() => selectTeethGroup('none')} className="ml-auto rounded-lg px-2.5 py-1.5 text-[9px] font-black text-rose-500 hover:bg-rose-50">
+                              <button type="button" onClick={() => selectTeethGroup('none')} className="ml-auto rounded-lg px-2.5 py-1.5 text-[9px] font-black text-danger hover:bg-danger-surface">
                                 Effacer
                               </button>
                             )}
@@ -624,21 +624,21 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             animate={{ y: 0, opacity: 1 }}
                             className="relative mt-2 w-full max-w-2xl px-1 sm:px-0"
                           >
-                            <div className="rounded-2xl border border-slate-200 bg-slate-900 p-3 shadow-lg sm:p-4 flex flex-col gap-3">
+                            <div className="rounded-2xl border border-border-main bg-slate-900 p-3 shadow-lg sm:p-4 flex flex-col gap-3">
                               <>
                                   <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                                     <div className="flex min-w-0 items-center gap-2 sm:gap-3">
                                       <div className="flex -space-x-2">
                                         {groupSelectedTeeth.slice(0, 4).map(n => (
-                                          <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">{n}</div>
+                                          <div key={n} className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-[10px] font-black text-white border-2 border-border-hover">{n}</div>
                                         ))}
                                         {groupSelectedTeeth.length > 4 && (
-                                          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-slate-900">+{groupSelectedTeeth.length - 4}</div>
+                                          <div className="w-8 h-8 rounded-full bg-slate-700 flex items-center justify-center text-[10px] font-black text-white border-2 border-border-hover">+{groupSelectedTeeth.length - 4}</div>
                                         )}
                                       </div>
-                                      <span className="truncate text-[9px] sm:text-[10px] font-black text-slate-300 uppercase tracking-wide sm:tracking-widest">{groupSelectedTeeth.length} dent(s) sélectionnée(s)</span>
+                                      <span className="truncate text-[9px] sm:text-[10px] font-black text-text-muted uppercase tracking-wide sm:tracking-widest">{groupSelectedTeeth.length} dent(s) sélectionnée(s)</span>
                                     </div>
-                                    <button type="button" onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-rose-400 uppercase tracking-widest hover:text-rose-300">Réinitialiser</button>
+                                    <button type="button" onClick={() => selectTeethGroup('none')} className="text-[9px] font-black text-danger uppercase tracking-widest hover:text-danger">Réinitialiser</button>
                                   </div>
 
                                   {groupSuggestedActs.length > 0 ? (
@@ -648,14 +648,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                           key={act.id}
                                           type="button"
                                           onClick={() => addActForSelectedTeeth(act, specialty)}
-                                          className="px-2.5 sm:px-3 py-2 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all text-left truncate bg-white/10 text-slate-300 hover:bg-white/20 hover:text-white"
+                                          className="px-2.5 sm:px-3 py-2 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-wide sm:tracking-widest transition-all text-left truncate bg-white/10 text-text-muted hover:bg-white/20 hover:text-white"
                                         >
                                           {act.name}
                                         </button>
                                       ))}
                                     </div>
                                   ) : (
-                                    <p className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold text-slate-400">
+                                    <p className="rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-[10px] font-bold text-text-muted">
                                       Aucun acte suggéré pour cette sélection. Retrouvez l’acte dans le catalogue.
                                     </p>
                                   )}
@@ -666,7 +666,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                       value={selectedActQuery}
                                       onChange={(event) => setSelectedActQuery(event.target.value)}
                                       placeholder="Rechercher un acte pour cette sélection…"
-                                      className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-xs font-bold text-white outline-none placeholder:text-slate-500 focus:border-primary/50"
+                                      className="w-full rounded-xl border border-white/10 bg-white/10 px-3 py-2.5 text-xs font-bold text-white outline-none placeholder:text-text-muted focus:border-primary/50"
                                     />
                                     {selectedSearchResults.length > 0 && (
                                       <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
@@ -675,10 +675,10 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                             key={act.id}
                                             type="button"
                                             onClick={() => addActForSelectedTeeth(act, specialty)}
-                                            className="flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-left text-[10px] font-bold text-slate-200 hover:bg-white/20"
+                                            className="flex items-center justify-between gap-3 rounded-xl bg-white/10 px-3 py-2 text-left text-[10px] font-bold text-text-muted hover:bg-white/20"
                                           >
                                             <span className="truncate">{act.name}</span>
-                                            <span className="shrink-0 text-slate-500">{Number(act.base_price) > 0 ? `${act.base_price} MAD` : 'Tarif à définir'}</span>
+                                            <span className="shrink-0 text-text-muted">{Number(act.base_price) > 0 ? `${act.base_price} MAD` : 'Tarif à définir'}</span>
                                           </button>
                                         ))}
                                       </div>
@@ -720,11 +720,11 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
         )}
 
         <div id="document-prestations" className="w-full space-y-6 scroll-mt-4">
-          <div className="bg-white rounded-[2.5rem] border border-slate-100 shadow-xl shadow-slate-200/20 overflow-hidden">
-            <div className="px-10 py-6 border-b border-slate-50 flex items-center justify-between bg-slate-50/50">
+          <div className="bg-card rounded-[2.5rem] border border-border-main shadow-xl shadow-slate-200/20 overflow-hidden">
+            <div className="px-10 py-6 border-b border-border-main flex items-center justify-between bg-background/50">
               <div className="flex items-center gap-3">
-                <History className="w-5 h-5 text-slate-400" />
-                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-slate-500">Détail des prestations</h3>
+                <History className="w-5 h-5 text-text-muted" />
+                <h3 className="text-xs font-black uppercase tracking-[0.2em] text-text-muted">Détail des prestations</h3>
               </div>
               <div className="flex items-center gap-4">
                 {isDevis && items.length > 0 && (
@@ -747,15 +747,15 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
-                  <tr className="bg-slate-50/50">
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-16 text-center">#</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest">Description de l'acte</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32 text-center">Dent</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-44 text-right">Honoraires (MAD)</th>
-                    <th className="px-8 py-5 text-[10px] font-black text-slate-400 uppercase tracking-widest w-32"></th>
+                  <tr className="bg-background/50">
+                    <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-widest w-16 text-center">#</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-widest">Description de l'acte</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-widest w-32 text-center">Dent</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-widest w-44 text-right">Honoraires (MAD)</th>
+                    <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-widest w-32"></th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-50">
+                <tbody className="divide-y divide-border-main">
                   <AnimatePresence mode="popLayout">
                     {items.map((item, idx) => {
                       const isPhaseSeparator = isAccountingPhaseSeparator(item.description);
@@ -768,10 +768,10 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           exit={{ opacity: 0, x: -20 }}
                           className={cn(
                             "group transition-colors",
-                            isPhaseSeparator ? "bg-indigo-50/70" : "hover:bg-slate-50/50"
+                            isPhaseSeparator ? "bg-indigo-50/70" : "hover:bg-background/50"
                           )}
                         >
-                          <td className="px-8 py-4 text-center font-black text-slate-300 text-xs">{idx + 1}</td>
+                          <td className="px-8 py-4 text-center font-black text-text-muted text-xs">{idx + 1}</td>
                           <td className="px-8 py-4 relative">
                             <div className="relative group/search">
                               <input
@@ -781,7 +781,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                   "w-full border rounded-xl px-4 py-3 text-sm font-bold outline-none transition-all",
                                   isPhaseSeparator
                                     ? "bg-transparent border-transparent text-indigo-600 cursor-default"
-                                    : "bg-white border-slate-100 focus:border-primary/50 text-slate-800"
+                                    : "bg-card border-border-main focus:border-primary/50 text-text-main"
                                 )}
                                 value={item.description}
                                 onChange={(e) => handleActSearch(e.target.value, item.id)}
@@ -801,18 +801,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 placeholder="Rechercher un acte du catalogue..."
                               />
                               {!isPhaseSeparator && activeActSearchId === item.id && actSuggestions.length > 0 && (
-                                <div className="absolute top-full left-0 right-0 z-[100] bg-white border border-slate-100 rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+                                <div className="absolute top-full left-0 right-0 z-[100] bg-card border border-border-main rounded-2xl shadow-2xl mt-2 overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                                   {actSuggestions.map((act) => (
                                     <button
                                       key={act.id}
                                       type="button"
                                       onMouseDown={(e) => e.preventDefault()}
                                       onClick={() => applyActSuggestion(item.id, act)}
-                                      className="w-full text-left px-5 py-3.5 hover:bg-slate-50 flex items-center justify-between group/suggest border-b border-slate-50 last:border-0"
+                                      className="w-full text-left px-5 py-3.5 hover:bg-background flex items-center justify-between group/suggest border-b border-border-main last:border-0"
                                     >
                                       <div>
-                                        <p className="font-bold text-sm text-slate-800">{act.name}</p>
-                                        <p className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">{act.category || 'GÉNÉRAL'}</p>
+                                        <p className="font-bold text-sm text-text-main">{act.name}</p>
+                                        <p className="text-[9px] font-black text-text-muted uppercase tracking-tighter">{act.category || 'GÉNÉRAL'}</p>
                                       </div>
                                       <span className="font-black text-primary text-sm">{act.base_price} <span className="text-[9px] opacity-40">MAD</span></span>
                                     </button>
@@ -825,7 +825,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                             <input
                               type="text"
                               disabled={isPhaseSeparator}
-                              className="w-full bg-slate-50/50 border border-transparent focus:border-slate-200 rounded-xl px-3 py-3 text-center text-sm font-black text-slate-600 outline-none transition-all disabled:opacity-30 disabled:cursor-default"
+                              className="w-full bg-background/50 border border-transparent focus:border-border-main rounded-xl px-3 py-3 text-center text-sm font-black text-text-muted outline-none transition-all disabled:opacity-30 disabled:cursor-default"
                               value={item.dent}
                               onChange={(e) => updateItem(item.id, 'dent', e.target.value)}
                               placeholder="--"
@@ -836,7 +836,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                               <input
                                 type="number"
                                 disabled={isPhaseSeparator}
-                                className="w-full bg-slate-50/50 border border-transparent focus:border-primary/30 rounded-xl px-4 py-3 text-right text-sm font-black text-primary outline-none transition-all disabled:opacity-30 disabled:cursor-default"
+                                className="w-full bg-background/50 border border-transparent focus:border-primary/30 rounded-xl px-4 py-3 text-right text-sm font-black text-primary outline-none transition-all disabled:opacity-30 disabled:cursor-default"
                                 style={{ color: 'var(--primary)' }}
                                 value={item.price || ''}
                                 onFocus={e => e.target.select()}
@@ -852,7 +852,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 onClick={() => moveItem(item.id, 'UP')}
                                 disabled={idx === 0}
                                 aria-label={`Monter ${item.description || `la ligne ${idx + 1}`}`}
-                                className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                                className="p-2 text-text-muted hover:text-text-main hover:bg-input-field rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
                               >
                                 <ArrowUp size={14} />
                               </button>
@@ -861,7 +861,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 onClick={() => moveItem(item.id, 'DOWN')}
                                 disabled={idx === items.length - 1}
                                 aria-label={`Descendre ${item.description || `la ligne ${idx + 1}`}`}
-                                className="p-2 text-slate-300 hover:text-slate-700 hover:bg-slate-100 rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
+                                className="p-2 text-text-muted hover:text-text-main hover:bg-input-field rounded-lg transition-all disabled:opacity-20 disabled:pointer-events-none"
                               >
                                 <ArrowDown size={14} />
                               </button>
@@ -869,7 +869,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                                 type="button"
                                 onClick={() => removeItem(item.id)}
                                 aria-label={`Supprimer ${item.description || `la ligne ${idx + 1}`}`}
-                                className="p-2.5 text-slate-300 hover:text-rose-500 hover:bg-rose-50 rounded-lg transition-all"
+                                className="p-2.5 text-text-muted hover:text-danger hover:bg-danger-surface rounded-lg transition-all"
                               >
                                 <Trash2 size={16} />
                               </button>
@@ -883,9 +883,9 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               </table>
             </div>
 
-            <div className="px-10 py-6 border-t border-slate-50 bg-slate-50/30 flex flex-col items-end gap-4">
+            <div className="px-10 py-6 border-t border-border-main bg-background/30 flex flex-col items-end gap-4">
               <div className="flex items-center justify-between w-full">
-                <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Total</span>
+                <span className="text-xs font-black text-text-muted uppercase tracking-widest">Total</span>
                 <span className="text-xl font-black text-primary">{accountingDocumentTotal(items)} MAD</span>
               </div>
               {!isDevis && (
@@ -909,12 +909,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="p-6 sm:p-10 bg-white rounded-[2rem] sm:rounded-[3rem] border border-white shadow-2xl space-y-6 sm:space-y-10 relative overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto"
+              className="p-6 sm:p-10 bg-card rounded-[2rem] sm:rounded-[3rem] border border-white shadow-2xl space-y-6 sm:space-y-10 relative overflow-hidden max-w-4xl w-full max-h-[90vh] overflow-y-auto"
             >
               <button 
                 type="button"
                 onClick={() => setIsTreasuryModalOpen(false)}
-                className="absolute top-6 right-6 w-10 h-10 bg-slate-50 text-slate-400 hover:text-slate-700 hover:bg-slate-100 rounded-full flex items-center justify-center transition-all z-20"
+                className="absolute top-6 right-6 w-10 h-10 bg-background text-text-muted hover:text-text-main hover:bg-input-field rounded-full flex items-center justify-center transition-all z-20"
               >
                 <Plus size={24} className="rotate-45" />
               </button>
@@ -927,24 +927,24 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     <Banknote size={28} />
                   </div>
                   <div>
-                    <h4 className="text-lg font-black text-slate-800 tracking-tight uppercase">Encaissement</h4>
-                    <p className="text-[10px] text-slate-400 font-black uppercase tracking-[0.2em]">Règlement et échéances</p>
+                    <h4 className="text-lg font-black text-text-main tracking-tight uppercase">Encaissement</h4>
+                    <p className="text-[10px] text-text-muted font-black uppercase tracking-[0.2em]">Règlement et échéances</p>
                   </div>
                 </div>
 
                 <div className="flex items-center gap-6">
                   <div className="flex flex-col items-end gap-2">
-                    <span className="text-[9px] font-black text-slate-400 uppercase tracking-[0.3em]">Comptabiliser CA</span>
+                    <span className="text-[9px] font-black text-text-muted uppercase tracking-[0.3em]">Comptabiliser CA</span>
                     <button 
                       type="button"
                       onClick={() => setIsAccounted(!isAccounted)}
                       className={cn(
                         "relative w-14 h-7 rounded-full transition-all duration-500",
-                        isAccounted ? "bg-primary" : "bg-slate-100"
+                        isAccounted ? "bg-primary" : "bg-input-field"
                       )}
                     >
                       <div className={cn(
-                        "absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-all duration-500",
+                        "absolute top-1 w-5 h-5 bg-card rounded-full shadow-lg transition-all duration-500",
                         isAccounted ? "left-8" : "left-1"
                       )} />
                     </button>
@@ -955,7 +955,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
               {paymentStatusGuardMessage && (
                 <div
                   role="alert"
-                  className="relative z-20 flex items-start justify-between gap-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900"
+                  className="relative z-20 flex items-start justify-between gap-4 rounded-2xl border border-warning-border bg-warning-surface px-4 py-3 text-warning"
                 >
                   <div>
                     <div className="text-xs font-black uppercase tracking-wider">Paiement partiel</div>
@@ -964,7 +964,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                   <button
                     type="button"
                     onClick={clearPaymentStatusGuard}
-                    className="shrink-0 rounded-xl border border-amber-300 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider"
+                    className="shrink-0 rounded-xl border border-warning-border bg-card px-3 py-2 text-[10px] font-black uppercase tracking-wider"
                   >
                     Compris
                   </button>
@@ -973,12 +973,12 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
 
               <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8 pt-4 relative z-10">
                 <div className="space-y-4">
-                  <label className={cn(labelClass, "text-slate-400")}>Statut de Règlement</label>
-                  <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1">
+                  <label className={cn(labelClass, "text-text-muted")}>Statut de Règlement</label>
+                  <div className="flex bg-background/50 p-1.5 rounded-[1.5rem] border border-border-main gap-1">
                     {[
-                      { id: 'EN_ATTENTE', label: 'Attente', color: 'text-amber-600 bg-white shadow-sm border border-slate-100' },
-                      { id: 'PARTIEL', label: 'Partiel', color: 'text-blue-600 bg-white shadow-sm border border-slate-100' },
-                      { id: 'PAYE', label: 'Réglé', color: 'text-emerald-600 bg-white shadow-sm border border-slate-100' }
+                      { id: 'EN_ATTENTE', label: 'Attente', color: 'text-warning bg-card shadow-sm border border-border-main' },
+                      { id: 'PARTIEL', label: 'Partiel', color: 'text-blue-600 bg-card shadow-sm border border-border-main' },
+                      { id: 'PAYE', label: 'Réglé', color: 'text-success bg-card shadow-sm border border-border-main' }
                     ].map((s) => (
                       <button
                         key={s.id}
@@ -986,7 +986,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         onClick={() => setPaymentStatus(s.id)}
                         className={cn(
                           "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                          paymentStatus === s.id ? s.color : "text-slate-400 hover:text-slate-600"
+                          paymentStatus === s.id ? s.color : "text-text-muted hover:text-text-muted"
                         )}
                       >
                         {s.label}
@@ -996,8 +996,8 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                  <label className={cn(labelClass, "text-slate-400")}>Mode d'Encaissement</label>
-                  <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1 overflow-x-auto no-scrollbar">
+                  <label className={cn(labelClass, "text-text-muted")}>Mode d'Encaissement</label>
+                  <div className="flex bg-background/50 p-1.5 rounded-[1.5rem] border border-border-main gap-1 overflow-x-auto no-scrollbar">
                     {['Espèces', 'Chèque', 'TPE', 'Virement'].map((m) => (
                       <button
                         key={m}
@@ -1005,7 +1005,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                         onClick={() => setPaymentMode(m as any)}
                         className={cn(
                           "flex-1 px-4 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all whitespace-nowrap",
-                          paymentMode === m ? "bg-white text-slate-800 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                          paymentMode === m ? "bg-card text-text-main shadow-sm border border-border-main" : "text-text-muted hover:text-text-muted"
                         )}
                       >
                         {m}
@@ -1015,14 +1015,14 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 </div>
 
                 <div className="space-y-4">
-                  <label className={cn(labelClass, "text-slate-400")}>Structure de Facturation</label>
-                  <div className="flex bg-slate-50/50 p-1.5 rounded-[1.5rem] border border-slate-100 gap-1">
+                  <label className={cn(labelClass, "text-text-muted")}>Structure de Facturation</label>
+                  <div className="flex bg-background/50 p-1.5 rounded-[1.5rem] border border-border-main gap-1">
                     <button
                       type="button"
                       onClick={() => setIsGlobalNote(false)}
                       className={cn(
                         "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        !isGlobalNote ? "bg-white text-indigo-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                        !isGlobalNote ? "bg-card text-indigo-600 shadow-sm border border-border-main" : "text-text-muted hover:text-text-muted"
                       )}
                     >Unique</button>
                     <button
@@ -1030,7 +1030,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                       onClick={() => setIsGlobalNote(true)}
                       className={cn(
                         "flex-1 py-3.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-                        isGlobalNote ? "bg-white text-purple-600 shadow-sm border border-slate-100" : "text-slate-400 hover:text-slate-600"
+                        isGlobalNote ? "bg-card text-purple-600 shadow-sm border border-border-main" : "text-text-muted hover:text-text-muted"
                       )}
                     >Global / Planifié</button>
                   </div>
@@ -1043,26 +1043,26 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                     initial={{ opacity: 0, height: 0 }}
                     animate={{ opacity: 1, height: 'auto' }}
                     exit={{ opacity: 0, height: 0 }}
-                    className="p-8 bg-slate-50/50 rounded-[2.5rem] border border-slate-100 border-dashed space-y-6 relative z-10"
+                    className="p-8 bg-background/50 rounded-[2.5rem] border border-border-main border-dashed space-y-6 relative z-10"
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-[10px] font-black text-slate-400 uppercase tracking-[0.3em] flex items-center gap-3">
+                      <span className="text-[10px] font-black text-text-muted uppercase tracking-[0.3em] flex items-center gap-3">
                         <History className="w-4 h-4 text-primary" /> Configuration des Échéances
                       </span>
                       <button 
                         type="button"
                         onClick={() => setInstallments([...installments, { id: Date.now(), date: new Date().toISOString().split('T')[0], amount: 0, label: `Versement ${installments.length + 1}` }])}
-                        className="px-4 py-2 bg-white border border-slate-100 rounded-xl text-[9px] font-black text-slate-600 uppercase tracking-widest transition-all hover:bg-slate-50 shadow-sm"
+                        className="px-4 py-2 bg-card border border-border-main rounded-xl text-[9px] font-black text-text-muted uppercase tracking-widest transition-all hover:bg-background shadow-sm"
                       >+ Nouvelle Échéance</button>
                     </div>
 
                     <div className="space-y-4">
                       {installments.map((inst) => (
-                        <div key={inst.id} className="flex flex-col sm:grid sm:grid-cols-12 gap-4 sm:gap-4 items-center bg-white p-4 sm:p-0 rounded-2xl sm:bg-transparent">
+                        <div key={inst.id} className="flex flex-col sm:grid sm:grid-cols-12 gap-4 sm:gap-4 items-center bg-card p-4 sm:p-0 rounded-2xl sm:bg-transparent">
                           <div className="w-full sm:col-span-5">
                             <input 
                               type="text" 
-                              className="w-full px-5 py-3 bg-white sm:bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
+                              className="w-full px-5 py-3 bg-card sm:bg-card border border-border-main rounded-xl text-xs font-bold text-text-main outline-none focus:border-primary/30 transition-all"
                               value={inst.label}
                               onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, label: e.target.value } : i))}
                             />
@@ -1070,7 +1070,7 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <div className="w-full sm:col-span-3">
                             <input 
                               type="date" 
-                              className="w-full px-4 py-3 bg-white border border-slate-100 rounded-xl text-xs font-bold text-slate-700 outline-none focus:border-primary/30 transition-all"
+                              className="w-full px-4 py-3 bg-card border border-border-main rounded-xl text-xs font-bold text-text-main outline-none focus:border-primary/30 transition-all"
                               value={inst.date}
                               onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, date: e.target.value } : i))}
                             />
@@ -1078,18 +1078,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                           <div className="w-full sm:col-span-3 relative">
                             <input 
                               type="number"
-                              className="w-full px-5 py-3 bg-slate-50 border border-slate-100 rounded-xl text-xs font-black text-primary outline-none focus:border-primary/50 text-right pr-12"
+                              className="w-full px-5 py-3 bg-background border border-border-main rounded-xl text-xs font-black text-primary outline-none focus:border-primary/50 text-right pr-12"
                               value={inst.amount}
                               onFocus={e => e.target.select()}
                               onChange={(e) => setInstallments(installments.map(i => i.id === inst.id ? { ...i, amount: Number(e.target.value) } : i))}
                             />
-                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-slate-300">MAD</span>
+                            <span className="absolute right-4 top-1/2 -translate-y-1/2 text-[9px] font-black text-text-muted">MAD</span>
                           </div>
                           <div className="w-full sm:col-span-1 flex justify-end sm:justify-center">
                             <button 
                               type="button"
                               onClick={() => setInstallments(installments.filter(i => i.id !== inst.id))}
-                              className="p-3 text-slate-300 hover:text-rose-400 transition-all bg-rose-50 sm:bg-transparent rounded-xl sm:rounded-none w-full sm:w-auto"
+                              className="p-3 text-text-muted hover:text-danger transition-all bg-danger-surface sm:bg-transparent rounded-xl sm:rounded-none w-full sm:w-auto"
                             >
                               <Trash2 size={16} className="mx-auto" />
                             </button>
@@ -1101,15 +1101,15 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 )}
               </AnimatePresence>
 
-              <div className="pt-6 border-t border-slate-100 relative z-10">
-                <p className="mb-4 text-xs font-semibold text-slate-500">
+              <div className="pt-6 border-t border-border-main relative z-10">
+                <p className="mb-4 text-xs font-semibold text-text-muted">
                   Ces réglages seront enregistrés avec la note lors de son enregistrement.
                 </p>
                 <div className="flex flex-col sm:flex-row justify-end gap-4">
                 <button 
                   type="button"
                   onClick={() => setIsTreasuryModalOpen(false)}
-                  className="w-full sm:w-auto px-8 py-3 bg-slate-100 text-slate-500 rounded-xl font-black uppercase tracking-widest hover:bg-slate-200 transition-all text-xs"
+                  className="w-full sm:w-auto px-8 py-3 bg-input-field text-text-muted rounded-xl font-black uppercase tracking-widest hover:bg-input-field transition-all text-xs"
                 >Fermer</button>
                 <button
                   type="button"
@@ -1124,18 +1124,18 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
       </AnimatePresence>
       {isNewCatalogActOpen && (
         <div className="fixed inset-0 z-[120] flex items-center justify-center bg-slate-950/35 p-4 backdrop-blur-sm">
-          <div role="dialog" aria-modal="true" aria-label="Ajouter un acte au catalogue" className="w-full max-w-lg rounded-[2rem] border border-slate-200 bg-white p-6 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Ajouter un acte au catalogue" className="w-full max-w-lg rounded-[2rem] border border-border-main bg-card p-6 shadow-2xl">
             <div className="mb-5">
-              <h3 className="text-lg font-black text-slate-900">Ajouter un acte au catalogue</h3>
-              <p className="mt-1 text-sm text-slate-500">L’acte sera enregistré dans le catalogue central puis ajouté à ce document.</p>
+              <h3 className="text-lg font-black text-text-main">Ajouter un acte au catalogue</h3>
+              <p className="mt-1 text-sm text-text-muted">L’acte sera enregistré dans le catalogue central puis ajouté à ce document.</p>
             </div>
             <div className="space-y-4">
               <label className="block space-y-1.5">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Spécialité</span>
+                <span className="text-xs font-black uppercase tracking-wide text-text-muted">Spécialité</span>
                 <select
                   value={newCatalogActSpecialtyId}
                   onChange={(e) => setNewCatalogActSpecialtyId(e.target.value ? Number(e.target.value) : '')}
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-3 text-sm font-bold text-slate-800"
+                  className="w-full rounded-xl border border-border-main bg-card px-3 py-3 text-sm font-bold text-text-main"
                 >
                   <option value="">Choisir une spécialité</option>
                   {specialties.map(specialty => (
@@ -1144,28 +1144,28 @@ export const AccountingStudio: React.FC<AccountingStudioProps> = ({
                 </select>
               </label>
               <label className="block space-y-1.5">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Acte</span>
+                <span className="text-xs font-black uppercase tracking-wide text-text-muted">Acte</span>
                 <input
                   value={newCatalogActName}
                   onChange={(e) => setNewCatalogActName(e.target.value)}
                   placeholder="Nom de l'acte"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-800"
+                  className="w-full rounded-xl border border-border-main px-3 py-3 text-sm font-bold text-text-main"
                 />
               </label>
               <label className="block space-y-1.5">
-                <span className="text-xs font-black uppercase tracking-wide text-slate-500">Tarif catalogue (facultatif)</span>
+                <span className="text-xs font-black uppercase tracking-wide text-text-muted">Tarif catalogue (facultatif)</span>
                 <input
                   type="number"
                   min="0"
                   value={newCatalogActPrice}
                   onChange={(e) => setNewCatalogActPrice(e.target.value)}
                   placeholder="Tarif à définir"
-                  className="w-full rounded-xl border border-slate-200 px-3 py-3 text-sm font-bold text-slate-800"
+                  className="w-full rounded-xl border border-border-main px-3 py-3 text-sm font-bold text-text-main"
                 />
               </label>
             </div>
             <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={() => setIsNewCatalogActOpen(false)} className="rounded-xl border border-slate-200 px-4 py-2.5 text-sm font-bold text-slate-600">Annuler</button>
+              <button type="button" onClick={() => setIsNewCatalogActOpen(false)} className="rounded-xl border border-border-main px-4 py-2.5 text-sm font-bold text-text-muted">Annuler</button>
               <button type="button" onClick={addCatalogActLine} className="rounded-xl bg-primary px-4 py-2.5 text-sm font-black text-white">Créer et ajouter</button>
             </div>
           </div>

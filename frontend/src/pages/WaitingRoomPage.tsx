@@ -20,11 +20,11 @@ interface Appointment {
 }
 
 const STATUS_FLOW: Record<string, { next: string; nextLabel: string; color: string; bg: string; border: string; label: string }> = {
-  'PRÉVU':    { next: 'EN_S_ATTENTE', nextLabel: 'Patient arrivé',    color: 'text-slate-600',   bg: 'bg-slate-50',      border: 'border-slate-200',  label: 'Prévu' },
+  'PRÉVU':    { next: 'EN_S_ATTENTE', nextLabel: 'Patient arrivé',    color: 'text-text-muted',   bg: 'bg-background',      border: 'border-border-main',  label: 'Prévu' },
   'CONFIRMÉ': { next: 'EN_S_ATTENTE', nextLabel: 'Patient arrivé',    color: 'text-blue-600',    bg: 'bg-blue-50',       border: 'border-blue-200',   label: 'Confirmé' },
   'EN_S_ATTENTE': { next: 'EN_FAUTEUIL', nextLabel: 'Appeler en fauteuil', color: 'text-amber-700', bg: 'bg-amber-50',  border: 'border-amber-200',  label: 'En salle d\'attente' },
   'EN_FAUTEUIL':  { next: 'TERMINÉ',    nextLabel: 'Terminer',            color: 'text-emerald-700', bg: 'bg-emerald-50', border: 'border-emerald-200', label: 'En fauteuil' },
-  'TERMINÉ':      { next: '',           nextLabel: '',                    color: 'text-slate-400',   bg: 'bg-slate-50',   border: 'border-slate-200',  label: 'Terminé' },
+  'TERMINÉ':      { next: '',           nextLabel: '',                    color: 'text-text-muted',   bg: 'bg-background',   border: 'border-border-main',  label: 'Terminé' },
   'ANNULÉ':       { next: '',           nextLabel: '',                    color: 'text-red-400',     bg: 'bg-red-50',     border: 'border-red-200',    label: 'Annulé' },
 };
 
@@ -93,18 +93,18 @@ export const WaitingRoomPage = () => {
               <User size={15} className={meta.color} />
             </div>
             <div className="min-w-0">
-              <p className="font-black text-sm text-slate-800 truncate">{displayName(appt)}</p>
-              {appt.motif && <p className="text-[11px] text-slate-500 font-medium truncate">{appt.motif}</p>}
+              <p className="font-black text-sm text-text-main truncate">{displayName(appt)}</p>
+              {appt.motif && <p className="text-[11px] text-text-muted font-medium truncate">{appt.motif}</p>}
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-xs font-black text-slate-700">{formatTime(appt.datetime_start)}</p>
-            <p className="text-[10px] text-slate-400 font-medium">→ {formatEndTime(appt.datetime_start, appt.duration_minutes)}</p>
+            <p className="text-xs font-black text-text-main">{formatTime(appt.datetime_start)}</p>
+            <p className="text-[10px] text-text-muted font-medium">→ {formatEndTime(appt.datetime_start, appt.duration_minutes)}</p>
           </div>
         </div>
 
         {appt.phone && (
-          <p className="text-[10px] text-slate-400 font-medium">{appt.phone}</p>
+          <p className="text-[10px] text-text-muted font-medium">{appt.phone}</p>
         )}
 
         {canAdvance && (
@@ -113,7 +113,7 @@ export const WaitingRoomPage = () => {
             disabled={isUpdating}
             className={cn(
               "w-full flex items-center justify-center gap-1.5 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all border",
-              "bg-white hover:shadow-sm",
+              "bg-card hover:shadow-sm",
               meta.color, meta.border
             )}
           >
@@ -165,8 +165,8 @@ export const WaitingRoomPage = () => {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-black text-slate-800 tracking-tight">Salle d'attente</h1>
-            <p className="text-sm text-slate-500 font-medium mt-0.5">
+            <h1 className="text-2xl font-black text-text-main tracking-tight">Salle d'attente</h1>
+            <p className="text-sm text-text-muted font-medium mt-0.5">
               {new Date().toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' })}
             </p>
           </div>
@@ -181,12 +181,12 @@ export const WaitingRoomPage = () => {
                 <p className="text-[9px] font-black uppercase tracking-widest text-emerald-500 mb-0.5">En fauteuil</p>
                 <p className="text-xl font-black text-emerald-700">{inChair.length}</p>
               </div>
-              <div className="px-4 py-2.5 bg-slate-50 border border-slate-200 rounded-2xl text-center">
-                <p className="text-[9px] font-black uppercase tracking-widest text-slate-400 mb-0.5">Total jour</p>
-                <p className="text-xl font-black text-slate-700">{total}</p>
+              <div className="px-4 py-2.5 bg-background border border-border-main rounded-2xl text-center">
+                <p className="text-[9px] font-black uppercase tracking-widest text-text-muted mb-0.5">Total jour</p>
+                <p className="text-xl font-black text-text-main">{total}</p>
               </div>
             </div>
-            <div className="flex items-center gap-1.5 text-[10px] font-bold text-slate-400">
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-text-muted">
               <RefreshCw size={12} className={isFetching ? 'animate-spin text-primary' : ''} />
               Auto 30s
             </div>
@@ -199,8 +199,8 @@ export const WaitingRoomPage = () => {
         <Column
           title="À venir"
           count={upcoming.length}
-          icon={<Clock size={14} className="text-slate-500" />}
-          accent="bg-slate-50 border-slate-200 text-slate-600"
+          icon={<Clock size={14} className="text-text-muted" />}
+          accent="bg-background border-border-main text-text-muted"
         >
           {upcoming.sort((a, b) => a.datetime_start.localeCompare(b.datetime_start)).map(a => (
             <ApptCard key={a.id} appt={a} />
@@ -232,8 +232,8 @@ export const WaitingRoomPage = () => {
         <Column
           title="Terminés"
           count={done.length}
-          icon={<CheckCircle2 size={14} className="text-slate-400" />}
-          accent="bg-slate-50 border-slate-200 text-slate-500"
+          icon={<CheckCircle2 size={14} className="text-text-muted" />}
+          accent="bg-background border-border-main text-text-muted"
         >
           {done.sort((a, b) => a.datetime_start.localeCompare(b.datetime_start)).map(a => (
             <ApptCard key={a.id} appt={a} />

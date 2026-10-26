@@ -430,7 +430,7 @@ export const DocumentArchiveManager: React.FC<ArchiveManagerProps> = ({ patientI
                 <div className="flex items-center gap-1">
                   <button
                     onClick={() => previewDocument(doc)}
-                    className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+                    className="p-2 rounded-lg transition-colors hover:bg-input-field"
                     title="Aperçu"
                   >
                     <Eye size={16} style={{ color: PALETTE.textMuted }} />
@@ -438,7 +438,7 @@ export const DocumentArchiveManager: React.FC<ArchiveManagerProps> = ({ patientI
                   
                   <button
                     onClick={() => downloadDocument(doc)}
-                    className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+                    className="p-2 rounded-lg transition-colors hover:bg-input-field"
                     title="Télécharger"
                   >
                     <Download size={16} style={{ color: PALETTE.textMuted }} />
@@ -447,7 +447,7 @@ export const DocumentArchiveManager: React.FC<ArchiveManagerProps> = ({ patientI
                   {doc.is_latest_version && (
                     <button
                       onClick={() => setExpandedVersions(expandedVersions === doc.id ? null : doc.id)}
-                      className="p-2 rounded-lg transition-colors hover:bg-gray-100"
+                      className="p-2 rounded-lg transition-colors hover:bg-input-field"
                       title="Historique des versions"
                     >
                       <History size={16} style={{ color: PALETTE.textMuted }} />
@@ -524,7 +524,7 @@ export const DocumentArchiveManager: React.FC<ArchiveManagerProps> = ({ patientI
                             {!version.is_latest && (
                               <button
                                 onClick={() => downloadDocument(doc, version.version_number)}
-                                className="p-1.5 rounded hover:bg-gray-200"
+                                className="p-1.5 rounded hover:bg-input-field"
                               >
                                 <Download size={14} style={{ color: PALETTE.textMuted }} />
                               </button>

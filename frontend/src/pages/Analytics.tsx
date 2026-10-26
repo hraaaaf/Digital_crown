@@ -43,13 +43,13 @@ export const Analytics = () => {
   if (isFinError || isOpError) {
     return (
       <div className="min-h-[60vh] flex items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white dark:bg-slate-800 rounded-3xl shadow-xl border border-slate-100 dark:border-slate-700 p-8 text-center space-y-6">
-          <div className="w-20 h-20 bg-red-50 dark:bg-red-900/20 text-red-500 rounded-full flex items-center justify-center mx-auto">
+        <div className="max-w-md w-full bg-card dark:bg-slate-800 rounded-3xl shadow-xl border border-border-main dark:border-border-hover p-8 text-center space-y-6">
+          <div className="w-20 h-20 bg-danger-surface dark:bg-red-900/20 text-danger rounded-full flex items-center justify-center mx-auto">
             <AlertTriangle size={40} />
           </div>
           <div>
-            <h1 className="text-2xl font-black text-slate-800 dark:text-white mb-2">Impossible de charger les indicateurs</h1>
-            <p className="text-slate-500 dark:text-slate-400 font-medium text-sm">Erreur réseau. Vérifiez votre connexion et réessayez.</p>
+            <h1 className="text-2xl font-black text-text-main dark:text-white mb-2">Impossible de charger les indicateurs</h1>
+            <p className="text-text-muted dark:text-text-muted font-medium text-sm">Erreur réseau. Vérifiez votre connexion et réessayez.</p>
           </div>
           <button
             onClick={() => { refetchFin(); refetchOp(); }}
@@ -72,7 +72,7 @@ export const Analytics = () => {
           <h1 className="text-3xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-blue-600 to-indigo-600 dark:from-blue-400 dark:to-indigo-400">
             Indicateurs
           </h1>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">
+          <p className="text-text-muted dark:text-text-muted mt-1">
             Indicateurs de performance et de rentabilité en temps réel.
           </p>
         </div>
@@ -110,18 +110,18 @@ export const Analytics = () => {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
         
         {/* BLOC 1 : FINANCES (Latent Cash & Revenus) */}
-        <section className="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <section className="bg-card dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-border-main dark:border-border-hover">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-green-100 dark:bg-green-900/30 text-green-600 rounded-2xl">
+            <div className="p-3 bg-success-surface dark:bg-green-900/30 text-success rounded-2xl">
               <TrendingUp size={24} />
             </div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Trésorerie & Revenus</h2>
+            <h2 className="text-xl font-bold text-text-main dark:text-white">Trésorerie & Revenus</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700">
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400">Revenus du mois</p>
-              <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1">
+            <div className="p-5 bg-background dark:bg-slate-900/50 rounded-2xl border border-border-main dark:border-border-hover">
+              <p className="text-sm font-medium text-text-muted dark:text-text-muted">Revenus du mois</p>
+              <p className="text-2xl font-bold text-text-main dark:text-white mt-1">
                 {financialStats?.revenu_mois?.toLocaleString('fr-FR')} MAD
               </p>
             </div>
@@ -158,11 +158,11 @@ export const Analytics = () => {
         {/* WhatsApp Recovery Modal */}
         {showWaModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm animate-in fade-in">
-            <div className="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-2xl max-w-lg w-full relative">
-              <h3 className="text-2xl font-bold text-slate-800 dark:text-white mb-4 flex items-center gap-2">
-                <MessageCircle className="text-green-500" /> Relances intelligentes
+            <div className="bg-card dark:bg-slate-800 rounded-3xl p-6 shadow-2xl max-w-lg w-full relative">
+              <h3 className="text-2xl font-bold text-text-main dark:text-white mb-4 flex items-center gap-2">
+                <MessageCircle className="text-success" /> Relances intelligentes
               </h3>
-              <p className="text-slate-600 dark:text-slate-400 mb-6">
+              <p className="text-text-muted dark:text-text-muted mb-6">
                 Le Ghost Brain a identifié {financialStats?.top_relances?.length || 0} patients à fort potentiel de conversion pour récupérer votre Latent Cash.
               </p>
               
@@ -172,10 +172,10 @@ export const Analytics = () => {
                   const waLink = `https://wa.me/${patient.telephone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
                   
                   return (
-                    <div key={idx} className="p-3 bg-slate-50 dark:bg-slate-700/50 rounded-xl border border-slate-200 dark:border-slate-600 flex items-center justify-between">
+                    <div key={idx} className="p-3 bg-background dark:bg-slate-700/50 rounded-xl border border-border-main dark:border-border-hover flex items-center justify-between">
                       <div>
-                        <p className="font-bold text-slate-800 dark:text-white">{patient.nom} {patient.prenom}</p>
-                        <p className="text-sm text-slate-500">{patient.soin} — {patient.montant} MAD</p>
+                        <p className="font-bold text-text-main dark:text-white">{patient.nom} {patient.prenom}</p>
+                        <p className="text-sm text-text-muted">{patient.soin} — {patient.montant} MAD</p>
                       </div>
                       <a 
                         href={waLink} 
@@ -192,7 +192,7 @@ export const Analytics = () => {
 
               <button 
                 onClick={() => setShowWaModal(false)}
-                className="w-full py-3 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-700 dark:text-white font-bold rounded-xl transition-colors"
+                className="w-full py-3 bg-input-field hover:bg-input-field dark:bg-slate-700 dark:hover:bg-slate-600 text-text-main dark:text-white font-bold rounded-xl transition-colors"
               >
                 Fermer
               </button>
@@ -201,39 +201,39 @@ export const Analytics = () => {
         )}
 
         {/* BLOC 2 : OPERATIONS (Secrétariat & Flux) */}
-        <section className="bg-white dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-slate-200 dark:border-slate-700">
+        <section className="bg-card dark:bg-slate-800 rounded-3xl p-6 shadow-sm border border-border-main dark:border-border-hover">
           <div className="flex items-center gap-3 mb-6">
-            <div className="p-3 bg-amber-100 dark:bg-amber-900/30 text-amber-600 rounded-2xl">
+            <div className="p-3 bg-warning-surface dark:bg-amber-900/30 text-warning rounded-2xl">
               <Activity size={24} />
             </div>
-            <h2 className="text-xl font-bold text-slate-800 dark:text-white">Opérations & Flux</h2>
+            <h2 className="text-xl font-bold text-text-main dark:text-white">Opérations & Flux</h2>
           </div>
 
           <div className="grid grid-cols-2 gap-4 mb-6">
-            <div className="p-5 bg-rose-50 dark:bg-rose-900/20 rounded-2xl border border-rose-100 dark:border-rose-800/30">
+            <div className="p-5 bg-danger-surface dark:bg-rose-900/20 rounded-2xl border border-danger-border dark:border-rose-800/30">
               <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle size={16} className="text-rose-500" />
-                <p className="text-sm font-bold text-rose-600 dark:text-rose-400">Taux d'Annulation</p>
+                <AlertTriangle size={16} className="text-danger" />
+                <p className="text-sm font-bold text-danger dark:text-danger">Taux d'Annulation</p>
               </div>
-              <p className="text-3xl font-black text-rose-700 dark:text-rose-300">
+              <p className="text-3xl font-black text-danger dark:text-danger">
                 {operationalStats?.no_show_rate}%
               </p>
             </div>
 
-            <div className="p-5 bg-slate-50 dark:bg-slate-900/50 rounded-2xl border border-slate-100 dark:border-slate-700 flex flex-col justify-between">
+            <div className="p-5 bg-background dark:bg-slate-900/50 rounded-2xl border border-border-main dark:border-border-hover flex flex-col justify-between">
               <div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2">
+                <p className="text-sm font-medium text-text-muted dark:text-text-muted flex items-center gap-2">
                   <Clock size={16} /> Attente Estimée
                 </p>
-                <p className="text-2xl font-bold text-slate-800 dark:text-white mt-1">
+                <p className="text-2xl font-bold text-text-main dark:text-white mt-1">
                   {operationalStats?.estimated_wait_time_minutes} min
                 </p>
               </div>
               <div>
-                <p className="text-sm font-medium text-slate-500 dark:text-slate-400 flex items-center gap-2 mt-4">
+                <p className="text-sm font-medium text-text-muted dark:text-text-muted flex items-center gap-2 mt-4">
                   <Users size={16} /> Flux du Jour
                 </p>
-                <p className="text-xl font-bold text-slate-800 dark:text-white mt-1">
+                <p className="text-xl font-bold text-text-main dark:text-white mt-1">
                   {operationalStats?.flux_today} patients
                 </p>
               </div>
@@ -244,7 +244,7 @@ export const Analytics = () => {
       </div>
 
       {/* CHARTS (Asynchronous Lazy Load) */}
-      <Suspense fallback={<div className="h-[300px] w-full bg-slate-100 dark:bg-slate-800/50 rounded-3xl animate-pulse"></div>}>
+      <Suspense fallback={<div className="h-[300px] w-full bg-input-field dark:bg-slate-800/50 rounded-3xl animate-pulse"></div>}>
         <AnalyticsCharts />
       </Suspense>
 

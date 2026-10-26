@@ -108,13 +108,13 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
   const resolvedLetterhead = useAuthenticatedImage(getImageUrl(letterheadPreview) ?? '');
 
   return (
-    <div className="w-full bg-[#F8FAFC] rounded-[3.5rem] p-12 border border-slate-200 shadow-xl flex justify-center relative overflow-hidden group">
+    <div className="w-full bg-[#F8FAFC] rounded-[3.5rem] p-12 border border-border-main shadow-xl flex justify-center relative overflow-hidden group">
       {/* Studio Background - Medical/Clean Style */}
       <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: 'radial-gradient(#CBD5E1 0.5px, transparent 0.5px)', backgroundSize: '24px 24px' }} />
       <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-primary/5 via-transparent to-emerald-500/5 pointer-events-none" />
 
       <div className={cn(
-        "w-full max-w-[480px] bg-white shadow-[0_30px_80px_rgba(0,0,0,0.12)] rounded-sm overflow-hidden flex flex-col aspect-[1/1.414] border border-slate-100 relative transition-all duration-700",
+        "w-full max-w-[480px] bg-card shadow-[0_30px_80px_rgba(0,0,0,0.12)] rounded-sm overflow-hidden flex flex-col aspect-[1/1.414] border border-border-main relative transition-all duration-700",
         fontClass,
         selectedTemplate === 'minimal' && "max-w-[440px]"
       )}>
@@ -129,8 +129,8 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
         {headerOption === 'auto' && (
           <div className={cn(
             "relative z-20 flex transition-all duration-500 overflow-hidden shrink-0",
-            selectedTemplate === 'royal' && "grid grid-cols-[1.5fr_1fr_1.5fr] items-center text-center px-6 border-b border-slate-50",
-            selectedTemplate === 'swiss' && "flex items-center justify-between px-6 border-b border-slate-50"
+            selectedTemplate === 'royal' && "grid grid-cols-[1.5fr_1fr_1.5fr] items-center text-center px-6 border-b border-border-main",
+            selectedTemplate === 'swiss' && "flex items-center justify-between px-6 border-b border-border-main"
           )} style={{ 
             height: `${headerHeight}px`
           }}>
@@ -139,9 +139,9 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
               <>
                 <div className="flex flex-col items-center gap-3">
                   {resolvedLogo ? (
-                    <img src={resolvedLogo} className="w-14 h-14 object-contain shadow-sm rounded-xl p-1 bg-white" alt="Logo" />
+                    <img src={resolvedLogo} className="w-14 h-14 object-contain shadow-sm rounded-xl p-1 bg-card" alt="Logo" />
                   ) : (
-                    <div className="w-14 h-14 bg-white rounded-2xl flex items-center justify-center border border-slate-100"><ImageIcon className="text-slate-200" size={24} /></div>
+                    <div className="w-14 h-14 bg-card rounded-2xl flex items-center justify-center border border-border-main"><ImageIcon className="text-text-muted" size={24} /></div>
                   )}
                 </div>
                 <div className="flex-1 space-y-2 pr-4">
@@ -157,7 +157,7 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
                 {resolvedLogo ? (
                   <img src={resolvedLogo} className="w-16 h-16 object-contain drop-shadow-lg" alt="Logo" />
                 ) : (
-                  <div className="w-14 h-14 bg-white rounded-full flex items-center justify-center border-2 border-double shadow-sm" style={{ borderColor: brandColor }}><Sparkles style={{ color: brandColor }} size={24} /></div>
+                  <div className="w-14 h-14 bg-card rounded-full flex items-center justify-center border-2 border-double shadow-sm" style={{ borderColor: brandColor }}><Sparkles style={{ color: brandColor }} size={24} /></div>
                 )}
                 <div className="flex items-center gap-4 w-full px-8">
                    <div className="h-[1px] flex-1" style={{ backgroundImage: `linear-gradient(to right, transparent, ${brandColor}40)` }} />
@@ -175,7 +175,7 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
                 {resolvedLogo ? (
                   <img src={resolvedLogo} className="object-contain w-14 h-14" alt="Logo" />
                 ) : (
-                  <div className="w-12 h-12 bg-white rounded-xl flex items-center justify-center border border-slate-50 shadow-sm"><ImageIcon className="text-slate-200" size={20} /></div>
+                  <div className="w-12 h-12 bg-card rounded-xl flex items-center justify-center border border-border-main shadow-sm"><ImageIcon className="text-text-muted" size={20} /></div>
                 )}
                 
                 <div className="space-y-1 text-left">
@@ -233,8 +233,8 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
                   <div key={i} className="flex gap-4">
                     <span className="text-[10px] font-black" style={{ color: brandColor }}>{i}.</span>
                     <div className="flex-1 space-y-2">
-                       <div className="w-56 h-2 rounded-full bg-slate-100" />
-                       <div className="w-40 h-1.5 rounded-full bg-slate-50" />
+                       <div className="w-56 h-2 rounded-full bg-input-field" />
+                       <div className="w-40 h-1.5 rounded-full bg-background" />
                     </div>
                   </div>
                 ))}
@@ -261,7 +261,7 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
                            <div 
                               key={i} 
                               className={cn(
-                                "bg-white transition-all duration-700", 
+                                "bg-card transition-all duration-700", 
                                 getQrCell(i) ? "opacity-100 scale-100" : "opacity-0 scale-50", 
                                 qrConfig.style === 'dots' ? "rounded-full" : "rounded-[1.5px]"
                               )} 
@@ -270,7 +270,7 @@ export const LiveDocumentStudio: React.FC<LiveDocumentStudioProps> = (props) => 
                          ))}
                        </div>
                        <div className="absolute inset-0 flex items-center justify-center">
-                          <div className="w-6 h-6 bg-white rounded-lg flex items-center justify-center shadow-lg border border-slate-50">
+                          <div className="w-6 h-6 bg-card rounded-lg flex items-center justify-center shadow-lg border border-border-main">
                              {resolvedLogo ? <img src={resolvedLogo} className="w-full h-full object-contain p-0.5" alt="" /> : <QrCode style={{ color: brandColor }} size={12} />}
                           </div>
                        </div>

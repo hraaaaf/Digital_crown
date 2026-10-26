@@ -125,18 +125,18 @@ export const EditPatientForm = () => {
   };
 
   if (loading) return (
-    <div className="h-screen flex flex-col items-center justify-center gap-4 bg-slate-50">
+    <div className="h-screen flex flex-col items-center justify-center gap-4 bg-background">
       <Loader2 className="animate-spin text-[#003380]" size={48} />
-      <p className="text-slate-400 font-black uppercase tracking-widest text-[10px]">Chargement du dossier...</p>
+      <p className="text-text-muted font-black uppercase tracking-widest text-[10px]">Chargement du dossier...</p>
     </div>
   );
 
   if (fetchError) return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-4 text-center px-6">
-      <AlertCircle size={42} className="text-rose-500" />
+      <AlertCircle size={42} className="text-danger" />
       <div>
-        <h2 className="font-black text-slate-800 text-xl">Impossible de charger le patient</h2>
-        <p className="text-slate-500 text-sm mt-1">Le formulaire n'est pas affiché avec des valeurs par défaut.</p>
+        <h2 className="font-black text-text-main text-xl">Impossible de charger le patient</h2>
+        <p className="text-text-muted text-sm mt-1">Le formulaire n'est pas affiché avec des valeurs par défaut.</p>
       </div>
       <button type="button" onClick={() => setReloadKey(key => key + 1)} className="flex items-center gap-2 px-4 py-2 rounded-xl bg-[#003380] text-white font-black text-xs uppercase tracking-widest">
         <RefreshCw size={15} /> Réessayer
@@ -144,8 +144,8 @@ export const EditPatientForm = () => {
     </div>
   );
 
-  const inputClass = "w-full px-6 py-4 bg-white/70 border border-slate-200 rounded-[1.5rem] focus:ring-4 focus:ring-[#003380]/10 focus:border-[#003380] outline-none transition-all font-bold text-[#003380] placeholder:text-slate-300";
-  const labelClass = "text-[11px] font-black text-slate-400 uppercase tracking-[0.2em] ml-5 mb-2 flex items-center gap-2";
+  const inputClass = "w-full px-6 py-4 bg-card/70 border border-border-main rounded-[1.5rem] focus:ring-4 focus:ring-[#003380]/10 focus:border-[#003380] outline-none transition-all font-bold text-[#003380] placeholder:text-text-muted";
+  const labelClass = "text-[11px] font-black text-text-muted uppercase tracking-[0.2em] ml-5 mb-2 flex items-center gap-2";
 
   return (
     <div className="max-w-2xl mx-auto px-[16px] py-[24px] sm:p-6 md:p-10 animate-in slide-in-from-bottom-6 duration-700">
@@ -153,13 +153,13 @@ export const EditPatientForm = () => {
       {/* BOUTON RETOUR : Cohérent avec PatientDetails */}
       <button 
         onClick={() => navigate(-1)} 
-        className="flex items-center gap-2 text-slate-400 hover:text-[#003380] font-black text-xs uppercase tracking-widest mb-8 transition-colors group"
+        className="flex items-center gap-2 text-text-muted hover:text-[#003380] font-black text-xs uppercase tracking-widest mb-8 transition-colors group"
       >
         <ArrowLeft size={16} className="group-hover:-translate-x-1 transition-transform" /> 
         Retour au dossier
       </button>
       
-      <div className="bg-white/70 backdrop-blur-2xl p-[20px] sm:p-8 md:p-12 rounded-[2.5rem] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
+      <div className="bg-card/70 backdrop-blur-2xl p-[20px] sm:p-8 md:p-12 rounded-[2.5rem] border border-white/80 shadow-[0_20px_50px_rgba(0,0,0,0.05)]">
         
         <div className="flex flex-col items-start gap-[16px] mb-8 sm:flex-row sm:items-center sm:gap-6 md:mb-12">
           <div className="w-[56px] h-[56px] sm:w-16 sm:h-16 bg-[#003380] text-white rounded-2xl sm:rounded-3xl flex items-center justify-center shadow-xl shadow-[#003380]/20">
@@ -167,7 +167,7 @@ export const EditPatientForm = () => {
           </div>
           <div className="min-w-0">
             <h2 className="text-2xl sm:text-3xl font-black text-[#003380] tracking-tight leading-tight">Mise à jour</h2>
-            <p className="text-slate-400 font-bold text-sm mt-2">Dossier {formData.numero_dossier || `ID-${id}`}</p>
+            <p className="text-text-muted font-bold text-sm mt-2">Dossier {formData.numero_dossier || `ID-${id}`}</p>
           </div>
         </div>
 
@@ -198,28 +198,28 @@ export const EditPatientForm = () => {
                 placeholder="P-XXXXXX"
               />
               <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-slate-400 animate-spin" />}
-                {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-red-500" />}
-                {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-emerald-500" />}
+                {dossierStatus.status === 'checking' && <RefreshCw className="w-4 h-4 text-text-muted animate-spin" />}
+                {dossierStatus.status === 'taken' && <AlertTriangle className="w-4 h-4 text-danger" />}
+                {dossierStatus.status === 'available' && <UserCheck className="w-4 h-4 text-success" />}
               </div>
             </div>
             {dossierStatus.status === 'taken' && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1 font-bold uppercase tracking-tight">
+              <p className="mt-2 text-sm text-danger flex items-center gap-1 font-bold uppercase tracking-tight">
                 <AlertTriangle size={14} /> Déjà utilisé par : {dossierStatus.owner}
               </p>
             )}
             {numeroError && !dossierStatus.owner && (
-              <p className="mt-2 text-sm text-red-600 flex items-center gap-1">
+              <p className="mt-2 text-sm text-danger flex items-center gap-1">
                 <AlertCircle size={14} /> {numeroError}
               </p>
             )}
             {dossierStatus.status === 'available' && (
-              <p className="mt-2 text-xs text-emerald-600 font-bold">✓ Numéro disponible</p>
+              <p className="mt-2 text-xs text-success font-bold">✓ Numéro disponible</p>
             )}
             {dossierStatus.status === 'error' && (
-              <p className="mt-2 text-xs text-amber-600 font-bold flex items-center gap-1"><AlertTriangle size={13} /> Disponibilité non vérifiée</p>
+              <p className="mt-2 text-xs text-warning font-bold flex items-center gap-1"><AlertTriangle size={13} /> Disponibilité non vérifiée</p>
             )}
-            <p className="mt-2 text-xs text-slate-500">
+            <p className="mt-2 text-xs text-text-muted">
               ⚠️ Modifiez avec précaution - ce numéro est utilisé pour identifier le dossier physique
             </p>
           </div>
@@ -302,14 +302,14 @@ export const EditPatientForm = () => {
             )}
             
             {/* Assurance Complémentaire */}
-            <div className="mt-4 pt-4 border-t border-slate-200">
+            <div className="mt-4 pt-4 border-t border-border-main">
               <label className="flex items-center gap-3 cursor-pointer mb-3">
                 <div className={cn(
                   "w-10 h-5 rounded-full transition-all duration-300 relative",
                   formData.assurance_complementaire ? "bg-[#003380]" : "bg-slate-300"
                 )}>
                   <div className={cn(
-                    "absolute top-1 w-3 h-3 rounded-full bg-white shadow-md transition-all duration-300",
+                    "absolute top-1 w-3 h-3 rounded-full bg-card shadow-md transition-all duration-300",
                     formData.assurance_complementaire ? "left-6" : "left-1"
                   )} />
                 </div>
@@ -320,7 +320,7 @@ export const EditPatientForm = () => {
                   onChange={(e) => setFormData({...formData, assurance_complementaire: e.target.checked})}
                   className="hidden"
                 />
-                <span className="font-bold text-slate-700 text-sm">Assurance Complémentaire</span>
+                <span className="font-bold text-text-main text-sm">Assurance Complémentaire</span>
               </label>
               
               {formData.assurance_complementaire && (
@@ -342,7 +342,7 @@ export const EditPatientForm = () => {
           <div>
             <label className={labelClass}><Phone size={12}/> Téléphone Principal</label>
             <div className="relative mb-2">
-              <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
               <input 
                 type="tel" 
                 className={cn(inputClass, "pl-14")} 
@@ -353,7 +353,7 @@ export const EditPatientForm = () => {
 
             {showPhone2 && (
               <div className="relative mb-2 mt-2">
-                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                 <input 
                   type="tel" 
                   className={cn(inputClass, "pl-14 py-3")} 
@@ -366,7 +366,7 @@ export const EditPatientForm = () => {
             
             {showPhone3 && (
               <div className="relative mb-2 mt-2">
-                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-300" />
+                <Phone className="absolute left-5 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
                 <input 
                   type="tel" 
                   className={cn(inputClass, "pl-14 py-3")} 
@@ -394,7 +394,7 @@ export const EditPatientForm = () => {
           <div>
             <label className={labelClass}><Mail size={12}/> Email</label>
             <div className="relative">
-              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
+              <Mail className="absolute left-5 top-1/2 -translate-y-1/2 w-5 h-5 text-text-muted" />
               <input 
                 type="email" 
                 className={cn(inputClass, "pl-14")} 

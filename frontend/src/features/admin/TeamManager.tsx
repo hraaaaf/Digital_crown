@@ -261,14 +261,14 @@ export const TeamManager: React.FC = () => {
     <div className="min-w-0 space-y-8 animate-in slide-in-from-right-4 duration-500">
       
       {/* HEADER */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-slate-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-6 border-b border-border-main">
         <div className="flex items-center gap-4 min-w-0">
           <div className="w-16 h-16 shrink-0 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
             <Users size={32} />
           </div>
           <div className="min-w-0">
             <h3 className="text-2xl font-black" style={{ color: 'var(--primary)' }}>Mon Équipe</h3>
-            <p className="text-slate-500 text-sm font-medium mt-1 break-words">
+            <p className="text-text-muted text-sm font-medium mt-1 break-words">
               Gérez les sous-comptes de vos collaborateurs (Assistantes, Dentistes associés).
             </p>
           </div>
@@ -285,9 +285,9 @@ export const TeamManager: React.FC = () => {
 
       {/* QUOTA BANNER */}
       {quota && (
-        <div className="bg-slate-50 border border-slate-200 rounded-2xl p-5 flex flex-wrap items-center gap-4 min-w-0">
+        <div className="bg-background border border-border-main rounded-2xl p-5 flex flex-wrap items-center gap-4 min-w-0">
           <div className="flex items-center gap-2">
-            <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Plan</span>
+            <span className="text-[10px] font-black uppercase tracking-widest text-text-muted">Plan</span>
             <span
               className="px-3 py-1 rounded-full text-xs font-black"
               style={{ backgroundColor: 'var(--primary)', color: '#fff' }}
@@ -295,28 +295,28 @@ export const TeamManager: React.FC = () => {
               {quota.plan}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-            <Users size={15} className="text-slate-400" />
+          <div className="flex items-center gap-1.5 text-sm font-bold text-text-main">
+            <Users size={15} className="text-text-muted" />
             Dentistes :
-            <span className={cn("font-black", !quota.can_add_dentiste ? "text-rose-600" : "text-emerald-600")}>
+            <span className={cn("font-black", !quota.can_add_dentiste ? "text-danger" : "text-success")}>
               {quota.dentistes_used}/{quota.dentistes_max ?? 'Illimité'}
             </span>
           </div>
-          <div className="flex items-center gap-1.5 text-sm font-bold text-slate-700">
-            <Shield size={15} className="text-slate-400" />
+          <div className="flex items-center gap-1.5 text-sm font-bold text-text-main">
+            <Shield size={15} className="text-text-muted" />
             Assistantes :
-            <span className={cn("font-black", !quota.can_add_secretaire ? "text-rose-600" : "text-emerald-600")}>
+            <span className={cn("font-black", !quota.can_add_secretaire ? "text-danger" : "text-success")}>
               {quota.secretaires_used}/{quota.secretaires_max ?? 'Illimité'}
             </span>
           </div>
           {quota.pending_count > 0 && (
-            <div className="flex items-center gap-1.5 text-sm font-bold text-amber-600">
+            <div className="flex items-center gap-1.5 text-sm font-bold text-warning">
               <Clock size={15} />
               {quota.pending_count} en attente
             </div>
           )}
           {(!quota.can_add_dentiste || !quota.can_add_secretaire) && (
-            <div className="sm:ml-auto max-w-full flex items-center gap-2 px-4 py-2 bg-amber-50 border border-amber-200 rounded-xl text-amber-700 text-xs font-black">
+            <div className="sm:ml-auto max-w-full flex items-center gap-2 px-4 py-2 bg-warning-surface border border-warning-border rounded-xl text-warning text-xs font-black">
               <TrendingUp size={14} className="shrink-0" />
               <span className="break-words">
                 {quota.plan === 'ELITE'
@@ -334,13 +334,13 @@ export const TeamManager: React.FC = () => {
 
       {/* NOTIFICATIONS */}
       {success && (
-        <div className="flex items-center gap-3 p-4 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 animate-in fade-in duration-300">
+        <div className="flex items-center gap-3 p-4 bg-success-surface border border-success-border rounded-xl text-success animate-in fade-in duration-300">
           <CheckCircle2 size={20} />
           <span className="font-bold text-sm">{success}</span>
         </div>
       )}
       {error && (
-        <div className="flex items-center gap-3 p-4 bg-rose-50 border border-rose-200 rounded-xl text-rose-700 animate-in fade-in duration-300">
+        <div className="flex items-center gap-3 p-4 bg-danger-surface border border-danger-border rounded-xl text-danger animate-in fade-in duration-300">
           <AlertTriangle size={20} />
           <span className="font-bold text-sm">{error}</span>
           <button onClick={() => setError(null)} aria-label="Fermer l'erreur" className="ml-auto"><X size={16} /></button>
@@ -351,25 +351,25 @@ export const TeamManager: React.FC = () => {
       {showForm && (
         <form
           onSubmit={handleCreate}
-          className="min-w-0 bg-slate-50 border border-slate-200 rounded-2xl p-5 sm:p-8 space-y-6 animate-in slide-in-from-top-4 duration-300"
+          className="min-w-0 bg-background border border-border-main rounded-2xl p-5 sm:p-8 space-y-6 animate-in slide-in-from-top-4 duration-300"
         >
-          <h4 className="font-black text-lg text-slate-800 flex items-center gap-2">
+          <h4 className="font-black text-lg text-text-main flex items-center gap-2">
             <UserPlus size={20} style={{ color: 'var(--primary)' }} />
             Nouveau sous-compte
           </h4>
 
           <div className="min-w-0 grid grid-cols-1 md:grid-cols-2 gap-5">
             <div className="min-w-0 md:col-span-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1">
                 Nom complet du collaborateur
               </label>
               <div className="relative min-w-0">
-                <Users size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Users size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type="text"
                   value={form.nom_complet}
                   onChange={(e) => setForm(f => ({ ...f, nom_complet: e.target.value }))}
-                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-card border border-border-main rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-text-main"
                   style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
                   placeholder="Ex: Fatima Zahra"
                   required
@@ -378,7 +378,7 @@ export const TeamManager: React.FC = () => {
             </div>
 
             <div className="min-w-0 md:col-span-2">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1">
                 Rôle du collaborateur
               </label>
               <select
@@ -394,7 +394,7 @@ export const TeamManager: React.FC = () => {
                       : { agenda: true, patients: true, prescriptions: false, accounting: false, payments: false, clinical: false, panoramic: false, cephalo: false, settings: false }
                   }));
                 }}
-                className="min-w-0 w-full px-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                className="min-w-0 w-full px-5 py-4 bg-card border border-border-main rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-text-main"
                 style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
               >
                 <option value="SECRETAIRE">Assistante (Accès restreint par défaut)</option>
@@ -403,16 +403,16 @@ export const TeamManager: React.FC = () => {
             </div>
 
             <div className="min-w-0">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1">
                 Email de connexion
               </label>
               <div className="relative min-w-0">
-                <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm(f => ({ ...f, email: e.target.value }))}
-                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-card border border-border-main rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-text-main"
                   style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
                   placeholder="assistante@cabinet.com"
                   required
@@ -421,16 +421,16 @@ export const TeamManager: React.FC = () => {
             </div>
 
             <div className="min-w-0">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1">
                 Mot de passe provisoire
               </label>
               <div className="relative min-w-0">
-                <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Lock size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type={showPassword ? 'text' : 'password'}
                   value={form.password}
                   onChange={(e) => setForm(f => ({ ...f, password: e.target.value }))}
-                  className="min-w-0 w-full pl-11 pr-12 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                  className="min-w-0 w-full pl-11 pr-12 py-4 bg-card border border-border-main rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-text-main"
                   style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
                   placeholder="••••••••"
                   minLength={8}
@@ -441,33 +441,33 @@ export const TeamManager: React.FC = () => {
                   type="button"
                   onClick={() => setShowPassword(!showPassword)}
                   aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
-                  className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-text-muted hover:text-text-muted"
                 >
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
-              <p className="mt-2 ml-1 text-[11px] font-bold text-slate-400">8 à 128 caractères</p>
+              <p className="mt-2 ml-1 text-[11px] font-bold text-text-muted">8 à 128 caractères</p>
             </div>
 
             <div className="min-w-0">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1">
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1">
                 Téléphone (optionnel)
               </label>
               <div className="relative min-w-0">
-                <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" />
+                <Phone size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" />
                 <input
                   type="tel"
                   value={form.telephone_mobile}
                   onChange={(e) => setForm(f => ({ ...f, telephone_mobile: e.target.value }))}
-                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-white border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-slate-800"
+                  className="min-w-0 w-full pl-11 pr-5 py-4 bg-card border border-border-main rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-text-main"
                   style={{ '--tw-ring-color': 'rgba(var(--primary-rgb), 0.1)' } as any}
                   placeholder="06 00 00 00 00"
                 />
               </div>
             </div>
 
-            <div className="min-w-0 md:col-span-2 border-t border-slate-200 pt-6">
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-4 ml-1">
+            <div className="min-w-0 md:col-span-2 border-t border-border-main pt-6">
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-4 ml-1">
                 Permissions d'accès granulaires
               </label>
               <div className="min-w-0 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
@@ -488,7 +488,7 @@ export const TeamManager: React.FC = () => {
                       "min-w-0 flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
                       form.permissions[perm.key as keyof typeof form.permissions]
                         ? "bg-primary/5 border-primary/20"
-                        : "bg-white border-slate-200 hover:bg-slate-50"
+                        : "bg-card border-border-main hover:bg-background"
                     )}
                   >
                     <input
@@ -501,11 +501,11 @@ export const TeamManager: React.FC = () => {
                           [perm.key]: e.target.checked
                         }
                       }))}
-                      className="mt-1 h-4 w-4 shrink-0 rounded border-slate-300 text-primary focus:ring-primary/20 accent-primary"
+                      className="mt-1 h-4 w-4 shrink-0 rounded border-border-hover text-primary focus:ring-primary/20 accent-primary"
                     />
                     <div className="min-w-0">
-                      <span className="block break-words text-sm font-black text-slate-800" style={form.permissions[perm.key as keyof typeof form.permissions] ? { color: 'var(--primary)' } : {}}>{perm.label}</span>
-                      <span className="block break-words text-[11px] font-bold text-slate-400 mt-0.5">{perm.desc}</span>
+                      <span className="block break-words text-sm font-black text-text-main" style={form.permissions[perm.key as keyof typeof form.permissions] ? { color: 'var(--primary)' } : {}}>{perm.label}</span>
+                      <span className="block break-words text-[11px] font-bold text-text-muted mt-0.5">{perm.desc}</span>
                     </div>
                   </label>
                 ))}
@@ -523,7 +523,7 @@ export const TeamManager: React.FC = () => {
               {creating ? <Loader2 className="animate-spin" size={20} /> : <UserPlus size={20} />}
               {creating ? 'Création en cours...' : 'Créer le compte'}
             </button>
-            <p className="min-w-0 text-xs text-slate-400 font-medium max-w-xs break-words">
+            <p className="min-w-0 text-xs text-text-muted font-medium max-w-xs break-words">
               L'accès de ce membre sera sécurisé avec cet email et ce mot de passe.
             </p>
           </div>
@@ -533,29 +533,29 @@ export const TeamManager: React.FC = () => {
       {/* SECTION EN ATTENTE */}
       {!loading && members.filter(m => m.approval_status === 'pending').length > 0 && (
         <div className="space-y-3">
-          <h4 className="text-xs font-black uppercase tracking-widest text-amber-600 flex items-center gap-2">
+          <h4 className="text-xs font-black uppercase tracking-widest text-warning flex items-center gap-2">
             <Clock size={14} /> En attente d'approbation ({members.filter(m => m.approval_status === 'pending').length})
           </h4>
           {members.filter(m => m.approval_status === 'pending').map((member) => (
             <div
               key={member.id}
-              className="flex items-center justify-between p-5 bg-amber-50 border border-amber-200 rounded-2xl shadow-sm"
+              className="flex items-center justify-between p-5 bg-warning-surface border border-warning-border rounded-2xl shadow-sm"
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-200 text-amber-800 font-black text-lg">
+                <div className="w-12 h-12 rounded-xl flex items-center justify-center bg-amber-200 text-warning font-black text-lg">
                   {(member.nom_complet || 'A')[0].toUpperCase()}
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-800 flex items-center gap-2">
+                  <h4 className="font-black text-text-main flex items-center gap-2">
                     {member.nom_complet || 'Sans nom'}
-                    <span className="text-[9px] font-black bg-amber-100 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[9px] font-black bg-warning-surface text-warning border border-warning-border px-2 py-0.5 rounded-full uppercase tracking-wider">
                       En attente
                     </span>
-                    <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[9px] font-black bg-input-field text-text-muted px-2 py-0.5 rounded-full uppercase tracking-wider">
                       {member.role}
                     </span>
                   </h4>
-                  <span className="text-xs text-slate-500 font-medium flex items-center gap-1 mt-1">
+                  <span className="text-xs text-text-muted font-medium flex items-center gap-1 mt-1">
                     <Mail size={12} /> {member.email}
                   </span>
                 </div>
@@ -572,7 +572,7 @@ export const TeamManager: React.FC = () => {
                 <button
                   onClick={() => rejectMember(member)}
                   disabled={mutationKey !== null}
-                  className="px-4 py-2 bg-rose-50 text-rose-600 border border-rose-200 text-xs font-black rounded-xl transition-all hover:bg-rose-100 flex items-center gap-2"
+                  className="px-4 py-2 bg-danger-surface text-danger border border-danger-border text-xs font-black rounded-xl transition-all hover:bg-danger-surface flex items-center gap-2"
                 >
                   <XCircle size={14} />
                   Refuser
@@ -580,7 +580,7 @@ export const TeamManager: React.FC = () => {
                 <button
                   onClick={() => deleteMember(member)}
                   disabled={mutationKey !== null}
-                  className="p-2.5 bg-slate-50 text-slate-400 hover:text-rose-500 hover:bg-rose-50 border border-slate-200 rounded-xl transition-all"
+                  className="p-2.5 bg-background text-text-muted hover:text-danger hover:bg-danger-surface border border-border-main rounded-xl transition-all"
                   title="Supprimer définitivement"
                 >
                   <Trash2 size={16} />
@@ -597,25 +597,25 @@ export const TeamManager: React.FC = () => {
           <Loader2 className="animate-spin" style={{ color: 'var(--primary)' }} size={40} />
         </div>
       ) : loadError ? (
-        <div className="bg-rose-50 border border-rose-200 rounded-2xl p-8 text-center">
-          <AlertTriangle className="mx-auto text-rose-500" size={32} />
-          <h4 className="mt-3 text-lg font-black text-rose-800">Équipe non chargée</h4>
-          <p className="mt-2 text-sm font-medium text-rose-700">{loadError}</p>
+        <div className="bg-danger-surface border border-danger-border rounded-2xl p-8 text-center">
+          <AlertTriangle className="mx-auto text-danger" size={32} />
+          <h4 className="mt-3 text-lg font-black text-danger">Équipe non chargée</h4>
+          <p className="mt-2 text-sm font-medium text-danger">{loadError}</p>
           <button
             type="button"
             onClick={() => fetchMembers()}
-            className="mt-4 px-4 py-2 rounded-xl bg-white border border-rose-200 text-rose-700 text-xs font-black hover:bg-rose-100"
+            className="mt-4 px-4 py-2 rounded-xl bg-card border border-danger-border text-danger text-xs font-black hover:bg-danger-surface"
           >
             Réessayer
           </button>
         </div>
       ) : members.length === 0 ? (
-        <div className="bg-slate-50 border border-dashed border-slate-200 rounded-2xl p-16 text-center">
+        <div className="bg-background border border-dashed border-border-main rounded-2xl p-16 text-center">
           <div className="w-20 h-20 bg-primary/5 rounded-full flex items-center justify-center mx-auto mb-6" style={{ color: 'var(--primary)' }}>
             <Users size={36} />
           </div>
-          <h4 className="text-xl font-black text-slate-700">Aucun membre dans l'équipe</h4>
-          <p className="text-slate-500 text-sm mt-2 max-w-md mx-auto">
+          <h4 className="text-xl font-black text-text-main">Aucun membre dans l'équipe</h4>
+          <p className="text-text-muted text-sm mt-2 max-w-md mx-auto">
             Ajoutez un premier sous-compte pour permettre à votre équipe de gérer le cabinet.
           </p>
         </div>
@@ -625,10 +625,10 @@ export const TeamManager: React.FC = () => {
             <div
               key={member.id}
               className={cn(
-                "flex items-center justify-between p-5 bg-white border rounded-2xl shadow-sm transition-all hover:shadow-md group",
+                "flex items-center justify-between p-5 bg-card border rounded-2xl shadow-sm transition-all hover:shadow-md group",
                 member.approval_status === 'rejected'
-                  ? "border-rose-200 bg-rose-50/20 opacity-60"
-                  : member.is_active ? "border-slate-200" : "border-amber-200 bg-amber-50/20 opacity-75"
+                  ? "border-danger-border bg-danger-surface/20 opacity-60"
+                  : member.is_active ? "border-border-main" : "border-warning-border bg-warning-surface/20 opacity-75"
               )}
             >
               {/* Infos du membre */}
@@ -643,33 +643,33 @@ export const TeamManager: React.FC = () => {
                   {(member.nom_complet || 'A')[0].toUpperCase()}
                 </div>
                 <div>
-                  <h4 className="font-black text-slate-800 flex items-center gap-2">
+                  <h4 className="font-black text-text-main flex items-center gap-2">
                     {member.nom_complet || 'Sans nom'}
-                    <span className="text-[9px] font-black bg-slate-100 text-slate-500 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                    <span className="text-[9px] font-black bg-input-field text-text-muted px-2 py-0.5 rounded-full uppercase tracking-wider">
                       {member.role}
                     </span>
                     {member.approval_status === 'rejected' && (
-                      <span className="text-[9px] font-black bg-rose-100 text-rose-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="text-[9px] font-black bg-danger-surface text-danger px-2 py-0.5 rounded-full uppercase tracking-wider">
                         Refusé
                       </span>
                     )}
                     {!member.is_active && member.approval_status !== 'rejected' && (
-                      <span className="text-[9px] font-black bg-amber-100 text-amber-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="text-[9px] font-black bg-warning-surface text-warning px-2 py-0.5 rounded-full uppercase tracking-wider">
                         Suspendu
                       </span>
                     )}
                     {member.is_active && (
-                      <span className="text-[9px] font-black bg-emerald-100 text-emerald-600 px-2 py-0.5 rounded-full uppercase tracking-wider">
+                      <span className="text-[9px] font-black bg-success-surface text-success px-2 py-0.5 rounded-full uppercase tracking-wider">
                         Actif
                       </span>
                     )}
                   </h4>
                   <div className="flex items-center gap-3 mt-1">
-                    <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                    <span className="text-xs text-text-muted font-medium flex items-center gap-1">
                       <Mail size={12} /> {member.email}
                     </span>
                     {member.telephone_mobile && (
-                      <span className="text-xs text-slate-500 font-medium flex items-center gap-1">
+                      <span className="text-xs text-text-muted font-medium flex items-center gap-1">
                         <Phone size={12} /> {member.telephone_mobile}
                       </span>
                     )}
@@ -681,7 +681,7 @@ export const TeamManager: React.FC = () => {
               <div className="flex items-center gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                 <button
                   onClick={() => setEditingPermissionsMember(member)}
-                  className="p-2.5 bg-slate-50 text-slate-600 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all text-xs font-bold flex items-center gap-2"
+                  className="p-2.5 bg-background text-text-muted hover:bg-input-field border border-border-main rounded-xl transition-all text-xs font-bold flex items-center gap-2"
                   title="Gérer les permissions"
                 >
                   <Lock size={14} />
@@ -694,8 +694,8 @@ export const TeamManager: React.FC = () => {
                     className={cn(
                       "p-2.5 rounded-xl transition-all text-sm font-bold flex items-center gap-2",
                       member.is_active
-                        ? "bg-amber-50 text-amber-600 hover:bg-amber-100 border border-amber-200"
-                        : "bg-emerald-50 text-emerald-600 hover:bg-emerald-100 border border-emerald-200"
+                        ? "bg-warning-surface text-warning hover:bg-warning-surface border border-warning-border"
+                        : "bg-success-surface text-success hover:bg-success-surface border border-success-border"
                     )}
                     title={member.is_active ? "Suspendre l'accès" : "Réactiver l'accès"}
                   >
@@ -706,7 +706,7 @@ export const TeamManager: React.FC = () => {
                 <button
                   onClick={() => deleteMember(member)}
                   disabled={mutationKey !== null}
-                  className="p-2.5 bg-rose-50 text-rose-500 hover:bg-rose-100 border border-rose-200 rounded-xl transition-all"
+                  className="p-2.5 bg-danger-surface text-danger hover:bg-danger-surface border border-danger-border rounded-xl transition-all"
                   title="Supprimer définitivement"
                 >
                   <Trash2 size={16} />
@@ -720,21 +720,21 @@ export const TeamManager: React.FC = () => {
       {/* MODAL D'ÉDITION DES PERMISSIONS */}
       {editingPermissionsMember && (
         <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[11000] flex items-center justify-center p-4 animate-in fade-in duration-300">
-          <div className="bg-white border border-slate-200 rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 space-y-6">
+          <div className="bg-card border border-border-main rounded-2xl max-w-2xl w-full p-8 shadow-2xl relative animate-in zoom-in-95 duration-300 space-y-6">
             <button
               onClick={() => setEditingPermissionsMember(null)}
               aria-label="Fermer les permissions"
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 hover:bg-slate-50 rounded-xl transition-all"
+              className="absolute top-4 right-4 text-text-muted hover:text-text-muted p-2 hover:bg-background rounded-xl transition-all"
             >
               <X size={20} />
             </button>
 
             <div>
-              <h3 className="text-xl font-black text-slate-800 flex items-center gap-2">
+              <h3 className="text-xl font-black text-text-main flex items-center gap-2">
                 <Lock size={22} style={{ color: 'var(--primary)' }} />
                 Droits d'accès : {editingPermissionsMember.nom_complet || editingPermissionsMember.email}
               </h3>
-              <p className="text-slate-500 text-xs font-medium mt-1">
+              <p className="text-text-muted text-xs font-medium mt-1">
                 Configurez les accès précis de votre collaborateur aux modules cliniques et administratifs.
               </p>
             </div>
@@ -757,7 +757,7 @@ export const TeamManager: React.FC = () => {
                     key={perm.key}
                     className={cn(
                       "flex items-start gap-3 p-4 rounded-xl border transition-all cursor-pointer select-none",
-                      isChecked ? "bg-primary/5 border-primary/20" : "bg-slate-50/50 border-slate-200 hover:bg-slate-50"
+                      isChecked ? "bg-primary/5 border-primary/20" : "bg-background/50 border-border-main hover:bg-background"
                     )}
                   >
                     <input
@@ -773,22 +773,22 @@ export const TeamManager: React.FC = () => {
                           permissions: newPerms
                         } : null);
                       }}
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-primary focus:ring-primary/20 accent-primary"
+                      className="mt-1 h-4 w-4 rounded border-border-hover text-primary focus:ring-primary/20 accent-primary"
                     />
                     <div>
-                      <span className="block text-sm font-black text-slate-800" style={isChecked ? { color: 'var(--primary)' } : {}}>{perm.label}</span>
-                      <span className="block text-[11px] font-bold text-slate-400 mt-0.5">{perm.desc}</span>
+                      <span className="block text-sm font-black text-text-main" style={isChecked ? { color: 'var(--primary)' } : {}}>{perm.label}</span>
+                      <span className="block text-[11px] font-bold text-text-muted mt-0.5">{perm.desc}</span>
                     </div>
                   </label>
                 );
               })}
             </div>
 
-            <div className="flex items-center justify-end gap-3 pt-4 border-t border-slate-100">
+            <div className="flex items-center justify-end gap-3 pt-4 border-t border-border-main">
               <button
                 type="button"
                 onClick={() => setEditingPermissionsMember(null)}
-                className="px-5 py-2.5 text-xs font-bold text-slate-500 hover:text-slate-700 bg-slate-50 hover:bg-slate-100 border border-slate-200 rounded-xl transition-all"
+                className="px-5 py-2.5 text-xs font-bold text-text-muted hover:text-text-main bg-background hover:bg-input-field border border-border-main rounded-xl transition-all"
               >
                 Annuler
               </button>

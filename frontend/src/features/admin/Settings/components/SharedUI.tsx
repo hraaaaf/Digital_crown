@@ -2,8 +2,8 @@ import React from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 
-export const inputClass = "w-full px-5 py-4 bg-slate-50 border border-slate-200 rounded-xl text-sm outline-none focus:ring-4 transition-all duration-300 font-bold text-slate-800";
-export const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-2 ml-1";
+export const inputClass = "w-full px-5 py-4 bg-background border border-border-main rounded-xl text-sm outline-none focus:ring-4 transition-all duration-300 font-bold text-text-main";
+export const labelClass = "text-[10px] font-black text-text-muted uppercase tracking-widest block mb-2 ml-1";
 
 interface SettingsSectionProps {
   title: string;
@@ -15,7 +15,7 @@ interface SettingsSectionProps {
 
 export const SettingsSection: React.FC<SettingsSectionProps> = ({ title, subtitle, icon, children, className }) => (
   <div className={cn("space-y-6 animate-in slide-in-from-right-4 duration-500", className)}>
-    <div className="flex min-w-0 flex-col items-start gap-3 mb-8 pb-6 border-b border-slate-100 sm:flex-row sm:items-center sm:gap-4">
+    <div className="flex min-w-0 flex-col items-start gap-3 mb-8 pb-6 border-b border-border-main sm:flex-row sm:items-center sm:gap-4">
       {icon && (
         <div className="w-16 h-16 shrink-0 bg-primary/5 rounded-2xl flex items-center justify-center shadow-inner border border-primary/10" style={{ color: 'var(--primary)' }}>
           {icon}
@@ -23,7 +23,7 @@ export const SettingsSection: React.FC<SettingsSectionProps> = ({ title, subtitl
       )}
       <div className="min-w-0 max-w-full">
         <h3 className="break-words [overflow-wrap:anywhere] text-2xl font-black" style={{ color: 'var(--primary)' }}>{title}</h3>
-        {subtitle && <p className="break-words [overflow-wrap:anywhere] text-slate-500 text-sm font-medium mt-1">{subtitle}</p>}
+        {subtitle && <p className="break-words [overflow-wrap:anywhere] text-text-muted text-sm font-medium mt-1">{subtitle}</p>}
       </div>
     </div>
     {children}
@@ -43,7 +43,7 @@ export const SettingsReadError: React.FC<SettingsReadErrorProps> = ({ title = 'C
       <p className="font-black text-sm">{title}</p>
       <p className="text-sm font-medium mt-1">{message}</p>
     </div>
-    <button type="button" onClick={() => void onRetry()} className="w-full sm:w-auto px-4 py-2.5 bg-white border border-rose-200 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors">
+    <button type="button" onClick={() => void onRetry()} className="w-full sm:w-auto px-4 py-2.5 bg-card border border-rose-200 rounded-xl font-black text-sm flex items-center justify-center gap-2 hover:bg-rose-100 transition-colors">
       <RefreshCw size={16} /> Réessayer
     </button>
   </div>
@@ -61,7 +61,7 @@ export const TabButton: React.FC<TabButtonProps> = ({ active, onClick, icon, lab
     onClick={onClick} 
     className={cn(
       "flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 rounded-xl text-sm font-bold transition-all duration-300 w-auto text-left 2xl:w-full 2xl:gap-4 2xl:px-6 2xl:py-4 2xl:rounded-2xl 2xl:text-base",
-      active ? "text-white shadow-lg 2xl:scale-[1.02]" : "text-slate-500 hover:bg-slate-50 hover:text-primary"
+      active ? "text-white shadow-lg 2xl:scale-[1.02]" : "text-text-muted hover:bg-background hover:text-primary"
     )}
     style={{ backgroundColor: active ? 'var(--primary)' : 'transparent', boxShadow: active ? '0 10px 30px -10px var(--primary)' : 'none', color: active ? 'white' : undefined }}
   >

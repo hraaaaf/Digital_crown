@@ -122,13 +122,13 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
 
   return (
     <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-      <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
-        <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-white">
+      <div className="bg-card rounded-2xl shadow-2xl max-w-md w-full max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center p-6 border-b sticky top-0 bg-card">
           <h2 className="text-xl font-bold">Ajouter une radio RVG</h2>
           <button
             onClick={handleClose}
             disabled={loading}
-            className="p-2 hover:bg-gray-100 rounded-lg disabled:opacity-50"
+            className="p-2 hover:bg-input-field rounded-lg disabled:opacity-50"
           >
             <X size={20} />
           </button>
@@ -143,7 +143,7 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
 
           {/* File Input */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-text-main mb-2">
               Fichier image ou PDF
             </label>
             <input
@@ -151,9 +151,9 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
               accept="image/jpeg,image/png,image/webp,application/pdf"
               onChange={handleFileChange}
               disabled={loading}
-              className="block w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
+              className="block w-full text-sm text-text-muted file:mr-4 file:py-2 file:px-4 file:rounded-lg file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100"
             />
-            <p className="text-xs text-gray-500 mt-1">
+            <p className="text-xs text-text-muted mt-1">
               Formats acceptés : JPEG, PNG, WebP, PDF (max 10 MB)
             </p>
           </div>
@@ -171,14 +171,14 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
 
           {/* Radio Type */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-text-main mb-2">
               Type de radio
             </label>
             <select
               value={radioType}
               onChange={(e) => setRadioType(e.target.value)}
               disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-border-hover rounded-lg text-sm"
             >
               {RADIO_TYPES.map((rt) => (
                 <option key={rt.value} value={rt.value}>
@@ -190,7 +190,7 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
 
           {/* Tooth Number */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-text-main mb-2">
               Dent concernée (optionnel)
             </label>
             <input
@@ -199,13 +199,13 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
               onChange={(e) => setToothNumber(e.target.value)}
               disabled={loading}
               placeholder="ex: 16, 27, 38"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-border-hover rounded-lg text-sm"
             />
           </div>
 
           {/* Sector */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-text-main mb-2">
               Secteur (optionnel)
             </label>
             <input
@@ -214,13 +214,13 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
               onChange={(e) => setSector(e.target.value)}
               disabled={loading}
               placeholder="ex: UR, LL"
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-border-hover rounded-lg text-sm"
             />
           </div>
 
           {/* Acquisition Date */}
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-2">
+            <label className="block text-sm font-medium text-text-main mb-2">
               Date de prise (optionnel)
             </label>
             <input
@@ -228,13 +228,13 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
               value={acquisitionDate}
               onChange={(e) => setAcquisitionDate(e.target.value)}
               disabled={loading}
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-border-hover rounded-lg text-sm"
             />
           </div>
 
           {/* Note */}
           <div>
-            <label htmlFor="rvg-note" className="block text-sm font-medium text-gray-700 mb-2">
+            <label htmlFor="rvg-note" className="block text-sm font-medium text-text-main mb-2">
               Note (optionnel)
             </label>
             <textarea
@@ -244,13 +244,13 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
               disabled={loading}
               rows={3}
               placeholder="Observations cliniques..."
-              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+              className="w-full px-3 py-2 border border-border-hover rounded-lg text-sm"
             />
           </div>
 
           {/* Progress */}
           {loading && progress > 0 && (
-            <div className="w-full bg-gray-200 rounded-full h-2">
+            <div className="w-full bg-input-field rounded-full h-2">
               <div
                 className="bg-blue-600 h-2 rounded-full transition-all"
                 style={{ width: `${progress}%` }}
@@ -259,11 +259,11 @@ export const RvgUploadModal: React.FC<RvgUploadModalProps> = ({
           )}
         </div>
 
-        <div className="border-t p-6 flex gap-3 bg-gray-50 sticky bottom-0">
+        <div className="border-t p-6 flex gap-3 bg-background sticky bottom-0">
           <button
             onClick={handleClose}
             disabled={loading}
-            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg font-medium hover:bg-gray-100 disabled:opacity-50 transition-colors"
+            className="flex-1 px-4 py-2 border border-border-hover rounded-lg font-medium hover:bg-input-field disabled:opacity-50 transition-colors"
           >
             Annuler
           </button>

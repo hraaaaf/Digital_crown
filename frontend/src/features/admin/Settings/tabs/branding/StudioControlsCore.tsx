@@ -150,7 +150,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
         <h3 className="font-bold text-[11px] text-[var(--text-muted)] tracking-[0.12em] uppercase mb-2">
           Palette
         </h3>
-        <p className="text-[10px] text-slate-400 mb-4">Ces couleurs s'appliquent à l'application et aux documents générés.</p>
+        <p className="text-[10px] text-text-muted mb-4">Ces couleurs s'appliquent à l'application et aux documents générés.</p>
         {customDesignActive && (
           <div className="mb-4 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-[12px] text-amber-800">
             Les couleurs du document suivent actuellement le design uploadé.
@@ -262,7 +262,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
               onClick={() => handleDensityClick(d)}
               className={cn(
                 "flex-1 py-2 font-medium text-[13px] rounded-lg transition-all capitalize",
-                currentDensity === d ? "bg-white text-[var(--text-main)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
+                currentDensity === d ? "bg-card text-[var(--text-main)] shadow-sm" : "text-[var(--text-muted)] hover:text-[var(--text-main)]"
               )}
             >
               {d}
@@ -350,14 +350,14 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
             onClick={() => updateProfile({ use_letterhead: !profile.use_letterhead })}
             className={cn("w-10 h-5 rounded-full relative px-0.5 flex items-center transition-colors", profile.use_letterhead ? "bg-[var(--primary)]" : "bg-[var(--border-color)]")}
           >
-            <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", profile.use_letterhead ? "translate-x-5" : "translate-x-0")} />
+            <div className={cn("w-4 h-4 bg-card rounded-full transition-transform", profile.use_letterhead ? "translate-x-5" : "translate-x-0")} />
           </button>
         </div>
 
         {profile.use_letterhead && (
           <div className="flex flex-col gap-3">
             {customDesignActive && (
-              <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-[12px] text-slate-600">
+              <div className="rounded-xl border border-border-main bg-background px-4 py-3 text-[12px] text-text-muted">
                 Le design importé remplace l’en-tête, le footer et la palette du document. Les marges et le QR restent configurables.
               </div>
             )}
@@ -368,7 +368,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
                 <img
                   src={letterheadSrc}
                   alt="Modèle de document du cabinet"
-                  className="w-16 h-24 object-cover rounded-md border border-[var(--border-color)] bg-white"
+                  className="w-16 h-24 object-cover rounded-md border border-[var(--border-color)] bg-card"
                 />
                 <div className="flex-1 min-w-0">
                   <p className="text-[12px] font-semibold text-[var(--text-main)]">Modèle actif</p>
@@ -395,7 +395,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
                 aria-label="Nettoyer le corps du document uploadé"
                 className={cn("w-10 h-5 rounded-full relative px-0.5 flex items-center transition-colors shrink-0", stripBody ? "bg-[var(--primary)]" : "bg-[var(--border-color)]")}
               >
-                <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", stripBody ? "translate-x-5" : "translate-x-0")} />
+                <div className={cn("w-4 h-4 bg-card rounded-full transition-transform", stripBody ? "translate-x-5" : "translate-x-0")} />
               </button>
             </div>
 
@@ -500,7 +500,7 @@ export const StudioControls: React.FC<StudioControlsProps> = ({ profile, updateP
             onClick={() => updateProfile({ qr_code_enabled: !profile.qr_code_enabled })} 
             className={cn("w-10 h-5 rounded-full relative px-0.5 flex items-center transition-colors", profile.qr_code_enabled ? "bg-[var(--primary)]" : "bg-[var(--border-color)]")}
           >
-            <div className={cn("w-4 h-4 bg-white rounded-full transition-transform", profile.qr_code_enabled ? "translate-x-5" : "translate-x-0")} />
+            <div className={cn("w-4 h-4 bg-card rounded-full transition-transform", profile.qr_code_enabled ? "translate-x-5" : "translate-x-0")} />
           </button>
         </div>
 

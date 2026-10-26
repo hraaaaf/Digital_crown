@@ -1,0 +1,61 @@
+name: Theme Wave06 — 63 UI Token-Only Sources (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/theme-neutral-wave06-20261025
+  pull_request:
+    branches:
+      - fix/theme-status-wave05-20261025
+permissions:
+  contents: read
+jobs:
+  exact-theme:
+    name: Wave06 63 UI sources exact cosmetic diff, forms regression, TS, build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify byte-for-byte color-only modifications on all 63 source files
+        run: python scripts/ci/theme_neutral_batch02.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Verify document forms, installment, patient and theme behavior (synthetic)
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/admin/DocumentStudio/Forms/CertificateForm.p3a.test.tsx \
+            src/features/admin/DocumentStudio/Forms/CertificateForm.validation-ux.test.tsx \
+            src/features/admin/DocumentStudio/Forms/LibreForm.p3c.test.tsx \
+            src/features/admin/DocumentStudio/Forms/InstallmentStudio.p5.test.tsx \
+            src/features/patients/AddPatientForm.g2Interactive.test.tsx \
+            src/features/multiview/themeTokens.r2.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+      - name: Production build (no deployment)
+        working-directory: frontend
+        run: npm run build
+      - name: Evidence / Safety
+        if: success()
+        run: |
+          echo "Wave06: 364 neutral palette replacements in 14 additional form, patient modal, and mobile agenda UI files." >> "$GITHUB_STEP_SUMMARY"
+          echo "Stacked waves 02-06: 3,096 deterministic semantic token substitutions in 63 distinct TSX files." >> "$GITHUB_STEP_SUMMARY"
+          echo "No clinical decisions, permissions, HTTP, PDF render schema or business logic changed." >> "$GITHUB_STEP_SUMMARY"
+          echo "Manual screenshots not mandatory for exact-diff token-only changes; generic human gates remain separate." >> "$GITHUB_STEP_SUMMARY"
+          echo "NO merge, deploy, release, flags or real patient data writes." >> "$GITHUB_STEP_SUMMARY"

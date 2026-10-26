@@ -384,9 +384,9 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
   return (
     <div role="dialog" aria-modal="true" aria-label={editingAppointment ? "Modifier le Rendez-vous" : "Nouveau Rendez-vous"} className="fixed inset-0 bg-slate-900/60 backdrop-blur-md z-[100] flex items-center justify-center p-4 sm:p-4 animate-in fade-in duration-300">
-      <div className="bg-white/90 backdrop-blur-2xl rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300 border border-white flex flex-col max-h-[95vh]">
+      <div className="bg-card/90 backdrop-blur-2xl rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl w-full max-w-xl overflow-hidden animate-in zoom-in-95 duration-300 border border-white flex flex-col max-h-[95vh]">
 
-        <div className="flex justify-between items-center p-4 sm:p-8 border-b border-slate-100 bg-slate-50/50">
+        <div className="flex justify-between items-center p-4 sm:p-8 border-b border-border-main bg-background/50">
           <div className="flex items-center gap-4">
             <div className="w-12 h-12 bg-blue-500 rounded-2xl flex items-center justify-center text-white shadow-lg shadow-blue-500/20">
               {editingAppointment ? <Clock size={24} /> : <Plus size={24} />}
@@ -395,10 +395,10 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
               <h2 className="text-2xl font-black text-[#003380] tracking-tight">
                   {editingAppointment ? "Modifier le Rendez-vous" : "Nouveau Rendez-vous"}
               </h2>
-              <p className="text-slate-500 text-sm font-bold">Planification clinique</p>
+              <p className="text-text-muted text-sm font-bold">Planification clinique</p>
             </div>
           </div>
-          <button onClick={onClose} className="p-3 bg-white text-slate-400 hover:text-rose-500 rounded-full shadow-sm border border-slate-100 transition-all hover:rotate-90" aria-label="Fermer">
+          <button onClick={onClose} className="p-3 bg-card text-text-muted hover:text-danger rounded-full shadow-sm border border-border-main transition-all hover:rotate-90" aria-label="Fermer">
             <X size={20} />
           </button>
         </div>
@@ -408,7 +408,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             
             {/* PATIENT SEARCH */}
             <div className="relative" ref={patientRef}>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Patient</label>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-3 ml-1">Patient</label>
               <div className="relative group">
                 {selectedPatient ? (
                   <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-blue-50/50 border-2 border-blue-500 rounded-2xl text-sm font-black text-[#003380]">
@@ -419,45 +419,45 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                     </div>
                     <div className="flex items-center gap-2">
                       <button type="button" onClick={() => { onClose(); navigate(`/patients/${selectedPatient.id}/edit`); }} className="text-[9px] font-black text-blue-400 hover:text-blue-600 uppercase tracking-widest transition-colors">Modifier</button>
-                      <button type="button" onClick={() => setSelectedPatient(null)} className="text-blue-400 hover:text-rose-500 transition-colors">
+                      <button type="button" onClick={() => setSelectedPatient(null)} className="text-blue-400 hover:text-danger transition-colors">
                         <X size={18} />
                       </button>
                     </div>
                   </div>
                 ) : (
                   <>
-                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                    <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-blue-500 transition-colors" size={18} />
                     <input 
                       type="text" 
                       required
                       placeholder="Rechercher ou saisir un nom..."
                       value={patientSearch}
                       onChange={e => setPatientSearch(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-background border border-border-main rounded-2xl text-sm font-bold text-text-main outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-card transition-all"
                     />
                   </>
                 )}
               </div>
               
               {showPatientResults && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[110] max-h-60 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card rounded-2xl shadow-2xl border border-border-main z-[110] max-h-60 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
                   {patientsList.length > 0 ? patientsList.map(p => (
                     <button 
                       key={p.id}
                       type="button"
                       onClick={() => { setSelectedPatient(p); setShowPatientResults(false); }}
-                      className="w-full flex items-center gap-4 px-6 py-4 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                      className="w-full flex items-center gap-4 px-6 py-4 hover:bg-background transition-colors border-b border-border-main last:border-0"
                     >
-                      <div className="w-10 h-10 bg-slate-100 rounded-xl flex items-center justify-center text-slate-400 font-black">{p.nom[0]}</div>
+                      <div className="w-10 h-10 bg-input-field rounded-xl flex items-center justify-center text-text-muted font-black">{p.nom[0]}</div>
                       <div className="text-left">
-                        <div className="text-sm font-black text-slate-700">{p.nom} {p.prenom}</div>
-                        <div className="text-[10px] font-bold text-slate-400">Dossier: {p.numero_dossier}</div>
+                        <div className="text-sm font-black text-text-main">{p.nom} {p.prenom}</div>
+                        <div className="text-[10px] font-bold text-text-muted">Dossier: {p.numero_dossier}</div>
                       </div>
-                      <Check className="ml-auto text-emerald-500 opacity-0 group-hover:opacity-100" size={18} />
+                      <Check className="ml-auto text-success opacity-0 group-hover:opacity-100" size={18} />
                     </button>
                   )) : (
                     <div className="p-6 text-center">
-                      <p className="text-sm text-slate-400 font-bold mb-2">Aucun patient trouvé</p>
+                      <p className="text-sm text-text-muted font-bold mb-2">Aucun patient trouvé</p>
                       <button type="button" onClick={() => { setShowPatientResults(false); onClose(); navigate('/patients/new'); }} className="text-xs text-blue-500 font-black uppercase tracking-widest">Créer Patient Externe</button>
                     </div>
                   )}
@@ -468,7 +468,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                 <button
                   type="button"
                   onClick={() => setShowGhostPanel(true)}
-                  className="mt-3 flex items-center gap-2 px-3 py-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-[10px] font-black uppercase tracking-widest"
+                  className="mt-3 flex items-center gap-2 px-3 py-1.5 text-text-muted hover:text-blue-600 hover:bg-blue-50 rounded-xl transition-all text-[10px] font-black uppercase tracking-widest"
                 >
                   <Ghost size={13} /> Suggestions
                 </button>
@@ -476,8 +476,8 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
               {/* SMART INTEL CARD (GHOST ELITE INTELLIGENCE HUB) */}
               {(selectedPatient && showGhostPanel && (smartIntel || suggestedAppointment || loadingIntel || isLoadingSuggested)) && (
-                <div className="mt-6 p-5 bg-gradient-to-br from-slate-50 to-blue-50/20 border border-slate-100 rounded-[2rem] shadow-sm animate-in slide-in-from-top-4 duration-300">
-                  <div className="flex justify-between items-center mb-4 pb-3 border-b border-slate-100">
+                <div className="mt-6 p-5 bg-gradient-to-br from-slate-50 to-blue-50/20 border border-border-main rounded-[2rem] shadow-sm animate-in slide-in-from-top-4 duration-300">
+                  <div className="flex justify-between items-center mb-4 pb-3 border-b border-border-main">
                     <div className="flex items-center gap-2 text-[#003380]">
                       <div className="w-7 h-7 bg-blue-600 rounded-xl flex items-center justify-center text-white shadow-md shadow-blue-500/10">
                         <Sparkles size={14} className={cn((loadingIntel || isLoadingSuggested) && "animate-pulse")} />
@@ -487,7 +487,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       </span>
                     </div>
                     {smartIntel?.solde_attente > 0 && (
-                      <span className="flex items-center gap-1.5 bg-rose-50 border border-rose-100 text-rose-600 px-3 py-1 rounded-xl text-[10px] font-black tracking-tight">
+                      <span className="flex items-center gap-1.5 bg-danger-surface border border-danger-border text-danger px-3 py-1 rounded-xl text-[10px] font-black tracking-tight">
                         <AlertCircle size={12} />
                         RESTE À PAYER : {smartIntel.solde_attente} MAD
                       </span>
@@ -507,21 +507,21 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       
                       {/* OPTION CLINIQUE - SMART BOOKING (PLAN DE TRAITEMENT) */}
                       {suggestedAppointment && (
-                        <div className="bg-white/80 border border-slate-100 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-200 transition-all group">
+                        <div className="bg-card/80 border border-border-main rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-blue-200 transition-all group">
                           <div className="space-y-1">
                             <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-blue-50 border border-blue-100 text-blue-700 text-[9px] font-black uppercase tracking-wider">
                               Plan Clinique Actif
                             </span>
-                            <p className="text-sm font-black text-slate-800 tracking-tight group-hover:text-blue-900 transition-colors">
+                            <p className="text-sm font-black text-text-main tracking-tight group-hover:text-blue-900 transition-colors">
                               {suggestedAppointment.motif}
                             </p>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-bold">
-                              <span className="flex items-center gap-1 text-slate-500">
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-text-muted font-bold">
+                              <span className="flex items-center gap-1 text-text-muted">
                                 <Clock size={12} className="text-blue-500" />
                                 {suggestedAppointment.duration_minutes} min
                               </span>
                               {suggestedAppointment.notes && (
-                                <span className="text-slate-400 italic">
+                                <span className="text-text-muted italic">
                                   — {suggestedAppointment.notes}
                                 </span>
                               )}
@@ -539,20 +539,20 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
                       {/* OPTION ADMINISTRATIVE (DEVIS / OPPORTUNITÉ LOCALE) */}
                       {smartIntel && smartIntel.suggestion && (!suggestedAppointment || smartIntel.suggestion !== suggestedAppointment.motif) && (
-                        <div className="bg-white/80 border border-slate-100 rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-emerald-200 transition-all group">
+                        <div className="bg-card/80 border border-border-main rounded-2xl p-4 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 hover:border-success-border transition-all group">
                           <div className="space-y-1">
-                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-emerald-50 border border-emerald-100 text-emerald-700 text-[9px] font-black uppercase tracking-wider">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-lg bg-success-surface border border-success-border text-success text-[9px] font-black uppercase tracking-wider">
                               Proposition Devis
                             </span>
-                            <p className="text-sm font-black text-slate-800 tracking-tight group-hover:text-emerald-950 transition-colors">
+                            <p className="text-sm font-black text-text-main tracking-tight group-hover:text-success transition-colors">
                               {smartIntel.suggestion}
                             </p>
-                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-slate-400 font-bold">
-                              <span className="flex items-center gap-1 text-slate-500">
-                                <Clock size={12} className="text-emerald-500" />
+                            <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[10px] text-text-muted font-bold">
+                              <span className="flex items-center gap-1 text-text-muted">
+                                <Clock size={12} className="text-success" />
                                 {smartIntel.duration} min
                               </span>
-                              <span className="text-slate-400">
+                              <span className="text-text-muted">
                                 — Basé sur l'historique administratif
                               </span>
                             </div>
@@ -577,21 +577,21 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
             {/* ACT / MOTIF SEARCH */}
             <div className="relative" ref={actRef}>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Acte / Motif</label>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-3 ml-1">Acte / Motif</label>
               <div className="relative group">
                 {selectedAct ? (
-                  <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-emerald-50/50 border-2 border-emerald-500 rounded-2xl text-sm font-black text-emerald-700">
+                  <div className="w-full flex items-center justify-between pl-12 pr-4 py-4 bg-success-surface/50 border-2 border-emerald-500 rounded-2xl text-sm font-black text-success">
                     <div className="flex items-center gap-2">
-                      <FileText className="absolute left-4 text-emerald-500" size={20} />
+                      <FileText className="absolute left-4 text-success" size={20} />
                       <span>{selectedAct.name}</span>
                     </div>
-                    <button type="button" onClick={() => setSelectedAct(null)} className="text-emerald-400 hover:text-rose-500 transition-colors">
+                    <button type="button" onClick={() => setSelectedAct(null)} className="text-success hover:text-danger transition-colors">
                       <X size={18} />
                     </button>
                   </div>
                 ) : (
                   <>
-                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-blue-500 transition-colors" size={18} />
+                    <FileText className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-blue-500 transition-colors" size={18} />
                     <input 
                       type="text" 
                       required
@@ -599,23 +599,23 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                       value={actSearch}
                       onChange={e => setActSearch(e.target.value)}
                       onFocus={() => setShowActResults(true)}
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-bold text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-white transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-background border border-border-main rounded-2xl text-sm font-bold text-text-main outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 focus:bg-card transition-all"
                     />
                   </>
                 )}
               </div>
               
               {showActResults && (
-                <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-2xl border border-slate-100 z-[110] max-h-60 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
+                <div className="absolute top-full left-0 right-0 mt-2 bg-card rounded-2xl shadow-2xl border border-border-main z-[110] max-h-60 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
                   {actsList.map(act => (
                     <button
                       key={act.id}
                       type="button"
                       onClick={() => { setSelectedAct(act); setShowActResults(false); }}
-                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors border-b border-slate-50 last:border-0"
+                      className="w-full flex items-center justify-between px-6 py-4 hover:bg-background transition-colors border-b border-border-main last:border-0"
                     >
                       <div className="text-left">
-                        <div className="text-sm font-black text-slate-700">{act.name}</div>
+                        <div className="text-sm font-black text-text-main">{act.name}</div>
                       </div>
                     </button>
                   ))}
@@ -627,7 +627,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                     <button
                       type="button"
                       onClick={openAddActForm}
-                      className="w-full flex items-center gap-3 px-6 py-4 bg-blue-50/60 hover:bg-blue-100 transition-colors text-left border-t border-slate-100"
+                      className="w-full flex items-center gap-3 px-6 py-4 bg-blue-50/60 hover:bg-blue-100 transition-colors text-left border-t border-border-main"
                     >
                       <Plus size={18} className="text-blue-600 shrink-0" />
                       <span className="text-sm font-black text-blue-700">
@@ -638,26 +638,26 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
                   {/* Panneau d'ajout : tarif + catégorie */}
                   {showAddActForm && (
-                    <div className="p-4 space-y-3 border-t border-slate-100 bg-slate-50/60">
-                      <div className="text-sm font-black text-slate-700">Ajouter « {actSearch.trim()} »</div>
+                    <div className="p-4 space-y-3 border-t border-border-main bg-background/60">
+                      <div className="text-sm font-black text-text-main">Ajouter « {actSearch.trim()} »</div>
                       <div className="grid grid-cols-2 gap-2">
                         <div>
-                          <label htmlFor="agenda-quick-act-price" className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Tarif (DHS)</label>
+                          <label htmlFor="agenda-quick-act-price" className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-1">Tarif (DHS)</label>
                           <input
                             id="agenda-quick-act-price"
                             type="number" min={0} value={newActPrice}
                             onChange={e => setNewActPrice(e.target.value)}
                             placeholder="0"
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                            className="w-full px-3 py-2 bg-card border border-border-main rounded-xl text-sm font-bold outline-none focus:border-blue-500"
                           />
                         </div>
                         <div>
-                          <label htmlFor="agenda-quick-act-category" className="text-[9px] font-black text-slate-400 uppercase tracking-widest block mb-1">Catégorie</label>
+                          <label htmlFor="agenda-quick-act-category" className="text-[9px] font-black text-text-muted uppercase tracking-widest block mb-1">Catégorie</label>
                           <select
                             id="agenda-quick-act-category"
                             value={newActCategory}
                             onChange={e => setNewActCategory(e.target.value)}
-                            className="w-full px-3 py-2 bg-white border border-slate-200 rounded-xl text-sm font-bold outline-none focus:border-blue-500"
+                            className="w-full px-3 py-2 bg-card border border-border-main rounded-xl text-sm font-bold outline-none focus:border-blue-500"
                           >
                             {categoryOptions.map(c => <option key={c} value={c}>{c}</option>)}
                           </select>
@@ -672,7 +672,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                         </button>
                         <button
                           type="button" onClick={() => setShowAddActForm(false)}
-                          className="px-4 py-2 bg-slate-200 hover:bg-slate-300 text-slate-700 text-xs font-bold rounded-xl transition-colors"
+                          className="px-4 py-2 bg-input-field hover:bg-slate-300 text-text-main text-xs font-bold rounded-xl transition-colors"
                         >
                           Annuler
                         </button>
@@ -685,22 +685,22 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6">
               <div>
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Date</label>
+                <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-3 ml-1">Date</label>
                 <div className="relative">
-                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                  <Calendar className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
                   <input 
                     type="date" 
                     required
                     value={dateValue}
                     onChange={e => setDateValue(e.target.value)}
-                    className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-[#003380] outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-mono"
+                    className="w-full pl-12 pr-4 py-4 bg-background border border-border-main rounded-2xl text-sm font-black text-[#003380] outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all font-mono"
                   />
                 </div>
               </div>
             </div>
 
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Type de Planification</label>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-3 ml-1">Type de Planification</label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
                 {(['EXACT_TIME', 'MORNING', 'AFTERNOON', 'FULL_DAY'] as SchedulingType[]).map(t => {
                   const labels: Record<string, string> = {
@@ -715,7 +715,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                         "py-3 px-2 rounded-xl text-[10px] font-black tracking-tight transition-all border flex items-center justify-center gap-1.5",
                         schedulingType === t
                           ? "bg-blue-500 border-blue-500 text-white shadow-lg shadow-blue-500/20"
-                          : "bg-white text-slate-500 border-slate-200 hover:border-slate-300 hover:bg-slate-50"
+                          : "bg-card text-text-muted border-border-main hover:border-border-hover hover:bg-background"
                       )}
                     >
                       {labels[t]}
@@ -728,24 +728,24 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             {schedulingType === 'EXACT_TIME' && (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-6 animate-in fade-in slide-in-from-top-2 duration-300">
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Début</label>
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-3 ml-1">Début</label>
                   <div className="relative">
-                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400" size={18} />
+                    <Clock className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted" size={18} />
                     <input 
                       type="time" 
                       required
                       value={time}
                       onChange={e => setTime(e.target.value)}
-                      className="w-full pl-12 pr-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-[#003380] outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
+                      className="w-full pl-12 pr-4 py-4 bg-background border border-border-main rounded-2xl text-sm font-black text-[#003380] outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all"
                     />
                   </div>
                 </div>
                 <div>
-                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Durée Prévue</label>
+                  <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-3 ml-1">Durée Prévue</label>
                   <select 
                     value={duration} 
                     onChange={e => setDuration(Number(e.target.value))}
-                    className="w-full px-4 py-4 bg-slate-50 border border-slate-200 rounded-2xl text-sm font-black text-slate-700 outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
+                    className="w-full px-4 py-4 bg-background border border-border-main rounded-2xl text-sm font-black text-text-main outline-none focus:ring-4 focus:ring-blue-500/10 focus:border-blue-500 transition-all appearance-none"
                   >
                     <option value={15}>15 min (Contrôle)</option>
                     <option value={30}>30 min (Standard)</option>
@@ -760,7 +760,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
 
             <div>
-              <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest block mb-3 ml-1">Statut Initial</label>
+              <label className="text-[10px] font-black text-text-muted uppercase tracking-widest block mb-3 ml-1">Statut Initial</label>
               <div className="grid grid-cols-3 sm:grid-cols-5 gap-2">
                 {(['PRÉVU', 'EN_S_ATTENTE', 'EN_FAUTEUIL', 'TERMINÉ', 'ANNULÉ', 'EN_ATTENTE_DEMANDE', 'EN_ATTENTE_CONFIRM', 'CONFIRMÉ', 'REFUSÉ', 'EXPIRÉ', 'ABSENT'] as AppointmentStatus[]).map(s => {
                   const labels: Record<string, string> = {
@@ -773,13 +773,13 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                     'PRÉVU': 'bg-[#003380] border-[#003380] shadow-blue-900/20',
                     'EN_S_ATTENTE': 'bg-amber-500 border-amber-500 shadow-amber-500/20',
                     'EN_FAUTEUIL': 'bg-emerald-600 border-emerald-600 shadow-emerald-600/20',
-                    'TERMINÉ': 'bg-slate-500 border-slate-500 shadow-slate-500/20',
+                    'TERMINÉ': 'bg-slate-500 border-border-hover shadow-slate-500/20',
                     'ANNULÉ': 'bg-rose-500 border-rose-500 shadow-rose-500/20',
                     'EN_ATTENTE_DEMANDE': 'bg-orange-500 border-orange-500 shadow-orange-500/20',
                     'EN_ATTENTE_CONFIRM': 'bg-yellow-500 border-yellow-500 shadow-yellow-500/20',
                     'CONFIRMÉ': 'bg-blue-600 border-blue-600 shadow-blue-600/20',
                     'REFUSÉ': 'bg-red-500 border-red-500 shadow-red-500/20',
-                    'EXPIRÉ': 'bg-gray-500 border-gray-500 shadow-gray-500/20',
+                    'EXPIRÉ': 'bg-gray-500 border-border-hover shadow-gray-500/20',
                     'ABSENT': 'bg-rose-600 border-rose-600 shadow-rose-600/20',
                   };
                   return (
@@ -791,7 +791,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                         "py-2.5 px-1 rounded-xl text-[9px] font-black uppercase tracking-tighter transition-all border",
                         status === s
                           ? `${colors[s]} text-white shadow-lg`
-                          : "bg-white text-slate-500 border-slate-100 hover:border-slate-300"
+                          : "bg-card text-text-muted border-border-main hover:border-border-hover"
                       )}
                     >
                       {labels[s]}
@@ -803,13 +803,13 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
 
           </div>
 
-          <div className="pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-slate-100">
+          <div className="pt-6 sm:pt-8 flex flex-col sm:flex-row justify-between items-center gap-4 border-t border-border-main">
             <div className="flex items-center gap-3 w-full sm:w-auto justify-between sm:justify-start">
               {selectedPatient && (
                 <button
                   type="button"
                   onClick={openWhatsApp}
-                  className="flex items-center gap-2 text-emerald-600 hover:text-emerald-700 font-black text-xs transition-colors"
+                  className="flex items-center gap-2 text-success hover:text-success font-black text-xs transition-colors"
                 >
                   <MessageCircle size={16} /> Rappel WhatsApp
                 </button>
@@ -818,7 +818,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                 <button
                   type="button"
                   onClick={handleDelete}
-                  className="flex items-center gap-2 text-rose-500 hover:text-rose-700 font-black text-xs transition-colors"
+                  className="flex items-center gap-2 text-danger hover:text-danger font-black text-xs transition-colors"
                 >
                   <Trash2 size={16} /> Supprimer
                 </button>
@@ -826,7 +826,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
             </div>
             <div className="flex flex-col w-full sm:w-auto gap-3">
               {conflicts.length > 0 && (
-                <div className="flex items-start gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl text-[10px] font-bold text-amber-700">
+                <div className="flex items-start gap-2 px-3 py-2 bg-warning-surface border border-warning-border rounded-xl text-[10px] font-bold text-warning">
                   <AlertCircle size={14} className="mt-0.5 shrink-0" />
                   <span>
                     Chevauchement avec {conflicts.length} RDV :&nbsp;
@@ -835,7 +835,7 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
                 </div>
               )}
               <div className="flex gap-4">
-                <button type="button" onClick={onClose} className="w-1/2 sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-slate-500 hover:text-slate-700 hover:bg-slate-50 rounded-2xl font-black transition-all">
+                <button type="button" onClick={onClose} className="w-1/2 sm:w-auto px-6 sm:px-8 py-3 sm:py-4 text-text-muted hover:text-text-main hover:bg-background rounded-2xl font-black transition-all">
                   Annuler
                 </button>
                 <button

@@ -19,19 +19,19 @@ export const TemplateOverwriteDialog: React.FC<TemplateOverwriteDialogProps> = (
     aria-modal="true"
     aria-labelledby="template-overwrite-title"
   >
-    <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
-      <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">{scopeLabel}</p>
-      <h3 id="template-overwrite-title" className="mt-1 text-lg font-black text-slate-900">
+    <div className="w-full max-w-md rounded-2xl border border-border-main bg-card p-5 shadow-2xl">
+      <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">{scopeLabel}</p>
+      <h3 id="template-overwrite-title" className="mt-1 text-lg font-black text-text-main">
         Remplacer le brouillon actuel ?
       </h3>
-      <p className="mt-3 text-sm font-medium leading-relaxed text-slate-600">
+      <p className="mt-3 text-sm font-medium leading-relaxed text-text-muted">
         Le modèle « {modelName} » remplacera les champs qu’il contient. Vous pourrez encore les modifier avant génération.
       </p>
       <div className="mt-5 flex flex-wrap justify-end gap-2">
         <button
           type="button"
           onClick={onCancel}
-          className="min-h-10 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600"
+          className="min-h-10 rounded-xl border border-border-main px-4 py-2 text-sm font-bold text-text-muted"
         >
           Conserver mon brouillon
         </button>

@@ -1,0 +1,55 @@
+name: App Theme Wave03 — 29 Files Exact Token Diff (NO DEPLOY)
+on:
+  push:
+    branches:
+      - fix/theme-neutral-bulk-wave03-20261025
+  pull_request:
+    branches:
+      - fix/theme-neutral-bulk-wave02-20261025
+permissions:
+  contents: read
+jobs:
+  theme-wave03:
+    name: 29 UI screens exact semantic diff, TypeScript, regression and build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify all 29 screens are exact token-only substitutions
+        run: python scripts/ci/theme_neutral_batch02.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - name: TypeScript
+        run: npx tsc --noEmit -p tsconfig.app.json
+        working-directory: frontend
+      - name: Regression of patient, settings, security and theme roles
+        run: |
+          npx vitest run \
+            src/features/patients/components/PatientJourney.test.tsx \
+            src/features/admin/Security/AuditLogViewer.test.tsx \
+            src/features/admin/Settings/tabs/AgendaTab.g5Interactive.test.tsx \
+            src/features/multiview/themeTokens.r2.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+        working-directory: frontend
+      - name: Production build (no deploy)
+        run: npm run build
+        working-directory: frontend
+      - name: Scope note
+        if: success()
+        run: |
+          echo "Diff gate verifies 29 original files: strict CSS class replacement only." >> "$GITHUB_STEP_SUMMARY"
+          echo "This stacked DRAFT PR adds only 15 new screens to wave02; no merge, release, user data or real clinical HTTP." >> "$GITHUB_STEP_SUMMARY"

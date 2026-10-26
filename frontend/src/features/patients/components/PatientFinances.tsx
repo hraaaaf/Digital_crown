@@ -69,10 +69,10 @@ const PAYMENT_METHOD_LABELS: Record<string, string> = {
 };
 
 const STATUT_LABELS: Record<string, { label: string; className: string }> = {
-  EN_ATTENTE: { label: 'En attente', className: 'bg-amber-500/10 text-amber-600 border-amber-500/20' },
+  EN_ATTENTE: { label: 'En attente', className: 'bg-amber-500/10 text-warning border-amber-500/20' },
   A_ENCAISSER: { label: 'À encaisser', className: 'bg-blue-500/10 text-blue-600 border-blue-500/20' },
-  PARTIEL: { label: 'Partiel', className: 'bg-orange-500/10 text-orange-600 border-orange-500/20' },
-  PAYE: { label: 'Payé', className: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20' },
+  PARTIEL: { label: 'Partiel', className: 'bg-orange-500/10 text-warning border-orange-500/20' },
+  PAYE: { label: 'Payé', className: 'bg-emerald-500/10 text-success border-emerald-500/20' },
 };
 
 const money = (value: number) => `${value.toLocaleString('fr-MA')} MAD`;
@@ -105,11 +105,11 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
 
   if (snapshotQuery.isError || !snapshotQuery.data) {
     return (
-      <div className="min-h-[320px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-rose-200 bg-rose-50/50 px-6 text-center">
-        <AlertCircle size={36} className="text-rose-500" />
+      <div className="min-h-[320px] flex flex-col items-center justify-center gap-4 rounded-[2rem] border border-danger-border bg-danger-surface/50 px-6 text-center">
+        <AlertCircle size={36} className="text-danger" />
         <div>
-          <h3 className="font-black text-slate-800">Impossible de charger les finances</h3>
-          <p className="mt-1 text-sm text-slate-500">Aucun solde n’est déduit d’une lecture incomplète.</p>
+          <h3 className="font-black text-text-main">Impossible de charger les finances</h3>
+          <p className="mt-1 text-sm text-text-muted">Aucun solde n’est déduit d’une lecture incomplète.</p>
         </div>
         <button
           type="button"
@@ -137,7 +137,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="bg-card-bg p-5 sm:p-6 rounded-[2rem] border border-border-main shadow-sm min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Facturé</p>
-          <div className="text-2xl sm:text-3xl font-black text-slate-800 break-words">
+          <div className="text-2xl sm:text-3xl font-black text-text-main break-words">
             {hasBillingBase ? snapshot.total_billed.toLocaleString('fr-MA') : 'Indéterminé'}
           </div>
           <div className="text-xs text-text-muted font-bold mt-1">
@@ -147,7 +147,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
 
         <div className="bg-card-bg p-5 sm:p-6 rounded-[2rem] border border-border-main shadow-sm min-w-0">
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Encaissé</p>
-          <div className="text-2xl sm:text-3xl font-black text-emerald-600 break-words">
+          <div className="text-2xl sm:text-3xl font-black text-success break-words">
             {snapshot.total_collected.toLocaleString('fr-MA')}
           </div>
           <div className="text-xs text-text-muted font-bold mt-1">MAD · Source : paiements</div>
@@ -156,17 +156,17 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
         <div className={cn(
           'p-5 sm:p-6 rounded-[2rem] border shadow-sm min-w-0',
           hasBillingBase && (snapshot.remaining_due ?? 0) > 0
-            ? 'bg-red-50 border-red-100'
+            ? 'bg-danger-surface border-danger-border'
             : 'bg-card-bg border-border-main',
         )}>
           <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-2">Reste dû</p>
           <div className={cn(
             'text-2xl sm:text-3xl font-black break-words',
             !hasBillingBase
-              ? 'text-slate-500'
+              ? 'text-text-muted'
               : (snapshot.remaining_due ?? 0) > 0
-                ? 'text-red-600'
-                : 'text-emerald-600',
+                ? 'text-danger'
+                : 'text-success',
           )}>
             {hasBillingBase ? (snapshot.remaining_due ?? 0).toLocaleString('fr-MA') : 'Indéterminé'}
           </div>
@@ -189,7 +189,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
       </div>
 
       {billingQuery.isError && (
-        <div className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+        <div className="rounded-2xl border border-warning-border bg-warning-surface px-4 py-3 text-sm text-warning">
           Le détail par acte n’est pas disponible avec les permissions actuelles. Le snapshot ci-dessus reste issu du backend financier autorisé.
         </div>
       )}
@@ -202,7 +202,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
               <h3 className="text-[11px] font-black uppercase tracking-[0.12em]">Actes &amp; Paiements</h3>
             </div>
             {actesBilling.some(a => a.remaining_due > 0.01) && (
-              <span className="text-[10px] font-black text-amber-600 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
+              <span className="text-[10px] font-black text-warning bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded-lg">
                 {actesBilling.filter(a => a.remaining_due > 0.01).length} à régler
               </span>
             )}
@@ -210,7 +210,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-border-main bg-slate-50/50">
+                <tr className="border-b border-border-main bg-background/50">
                   <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-text-muted">Date</th>
                   <th className="px-5 py-3 text-left text-[10px] font-black uppercase tracking-widest text-text-muted">Acte</th>
                   <th className="px-5 py-3 text-right text-[10px] font-black uppercase tracking-widest text-text-muted">Montant</th>
@@ -233,10 +233,10 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
                         <p className="font-bold text-main truncate">{acte.libelle}</p>
                         {acte.type_acte && <p className="text-[10px] text-text-muted font-medium">{acte.type_acte}</p>}
                       </td>
-                      <td className="px-5 py-3 text-right font-black text-slate-700 whitespace-nowrap">{money(acte.montant)}</td>
-                      <td className="px-5 py-3 text-right font-black text-emerald-600 whitespace-nowrap">{money(acte.total_paid)}</td>
+                      <td className="px-5 py-3 text-right font-black text-text-main whitespace-nowrap">{money(acte.montant)}</td>
+                      <td className="px-5 py-3 text-right font-black text-success whitespace-nowrap">{money(acte.total_paid)}</td>
                       <td className="px-5 py-3 text-right whitespace-nowrap">
-                        {isPaid ? <CheckCircle2 size={16} className="inline text-emerald-500" /> : <span className="font-black text-red-600">{money(acte.remaining_due)}</span>}
+                        {isPaid ? <CheckCircle2 size={16} className="inline text-success" /> : <span className="font-black text-danger">{money(acte.remaining_due)}</span>}
                       </td>
                       <td className="px-5 py-3 text-center">
                         <span className={cn('text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border', statut.className)}>{statut.label}</span>
@@ -251,7 +251,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
                               <Calendar size={11} /> Plan
                             </button>
                           </div>
-                        ) : <div className="flex justify-end"><CheckCircle2 size={16} className="text-emerald-500" /></div>}
+                        ) : <div className="flex justify-end"><CheckCircle2 size={16} className="text-success" /></div>}
                       </td>
                     </tr>
                   );
@@ -266,21 +266,21 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
         <div className="bg-card-bg rounded-[2rem] border border-border-main shadow-sm overflow-hidden">
           <div className="flex items-center justify-between px-6 py-4 border-b border-border-main">
             <div className="flex items-center gap-2">
-              <AlertTriangle size={16} className="text-amber-500" />
+              <AlertTriangle size={16} className="text-warning" />
               <h3 className="text-[11px] font-black uppercase tracking-[0.12em]">Impayés</h3>
             </div>
-            {hasBillingBase && snapshot.overdue_count > 0 && <span className="text-sm font-black text-red-600">{money(snapshot.overdue_total)}</span>}
+            {hasBillingBase && snapshot.overdue_count > 0 && <span className="text-sm font-black text-danger">{money(snapshot.overdue_total)}</span>}
           </div>
 
           {!hasBillingBase ? (
             <div className="flex flex-col items-center justify-center py-10 px-6 text-center text-text-muted">
-              <AlertTriangle size={30} className="text-amber-400 mb-2" />
+              <AlertTriangle size={30} className="text-warning mb-2" />
               <p className="text-sm font-bold">Situation d’impayé indéterminée</p>
               <p className="text-xs mt-1">Aucune base facturée n’est enregistrée.</p>
             </div>
           ) : snapshot.overdue_items.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-text-muted">
-              <CheckCircle2 size={32} className="text-emerald-400 mb-2" />
+              <CheckCircle2 size={32} className="text-success mb-2" />
               <p className="text-sm font-bold">Aucun impayé</p>
             </div>
           ) : (
@@ -295,7 +295,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
                     </div>
                     <div className="flex items-center gap-3 ml-3">
                       <span className={cn('text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-lg border', statut.className)}>{statut.label}</span>
-                      <span className="text-sm font-black text-slate-800 whitespace-nowrap">{money(item.montant)}</span>
+                      <span className="text-sm font-black text-text-main whitespace-nowrap">{money(item.montant)}</span>
                     </div>
                   </div>
                 );
@@ -320,7 +320,7 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
           </div>
           {snapshot.upcoming_installments_count === 0 ? (
             <div className="flex flex-col items-center justify-center py-10 text-text-muted">
-              <Calendar size={32} className="text-slate-300 mb-2" />
+              <Calendar size={32} className="text-text-muted mb-2" />
               <p className="text-sm font-bold">Aucune échéance à venir</p>
             </div>
           ) : (
@@ -341,12 +341,12 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
 
       <div className="bg-card-bg rounded-[2rem] border border-border-main shadow-sm overflow-hidden">
         <div className="flex items-center gap-2 px-6 py-4 border-b border-border-main">
-          <TrendingUp size={16} className="text-emerald-500" />
+          <TrendingUp size={16} className="text-success" />
           <h3 className="text-[11px] font-black uppercase tracking-[0.12em]">Derniers paiements reçus</h3>
         </div>
         {snapshot.recent_payments.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-10 text-text-muted">
-            <Clock size={32} className="text-slate-300 mb-2" />
+            <Clock size={32} className="text-text-muted mb-2" />
             <p className="text-sm font-bold">Aucun paiement enregistré</p>
           </div>
         ) : (
@@ -354,13 +354,13 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
             {snapshot.recent_payments.map(payment => (
               <div key={payment.id} className="flex items-center justify-between px-6 py-3">
                 <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-xl bg-emerald-50 border border-emerald-100 flex items-center justify-center"><CreditCard size={14} className="text-emerald-500" /></div>
+                  <div className="w-8 h-8 rounded-xl bg-success-surface border border-success-border flex items-center justify-center"><CreditCard size={14} className="text-success" /></div>
                   <div>
                     <p className="text-sm font-bold text-main">{PAYMENT_METHOD_LABELS[payment.payment_method] || payment.payment_method}</p>
                     {payment.payment_date && <p className="text-[10px] text-text-muted font-medium">{new Date(payment.payment_date).toLocaleDateString('fr-FR')}</p>}
                   </div>
                 </div>
-                <span className="text-sm font-black text-emerald-600 whitespace-nowrap">+{money(payment.amount)}</span>
+                <span className="text-sm font-black text-success whitespace-nowrap">+{money(payment.amount)}</span>
               </div>
             ))}
           </div>
@@ -371,9 +371,9 @@ export const PatientFinances = ({ patientId }: PatientFinancesProps) => {
             <p className="text-[10px] font-black uppercase tracking-[0.12em] text-text-muted mb-3">Répartition par méthode</p>
             <div className="flex flex-wrap gap-2">
               {Object.entries(snapshot.payment_methods).map(([method, data]) => (
-                <div key={method} className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 border border-emerald-100 rounded-xl">
-                  <span className="text-[10px] font-black text-emerald-700 uppercase">{PAYMENT_METHOD_LABELS[method] || method}</span>
-                  <span className="text-[10px] text-emerald-600 font-bold">{money(data.total)}</span>
+                <div key={method} className="flex items-center gap-1.5 px-3 py-1.5 bg-success-surface border border-success-border rounded-xl">
+                  <span className="text-[10px] font-black text-success uppercase">{PAYMENT_METHOD_LABELS[method] || method}</span>
+                  <span className="text-[10px] text-success font-bold">{money(data.total)}</span>
                 </div>
               ))}
             </div>

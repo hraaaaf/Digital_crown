@@ -104,19 +104,19 @@ export const AccountingPage = () => {
       if (item.is_collected) {
         return (
           <div className="flex flex-col items-center gap-1">
-            <span className="px-2 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-tighter">
+            <span className="px-2 py-1 text-[10px] font-black rounded-full bg-success-surface text-success uppercase tracking-tighter">
               Encaissé
             </span>
-            {item.validated_by && <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">par {item.validated_by}</span>}
+            {item.validated_by && <span className="text-[8px] text-text-muted font-bold uppercase tracking-widest whitespace-nowrap">par {item.validated_by}</span>}
           </div>
         );
       }
       return (
         <div className="flex flex-col items-center gap-1">
-          <span className="px-2 py-1 text-[10px] font-black rounded-full bg-green-100 text-green-700 uppercase tracking-tighter">
+          <span className="px-2 py-1 text-[10px] font-black rounded-full bg-success-surface text-success uppercase tracking-tighter">
             Réglé
           </span>
-          {item.validated_by && <span className="text-[8px] text-slate-400 font-bold uppercase tracking-widest whitespace-nowrap">par {item.validated_by}</span>}
+          {item.validated_by && <span className="text-[8px] text-text-muted font-bold uppercase tracking-widest whitespace-nowrap">par {item.validated_by}</span>}
         </div>
       );
     }
@@ -138,7 +138,7 @@ export const AccountingPage = () => {
     }
 
     return (
-      <span className="px-2 py-1 text-[10px] font-black rounded-full bg-amber-100 text-amber-700 uppercase tracking-tighter">
+      <span className="px-2 py-1 text-[10px] font-black rounded-full bg-warning-surface text-warning uppercase tracking-tighter">
         En attente
       </span>
     );
@@ -147,9 +147,9 @@ export const AccountingPage = () => {
   const getAssuranceBadge = (assurance: string) => {
     switch (assurance) {
       case 'CNOPS': return <span className="px-2 py-1 bg-blue-100 text-blue-700 rounded-lg text-[10px] font-black">CNOPS</span>;
-      case 'CNSS': return <span className="px-2 py-1 bg-emerald-100 text-emerald-700 rounded-lg text-[10px] font-black">CNSS</span>;
+      case 'CNSS': return <span className="px-2 py-1 bg-success-surface text-success rounded-lg text-[10px] font-black">CNSS</span>;
       case 'MUTUELLE_FAR': return <span className="px-2 py-1 bg-purple-100 text-purple-700 rounded-lg text-[10px] font-black">FAR</span>;
-      case 'PRIVEE': return <span className="px-2 py-1 bg-amber-100 text-amber-700 rounded-lg text-[10px] font-black">PRIVÉE</span>;
+      case 'PRIVEE': return <span className="px-2 py-1 bg-warning-surface text-warning rounded-lg text-[10px] font-black">PRIVÉE</span>;
       default: return <span className="px-2 py-1 bg-primary/10 text-primary rounded-lg text-[10px] font-black">AUCUNE</span>;
     }
   };
@@ -207,11 +207,11 @@ export const AccountingPage = () => {
       {activeTab === 'history' && (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
           {/* Graphique d'évolution avec empty state conditionnel */}
-          <div className="lg:col-span-2 bg-white/80 backdrop-blur-xl border border-slate-200/60 p-8 rounded-[2.5rem] shadow-sm flex flex-col">
+          <div className="lg:col-span-2 bg-card/80 backdrop-blur-xl border border-border-main/60 p-8 rounded-[2.5rem] shadow-sm flex flex-col">
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-lg font-black tracking-tight" style={{ color: 'var(--primary)' }}>Évolution des Recettes</h2>
-                <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Variation sur la période sélectionnée</p>
+                <p className="text-[10px] font-black text-text-muted uppercase tracking-widest">Variation sur la période sélectionnée</p>
               </div>
             </div>
 
@@ -232,8 +232,8 @@ export const AccountingPage = () => {
                       content={({ active, payload }) => {
                         if (active && payload && payload.length) {
                           return (
-                            <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl border border-slate-200 shadow-2xl">
-                              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{payload[0].payload.date}</p>
+                            <div className="bg-card/95 backdrop-blur-md p-4 rounded-2xl border border-border-main shadow-2xl">
+                              <p className="text-[10px] font-black text-text-muted uppercase tracking-widest mb-1">{payload[0].payload.date}</p>
                               <p className="text-sm font-black text-primary">{(payload[0].value as number).toLocaleString('fr-FR')} MAD</p>
                             </div>
                           );
@@ -246,9 +246,9 @@ export const AccountingPage = () => {
                 </ResponsiveContainer>
               </div>
             ) : (
-              <div className="flex flex-col items-center justify-center h-40 bg-slate-50 border border-dashed border-slate-200 rounded-2xl gap-3">
-                <BarChart2 size={28} className="text-slate-300" />
-                <span className="text-slate-500 font-medium text-sm text-center max-w-xs">
+              <div className="flex flex-col items-center justify-center h-40 bg-background border border-dashed border-border-main rounded-2xl gap-3">
+                <BarChart2 size={28} className="text-text-muted" />
+                <span className="text-text-muted font-medium text-sm text-center max-w-xs">
                   {chartData.length === 0
                     ? 'Aucun encaissement sur la période sélectionnée.'
                     : 'Données insuffisantes pour tracer l\'évolution (min. 2 dates distinctes).'}
@@ -259,27 +259,27 @@ export const AccountingPage = () => {
 
           {/* Mini Stats Grid */}
           <div className="grid grid-cols-1 gap-4 h-full">
-            <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Moyenne / Note</span>
+            <div className="bg-card/80 border border-border-main/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Moyenne / Note</span>
               <div className="mt-2">
-                <span className="text-3xl font-black text-slate-800">
+                <span className="text-3xl font-black text-text-main">
                   {items.length > 0 ? (totalAmount / items.length).toLocaleString('fr-FR', { maximumFractionDigits: 0 }) : 0}
                 </span>
-                <span className="text-xs font-bold text-slate-400 ml-2">MAD</span>
+                <span className="text-xs font-bold text-text-muted ml-2">MAD</span>
               </div>
               {trend && (
-                <div className={`mt-4 flex items-center gap-2 ${trend.up ? 'text-emerald-500' : 'text-rose-500'}`}>
+                <div className={`mt-4 flex items-center gap-2 ${trend.up ? 'text-success' : 'text-danger'}`}>
                   <TrendingUp size={14} className={trend.up ? '' : 'rotate-180'} />
                   <span className="text-[10px] font-bold">{trend.up ? '+' : '-'}{trend.pct}% sur la période</span>
                 </div>
               )}
             </div>
 
-            <div className="bg-white/80 border border-slate-200/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
-              <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Volume d'Activité</span>
+            <div className="bg-card/80 border border-border-main/60 p-6 rounded-[2rem] flex flex-col justify-between shadow-sm group hover:border-primary/30 transition-all">
+              <span className="text-[10px] font-black text-text-muted uppercase tracking-widest">Volume d'Activité</span>
               <div className="mt-2">
-                <span className="text-3xl font-black text-slate-800">{items.length}</span>
-                <span className="text-xs font-bold text-slate-400 ml-2">Notes émises</span>
+                <span className="text-3xl font-black text-text-main">{items.length}</span>
+                <span className="text-xs font-bold text-text-muted ml-2">Notes émises</span>
               </div>
             </div>
           </div>
@@ -297,15 +297,15 @@ export const AccountingPage = () => {
         <>
 
       {/* FILTRES DYNAMIQUES */}
-      <section className="bg-white/60 backdrop-blur-md border border-slate-200/60 p-6 rounded-[2rem] shadow-sm flex flex-wrap items-center gap-6">
+      <section className="bg-card/60 backdrop-blur-md border border-border-main/60 p-6 rounded-[2rem] shadow-sm flex flex-wrap items-center gap-6">
         
         {/* Recherche */}
         <div className="relative flex-1 min-w-[300px] group">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 group-focus-within:text-primary transition-colors" size={18} />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-text-muted group-focus-within:text-primary transition-colors" size={18} />
           <input 
             type="text" 
             placeholder="Rechercher un patient..." 
-            className="w-full pl-12 pr-4 py-3 bg-white border border-slate-200 rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all"
+            className="w-full pl-12 pr-4 py-3 bg-card border border-border-main rounded-2xl text-sm font-bold focus:ring-4 focus:ring-primary/5 outline-none transition-all"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
@@ -315,7 +315,7 @@ export const AccountingPage = () => {
         <div className="flex items-center gap-3">
           <ShieldCheck size={18} style={{ color: 'var(--primary)' }} />
           <select 
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
+            className="bg-card border border-border-main rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
             value={selectedAssurance}
             onChange={(e) => setSelectedAssurance(e.target.value)}
           >
@@ -332,7 +332,7 @@ export const AccountingPage = () => {
         <div className="flex items-center gap-3">
           <Calendar size={18} style={{ color: 'var(--primary)' }} />
           <select 
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
+            className="bg-card border border-border-main rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
             value={selectedMonth}
             onChange={(e) => setSelectedMonth(Number(e.target.value))}
           >
@@ -347,7 +347,7 @@ export const AccountingPage = () => {
         <div className="flex items-center gap-3">
           <Filter size={18} style={{ color: 'var(--primary)' }} />
           <select 
-            className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
+            className="bg-card border border-border-main rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
             value={filterType}
             onChange={(e) => setFilterType(e.target.value as any)}
           >
@@ -358,7 +358,7 @@ export const AccountingPage = () => {
 
         {/* Filtre Année */}
         <select 
-          className="bg-white border border-slate-200 rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
+          className="bg-card border border-border-main rounded-xl px-4 py-3 text-sm font-bold outline-none focus:ring-4 focus:ring-primary/5"
           value={selectedYear}
           onChange={(e) => setSelectedYear(Number(e.target.value))}
         >
@@ -370,30 +370,30 @@ export const AccountingPage = () => {
 
       {/* BILAN MENSUEL PAR ACTE */}
       {Object.keys(summaryByTitle).length > 0 && (
-        <section className="bg-white/60 backdrop-blur-md border border-slate-200/60 p-6 rounded-[2rem] shadow-sm mb-6">
+        <section className="bg-card/60 backdrop-blur-md border border-border-main/60 p-6 rounded-[2rem] shadow-sm mb-6">
           <h2 className="text-lg font-black tracking-tight mb-4 flex items-center gap-2" style={{ color: 'var(--primary)' }}>
             <Calculator size={20} />
             Bilan des Actes
           </h2>
           <div className="overflow-x-auto">
-            <table className="w-full text-left bg-white border border-slate-100 rounded-xl">
-              <thead className="bg-slate-50 border-b border-slate-100">
+            <table className="w-full text-left bg-card border border-border-main rounded-xl">
+              <thead className="bg-background border-b border-border-main">
                 <tr>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Acte / Prestation</th>
-                  <th className="px-6 py-4 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Total Facturé</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Acte / Prestation</th>
+                  <th className="px-6 py-4 text-[10px] font-black text-text-muted uppercase tracking-[0.2em] text-right">Total Facturé</th>
                 </tr>
               </thead>
               <tbody>
                 {Object.entries(summaryByTitle)
                   .sort((a, b) => b[1] - a[1]) // Tri décroissant par montant
                   .map(([title, amount]) => (
-                  <tr key={title} className="border-b border-slate-50">
-                    <td className="px-6 py-4 text-sm font-bold text-slate-700">{title}</td>
-                    <td className="px-6 py-4 text-sm font-black text-slate-800 text-right">{amount.toLocaleString('fr-FR')} MAD</td>
+                  <tr key={title} className="border-b border-border-main">
+                    <td className="px-6 py-4 text-sm font-bold text-text-main">{title}</td>
+                    <td className="px-6 py-4 text-sm font-black text-text-main text-right">{amount.toLocaleString('fr-FR')} MAD</td>
                   </tr>
                 ))}
-                <tr className="bg-emerald-50/50">
-                  <td className="px-6 py-4 text-sm font-black text-slate-800 uppercase tracking-widest text-right">Total Général</td>
+                <tr className="bg-success-surface/50">
+                  <td className="px-6 py-4 text-sm font-black text-text-main uppercase tracking-widest text-right">Total Général</td>
                   <td className="px-6 py-4 text-lg font-black text-right" style={{ color: 'var(--primary)' }}>{totalAmount.toLocaleString('fr-FR')} MAD</td>
                 </tr>
               </tbody>
@@ -404,15 +404,15 @@ export const AccountingPage = () => {
 
       {/* CONFIRMATION SUPPRESSION */}
       {confirmDeleteId && (
-        <div className="flex items-center gap-4 px-5 py-3 bg-rose-50 border border-rose-200 rounded-2xl text-sm font-bold text-rose-700">
+        <div className="flex items-center gap-4 px-5 py-3 bg-danger-surface border border-danger-border rounded-2xl text-sm font-bold text-danger">
           <span className="flex-1">Supprimer cette note définitivement ?</span>
           <button onClick={confirmDelete} className="px-4 py-1.5 bg-rose-500 text-white rounded-xl hover:bg-rose-600 transition-all">Confirmer</button>
-          <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-1.5 bg-white border border-rose-200 text-rose-500 rounded-xl hover:bg-rose-50 transition-all">Annuler</button>
+          <button onClick={() => setConfirmDeleteId(null)} className="px-4 py-1.5 bg-card border border-danger-border text-danger rounded-xl hover:bg-danger-surface transition-all">Annuler</button>
         </div>
       )}
 
       {/* LISTE DES HONORAIRES */}
-      <main className="bg-white/80 backdrop-blur-xl border border-slate-200/60 rounded-[2.5rem] overflow-hidden shadow-sm">
+      <main className="bg-card/80 backdrop-blur-xl border border-border-main/60 rounded-[2.5rem] overflow-hidden shadow-sm">
         {loading ? (
           <div className="py-20 relative h-[400px]">
             <EliteGhostLoader text="Extraction des encaissements..." fullScreen={false} size="medium" />
@@ -421,14 +421,14 @@ export const AccountingPage = () => {
           <div className="overflow-x-auto">
             <table className="w-full text-left">
               <thead>
-                <tr className="bg-slate-50/50 border-b border-slate-100">
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Patient</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Assurance</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Date</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em]">Notes</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-right">Total</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-center">Statut</th>
-                  <th className="px-8 py-5 text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] text-center">Actions</th>
+                <tr className="bg-background/50 border-b border-border-main">
+                  <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Patient</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Assurance</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Date</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em]">Notes</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em] text-right">Total</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em] text-center">Statut</th>
+                  <th className="px-8 py-5 text-[10px] font-black text-text-muted uppercase tracking-[0.2em] text-center">Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -439,7 +439,7 @@ export const AccountingPage = () => {
                     <React.Fragment key={group.key}>
                       {/* Ligne principale (groupe) */}
                       <tr
-                        className={`border-b border-slate-100 transition-colors group ${
+                        className={`border-b border-border-main transition-colors group ${
                           hasMultiple ? 'cursor-pointer hover:bg-primary/5' : 'hover:bg-primary/5'
                         }`}
                         onClick={() => hasMultiple && toggleGroup(group.key)}
@@ -447,7 +447,7 @@ export const AccountingPage = () => {
                         <td className="px-8 py-5">
                           <div className="flex items-center gap-3">
                             {hasMultiple && (
-                              <span className="text-slate-400 group-hover:text-primary transition-colors">
+                              <span className="text-text-muted group-hover:text-primary transition-colors">
                                 {isExpanded ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
                               </span>
                             )}
@@ -456,7 +456,7 @@ export const AccountingPage = () => {
                             </div>
                             <Link
                               to={`/patients/${group.patient_id}?tab=admin`}
-                              className="font-bold text-slate-800 tracking-tight hover:text-primary hover:underline transition-colors"
+                              className="font-bold text-text-main tracking-tight hover:text-primary hover:underline transition-colors"
                               onClick={e => e.stopPropagation()}
                             >
                               {group.patient_name}
@@ -464,7 +464,7 @@ export const AccountingPage = () => {
                           </div>
                         </td>
                         <td className="px-8 py-5">{getAssuranceBadge(group.assurance)}</td>
-                        <td className="px-8 py-5 text-sm text-slate-500 font-medium">
+                        <td className="px-8 py-5 text-sm text-text-muted font-medium">
                           {new Date(group.date).toLocaleDateString('fr-FR')}
                         </td>
                         <td className="px-8 py-5" onClick={e => e.stopPropagation()}>
@@ -475,7 +475,7 @@ export const AccountingPage = () => {
                           ) : editingCell?.id === String(group.notes[0].id) && editingCell.field === 'title' ? (
                             <input
                               autoFocus
-                              className="text-sm font-bold text-slate-800 border-b-2 border-primary bg-primary/5 rounded px-2 py-0.5 outline-none w-full max-w-[200px]"
+                              className="text-sm font-bold text-text-main border-b-2 border-primary bg-primary/5 rounded px-2 py-0.5 outline-none w-full max-w-[200px]"
                               value={editingValue}
                               onChange={e => setEditingValue(e.target.value)}
                               onBlur={commitEdit}
@@ -483,7 +483,7 @@ export const AccountingPage = () => {
                             />
                           ) : (
                             <span
-                              className="text-sm font-bold text-slate-600 truncate max-w-[200px] block cursor-pointer hover:text-primary hover:underline transition-colors"
+                              className="text-sm font-bold text-text-muted truncate max-w-[200px] block cursor-pointer hover:text-primary hover:underline transition-colors"
                               title="Cliquer pour modifier"
                               onClick={() => startEdit(group.notes[0].id, 'title', group.notes[0].title)}
                             >
@@ -519,11 +519,11 @@ export const AccountingPage = () => {
                           {hasMultiple ? (
                              // Si c'est un groupe, on affiche "Encaissé" uniquement si TOUS sont encaissés
                              group.notes.every(n => n.payment_status === 'PAYE' && n.is_collected) ? (
-                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-emerald-100 text-emerald-700 uppercase tracking-tighter">Encaissé</span>
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-success-surface text-success uppercase tracking-tighter">Encaissé</span>
                              ) : group.notes.every(n => n.payment_status === 'PAYE') ? (
-                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-green-100 text-green-700 uppercase tracking-tighter">Réglé</span>
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-success-surface text-success uppercase tracking-tighter">Réglé</span>
                              ) : (
-                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-amber-100 text-amber-700 uppercase tracking-tighter">En attente</span>
+                               <span className="px-2 py-1 text-[10px] font-black rounded-full bg-warning-surface text-warning uppercase tracking-tighter">En attente</span>
                              )
                           ) : (
                             getStatusBadge(group.notes[0])
@@ -538,7 +538,7 @@ export const AccountingPage = () => {
                                     value={paymentMethods[String(group.notes[0].id)] || ''}
                                     onChange={e => setPaymentMethod(group.notes[0].id, e.target.value)}
                                     onClick={e => e.stopPropagation()}
-                                    className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-700"
+                                    className="px-2 py-2 bg-card border border-border-main rounded-lg text-[9px] font-bold text-text-main"
                                     aria-label={`Mode de paiement pour ${group.patient_name}`}
                                   >
                                     <option value="">Mode…</option>
@@ -550,7 +550,7 @@ export const AccountingPage = () => {
                                   <button
                                     onClick={e => { e.stopPropagation(); handleEncaisser(group.notes[0].id, paymentMethods[String(group.notes[0].id)]); }}
                                     disabled={!paymentMethods[String(group.notes[0].id)]}
-                                    className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="p-2 bg-success-surface text-success rounded-lg hover:bg-green-600 hover:text-white transition-all border border-success-border disabled:opacity-40 disabled:cursor-not-allowed"
                                     title="Encaisser"
                                   >
                                     <Check size={16} />
@@ -565,15 +565,15 @@ export const AccountingPage = () => {
                                   <button onClick={() => handleViewDocument(group.notes[0].file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
                                     <Eye size={16} />
                                   </button>
-                                  <button onClick={() => handleDownloadDocument(group.notes[0].file_url, `Note_${group.patient_name}_${group.notes[0].id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
+                                  <button onClick={() => handleDownloadDocument(group.notes[0].file_url, `Note_${group.patient_name}_${group.notes[0].id}.pdf`)} className="p-2 bg-background text-text-muted rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-border-main" title="Télécharger">
                                     <Download size={16} />
                                   </button>
                                 </>
                               )}
-                              <Link to={`/patients/${group.patient_id}?tab=admin`} className="p-2 bg-emerald-50 text-emerald-600 rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-emerald-100" title="Gérer Patient / Assurance" onClick={e => e.stopPropagation()}>
+                              <Link to={`/patients/${group.patient_id}?tab=admin`} className="p-2 bg-success-surface text-success rounded-lg hover:bg-emerald-600 hover:text-white transition-all border border-success-border" title="Gérer Patient / Assurance" onClick={e => e.stopPropagation()}>
                                 <Edit size={16} />
                               </Link>
-                              <button onClick={e => { e.stopPropagation(); handleDelete(getHonoraireTrashTarget(group.notes[0])); }} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
+                              <button onClick={e => { e.stopPropagation(); handleDelete(getHonoraireTrashTarget(group.notes[0])); }} className="p-2 bg-danger-surface text-danger rounded-lg hover:bg-red-600 hover:text-white transition-all border border-danger-border" title="Supprimer">
                                 <Trash2 size={16} />
                               </button>
                             </div>
@@ -584,12 +584,12 @@ export const AccountingPage = () => {
 
                       {/* Lignes de détail accordéon (multi-notes) */}
                       {hasMultiple && isExpanded && group.notes.map(note => (
-                        <tr key={note.id} className="bg-slate-50/60 border-b border-slate-100/60 hover:bg-primary/5 transition-colors">
+                        <tr key={note.id} className="bg-background/60 border-b border-border-main/60 hover:bg-primary/5 transition-colors">
                           <td className="pl-20 pr-8 py-3" colSpan={3}>
                             {editingCell?.id === String(note.id) && editingCell.field === 'title' ? (
                               <input
                                 autoFocus
-                                className="text-sm font-bold text-slate-800 border-b-2 border-primary bg-primary/5 rounded px-2 py-0.5 outline-none w-full max-w-[240px]"
+                                className="text-sm font-bold text-text-main border-b-2 border-primary bg-primary/5 rounded px-2 py-0.5 outline-none w-full max-w-[240px]"
                                 value={editingValue}
                                 onChange={e => setEditingValue(e.target.value)}
                                 onBlur={commitEdit}
@@ -597,7 +597,7 @@ export const AccountingPage = () => {
                               />
                             ) : (
                               <span
-                                className="text-sm font-bold text-slate-600 truncate max-w-[240px] block cursor-pointer hover:text-primary hover:underline transition-colors"
+                                className="text-sm font-bold text-text-muted truncate max-w-[240px] block cursor-pointer hover:text-primary hover:underline transition-colors"
                                 title="Cliquer pour modifier"
                                 onClick={() => startEdit(note.id, 'title', note.title)}
                               >
@@ -620,7 +620,7 @@ export const AccountingPage = () => {
                               />
                             ) : (
                               <span
-                                className="text-sm font-black text-slate-700 cursor-pointer hover:text-primary transition-colors"
+                                className="text-sm font-black text-text-main cursor-pointer hover:text-primary transition-colors"
                                 title="Cliquer pour modifier"
                                 onClick={() => startEdit(note.id, 'amount', note.amount)}
                               >
@@ -638,7 +638,7 @@ export const AccountingPage = () => {
                                   <select
                                     value={paymentMethods[String(note.id)] || ''}
                                     onChange={e => setPaymentMethod(note.id, e.target.value)}
-                                    className="px-2 py-2 bg-white border border-slate-200 rounded-lg text-[9px] font-bold text-slate-700"
+                                    className="px-2 py-2 bg-card border border-border-main rounded-lg text-[9px] font-bold text-text-main"
                                     aria-label={`Mode de paiement pour ${group.patient_name}`}
                                   >
                                     <option value="">Mode…</option>
@@ -650,7 +650,7 @@ export const AccountingPage = () => {
                                   <button
                                     onClick={() => handleEncaisser(note.id, paymentMethods[String(note.id)])}
                                     disabled={!paymentMethods[String(note.id)]}
-                                    className="p-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-600 hover:text-white transition-all border border-green-100 disabled:opacity-40 disabled:cursor-not-allowed"
+                                    className="p-2 bg-success-surface text-success rounded-lg hover:bg-green-600 hover:text-white transition-all border border-success-border disabled:opacity-40 disabled:cursor-not-allowed"
                                     title="Encaisser"
                                   >
                                     <Check size={14} />
@@ -665,12 +665,12 @@ export const AccountingPage = () => {
                                   <button onClick={() => handleViewDocument(note.file_url)} className="p-2 bg-primary/10 text-primary rounded-lg hover:bg-primary hover:text-white transition-all border border-primary/20" title="Voir la Note">
                                     <Eye size={14} />
                                   </button>
-                                  <button onClick={() => handleDownloadDocument(note.file_url, `Note_${group.patient_name}_${note.id}.pdf`)} className="p-2 bg-slate-50 text-slate-600 rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-slate-200" title="Télécharger">
+                                  <button onClick={() => handleDownloadDocument(note.file_url, `Note_${group.patient_name}_${note.id}.pdf`)} className="p-2 bg-background text-text-muted rounded-lg hover:bg-slate-800 hover:text-white transition-all border border-border-main" title="Télécharger">
                                     <Download size={14} />
                                   </button>
                                 </>
                               )}
-                              <button onClick={() => handleDelete(getHonoraireTrashTarget(note))} className="p-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-600 hover:text-white transition-all border border-red-100" title="Supprimer">
+                              <button onClick={() => handleDelete(getHonoraireTrashTarget(note))} className="p-2 bg-danger-surface text-danger rounded-lg hover:bg-red-600 hover:text-white transition-all border border-danger-border" title="Supprimer">
                                 <Trash2 size={14} />
                               </button>
                             </div>
@@ -686,11 +686,11 @@ export const AccountingPage = () => {
           </div>
         ) : (
           <div className="py-32 text-center flex flex-col items-center">
-            <div className="w-20 h-20 bg-slate-50 rounded-3xl flex items-center justify-center text-slate-200 mb-6 shadow-inner">
+            <div className="w-20 h-20 bg-background rounded-3xl flex items-center justify-center text-text-muted mb-6 shadow-inner">
               <Filter size={40} />
             </div>
-            <h3 className="text-xl font-black text-slate-800 mb-2">Aucun encaissement trouvé</h3>
-            <p className="text-slate-400 font-medium max-w-sm">Ajustez vos filtres ou effectuez une nouvelle recherche pour trouver des notes d'honoraires.</p>
+            <h3 className="text-xl font-black text-text-main mb-2">Aucun encaissement trouvé</h3>
+            <p className="text-text-muted font-medium max-w-sm">Ajustez vos filtres ou effectuez une nouvelle recherche pour trouver des notes d'honoraires.</p>
           </div>
         )}
       </main>

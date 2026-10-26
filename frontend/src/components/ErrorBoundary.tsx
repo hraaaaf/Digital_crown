@@ -28,22 +28,22 @@ export class ErrorBoundary extends Component<Props, State> {
     if (this.state.hasError) {
       if (this.props.fallback) return this.props.fallback;
       return (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white rounded-[2rem] shadow-xl border border-slate-100 p-8 text-center space-y-6">
+        <div className="min-h-screen bg-background flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-card rounded-[2rem] shadow-xl border border-border-main p-8 text-center space-y-6">
             <div className="w-20 h-20 bg-red-50 text-red-500 rounded-full flex items-center justify-center mx-auto shadow-inner relative">
                <div className="absolute inset-0 bg-red-500/20 blur-xl rounded-full" />
                <AlertCircle size={40} className="relative z-10" />
             </div>
             
             <div>
-              <h1 className="text-2xl font-black text-slate-800 mb-2">Erreur Inattendue</h1>
-              <p className="text-slate-500 font-medium text-sm">
+              <h1 className="text-2xl font-black text-text-main mb-2">Erreur Inattendue</h1>
+              <p className="text-text-muted font-medium text-sm">
                 Une erreur s'est produite lors de l'affichage de cette page.
               </p>
             </div>
 
             {this.state.error && (
-              <div className="bg-slate-50 p-4 rounded-xl text-left overflow-auto max-h-32 text-[10px] font-mono text-slate-600 border border-slate-200">
+              <div className="bg-background p-4 rounded-xl text-left overflow-auto max-h-32 text-[10px] font-mono text-text-muted border border-border-main">
                 {this.state.error.message}
               </div>
             )}

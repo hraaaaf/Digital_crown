@@ -81,7 +81,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
   return (
     <div data-testid="agenda-month-view" className="w-full space-y-6">
       <div className="flex justify-end gap-3 px-2">
-        <button onClick={fetchAppointments} className="p-3 bg-white/50 border border-white hover:bg-white text-slate-500 rounded-2xl transition-all shadow-sm">
+        <button onClick={fetchAppointments} className="p-3 bg-card/50 border border-white hover:bg-card text-text-muted rounded-2xl transition-all shadow-sm">
           <RefreshCw size={18} className={cn(loading && "animate-spin text-blue-500")} />
         </button>
         <button onClick={() => { setEditingAppointment(null); setModalDate(selectedDate); setIsModalOpen(true); }} className="px-6 py-3 bg-[#003380] text-white font-bold rounded-2xl shadow-xl shadow-blue-900/10 hover:bg-blue-900 transition-all flex items-center gap-2">
@@ -89,10 +89,10 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
         </button>
       </div>
 
-      <div className="bg-white/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[700px]">
-        <div className="grid grid-cols-7 border-b border-slate-100 bg-slate-50/50">
+      <div className="bg-card/60 backdrop-blur-2xl border border-white rounded-[2.5rem] shadow-2xl overflow-hidden min-h-[700px]">
+        <div className="grid grid-cols-7 border-b border-border-main bg-background/50">
           {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map(d => (
-            <div key={d} className="p-4 text-center text-[10px] font-black text-slate-400 uppercase tracking-widest border-r border-slate-100 last:border-0">{d}</div>
+            <div key={d} className="p-4 text-center text-[10px] font-black text-text-muted uppercase tracking-widest border-r border-border-main last:border-0">{d}</div>
           ))}
         </div>
 
@@ -107,15 +107,15 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
                 key={i}
                 onClick={() => handleDayClick(day)}
                 className={cn(
-                  "min-h-[120px] p-2 border-r border-b border-slate-100/60 last:border-r-0 transition-all cursor-pointer",
-                  !isCurrentMonth ? "bg-slate-50/30 opacity-40 shadow-inner" : "hover:bg-blue-50/40 hover:shadow-md",
+                  "min-h-[120px] p-2 border-r border-b border-border-main/60 last:border-r-0 transition-all cursor-pointer",
+                  !isCurrentMonth ? "bg-background/30 opacity-40 shadow-inner" : "hover:bg-blue-50/40 hover:shadow-md",
                   isToday ? "bg-blue-50/40" : ""
                 )}
               >
                 <div className="flex justify-between items-center mb-1">
                   <span className={cn(
                     "inline-flex items-center justify-center w-7 h-7 text-xs font-black rounded-lg",
-                    isToday ? "bg-[#003380] text-white" : "text-slate-600"
+                    isToday ? "bg-[#003380] text-white" : "text-text-muted"
                   )}>
                     {day.getDate()}
                   </span>
@@ -134,7 +134,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
                         type="button"
                         data-m4d-month-appointment
                         onClick={(event) => handleAppointmentClick(event, a)}
-                        className="w-full min-h-11 text-left text-[9px] font-bold bg-white border border-slate-100 px-2 py-1 rounded-md text-slate-700 truncate shadow-sm hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
+                        className="w-full min-h-11 text-left text-[9px] font-bold bg-card border border-border-main px-2 py-1 rounded-md text-text-main truncate shadow-sm hover:border-blue-300 hover:bg-blue-50 focus:outline-none focus:ring-2 focus:ring-blue-400/40"
                         aria-label={`Modifier le rendez-vous de ${a.patient_name || 'patient'} à ${timeLabel}`}
                       >
                         <span className="flex min-w-0 items-center gap-1.5">
@@ -146,7 +146,7 @@ export const MonthlyView: React.FC<MonthlyViewProps> = ({ selectedDate }) => {
                       </button>
                     );
                   })}
-                  {dayAppts.length > 3 && <div className="text-[9px] font-bold text-slate-400 pl-1">+{dayAppts.length - 3} autres...</div>}
+                  {dayAppts.length > 3 && <div className="text-[9px] font-bold text-text-muted pl-1">+{dayAppts.length - 3} autres...</div>}
                 </div>
               </div>
             );

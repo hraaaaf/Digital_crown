@@ -71,31 +71,31 @@ export const CsvImportModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) 
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-      <div role="dialog" aria-modal="true" aria-label="Importer des patients" className="bg-white rounded-[2rem] shadow-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
+      <div role="dialog" aria-modal="true" aria-label="Importer des patients" className="bg-card rounded-[2rem] shadow-2xl w-full max-w-lg animate-in fade-in zoom-in-95 duration-200">
 
         {/* Header */}
-        <div className="flex items-center justify-between p-6 border-b border-slate-100">
+        <div className="flex items-center justify-between p-6 border-b border-border-main">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center">
               <UploadCloud size={20} className="text-primary" />
             </div>
             <div>
-              <h2 className="font-black text-slate-800">Importer des patients</h2>
-              <p className="text-xs text-slate-400 font-medium">Fichier CSV — nom, prenom, date_naissance</p>
+              <h2 className="font-black text-text-main">Importer des patients</h2>
+              <p className="text-xs text-text-muted font-medium">Fichier CSV — nom, prenom, date_naissance</p>
             </div>
           </div>
-          <button onClick={handleClose} aria-label="Fermer l’import CSV" className="p-2 hover:bg-slate-100 rounded-xl transition-colors">
-            <X size={18} className="text-slate-400" />
+          <button onClick={handleClose} aria-label="Fermer l’import CSV" className="p-2 hover:bg-input-field rounded-xl transition-colors">
+            <X size={18} className="text-text-muted" />
           </button>
         </div>
 
         <div className="p-6 space-y-5">
 
           {/* Format info */}
-          <div className="bg-slate-50 rounded-2xl p-4 text-xs text-slate-500 space-y-1">
-            <p className="font-black text-slate-600 mb-2">Format attendu</p>
+          <div className="bg-background rounded-2xl p-4 text-xs text-text-muted space-y-1">
+            <p className="font-black text-text-muted mb-2">Format attendu</p>
             <p>Colonnes (l'ordre n'est pas important, séparateur auto-détecté) :</p>
-            <code className="block bg-white border border-slate-200 rounded-lg px-3 py-2 text-[11px] font-mono text-slate-700 mt-1">
+            <code className="block bg-card border border-border-main rounded-lg px-3 py-2 text-[11px] font-mono text-text-main mt-1">
               nom ; prenom ; date_naissance ; telephone ; email ; assurance
             </code>
             <p className="mt-1">Date : <span className="font-mono">JJ/MM/AAAA</span> ou <span className="font-mono">AAAA-MM-JJ</span></p>
@@ -106,7 +106,7 @@ export const CsvImportModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) 
             <div
               className={cn(
                 "border-2 border-dashed rounded-2xl p-8 text-center cursor-pointer transition-all",
-                dragOver ? "border-primary bg-primary/5" : "border-slate-200 hover:border-primary/50 hover:bg-slate-50"
+                dragOver ? "border-primary bg-primary/5" : "border-border-main hover:border-primary/50 hover:bg-background"
               )}
               onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
               onDragLeave={() => setDragOver(false)}
@@ -124,14 +124,14 @@ export const CsvImportModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) 
                 <div className="flex items-center justify-center gap-3">
                   <FileText size={24} className="text-primary" />
                   <div className="text-left">
-                    <p className="font-black text-slate-700 text-sm">{file.name}</p>
-                    <p className="text-xs text-slate-400">{(file.size / 1024).toFixed(1)} Ko</p>
+                    <p className="font-black text-text-main text-sm">{file.name}</p>
+                    <p className="text-xs text-text-muted">{(file.size / 1024).toFixed(1)} Ko</p>
                   </div>
                 </div>
               ) : (
                 <>
-                  <UploadCloud size={32} className="mx-auto text-slate-300 mb-3" />
-                  <p className="font-bold text-slate-500 text-sm">Glissez votre CSV ici ou cliquez pour choisir</p>
+                  <UploadCloud size={32} className="mx-auto text-text-muted mb-3" />
+                  <p className="font-bold text-text-muted text-sm">Glissez votre CSV ici ou cliquez pour choisir</p>
                 </>
               )}
             </div>
@@ -180,7 +180,7 @@ export const CsvImportModal: React.FC<Props> = ({ isOpen, onClose, onSuccess }) 
               </button>
             ) : (
               <>
-                <button onClick={handleClose} className="flex-1 py-3 border border-slate-200 text-slate-500 font-bold rounded-2xl hover:bg-slate-50 transition-all">
+                <button onClick={handleClose} className="flex-1 py-3 border border-border-main text-text-muted font-bold rounded-2xl hover:bg-background transition-all">
                   Annuler
                 </button>
                 <button

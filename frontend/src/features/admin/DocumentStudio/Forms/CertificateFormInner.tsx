@@ -192,18 +192,18 @@ export const CertificateTemplatePresets: React.FC<{
   };
 
   return (
-    <div className="mb-6 rounded-2xl border border-slate-100 bg-slate-50/70 p-4">
+    <div className="mb-6 rounded-2xl border border-border-main bg-background/70 p-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-slate-400">Modèles du cabinet</div>
-          <p className="mt-1 text-[10px] font-semibold text-slate-500">
+          <div className="text-[10px] font-black uppercase tracking-[0.18em] text-text-muted">Modèles du cabinet</div>
+          <p className="mt-1 text-[10px] font-semibold text-text-muted">
             Un modèle est appliqué uniquement après votre clic et reste entièrement éditable.
           </p>
         </div>
         <button
           type="button"
           onClick={openCreate}
-          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-primary/20 bg-white px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary/5"
+          className="inline-flex min-h-10 items-center gap-2 rounded-xl border border-primary/20 bg-card px-3 py-2 text-[10px] font-black uppercase tracking-wider text-primary transition-colors hover:bg-primary/5"
         >
           <Plus size={14} /> Créer un modèle
         </button>
@@ -211,7 +211,7 @@ export const CertificateTemplatePresets: React.FC<{
 
       <div className="mt-4 flex flex-wrap gap-2" aria-label="Modèles de certificat du cabinet">
         {loading ? (
-          <span className="text-[10px] font-bold text-slate-400">Chargement des modèles…</span>
+          <span className="text-[10px] font-bold text-text-muted">Chargement des modèles…</span>
         ) : templates.length > 0 ? (
           templates.map(template => (
             <button
@@ -219,18 +219,18 @@ export const CertificateTemplatePresets: React.FC<{
               type="button"
               onClick={() => void applyTemplate(template.id)}
               disabled={applyingId !== null}
-              className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 text-left text-[11px] font-bold text-slate-600 transition-all hover:border-primary/30 hover:text-primary disabled:opacity-50"
+              className="inline-flex min-h-10 max-w-full items-center gap-2 rounded-xl border border-border-main bg-card px-3 py-2 text-left text-[11px] font-bold text-text-muted transition-all hover:border-primary/30 hover:text-primary disabled:opacity-50"
             >
               <FileText size={14} className="shrink-0" />
               <span className="truncate">{template.name}</span>
             </button>
           ))
         ) : (
-          <span className="text-[10px] font-bold text-slate-400">Aucun modèle personnalisé enregistré.</span>
+          <span className="text-[10px] font-bold text-text-muted">Aucun modèle personnalisé enregistré.</span>
         )}
       </div>
 
-      <p className="mt-3 text-[9px] font-bold leading-relaxed text-slate-400">
+      <p className="mt-3 text-[9px] font-bold leading-relaxed text-text-muted">
         Appliquer un modèle copie son texte dans le brouillon. Le praticien doit le relire et le valider avant génération.
       </p>
 
@@ -250,45 +250,45 @@ export const CertificateTemplatePresets: React.FC<{
 
       {showCreate && (
         <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/40 p-4" role="dialog" aria-modal="true" aria-labelledby="certificate-template-create-title">
-          <div className="w-full max-w-lg rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+          <div className="w-full max-w-lg rounded-2xl border border-border-main bg-card p-5 shadow-2xl">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-400">Modèle du cabinet</p>
-                <h3 id="certificate-template-create-title" className="mt-1 text-lg font-black text-slate-900">Créer un modèle</h3>
+                <p className="text-[10px] font-black uppercase tracking-widest text-text-muted">Modèle du cabinet</p>
+                <h3 id="certificate-template-create-title" className="mt-1 text-lg font-black text-text-main">Créer un modèle</h3>
               </div>
-              <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg p-2 text-slate-400 hover:bg-slate-50" aria-label="Fermer">
+              <button type="button" onClick={() => setShowCreate(false)} className="rounded-lg p-2 text-text-muted hover:bg-background" aria-label="Fermer">
                 <X size={16} />
               </button>
             </div>
 
             <div className="mt-5 space-y-4">
               <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-600">Nom du modèle *</span>
+                <span className="text-xs font-bold text-text-muted">Nom du modèle *</span>
                 <input
                   value={templateName}
                   onChange={event => setTemplateName(event.target.value)}
                   maxLength={100}
-                  className="w-full rounded-xl border border-slate-200 px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  className="w-full rounded-xl border border-border-main px-3 py-2.5 text-sm font-semibold outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   placeholder="Ex. Certificat aptitude traitement"
                 />
               </label>
               <label className="block space-y-1.5">
-                <span className="text-xs font-bold text-slate-600">Contenu du modèle *</span>
+                <span className="text-xs font-bold text-text-muted">Contenu du modèle *</span>
                 <textarea
                   value={templateBody}
                   onChange={event => setTemplateBody(event.target.value)}
-                  className="min-h-44 w-full resize-y rounded-xl border border-slate-200 px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
+                  className="min-h-44 w-full resize-y rounded-xl border border-border-main px-3 py-2.5 text-sm leading-relaxed outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
                   placeholder="Texte réutilisable du certificat…"
                   aria-label="Contenu du modèle"
                 />
               </label>
-              <p className="text-[10px] font-semibold text-slate-500">
+              <p className="text-[10px] font-semibold text-text-muted">
                 Le modèle ne fixe ni la nature clinique ni une durée. Il prépare uniquement le texte libre.
               </p>
             </div>
 
             <div className="mt-5 flex flex-wrap justify-end gap-2">
-              <button type="button" onClick={() => setShowCreate(false)} className="min-h-10 rounded-xl border border-slate-200 px-4 py-2 text-sm font-bold text-slate-600">
+              <button type="button" onClick={() => setShowCreate(false)} className="min-h-10 rounded-xl border border-border-main px-4 py-2 text-sm font-bold text-text-muted">
                 Annuler
               </button>
               <button
@@ -366,8 +366,8 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
     if (cleaned !== certifCustomMotif) setCertifCustomMotif(cleaned);
   }, [certifType, certifCustomMotif, setCertifCustomMotif]);
 
-  const labelClass = "text-[10px] font-black text-slate-400 uppercase tracking-[0.2em] block mb-4 ml-1";
-  const inputClass = "w-full px-5 py-4 bg-white/70 border border-slate-100 rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-slate-800";
+  const labelClass = "text-[10px] font-black text-text-muted uppercase tracking-[0.2em] block mb-4 ml-1";
+  const inputClass = "w-full px-5 py-4 bg-card/70 border border-border-main rounded-2xl text-sm outline-none focus:ring-4 focus:ring-primary/5 focus:border-primary transition-all duration-300 shadow-sm font-bold text-text-main";
   const freeContentMissing = certifType === CERTIFICATE_TYPE_FREE && !certifCustomMotif.trim();
   const durationMissing = certificateRequiresDuration(certifType) && (!Number.isInteger(certifDays) || certifDays < 1);
 
@@ -394,7 +394,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
 
   return (
     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-700 max-w-4xl w-full mx-auto py-8">
-      <div className="bg-white/40 backdrop-blur-xl rounded-[3rem] border border-white/60 p-10 shadow-sm relative overflow-hidden">
+      <div className="bg-card/40 backdrop-blur-xl rounded-[3rem] border border-white/60 p-10 shadow-sm relative overflow-hidden">
         <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 blur-[80px] -mr-32 -mt-32 rounded-full pointer-events-none" />
 
         <div className="relative z-10 space-y-10">
@@ -427,7 +427,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                       "flex items-center justify-center gap-3 px-6 py-4 rounded-[1.5rem] text-[10px] font-black uppercase tracking-widest transition-all border shadow-sm min-w-[180px]",
                       certifType === type.id
                         ? "bg-primary text-white border-primary shadow-xl shadow-primary/20"
-                        : "bg-white text-slate-500 border-slate-100 hover:border-primary/30"
+                        : "bg-card text-text-muted border-border-main hover:border-primary/30"
                     )}
                     style={certifType === type.id ? { backgroundColor: 'var(--primary)' } : {}}
                     aria-pressed={certifType === type.id}
@@ -435,7 +435,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                     <span className={cn(certifType === type.id ? "text-white" : "text-primary/40")}>{type.icon}</span>
                     {type.label}
                   </button>
-                  <span className="text-[7px] font-black text-slate-300 uppercase tracking-widest text-center px-4 max-w-[210px]">
+                  <span className="text-[7px] font-black text-text-muted uppercase tracking-widest text-center px-4 max-w-[210px]">
                     {type.description}
                   </span>
                 </div>
@@ -443,7 +443,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
             </div>
 
             {!certifType && (
-              <p className="mt-5 text-center text-[9px] font-bold text-slate-400">
+              <p className="mt-5 text-center text-[9px] font-bold text-text-muted">
                 Aucun type sélectionné. Le praticien choisit explicitement la nature du certificat.
               </p>
             )}
@@ -473,7 +473,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                   id="certificate-free-content-help"
                   className={cn(
                     "mt-2 px-1 text-[9px] font-bold",
-                    freeContentMissing ? "text-amber-600" : "text-slate-400",
+                    freeContentMissing ? "text-amber-600" : "text-text-muted",
                   )}
                 >
                   {freeContentMissing
@@ -485,11 +485,11 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
           </div>
 
           {certificateRequiresDuration(certifType) && (
-            <div className="pt-8 border-t border-slate-100/50 space-y-6">
+            <div className="pt-8 border-t border-border-main/50 space-y-6">
               <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_220px] sm:items-end">
                 <div>
                   <label htmlFor="certificate-rest-days" className={labelClass + " mb-1"}>Durée du repos</label>
-                  <p className="text-[9px] font-bold text-slate-400 italic">À saisir et valider par le praticien. Aucune durée n’est préremplie.</p>
+                  <p className="text-[9px] font-bold text-text-muted italic">À saisir et valider par le praticien. Aucune durée n’est préremplie.</p>
                 </div>
                 <div>
                   <label htmlFor="certificate-rest-start" className={labelClass + " mb-1"}>Début du repos</label>
@@ -498,7 +498,7 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
                     type="date"
                     value={certifStartDate || docDate}
                     onChange={(e) => setCertifStartDate(e.target.value)}
-                    className="w-full rounded-xl border border-slate-100 bg-white/70 px-4 py-3 text-sm font-bold text-slate-700 shadow-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/5"
+                    className="w-full rounded-xl border border-border-main bg-card/70 px-4 py-3 text-sm font-bold text-text-main shadow-sm outline-none transition-all focus:border-primary focus:ring-4 focus:ring-primary/5"
                   />
                 </div>
               </div>
@@ -537,10 +537,10 @@ export const CertificateForm: React.FC<CertificateFormProps> = ({
         </div>
       </div>
 
-      <div className="flex items-center justify-center gap-2 text-slate-400">
-        <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+      <div className="flex items-center justify-center gap-2 text-text-muted">
+        <div className="w-1.5 h-1.5 rounded-full bg-input-field" />
         <span className="text-[9px] font-black uppercase tracking-[0.3em]">Validation du praticien requise</span>
-        <div className="w-1.5 h-1.5 rounded-full bg-slate-200" />
+        <div className="w-1.5 h-1.5 rounded-full bg-input-field" />
       </div>
     </div>
   );

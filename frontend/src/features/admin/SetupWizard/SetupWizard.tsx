@@ -379,7 +379,7 @@ export const SetupWizard: React.FC = () => {
 
           {(currentStep >= 3 && currentStep <= 7) && (
             <div className="lg:col-span-5 lg:sticky lg:top-28 relative z-[11000] animate-in fade-in slide-in-from-right-12 duration-1000 min-w-0">
-              <div className="mb-6 flex items-center justify-between gap-3 px-4 bg-white/50 backdrop-blur-md p-4 rounded-3xl border border-border-main/40">
+              <div className="mb-6 flex items-center justify-between gap-3 px-4 bg-card/50 backdrop-blur-md p-4 rounded-3xl border border-border-main/40">
                 <div className="flex items-center gap-2 min-w-0">
                   <div className="w-2 h-2 shrink-0 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="truncate text-[10px] font-black text-text-muted uppercase tracking-widest">Aperçu Live Studio</span>
@@ -388,7 +388,7 @@ export const SetupWizard: React.FC = () => {
                 <div className="flex items-center gap-2 shrink-0">
                   <button
                     onClick={() => toast.success("Aperçu rafraîchi")}
-                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-slate-50 text-slate-600 border border-slate-200 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
+                    className="hidden sm:flex items-center gap-2 px-3 py-1.5 bg-background text-text-muted border border-border-main rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-white transition-all"
                   >
                     Actualiser
                   </button>
@@ -421,11 +421,11 @@ export const SetupWizard: React.FC = () => {
                   headerScale={headerScale}
                 />
               ) : (
-                <div className="w-full aspect-[1/1.414] bg-slate-50 border-2 border-dashed border-slate-200 rounded-[2.5rem] flex flex-col items-center justify-center text-center p-8 sm:p-12">
-                  <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-sm mb-4">
-                    <Building2 className="text-slate-200" size={32} />
+                <div className="w-full aspect-[1/1.414] bg-background border-2 border-dashed border-border-main rounded-[2.5rem] flex flex-col items-center justify-center text-center p-8 sm:p-12">
+                  <div className="w-16 h-16 bg-card rounded-2xl flex items-center justify-center shadow-sm mb-4">
+                    <Building2 className="text-text-muted" size={32} />
                   </div>
-                  <p className="text-xs font-black text-slate-400 uppercase tracking-widest">Aperçu masqué</p>
+                  <p className="text-xs font-black text-text-muted uppercase tracking-widest">Aperçu masqué</p>
                   <button onClick={() => setShowPreview(true)} className="mt-4 text-[10px] font-black text-primary underline uppercase tracking-widest">Réactiver l'aperçu</button>
                 </div>
               )}
