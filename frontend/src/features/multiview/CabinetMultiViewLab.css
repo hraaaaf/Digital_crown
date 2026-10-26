@@ -296,3 +296,41 @@
     padding: 6px;
   }
 }
+
+/* R3-1 ONLY: the wide row arrangement uses its vertical space for BOTH real
+   clinical read-only modules. No impact on the certified R2 geometry selectors. */
+@media (min-width: 1280px) {
+  [data-r3-1-split="two-rows"] [data-testid="multiview-real-dossier"] {
+    display: grid;
+    grid-template-columns: minmax(220px, .85fr) minmax(0, 1.15fr);
+    align-content: start;
+    align-items: start;
+    gap: 10px;
+  }
+  [data-r3-1-split="two-rows"] [data-testid="multiview-real-dossier"] > * {
+    min-width: 0;
+  }
+  [data-r3-1-split="two-rows"] [data-testid="multiview-real-dossier"] > :first-child {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  [data-r3-1-split="two-rows"] [data-testid="r3-1-dossier-readonly-help"] {
+    grid-column: 1;
+    grid-row: 2;
+  }
+  [data-r3-1-split="two-rows"] [data-testid="multiview-bilan-readonly"] {
+    grid-column: 2;
+    grid-row: 1 / span 2;
+  }
+}
+/* Prevent R3's compact controls from shrinking their hit targets; colors
+   continue to inherit active theme tokens in all eight supported themes. */
+[data-v15-071-real-cabinet-lab] [data-testid="r3-1-premium-actions"] button,
+[data-v15-071-real-cabinet-lab] [data-testid="r3-1-premium-actions"] select {
+  min-height: 40px;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-r3-1-split] [data-testid="r3-1-separator"] > span {
+    transition: none;
+  }
+}
