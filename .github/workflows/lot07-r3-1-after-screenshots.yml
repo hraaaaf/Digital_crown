@@ -117,31 +117,7 @@ jobs:
           test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
           test -n "$DIGITALCROWN_ISOLATION_DB_FINGERPRINT"
           python scripts/lot07_r3_cephalo_pair_t2.py >/tmp/071-r3-cephalo-pair.env
-          grep -E '^R3_T2_CEPHALO_T[01]_ID=[0-9]+
-        working-directory: frontend
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/071-g1-frontend.log 2>&1 &
-          for i in {1..110}; do
-            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
-            sleep 1
-          done
-          tail -80 /tmp/071-g1-frontend.log
-          exit 1
-      - name: Execute exact-SHA R3-1 real Chromium AFTER and theme matrix
-        working-directory: frontend
-        shell: bash
-        run: node scripts/certify-lot07-r3-1-after-t2.mjs
-      - name: Retain actual R3-1 AFTER screenshots and synthetic evidence
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: lot07-r3-1-after-themes-t2-${{ env.SOURCE_HEAD }}
-          path: artifacts/lot07-r3-1-after/
-          if-no-files-found: warn
-          retention-days: 30
- /tmp/071-r3-cephalo-pair.env > /tmp/071-r3-cephalo-pair-validated.env
+          grep -E '^R3_T2_CEPHALO_T[01]_ID=[0-9]+$' /tmp/071-r3-cephalo-pair.env > /tmp/071-r3-cephalo-pair-validated.env
           test "$(wc -l < /tmp/071-r3-cephalo-pair-validated.env)" -eq 2
           cat /tmp/071-r3-cephalo-pair-validated.env >> "$GITHUB_ENV"
       - name: Start actual DEV opt-in Cabinet frontend
