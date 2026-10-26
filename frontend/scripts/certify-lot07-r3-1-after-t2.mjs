@@ -54,7 +54,7 @@ try {
   const syntheticPdf=Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R>>endobj\n4 0 obj<</Length 0>>stream\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF','utf8');
   for (const asset of [
     {kind:'DOCUMENT',name:'QA-R3-document-synthetique.pdf',mime:'application/pdf',buffer:syntheticPdf},
-    {kind:'RADIO',name:'QA-R3-radiographie-synthetique.png',mime:'image/png',buffer:fakePng},
+    {kind:'RADIOGRAPH',name:'QA-R3-radiographie-synthetique.png',mime:'image/png',buffer:fakePng},
   ]) {
     const imported=await api.post('/api/patients/'+patient.id+'/assets/import',{
       headers:head,multipart:{file:{name:asset.name,mimeType:asset.mime,buffer:asset.buffer},
@@ -67,7 +67,7 @@ try {
   pass('real authenticated P2 synthetic asset index',p2AssetsResponse.status()===200,
     {status:p2AssetsResponse.status()});
   const p2Assets=await p2AssetsResponse.json();
-  for (const kind of ['DOCUMENT','RADIO']) {
+  for (const kind of ['DOCUMENT','RADIOGRAPH']) {
     pass('persisted synthetic '+kind+' exists in real patient asset API',
       p2Assets.items?.some(item=>item.asset_type===kind),
       {kind,total:p2Assets.items?.length});
