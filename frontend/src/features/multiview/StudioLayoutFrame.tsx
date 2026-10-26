@@ -29,6 +29,7 @@ export function StudioLayoutFrame({
 
   return (
     <section aria-label={'Vues multiples — ' + decision.layout.label}
+      data-v15-071-layout={decision.layout.id}
       data-v15-071-multiview-scaffold
       className="min-w-0 rounded-xl border border-border-main bg-card-bg p-3 text-text-main">
       <h2 className="mb-3 text-sm font-semibold">{decision.layout.label}</h2>
