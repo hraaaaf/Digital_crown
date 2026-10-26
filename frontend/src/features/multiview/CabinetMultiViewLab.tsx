@@ -10,6 +10,7 @@ import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalCompare
 import { StudioLayoutFrame } from './StudioLayoutFrame';
 import { R3SplitWorkspace } from './R3SplitWorkspace';
 import { R3ThreePaneWorkspace } from './R3ThreePaneWorkspace';
+import { R3AgendaReadonlyPanel } from './R3AgendaReadonlyPanel';
 import { chooseR3Module, r3ModuleOptions, R3_MODULE_LABEL } from './R3ModuleChoice';
 import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
@@ -63,6 +64,12 @@ export function selectablePilotLayouts(allowCephalo: boolean): readonly Layout[]
   return PILOT_LAYOUTS.filter(layout => allowCephalo || layout.slots.every(slot => slot.module !== 'suivi'));
 }
 
+/** Roadmap presets with ALL actual, read-only adapters; no automatic activation of the other six. */
+export function selectableR3RoadmapLayouts(allowAgenda:boolean): readonly Layout[] {
+  return allowAgenda ? PRESETS.filter(layout =>
+    ['vue-ensemble','consultation','agenda-cabinet'].includes(layout.id)) : [];
+}
+
 function tenantKey(user: AppUser | null): string | null {
   if (!user || !user.id) return null;
   // Mirrors local employer/owner identity purely for in-memory UI partitioning.
@@ -108,6 +115,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const trustedPatient = patientProof?.key===proofKey ? patientProof.patient : null;
   const canPatients = Boolean(activeIdentity && hasAccess(user,'patients'));
   const canCephalo = Boolean(activeIdentity && hasAccess(user,'cephalo'));
+  const canAgenda = Boolean(activeIdentity && hasAccess(user,'agenda'));
   const patientMatches = Boolean(patient && Number.isSafeInteger(patient.id) &&
     patient.id > 0 && String(patient.id) === routePatientId);
 
@@ -185,12 +193,14 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
 
   // R3-2 is additive: only authorized real adapters, not nine fake presets.
   const r3FocusPilot = enableR3Split && enableR3Focus && import.meta.env.DEV;
-  const possible=selectablePilotLayouts(canCephalo);
+  const possible=r3FocusPilot
+    ? [...selectablePilotLayouts(canCephalo),...selectableR3RoadmapLayouts(canAgenda)]
+    : selectablePilotLayouts(canCephalo);
   const baseApplied=possible.find(item=>item.id===appliedId) || possible[0];
   const applied=r3FocusPilot && appliedCustom?.id===baseApplied.id ? appliedCustom : baseApplied;
   const baseDraft=possible.find(item=>item.id===draftId) || applied;
   const draft=r3FocusPilot && draftCustom?.id===baseDraft.id ? draftCustom : baseDraft;
-  const r3ThreePane = r3FocusPilot && canCephalo &&
+  const r3ThreePane = r3FocusPilot && applied.slots.length===3 &&
     (applied.geometry==='three-columns' || applied.geometry==='hero-two');
   const premiumR3 = enableR3Split && import.meta.env.DEV &&
     (applied.geometry==='two-columns' || applied.geometry==='two-rows' || r3ThreePane);
@@ -206,6 +216,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     allowedModules: [
       ...(canPatients ? ['dossier','imagerie'] as ModuleKey[] : []),
       ...(canCephalo ? ['suivi'] as ModuleKey[] : []),
+      ...(canAgenda ? ['agenda'] as ModuleKey[] : []),
     ],
   };
   const mountedGate=authorizeLayout(mounted,context,ratio);
@@ -240,6 +251,8 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const renderSlot=(slot:{module:ModuleKey})=>{
     if (!trustedPatient) return null;
     if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>;
+    if (slot.module==='agenda' && canAgenda && user)
+      return <R3AgendaReadonlyPanel user={user}/>;
     if (slot.module==='dossier') return (
       <div data-testid="multiview-real-dossier" className="min-w-0 space-y-2.5 p-2.5 text-sm sm:p-3">
         <div className="rounded-2xl bg-gradient-to-br from-primary via-primary to-primary p-4 text-on-primary shadow-sm">
@@ -321,8 +334,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
               <optgroup label="Connectées aux vrais modules">
                 {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
               </optgroup>
-              <optgroup label="Neuf directions produit — non connectées">
-                {PRESETS.map(item=><option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
+              <optgroup label="Dispositions à intégrer">
+                {PRESETS.filter(item=>!possible.some(layout=>layout.id===item.id)).map(item=>
+                  <option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
               </optgroup>
             </select>
           </div>
@@ -384,8 +398,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
               <optgroup label="Connectées aux vrais modules">
                 {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
               </optgroup>
-              <optgroup label="Neuf directions produit — non connectées">
-                {PRESETS.map(item=><option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
+              <optgroup label="Dispositions à intégrer">
+                {PRESETS.filter(item=>!possible.some(layout=>layout.id===item.id)).map(item=>
+                  <option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
               </optgroup>
             </select>
             <button type="button" onClick={()=>setPreview(true)} className="rounded-md border px-3 py-2 text-xs">Aperçu</button>
