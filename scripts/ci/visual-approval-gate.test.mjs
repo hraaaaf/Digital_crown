@@ -308,6 +308,14 @@ for(const number of [1112,1113,1114]) {
       await assert.rejects(tokenWaiverFixture({number,files}).run('labeled'),/file inventory mismatch/);
     }
   });
+  test('new wave '+number+' cannot masquerade as a non-UI change',async()=>{
+    const e=TOKEN_ONLY_CERTIFIED_WAVES[number];
+    const files=[{filename:e.path},{filename:e.oracle}];
+    await assert.rejects(tokenWaiverFixture({number,files}).run('labeled'),
+      /file inventory mismatch/);
+    await assert.rejects(tokenWaiverFixture({number,files}).run('synchronize'),
+      /file inventory mismatch/);
+  });
   test('new wave '+number+' rejects extra TSX',async()=>{
     const e=TOKEN_ONLY_CERTIFIED_WAVES[number];
     const files=[...e.sources,e.path,e.oracle,'frontend/src/extra.tsx'].map(filename=>({filename}));
