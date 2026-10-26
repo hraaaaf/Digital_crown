@@ -40,9 +40,9 @@ export const TOKEN_ONLY_CERTIFIED_WAVES=Object.freeze({
   1102:{sha:'db5eeca6991c8560d4984a5f83b5afcf2d0c76bf',proof:40246248646,scope:40246248714,path:'.github/workflows/app-theme-neutral-wave06.yml'},
   1103:{sha:'ede172d1c25891e0c2e40f21eb73e2f02eca7532',proof:40247331818,scope:40247331868,path:'.github/workflows/app-theme-neutral-wave07.yml'},
   1104:{sha:'7a209b5d78de51e0ccf9a8d7fb599e63d3caf40d',proof:40249242088,scope:40249242098,path:'.github/workflows/app-theme-neutral-wave08.yml'},
-  1112:{sha:'bb099f9c30fa623954af09bdbdaf3ed7b34e5a5c',proof:40359079705,scope:40359079907,path:'.github/workflows/theme-wave09-cosmetic.yml',oracle:'scripts/ci/theme_wave09_cosmetic.py',sources:['frontend/src/features/admin/SetupWizard/steps/Step1Identity.tsx','frontend/src/features/admin/SetupWizard/steps/Step2Specialties.tsx','frontend/src/features/admin/SetupWizard/steps/Step7Confirmation.tsx']},
+  1112:{sha:'713015966650f5c8b22eccce77c5fd884c9baefd',proof:40359767052,scope:40359767295,path:'.github/workflows/theme-wave09-cosmetic.yml',oracle:'scripts/ci/theme_wave09_cosmetic.py',sources:['frontend/src/features/admin/SetupWizard/steps/Step1Identity.tsx','frontend/src/features/admin/SetupWizard/steps/Step2Specialties.tsx','frontend/src/features/admin/SetupWizard/steps/Step7Confirmation.tsx']},
   1113:{sha:'ad73a1064315bc4d00f75bd617ee96a1bb9b2eb3',proof:40359133018,scope:40359132940,path:'.github/workflows/theme-wave10-cosmetic.yml',oracle:'scripts/ci/theme_wave10_cosmetic.py',sources:['frontend/src/features/admin/SetupWizard/steps/Step5Design.tsx']},
-  1114:{sha:'a3bec62df295f16287aec6c3b16be4f76d830b72',proof:40358416451,scope:40358416024,path:'.github/workflows/theme-wave11-cosmetic.yml',oracle:'scripts/ci/theme_wave11_cosmetic.py',sources:['frontend/src/components/PWAInstallPrompt.tsx','frontend/src/pages/ForgotPasswordPage.tsx']},
+  1114:{sha:'052f28e8896e096bd17e4ee35cb9f8a49be07d74',proof:40359802932,scope:40359803238,path:'.github/workflows/theme-wave11-cosmetic.yml',oracle:'scripts/ci/theme_wave11_cosmetic.py',sources:['frontend/src/components/PWAInstallPrompt.tsx','frontend/src/pages/ForgotPasswordPage.tsx']},
 });
 async function verifiedTokenOnlyWaiver(api,number,actual,files) {
   const entry=TOKEN_ONLY_CERTIFIED_WAVES[number];
