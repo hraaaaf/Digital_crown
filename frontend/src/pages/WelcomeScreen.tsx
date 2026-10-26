@@ -25,7 +25,7 @@ export const WelcomeScreen: React.FC = () => {
       <div className="max-w-4xl w-full relative z-10">
         <div className="text-center mb-12">
           <div className="w-48 h-48 flex items-center justify-center mx-auto mb-6 animate-in zoom-in duration-700">
-            <img src={Logo} className="w-full h-full object-contain" alt="Digital Crown" />
+            <img src={Logo} className="w-full h-full object-contain dark:brightness-0 dark:invert" alt="Digital Crown" />
           </div>
           <h1 className="text-4xl font-black text-text-main mb-4 tracking-tight">
             Digital Crown <span className="text-primary">v1.1</span>
