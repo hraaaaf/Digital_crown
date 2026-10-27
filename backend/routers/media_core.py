@@ -293,6 +293,13 @@ async def import_clinical_asset(
     employer_id = int(current_user.get_employer_id())
 
     try:
+        # The WEB_API staff-import route cannot attest device identity. Only a
+        # future enrolled-device acquisition service may issue DEVICE_CAPTURE.
+        # Existing stored assets are untouched; internal ingestion is unchanged.
+        if source_kind.upper() == "DEVICE_CAPTURE":
+            raise HTTPException(
+                status_code=422, detail="DEVICE_CAPTURE_REQUIRES_ENROLLED_DEVICE",
+            )
         if source_ref and source_ref.strip().upper().startswith(ORTHO_PHOTO_SOURCE_PREFIX):
             raise HTTPException(status_code=422, detail="Reserved orthodontic source_ref namespace")
         content = await file.read(MAX_IMPORT_BYTES + 1)
