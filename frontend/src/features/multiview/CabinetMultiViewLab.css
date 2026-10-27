@@ -1175,7 +1175,7 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="vue-ensemble"]
     [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has(
-      > [data-v15-071-viewslot="dossier"]
+      > [data-v15-071-viewslot="dossier"]:first-child
     ):has(> [data-v15-071-viewslot="agenda"]):has(
       > [data-v15-071-viewslot="imagerie"]
     ) {
@@ -1188,7 +1188,7 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="vue-ensemble"]
     [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has(
-      > [data-v15-071-viewslot="dossier"]
+      > [data-v15-071-viewslot="dossier"]:first-child
     ) > [data-v15-071-viewslot="dossier"] {
     grid-column: 1 !important;
     grid-row: 1 !important;
@@ -1196,7 +1196,7 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="vue-ensemble"]
     [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has(
-      > [data-v15-071-viewslot="dossier"]
+      > [data-v15-071-viewslot="dossier"]:first-child
     ) > [data-v15-071-viewslot="agenda"] {
     grid-column: 1 !important;
     grid-row: 2 !important;
@@ -1204,7 +1204,7 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="vue-ensemble"]
     [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has(
-      > [data-v15-071-viewslot="dossier"]
+      > [data-v15-071-viewslot="dossier"]:first-child
     ) > [data-v15-071-viewslot="imagerie"] {
     grid-column: 2 !important;
     grid-row: 1 / span 2 !important;
@@ -1215,7 +1215,7 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="planification-traitements"]
     [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has(
-      > [data-v15-071-viewslot="traitement"]
+      > [data-v15-071-viewslot="traitement"]:first-child
     ):has(> [data-v15-071-viewslot="dossier"]):has(
       > [data-v15-071-viewslot="imagerie"]
     ) {
@@ -1228,7 +1228,7 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="planification-traitements"]
     [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has(
-      > [data-v15-071-viewslot="traitement"]
+      > [data-v15-071-viewslot="traitement"]:first-child
     ) > [data-v15-071-viewslot="traitement"] {
     grid-column: 1 !important;
     grid-row: 1 !important;
@@ -1236,7 +1236,7 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="planification-traitements"]
     [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has(
-      > [data-v15-071-viewslot="traitement"]
+      > [data-v15-071-viewslot="traitement"]:first-child
     ) > [data-v15-071-viewslot="dossier"] {
     grid-column: 1 !important;
     grid-row: 2 !important;
@@ -1244,7 +1244,7 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="planification-traitements"]
     [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"]:has(
-      > [data-v15-071-viewslot="traitement"]
+      > [data-v15-071-viewslot="traitement"]:first-child
     ) > [data-v15-071-viewslot="imagerie"] {
     grid-column: 2 !important;
     grid-row: 1 / span 2 !important;
