@@ -8,6 +8,10 @@ vi.mock('../patients/components/PatientMediaTimeline', () => ({
   PatientMediaTimeline: ({ patientId, readOnly }: { patientId: number; readOnly?: boolean }) =>
     <div data-testid="actual-media-component">patient={patientId};readonly={String(readOnly)}</div>,
 }));
+vi.mock('../multiview/HistoricBilanReadonlyPanel', () => ({
+  HistoricBilanReadonlyPanel: ({ patientId }: { patientId: number }) =>
+    <div data-testid="actual-historic-bilan-panel">patient={patientId}</div>,
+}));
 
 import { CommandCabinetPatientSurfaces, parseCommandPatients } from './CommandCabinetPatientSurfaces';
 
@@ -48,6 +52,7 @@ describe('LOT07 R4 — actual patient + media Cabinet contract', () => {
     expect(screen.getByText(/Aucun dossier ouvert/)).toBeInTheDocument();
     fireEvent.change(selector, { target: { value: '81' } });
     expect(await screen.findByTestId('r4-verified-dossier')).toHaveTextContent('PATIENT TEST-LOCALE');
+    expect(screen.getByTestId('actual-historic-bilan-panel')).toHaveTextContent('patient=81');
     rerender(<CommandCabinetPatientSurfaces user={authorized} surface="imagerie" />);
     expect(await screen.findByTestId('r4-verified-imagerie')).toBeInTheDocument();
     expect(screen.getByTestId('actual-media-component')).toHaveTextContent('patient=81;readonly=true');
