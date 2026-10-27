@@ -19,13 +19,21 @@ import sys
 PREFLIGHT = "/api/imaging-acquisitions/preflight"
 LAB_OPERATIONAL = "/api/health/imaging-bridge-lab"
 EXISTING_IMPORT = "/api/patients/{patient_id}/assets/import"
+# Exact synthetic transport surface: not an opt-in for arbitrary routes.
+LAB_HTTP = (
+    ("/api/imaging-acquisitions/lab/approve", ("POST",)),
+    ("/api/imaging-acquisitions/lab/propose", ("POST",)),
+    ("/api/imaging-acquisitions/lab/receipt", ("GET",)),
+    ("/api/imaging-acquisitions/lab/transfer", ("POST",)),
+)
 VIEWPORTS = ((390, 844), (768, 1024), (1280, 900))
 COLLECT = r"""
 import json
 from backend.main import app
 
 routes = sorted([
-    {"path": route.path, "methods": sorted(route.methods or [])}
+    {"path": route.path, "methods": sorted(route.methods or []),
+     "include_in_schema": bool(getattr(route, "include_in_schema", True))}
     for route in app.routes if getattr(route, "path", None)
     and getattr(route, "methods", None)
 ], key=lambda item: (item["path"], item["methods"]))
@@ -101,7 +109,19 @@ def validate_route_transition(
         raise AssertionError("PREFLIGHT_OR_LEGACY_ROUTE_INVARIANT_FAILURE")
     if (blab, alab) not in {(0, 0), (0, 1), (1, 1)}:
         raise AssertionError("LAB_OPERATIONAL_ROUTE_INVARIANT_FAILURE")
+    # A synthetic child introduces exactly four hidden device/staff LAB routes
+    # together, or preserves all four on stacked PRs. Partial/duplicate/removed
+    # sets never count as a successful route transition.
+    before_lab = sorted(x for x in old if x in LAB_HTTP)
+    after_lab = sorted(x for x in new if x in LAB_HTTP)
+    lab_complete = sorted(LAB_HTTP)
+    if before_lab not in ([], lab_complete) or after_lab not in ([], lab_complete):
+        raise AssertionError("LAB_HTTP_ROUTE_INCOMPLETE_OR_DUPLICATED")
+    if before_lab == lab_complete and after_lab != lab_complete:
+        raise AssertionError("LAB_HTTP_ROUTE_REMOVED")
     expected_extra = [(PREFLIGHT, ("POST",))] if bpre == 0 else []
+    if before_lab == [] and after_lab == lab_complete:
+        expected_extra.extend(LAB_HTTP)
     if (blab, alab) == (0, 1):
         expected_extra.append((LAB_OPERATIONAL, ("GET",)))
     expected_extra.sort()
@@ -188,6 +208,11 @@ def main() -> None:
 
     before = collect(args.before_root)
     after = collect(args.after_root)
+    # The exact new LAB transport routes are not allowed in the clinical schema.
+    for row in before + after:
+        if any(row["path"] == path for path, _ in LAB_HTTP):
+            if row["include_in_schema"] is not False:
+                raise AssertionError("LAB_HTTP_ROUTE_PUBLICLY_EXPOSED")
     old = [signature(x) for x in before]
     new = [signature(x) for x in after]
     bpre, apre, bimp, aimp, extra, missing = validate_route_transition(old, new)

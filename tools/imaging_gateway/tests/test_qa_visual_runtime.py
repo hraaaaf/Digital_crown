@@ -62,3 +62,26 @@ class RouteTransitionTests(unittest.TestCase):
             validate_route_transition([EXISTING, P], [P])
         with self.assertRaises(AssertionError):
             validate_route_transition([EXISTING, P], [EXISTING, EXISTING, P])
+
+
+    def test_exact_lab_http_routes_are_allowed_only_as_complete_private_bundle(self):
+        from tools.imaging_gateway.qa_visual_runtime import LAB_HTTP
+        baseline = [EXISTING, P, (LAB_OPERATIONAL, ("GET",))]
+        complete = baseline + list(LAB_HTTP)
+        assert validate_route_transition(baseline, complete)[4] == sorted(LAB_HTTP)
+        assert validate_route_transition(complete, complete)[4:6] == ([], [])
+        for index in range(len(LAB_HTTP)):
+            with self.assertRaises(AssertionError):
+                validate_route_transition(baseline, baseline + [
+                    route for n, route in enumerate(LAB_HTTP) if n != index
+                ])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(complete, baseline)
+        with self.assertRaises(AssertionError):
+            validate_route_transition(baseline, complete + [LAB_HTTP[0]])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(baseline, complete + [
+                ("/api/imaging-acquisitions/lab/receipt", ("POST",))
+            ])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(baseline, complete + [("/api/clinical/new", ("POST",))])
