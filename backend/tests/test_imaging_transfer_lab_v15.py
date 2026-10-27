@@ -84,8 +84,13 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     assert client.post(prefix + "/propose", json=proposal).status_code == 401
     proposed = client.post(prefix + "/propose", json=proposal, headers=device_headers)
     assert proposed.status_code == 200, proposed.text
-    approval = dict(workstation_id=workstation, device=device, capture=capture,
-                    patient_id=patient.id, explicit_staff_action=True)
+    intent = dict(workstation_id=workstation, device=device, capture=capture,
+                  patient_id=patient.id)
+    reviewed = client.post(prefix + "/review", json=intent, headers=auth_headers)
+    assert reviewed.status_code == 200, reviewed.text
+    assert reviewed.json()["status"] == "STAFF_REVIEW_REQUIRED"
+    approval = dict(**intent, explicit_staff_action=True,
+                    review_challenge=reviewed.json()["review_challenge"])
     wrong_patient = client.post(
         prefix + "/approve", headers=auth_headers,
         json={**approval, "patient_id": patient.id + 100000},
@@ -97,8 +102,15 @@ def test_real_encrypted_media_core_receipt_replay_lab(
         json={**approval, "explicit_staff_action": False},
     )
     assert denied.status_code == 403, denied.text
+    bad_nonce = client.post(
+        prefix + "/approve", headers=auth_headers,
+        json={**approval, "review_challenge": "wrong-challenge"},
+    )
+    assert bad_nonce.status_code == 403, bad_nonce.text
     approved = client.post(prefix + "/approve", json=approval, headers=auth_headers)
     assert approved.status_code == 200, approved.text
+    replay_review = client.post(prefix + "/approve", json=approval, headers=auth_headers)
+    assert replay_review.status_code == 409, replay_review.text
     def send(payload=content):
         return client.post(
             prefix + "/transfer", headers=device_headers,
@@ -161,9 +173,13 @@ def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
     digest = hashlib.sha256(content).hexdigest()
     lab.propose(db, tenant=dentiste.id, device=device, token=token,
                 capture=capture, digest=digest, size=len(content))
+    review = lab.issue_review(db, staff=dentiste, tenant=dentiste.id,
+                              workstation=workstation, device=device, capture=capture,
+                              patient=patient.id, appointment=None)
     lab.approve(db, staff=dentiste, tenant=dentiste.id,
                 workstation=workstation, device=device, capture=capture,
-                patient=patient.id, appointment=None)
+                patient=patient.id, appointment=None,
+                review_challenge=review["review_challenge"])
     args = dict(tenant=dentiste.id, device=device, token=token,
                 capture=capture, payload=content, mime="image/png")
     base_assets = db.query(ClinicalAsset).count()
@@ -211,8 +227,12 @@ def test_lab_device_and_staff_revocation_prevent_receipt_creation(
     data = out.getvalue()
     lab.propose(db, tenant=dentiste.id, device=device, token=token,
                 capture=capture, digest=hashlib.sha256(data).hexdigest(), size=len(data))
+    review = lab.issue_review(db, staff=dentiste, tenant=dentiste.id,
+                              workstation=station, device=device, capture=capture,
+                              patient=patient.id, appointment=None)
     lab.approve(db, staff=dentiste, tenant=dentiste.id, workstation=station,
-                device=device, capture=capture, patient=patient.id, appointment=None)
+                device=device, capture=capture, patient=patient.id, appointment=None,
+                review_challenge=review["review_challenge"])
     args = dict(tenant=dentiste.id, device=device, token=token,
                 capture=capture, payload=data, mime="image/png")
     scope = (lab.devices.c.tenant == dentiste.id) & (lab.devices.c.device == device)
@@ -236,3 +256,37 @@ def test_lab_device_and_staff_revocation_prevent_receipt_creation(
     assert db.query(ClinicalAsset).filter(ClinicalAsset.employer_id == dentiste.id,
                                           ClinicalAsset.patient_id == patient.id,
                                           ClinicalAsset.source_kind == "DEVICE_CAPTURE").count() == 1
+
+
+def test_staff_review_challenge_rotation_expiry_and_patient_binding(
+    client, db, dentiste, auth_headers, monkeypatch
+):
+    import hashlib
+    import uuid
+    from backend.tests.test_imaging_acquisition_preflight_v15 import _lab, _patient
+    from backend.services import imaging_acquisition_transfer_lab_v15 as lab
+
+    monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
+    station = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    other = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    device, capture = "review-" + uuid.uuid4().hex, "review-" + uuid.uuid4().hex
+    token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
+    lab.propose(db, tenant=dentiste.id, device=device, token=token,
+                capture=capture, digest=hashlib.sha256(b"test").hexdigest(), size=4)
+    args = dict(staff=dentiste, tenant=dentiste.id, workstation=station,
+                device=device, capture=capture, patient=patient.id, appointment=None)
+    old = lab.issue_review(db, **args)
+    new = lab.issue_review(db, **args)
+    with pytest.raises(lab.TransferLabRejected, match="STAFF_REVIEW_CHALLENGE_INVALID"):
+        lab.approve(db, **args, review_challenge=old["review_challenge"])
+    with pytest.raises(lab.TransferLabRejected, match="STAFF_REVIEW_BINDING_MISMATCH"):
+        lab.approve(db, **{**args, "patient": other.id},
+                    review_challenge=new["review_challenge"])
+    monkeypatch.setattr(lab.time, "time", lambda: new["expires_at"])
+    with pytest.raises(lab.TransferLabRejected, match="STAFF_REVIEW_EXPIRED"):
+        lab.approve(db, **args, review_challenge=new["review_challenge"])
+    monkeypatch.setattr(lab.time, "time", lambda: new["expires_at"] - 1)
+    assert lab.approve(db, **args, review_challenge=new["review_challenge"])["status"] == "APPROVED"
+    with pytest.raises(lab.TransferLabRejected, match="ALREADY_APPROVED"):
+        lab.approve(db, **args, review_challenge=new["review_challenge"])

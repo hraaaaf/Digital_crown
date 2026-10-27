@@ -26,6 +26,7 @@ LAB_HTTP = (
     ("/api/imaging-acquisitions/lab/receipt", ("GET",)),
     ("/api/imaging-acquisitions/lab/transfer", ("POST",)),
 )
+LAB_REVIEW = ("/api/imaging-acquisitions/lab/review", ("POST",))
 VIEWPORTS = ((390, 844), (768, 1024), (1280, 900))
 COLLECT = r"""
 import json
@@ -122,6 +123,11 @@ def validate_route_transition(
     expected_extra = [(PREFLIGHT, ("POST",))] if bpre == 0 else []
     if before_lab == [] and after_lab == lab_complete:
         expected_extra.extend(LAB_HTTP)
+    old_review, new_review = old.count(LAB_REVIEW), new.count(LAB_REVIEW)
+    if (old_review, new_review) not in {(0, 0), (0, 1), (1, 1)}:
+        raise AssertionError("LAB_REVIEW_ROUTE_INVARIANT_FAILURE")
+    if old_review == 0 and new_review == 1:
+        expected_extra.append(LAB_REVIEW)
     if (blab, alab) == (0, 1):
         expected_extra.append((LAB_OPERATIONAL, ("GET",)))
     expected_extra.sort()
@@ -210,7 +216,7 @@ def main() -> None:
     after = collect(args.after_root)
     # The exact new LAB transport routes are not allowed in the clinical schema.
     for row in before + after:
-        if any(row["path"] == path for path, _ in LAB_HTTP):
+        if any(row["path"] == path for path, _ in LAB_HTTP + (LAB_REVIEW,)):
             if row["include_in_schema"] is not False:
                 raise AssertionError("LAB_HTTP_ROUTE_PUBLICLY_EXPOSED")
     old = [signature(x) for x in before]
