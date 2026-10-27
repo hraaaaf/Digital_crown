@@ -63,7 +63,8 @@ export function R3TreatmentReadonlyPanel({patientId}:{patientId:number}) {
     return ()=>{active=false;}; // No late A response after patient / workstation / account switch.
   },[patientId]);
   const current=state.patientId===patientId ? state : {patientId,status:'loading' as const,plan:null};
-  return <section data-testid="r3-real-treatment" className="min-w-0 space-y-3 p-3 text-text-main"
+  return <section data-testid="r3-real-treatment" data-r3-plan-state={current.status}
+    className="dc-r3-treatment min-w-0 space-y-3 p-3 text-text-main"
     aria-label="Plan de traitement enregistré, lecture seule">
     <header className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="flex min-w-0 items-center gap-2 text-sm font-bold">
@@ -77,15 +78,15 @@ export function R3TreatmentReadonlyPanel({patientId}:{patientId:number}) {
     {current.status==='denied' && <p role="alert" className="text-xs text-danger">Plan indisponible : accès refusé ou réponse non vérifiée.</p>}
     {current.status==='empty' && <p className="text-xs text-text-muted">Aucun plan de traitement enregistré.</p>}
     {current.status==='ready' && current.plan && <>
-      <p className="text-xs text-text-muted">{current.plan.steps.length} étape(s) enregistrée(s) · source Master Plan</p>
+      <p className="text-xs font-medium text-text-muted">{current.plan.steps.length} étape(s) enregistrée(s) · source Master Plan vérifiée</p>
       {current.plan.steps.length === 0
         ? <p className="text-xs text-text-muted">Ce plan ne contient aucune étape enregistrée.</p>
-        : <ol className="space-y-2">
+        : <ol className="dc-r3-treatment-steps grid gap-3">
             {current.plan.steps.map((step,index)=><li key={step.id}
-              className="rounded-lg border border-border-main bg-card p-3">
+              className="min-w-0 rounded-xl border border-border-main bg-card p-4 shadow-sm">
               <div className="flex min-w-0 items-start justify-between gap-2">
-                <p className="min-w-0 break-words text-sm font-semibold">{index+1}. {step.title}</p>
-                <span className={'shrink-0 rounded-full px-2 py-1 text-[11px] font-medium ' + statusClass[step.status]}>
+                <p className="min-w-0 break-words text-sm font-bold leading-snug text-text-main">{index+1}. {step.title}</p>
+                <span className={'shrink-0 rounded-full px-2 py-1 text-[11px] font-semibold ' + statusClass[step.status]}>
                   {statusLabel[step.status]}
                 </span>
               </div>
