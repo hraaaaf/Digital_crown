@@ -102,8 +102,15 @@ def test_real_encrypted_media_core_receipt_replay_lab(
         json={**approval, "explicit_staff_action": False},
     )
     assert denied.status_code == 403, denied.text
+    bad_nonce = client.post(
+        prefix + "/approve", headers=auth_headers,
+        json={**approval, "review_challenge": "wrong-challenge"},
+    )
+    assert bad_nonce.status_code == 403, bad_nonce.text
     approved = client.post(prefix + "/approve", json=approval, headers=auth_headers)
     assert approved.status_code == 200, approved.text
+    replay_review = client.post(prefix + "/approve", json=approval, headers=auth_headers)
+    assert replay_review.status_code == 409, replay_review.text
     def send(payload=content):
         return client.post(
             prefix + "/transfer", headers=device_headers,
