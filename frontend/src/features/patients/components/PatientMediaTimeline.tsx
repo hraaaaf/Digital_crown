@@ -24,6 +24,8 @@ interface PatientMediaTimelineProps {
   readOnly?: boolean;
   /** R-only hard filter for authenticated split panels, cannot be reset by controls. */
   fixedAssetType?: 'PHOTO' | 'RADIOGRAPH' | 'DOCUMENT';
+  /** DEV R3 authenticated visual presenter; ordinary patient media stays unchanged. */
+  labReadOnlyPreview?: boolean;
 }
 
 interface ViewerState {
@@ -84,14 +86,16 @@ const AuthenticatedThumbnail = ({ patientId, assetId }: { patientId: number; ass
   return <img src={url} alt="Aperçu clinique" className="absolute inset-0 h-full w-full object-cover" />;
 };
 
-const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { patientId: number; asset: ClinicalAsset | null; compact?: boolean }) => {
+const AuthenticatedAssetPreview = ({ patientId, asset, compact = false, labReadOnlyPreview = false }: { patientId: number; asset: ClinicalAsset | null; compact?: boolean; labReadOnlyPreview?: boolean }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let disposed = false;
     let objectUrl: string | null = null;
     setUrl(null);
+    setLoadError(false);
     if (!asset) return () => undefined;
 
     setLoading(true);
@@ -102,7 +106,7 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
         setUrl(objectUrl);
       })
       .catch(() => {
-        if (!disposed) setUrl(null);
+        if (!disposed) { setUrl(null); setLoadError(true); }
       })
       .finally(() => {
         if (!disposed) setLoading(false);
@@ -117,13 +121,21 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
   const minHeight = compact ? 'min-h-[220px] sm:min-h-[280px] lg:min-h-[360px]' : 'min-h-[220px] sm:min-h-[280px] md:min-h-[390px] lg:min-h-[470px]';
 
   if (!asset) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Images size={44} strokeWidth={1.4} /></div>;
-  if (loading || !url) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Loader2 size={26} className="animate-spin" /></div>;
-  if (asset.mime_type === 'application/pdf') return <iframe src={url} title="Aperçu document clinique" className={cn('w-full bg-card', minHeight)} />;
+  if (loadError) return <div role="alert" className="rounded-xl border border-warning-border bg-warning-surface p-4 text-sm text-warning">Aperçu indisponible : impossible de charger le fichier autorisé.</div>;
+  if (loading || !url) return <div role="status" className={cn('flex items-center justify-center bg-medical-pearl text-text-muted', minHeight)}><Loader2 size={26} className="animate-spin" /></div>;
+  if (asset.mime_type === 'application/pdf') return <div data-testid={labReadOnlyPreview ? 'r3-document-preview' : undefined} className="min-w-0 bg-card">
+    {labReadOnlyPreview && <div data-testid="r3-document-source-ready" className="flex flex-wrap items-center justify-between gap-2 border-b border-border-main bg-medical-pearl px-3 py-3 text-xs text-text-main">
+      <span className="inline-flex items-center gap-2 font-semibold"><FileText size={18} aria-hidden="true"/> Document PDF récupéré · lecture seule</span>
+      <span className="font-mono text-[11px] text-text-muted">{typeof asset.byte_size === 'number' ? (asset.byte_size / 1024).toFixed(1) + ' Ko' : 'Fichier autorisé'}</span>
+      <span className="w-full text-[11px] text-text-muted">Le contenu s’ouvre aussi en plein écran ; son affichage dépend du lecteur PDF du poste.</span>
+    </div>}
+    <iframe src={url} title="Aperçu document clinique" className={cn('w-full bg-card', minHeight)} />
+  </div>;
 
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
-export const PatientMediaTimeline = ({ patientId, readOnly = false, fixedAssetType }: PatientMediaTimelineProps) => {
+export const PatientMediaTimeline = ({ patientId, readOnly = false, fixedAssetType, labReadOnlyPreview = false }: PatientMediaTimelineProps) => {
   const [items, setItems] = useState<ClinicalAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -346,7 +358,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false, fixedAssetTy
           <div className="min-w-0">
             <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-primary">
               <Images size={17} className="shrink-0" />
-              <h2 className="text-base font-black tracking-tight text-main sm:text-lg">Médiathèque clinique</h2>
+              <h2 className="text-base font-black tracking-tight text-main sm:text-lg">{labReadOnlyPreview && fixedAssetType === 'DOCUMENT' ? 'Documents cliniques' : labReadOnlyPreview && fixedAssetType === 'RADIOGRAPH' ? 'Radiographies' : labReadOnlyPreview && fixedAssetType === 'PHOTO' ? 'Photographies' : 'Médiathèque clinique'}</h2>
               {items.length > 0 && <span className="rounded-full bg-primary/5 px-2 py-0.5 text-[9px] font-black text-primary">{filteredItems.length}/{items.length}</span>}
             </div>
             <p className="mt-0.5 hidden text-[11px] font-medium leading-snug text-text-muted md:block lg:text-xs">Recherche, filtres et comparaison longitudinale T0/T1/T2.</p>
@@ -429,7 +441,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false, fixedAssetTy
 
             <section data-testid="media-inline-viewer" aria-label="Aperçu média clinique" className="order-1 min-w-0 overflow-hidden rounded-[1.25rem] border border-border-main bg-card-bg shadow-sm md:order-2">
               <div className="flex min-h-[44px] items-center justify-between gap-2 border-b border-border-main px-2.5 py-2 sm:px-3 md:px-4"><div className="min-w-0"><p className="text-[8px] font-black uppercase tracking-[0.16em] text-primary">{selectedAsset?.timepoint || 'Sans repère'}</p><div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5"><h3 className="truncate text-xs font-black text-main sm:text-sm">{selectedAsset ? (assetTypeLabel[selectedAsset.asset_type] || selectedAsset.asset_type) : 'Aucun média'}</h3>{selectedAsset && <span className="text-[9px] font-bold text-text-muted">{formatDate(selectedAsset.captured_at || selectedAsset.created_at)}</span>}</div></div>{selectedAsset && <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={() => toggleCompare(selectedAsset.id)} className={cn('inline-flex h-8 items-center justify-center rounded-lg border px-2 text-[9px] font-black uppercase tracking-wider', compareIds.includes(selectedAsset.id) ? 'border-primary bg-primary text-white' : 'border-border-main text-primary')} aria-pressed={compareIds.includes(selectedAsset.id)}>{compareIds.includes(selectedAsset.id) ? 'Ajouté' : 'Comparer'}</button><button type="button" onClick={() => void openAsset(selectedAsset)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border-main bg-card-bg px-2 text-[9px] font-black uppercase tracking-wider text-primary" aria-label="Ouvrir le média sélectionné en plein écran"><Maximize2 size={13} /><span className="hidden sm:inline">Plein écran</span></button></div>}</div>
-              <AuthenticatedAssetPreview patientId={patientId} asset={selectedAsset} />
+              <AuthenticatedAssetPreview patientId={patientId} asset={selectedAsset} labReadOnlyPreview={labReadOnlyPreview} />
             </section>
           </div>
         </>
