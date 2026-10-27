@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runGate, APPROVAL_LABEL, APPROVER_LOGIN, TOKEN_ONLY_CERTIFIED_WAVES } from './visual-approval-gate.mjs';
+import { runGate, requiresHumanVisualReview, APPROVAL_LABEL, APPROVER_LOGIN, TOKEN_ONLY_CERTIFIED_WAVES, CERTIFIED_ISOLATED_UI_PROTOTYPES } from './visual-approval-gate.mjs';
 
 const repo = 'hraaaaf/Digital_crown';
 const pr = 910;
@@ -26,7 +26,7 @@ function fixture(options = {}) {
       }
       if (route.startsWith(`/pulls/${pr}/files?`)) {
         if (options.overflow) return Array(100).fill({ filename: 'frontend/a.tsx' });
-        return [{ filename: state.frontend ? 'frontend/a.tsx' : 'backend/a.py' }];
+        return options.files ?? [{ filename: state.frontend ? 'frontend/a.tsx' : 'backend/a.py' }];
       }
       if (route.startsWith(`/issues/${pr}/labels?`))
         return [...state.labels].map(name => ({ name }));
@@ -117,15 +117,16 @@ test('synchronize rejects changed UI HEAD, revokes label and confirms absence', 
   assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
 });
 
-test('synchronize removes stale label even when the new diff is non-UI', async () => {
+test('synchronize removes stale label then SKIPS non-visual updates', async () => {
   const f = fixture({ frontend: false });
-  await assert.rejects(f.run('synchronize'), /approval revoked/);
+  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-visual', head: old });
   assert.equal(f.deletes, 1);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
 });
 
 test('a non-UI synchronize without label skips safely', async () => {
   const f = fixture({ frontend: false, label: false });
-  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-ui', head: old });
+  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-visual', head: old });
 });
 
 test('synchronize with stale webhook fails without revoking a newer HEAD', async () => {
@@ -179,7 +180,7 @@ test('GitHub pagination overflow fails closed', async () => {
 
 test('non-UI open PR does not require visual approval', async () => {
   const f = fixture({ frontend: false, label: false });
-  assert.deepEqual(await f.run('opened'), { state: 'skipped-non-ui', head: old });
+  assert.deepEqual(await f.run('opened'), { state: 'skipped-non-visual', head: old });
 });
 
 test('the trusted gate workflow checks out ONLY the default-branch code', async () => {
@@ -300,3 +301,208 @@ test('automatic waiver fails closed on a HEAD race during synchronize checks',as
   const f=tokenWaiverFixture({raceAfterHeadGet:3});
   await assert.rejects(f.run('synchronize'),/HEAD changed during auto token-only synchronize checks/);
 });
+
+
+test('visual gate requires review for new or changed visible UI source and media', () => {
+  for (const path of [
+    'frontend/src/features/imaging/StaffReviewLab.tsx',
+    'frontend/src/App.tsx',
+    'frontend/src/styles/theme.css',
+    'frontend/src/data/copy.ts',
+    'frontend/public/logo.svg',
+    'frontend/staff-review-lab.html',
+    'frontend/vite.config.ts',
+  ]) {
+    assert.equal(requiresHumanVisualReview([{ filename: path }]), true, path);
+  }
+});
+
+test('non-rendered frontend files and backend-only changes do not need human screenshots', () => {
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'backend/services/acquisition.py' },
+    { filename: '.github/workflows/ci.yml' },
+    { filename: 'docs/imaging.md' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLabApi.ts' },
+    { filename: 'frontend/src/services/api.ts' },
+    { filename: 'frontend/src/types/models.ts' },
+    { filename: 'frontend/src/components/__tests__/Preview.test.tsx' },
+    { filename: 'frontend/src/test/setup.ts' },
+    { filename: 'frontend/src/vite-env.d.ts' },
+    { filename: 'frontend/package-lock.json' },
+    { filename: 'frontend/README.md' },
+  ]), false);
+});
+
+test('one UI file dominates mixed technical changes', () => {
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'backend/security.py' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.tsx' },
+  ]), true);
+});
+
+test('renames and deletions of visible components still require exact HEAD approval', () => {
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'frontend/src/types/Legacy.d.ts',
+      status: 'renamed',
+      previous_filename: 'frontend/src/pages/Legacy.tsx' },
+  ]), true);
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'frontend/src/pages/Legacy.tsx', status: 'removed' },
+  ]), true);
+  assert.throws(() => requiresHumanVisualReview([
+    { filename: 'frontend/src/types/New.d.ts', status: 'renamed' },
+  ]), /previous path/);
+});
+
+test('ambiguous frontend script cannot silently escape visual review', () => {
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'frontend/src/hooks/useOperatorFlow.ts' },
+  ]), true);
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'frontend/src/assets/runtime-copy.json' },
+  ]), true);
+});
+
+test('missing/invalid GitHub file inventory fails closed', () => {
+  assert.throws(() => requiresHumanVisualReview([]), /cannot be classified/);
+  assert.throws(() => requiresHumanVisualReview([{ filename: null }]), /invalid filename/);
+  assert.throws(() => requiresHumanVisualReview(null), /cannot be classified/);
+});
+
+test('technical-only frontend opening skips approval (unlike actual UI TSX)', async () => {
+  const f = fixture({ label: false, files: [
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLabApi.ts' },
+    { filename: '.github/workflows/v15-06b-preflight.yml' },
+  ] });
+  assert.deepEqual(await f.run('opened'), { state: 'skipped-non-visual', head: old });
+  assert.equal(f.posts, 0);
+});
+
+test('UI component mixed with non-visual tests still demands owner label', async () => {
+  const f = fixture({ label: false, files: [
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.tsx' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+  ] });
+  await assert.rejects(f.run('opened'), /require explicit visual approval label/);
+});
+
+test('pure test file update revokes stale label but does not demand new approval', async () => {
+  const f = fixture({ files: [
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+  ] });
+  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-visual', head: old });
+  assert.equal(f.deletes, 1);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
+});
+
+function isolatedPrototypeFixture(options={}) {
+  const number=1133;
+  const entry=CERTIFIED_ISOLATED_UI_PROTOTYPES[number];
+  const actual=options.sha??entry.sha;
+  const labels=new Set(options.label?[APPROVAL_LABEL]:[]);
+  const files=options.files??entry.paths.map(filename=>({filename}));
+  let deletions=0, headReads=0;
+  const api={
+    async get(route) {
+      if(route===`/pulls/${number}`) {
+        headReads++;
+        return {head:{sha:options.race&&headReads>1?'c'.repeat(40):actual}};
+      }
+      if(route.startsWith(`/pulls/${number}/files?`))return files;
+      if(route.startsWith(`/issues/${number}/labels?`))
+        return [...labels].map(name=>({name}));
+      if(route===`/actions/runs/${entry.proof}`)return {
+        head_sha:actual,
+        status:'completed',conclusion:options.proofConclusion??'success',
+        event:options.proofEvent??'pull_request',
+        name:options.proofName??'V1.5-06B Imaging Preflight Safety',
+      };
+      if(route===`/actions/runs/${entry.scope}`)return {
+        head_sha:actual,status:'completed',
+        conclusion:options.scopeConclusion??'success',
+        event:'pull_request',name:'CI Scope Gate',
+      };
+      if(route===`/actions/runs/${entry.proof}/artifacts`)return {
+        artifacts:options.artifacts??[{
+          name:entry.artifact,expired:false,id:12771351158
+        }],
+      };
+      throw Error('Unexpected request '+route);
+    },
+    async delete(route) {
+      assert.equal(route,`/issues/${number}/labels/${APPROVAL_LABEL}`);
+      deletions++;labels.delete(APPROVAL_LABEL);
+    },
+  };
+  const run=(action='opened',more={})=>runGate({
+    api,repo,number,action,eventHead:actual,
+    eventLabel:'another-label',eventSender:'some-bot',...more
+  });
+  return {run,labels,get deletions(){return deletions;}};
+}
+
+test('certified isolated DEV preview bypasses owner visual approval WITHOUT asserting product UI approval',async()=>{
+  const f=isolatedPrototypeFixture();
+  assert.deepEqual(await f.run(), {
+    state:'skipped-certified-dev-prototype',
+    head:CERTIFIED_ISOLATED_UI_PROTOTYPES[1133].sha,
+  });
+  assert.equal(f.labels.has(APPROVAL_LABEL),false);
+});
+
+test('certified DEV prototype synchronize revokes obsolete visual label before safe skip',async()=>{
+  const f=isolatedPrototypeFixture({label:true});
+  assert.equal((await f.run('synchronize')).state,'skipped-certified-dev-prototype');
+  assert.equal(f.deletions,1);
+  assert.equal(f.labels.has(APPROVAL_LABEL),false);
+});
+
+test('changing even one byte of the DEV prototype HEAD invalidates exemption',async()=>{
+  const f=isolatedPrototypeFixture({sha:'c'.repeat(40)});
+  await assert.rejects(f.run(),/require explicit visual approval label/);
+});
+
+test('connecting the DEV prototype to App.tsx makes human approval mandatory',async()=>{
+  const entry=CERTIFIED_ISOLATED_UI_PROTOTYPES[1133];
+  const f=isolatedPrototypeFixture({files:[
+    ...entry.paths.map(filename=>({filename})),
+    {filename:'frontend/src/App.tsx'}
+  ]});
+  await assert.rejects(f.run(),/changed file inventory/);
+});
+
+test('renamed or removed preview files cannot inherit pinned waiver',async()=>{
+  const entry=CERTIFIED_ISOLATED_UI_PROTOTYPES[1133];
+  const files=entry.paths.map(filename=>({filename}));
+  files[0]={filename:entry.paths[0],status:'renamed',previous_filename:'frontend/src/App.tsx'};
+  const f=isolatedPrototypeFixture({files});
+  await assert.rejects(f.run(),/changed file inventory/);
+});
+
+test('failed React/Chromium run or Scope Gate stops DEV prototype exception',async()=>{
+  await assert.rejects(isolatedPrototypeFixture({proofConclusion:'failure'}).run(),/CI evidence missing or RED/);
+  await assert.rejects(isolatedPrototypeFixture({scopeConclusion:'failure'}).run(),/CI evidence missing or RED/);
+});
+
+test('missing, expired or wrong artifact blocks isolated prototype exemption',async()=>{
+  await assert.rejects(isolatedPrototypeFixture({artifacts:[]}).run(),/screenshot evidence missing/);
+  await assert.rejects(isolatedPrototypeFixture({
+    artifacts:[{name:'lot06b-desktop-staff-review-fixture',expired:true,id:12771351158}]
+  }).run(),/screenshot evidence missing/);
+  await assert.rejects(isolatedPrototypeFixture({
+    artifacts:[{name:'unrelated',expired:false,id:12771351158}]
+  }).run(),/screenshot evidence missing/);
+});
+
+test('untrusted proof workflow name or event cannot certify DEV prototype',async()=>{
+  await assert.rejects(isolatedPrototypeFixture({proofEvent:'workflow_dispatch'}).run(),/CI evidence missing or RED/);
+  await assert.rejects(isolatedPrototypeFixture({proofName:'random'}).run(),/CI evidence missing or RED/);
+});
+
+test('HEAD race after inspecting certified prototype fails closed',async()=>{
+  await assert.rejects(isolatedPrototypeFixture({race:true}).run(),/HEAD changed during isolated prototype validation/);
+});
+

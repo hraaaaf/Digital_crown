@@ -27,6 +27,48 @@ const head=async(api,pr)=>{
 };
 const hasLabel=async(api,pr)=>
   (await pages(api,`/issues/${pr}/labels`)).some(x=>x?.name===APPROVAL_LABEL);
+
+/**
+ * Human sign-off is for operator-visible UX/UI, NOT every path under frontend/.
+ * Everything unknown remains visual-impacting (fail closed). Only provably
+ * non-rendered source is exempt: tests, typing, static docs and pure API
+ * transport adapters. A rename checks BOTH old and new paths.
+ */
+const NON_VISUAL_EXACT = new Set([
+  'frontend/README.md',
+  'frontend/.gitignore',
+  'frontend/package-lock.json',
+  'frontend/tsconfig.json',
+  'frontend/tsconfig.app.json',
+  'frontend/tsconfig.node.json',
+  'frontend/eslint.config.js',
+]);
+function isClearlyNonVisualFrontendPath(path) {
+  if (NON_VISUAL_EXACT.has(path)) return true;
+  if (/\.d\.[cm]?ts$/.test(path)) return true;
+  if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path)) return true;
+  if (/^frontend\/src\/(?:test|types)\//.test(path)) return true;
+  if (/^frontend\/src\/.*\/(?:__tests__|__mocks__)\//.test(path)) return true;
+  if (/^frontend\/src\/services\/.*\.[cm]?[jt]s$/.test(path)) return true;
+  if (/^frontend\/src\/features\/imaging\/StaffReviewLabApi\.ts$/.test(path)) return true;
+  return false;
+}
+export function requiresHumanVisualReview(files) {
+  if (!Array.isArray(files) || files.length === 0)
+    throw new Error('Visual impact cannot be classified without PR file inventory');
+  for (const file of files) {
+    if (typeof file?.filename !== 'string' || !file.filename)
+      throw new Error('Visual impact inventory contains invalid filename');
+    const paths = [file.filename];
+    if (file.status === 'renamed' &&
+        (typeof file.previous_filename !== 'string' || !file.previous_filename))
+      throw new Error('Renamed file lacks previous path: fail closed');
+    if (typeof file.previous_filename === 'string') paths.push(file.previous_filename);
+    if (paths.some(path => path.startsWith('frontend/') &&
+        !isClearlyNonVisualFrontendPath(path))) return true;
+  }
+  return false;
+}
 /** Owner's 25 Oct 2026 waiver: exact, independently evidenced token-only waves.
  * This is deliberately SHA-bound: an altered diff never inherits the waiver.
  * Future waves require their own exact-diff + build/contrast proof and a
@@ -65,6 +107,60 @@ async function verifiedTokenOnlyWaiver(api,number,actual,files) {
   return true;
 }
 
+/**
+ * Owner clarification 2026-10-27: a disconnected DEV-only prototype is not
+ * a product UX/UI change. Never infer this from 'Lab' naming alone.
+ * Exception is limited to one exact, reviewed HEAD and exact seven-file diff,
+ * with GREEN synthetic React/Chromium proof + GitHub screenshot artifact.
+ * Any changed SHA, new route/App.tsx, missing evidence or mixed file FAILS closed.
+ */
+export const CERTIFIED_ISOLATED_UI_PROTOTYPES=Object.freeze({
+  1133:Object.freeze({
+    sha:'8f3c875bcca0e5a5b445ceaa12f507ad26372e40',
+    proof:40584209611,
+    scope:40584209692,
+    artifact:'lot06b-desktop-staff-review-fixture',
+    paths:Object.freeze([
+      '.github/workflows/v15-06b-preflight.yml',
+      'frontend/src/features/imaging/StaffReviewLab.test.tsx',
+      'frontend/src/features/imaging/StaffReviewLab.tsx',
+      'frontend/src/features/imaging/StaffReviewLabApi.ts',
+      'frontend/src/features/imaging/StaffReviewLabDemo.tsx',
+      'frontend/staff-review-lab.html',
+      'tools/imaging_gateway/qa_staff_review_desktop_lab.py',
+    ]),
+  }),
+});
+
+async function verifiedIsolatedPrototype(api,number,actual,files) {
+  const entry=CERTIFIED_ISOLATED_UI_PROTOTYPES[number];
+  if(!entry||entry.sha!==actual)return false;
+  // Exact inventory as independently reviewed, not a wildcard on frontend/.
+  const observed=files.map(f=>f?.filename);
+  const expected=[...entry.paths].sort();
+  if(observed.length!==expected.length ||
+     observed.some(p=>typeof p!=='string') ||
+     JSON.stringify([...observed].sort())!==JSON.stringify(expected) ||
+     files.some(f=>f?.status==='renamed' || f?.previous_filename))
+    throw new Error('Certified DEV prototype has changed file inventory');
+  for(const [runId,expectedName] of [
+    [entry.proof,'V1.5-06B Imaging Preflight Safety'],
+    [entry.scope,'CI Scope Gate'],
+  ]) {
+    const run=await api.get(`/actions/runs/${runId}`);
+    if(run?.head_sha!==actual||run?.status!=='completed'||
+       run?.conclusion!=='success'||run?.event!=='pull_request'||
+       run?.name!==expectedName)
+      throw new Error('DEV prototype exact-SHA CI evidence missing or RED');
+  }
+  const response=await api.get(`/actions/runs/${entry.proof}/artifacts`);
+  if(!Array.isArray(response?.artifacts) ||
+     !response.artifacts.some(a=>a?.name===entry.artifact &&
+       a?.expired===false && Number.isSafeInteger(a?.id) && a.id>0))
+    throw new Error('DEV prototype Chromium screenshot evidence missing');
+  return true;
+}
+
 /** Only the trusted, owner-created approval label event may approve a UI HEAD. */
 export async function runGate({api,repo,number,action,eventHead,eventLabel,eventSender}){
   valid(repo,REPO.test(repo),'repository');
@@ -78,11 +174,11 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
     const actual=await head(api,number);
     if(actual!==eventHead)throw new Error('Stale synchronize event: HEAD differs from PR HEAD');
     const files=await pages(api,`/pulls/${number}/files`);
-    const touchesUI=files.some(x=>typeof x?.filename==='string'&&x.filename.startsWith('frontend/'));
+    const touchesUI=requiresHumanVisualReview(files);
     const priorLabel=await hasLabel(api,number);
     // Do not block back-end/docs PRs that have never needed visual approval.
     // An existing label, even on a non-UI PR, must still be revoked.
-    if(!touchesUI&&!priorLabel)return {state:'skipped-non-ui',head:actual};
+    if(!touchesUI&&!priorLabel)return {state:'skipped-non-visual',head:actual};
     if(priorLabel){
       try{ await api.delete(`/issues/${number}/labels/${APPROVAL_LABEL}`); }
       catch(error){
@@ -93,22 +189,33 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
       throw new Error('Stale visual approval label still present after DELETE');
     if((await head(api,number))!==actual)
       throw new Error('PR HEAD changed during approval revocation');
+    // A technical-only update must not remain RED merely because a previous
+    // visible UI revision carried a now-revoked approval label.
+    if(!touchesUI)return {state:'skipped-non-visual',head:actual};
     if(await verifiedTokenOnlyWaiver(api,number,actual,files)) {
       if((await head(api,number))!==actual)throw new Error('PR HEAD changed during auto token-only synchronize checks');
       return {state:'auto-token-only-verified',head:actual};
+    }
+    if(await verifiedIsolatedPrototype(api,number,actual,files)) {
+      if((await head(api,number))!==actual)throw new Error('PR HEAD changed during isolated prototype synchronize checks');
+      return {state:'skipped-certified-dev-prototype',head:actual};
     }
     throw new Error('PR HEAD changed: approval revoked; new screenshots and explicit approval required');
   }
 
   const files=await pages(api,`/pulls/${number}/files`);
-  if(!files.some(x=>typeof x?.filename==='string'&&x.filename.startsWith('frontend/')))
-    return {state:'skipped-non-ui',head:await head(api,number)};
+  if(!requiresHumanVisualReview(files))
+    return {state:'skipped-non-visual',head:await head(api,number)};
 
   const actual=await head(api,number);
   if(actual!==eventHead)throw new Error('Stale webhook event: PR HEAD differs from event HEAD');
   if(await verifiedTokenOnlyWaiver(api,number,actual,files)) {
     if((await head(api,number))!==actual)throw new Error('PR HEAD changed during auto token-only validation');
     return {state:'auto-token-only-verified',head:actual};
+  }
+  if(await verifiedIsolatedPrototype(api,number,actual,files)) {
+    if((await head(api,number))!==actual)throw new Error('PR HEAD changed during isolated prototype validation');
+    return {state:'skipped-certified-dev-prototype',head:actual};
   }
   if(!(await hasLabel(api,number)))throw new Error('UI changes require explicit visual approval label');
 
