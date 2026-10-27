@@ -1,0 +1,57 @@
+name: LOT07 R4 Iconic + Command real Cabinet guards
+on:
+  push:
+    branches:
+      - 'feat/lot07-r4-iconic-command-*'
+    paths:
+      - 'frontend/src/features/command/**'
+      - 'frontend/src/features/desktop-experience/SignatureIconicCabinet*'
+      - 'frontend/src/components/Layout/MainLayout.tsx'
+      - '.github/workflows/lot07-r4-iconic-command.yml'
+  pull_request:
+    paths:
+      - 'frontend/src/features/command/**'
+      - 'frontend/src/features/desktop-experience/SignatureIconicCabinet*'
+      - 'frontend/src/components/Layout/MainLayout.tsx'
+      - '.github/workflows/lot07-r4-iconic-command.yml'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot07-r4-guards-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  r4-guards:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert exact source HEAD and DEV-only opt-ins
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.sha }}"
+          if grep -Eq 'VITE_(COMMAND_CABINET_LAB|V15_07_R4_SIGNATURE_LAB)=true' frontend/.env.production frontend/.env 2>/dev/null; then
+            echo "Forbidden R4 production/default activation"; exit 1
+          fi
+          test -f frontend/src/features/command/CommandCabinetPatientSurfaces.tsx
+          test -f frontend/src/features/desktop-experience/SignatureIconicCabinetControls.tsx
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        run: npm ci --prefix frontend --no-audit --no-fund
+      - name: Run R4 and inherited 07-C read-only security regressions
+        working-directory: frontend
+        run: npx vitest run src/features/command/CommandCabinetReadOnlyRoute.test.tsx src/features/command/CommandCabinetPatientSurfaces.test.tsx src/features/desktop-experience/SignatureIconicCabinetControls.test.tsx
+      - name: Typecheck
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Production build without activation
+        working-directory: frontend
+        env:
+          VITE_COMMAND_CABINET_LAB: 'true'
+          VITE_V15_07_R4_SIGNATURE_LAB: 'true'
+        run: npx vite build --mode production

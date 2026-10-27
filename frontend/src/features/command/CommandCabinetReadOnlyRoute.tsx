@@ -1,7 +1,7 @@
 /** LOT07 / 07-C — real Cabinet auth + read-only Dashboard parity, development opt-in only.
  * This is NOT the isolated synthetic Command target nor an experience selector.
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { CalendarDays, LockKeyhole, RefreshCw, ShieldCheck } from 'lucide-react';
 import type { AppUser } from '../../types';
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -9,16 +9,18 @@ import { hasAccess } from '../../utils/accessControl';
 import { useTodayAppointments } from '../dashboard/hooks/useTodayAppointments';
 import type { DashboardAppointment, DataState } from '../dashboard/types';
 import { projectReadOnlyAppointments } from './command-cabinet-readonly-policy';
+import { CommandCabinetPatientSurfaces, type CommandPatientSurface } from './CommandCabinetPatientSurfaces';
 
 type PreviewProps = {
   appointments: DashboardAppointment[] | null;
   appointmentsState: DataState;
   canReadPatients: boolean;
   onRefresh: () => void;
+  surface?: 'dashboard' | 'agenda' | 'both';
 };
 
 export function CommandCabinetReadOnlyView({
-  appointments, appointmentsState, canReadPatients, onRefresh,
+  appointments, appointmentsState, canReadPatients, onRefresh, surface = 'both',
 }: PreviewProps) {
   const projected = useMemo(
     () => projectReadOnlyAppointments(appointments, canReadPatients),
@@ -53,16 +55,16 @@ export function CommandCabinetReadOnlyView({
           <RefreshCw size={16} aria-hidden="true" /> Actualiser
         </button>
       </header>
-      <div className="grid min-w-0 gap-3 lg:grid-cols-[minmax(0,230px)_minmax(0,1fr)]">
-        <aside className="rounded-xl border border-border-main bg-card-bg p-4" aria-label="Résumé en lecture seule">
+      <div className={surface === 'both' ? 'grid min-w-0 gap-3 lg:grid-cols-[minmax(0,230px)_minmax(0,1fr)]' : 'grid min-w-0 gap-3'}>
+        {surface !== 'agenda' && <aside className="rounded-xl border border-border-main bg-card-bg p-4" aria-label="Résumé en lecture seule">
           <CalendarDays size={20} className="text-primary" aria-hidden="true" />
           <p className="mt-3 text-xs uppercase tracking-wider text-text-muted">Rendez-vous du jour</p>
           <p className="mt-1 text-3xl font-black" data-testid="command-count">
             {ready ? projected.length : '—'}
           </p>
           <p className="mt-3 text-xs text-text-muted">Même source d'agenda que Signature. Aucune modification de statut possible ici.</p>
-        </aside>
-        <section className="min-w-0 overflow-hidden rounded-xl border border-border-main bg-card-bg" aria-label="Agenda compact">
+        </aside>}
+        {surface !== 'dashboard' && <section className="min-w-0 overflow-hidden rounded-xl border border-border-main bg-card-bg" aria-label="Agenda compact">
           <div className="border-b border-border-main px-4 py-3">
             <h2 className="text-sm font-bold">Agenda compact · aujourd'hui</h2>
           </div>
@@ -97,11 +99,11 @@ export function CommandCabinetReadOnlyView({
               </table>
             </div>
           ) : null}
-        </section>
+        </section>}
       </div>
       <p className="flex items-center gap-2 text-xs text-text-muted">
         <LockKeyhole size={14} aria-hidden="true" />
-        Aucun accès au dossier clinique, imagerie, facturation ou écriture depuis cet aperçu.
+        Aucune écriture, mutation clinique ni facturation depuis cette vue Agenda.
       </p>
     </section>
   );
@@ -110,16 +112,44 @@ export function CommandCabinetReadOnlyView({
 const noopStatsRefresh = async (): Promise<void> => {};
 const noopCompleted = (): void => {};
 
+type CommandSurface = 'dashboard' | 'agenda' | CommandPatientSurface;
+const SURFACES: ReadonlyArray<{id: CommandSurface; label: string}> = [
+  { id: 'dashboard', label: 'Tableau de bord' },
+  { id: 'agenda', label: 'Agenda' },
+  { id: 'dossier', label: 'Dossier patient' },
+  { id: 'imagerie', label: 'Imagerie' },
+];
+
 function CommandCabinetReadOnlySession({ user }: { user: AppUser }) {
+  const [surface, setSurface] = useState<CommandSurface>('dashboard');
   const { appointments, appointmentsState, refreshAppointments } = useTodayAppointments({
     user, authLoading: false, onStatsRefresh: noopStatsRefresh, onCompleted: noopCompleted,
   });
-  return <CommandCabinetReadOnlyView
-    appointments={appointments}
-    appointmentsState={appointmentsState}
-    canReadPatients={hasAccess(user, 'patients')}
-    onRefresh={() => { void refreshAppointments(); }}
-  />;
+  const canPatients = hasAccess(user, 'patients');
+  return (
+    <section data-testid="r4-command-four-surfaces" className="min-w-0 space-y-4">
+      <nav className="flex flex-wrap gap-2" aria-label="Quatre surfaces Command">
+        {SURFACES.map(item => (
+          <button key={item.id} type="button" aria-pressed={surface === item.id}
+            className="min-h-11 rounded-lg border border-border-main bg-card-bg px-4 py-2 text-sm font-semibold text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+            onClick={() => setSurface(item.id)}>{item.label}</button>
+        ))}
+      </nav>
+      {(surface === 'dashboard' || surface === 'agenda') ? (
+        <CommandCabinetReadOnlyView
+          surface={surface}
+          appointments={appointments}
+          appointmentsState={appointmentsState}
+          canReadPatients={canPatients}
+          onRefresh={() => { void refreshAppointments(); }}
+        />
+      ) : canPatients ? (
+        <CommandCabinetPatientSurfaces user={user} surface={surface} />
+      ) : (
+        <p role="alert" data-testid="r4-patient-denied">Accès au dossier et à l'imagerie refusé : permission patients requise.</p>
+      )}
+    </section>
+  );
 }
 
 export function CommandCabinetReadOnlyRoute() {
@@ -138,6 +168,6 @@ export function CommandCabinetReadOnlyRoute() {
     return <p role="status">Prévisualisation Command réservée au Cabinet Desktop.</p>;
   }
   // Remount on account/tenant/role change to discard previous in-flight hook state.
-  const identityKey = `${user.id}:${user.employer_id ?? 'owner'}:${user.role}`;
+  const identityKey = `${user.id}:${user.employer_id ?? 'owner'}:${user.role}:${Number(hasAccess(user, 'patients'))}`;
   return <CommandCabinetReadOnlySession key={identityKey} user={user} />;
 }

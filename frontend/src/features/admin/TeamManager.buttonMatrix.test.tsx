@@ -277,12 +277,19 @@ describe('TeamManager commercial pack button matrix', () => {
     fireEvent.click(suspend);
     await waitFor(() => expect(vi.mocked(api.put)).toHaveBeenCalledWith('/team/11', { is_active: false }));
 
+    // A successful API call can precede the finally{} release of the
+    // member mutation lock. Wait for the actual interactive state, not only
+    // for the mocked request to start, before invoking the next action.
+    const reactivate = screen.getByTitle("Réactiver l'accès");
+    await waitFor(() => expect(reactivate).not.toBeDisabled());
     vi.mocked(api.put).mockClear();
-    fireEvent.click(screen.getByTitle("Réactiver l'accès"));
+    fireEvent.click(reactivate);
     await waitFor(() => expect(vi.mocked(api.put)).toHaveBeenCalledWith('/team/12', { is_active: true }));
 
+    const removeActive = screen.getAllByTitle('Supprimer définitivement')[0];
+    await waitFor(() => expect(removeActive).not.toBeDisabled());
     vi.mocked(api.delete).mockClear();
-    fireEvent.click(screen.getAllByTitle('Supprimer définitivement')[0]);
+    fireEvent.click(removeActive);
     await waitFor(() => expect(vi.mocked(api.delete)).toHaveBeenCalledWith('/team/11'));
   });
 

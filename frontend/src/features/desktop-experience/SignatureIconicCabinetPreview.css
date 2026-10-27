@@ -1,0 +1,72 @@
+/* LOT07 R4 — reusable #958 visual vocabulary on ACTUAL Cabinet pages, DEV only.
+ * No clinical contents, theme tokens, forms or business state are changed.
+ */
+.dc07-r4-signature-controls {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: .5rem;
+  margin: 0 0 .75rem;
+  border: 1px solid var(--border-color);
+  border-radius: .9rem;
+  padding: .55rem .75rem;
+  background: var(--card-bg);
+  color: var(--text-main);
+}
+.dc07-r4-signature-controls__label {
+  font-size: .7rem;
+  font-weight: 750;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-right: .25rem;
+}
+.dc07-r4-signature-controls button {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  gap: .4rem;
+  border: 1px solid var(--border-color);
+  border-radius: .65rem;
+  background: var(--card-bg);
+  padding: .5rem .85rem;
+  color: var(--text-main);
+  font-size: .8rem;
+  font-weight: 750;
+}
+.dc07-r4-signature-controls button[aria-pressed="true"] {
+  border-color: var(--primary);
+  box-shadow: inset 0 0 0 1px var(--primary);
+  color: var(--primary);
+}
+.dc07-r4-signature-controls button:focus-visible {
+  outline: 3px solid var(--primary);
+  outline-offset: 3px;
+}
+/* Source #958: softer elevation, organic edge, restrained icon treatment.
+ * Modify existing real page containers, never replace their actual components.
+ */
+[data-r4-signature="iconic"] main > div {
+  border-radius: 1.55rem;
+  box-shadow: 0 20px 48px -32px color-mix(in srgb, var(--primary) 30%, transparent);
+}
+[data-r4-signature="iconic"] main :is(section, article).rounded-xl,
+[data-r4-signature="iconic"] main :is(section, article).rounded-2xl {
+  border-radius: 1.35rem;
+  box-shadow: 0 10px 30px -23px color-mix(in srgb, var(--primary) 24%, transparent);
+}
+[data-r4-signature="iconic"] main h1,
+[data-r4-signature="iconic"] main h2 {
+  letter-spacing: -.035em;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-r4-signature="iconic"] main *,
+  [data-r4-signature="iconic"] main *::before,
+  [data-r4-signature="iconic"] main *::after {
+    animation: none !important;
+    transition: none !important;
+    scroll-behavior: auto !important;
+  }
+}
