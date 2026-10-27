@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { runGate, APPROVAL_LABEL, APPROVER_LOGIN, TOKEN_ONLY_CERTIFIED_WAVES } from './visual-approval-gate.mjs';
+import { runGate, requiresHumanVisualReview, APPROVAL_LABEL, APPROVER_LOGIN, TOKEN_ONLY_CERTIFIED_WAVES } from './visual-approval-gate.mjs';
 
 const repo = 'hraaaaf/Digital_crown';
 const pr = 910;
@@ -26,7 +26,7 @@ function fixture(options = {}) {
       }
       if (route.startsWith(`/pulls/${pr}/files?`)) {
         if (options.overflow) return Array(100).fill({ filename: 'frontend/a.tsx' });
-        return [{ filename: state.frontend ? 'frontend/a.tsx' : 'backend/a.py' }];
+        return options.files ?? [{ filename: state.frontend ? 'frontend/a.tsx' : 'backend/a.py' }];
       }
       if (route.startsWith(`/issues/${pr}/labels?`))
         return [...state.labels].map(name => ({ name }));
@@ -117,15 +117,16 @@ test('synchronize rejects changed UI HEAD, revokes label and confirms absence', 
   assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
 });
 
-test('synchronize removes stale label even when the new diff is non-UI', async () => {
+test('synchronize removes stale label then SKIPS non-visual updates', async () => {
   const f = fixture({ frontend: false });
-  await assert.rejects(f.run('synchronize'), /approval revoked/);
+  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-visual', head: old });
   assert.equal(f.deletes, 1);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
 });
 
 test('a non-UI synchronize without label skips safely', async () => {
   const f = fixture({ frontend: false, label: false });
-  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-ui', head: old });
+  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-visual', head: old });
 });
 
 test('synchronize with stale webhook fails without revoking a newer HEAD', async () => {
@@ -179,7 +180,7 @@ test('GitHub pagination overflow fails closed', async () => {
 
 test('non-UI open PR does not require visual approval', async () => {
   const f = fixture({ frontend: false, label: false });
-  assert.deepEqual(await f.run('opened'), { state: 'skipped-non-ui', head: old });
+  assert.deepEqual(await f.run('opened'), { state: 'skipped-non-visual', head: old });
 });
 
 test('the trusted gate workflow checks out ONLY the default-branch code', async () => {
