@@ -222,10 +222,10 @@ jobs:
           assert report["overall"]=="R23_G4_EXPERIMENTAL_DESKTOP_AFTER_PASS"
           assert {v["viewport"] for v in report["viewports"]}=={"1280x900","1600x1000"}
           checks={"GENUINE_CABINET_LOGIN_AND_STUDY_SELECTION",
-                  "COM10_SOURCE_ROWS_EXACT_REVISION","NO_FABRICATED_FOCUS_ON_COM_HOLD",
+                  "COM10_SOURCE_ROWS_EXACT_REVISION","COM_FOCUS_MATCHES_SOURCE_EVIDENCE",
                   "RICKETTS_ATLAS33_VS_GREGORET13","SECOND_STUDY_HAS_NO_STALE_REFERENCE",
                   "COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED","NO_DESKTOP_VIEWPORT_OVERFLOW"}
-          screenshots={"before-from-stable-all","after-com-ten-factor","after-com-focus-hold",
+          screenshots={"before-from-stable-all","after-com-ten-factor","after-com-source-backed-focus",
                        "after-ricketts-atlas33","after-ricketts-gregoret13","after-other-study-rebound",
                        "after-com-last-factor-accessible"}
           for v in report["viewports"]:
