@@ -429,7 +429,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false, fixedAssetTy
             </section>
           )}
 
-          <div className="grid min-w-0 gap-2.5 md:grid-cols-[minmax(210px,0.32fr)_minmax(0,1fr)] lg:grid-cols-[minmax(260px,0.34fr)_minmax(0,1fr)] lg:gap-3">
+          <div data-testid="r3-media-asset-layout" className="grid min-w-0 gap-2.5 md:grid-cols-[minmax(210px,0.32fr)_minmax(0,1fr)] lg:grid-cols-[minmax(260px,0.34fr)_minmax(0,1fr)] lg:gap-3">
             <div data-testid="media-asset-rail" className="order-2 min-w-0 space-y-2.5 md:order-1 md:max-h-[545px] md:overflow-y-auto md:pr-1">
               {grouped.map(([label, assets]) => <section key={label} aria-label={`Temps ${label}`} className="space-y-1.5"><div className="flex items-center gap-2 px-0.5"><span className="inline-flex h-6 min-w-6 items-center justify-center rounded-lg bg-primary px-2 text-[9px] font-black tracking-wider text-white">{label}</span><div className="h-px flex-1 bg-border-main" /><span className="text-[9px] font-black uppercase tracking-widest text-text-muted">{assets.length}</span></div><div className="space-y-1.5">{assets.map((asset) => {
                 const selected = selectedAsset?.id === asset.id;
