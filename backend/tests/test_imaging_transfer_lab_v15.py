@@ -85,7 +85,7 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     proposed = client.post(prefix + "/propose", json=proposal, headers=device_headers)
     assert proposed.status_code == 200, proposed.text
     intent = dict(workstation_id=workstation, device=device, capture=capture,
-                  patient_id=patient.id)
+                  patient_id=patient.id, patient_only_reason="LAB_WALK_IN")
     reviewed = client.post(prefix + "/review", json=intent, headers=auth_headers)
     assert reviewed.status_code == 200, reviewed.text
     assert reviewed.json()["status"] == "STAFF_REVIEW_REQUIRED"
@@ -134,6 +134,10 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     assert len(list(tmp_path.rglob("*.dcm"))) >= 1
     for table in (lab.receipts, lab.audit, lab.outbox):
         assert len(db.execute(select(table)).all()) >= 1
+    audited = db.execute(select(lab.audit).where(
+        lab.audit.c.receipt_id == original["receipt_id"]
+    )).mappings().one()
+    assert audited["patient_only_reason"] == "LAB_WALK_IN"
     # An immutable SQL receipt does not permit serving a damaged encrypted blob.
     blob = tmp_path.joinpath(*asset.storage_key.split("/"))
     assert blob.is_file()
@@ -175,11 +179,13 @@ def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
                 capture=capture, digest=digest, size=len(content))
     review = lab.issue_review(db, staff=dentiste, tenant=dentiste.id,
                               workstation=workstation, device=device, capture=capture,
-                              patient=patient.id, appointment=None)
+                              patient=patient.id, appointment=None,
+                              patient_only_reason="LAB_UNSCHEDULED")
     lab.approve(db, staff=dentiste, tenant=dentiste.id,
                 workstation=workstation, device=device, capture=capture,
                 patient=patient.id, appointment=None,
-                review_challenge=review["review_challenge"])
+                review_challenge=review["review_challenge"],
+                patient_only_reason="LAB_UNSCHEDULED")
     args = dict(tenant=dentiste.id, device=device, token=token,
                 capture=capture, payload=content, mime="image/png")
     base_assets = db.query(ClinicalAsset).count()
@@ -202,6 +208,9 @@ def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
     assert [len(db.execute(select(t)).all()) for t in (
         lab.receipts, lab.audit, lab.outbox
     )] == [n + 1 for n in baseline]
+    assert db.execute(select(lab.audit.c.patient_only_reason).where(
+        lab.audit.c.receipt_id == committed["receipt_id"]
+    )).scalar_one() == "LAB_UNSCHEDULED"
 
 
 def test_lab_device_and_staff_revocation_prevent_receipt_creation(
@@ -229,10 +238,12 @@ def test_lab_device_and_staff_revocation_prevent_receipt_creation(
                 capture=capture, digest=hashlib.sha256(data).hexdigest(), size=len(data))
     review = lab.issue_review(db, staff=dentiste, tenant=dentiste.id,
                               workstation=station, device=device, capture=capture,
-                              patient=patient.id, appointment=None)
+                              patient=patient.id, appointment=None,
+                              patient_only_reason="LAB_UNSCHEDULED")
     lab.approve(db, staff=dentiste, tenant=dentiste.id, workstation=station,
                 device=device, capture=capture, patient=patient.id, appointment=None,
-                review_challenge=review["review_challenge"])
+                review_challenge=review["review_challenge"],
+                patient_only_reason="LAB_UNSCHEDULED")
     args = dict(tenant=dentiste.id, device=device, token=token,
                 capture=capture, payload=data, mime="image/png")
     scope = (lab.devices.c.tenant == dentiste.id) & (lab.devices.c.device == device)
@@ -275,7 +286,8 @@ def test_staff_review_challenge_rotation_expiry_and_patient_binding(
     lab.propose(db, tenant=dentiste.id, device=device, token=token,
                 capture=capture, digest=hashlib.sha256(b"test").hexdigest(), size=4)
     args = dict(staff=dentiste, tenant=dentiste.id, workstation=station,
-                device=device, capture=capture, patient=patient.id, appointment=None)
+                device=device, capture=capture, patient=patient.id, appointment=None,
+                patient_only_reason="LAB_WALK_IN")
     old = lab.issue_review(db, **args)
     new = lab.issue_review(db, **args)
     with pytest.raises(lab.TransferLabRejected, match="STAFF_REVIEW_CHALLENGE_INVALID"):
