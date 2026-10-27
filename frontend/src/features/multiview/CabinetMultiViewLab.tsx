@@ -264,11 +264,11 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   };
   const renderSlot=(slot:{id:string;module:ModuleKey})=>{
     if (!trustedPatient) return null;
-    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly
+    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly labReadOnlyPreview
       fixedAssetType={applied.id==='imagerie' ? 'RADIOGRAPH' : undefined}/>;
-    if (slot.module==='galerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly fixedAssetType="PHOTO"/>;
-    if (slot.module==='documents') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly fixedAssetType="DOCUMENT"/>;
-    if (slot.module==='photos') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly fixedAssetType="PHOTO"/>;
+    if (slot.module==='galerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly labReadOnlyPreview fixedAssetType="PHOTO"/>;
+    if (slot.module==='documents') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly labReadOnlyPreview fixedAssetType="DOCUMENT"/>;
+    if (slot.module==='photos') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly labReadOnlyPreview fixedAssetType="PHOTO"/>;
     if (slot.module==='agenda' && canAgenda && user)
       return <R3AgendaReadonlyPanel user={user}/>;
     if (slot.module==='traitement' && canClinical)
@@ -280,14 +280,14 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     if (slot.module==='presentation' && canClinical && applied.id==='presentation-patient')
       return <R3PatientPresentationPanel key={proofKey} patient={trustedPatient}/>;
     if (slot.module==='dossier') return (
-      <div data-testid="multiview-real-dossier" className="min-w-0 space-y-2.5 p-2.5 text-sm sm:p-3">
+      <div data-testid="multiview-real-dossier" className="dc-r3-patient-summary min-w-0 space-y-2 p-2.5 text-sm sm:p-3">
         <div className="rounded-2xl bg-gradient-to-br from-primary via-primary to-primary p-4 text-on-primary shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-on-primary/85">Dossier patient</p>
             <span className="inline-flex items-center gap-1 rounded-full border border-on-primary/30 bg-on-primary/10 px-2 py-1 text-[11px] font-semibold"><CheckCircle2 size={12}/> Identité vérifiée</span>
           </div>
-          <div className="mt-3 flex min-w-0 items-center gap-3">
-            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-on-primary/15 text-lg font-extrabold">
+          <div className="mt-2 flex min-w-0 items-center gap-3">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-on-primary/15 text-lg font-extrabold">
               {trustedPatient.prenom.slice(0,1)}{trustedPatient.nom.slice(0,1)}
             </span>
             <div className="min-w-0">
