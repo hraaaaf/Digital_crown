@@ -1104,3 +1104,61 @@
   border-color: var(--border-color);
   box-shadow: var(--shadow-elite);
 }
+
+
+/* LOT07 R3 / REAL-PIXEL DOCUMENT + ABOVE-FOLD CLINICAL SUMMARY — DEV only.
+ * Focus: nine-view premium without shifting the certified R3 split invariants. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="gestion-administrative"]
+  [data-testid="r3-document-preview"] {
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  background: var(--bg-medical-pearl);
+  overflow: hidden;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="gestion-administrative"]
+  [data-testid="r3-document-page-image"] {
+  min-height: 180px;
+  max-height: 390px;
+  width: auto;
+  max-width: 100%;
+  margin: 10px auto;
+  background: var(--card-bg);
+  box-shadow: var(--shadow-elite);
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="gestion-administrative"]
+  [data-testid="r3-document-source-ready"] {
+  min-height: 0;
+  background: var(--bg-medical-pearl);
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"]
+  [data-testid="r3-followup-key-measures"] {
+  position: relative;
+  margin-bottom: 9px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"]
+  [data-testid="r3-followup-key-measures"] > div {
+  min-width: 0;
+  border-top: 3px solid var(--primary);
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="planification-traitements"]
+  [data-testid="r3-treatment-source-summary"] {
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--bg-medical-pearl);
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="imagerie"]
+  [data-testid="media-inline-viewer"] img {
+  max-height: 490px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="presentation-patient"]
+  [data-testid="r3-presentation-visible"] > div:first-child {
+  padding-bottom: 16px;
+}
