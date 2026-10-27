@@ -252,6 +252,12 @@ def transfer(db: Session, *, tenant: int, device: str, token: str, capture: str,
     ).first()
     if station is None:
         raise TransferLabRejected("STATION_REVOKED", 403)
+    # SQLite's default driver may open a SAVEPOINT without a real outer BEGIN
+    # after SELECT-only SQLAlchemy work. A no-op DML starts the actual SQLite
+    # writer transaction before ingestion's nested SAVEPOINT. The SQL commit
+    # must cover ClinicalAsset, receipt, audit and outbox as one unit.
+    # This test-only ledger is disabled on every persistent/production DB.
+    db.execute(update(captures).where(where).values(size=row["size"]))
     try:
         validated = validate_clinical_import_payload(
             payload, claimed_mime_type=mime,
