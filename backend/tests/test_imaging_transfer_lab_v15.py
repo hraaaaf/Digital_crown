@@ -143,3 +143,53 @@ def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
     assert [len(db.execute(select(t)).all()) for t in (
         lab.receipts, lab.audit, lab.outbox
     )] == [n + 1 for n in baseline]
+
+
+def test_lab_device_and_staff_revocation_prevent_receipt_creation(
+    client, db, dentiste, auth_headers, monkeypatch, tmp_path
+):
+    import hashlib
+    import uuid
+    from io import BytesIO
+    from PIL import Image
+    from sqlalchemy import update, select
+    from backend.tests.test_imaging_acquisition_preflight_v15 import _lab, _patient
+    from backend.services import imaging_acquisition_transfer_lab_v15 as lab
+    from backend.models_media_core import ClinicalAsset
+
+    monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
+    monkeypatch.setattr("backend.services.clinical_asset_storage.get_media_root", lambda: tmp_path)
+    station = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    device, capture = "revoke-" + uuid.uuid4().hex, "revoke-" + uuid.uuid4().hex
+    token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
+    out = BytesIO()
+    Image.new("RGB", (4, 4)).save(out, format="PNG")
+    data = out.getvalue()
+    lab.propose(db, tenant=dentiste.id, device=device, token=token,
+                capture=capture, digest=hashlib.sha256(data).hexdigest(), size=len(data))
+    lab.approve(db, staff=dentiste, tenant=dentiste.id, workstation=station,
+                device=device, capture=capture, patient=patient.id, appointment=None)
+    args = dict(tenant=dentiste.id, device=device, token=token,
+                capture=capture, payload=data, mime="image/png")
+    scope = (lab.devices.c.tenant == dentiste.id) & (lab.devices.c.device == device)
+    db.execute(update(lab.devices).where(scope).values(active=False))
+    db.commit()
+    with pytest.raises(lab.TransferLabRejected, match="DEVICE_AUTH_REQUIRED"):
+        lab.transfer(db, **args)
+    db.execute(update(lab.devices).where(scope).values(active=True))
+    dentiste.is_active = False
+    db.commit()
+    with pytest.raises(lab.TransferLabRejected, match="STAFF_REVOKED"):
+        lab.transfer(db, **args)
+    dentiste.is_active = True
+    db.commit()
+    assert lab.transfer(db, **args)["status"] == "LAB_SERVER_RECEIPT"
+    assert len(db.execute(select(lab.receipts).where(
+        lab.receipts.c.tenant == dentiste.id,
+        lab.receipts.c.device == device,
+        lab.receipts.c.capture == capture,
+    )).all()) == 1
+    assert db.query(ClinicalAsset).filter(ClinicalAsset.employer_id == dentiste.id,
+                                          ClinicalAsset.patient_id == patient.id,
+                                          ClinicalAsset.source_kind == "DEVICE_CAPTURE").count() == 1
