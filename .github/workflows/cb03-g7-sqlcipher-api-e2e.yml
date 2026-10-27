@@ -4,6 +4,7 @@ on:
     types: [opened, synchronize, reopened]
     paths:
       - scripts/ci/cb03_g7_cipher_pytest.py
+      - scripts/ci/cb03_g7_real_sqlcipher_sigkill.py
       - .github/workflows/cb03-g7-sqlcipher-api-e2e.yml
       - backend/tests/test_bot_cb03_g2_confirm.py
       - backend/routers/bot_cb03_confirm_g2.py
@@ -47,8 +48,19 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$CB03_G7_SOURCE_HEAD"
           PYTHONPATH=. python -m pytest -q -s -p scripts.ci.cb03_g7_cipher_pytest backend/tests/test_bot_cb03_g2_confirm.py
+      - name: Real OS SIGKILL before and after COMMIT on encrypted SQLCipher file
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/ci/cb03_g7_real_sqlcipher_sigkill.py
+      - name: Upload SQLCipher SIGKILL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g7-real-sqlcipher-sigkill
+          path: artifacts/cb03-g7/sqlcipher-real-sigkill.json
+          if-no-files-found: warn
       - name: Scope of certification
         if: success()
         run: |
           echo "PASS: Real FastAPI G1/G2 HTTP API tests with synthetic SQLCipher encrypted on-disk file; replay, expiry, tenant, rollback, audit, receipt and wrong-key/header checks." >> "$GITHUB_STEP_SUMMARY"
-          echo "NOT CERTIFIED: full MainLayout browser→FastAPI→SQLCipher, real OS SIGKILL on SQLCipher, real clinic." >> "$GITHUB_STEP_SUMMARY"
+          echo "NOT CERTIFIED: full MainLayout browser→FastAPI→SQLCipher, real OS SIGKILL inside G2 FastAPI transaction on SQLCipher, real clinic. Separate SQLCipher process-level SIGKILL verified." >> "$GITHUB_STEP_SUMMARY"
