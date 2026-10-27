@@ -13,6 +13,8 @@ import { PREMIUM_FONTS } from '../../features/admin/constants';
 import { VoluntaryTutorialPanel } from '../../features/tutorial/VoluntaryTutorial';
 import { ClinicPractitionerBar } from '../../features/clinic/ClinicPractitionerBar';
 import './patientDossierResponsive.css';
+import { SignatureIconicCabinetControls, type CabinetSignaturePreview } from '../../features/desktop-experience/SignatureIconicCabinetControls';
+import '../../features/desktop-experience/SignatureIconicCabinetPreview.css';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { useState } from 'react';
@@ -145,6 +147,13 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   const isPatientRoute = /^\/patients(?:\/|$)/.test(location.pathname);
   // Preserve LOT07 07-C dev-only lab isolation from current master.
   const isCommandCabinetLab = location.pathname === '/command-cabinet-lab';
+  // Four genuine routes + Command lab; no real mode switch in production and no preference persisted.
+  const r4SignaturePreviewEnabled = import.meta.env.DEV
+    && import.meta.env.VITE_V15_07_R4_SIGNATURE_LAB === 'true'
+    && (/^\/(?:dashboard|agenda)$/.test(location.pathname)
+      || /^\/patients\/\d+$/.test(location.pathname)
+      || isCommandCabinetLab);
+  const [r4SignatureMode, setR4SignatureMode] = useState<CabinetSignaturePreview>('core');
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
     && new URLSearchParams(location.search).get('tab') === 'admin';
   const showPractitionerContext = ['/dashboard', '/agenda', '/settings'].includes(location.pathname);
@@ -154,7 +163,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
   }, [location.pathname]);
 
   return (
-    <div className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
+    <div data-r4-signature={r4SignaturePreviewEnabled ? r4SignatureMode : undefined} className={`flex flex-row h-screen overflow-hidden ${fontClass} selection:bg-primary selection:text-white relative bg-medical-pearl`} style={{ color: 'var(--text-main)' }}>
       {animatedBg && <AnimatedBackground />}
 
       <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
@@ -185,6 +194,9 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         <VoluntaryTutorialPanel />
 
         <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-3 sm:p-4 lg:p-8'}`}>
+          {r4SignaturePreviewEnabled && (
+            <SignatureIconicCabinetControls mode={r4SignatureMode} onChange={setR4SignatureMode} />
+          )}
           <AnimatePresence mode="wait">
             <motion.div
               key={location.pathname}
