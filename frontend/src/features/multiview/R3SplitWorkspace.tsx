@@ -33,6 +33,7 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
   const isRows = layout.geometry === 'two-rows';
   const [ratio, setRatio] = useState(() => clampSplitRatio(initialRatio));
   const [mode, setMode] = useState<SplitSizing>('strict');
+  const [focusFollowup, setFocusFollowup] = useState(false);
   const gridRef = useRef<HTMLDivElement>(null);
   const pointerId = useRef<number | null>(null);
   const uid = useId();
@@ -40,6 +41,8 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
   const panelB = uid + '-pane-b';
   // Critically, a denied context must never invoke renderSlot or mount cached patient data.
   const permitted = (isColumns || isRows) && authorizeLayout(layout, context, ratio).ok;
+  const canFocusFollowup=isRows && layout.id==='suivi-clinique' &&
+    authorizeLayout({...layout,id:'r3-focus-suivi',geometry:'single',slots:[layout.slots[0]]},context).ok;
 
   const updateRatio = (value: number) => {
     const next = clampSplitRatio(value);
@@ -81,6 +84,22 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
     </p>;
   }
 
+  if (focusFollowup && canFocusFollowup) {
+    return <section data-testid="r3-1-followup-focus" aria-label="Suivi clinique agrandi · lecture seule"
+      className="min-w-0 rounded-xl border border-border-main bg-medical-pearl p-3 text-text-main">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+        <h2 className="text-sm font-bold">Suivi clinique · lecture seule</h2>
+        <button type="button" onClick={()=>setFocusFollowup(false)}
+          className="min-h-10 rounded-lg border border-border-main bg-card px-3 py-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-primary">
+          Restaurer le partage 50/50
+        </button>
+      </div>
+      <section aria-label="Panneau de suivi agrandi" data-v15-071-viewslot={layout.slots[0].module}
+        className="max-h-[72vh] min-h-[420px] overflow-auto rounded-xl border border-border-main bg-card">
+        {renderSlot(layout.slots[0])}
+      </section>
+    </section>;
+  }
   const strict = mode === 'strict';
   const gridStyle: CSSProperties = {
     display: 'grid', width: '100%', minWidth: 0, gap: 0,
@@ -99,6 +118,10 @@ export function R3SplitWorkspace({ layout, context, renderSlot, initialRatio = 5
     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
       <h2 className="text-sm font-semibold">{layout.label} · R3-1</h2>
       <div className="flex items-center gap-2">
+        {canFocusFollowup && <button type="button" onClick={()=>{finishPointer();setFocusFollowup(true);}}
+          className="min-h-10 rounded-lg border border-primary bg-card px-3 py-2 text-xs font-semibold text-primary-ink focus-visible:outline-2 focus-visible:outline-primary">
+          Agrandir le suivi T0/T1
+        </button>}
         {isRows && <button type="button" onClick={() => { finishPointer(); setMode(strict ? 'content-fit' : 'strict'); }}
           aria-pressed={!strict} className="rounded-md border border-border-main bg-card px-3 py-2 text-xs text-text-main focus-visible:outline-2 focus-visible:outline-primary">
           {strict ? 'Ajuster au contenu' : 'Revenir au partage strict'}
