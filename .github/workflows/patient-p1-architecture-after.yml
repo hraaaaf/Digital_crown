@@ -1,7 +1,7 @@
 name: Patient P1 Architecture After
 
 on:
-  pull_request:
+  push:
     branches: [master]
     paths:
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
@@ -10,6 +10,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   after:

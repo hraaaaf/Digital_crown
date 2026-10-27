@@ -2,33 +2,22 @@ name: Patient Companion D2 Visual Certification
 
 on:
   push:
-    branches:
-      - feat/patient-companion-d2-staff-ui
-    paths:
-      - 'backend/routers/patient_companion_activation.py'
-      - 'backend/routers/patient_companion_shares.py'
-      - 'backend/tests/test_patient_companion_d2_staff.py'
-      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
-      - 'frontend/src/features/patients/components/PatientCompanionPanel.tsx'
-      - 'frontend/src/features/patients/components/PatientCompanionPanel.test.ts'
-      - 'frontend/scripts/capture-patient-companion-d2-visual.mjs'
-      - 'docs/audits/PATIENT_COMPANION_D2.md'
-      - '.github/workflows/patient-companion-d2-visual-cert.yml'
-  pull_request:
     branches: [master]
     paths:
       - 'backend/routers/patient_companion_activation.py'
       - 'backend/routers/patient_companion_shares.py'
       - 'backend/tests/test_patient_companion_d2_staff.py'
-      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/components/PatientCompanionPanel.tsx'
       - 'frontend/src/features/patients/components/PatientCompanionPanel.test.ts'
       - 'frontend/scripts/capture-patient-companion-d2-visual.mjs'
-      - 'docs/audits/PATIENT_COMPANION_D2.md'
       - '.github/workflows/patient-companion-d2-visual-cert.yml'
 
 permissions:
   contents: read
+
+concurrency:
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   before-after:
@@ -36,7 +25,7 @@ jobs:
     timeout-minutes: 35
     env:
       BASE_HEAD: 8f74464998a721414e67957e0c9346f6a67efdb2
-      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      PRODUCT_HEAD: ${{ github.sha }}
       ENVIRONMENT: test
       SECRET_KEY: patient-companion-d2-visual-secret-key-000001
       DATABASE_URL: sqlite:///./patient-companion-d2-visual.db
@@ -51,7 +40,7 @@ jobs:
       - name: Checkout AFTER exact head
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          ref: ${{ github.sha }}
           path: after
 
       - name: Checkout BEFORE locked base
@@ -209,7 +198,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: patient-companion-d2-before-after-${{ github.event.pull_request.head.sha || github.sha }}
+          name: patient-companion-d2-before-after-${{ github.sha }}
           path: artifacts/patient-companion-d2-*
           if-no-files-found: warn
           retention-days: 30
