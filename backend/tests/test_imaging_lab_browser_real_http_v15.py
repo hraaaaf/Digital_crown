@@ -22,6 +22,7 @@ from contextlib import contextmanager
 
 from fastapi.testclient import TestClient
 from PIL import Image
+import pytest
 from playwright.sync_api import sync_playwright
 from sqlalchemy import select
 
@@ -118,8 +119,10 @@ def _vite_ready(port: int, process: subprocess.Popen, timeout: int = 75):
     raise AssertionError("VITE_DEV_TIMEOUT")
 
 
+@pytest.mark.parametrize("patient_only", [False, True],
+                         ids=["matched-rdv", "patient-only-audited"])
 def test_real_browser_patient_rdv_approve_upload_receipt(
-    client, db, dentiste, auth_headers, monkeypatch, tmp_path
+    client, db, dentiste, auth_headers, monkeypatch, tmp_path, patient_only
 ):
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
@@ -130,7 +133,8 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
     )
     station = _lab(client, db, dentiste, auth_headers, monkeypatch)
     patient = _patient(db, dentiste.id, "LIVE" + str(dentiste.id))
-    rdv = _rdv(db, dentiste.id, patient.id)
+    rdv = None if patient_only else _rdv(db, dentiste.id, patient.id)
+    reason_code = "LAB_UNSCHEDULED" if patient_only else None
     device = "real-http-synthetic-bridge"
     capture = "capture-live-http-20261027"
     device_token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
@@ -188,7 +192,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         "targets": [{
                             "patientId": patient.id,
                             "label": f"Patient synthétique {patient.id}",
-                            "appointments": [{
+                            "appointments": [] if patient_only else [{
                                 "id": rdv.id, "label": "RDV synthétique",
                             }],
                         }],
@@ -244,7 +248,36 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     )
                     assert pre == 403  # valid bytes cannot bypass approval
                     page.locator("#lab-patient").select_option(str(patient.id))
-                    page.locator("#lab-appointment").select_option(str(rdv.id))
+                    if patient_only:
+                        # Same actual FastAPI endpoint must deny missing/free-text
+                        # reason even when staff JWT/station is otherwise valid.
+                        invalid = page.evaluate(
+                            """async ([origin,station,device,capture,patient]) => {
+                              const base={workstation_id:station,device,capture,
+                                patient_id:patient,appointment_id:null};
+                              const bearer=localStorage.getItem('token');
+                              const req=async(payload)=> {
+                                const r=await fetch(origin+'/api/imaging-acquisitions/lab/review',{
+                                  method:'POST',credentials:'include',
+                                  headers:{'Content-Type':'application/json',
+                                    'Authorization':'Bearer '+bearer},
+                                  body:JSON.stringify(payload)
+                                });
+                                return {status:r.status,body:await r.json()};
+                              };
+                              return {
+                                missing:await req(base),
+                                free_text:await req({...base,
+                                  patient_only_reason:'Informations médicales libres'})
+                              };
+                            }""",
+                            [backend_origin, station, device, capture, patient.id],
+                        )
+                        assert invalid["missing"]["status"] == 422, invalid
+                        assert invalid["free_text"]["status"] == 422, invalid
+                        page.locator("#lab-reason").fill("LAB_UNSCHEDULED")
+                    else:
+                        page.locator("#lab-appointment").select_option(str(rdv.id))
                     page.get_by_role("button", name="Vérifier le lien patient").click()
                     page.get_by_text("Vérifier avant confirmation").wait_for()
                     assert ("POST", "/api/imaging-acquisitions/lab/review", 200) in recorded
@@ -303,7 +336,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     row = db.execute(select(lab.audit).where(
                         lab.audit.c.receipt_id == first["receipt_id"]
                     )).mappings().one()
-                    assert row["patient_only_reason"] is None  # RDV is valid
+                    assert row["patient_only_reason"] == reason_code
                     assets = db.query(ClinicalAsset).filter(
                         ClinicalAsset.id == first["asset_id"],
                         ClinicalAsset.employer_id == dentiste.id,
@@ -325,6 +358,9 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         "negative_preapproval": pre,
                         "negative_tamper": results["tamper"]["status"],
                         "negative_device_token": results["denied"],
+                        "patient_only": patient_only,
+                        "audit_reason_code": reason_code,
+                        "server_confirmed": False,
                         "route_codes": [
                             {"method": method, "route": route, "status": status}
                             for method,route,status in recorded
