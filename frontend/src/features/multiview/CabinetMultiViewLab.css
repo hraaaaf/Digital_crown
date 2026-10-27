@@ -603,3 +603,154 @@
     min-height: 380px !important;
   }
 }
+
+
+/*
+ * LOT07 R3-POLISH P5 — nine-preset visual hierarchy, DEV-only R-mode.
+ * All patient sources, clinical permissions and geometry authorization stay
+ * untouched. Width adaptation follows actual clinical slot container size.
+ */
+
+/* 01 Overview: reserve most of the viewport for the actual media rather than
+ * a 230px agenda header. Maintain a 170px populated agenda minimum. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="vue-ensemble"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"] {
+  min-height: 580px;
+  height: min(62vh, 670px);
+  max-height: 670px;
+  grid-template-rows: minmax(170px, .62fr) minmax(375px, 1.38fr) !important;
+}
+
+/* 02 Consultation + 03 Agenda: emphasize server-verified information, keep
+ * scan columns readable inside the already-tested 50/50 split. */
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="r3-real-agenda"] thead {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="r3-real-agenda"] tbody td:first-child {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* 04 Imagerie + 08 Documents, also photo/gallery slots used by Overview
+ * and Follow-up: a half-width 820px panel is NOT an xl desktop toolbar.
+ * Reflow the authenticated media heading above usable full-width controls.
+ * The existing <=760px narrow 3-pane rules remain in effect. */
+@container (max-width: 960px) {
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [data-testid="patient-media-timeline"] > div:first-child > div:first-child {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [aria-label="Recherche et filtres médias"] {
+    width: 100%;
+    min-width: 0;
+    grid-template-columns: minmax(155px, 1.3fr) minmax(95px, .75fr) minmax(100px, .75fr) auto;
+    gap: 8px;
+  }
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [data-testid="patient-media-timeline"] h2 {
+    font-size: 16px;
+    line-height: 1.25;
+  }
+}
+@container (max-width: 760px) {
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [aria-label="Recherche et filtres médias"] {
+    grid-template-columns: repeat(2,minmax(0,1fr));
+  }
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [aria-label="Recherche et filtres médias"] > label,
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [aria-label="Recherche et filtres médias"] > button {
+    grid-column: 1 / -1;
+  }
+}
+
+/* 05 Orthodontic comparison: don't allocate a 690px frame to two sparse
+ * verified cephalometric sources; measurements stay visible by scrolling. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="comparaison-orthodontique"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="three-columns"] {
+  height: min(56vh, 610px);
+  min-height: 510px;
+  max-height: 610px;
+}
+
+/* 06 Treatment: elevate the actual three-step canonical Master Plan;
+ * give the lower actual-media row priority without changing panel ordering. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="planification-traitements"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"] {
+  height: min(56vh, 600px);
+  min-height: 520px;
+  max-height: 600px;
+  grid-template-rows: minmax(180px,.60fr) minmax(305px,1.40fr) !important;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="planification-traitements"]
+  [data-testid="r3-real-treatment"] ol li {
+  border-left: 3px solid var(--primary);
+  border-radius: 12px;
+}
+
+/* 07 Follow-up: reveal substantially more of the existing T0/T1 comparison
+ * above the real photo panel without changing resize, default 50/50 or RBAC. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"][data-r3-1-split="two-rows"]
+  [data-testid="r3-1-grid"][data-r3-1-grid] { max-height: 740px; }
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"][data-r3-1-split="two-rows"]
+  [data-testid="r3-1-grid"] {
+  height: min(66vh, 690px) !important;
+  min-height: 560px !important;
+}
+
+/* 09 On-screen patient presentation: content-led typography and clear
+ * separation from control chrome; identity remains masked until explicitly
+ * authorized by the clinician in the existing component. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="presentation-patient"]
+  [data-testid="r3-presentation-visible"] {
+  max-width: 100%;
+  border-radius: 18px;
+  box-shadow: var(--shadow-elite);
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="presentation-patient"]
+  [data-testid="r3-presentation-visible"] ol {
+  display: grid;
+  grid-template-columns: repeat(3,minmax(0,1fr));
+  gap: 12px;
+}
+@media (max-width: 1499px) {
+  [data-v15-071-real-cabinet-lab]
+    [data-v15-071-layout="presentation-patient"]
+    [data-testid="r3-presentation-visible"] ol {
+    grid-template-columns: 1fr;
+  }
+}
