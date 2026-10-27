@@ -405,6 +405,21 @@ try {
       await page.getByRole('button',{name:'Appliquer',exact:true}).click();
       const slots=await page.locator('[data-v15-071-viewslot]').evaluateAll(items =>
         items.map(item=>item.getAttribute('data-v15-071-viewslot')));
+      // P4: the true 3-row agenda is compact, without collapsing either
+      // independently scrollable 50/50 pane or altering permissions.
+      if (['consultation','agenda-cabinet','gestion-administrative'].includes(id)) {
+        const g=await page.locator('[data-v15-071-layout="'+id+'"][data-r3-1-split="two-columns"] [data-testid="r3-1-grid"]')
+          .evaluate(el=>{
+            const panes=[...el.querySelectorAll(':scope > section[data-v15-071-viewslot]')];
+            return {height:Math.round(el.getBoundingClientRect().height),
+              widths:panes.map(p=>Math.round(p.getBoundingClientRect().width)),
+              scrolling:panes.map(p=>getComputedStyle(p).overflowY)};
+          });
+        pass('P4 compact sparse '+id+' is equal-width and scrollable',
+          g.height>=379 && g.height<=426 && g.widths.length===2 &&
+          Math.abs(g.widths[0]-g.widths[1])<=3 &&
+          g.scrolling.every(v=>v==='auto'),g);
+      }
       if(['vue-ensemble','consultation','agenda-cabinet','gestion-administrative'].includes(id)){
         const agendaView=page.locator('[data-v15-071-layout="'+id+'"] [data-testid="r3-real-agenda"]');
         await agendaView.locator('tbody tr').first().waitFor({state:'visible',timeout:30000});
