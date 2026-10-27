@@ -21,7 +21,7 @@ vi.mock('../../stores/useAuthStore',()=>({useAuthStore:{
   getState:()=>({isAuthenticated:store.isAuthenticated,user:store.user}),
 }}));
 
-const mockUser={id:10,employer_id:10,role:'DENTISTE'} as AppUser;
+const mockUser={id:10,employer_id:10,role:'DENTISTE'} as unknown as AppUser;
 const scope={
   authenticated:true,workstationVerified:true,userId:'10',tenantId:'10',
   workstationId:'station-test',patientId:17,cssViewportWidth:1920,
