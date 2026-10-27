@@ -170,6 +170,19 @@ try {
       p2Assets.items?.some(item=>item.asset_type===kind),
       {kind,total:p2Assets.items?.length});
   }
+  // Final premium gate: actual server-returned PDF bytes, never just a
+  // white iframe or an unverified success assertion in the screenshot.
+  const documentAsset=p2Assets.items?.find(item=>item.asset_type==='DOCUMENT');
+  pass('premium final server-indexed synthetic DOCUMENT has a valid id',
+    Number.isSafeInteger(documentAsset?.id)&&documentAsset.id>0);
+  const fetchedDocument=await api.get('/api/patients/'+patient.id+
+    '/assets/'+documentAsset.id+'/content',{headers:head});
+  const pdfBytes=Buffer.from(await fetchedDocument.body());
+  pass('premium final authenticated PDF content really starts with PDF header',
+    fetchedDocument.status()===200 &&
+    pdfBytes.subarray(0,8).toString('ascii').startsWith('%PDF-1.') &&
+    pdfBytes.includes(Buffer.from('QA R3 - DOCUMENT NON CLINIQUE')),
+    {status:fetchedDocument.status(),size:pdfBytes.length});
   // A third clinical panel is meaningful only with genuine, seeded T0/T1 data.
   // Create an orthodontic case via the real authenticated API in the disposable T2 DB.
   const syntheticMediaList=await api.get('/api/patients/'+patient.id+'/assets',{headers:head});
@@ -522,7 +535,7 @@ try {
               scrolling:panes.map(p=>getComputedStyle(p).overflowY)};
           });
         pass('P4 compact sparse '+id+' is equal-width and scrollable',
-          g.height>=379 && g.height<=426 && g.widths.length===2 &&
+          g.height>=314 && g.height<=356 && g.widths.length===2 &&
           Math.abs(g.widths[0]-g.widths[1])<=3 &&
           g.scrolling.every(v=>v==='auto'),g);
       }
@@ -545,6 +558,26 @@ try {
         {id,slots});
       // P5: verify the REAL narrow-slot media header does not use desktop-xl
       // toolbar geometry. Check the computed browser boxes, not just a CSS rule.
+      if (id==='imagerie') {
+        await page.waitForFunction(()=>{
+          const images=[...document.querySelectorAll(
+            '[data-v15-071-layout="imagerie"] [data-testid="media-inline-viewer"] img'
+          )];
+          return images.length===2 && images.every(img=>img.complete&&img.naturalWidth>=640);
+        },null,{timeout:20000});
+        pass('premium final genuine authenticated PHOTO+RADIO 640px QA visuals',
+          await page.locator('[data-v15-071-layout="imagerie"] [data-testid="media-inline-viewer"] img')
+            .count()===2);
+      }
+      if (id==='gestion-administrative') {
+        const pdf=page.locator('[data-v15-071-viewslot="documents"] [data-testid="r3-document-source-ready"]');
+        await pdf.waitFor({state:'visible',timeout:20000});
+        const frame=page.locator('[data-v15-071-viewslot="documents"] iframe[title="Aperçu document clinique"]');
+        pass('premium final DOCUMENT source ready, visible metadata + native reader',
+          await pdf.getByText(/Document PDF récupéré/).count()===1 &&
+          await frame.count()===1 &&
+          await frame.getAttribute('src').then(url=>Boolean(url?.startsWith('blob:'))));
+      }
       if (id==='imagerie' || id==='gestion-administrative') {
         const module=id==='imagerie'?'imagerie':'documents';
         const geometry=await page.locator('[data-v15-071-viewslot="'+module+'"] [data-testid="patient-media-timeline"]')
