@@ -33,7 +33,7 @@ export function R3PatientPresentationPanel({patient}:{patient:VerifiedPatient}) 
   const stage=view.id===patient.id?view.stage:'private';
   const plan=view.id===patient.id?view.plan:null;
   return <section data-testid="r3-patient-presentation" aria-label="Présentation locale au patient"
-    className="min-w-0 space-y-4 p-5 text-text-main">
+    className="min-w-0 space-y-3 p-4 text-text-main sm:p-5">
     <header className="flex flex-wrap items-center justify-between gap-2">
       <h3 className="text-lg font-bold">Présentation au patient</h3>
       <span className="flex items-center gap-1.5 rounded-full border border-border-main px-3 py-1 text-xs">
@@ -55,14 +55,14 @@ export function R3PatientPresentationPanel({patient}:{patient:VerifiedPatient}) 
     {stage==='loading' && <p role="status">Vérification des données autorisées…</p>}
     {stage==='denied' && <p role="alert" className="text-danger">Présentation refusée : source ou autorisation non vérifiée.</p>}
     {(stage==='ready'||stage==='empty') && <div data-testid="r3-presentation-visible"
-      className="space-y-4 rounded-xl border border-border-main bg-card p-6">
-      <p className="text-2xl font-bold break-words">{patient.prenom} {patient.nom}</p>
-      <p className="text-xs text-text-muted">Plan de traitement enregistré · aucune proposition automatique</p>
+      className="space-y-4 rounded-2xl border border-border-main bg-card p-6 sm:p-8">
+      <p className="break-words text-3xl font-extrabold tracking-tight text-text-main sm:text-4xl">{patient.prenom} {patient.nom}</p>
+      <p className="text-sm font-medium text-text-muted">Plan de traitement enregistré · aucune proposition automatique</p>
       {stage==='empty'&&<p>Aucun plan de traitement enregistré.</p>}
-      {stage==='ready'&&plan&&<ol className="space-y-3">
-        {plan.steps.map((step,index)=><li key={step.id} className="rounded-lg border border-border-main p-3">
-          <p className="font-semibold">{index+1}. {step.title}</p>
-          <p className="text-xs text-text-muted">{step.status==='done'?'Terminé':step.status==='pending'?'À venir':'Reporté'}</p>
+      {stage==='ready'&&plan&&<ol aria-label="Étapes du plan autorisé" className="space-y-3">
+        {plan.steps.map((step,index)=><li key={step.id} className="rounded-xl border border-border-main bg-medical-pearl/40 p-4 shadow-sm">
+          <p className="text-base font-bold leading-snug text-text-main">{index+1}. {step.title}</p>
+          <p className="mt-2 text-xs font-semibold text-text-muted">{step.status==='done'?'Terminé':step.status==='pending'?'À venir':'Reporté'}</p>
         </li>)}
       </ol>}
     </div>}
