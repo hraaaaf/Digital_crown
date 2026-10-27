@@ -162,7 +162,8 @@ jobs:
           mkdir -p "$DC06B_HTTP_EVIDENCE_DIR"
           # npm ci + Python Playwright/Chromium are installed by earlier steps.
           python -m pytest backend/tests/test_imaging_lab_browser_real_http_v15.py -q -s
-          test -s "$DC06B_HTTP_EVIDENCE_DIR/lot06b-real-http-proof.json"
+          test -s "$DC06B_HTTP_EVIDENCE_DIR/lot06b-real-http-proof-matched-rdv.json"
+          test -s "$DC06B_HTTP_EVIDENCE_DIR/lot06b-real-http-proof-patient-only.json"
       - name: Publish exact-SHA real HTTP synthetic receipt proof
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
