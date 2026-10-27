@@ -72,11 +72,17 @@ jobs:
           cd frontend
           npm ci --no-audit --no-fund
           python -m playwright install --with-deps chromium
+      - name: Generate disposable independent encryption key
+        run: |
+          python - <<'PY'
+          import secrets,os
+          with open(os.environ["GITHUB_ENV"],"a") as out:
+              out.write("SQLCIPHER_KEY_HEX="+secrets.token_hex(32)+"\\n")
+          PY
       - name: Real Chromium CrownBotChat to FastAPI SQLCipher
         env:
           CB03_G7_BROWSER_LAB: "1"
           DATABASE_URL: sqlite:///${{ runner.temp }}/cb03-g7-browser-synthetic.db
-          CABINET_MASTER_KEY_HEX: ${{ secrets.CB03_G7_CI_KEY }}
           ENVIRONMENT: rehearsal
         run: |
           set -euo pipefail
