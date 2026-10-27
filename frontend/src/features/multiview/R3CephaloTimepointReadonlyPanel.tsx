@@ -86,7 +86,9 @@ export function R3CephaloTimepointReadonlyPanel({patientId,ordinal}:{
               data-testid={'r3-cephalo-measure-t'+ordinal}
               className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-border-main bg-card px-4 py-3">
               <span className="text-xs font-bold uppercase tracking-wide text-text-muted">{m.label}</span>
-              <span className="tabular-nums text-2xl font-extrabold tracking-tight text-primary-ink">{(ordinal===0?m.from_value:m.to_value).toLocaleString('fr-FR',{maximumFractionDigits:2})} <small className="text-xs font-semibold">{m.unit}</small></span>
+              <span className="text-right"><span className="block tabular-nums text-2xl font-extrabold tracking-tight text-primary-ink">{(ordinal===0?m.from_value:m.to_value).toLocaleString('fr-FR',{maximumFractionDigits:2})} <small className="text-xs font-semibold">{m.unit}</small></span>
+                {ordinal===1 && <span className="mt-1 block tabular-nums text-[11px] font-semibold text-text-muted">Δ T0→T1 : {m.delta > 0 ? '+' : ''}{m.delta.toLocaleString('fr-FR',{maximumFractionDigits:2})} {m.unit}</span>}
+              </span>
             </div>)}
       </div>
       <p className="text-[11px] text-text-muted">Comparaison numérique factuelle · interprétation réservée au praticien.</p>
