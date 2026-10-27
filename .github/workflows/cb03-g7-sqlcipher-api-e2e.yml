@@ -5,6 +5,7 @@ on:
     paths:
       - scripts/ci/cb03_g7_cipher_pytest.py
       - scripts/ci/cb03_g7_real_sqlcipher_sigkill.py
+      - scripts/ci/cb03_g7_browser_sqlcipher.py
       - .github/workflows/cb03-g7-sqlcipher-api-e2e.yml
       - backend/tests/test_bot_cb03_g2_confirm.py
       - backend/routers/bot_cb03_confirm_g2.py
@@ -58,6 +59,35 @@ jobs:
         with:
           name: cb03-g7-real-sqlcipher-sigkill
           path: artifacts/cb03-g7/sqlcipher-real-sigkill.json
+          if-no-files-found: warn
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Chromium and frontend
+        run: |
+          set -euo pipefail
+          pip install playwright==1.55.0 requests
+          cd frontend
+          npm ci --no-audit --no-fund
+          python -m playwright install --with-deps chromium
+      - name: Real Chromium CrownBotChat to FastAPI SQLCipher
+        env:
+          CB03_G7_BROWSER_LAB: "1"
+          DATABASE_URL: sqlite:///${{ runner.temp }}/cb03-g7-browser-synthetic.db
+          CABINET_MASTER_KEY_HEX: ${{ secrets.CB03_G7_CI_KEY }}
+          ENVIRONMENT: rehearsal
+        run: |
+          set -euo pipefail
+          test ! -e "${RUNNER_TEMP}/cb03-g7-browser-synthetic.db"
+          PYTHONPATH=. python scripts/ci/cb03_g7_browser_sqlcipher.py
+      - name: Upload Chromium SQLCipher evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g7-browser-sqlcipher
+          path: artifacts/cb03-g7/browser-sqlcipher.png
           if-no-files-found: warn
       - name: Scope of certification
         if: success()
