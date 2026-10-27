@@ -57,7 +57,7 @@ try:
     r=requests.post(base+"/api/auth/login",data={"username":"browser-g7@synthetic.invalid","password":password},timeout=20)
     assert r.status_code==200,r.text[:250]
     front=env.copy()
-    front.update(VITE_CB03_G5_CHAT_LAB="true",VITE_CB03_G5_REAL_CHAT_PG="true",VITE_CB03_G5_LAB_PRACTITIONER_ID=str(uid),VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED="true",VITE_CROWN_BOT_GUIDED_NLU_ENABLED="true",VITE_CROWN_BOT_CB03_CHAT_ENABLED="true",VITE_CROWN_BOT_CB03_G3_ENABLED="true",VITE_CB03_G4_NATIVE_A11Y_LAB="true",VITE_API_URL=base)
+    front.update(VITE_CB03_G5_CHAT_LAB="true",VITE_CB03_G5_REAL_CHAT_PG="false",VITE_CB03_G7_REAL_CHAT_SQLCIPHER="true",VITE_CB03_G5_LAB_PRACTITIONER_ID=str(uid),VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED="true",VITE_CROWN_BOT_GUIDED_NLU_ENABLED="true",VITE_CROWN_BOT_CB03_CHAT_ENABLED="true",VITE_CROWN_BOT_CB03_G3_ENABLED="true",VITE_CB03_G4_NATIVE_A11Y_LAB="true",VITE_API_URL=base)
     vite=subprocess.Popen(["node","node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5173","--strictPort"],cwd="frontend",env=front,stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
     ready("http://127.0.0.1:5173/cb03-g5-chat-lab.html",vite)
     day=datetime.now(ZoneInfo("Africa/Casablanca"))+timedelta(days=22)
@@ -77,7 +77,7 @@ try:
         assert not confirm.is_enabled()
         page.get_by_role("checkbox",name=re.compile("J’ai vérifié le patient")).check()
         confirm.click()
-        page.get_by_text(re.compile("Action confirmée|Rendez-vous créé|RDV créé")).wait_for(timeout=25000)
+        page.get_by_text(re.compile("Action exécutée et vérifiée")).wait_for(timeout=25000)
         assert sum("/prepare-appointment" in q for q in posts)==1
         assert sum("/confirm" in q for q in posts)==1
         with database.SessionLocal() as s:
