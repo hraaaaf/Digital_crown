@@ -32,6 +32,8 @@ class ReviewRequest(BaseModel):
     capture: str = Field(pattern=r"^[A-Za-z0-9_-]{8,128}$")
     patient_id: int = Field(ge=1)
     appointment_id: int | None = Field(default=None, ge=1)
+    # Synthetic structured code only; no free-form patient data.
+    patient_only_reason: str | None = Field(default=None, max_length=32)
 
 
 class Approval(ReviewRequest):
@@ -81,6 +83,7 @@ def review(data: ReviewRequest, request: Request, db: Session = Depends(database
             db, staff=user, tenant=tenant, workstation=data.workstation_id,
             device=data.device, capture=data.capture, patient=data.patient_id,
             appointment=data.appointment_id,
+            patient_only_reason=data.patient_only_reason,
         )
     except lab.TransferLabRejected as exc:
         db.rollback()
@@ -98,6 +101,7 @@ def approve(data: Approval, request: Request, db: Session = Depends(database.get
             db, staff=user, tenant=tenant, workstation=data.workstation_id,
             device=data.device, capture=data.capture, patient=data.patient_id,
             appointment=data.appointment_id, review_challenge=data.review_challenge,
+            patient_only_reason=data.patient_only_reason,
         )
     except lab.TransferLabRejected as exc:
         db.rollback()
