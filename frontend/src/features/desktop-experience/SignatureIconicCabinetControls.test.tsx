@@ -32,4 +32,22 @@ describe('LOT07 R4 — authentic Cabinet pages remain Core by default', () => {
     expect(main).toContain("isCommandCabinetLab");
     expect(main).toContain("location.pathname");
   });
+  it('inherits all R4 Iconic colors from the current Cabinet theme tokens', () => {
+    const css = fs.readFileSync(path.resolve(__dirname, './SignatureIconicCabinetPreview.css'), 'utf8');
+    const palette = fs.readFileSync(path.resolve(__dirname, '../../index.css'), 'utf8');
+    const expected = ['--primary', '--card-bg', '--text-main', '--text-muted', '--border-color'];
+    const consumed = [...css.matchAll(/var\\((--[a-z-]+)/g)].map(match => match[1]);
+    expect(new Set(consumed)).toEqual(new Set(expected));
+    for (const token of expected) {
+      expect(palette).toContain(token + ':');
+    }
+    expect(css).not.toMatch(/#[a-f\\d]{3,8}\\b|(?:rgba?|hsla?|oklch|lab)\\s*\\(/i);
+    expect(css).not.toContain('var(--border-main)');
+    expect(palette).toContain('--color-primary: var(--primary)');
+    expect(palette).toContain('--color-border-main: var(--border-color)');
+    for (const theme of ['emerald', 'rose', 'prestige', 'ocean', 'graphite', 'dark', 'high-contrast']) {
+      expect(palette).toContain("[data-theme='" + theme + "']");
+    }
+  });
+
 });
