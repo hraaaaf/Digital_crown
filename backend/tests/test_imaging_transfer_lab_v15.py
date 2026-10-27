@@ -161,9 +161,13 @@ def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
     digest = hashlib.sha256(content).hexdigest()
     lab.propose(db, tenant=dentiste.id, device=device, token=token,
                 capture=capture, digest=digest, size=len(content))
+    review = lab.issue_review(db, staff=dentiste, tenant=dentiste.id,
+                              workstation=workstation, device=device, capture=capture,
+                              patient=patient.id, appointment=None)
     lab.approve(db, staff=dentiste, tenant=dentiste.id,
                 workstation=workstation, device=device, capture=capture,
-                patient=patient.id, appointment=None)
+                patient=patient.id, appointment=None,
+                review_challenge=review["review_challenge"])
     args = dict(tenant=dentiste.id, device=device, token=token,
                 capture=capture, payload=content, mime="image/png")
     base_assets = db.query(ClinicalAsset).count()
