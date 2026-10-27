@@ -188,6 +188,6 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: lot07-r4-command-iconic-real-cabinet-t2-${{ github.sha }}
-          path: artifacts/lot07-07c-command-cabinet-fue-g
+          path: artifacts/lot07-r4-iconic-command-fue-g
           if-no-files-found: warn
           retention-days: 14
