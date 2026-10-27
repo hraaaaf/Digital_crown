@@ -1,11 +1,9 @@
 name: Patient Indicators Truth Certification
 
 on:
-  pull_request:
-    branches:
-      - master
+  push:
+    branches: [master]
     paths:
-      - '.github/workflows/patient-indicators-cert.yml'
       - 'backend/services/patient_scoring_service.py'
       - 'backend/services/habits_engine.py'
       - 'backend/services/rag_context.py'
@@ -16,12 +14,15 @@ on:
       - 'frontend/src/stores/usePatientScoresStore.ts'
       - 'frontend/src/features/patients/components/PatientScoreBadge.tsx'
       - 'frontend/src/features/patients/components/PatientSummaryHoverCard.tsx'
-      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/PatientList.tsx'
       - 'frontend/src/features/patients/PatientIndicatorsExplainable.test.ts'
 
 permissions:
   contents: read
+
+concurrency:
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   certify:

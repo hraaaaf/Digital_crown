@@ -1,18 +1,20 @@
 name: Clinic P2 Patient Billing Visual Certification
 
 on:
-  pull_request:
+  push:
+    branches: [master]
     paths:
-      - "frontend/src/features/patients/**"
-      - "frontend/src/types/**"
-      - ".github/workflows/clinic-p2-patient-billing-visual-cert.yml"
-  workflow_dispatch:
+      - 'frontend/src/features/patients/*Billing*'
+      - 'frontend/src/features/patients/components/*Billing*'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - 'frontend/src/features/patients/PatientDetails.tsx'
 
 permissions:
   contents: read
 
+
 concurrency:
-  group: clinic-p2-patient-visual-${{ github.event.pull_request.number || github.ref }}
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -144,8 +146,8 @@ jobs:
           test "$(find clinic-p2-visual -name '*.png' | wc -l)" -eq 12
           test "$(find clinic-p2-visual -name '*.layout.json' | wc -l)" -eq 12
           cat > clinic-p2-visual/metadata.txt <<EOF
-          head_sha=${{ github.event.pull_request.head.sha || github.sha }}
-          base_sha=${{ github.event.pull_request.base.sha || github.sha }}
+          head_sha=${{ github.sha }}
+          base_sha=${{ github.event.before }}
           phase=AFTER
           viewports=390x844,768x1024,1280x900
           screens=details,finances,edit,add

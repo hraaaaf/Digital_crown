@@ -1,8 +1,7 @@
 name: LOT07 R2 UX premium 12 screenshots real-browser certification
 on:
-  pull_request:
-    branches:
-      - master
+  push:
+    branches: [master]
     paths:
       - 'frontend/src/features/multiview/**'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
@@ -10,14 +9,13 @@ on:
       - 'frontend/src/features/patients/components/PatientMediaTimeline.tsx'
       - 'frontend/scripts/certify-lot07-r2-ronly-bilan.mjs'
       - 'scripts/lot07_r2_seed_bilan_t2.py'
-      - '.github/workflows/media-c5-visual-cert.yml'
-      - '.github/workflows/lot07-r2-ux-polish-9plus.yml'
 
 permissions:
   contents: read
 
+
 concurrency:
-  group: lot07-r2-ux-polish-${{ github.ref }}
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -26,7 +24,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      SOURCE_HEAD: ${{ github.sha }}
       VITE_V15_07_1_MULTIVIEW_LAB: '1'
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: '1'

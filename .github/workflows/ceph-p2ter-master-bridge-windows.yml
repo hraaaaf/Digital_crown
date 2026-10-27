@@ -3,12 +3,15 @@ on:
   pull_request:
     branches: [master]
     paths:
-      - 'backend/**'
-      - 'frontend/**'
+      - 'backend/tests/test_cephalo_p2ter_windows_sqlcipher_native.py'
+      - 'backend/services/cephalo/**'
       - 'scripts/ceph_p2ter_seed_t2.py'
-      - '.github/workflows/ceph-p2ter-master-bridge-*.yml'
 permissions:
   contents: read
+
+concurrency:
+  group: ceph-p2ter-windows-pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   native-windows-sqlcipher:

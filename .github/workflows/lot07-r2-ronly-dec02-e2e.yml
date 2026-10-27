@@ -1,19 +1,18 @@
 name: LOT07 R2 DEC02 actual FastAPI and Chromium R-only E2E
 on:
-  pull_request:
-    branches:
-      - master
+  push:
+    branches: [master]
     paths:
       - 'frontend/src/features/multiview/**'
       - 'frontend/scripts/certify-lot07-r2-ronly-bilan.mjs'
       - 'scripts/lot07_r2_seed_bilan_t2.py'
-      - '.github/workflows/lot07-r2-ronly-dec02-e2e.yml'
 
 permissions:
   contents: read
 
+
 concurrency:
-  group: lot07-r2-dec02-e2e-${{ github.ref }}
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -22,7 +21,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     env:
-      SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      SOURCE_HEAD: ${{ github.sha }}
       VITE_V15_07_1_MULTIVIEW_LAB: '1'
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: '1'

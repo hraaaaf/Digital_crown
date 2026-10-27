@@ -1,5 +1,9 @@
 # GitHub Actions governance
 
+## Politique after-merge approuvée — 2026-10-27
+
+Les certifications lourdes migrées ne s'exécutent automatiquement que sur `push master` après une fusion autorisée et si leurs `paths` changent. Concurrency par `github.workflow` + `github.ref`, avec `cancel-in-progress: true`. Garder les preuves critiques ciblées avant merge et les gates humains. Voir `docs/quality/CI_POSTMERGE_HEAVY_POLICY_20261027.md` pour le périmètre et les exclusions. Aucune autorisation de fusion ou de déploiement implicite.
+
 ## Principle
 
 A code change must not automatically start expensive browser, visual, scientific, runtime, release, or certification workflows.
