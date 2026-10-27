@@ -9,6 +9,7 @@ on:
       - 'backend/services/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
+      - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -24,6 +25,7 @@ on:
       - 'backend/services/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
+      - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -73,6 +75,7 @@ jobs:
           python -m py_compile backend/services/imaging_acquisition_transfer_lab_v15.py
           python -m py_compile backend/routers/imaging_acquisition_transfer_lab_v15.py
           python -m py_compile backend/tests/test_imaging_transfer_lab_v15.py
+          python -m py_compile backend/tests/test_imaging_lab_browser_real_http_v15.py
           python -m py_compile backend/routers/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_bridge_lifespan_v15.py
@@ -147,5 +150,24 @@ jobs:
         with:
           name: lot06b-desktop-staff-review-fixture
           path: lot06b-desktop-evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Browser→real FastAPI LAB API / AES media receipt FUE
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06B_HTTP_EVIDENCE_DIR: lot06b-real-http-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06B_HTTP_EVIDENCE_DIR"
+          # npm ci + Python Playwright/Chromium are installed by earlier steps.
+          python -m pytest backend/tests/test_imaging_lab_browser_real_http_v15.py -q -s
+          test -s "$DC06B_HTTP_EVIDENCE_DIR/lot06b-real-http-proof.json"
+      - name: Publish exact-SHA real HTTP synthetic receipt proof
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06b-real-browser-fastapi-receipt
+          path: lot06b-real-http-evidence/
           if-no-files-found: error
           retention-days: 14
