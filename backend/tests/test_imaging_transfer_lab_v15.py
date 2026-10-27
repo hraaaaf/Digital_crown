@@ -91,6 +91,18 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     assert len(list(tmp_path.rglob("*.dcm"))) >= 1
     for table in (lab.receipts, lab.audit, lab.outbox):
         assert len(db.execute(select(table)).all()) >= 1
+    # An immutable SQL receipt does not permit serving a damaged encrypted blob.
+    blob = tmp_path.joinpath(*asset.storage_key.split("/"))
+    assert blob.is_file()
+    blob.write_bytes(b"synthetic-corrupted-ciphertext")
+    with pytest.raises(lab.TransferLabRejected, match="RECEIPT_INTEGRITY_BLOCKED"):
+        lab.lookup(db, tenant=dentiste.id, device=device,
+                   token=device_token, capture=capture)
+    assert len(db.execute(select(lab.receipts).where(
+        lab.receipts.c.tenant == dentiste.id,
+        lab.receipts.c.device == device,
+        lab.receipts.c.capture == capture,
+    )).all()) == 1
 
 
 def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
