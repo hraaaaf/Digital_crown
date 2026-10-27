@@ -10,6 +10,23 @@ Older durable 'executing' rows from pre-upgrade runs still need reconciliation.
 from datetime import datetime
 
 
+def claim_prepared_action(db, action_model, action_id: str, user_id: int,
+                          employer_id: int, now: datetime) -> bool:
+    """CB-03 G2: CAS prepared -> executing WITHOUT committing early.
+
+    Caller must perform canonical mutation and mark executed in one
+    transaction; no fallback to legacy pending status is possible.
+    """
+    updated = db.query(action_model).filter(
+        action_model.id == action_id,
+        action_model.user_id == user_id,
+        action_model.employer_id == employer_id,
+        action_model.status == "prepared",
+        action_model.expires_at > now,
+    ).update({"status": "executing"}, synchronize_session=False)
+    return updated == 1
+
+
 def claim_pending_action(db, action_model, action_id: str, user_id: int,
                          employer_id: int, now: datetime) -> bool:
     """One conditional SQL UPDATE. PostgreSQL serializes concurrent claims."""

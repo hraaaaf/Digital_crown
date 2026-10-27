@@ -1,0 +1,102 @@
+name: CB-03 G7 Real FastAPI SQLCipher API E2E (isolated)
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    paths:
+      - scripts/ci/cb03_g7_cipher_pytest.py
+      - scripts/ci/cb03_g7_real_sqlcipher_sigkill.py
+      - scripts/ci/cb03_g7_browser_sqlcipher.py
+      - .github/workflows/cb03-g7-sqlcipher-api-e2e.yml
+      - backend/tests/test_bot_cb03_g2_confirm.py
+      - backend/routers/bot_cb03_confirm_g2.py
+permissions:
+  contents: read
+jobs:
+  real-api-encrypted-file:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      CB03_G7_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      GITHUB_ACTIONS: "true"
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      ENVIRONMENT: test
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: "false"
+      CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated backend and SQLCipher
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb03-g7-requirements.txt
+          pip install -r /tmp/cb03-g7-requirements.txt
+          pip install "sqlcipher3>=0.5,<1" pytest
+          python -m pip check
+      - name: Real G1/G2 FastAPI HTTP on encrypted SQLCipher file
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB03_G7_SOURCE_HEAD"
+          PYTHONPATH=. python -m pytest -q -s -p scripts.ci.cb03_g7_cipher_pytest backend/tests/test_bot_cb03_g2_confirm.py
+      - name: Real OS SIGKILL before and after COMMIT on encrypted SQLCipher file
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/ci/cb03_g7_real_sqlcipher_sigkill.py
+      - name: Upload SQLCipher SIGKILL evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g7-real-sqlcipher-sigkill
+          path: artifacts/cb03-g7/sqlcipher-real-sigkill.json
+          if-no-files-found: warn
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install Chromium and frontend
+        run: |
+          set -euo pipefail
+          pip install playwright==1.55.0 requests
+          cd frontend
+          npm ci --no-audit --no-fund
+          python -m playwright install --with-deps chromium
+      - name: Generate disposable independent encryption key
+        run: |
+          python - <<'PY'
+          import secrets,os
+          with open(os.environ["GITHUB_ENV"],"a") as out:
+              out.write("SQLCIPHER_KEY_HEX="+secrets.token_hex(32)+chr(10))
+          PY
+      - name: Real Chromium CrownBotChat to FastAPI SQLCipher
+        env:
+          CB03_G7_BROWSER_LAB: "1"
+          DATABASE_URL: sqlite:///${{ runner.temp }}/cb03-g7-browser-synthetic.db
+          ENVIRONMENT: rehearsal
+        run: |
+          set -euo pipefail
+          test ! -e "${RUNNER_TEMP}/cb03-g7-browser-synthetic.db"
+          PYTHONPATH=. python scripts/ci/cb03_g7_browser_sqlcipher.py
+      - name: Upload Chromium SQLCipher evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g7-browser-sqlcipher
+          path: artifacts/cb03-g7/browser-sqlcipher.png
+          if-no-files-found: warn
+      - name: Scope of certification
+        if: success()
+        run: |
+          echo "PASS: Real FastAPI G1/G2 HTTP API tests with synthetic SQLCipher encrypted on-disk file; replay, expiry, tenant, rollback, audit, receipt and wrong-key/header checks." >> "$GITHUB_STEP_SUMMARY"
+          echo "NOT CERTIFIED: full MainLayout browser→FastAPI→SQLCipher, real OS SIGKILL inside G2 FastAPI transaction on SQLCipher, real clinic. Separate SQLCipher process-level SIGKILL verified." >> "$GITHUB_STEP_SUMMARY"

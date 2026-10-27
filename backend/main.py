@@ -716,6 +716,12 @@ app.include_router(bot.router, prefix="/api/bot", tags=["Crown Bot"])
 # CB-02: separate double-flagged, tenant-scoped, non-executable preview.
 from backend.routers import bot_guided_nlu_cb02
 app.include_router(bot_guided_nlu_cb02.router, prefix="/api/bot", tags=["CB-02 French Preview"])
+from backend.routers import bot_cb03_safe_actions
+app.include_router(bot_cb03_safe_actions.router, prefix="/api/bot", tags=["CB-03 G1-A Prepare Only"])
+from backend.routers import bot_cb03_status_prepare
+app.include_router(bot_cb03_status_prepare.router, prefix="/api/bot", tags=["CB-03 G1-B Status Prepare Only"])
+from backend.routers import bot_cb03_confirm_g2
+app.include_router(bot_cb03_confirm_g2.router, prefix="/api/bot", tags=["CB-03 G2 Confirm + Reconcile"])
 app.include_router(catalog.router, prefix="/api/catalog", tags=["Catalog"])
 app.include_router(motifs.router, prefix="/api/motifs", tags=["Consultation Motifs"])
 app.include_router(medications.router, prefix="/api/medications", tags=["Medications"])

@@ -10,6 +10,7 @@ import { mobileFetch } from '../../services/zka/mobileFetch';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { cn } from '../../utils/cn';
 import { CrownBotWorkflowPreview } from './CrownBotWorkflowPreview';
+import { CrownBotGuidedConversationG5 } from './CrownBotGuidedConversationG5';
 
 interface Message {
   id: string;
@@ -242,6 +243,12 @@ export function CrownBotChat({
   // Explicit opt-in on BOTH frontend and server. OFF means the existing screen
   // remains untouched. Backend independently rejects preview when flag is OFF.
   const zeroLlmPreviewEnabled = import.meta.env.VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED === 'true';
+  // G5 adds a deterministic chat *inside this real floating/sidecar CrownBot*.
+  // Four independent opt-ins are needed; default OFF preserves existing UX.
+  const guidedChatEnabled = zeroLlmPreviewEnabled
+    && import.meta.env.VITE_CROWN_BOT_GUIDED_NLU_ENABLED === 'true'
+    && import.meta.env.VITE_CROWN_BOT_CB03_G3_ENABLED === 'true'
+    && import.meta.env.VITE_CROWN_BOT_CB03_CHAT_ENABLED === 'true';
 
   // Chat state
   const [messages, setMessages] = useState<Message[]>([{
@@ -290,7 +297,7 @@ export function CrownBotChat({
   // First value in one click when experimental preview is explicitly ON:
   // display the three useful read-only actions immediately after opening.
   // Flag OFF preserves the legacy contextual memory tab unchanged.
-  const [activeTab, setActiveTab] = useState<Tab>(zeroLlmPreviewEnabled ? 'chat' : 'brain');
+  const [activeTab, setActiveTab] = useState<Tab>(guidedChatEnabled || zeroLlmPreviewEnabled ? 'chat' : 'brain');
   // One atomic server snapshot; never decrement the unread badge without
   // removing the corresponding insight from the same authoritative version.
   const [ghostState, setGhostState] = useState<{
@@ -388,7 +395,7 @@ export function CrownBotChat({
     setCurrentSessionId(null);
     setHistoryBusy(false);
     setHistoryError('');
-    setActiveTab(zeroLlmPreviewEnabled ? 'chat' : 'brain');
+    setActiveTab(guidedChatEnabled || zeroLlmPreviewEnabled ? 'chat' : 'brain');
     const ctx = getPageContext(location.pathname);
     setMessages([{ id: 'welcome', sender: 'bot', text: ctx.desc, suggestions: ctx.suggestions }]);
     setIsSidebarOpen(false);
@@ -780,7 +787,18 @@ export function CrownBotChat({
           </div>
         </section>
       )}
-      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && zeroLlmPreviewEnabled && (
+      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && guidedChatEnabled && (
+        // This is the genuine bottom-right CrownBotChat instance mounted by
+        // MainLayout, not a standalone G3 test form or a forged chat history.
+        <div role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
+          className="flex min-h-0 min-w-0 flex-1 flex-col">
+          <CrownBotGuidedConversationG5
+            key={`${user?.id ?? 'unknown'}:${employerId ?? 'unknown'}:${location.pathname}`}
+            practitionerId={user?.role === 'DENTISTE' ? Number(user.id) : undefined}
+          />
+        </div>
+      )}
+      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && !guidedChatEnabled && zeroLlmPreviewEnabled && (
         // Clinical safety: route or staff identity changes invalidate a prior
         // patient's scoped read/proposal. A responsive 200% reflow leaves the
         // key unchanged and therefore preserves the unfinished draft.
@@ -793,7 +811,7 @@ export function CrownBotChat({
           />
         </div>
       )}
-      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && !zeroLlmPreviewEnabled && (
+      {activeTab === 'chat' && !historyBusy && !historyError && !currentSessionId && !guidedChatEnabled && !zeroLlmPreviewEnabled && (
         <div role="tabpanel" id="cb01-panel-chat" aria-labelledby="cb01-tab-chat"
           className="flex-1 flex flex-col items-center justify-center gap-6 p-8 bg-slate-50/50">
           <div className="relative">

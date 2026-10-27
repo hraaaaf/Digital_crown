@@ -1,0 +1,99 @@
+name: CB-03 G8 TARGETED MainLayout SQLCipher G2 SIGKILL
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - feature/cb03-g7-sqlcipher-api-e2e-20261027
+    paths:
+      - scripts/ci/cb03_g8_integrated.py
+      - scripts/ci/cb03_g8_sqlcipher_server.py
+      - frontend/cb03-g8-mainlayout-lab.html
+      - frontend/src/components/CrownBot/CB03G8MainLayoutLab.tsx
+      - .github/workflows/cb03-g8-mainlayout-sqlcipher-sigkill.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb03-g8-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  mainlayout-g2-real-sqlcipher-kills:
+    name: Only NEW G8 MainLayout G2 SIGKILL scenarios (G7 frozen)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      CB03_G8_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      GITHUB_ACTIONS: "true"
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      ENVIRONMENT: test
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: "false"
+      CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+      VITE_CROWN_BOT_CB03_CHAT_ENABLED: "false"
+      SECRET_KEY: "g8-synthetic-auth-key-not-used-anywhere-else-2026"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install G8 required backend SQLCipher and Playwright (NO G7 test rerun)
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB03_G8_SOURCE_HEAD"
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb03-g8-requirements.txt
+          pip install -r /tmp/cb03-g8-requirements.txt
+          pip install "sqlcipher3>=0.5,<1" playwright==1.55.0 requests
+          python -m pip check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install CI-only Chromium and frontend
+        run: |
+          set -euo pipefail
+          cd frontend
+          npm ci --no-audit --no-fund
+          python -m playwright install --with-deps chromium
+      - name: Generate brand-new SQLCipher key for this CI job
+        run: |
+          python - <<'PY'
+          import secrets,os
+          with open(os.environ["GITHUB_ENV"],"a") as out:
+              out.write("SQLCIPHER_KEY_HEX="+secrets.token_hex(32)+chr(10))
+          PY
+      - name: G8 ONLY real G2 pre/post COMMIT SIGKILL and MainLayout Chromium reconciliation
+        env:
+          CB03_G8_LAB: "1"
+          DATABASE_URL: sqlite:///${{ runner.temp }}/cb03-g8-synthetic.db
+          ENVIRONMENT: rehearsal
+        run: |
+          set -euo pipefail
+          test ! -e "${RUNNER_TEMP}/cb03-g8-synthetic.db"
+          test ! -e "${RUNNER_TEMP}/cb03-g8-rehearsal-media"
+          PYTHONPATH=. python scripts/ci/cb03_g8_integrated.py
+      - name: Publish G8 evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g8-mainlayout-g2-sqlcipher-kills
+          path: artifacts/cb03-g8/
+          if-no-files-found: warn
+      - name: Certification scope
+        if: success()
+        run: |
+          echo "PASS: isolated real MainLayout component + CrownBotChat -> FastAPI -> disposable SQLCipher; G2 OS SIGKILL inside open transaction before COMMIT, and after COMMIT before ACK, reconciled from browser GET with no POST replay." >> "$GITHUB_STEP_SUMMARY"
+          echo "G7 immutable GREEN evidence: run #40496890801. It was NOT executed by this workflow." >> "$GITHUB_STEP_SUMMARY"
+          echo "NOT CERTIFIED: full App ProtectedRoute, installed workstation, Windows native assistive technology, human clinical acceptance or production." >> "$GITHUB_STEP_SUMMARY"

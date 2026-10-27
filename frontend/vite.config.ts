@@ -44,7 +44,8 @@ export default defineConfig({
         // CB-02 Windows native NVDA lab. Workbox dependency reoptimization
         // caused full Vite reloads during speech and reset React form state.
         // Normal development and all production PWA settings remain intact.
-        enabled: process.env.VITE_CB02_NATIVE_A11Y_LAB !== 'true',
+        enabled: process.env.VITE_CB02_NATIVE_A11Y_LAB !== 'true'
+          && process.env.VITE_CB03_G4_NATIVE_A11Y_LAB !== 'true',
         type: 'classic',
       },
       workbox: {

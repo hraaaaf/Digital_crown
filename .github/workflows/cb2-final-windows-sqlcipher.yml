@@ -1,0 +1,106 @@
+name: CB2 Final Real G5 Windows NVDA and SQLCipher Gate
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches: [feature/cb03-g4b-integrated-cert-20261024]
+    paths:
+      - frontend/scripts/certify-cb2-final-windows-nvda.mjs
+      - frontend/src/components/CrownBot/CrownBotGuidedConversationG5.tsx
+      - frontend/src/components/CrownBot/CB03G6MainLayoutLab.tsx
+      - frontend/src/components/Layout/MainLayout.tsx
+      - .github/workflows/cb2-final-windows-sqlcipher.yml
+permissions:
+  contents: read
+concurrency:
+  group: cb2-final-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-nvda-g5:
+    name: G5 real chat from MainLayout with real NVDA speech at native zoom 200
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CB03_CB2_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CB03_CB2_WINDOWS_NVDA_EXPERIMENT: '1'
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: 'false'
+      CROWN_BOT_GUIDED_NLU_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+      CI: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Assert exact SHA and no clinical server actions
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:CB03_CB2_SOURCE_HEAD) {throw 'REFUSED: SHA mismatch'}
+          if ($env:DIGITALCROWN_ISOLATED_RUNTIME -ne '1' -or $env:CROWN_BOT_CB03_CONFIRMATION_ENABLED -ne 'false') {throw 'REFUSED: not isolated'}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend Chromium and genuine NVDA
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          npm install --no-save --no-audit --no-fund playwright@1.55.0 @guidepup/guidepup@0.36.3 @guidepup/setup@0.29.3
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) {exit $LASTEXITCODE}
+          npx --no-install guidepup setup --ci
+          if ($LASTEXITCODE -ne 0) {throw 'NOT_CERTIFIED: NVDA setup'}
+          npx --no-install guidepup install nvda
+          if ($LASTEXITCODE -ne 0) {throw 'NOT_CERTIFIED: NVDA install'}
+      - name: Exact G5 MainLayout speech and confirmation at zoom 200
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          node scripts/certify-cb2-final-windows-nvda.mjs
+          if ($LASTEXITCODE -ne 0) {throw 'NOT_CERTIFIED: CB2 native Windows NVDA'}
+      - name: Save NVDA evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb2-final-windows-g5-chat-nvda-200
+          path: artifacts/cb2-final/windows-nvda-g6
+          retention-days: 14
+          if-no-files-found: warn
+
+  sqlcipher-g4-primitives:
+    name: Encrypted SQLCipher G2 claim crash and concurrency — primitives only
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CB03_G4_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CLOUD_AI_ENABLED: 'false'
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install disposable SQLCipher
+        run: |
+          python -m pip install "SQLAlchemy>=2.0,<2.1" "sqlcipher3>=0.5,<1"
+      - name: Run real encrypted file primitives
+        run: |
+          test "$(git rev-parse HEAD)" = "$CB03_G4_SOURCE_HEAD"
+          PYTHONPATH=. python scripts/ci/cb03_g4_sqlcipher.py
+      - name: Evidence encrypted SQLCipher primitives — not full app E2E
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb2-final-sqlcipher-primitives
+          path: artifacts/cb03-g4/sqlcipher-persistent-primitives.json
+          if-no-files-found: warn
+          retention-days: 14
