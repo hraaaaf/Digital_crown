@@ -501,6 +501,22 @@ try {
       }
       await page.locator('[data-v15-071-viewslot]').first().scrollIntoViewIfNeeded();
       await capture(page,filename);
+      // Integrated 9-view acceptance: accessible full T0/T1 focus must re-gate
+      // and unmount the photo viewer until the original 50/50 is restored.
+      if (id==='suivi-clinique') {
+        await page.getByRole('button',{name:'Agrandir le suivi T0/T1'}).click();
+        const focused=page.getByTestId('r3-1-followup-focus');
+        await focused.waitFor({state:'visible'});
+        pass('integrated Follow-up focus shows only verified T0/T1 read-only',
+          await focused.locator('[data-v15-071-viewslot="suivi"]').count()===1 &&
+          await page.locator('[data-v15-071-viewslot="photos"]').count()===0 &&
+          await focused.locator('[aria-label="Comparaison orthodontique"]').count()===1);
+        await capture(page,'after-r3-followup-t0-t1-focus-1920.png');
+        await page.getByRole('button',{name:'Restaurer le partage 50/50'}).click();
+        pass('integrated Follow-up restores authenticated equal split',
+          await page.locator('[data-v15-071-layout="suivi-clinique"][data-r3-1-split="two-rows"] [data-testid="r3-1-separator"][aria-valuenow="50"]').count()===1 &&
+          await page.locator('[data-v15-071-viewslot="photos"]').count()===1);
+      }
     }
   }
   if(process.env.VITE_V15_07_1_R3_2_FOCUS_LAB==='1') {
