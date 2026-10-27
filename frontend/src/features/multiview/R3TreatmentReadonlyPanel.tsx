@@ -78,7 +78,13 @@ export function R3TreatmentReadonlyPanel({patientId}:{patientId:number}) {
     {current.status==='denied' && <p role="alert" className="text-xs text-danger">Plan indisponible : accès refusé ou réponse non vérifiée.</p>}
     {current.status==='empty' && <p className="text-xs text-text-muted">Aucun plan de traitement enregistré.</p>}
     {current.status==='ready' && current.plan && <>
-      <p className="text-xs font-medium text-text-muted">{current.plan.steps.length} étape(s) enregistrée(s) · source Master Plan vérifiée</p>
+      <div data-testid="r3-treatment-source-summary" className="flex flex-wrap items-center gap-2 text-xs">
+        <span className="font-semibold text-text-main">{current.plan.steps.length} étape(s) enregistrée(s)</span>
+        <span className="text-text-muted">· source Master Plan vérifiée</span>
+        {current.plan.steps.length > 0 && <span className="rounded-full border border-border-main bg-medical-pearl px-2 py-1 font-semibold tabular-nums text-primary-ink">
+          {current.plan.steps.filter(step=>step.status==='done').length} terminée(s) · {current.plan.steps.filter(step=>step.status==='pending').length} en attente · {current.plan.steps.filter(step=>step.status==='postponed').length} reportée(s)
+        </span>}
+      </div>
       {current.plan.steps.length === 0
         ? <p className="text-xs text-text-muted">Ce plan ne contient aucune étape enregistrée.</p>
         : <ol className="dc-r3-treatment-steps grid gap-3">
