@@ -30,7 +30,7 @@ createRoot(root).render(
       <MainLayout>
         <section aria-label="Espace clinique synthétique G8" data-cb03-g8-workspace>
           <h1>Cabinet synthétique — certification MainLayout</h1>
-          <p>Patient fictif. HTTP réel vers FastAPI et SQLCipher jetable.</p>
+          <p>Patient fictif. Les demandes sont traitées dans un environnement d’essai avec une base chiffrée temporaire.</p>
         </section>
       </MainLayout>
     </MemoryRouter>

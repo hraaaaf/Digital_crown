@@ -33,10 +33,10 @@ function SyntheticShell() {
       <h1 className="mt-2 text-xl font-bold">Digital Crown · exemple visuel de la vraie fenêtre conversationnelle</h1>
       <p className="mt-1 text-sm text-slate-600">Le composant intérieur est le vrai CrownBotChat. Le bouton flottant est un cadre de démonstration.
         {import.meta.env.VITE_CB03_G7_REAL_CHAT_SQLCIPHER === 'true'
-          ? 'Le HTTP est RÉEL : API FastAPI locale et SQLCipher chiffré jetable avec comptes inventés. Aucune base clinique, aucun patient réel.'
+          ? 'Les demandes sont traitées dans un environnement d’essai avec une base chiffrée temporaire. Aucun patient réel.'
           : import.meta.env.VITE_CB03_G5_REAL_CHAT_PG === 'true'
-          ? 'Le HTTP est RÉEL : API FastAPI locale et PostgreSQL jetable avec comptes inventés. Aucune base clinique, aucun patient réel.'
-          : 'Le HTTP est entièrement simulé, sans base de données ni patient réel.'}</p>
+          ? 'Les demandes sont traitées dans un environnement d’essai avec une base temporaire. Aucun patient réel.'
+          : 'Les réponses sont simulées, sans accès à un dossier réel.'}</p>
     </div>
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {open && <div className="h-[min(660px,calc(100vh-115px))] w-[min(420px,calc(100vw-32px))] min-w-0">

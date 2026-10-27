@@ -16,7 +16,7 @@ createRoot(root).render(
   <React.StrictMode>
     <main className="mx-auto flex min-h-screen w-full min-w-0 max-w-3xl flex-col gap-3 bg-slate-50 p-3 text-slate-900">
       <h1 className="text-lg font-bold">Crown Bot CB-03 G3 — laboratoire synthétique</h1>
-      <p className="text-xs">Données entièrement fictives. Transport HTTP intercepté, aucune base clinique.</p>
+      <p className="text-xs">Données fictives pour la démonstration. Aucun dossier de patient réel n’est utilisé.</p>
       <CrownBotGuidedActionsG3 practitionerId={9} />
     </main>
   </React.StrictMode>,

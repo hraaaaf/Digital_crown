@@ -15,8 +15,8 @@ if (!element) throw new Error('REFUSED: missing isolated lab root');
 createRoot(element).render(
   <React.StrictMode>
     <main className="mx-auto flex min-h-screen w-full min-w-0 max-w-3xl flex-col gap-3 bg-slate-50 p-3 text-slate-900">
-      <h1 className="text-lg font-bold">Crown Bot CB-03 G4-B — HTTP réel / PostgreSQL jetable</h1>
-      <p className="text-xs">Comptes et dossiers entièrement synthétiques. API FastAPI réelle en local, base PostgreSQL Docker temporaire. Aucun patient réel, aucun backend externe, aucune activité clinique.</p>
+      <h1 className="text-lg font-bold">Crown Bot CB-03 G4-B — démonstration sécurisée</h1>
+      <p className="text-xs">Comptes et dossiers fictifs dans un environnement d’essai isolé. Aucun patient réel et aucune activité clinique.</p>
       <CrownBotGuidedActionsG3 />
     </main>
   </React.StrictMode>,

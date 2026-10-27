@@ -428,7 +428,7 @@ export function CrownBotGuidedConversationG5({ practitionerId }: { practitionerI
           </button>
         </form>
         <p className="mt-2 text-[11px] leading-relaxed text-slate-600">
-          Pilote déterministe · actions serveur vérifiées · aucun envoi sans confirmation.
+          Vérifiez chaque proposition : aucune action n’est effectuée sans votre confirmation.
         </p>
       </div>
     </section>
