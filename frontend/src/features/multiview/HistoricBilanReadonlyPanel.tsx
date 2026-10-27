@@ -124,6 +124,7 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
 
   return (
     <section aria-label="BILAN historiques — lecture seule" data-testid="multiview-bilan-readonly"
+      data-r3-bilan-state={loading ? 'loading' : error ? 'error' : bilans.length === 0 ? 'empty' : 'populated'}
       className="space-y-3 rounded-2xl border border-border-main bg-gradient-to-b from-medical-pearl/70 to-card p-3 sm:p-4">
       <div className="flex items-start justify-between gap-3">
         <div className="flex min-w-0 items-center gap-2.5">
@@ -143,11 +144,11 @@ export function HistoricBilanReadonlyPanel({ patientId }: { patientId: number })
       {error && <p role="alert" className="rounded-xl border border-warning-border bg-warning-surface p-3 text-sm font-medium text-warning">
         Consultation BILAN indisponible ou refusée.
       </p>}
-      {!loading && bilans.length === 0 && (
-        <div className="rounded-xl border border-dashed border-border-hover bg-card/85 px-4 py-5 text-center">
-          <FileText size={25} className="mx-auto mb-2 text-primary" aria-hidden="true"/>
-          <p className="font-semibold text-text-main">Aucun bilan consultable.</p>
-          <p className="mt-1 text-xs text-text-muted">Seuls les bilans classés et autorisés apparaissent ici.</p>
+      {!loading && !error && bilans.length === 0 && (
+        <div data-testid="r3-bilan-honest-empty" className="flex items-center gap-3 rounded-xl border border-dashed border-border-hover bg-card/85 px-3 py-3 text-left">
+          <FileText size={22} className="shrink-0 text-primary" aria-hidden="true"/>
+          <div className="min-w-0"><p className="font-semibold text-text-main">Aucun bilan consultable.</p>
+          <p className="mt-1 text-xs text-text-muted">Seuls les bilans classés et autorisés apparaissent ici.</p></div>
         </div>
       )}
       {bilans.length > 0 && (
