@@ -61,7 +61,7 @@ export function R3CephaloTimepointReadonlyPanel({patientId,ordinal}:{
     return ()=>{active=false;};
   },[patientId,ordinal]);
   const current=loaded.patientId===patientId?loaded:{patientId,state:'loading',evidence:null};
-  return <section data-testid={'r3-cephalo-t'+ordinal}
+  return <section data-testid={'r3-cephalo-t'+ordinal} data-r3-cephalo-state={current.state}
     aria-label={'Analyse céphalométrique T'+ordinal+' · lecture seule'}
     className="min-w-0 space-y-3 p-3 text-text-main">
     <header className="flex flex-wrap items-center justify-between gap-2">
@@ -73,19 +73,20 @@ export function R3CephaloTimepointReadonlyPanel({patientId,ordinal}:{
     {current.state==='unavailable' && <p data-testid={'r3-cephalo-missing-t'+ordinal}
       className="text-xs text-text-muted">Aucune paire T0/T1 avec une céphalométrie canonique unique par repère. Aucune analyse inventée.</p>}
     {current.state==='ready' && current.evidence && <>
-      <div className="rounded-lg border border-border-main bg-medical-pearl p-3">
+      <div className="rounded-xl border border-border-main bg-medical-pearl p-3.5">
         <p className="flex items-center gap-2 text-xs font-medium text-text-main">
           <ShieldCheck size={15}/> Analyse source #{current.evidence.analysisId}
         </p>
         <p className="mt-1 text-xs text-text-muted">T{ordinal} · {current.evidence.timepoint.occurred_at.slice(0,10)}</p>
       </div>
-      <div className="space-y-2">
+      <div className="grid gap-2" aria-label={'Mesures céphalométriques vérifiées T'+ordinal}>
         {current.evidence.measures.length===0
           ? <p className="text-xs text-text-muted">Aucune mesure commune certifiée entre T0 et T1.</p>
           : current.evidence.measures.map(m=><div key={m.key}
-              className="flex items-start justify-between gap-2 rounded-lg border border-border-main p-2 text-xs">
-              <span className="font-semibold">{m.label}</span>
-              <span>{(ordinal===0?m.from_value:m.to_value).toLocaleString('fr-FR',{maximumFractionDigits:2})} {m.unit}</span>
+              data-testid={'r3-cephalo-measure-t'+ordinal}
+              className="flex min-w-0 flex-wrap items-center justify-between gap-2 rounded-xl border border-border-main bg-card px-4 py-3">
+              <span className="text-xs font-bold uppercase tracking-wide text-text-muted">{m.label}</span>
+              <span className="tabular-nums text-2xl font-extrabold tracking-tight text-primary-ink">{(ordinal===0?m.from_value:m.to_value).toLocaleString('fr-FR',{maximumFractionDigits:2})} <small className="text-xs font-semibold">{m.unit}</small></span>
             </div>)}
       </div>
       <p className="text-[11px] text-text-muted">Comparaison numérique factuelle · interprétation réservée au praticien.</p>
