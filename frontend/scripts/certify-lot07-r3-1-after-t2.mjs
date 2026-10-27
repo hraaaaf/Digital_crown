@@ -589,12 +589,25 @@ try {
         },null,{timeout:20000});
         const rendered=await image.evaluate(img=>{
           const box=img.getBoundingClientRect();
+          const canvas=document.createElement('canvas');
+          canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+          const ctx=canvas.getContext('2d',{willReadFrequently:true});
+          if(!ctx)return {naturalWidth:0,bright:0,dark:0,visibleWidth:0};
+          ctx.drawImage(img,0,0);
+          const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+          let dark=0,bright=0;
+          for(let i=0;i<pixels.length;i+=4){
+            const sum=pixels[i]+pixels[i+1]+pixels[i+2];
+            if(sum<270)dark++;
+            if(sum>690)bright++;
+          }
           return {naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
-            visibleWidth:Math.round(box.width),visibleHeight:Math.round(box.height)};
+            visibleWidth:Math.round(box.width),visibleHeight:Math.round(box.height),dark,bright};
         });
-        pass('premium final PDF has genuinely rendered PNG page pixels in Chromium',
+        pass('premium final actual PDF text ink pixels and white paper are decoded',
           await pdf.getByText(/Page PDF rendue localement/).count()===1 &&
           rendered.naturalWidth>=350 && rendered.visibleWidth>=250 &&
+          rendered.dark>70 && rendered.bright>1000 &&
           await page.locator('[data-v15-071-viewslot="documents"] iframe').count()===0,rendered);
       }
       if (id==='imagerie' || id==='gestion-administrative') {
