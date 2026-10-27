@@ -221,6 +221,9 @@ jobs:
           assert report["head"]=="${{ github.event.pull_request.head.sha || github.sha }}"
           assert report["overall"]=="R23_G4_EXPERIMENTAL_DESKTOP_AFTER_PASS"
           assert {v["viewport"] for v in report["viewports"]}=={"1280x900","1600x1000"}
+          # Fail closed on the source-locked COM hold: a Focus must NOT appear
+          # unless a legitimate clinical source supplies matching geometry.
+          # Earlier base-branch workflow expected a fabricated source-backed Focus.
           checks={"GENUINE_CABINET_LOGIN_AND_STUDY_SELECTION",
                   "COM10_SOURCE_ROWS_EXACT_REVISION","NO_FABRICATED_FOCUS_ON_COM_HOLD",
                   "RICKETTS_ATLAS33_VS_GREGORET13","SECOND_STUDY_HAS_NO_STALE_REFERENCE",
