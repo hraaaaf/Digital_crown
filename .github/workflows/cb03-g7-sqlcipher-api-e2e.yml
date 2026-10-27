@@ -77,7 +77,7 @@ jobs:
           python - <<'PY'
           import secrets,os
           with open(os.environ["GITHUB_ENV"],"a") as out:
-              out.write("SQLCIPHER_KEY_HEX="+secrets.token_hex(32)+"\\n")
+              out.write("SQLCIPHER_KEY_HEX="+secrets.token_hex(32)+chr(10))
           PY
       - name: Real Chromium CrownBotChat to FastAPI SQLCipher
         env:
