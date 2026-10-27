@@ -684,6 +684,8 @@ app.include_router(legacy_migration_router.router, prefix="/api/migration", tags
 app.include_router(auth.router, prefix="/api/auth", tags=["Authentication"])
 app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
 app.include_router(workstation_mode.router, prefix="/api/workstation", tags=["Workstation Mode"])
+from backend.routers import r5_preferences
+app.include_router(r5_preferences.router, prefix="/api/workstation/r5-preferences", tags=["LOT07 R5 DEV Preferences"])
 app.include_router(station_patient_session.router, prefix="/api/workstation", tags=["Station Patient Session"])
 app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
 app.include_router(ia.router, prefix="/api/ia", tags=["IA & Analysis"])
