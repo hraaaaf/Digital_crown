@@ -99,9 +99,15 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false, labReadO
     if (!asset) return () => undefined;
 
     setLoading(true);
-    api.get(`/patients/${patientId}/assets/${asset.id}/content`, { responseType: 'blob' })
+    const rasterPdf = labReadOnlyPreview && asset.mime_type === 'application/pdf';
+    const route = `/patients/${patientId}/assets/${asset.id}/` + (rasterPdf ? 'preview-page?page=1' : 'content');
+    api.get(route, { responseType: 'blob' })
       .then((response) => {
         if (disposed) return;
+        if (!(response.data instanceof Blob) || (rasterPdf && response.data.type !== 'image/png')) {
+          setLoadError(true);
+          return;
+        }
         objectUrl = URL.createObjectURL(response.data);
         setUrl(objectUrl);
       })
@@ -116,7 +122,7 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false, labReadO
       disposed = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [asset, patientId]);
+  }, [asset, patientId, labReadOnlyPreview]);
 
   const minHeight = compact ? 'min-h-[220px] sm:min-h-[280px] lg:min-h-[360px]' : 'min-h-[220px] sm:min-h-[280px] md:min-h-[390px] lg:min-h-[470px]';
 
@@ -125,11 +131,15 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false, labReadO
   if (loading || !url) return <div role="status" className={cn('flex items-center justify-center bg-medical-pearl text-text-muted', minHeight)}><Loader2 size={26} className="animate-spin" /></div>;
   if (asset.mime_type === 'application/pdf') return <div data-testid={labReadOnlyPreview ? 'r3-document-preview' : undefined} className="min-w-0 bg-card">
     {labReadOnlyPreview && <div data-testid="r3-document-source-ready" className="flex flex-wrap items-center justify-between gap-2 border-b border-border-main bg-medical-pearl px-3 py-3 text-xs text-text-main">
-      <span className="inline-flex items-center gap-2 font-semibold"><FileText size={18} aria-hidden="true"/> Document PDF récupéré · lecture seule</span>
+      <span className="inline-flex items-center gap-2 font-semibold"><FileText size={18} aria-hidden="true"/> Page PDF rendue localement · lecture seule</span>
       <span className="font-mono text-[11px] text-text-muted">{typeof asset.byte_size === 'number' ? (asset.byte_size / 1024).toFixed(1) + ' Ko' : 'Fichier autorisé'}</span>
-      <span className="w-full text-[11px] text-text-muted">Le contenu s’ouvre aussi en plein écran ; son affichage dépend du lecteur PDF du poste.</span>
+      <span className="w-full text-[11px] text-text-muted">Aperçu extrait du PDF autorisé. Ouvrir en plein écran pour le document intégral.</span>
     </div>}
-    <iframe src={url} title="Aperçu document clinique" className={cn('w-full bg-card', minHeight)} />
+    {labReadOnlyPreview
+      ? <img data-testid="r3-document-page-image" src={url} alt="Première page du document PDF autorisé"
+          className="mx-auto block h-auto max-h-[470px] w-auto max-w-full bg-card object-contain"
+          onError={()=>setLoadError(true)} />
+      : <iframe src={url} title="Aperçu document clinique" className={cn('w-full bg-card', minHeight)} /> }
   </div>;
 
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
