@@ -543,7 +543,7 @@ try {
               scrolling:panes.map(p=>getComputedStyle(p).overflowY)};
           });
         pass('P4 compact sparse '+id+' is equal-width and scrollable',
-          g.height>=314 && g.height<=356 && g.widths.length===2 &&
+          g.height>=314 && g.height<=(id==='gestion-administrative'?580:356) && g.widths.length===2 &&
           Math.abs(g.widths[0]-g.widths[1])<=3 &&
           g.scrolling.every(v=>v==='auto'),g);
       }
@@ -564,6 +564,18 @@ try {
         slots.join(',')===expectedModules.join(',') && realSourceVerified &&
         await select.locator('option:disabled').count()===9-provenRoadmapCount,
         {id,slots});
+      if (id==='vue-ensemble') {
+        const geom=await page.locator('[data-v15-071-layout="vue-ensemble"] [data-v15-071-multiview-grid]')
+          .evaluate(root=>{
+            const area=m=>root.querySelector('[data-v15-071-viewslot="'+m+'"]')?.getBoundingClientRect();
+            const a=area('dossier'),b=area('agenda'),m=area('imagerie');
+            return a&&b&&m?{sameLeft:Math.abs(a.left-b.left)<3,
+              mediaRight:m.left>=a.right-3,fullHeight:m.top<=a.top+3&&m.bottom>=b.bottom-3,
+              agendaHeight:Math.round(b.height),mediaWidth:Math.round(m.width)}:null;
+          });
+        pass('premium finish Overview mounts true dossier and 3 Agenda rows next to full-height media',
+          Boolean(geom?.sameLeft&&geom.mediaRight&&geom.fullHeight&&geom.agendaHeight>=325&&geom.mediaWidth>=600),geom);
+      }
       // P5: verify the REAL narrow-slot media header does not use desktop-xl
       // toolbar geometry. Check the computed browser boxes, not just a CSS rule.
       if (id==='imagerie') {
@@ -604,6 +616,11 @@ try {
           return {naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
             visibleWidth:Math.round(box.width),visibleHeight:Math.round(box.height),dark,bright};
         });
+        const admin=await page.locator('[data-v15-071-layout="gestion-administrative"] [data-testid="r3-1-grid"]')
+          .evaluate(el=>({height:Math.round(el.getBoundingClientRect().height),
+            width:Math.round(el.querySelector('[data-v15-071-viewslot="documents"]')?.getBoundingClientRect().width||0)}));
+        pass('premium finish authenticated PDF document has readable tall equal split',
+          admin.height>=520&&admin.height<=580&&admin.width>=600,admin);
         pass('premium final actual PDF text ink pixels and white paper are decoded',
           await pdf.getByText(/Page PDF rendue localement/).count()===1 &&
           rendered.naturalWidth>=350 && rendered.visibleWidth>=250 &&
@@ -668,7 +685,18 @@ try {
     await recorded.getByText(/Contrôle de suivi synthétique/).waitFor({state:'visible'});
     pass('R3 treatment preset reads canonical authenticated plan, no editor',
       await recorded.innerText().then(t=>t.includes('Lecture seule')&&t.includes('Contrôle de suivi synthétique')));
-    await capture(page,'after-r3-real-treatment-1920.png');
+    const planG=await page.locator('[data-v15-071-layout="planification-traitements"] [data-v15-071-multiview-grid]')
+       .evaluate(root=>{
+         const box=m=>root.querySelector('[data-v15-071-viewslot="'+m+'"]')?.getBoundingClientRect();
+         const plan=box('traitement'),d=box('dossier'),media=box('imagerie');
+         return plan&&d&&media?{stacked:Math.abs(plan.left-d.left)<=3,
+           mediaRight:media.left>=plan.right-3,
+           fullHeight:media.top<=plan.top+3&&media.bottom>=d.bottom-3,
+           height:Math.round(media.height)}:null;
+       });
+     pass('premium finish recorded plan and dossier stack by full-height true media',
+       Boolean(planG?.stacked&&planG?.mediaRight&&planG?.fullHeight&&planG?.height>=560),planG);
+     await capture(page,'after-r3-real-treatment-1920.png');
     await chooser.selectOption('presentation-patient');
     await page.getByRole('button',{name:'Aperçu',exact:true}).click();
     await page.getByRole('button',{name:'Appliquer',exact:true}).click();
