@@ -262,6 +262,9 @@ def test_authenticated_pdf_page_preview_renders_real_pixels_without_leaking_cros
     assert wrong_patient.status_code == 404
     assert client.get(url, params={"page": 2}, headers=auth_headers).status_code == 404
     assert client.get(url, params={"page": 0}, headers=auth_headers).status_code == 422
+    # auth_headers fixture logged in earlier and TestClient retained its HttpOnly
+    # access_token cookie. Clearing it is essential for a genuinely anonymous GET.
+    client.cookies.clear()
     assert client.get(url).status_code in (401, 403)
     photo = _import_image(client, auth_headers, patient_a.id, _png_bytes())
     assert client.get(
