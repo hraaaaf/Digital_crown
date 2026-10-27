@@ -11,6 +11,7 @@ import hashlib
 import hmac
 import os
 import secrets
+import time
 
 from sqlalchemy import (
     Boolean, Column, ForeignKey, Integer, MetaData, String, Table, insert, select, update,
@@ -50,6 +51,13 @@ captures = Table(
     Column("appointment", Integer),
     Column("staff", Integer),
     Column("workstation", String(36)),
+    # Synthetic server-issued, bound, one-time review challenge.
+    Column("review_sha", String(64)),
+    Column("review_deadline", Integer),
+    Column("review_staff", Integer),
+    Column("review_station", String(36)),
+    Column("review_patient", Integer),
+    Column("review_appointment", Integer),
 )
 receipts = Table(
     "lot06b_lab_receipts", metadata,
@@ -135,8 +143,55 @@ def propose(db: Session, *, tenant: int, device: str, token: str, capture: str,
     return {"status": "AWAITING_STAFF", "server_confirmed": False}
 
 
+def issue_review(db: Session, *, staff: models.User, tenant: int, workstation: str,
+                 device: str, capture: str, patient: int, appointment: int | None) -> dict:
+    """Synthetic server-issued one-use binding, NOT operator UI proof."""
+    guard(db)
+    if int(staff.get_employer_id()) != tenant or not has_permission(staff, "patients"):
+        raise TransferLabRejected("STAFF_NOT_AUTHORIZED", 403)
+    try:
+        decision = resolve_acquisition_preflight(
+            db, employer_id=tenant, patient_id=patient, appointment_id=appointment
+        )
+    except PreflightRejected as exc:
+        raise TransferLabRejected(exc.reason, exc.status_code) from exc
+    if decision.patient_id != patient or decision.status != "STAFF_CONFIRMATION_REQUIRED":
+        raise TransferLabRejected("PATIENT_LINK_REQUIRED", 409)
+    where = (
+        (captures.c.tenant == tenant) & (captures.c.device == device)
+        & (captures.c.capture == capture)
+    )
+    row = db.execute(select(captures).where(where)).mappings().first()
+    if not row:
+        raise TransferLabRejected("CAPTURE_NOT_FOUND", 404)
+    if row["staff"] is not None:
+        raise TransferLabRejected("ALREADY_APPROVED", 409)
+    receipt = db.execute(select(receipts.c.receipt_id).where(
+        (receipts.c.tenant == tenant) & (receipts.c.device == device)
+        & (receipts.c.capture == capture)
+    )).first()
+    if receipt:
+        raise TransferLabRejected("ALREADY_COMMITTED", 409)
+    challenge = secrets.token_urlsafe(32)
+    deadline = int(time.time()) + 300
+    # A new review invalidates every older outstanding challenge.
+    db.execute(update(captures).where(where).values(
+        review_sha=hashlib.sha256(challenge.encode()).hexdigest(),
+        review_deadline=deadline, review_staff=staff.id,
+        review_station=workstation, review_patient=patient,
+        review_appointment=appointment,
+    ))
+    db.commit()
+    return {
+        "status": "STAFF_REVIEW_REQUIRED", "review_challenge": challenge,
+        "expires_at": deadline, "patient_id": patient,
+        "appointment_id": appointment, "server_confirmed": False,
+    }
+
+
 def approve(db: Session, *, staff: models.User, tenant: int, workstation: str,
-            device: str, capture: str, patient: int, appointment: int | None) -> dict:
+            device: str, capture: str, patient: int, appointment: int | None,
+            review_challenge: str) -> dict:
     guard(db)
     if int(staff.get_employer_id()) != tenant or not has_permission(staff, "patients"):
         raise TransferLabRejected("STAFF_NOT_AUTHORIZED", 403)
@@ -161,14 +216,29 @@ def approve(db: Session, *, staff: models.User, tenant: int, workstation: str,
     )).first()
     if receipt:
         raise TransferLabRejected("ALREADY_COMMITTED")
-    if row["staff"] is not None and (
-        row["staff"] != staff.id or row["patient"] != patient
-        or row["appointment"] != appointment or row["workstation"] != workstation
-    ):
-        raise TransferLabRejected("APPROVAL_CONFLICT")
-    db.execute(update(captures).where(where).values(
-        patient=patient, appointment=appointment, staff=staff.id, workstation=workstation
+    if row["staff"] is not None:
+        raise TransferLabRejected("ALREADY_APPROVED", 409)
+    if not review_challenge or len(review_challenge) > 256 or not row["review_sha"]:
+        raise TransferLabRejected("STAFF_REVIEW_CHALLENGE_REQUIRED", 403)
+    if (row["review_staff"] != staff.id or row["review_station"] != workstation
+            or row["review_patient"] != patient
+            or row["review_appointment"] != appointment):
+        raise TransferLabRejected("STAFF_REVIEW_BINDING_MISMATCH", 403)
+    if not row["review_deadline"] or int(time.time()) >= row["review_deadline"]:
+        raise TransferLabRejected("STAFF_REVIEW_EXPIRED", 403)
+    supplied = hashlib.sha256(review_challenge.encode()).hexdigest()
+    if not hmac.compare_digest(str(row["review_sha"]), supplied):
+        raise TransferLabRejected("STAFF_REVIEW_CHALLENGE_INVALID", 403)
+    applied = db.execute(update(captures).where(
+        where & (captures.c.review_sha == supplied) & (captures.c.staff.is_(None))
+    ).values(
+        patient=patient, appointment=appointment, staff=staff.id, workstation=workstation,
+        review_sha=None, review_deadline=None, review_staff=None,
+        review_station=None, review_patient=None, review_appointment=None,
     ))
+    if applied.rowcount != 1:
+        db.rollback()
+        raise TransferLabRejected("STAFF_REVIEW_ALREADY_CONSUMED", 409)
     db.commit()
     return {"status": "APPROVED", "server_confirmed": False}
 
