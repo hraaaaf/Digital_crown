@@ -9,9 +9,6 @@ on:
       - 'backend/services/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
-      - 'backend/services/imaging_acquisition_transfer_lab_v15.py'
-      - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
-      - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -21,6 +18,9 @@ on:
   pull_request:
     paths:
       - 'backend/services/imaging_acquisition_preflight_v15.py'
+      - 'backend/services/imaging_acquisition_transfer_lab_v15.py'
+      - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
+      - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
