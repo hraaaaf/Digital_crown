@@ -445,6 +445,36 @@ try {
         slots.join(',')===expectedModules.join(',') && realSourceVerified &&
         await select.locator('option:disabled').count()===9-provenRoadmapCount,
         {id,slots});
+      // P5: verify the REAL narrow-slot media header does not use desktop-xl
+      // toolbar geometry. Check the computed browser boxes, not just a CSS rule.
+      if (id==='imagerie' || id==='gestion-administrative') {
+        const module=id==='imagerie'?'imagerie':'documents';
+        const geometry=await page.locator('[data-v15-071-viewslot="'+module+'"] [data-testid="patient-media-timeline"]')
+          .evaluate(root=>{
+            const header=root.firstElementChild?.firstElementChild;
+            const filters=root.querySelector('[aria-label="Recherche et filtres médias"]');
+            if (!(header instanceof HTMLElement) || !(filters instanceof HTMLElement)) return null;
+            const box=filters.getBoundingClientRect();
+            const children=[...filters.children].map(el=>el.getBoundingClientRect());
+            const outside=children.some(b=>b.left<box.left-2 || b.right>box.right+2);
+            const overlap=children.some((b,i)=>children.slice(i+1).some(c=>
+              Math.min(b.right,c.right)-Math.max(b.left,c.left)>2 &&
+              Math.min(b.bottom,c.bottom)-Math.max(b.top,c.top)>2));
+            return {direction:getComputedStyle(header).flexDirection,
+              width:Math.round(box.width),controls:children.length,outside,overlap};
+          });
+        pass('P5 readable authenticated media controls '+id,
+          geometry?.direction==='column' && geometry.width>400 &&
+          geometry.width<960 && geometry.controls===4 &&
+          !geometry.outside && !geometry.overlap,geometry||{missing:true});
+      }
+      if (id==='suivi-clinique') {
+        const split=await page.locator('[data-v15-071-layout="suivi-clinique"][data-r3-1-split="two-rows"] [data-testid="r3-1-grid"]')
+          .evaluate(el=>({height:Math.round(el.getBoundingClientRect().height),
+            panels:el.querySelectorAll(':scope > section[data-v15-071-viewslot]').length}));
+        pass('P5 Follow-up makes more T0/T1 visible in original two-row split',
+          split.height>=620 && split.height<=700 && split.panels===2,split);
+      }
       await page.locator('[data-v15-071-viewslot]').first().scrollIntoViewIfNeeded();
       await capture(page,filename);
     }
