@@ -143,6 +143,7 @@ describe('07-C / real Cabinet read-only boundary', () => {
       useAuthStore.setState({ user: userWith({ agenda: true, patients: false }), isAuthenticated: true, isLoading: false });
     });
     expect(container.textContent).not.toContain('TEST-NOM');
+    fireEvent.click(screen.getByRole('button', { name: 'Agenda' }));
     expect(screen.getAllByRole('cell').map((cell) => cell.textContent)).toContain('Rendez-vous');
   });
 
