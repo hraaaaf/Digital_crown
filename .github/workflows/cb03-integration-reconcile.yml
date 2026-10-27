@@ -22,6 +22,7 @@ jobs:
     timeout-minutes: 25
     env:
       ENVIRONMENT: test
+      DATABASE_URL: sqlite:///:memory:
       DIGITALCROWN_ISOLATED_RUNTIME: "1"
       CLOUD_AI_ENABLED: "false"
       TELEMETRY_ENABLED: "false"
