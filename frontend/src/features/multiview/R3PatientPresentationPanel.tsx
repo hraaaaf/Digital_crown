@@ -56,15 +56,15 @@ export function R3PatientPresentationPanel({patient}:{patient:VerifiedPatient}) 
     {stage==='denied' && <p role="alert" className="text-danger">Présentation refusée : source ou autorisation non vérifiée.</p>}
     {(stage==='ready'||stage==='empty') && <div data-testid="r3-presentation-visible"
       className="space-y-4 rounded-2xl border border-border-main bg-card p-6 sm:p-8">
-      <p className="break-words text-3xl font-extrabold tracking-tight text-text-main sm:text-4xl">{patient.prenom} {patient.nom}</p>
-      <p className="text-sm font-medium text-text-muted">Plan de traitement enregistré · aucune proposition automatique</p>
+      <div className="space-y-1.5 border-b border-border-main pb-4"><p className="break-words text-3xl font-extrabold tracking-tight text-text-main sm:text-4xl">{patient.prenom} {patient.nom}</p><p className="font-mono text-xs font-semibold text-text-muted">Dossier {patient.numero_dossier}</p></div>
+      <p className="text-sm font-medium text-text-muted">Plan de traitement enregistré · lecture seule · aucune proposition automatique</p>
       {stage==='empty'&&<p>Aucun plan de traitement enregistré.</p>}
-      {stage==='ready'&&plan&&<ol aria-label="Étapes du plan autorisé" className="space-y-3">
+      {stage==='ready'&&plan&&<><p className="text-xs font-bold uppercase tracking-wider text-primary-ink">{plan.steps.length} étapes enregistrées</p><ol aria-label="Étapes du plan autorisé" className="space-y-3">
         {plan.steps.map((step,index)=><li key={step.id} className="rounded-xl border border-border-main bg-medical-pearl/40 p-4 shadow-sm">
           <p className="text-base font-bold leading-snug text-text-main">{index+1}. {step.title}</p>
           <p className="mt-2 text-xs font-semibold text-text-muted">{step.status==='done'?'Terminé':step.status==='pending'?'À venir':'Reporté'}</p>
         </li>)}
-      </ol>}
+      </ol></>}
     </div>}
   </section>;
 }
