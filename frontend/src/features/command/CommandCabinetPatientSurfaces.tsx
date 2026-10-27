@@ -5,6 +5,7 @@ import type { AppUser } from '../../types';
 import { api } from '../../services/api';
 import { hasAccess } from '../../utils/accessControl';
 import { PatientMediaTimeline } from '../patients/components/PatientMediaTimeline';
+import { HistoricBilanReadonlyPanel } from '../multiview/HistoricBilanReadonlyPanel';
 
 export type CommandPatientSurface = 'dossier' | 'imagerie';
 type PatientReference = { id: number; nom: string; prenom: string; numero_dossier: string };
@@ -113,6 +114,9 @@ export function CommandCabinetPatientSurfaces({
             <LockKeyhole size={14} aria-hidden="true" /> Fiche d'identité vérifiée en lecture seule. Aucune commande clinique activée.
           </p>
         </article>
+      )}
+      {patient && surface === 'dossier' && (
+        <HistoricBilanReadonlyPanel key={patient.id} patientId={patient.id} />
       )}
       {patient && surface === 'imagerie' && (
         <div data-testid="r4-verified-imagerie">
