@@ -221,27 +221,66 @@ jobs:
           assert report["head"]=="${{ github.event.pull_request.head.sha || github.sha }}"
           assert report["overall"]=="R23_G4_EXPERIMENTAL_DESKTOP_AFTER_PASS"
           assert {v["viewport"] for v in report["viewports"]}=={"1280x900","1600x1000"}
-          # Fail closed on the source-locked COM hold: a Focus must NOT appear
-          # unless a legitimate clinical source supplies matching geometry.
-          # Earlier base-branch workflow expected a fabricated source-backed Focus.
-          checks={"GENUINE_CABINET_LOGIN_AND_STUDY_SELECTION",
-                  "COM10_SOURCE_ROWS_EXACT_REVISION","NO_FABRICATED_FOCUS_ON_COM_HOLD",
-                  "RICKETTS_ATLAS33_VS_GREGORET13","SECOND_STUDY_HAS_NO_STALE_REFERENCE",
-                  "COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED","NO_DESKTOP_VIEWPORT_OVERFLOW"}
-          screenshots={"before-from-stable-all","after-com-ten-factor","after-com-focus-hold",
-                       "after-ricketts-atlas33","after-ricketts-gregoret13","after-other-study-rebound",
-                       "after-com-last-factor-accessible"}
+          # Two source-locked browser contracts can reach this unchanged
+          # trusted base workflow on pull_request: a verified source Focus
+          # (no drawn geometry), or a held/NC Focus explicitly refused.
+          # The contract must be identical across both viewports; never
+          # forge a source-backed Focus just to satisfy an obsolete oracle.
+          assert report["clinical_release"] is False
+          assert report["independent_ortho_review"] is False
+          assert isinstance(report["viewports"],list) and len(report["viewports"])==2
+          common_checks={"GENUINE_CABINET_LOGIN_AND_STUDY_SELECTION",
+                         "COM10_SOURCE_ROWS_EXACT_REVISION",
+                         "RICKETTS_ATLAS33_VS_GREGORET13",
+                         "SECOND_STUDY_HAS_NO_STALE_REFERENCE",
+                         "COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED",
+                         "NO_DESKTOP_VIEWPORT_OVERFLOW"}
+          common_shots=["before-from-stable-all","after-com-ten-factor"]
+          final_shots=["after-ricketts-atlas33","after-ricketts-gregoret13",
+                       "after-other-study-rebound","after-com-last-factor-accessible"]
+          proof_variants={
+              "verified-source-points":{
+                  "check":"COM_FOCUS_MATCHES_SOURCE_EVIDENCE",
+                  "shot":"after-com-source-backed-focus"},
+              "explicit-NC-refusal":{
+                  "check":"NO_FABRICATED_FOCUS_ON_COM_HOLD",
+                  "shot":"after-com-focus-hold"},
+          }
+          first_ids={c["id"] for c in report["viewports"][0]["checks"]}
+          modes=[name for name,variant in proof_variants.items()
+                 if first_ids==common_checks|{variant["check"]}]
+          assert len(modes)==1, "Unknown or mixed R23-G4 evidence contract"
+          mode=modes[0]
+          variant=proof_variants[mode]
+          checks=common_checks|{variant["check"]}
+          shots=common_shots+[variant["shot"]]+final_shots
           for v in report["viewports"]:
               assert v["valid"] and not v["errors"], v
-              assert {c["id"] for c in v["checks"]}==checks
+              assert isinstance(v["checks"],list) and len(v["checks"])==len(checks)
+              assert {c["id"] for c in v["checks"]}==checks, "Inconsistent proof mode across viewports"
               assert all(c["status"]=="PASS" for c in v["checks"])
-              last=next(c for c in v["checks"] if c["id"]=="COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED")
-              evidence=last["evidence"]
-              assert evidence["bottomPadding"] >= 120
-              assert evidence["rowTop"] >= evidence["scrollTop"]-1
-              assert evidence["rowBottom"] <= evidence["scrollBottom"]+1
-              for label in screenshots:
-                  assert (root/(v["viewport"]+"-"+label+".png")).is_file()
+              evidence_by_id={c["id"]:c["evidence"] for c in v["checks"]}
+              focus=evidence_by_id[variant["check"]]
+              if mode=="verified-source-points":
+                  assert isinstance(focus,dict), "Focus lacks exact source evidence"
+                  assert isinstance(focus.get("factor_id"),str) and focus["factor_id"].strip()
+                  assert isinstance(focus.get("points"),list) and len(focus["points"])>0
+                  assert all(isinstance(p,str) and p.strip() for p in focus["points"])
+                  assert focus.get("lines")==[], "Invented Focus lines forbidden"
+                  assert focus.get("clinical_release") is False
+              else:
+                  assert focus=="Row remains NC and no Focus event/geometry is authorized"
+              last=evidence_by_id["COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED"]
+              assert last["bottomPadding"] >= 120
+              assert last["rowTop"] >= last["scrollTop"]-1
+              assert last["rowBottom"] <= last["scrollBottom"]+1
+              expected_shots=[v["viewport"]+"-"+label+".png" for label in shots]
+              assert v["shots"]==expected_shots, "Absent or unexpected source-proof screenshot"
+              for filename in expected_shots:
+                  proof=root/filename
+                  assert proof.is_file() and proof.stat().st_size>128, filename
+                  with proof.open("rb") as handle:
+                      assert handle.read(8)==bytes.fromhex("89504e470d0a1a0a"), filename
           print("R23_G4_EXPERIMENTAL_AFTER_TWO_DESKTOP_VIEWPORTS_PASS")
           PY
       - name: Dump isolated runtime diagnostic on failure
