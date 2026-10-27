@@ -91,3 +91,55 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     assert len(list(tmp_path.rglob("*.dcm"))) >= 1
     for table in (lab.receipts, lab.audit, lab.outbox):
         assert len(db.execute(select(table)).all()) >= 1
+
+
+def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
+    client, db, dentiste, auth_headers, monkeypatch, tmp_path
+):
+    import hashlib
+    import uuid
+    from io import BytesIO
+    from PIL import Image
+    from sqlalchemy import select
+    from backend.tests.test_imaging_acquisition_preflight_v15 import _lab, _patient
+    from backend.services import imaging_acquisition_transfer_lab_v15 as lab
+    from backend.models_media_core import ClinicalAsset
+
+    monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
+    monkeypatch.setattr("backend.services.clinical_asset_storage.get_media_root", lambda: tmp_path)
+    workstation = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    device = "fault-" + uuid.uuid4().hex
+    capture = "fault-" + uuid.uuid4().hex
+    token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
+    out = BytesIO()
+    Image.new("RGB", (4, 4)).save(out, format="PNG")
+    content = out.getvalue()
+    digest = hashlib.sha256(content).hexdigest()
+    lab.propose(db, tenant=dentiste.id, device=device, token=token,
+                capture=capture, digest=digest, size=len(content))
+    lab.approve(db, staff=dentiste, tenant=dentiste.id,
+                workstation=workstation, device=device, capture=capture,
+                patient=patient.id, appointment=None)
+    args = dict(tenant=dentiste.id, device=device, token=token,
+                capture=capture, payload=content, mime="image/png")
+    base_assets = db.query(ClinicalAsset).count()
+    baseline = [len(db.execute(select(t)).all()) for t in (lab.receipts, lab.audit, lab.outbox)]
+    for boundary in ("after_ingest", "after_receipt", "after_audit", "after_outbox"):
+        with pytest.raises(lab.TransferLabRejected, match="INJECTED_LAB_ROLLBACK"):
+            lab.transfer(db, **args, fail_at=boundary)
+        assert db.query(ClinicalAsset).count() == base_assets
+        assert [len(db.execute(select(t)).all()) for t in (
+            lab.receipts, lab.audit, lab.outbox
+        )] == baseline
+        assert lab.lookup(db, tenant=dentiste.id, device=device,
+                          token=token, capture=capture)["status"] == "PENDING"
+    # Orphan ciphertext remains intentionally non-authoritative pending reconciler review.
+    assert list(tmp_path.rglob("*.dcm"))
+    committed = lab.transfer(db, **args)
+    assert committed["status"] == "LAB_SERVER_RECEIPT"
+    assert committed["server_confirmed"] is False
+    assert lab.transfer(db, **args) == committed
+    assert [len(db.execute(select(t)).all()) for t in (
+        lab.receipts, lab.audit, lab.outbox
+    )] == [n + 1 for n in baseline]
