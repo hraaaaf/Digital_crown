@@ -180,6 +180,19 @@ def _r23g2_historical_ledger() -> dict[str, Any]:
                 or [row.get("order") for row in rows] != list(range(1, count + 1))
                 or len({row.get("measurement_id") for row in rows}) != count):
             raise ValueError("R23-G2 historical display ledger composition mismatch")
+        if key == "com" and [row.get("measurement_id") for row in rows] != [
+            "M_COM_DC_LEGACY_OVERJET_FH_MM_V1",
+            "M_COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1",
+            "M_IMPA_GOME_DEG_V1",
+            "M_COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1",
+            "M_INTERINCISAL_DEG_V1",
+            "M_COM_DC_LEGACY_FMA_PO_OR_DEG_V1",
+            "M_COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1",
+            "M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1",
+            "M_COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1",
+            "M_COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1",
+        ]:
+            raise ValueError("COM profile identities do not match the exact legacy Po/Or calculations")
     return data
 
 

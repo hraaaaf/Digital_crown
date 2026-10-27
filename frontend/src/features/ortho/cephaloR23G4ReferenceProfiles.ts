@@ -45,6 +45,18 @@ const PROFILES = {
 } as const;
 
 const AVAILABILITY = new Set(['AVAILABLE', 'MISSING', 'INVALID', 'NOT_APPLICABLE', 'NOT_COMPUTABLE']);
+const COM_MEASUREMENT_IDS = [
+  'M_COM_DC_LEGACY_OVERJET_FH_MM_V1',
+  'M_COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1',
+  'M_IMPA_GOME_DEG_V1',
+  'M_COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1',
+  'M_INTERINCISAL_DEG_V1',
+  'M_COM_DC_LEGACY_FMA_PO_OR_DEG_V1',
+  'M_COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1',
+  'M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1',
+  'M_COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1',
+  'M_COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1',
+] as const;
 
 export function readCephaloR23G2Protocol(
   anglesData: any,
@@ -62,6 +74,8 @@ export function readCephaloR23G2Protocol(
   if (!profile || profile.protocol_profile_id !== protocolId || profile.profile_status !== state
       || profile.classification_authority !== false || !Array.isArray(profile.rows)
       || profile.rows.length !== count) return null;
+  if (analysis === 'com'
+      && profile.rows.some((row: R23G2ProtocolRow, index: number) => row.canonical_measurement_id !== COM_MEASUREMENT_IDS[index])) return null;
   if (analysis === 'ricketts' && profile.source_lock_gate !== 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED') return null;
   if (analysis !== 'ricketts' && profile.source_lock_gate !== 'HISTORICAL_WORKING_REFERENCE_ONLY') return null;
   const seen = new Set<string>();
