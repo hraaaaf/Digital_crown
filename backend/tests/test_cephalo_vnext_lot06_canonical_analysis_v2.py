@@ -12,6 +12,8 @@ from backend.services.cephalo_canonical_constructions_v2 import (
     RICKETTS_MANDIBULAR_PLANE_CONSTRUCTION_ID,
     materialize_canonical_constructions_v2,
 )
+from backend.services.cephalo_canonical_method_bridge import project_canonical_measurements
+from backend.services.cephalo_protocol_projection import project_com_reference_protocol
 
 
 def _lm(landmark_id, x, y):
@@ -28,9 +30,9 @@ def _lm(landmark_id, x, y):
 
 def _landmarks():
     pts = {
-        "S": (0, 0), "N": (10, 0), "A": (12, 4), "Go": (0, 20), "MP_ANGLE_INFERIOR_Ricketts": (0, 18), "Me": (15, 20),
+        "S": (0, 0), "N": (10, 0), "A": (12, 4), "B": (13, 11), "Go": (0, 20), "MP_ANGLE_INFERIOR_Ricketts": (0, 18), "Me": (15, 20),
         "Ba": (-8, -4), "Pt_Ricketts": (5, 6), "PR_Ricketts_PTV": (4, 7),
-        "Or": (20, 10), "Po_anatomic": (0, 10), "Co_anatomic": (-5, 5),
+        "Or": (20, 10), "Po": (0, 9), "Po_anatomic": (0, 10), "Co_anatomic": (-5, 5),
         "Gn_anatomic": (15, 18), "Pog_hard": (16, 8), "L1_apex": (7, 18),
         "L1_incisal": (9, 8), "Prn": (18, 4), "Pog_soft": (17, 9),
         "Ls_soft": (19, 6), "Li_soft": (18.5, 7),
@@ -233,3 +235,52 @@ def test_ricketts_mandibular_plane_materializes_only_with_explicit_ricketts_angl
     mp = by_method["RICKETTS_MANDIBULAR_PLANE_FH_CANONICAL_DEG_V2"]
     assert mp.availability_status.value == "NOT_COMPUTABLE"
     assert mp.value is None
+
+
+def test_com_historical_profile_has_ten_source_bound_rows_and_legacy_po_calculations():
+    landmarks = _landmarks()
+    landmarks.update({
+        "Po": _lm("Po", 0, 0),
+        "Or": _lm("Or", 20, 0),
+        "U1_incisal": _lm("U1_incisal", 4, -3),
+        "L1_incisal": _lm("L1_incisal", 0, 0),
+    })
+    output = _materialize(mm_per_pixel=0.5, calibration_ref="source:calibration", landmarks=landmarks)
+    canonical = project_canonical_measurements(output)["measurements"]
+    protocol = project_com_reference_protocol(canonical)
+    expected = [
+        "M_COM_DC_LEGACY_OVERJET_FH_MM_V1",
+        "M_COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1",
+        "M_IMPA_GOME_DEG_V1",
+        "M_COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1",
+        "M_INTERINCISAL_DEG_V1",
+        "M_COM_DC_LEGACY_FMA_PO_OR_DEG_V1",
+        "M_COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1",
+        "M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1",
+        "M_COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1",
+        "M_COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1",
+    ]
+    assert [row["canonical_measurement_id"] for row in protocol["rows"]] == expected
+    by_id = {row["canonical_measurement_id"]: row for row in protocol["rows"]}
+    calculated_ids = set(expected) - {"M_IMPA_GOME_DEG_V1", "M_INTERINCISAL_DEG_V1"}
+    for measurement_id in calculated_ids:
+        row = by_id[measurement_id]
+        assert row["availability_status"] == "AVAILABLE"
+        assert row["value"] is not None
+        assert row["measurement_refs"]
+        assert row["classification_authority"] is False
+    assert by_id["M_IMPA_GOME_DEG_V1"]["availability_status"] == "NOT_COMPUTABLE"
+    assert by_id["M_INTERINCISAL_DEG_V1"]["availability_status"] == "NOT_COMPUTABLE"
+    assert by_id["M_COM_DC_LEGACY_OVERJET_FH_MM_V1"]["value"] == pytest.approx(2.0)
+    assert by_id["M_COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1"]["value"] == pytest.approx(-1.5)
+    assert by_id["M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1"]["value_authority_method_id"] == "COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1"
+
+
+def test_com_legacy_methods_do_not_substitute_anatomic_porion_for_legacy_po():
+    landmarks = _landmarks()
+    landmarks.pop("Po")
+    output = _materialize(mm_per_pixel=0.5, calibration_ref="source:calibration", landmarks=landmarks)
+    canonical = project_canonical_measurements(output)["measurements"]
+    protocol = project_com_reference_protocol(canonical)
+    assert all(row["availability_status"] == "NOT_COMPUTABLE" for row in protocol["rows"]
+               if row["canonical_measurement_id"].startswith("M_COM_DC_LEGACY_"))

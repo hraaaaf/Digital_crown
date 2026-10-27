@@ -52,10 +52,27 @@ from backend.services.cephalo_ricketts_geometry import (
 from backend.services.cephalo_tweed_merrifield_geometry import (
     merrifield_z_angle_deg_v1, tweed_fma_deg_v1, tweed_fmia_deg_v1,
 )
+from backend.services.cephalo_com_legacy_geometry import (
+    com_dc_legacy_ab_prime_fh_px_v1,
+    com_dc_legacy_fma_po_or_deg_v1,
+    com_dc_legacy_nperp_px_v1,
+    com_dc_legacy_overbite_screen_positive_y_fh_px_v1,
+    com_dc_legacy_overjet_fh_px_v1,
+    com_dc_legacy_s_nperp_depth_px_v1,
+    com_dc_legacy_u1_fh_po_or_deg_v1,
+)
 
 Point = tuple[float, float]
 
 CANONICAL_V2_METHOD_IDS = {
+    "COM_DC_LEGACY_FMA_PO_OR_DEG_V1",
+    "COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1",
+    "COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1",
+    "COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1",
+    "COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1",
+    "COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1",
+    "COM_DC_LEGACY_OVERJET_FH_MM_V1",
+    "COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1",
     "TWEED_FMA_CANONICAL_DEG_V2",
     "TWEED_FMIA_CANONICAL_DEG_V2",
     "MCNAMARA_CO_A_CANONICAL_MM_V2",
@@ -177,6 +194,63 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
             method=method,canonical_id=cid,ids=ids,lm=landmarks,value=value,unit="mm",
             requires_calibration=True,calibration_ref=calibration_ref if status==AvailabilityStatus.AVAILABLE else None,
             availability=status))
+
+    def com_legacy_projection(name, method, cid, px_fn):
+        ids = ("U1_incisal", "L1_incisal", "Po", "Or")
+        deps, status = _deps(landmarks, ids)
+        if not deps:
+            return
+        value = None
+        if status == AvailabilityStatus.AVAILABLE:
+            px = px_fn(*[_p(landmarks, item) for item in ids])
+            value, status = _calibrated_px(px, mm_per_pixel, calibration_ref)
+        out.append(_measurement(namespace=measurement_namespace, name=name, analysis="COM",
+            method=method, canonical_id=cid, ids=ids, lm=landmarks, value=value, unit="mm",
+            requires_calibration=True,
+            calibration_ref=calibration_ref if status == AvailabilityStatus.AVAILABLE else None,
+            availability=status))
+
+    def com_legacy_linear(name, method, cid, ids, px_fn):
+        deps, status = _deps(landmarks, ids)
+        if not deps:
+            return
+        value = None
+        if status == AvailabilityStatus.AVAILABLE:
+            px = px_fn(*[_p(landmarks, item) for item in ids])
+            value, status = _calibrated_px(px, mm_per_pixel, calibration_ref)
+        out.append(_measurement(namespace=measurement_namespace, name=name, analysis="COM",
+            method=method, canonical_id=cid, ids=ids, lm=landmarks, value=value, unit="mm",
+            requires_calibration=True,
+            calibration_ref=calibration_ref if status == AvailabilityStatus.AVAILABLE else None,
+            availability=status))
+
+    # Preserve the exact pre-canonical COM point identity and projection signs.
+    # Po here is deliberately not replaced with the separate Po_anatomic identity.
+    com_legacy_projection("COM_DC_LEGACY_OVERJET_FH", "COM_DC_LEGACY_OVERJET_FH_MM_V1",
+        "M_COM_DC_LEGACY_OVERJET_FH_MM_V1", com_dc_legacy_overjet_fh_px_v1)
+    com_legacy_projection("COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH",
+        "COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1",
+        "M_COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1",
+        com_dc_legacy_overbite_screen_positive_y_fh_px_v1)
+    angular("COM_DC_LEGACY_FMA_PO_OR", "COM", "COM_DC_LEGACY_FMA_PO_OR_DEG_V1",
+        "M_COM_DC_LEGACY_FMA_PO_OR_DEG_V1", ("Go", "Me", "Po", "Or"),
+        com_dc_legacy_fma_po_or_deg_v1)
+    angular("COM_DC_LEGACY_U1_FH_PO_OR", "COM", "COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1",
+        "M_COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1", ("U1_apex", "U1_incisal", "Po", "Or"),
+        com_dc_legacy_u1_fh_po_or_deg_v1)
+    com_legacy_linear("COM_DC_LEGACY_AB_PRIME_PO_OR", "COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1",
+        "M_COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1", ("A", "B", "Po", "Or"),
+        com_dc_legacy_ab_prime_fh_px_v1)
+    com_legacy_linear("COM_DC_LEGACY_A_NPERP_PO_OR", "COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1",
+        "M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1", ("A", "N", "Po", "Or"),
+        com_dc_legacy_nperp_px_v1)
+    com_legacy_linear("COM_DC_LEGACY_B_NPERP_PO_OR", "COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1",
+        "M_COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1", ("B", "N", "Po", "Or"),
+        com_dc_legacy_nperp_px_v1)
+    com_legacy_linear("COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR",
+        "COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1",
+        "M_COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1", ("S", "N", "Po", "Or"),
+        com_dc_legacy_s_nperp_depth_px_v1)
     angular("TWEED_FMA","TWEED","TWEED_FMA_CANONICAL_DEG_V2","M_FH_GOME_DEG_V1",
         ("Go","Me","Po_anatomic","Or"),tweed_fma_deg_v1)
     angular("TWEED_FMIA","TWEED","TWEED_FMIA_CANONICAL_DEG_V2","M_FMIA_L1_FH_DEG_V1",

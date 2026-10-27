@@ -30,6 +30,7 @@ const browser = await chromium.launch({headless:true});
 async function viewportRun(viewport) {
   const label = viewport.width + 'x' + viewport.height;
   const rec = {viewport:label, checks:[], shots:[], errors:[], valid:false};
+  let sourceBackedComFocus = null;
   const api = await request.newContext({baseURL:backend});
   let context;
   let page;
@@ -117,6 +118,8 @@ async function viewportRun(viewport) {
       if(data.analysis_id!==ids.older_id || !Number.isSafeInteger(data.revision) || data.revision<=0
         || data.clinical_release!==false || data.reference_display_only!==true
         || data.profiles?.com?.rows?.length!==10)throw Error('Source/identity safety contract absent');
+      sourceBackedComFocus=data.profiles.com.rows.find(row=>row.availability_status==='AVAILABLE'
+        && row.value!==null && row.focus_evidence?.landmark_ids?.length>0) ?? null;
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
       await panel.waitFor({state:'visible'});
       const table=panel.locator('table[data-r23g4-row-count="10"]');
@@ -129,17 +132,33 @@ async function viewportRun(viewport) {
       await shot('after-com-ten-factor');
       return {analysis_id:data.analysis_id,revision:data.revision,count:10,clinical_release:false};
     });
-    await check('NO_FABRICATED_FOCUS_ON_COM_HOLD',async()=>{
+    await check('COM_FOCUS_MATCHES_SOURCE_EVIDENCE',async()=>{
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
-      const held=panel.locator('tbody tr').filter({hasText:'NC'}).first();
-      if(await held.count()!==1)throw Error('No held COM row to test');
-      await held.locator('button[data-r23g4-focus-select]').click();
-      const evidence=held.locator('[data-r23g4-focus-authority="refused"]');
+      if(!sourceBackedComFocus)throw Error('No available COM row with source Focus evidence to test');
+      const factorId=sourceBackedComFocus.canonical_measurement_id;
+      const expectedPoints=sourceBackedComFocus.focus_evidence.landmark_ids;
+      const selected=panel.locator(`tbody tr[data-r23g4-factor="${factorId}"]`);
+      if(await selected.count()!==1)throw Error('Exact source-backed COM row is absent');
+      await page.evaluate(()=>{
+        window.__r23g4FocusEvents=[];
+        window.addEventListener('digital-crown:cephalo-metric',event=>window.__r23g4FocusEvents.push(event.detail));
+      });
+      await selected.locator('button[data-r23g4-focus-select]').click();
+      const evidence=selected.locator('[data-r23g4-focus-authority="verified-runtime"]');
       await evidence.waitFor({state:'visible'});
-      if(await evidence.getByText('Focus non autorisé',{exact:false}).count()!==1)
-        throw Error('NC Focus not explicitly denied');
-      await shot('after-com-focus-hold');
-      return 'Row remains NC and no Focus event/geometry is authorized';
+      const displayed=await evidence.innerText();
+      if(!displayed.includes(`Focus prouvé : ${expectedPoints.join(', ')}`)
+        || !displayed.includes('Aucun tracé inventé'))
+        throw Error('Displayed Focus differs from the exact source points or implies invented geometry');
+      await page.waitForFunction(expectedPoints=>window.__r23g4FocusEvents?.some(event=>
+        event?.authority==='ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
+          && JSON.stringify(event.points)===JSON.stringify(expectedPoints)),expectedPoints);
+      const event=await page.evaluate(()=>window.__r23g4FocusEvents.at(-1));
+      if(!event || JSON.stringify(event.points)!==JSON.stringify(expectedPoints)
+        || !Array.isArray(event.lines) || event.lines.length!==0)
+        throw Error('Published Focus event differs from exact source points or contains invented lines');
+      await shot('after-com-source-backed-focus');
+      return {factor_id:factorId,points:expectedPoints,lines:event.lines,clinical_release:false};
     });
     await check('RICKETTS_ATLAS33_VS_GREGORET13',async()=>{
       await page.locator('#cephalo-ready-analysis').selectOption('ricketts');

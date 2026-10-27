@@ -99,15 +99,15 @@
       "rows": [
         {
           "order": 1,
-          "measurement_id": "M_OVERJET_MM_V1",
-          "label": "Surplomb",
-          "contract_state": "LEGACY_TO_AUDIT"
+          "measurement_id": "M_COM_DC_LEGACY_OVERJET_FH_MM_V1",
+          "label": "Surplomb COM · projection FH (DC legacy)",
+          "contract_state": "EXACT_DC_LEGACY_PROJECTION__DIRECTED_PO_TO_OR__NO_CLINICAL_AUTHORITY"
         },
         {
           "order": 2,
-          "measurement_id": "M_OVERBITE_V1",
-          "label": "Recouvrement",
-          "contract_state": "LEGACY_TO_AUDIT"
+          "measurement_id": "M_COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1",
+          "label": "Recouvrement COM · normale +Y image (DC legacy)",
+          "contract_state": "EXACT_DC_LEGACY_PROJECTION__POSITIVE_IMAGE_Y_NORMAL__NO_CLINICAL_AUTHORITY"
         },
         {
           "order": 3,
@@ -117,9 +117,9 @@
         },
         {
           "order": 4,
-          "measurement_id": "M_U1_FH_DEG_V1",
-          "label": "I / Frankfort",
-          "contract_state": "LOCKED geometry"
+          "measurement_id": "M_COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1",
+          "label": "I / Frankfort · Po legacy",
+          "contract_state": "EXACT_DC_LEGACY_U1_AXIS_AND_PO_OR__NO_CLINICAL_AUTHORITY"
         },
         {
           "order": 5,
@@ -129,33 +129,33 @@
         },
         {
           "order": 6,
-          "measurement_id": "M_FH_GOME_DEG_V1",
+          "measurement_id": "M_COM_DC_LEGACY_FMA_PO_OR_DEG_V1",
           "label": "Angle de Tweed / FMA",
-          "contract_state": "LOCKED shared geometry"
+          "contract_state": "EXACT_DC_LEGACY_GO_ME_AND_PO_OR__NO_CLINICAL_AUTHORITY"
         },
         {
           "order": 7,
-          "measurement_id": "M_AB_PRIME_FH_MM_V1",
+          "measurement_id": "M_COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1",
           "label": "Décalage osseux A′B′",
-          "contract_state": "LOCKED internal DC geometry"
+          "contract_state": "EXACT_DC_LEGACY_A_B_PROJECTION_ON_PO_OR__NO_CLINICAL_AUTHORITY"
         },
         {
           "order": 8,
-          "measurement_id": "M_A_NPERP_MM_V1",
-          "label": "Situation A",
-          "contract_state": "PENDING_EQUIVALENCE : même géométrie candidate, signer/convention à fermer"
+          "measurement_id": "M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1",
+          "label": "A / N-perp · Po legacy",
+          "contract_state": "EXACT_DC_LEGACY_A_TO_NPERP_ON_PO_OR__NO_CLINICAL_AUTHORITY"
         },
         {
           "order": 9,
-          "measurement_id": "M_B_NPERP_MM_V1",
-          "label": "Situation B",
-          "contract_state": "LOCKED internal DC geometry"
+          "measurement_id": "M_COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1",
+          "label": "B / N-perp · Po legacy",
+          "contract_state": "EXACT_DC_LEGACY_B_TO_NPERP_ON_PO_OR__NO_CLINICAL_AUTHORITY"
         },
         {
           "order": 10,
-          "measurement_id": "M_COM_S_NPERP_DEPTH_MM_V1",
+          "measurement_id": "M_COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1",
           "label": "Profondeur faciale DC",
-          "contract_state": "LOCKED internal DC geometry"
+          "contract_state": "EXACT_DC_LEGACY_S_TO_NPERP_ON_PO_OR__NO_CLINICAL_AUTHORITY"
         }
       ]
     }

@@ -70,14 +70,17 @@ def test_lot06_contract_exhausts_every_geometry_covered_registry_entry():
 def test_lot06_non_promoted_entries_are_explicitly_fail_closed():
     data=load_contract()
     reasons={m["measurement_id"]:m["reason"] for m in data["non_promoted_geometry_covered"]}
-    # The 38 executable methods stay pinned. Geometry coverage alone never
-    # promotes a source-locked measurement into the LOT06 V1 executable set.
-    assert len(reasons) == 21
+    # The 38 LOT06 executable methods stay pinned. Geometry coverage alone never
+    # promotes source-locked or display-only COM measurements into that set.
+    assert len(reasons) == 29
     assert set(reasons).isdisjoint(promoted := {
         item["measurement_id"] for item in data["measurements"]
     })
     for entry in data["non_promoted_geometry_covered"]:
-        assert reasons[entry["measurement_id"]] == "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING"
+        if entry["measurement_id"].startswith("M_COM_DC_LEGACY_"):
+            assert reasons[entry["measurement_id"]] == "COM_DISPLAY_ONLY_NO_CLINICAL_AUTHORITY"
+        else:
+            assert reasons[entry["measurement_id"]] == "LOT06_V1_EXECUTABLE_SOURCE_ATTESTATION_PENDING"
         assert (
             entry["registry_source_status"]
             == CANONICAL_MEASUREMENTS[entry["measurement_id"]].source_status

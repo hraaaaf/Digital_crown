@@ -81,10 +81,11 @@ def test_available_canonical_evidence_can_fill_only_identical_protocol_measureme
 
 def test_com_candidate_equivalence_must_not_promote_mcnamara_nperp():
     profile = project_com_reference_protocol([_canonical("M_A_NPERP_MM_V1", 4.1)])
-    row = next(item for item in profile["rows"] if item["canonical_measurement_id"] == "M_A_NPERP_MM_V1")
+    row = next(item for item in profile["rows"] if item["canonical_measurement_id"] == "M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1")
     assert row["value"] is None
     assert row["availability_status"] == "NOT_COMPUTABLE"
-    assert row["contract_state"].startswith("PENDING_EQUIVALENCE")
+    assert row["measurement_refs"] == []
+    assert row["contract_state"] == "EXACT_DC_LEGACY_A_TO_NPERP_ON_PO_OR__NO_CLINICAL_AUTHORITY"
 
 
 def test_ricketts_runtime_copies_equal_the_source_locked_audit_bytes():
@@ -101,4 +102,4 @@ def test_non_authoritative_historical_ledger_keeps_mcnamara_and_com_cardinality(
     assert ledger["status"] == "WORKING_V1__DISPLAY_ONLY__NO_CLINICAL_APPROVAL"
     assert len(ledger["profiles"]["mcnamara"]["rows"]) == 13
     assert len(ledger["profiles"]["com"]["rows"]) == 10
-    assert ledger["profiles"]["com"]["rows"][7]["contract_state"].startswith("PENDING_EQUIVALENCE")
+    assert ledger["profiles"]["com"]["rows"][7]["contract_state"] == "EXACT_DC_LEGACY_A_TO_NPERP_ON_PO_OR__NO_CLINICAL_AUTHORITY"

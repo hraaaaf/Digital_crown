@@ -481,6 +481,54 @@
       "canonical_measurement_id": "M_U6_PTV_MM_V1",
       "state": "MAPPED",
       "reason": "CANONICAL_V2_MANUAL_U6_DISTAL_SOURCE_LOCKED_PTV"
+    },
+    {
+      "method_id": "COM_DC_LEGACY_FMA_PO_OR_DEG_V1",
+      "canonical_measurement_id": "M_COM_DC_LEGACY_FMA_PO_OR_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_LEGACY_COM_GO_ME_AND_PO_OR_RAYS"
+    },
+    {
+      "method_id": "COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1",
+      "canonical_measurement_id": "M_COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_LEGACY_COM_U1_AND_PO_OR_RAYS"
+    },
+    {
+      "method_id": "COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1",
+      "canonical_measurement_id": "M_COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_LEGACY_COM_A_B_PROJECTION_ON_PO_OR"
+    },
+    {
+      "method_id": "COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1",
+      "canonical_measurement_id": "M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_LEGACY_COM_A_TO_NPERP_ON_PO_OR"
+    },
+    {
+      "method_id": "COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1",
+      "canonical_measurement_id": "M_COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_LEGACY_COM_B_TO_NPERP_ON_PO_OR"
+    },
+    {
+      "method_id": "COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1",
+      "canonical_measurement_id": "M_COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_LEGACY_COM_UNSIGNED_S_TO_NPERP_ON_PO_OR"
+    },
+    {
+      "method_id": "COM_DC_LEGACY_OVERJET_FH_MM_V1",
+      "canonical_measurement_id": "M_COM_DC_LEGACY_OVERJET_FH_MM_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_DC_LEGACY_PO_OR_INCISOR_AXIS_PROJECTION"
+    },
+    {
+      "method_id": "COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1",
+      "canonical_measurement_id": "M_COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1",
+      "state": "MAPPED",
+      "reason": "EXACT_DC_LEGACY_SCREEN_POSITIVE_Y_PO_OR_NORMAL_PROJECTION"
     }
   ]
 }
