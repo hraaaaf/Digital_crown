@@ -45,9 +45,8 @@ const e2eHttpClient: LabReviewClient = {
       throw new Error('ISOLATED_LAB_REASON_CODE_REQUIRED');
     }
     reviewedReason = null;
-    const response = await labStaffHttpClient.review({
-      ...input, patient_only_reason: reason,
-    });
+    const payload = { ...input, patient_only_reason: reason };
+    const response = await labStaffHttpClient.review(payload);
     const verified = response as typeof response & { patient_only_reason?: string | null };
     if (verified.patient_only_reason !== reason) {
       throw new Error('ISOLATED_LAB_REASON_NOT_BOUND');
@@ -62,9 +61,8 @@ const e2eHttpClient: LabReviewClient = {
       throw new Error('ISOLATED_LAB_REASON_CHANGED_AFTER_REVIEW');
     }
     try {
-      return await labStaffHttpClient.approve({
-        ...input, patient_only_reason: reason,
-      });
+      const payload = { ...input, patient_only_reason: reason };
+      return await labStaffHttpClient.approve(payload);
     } finally {
       // The challenge is one-use. Never reuse cached review context.
       reviewedReason = null;
