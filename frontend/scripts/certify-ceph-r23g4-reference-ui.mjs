@@ -30,6 +30,7 @@ const browser = await chromium.launch({headless:true});
 async function viewportRun(viewport) {
   const label = viewport.width + 'x' + viewport.height;
   const rec = {viewport:label, checks:[], shots:[], errors:[], valid:false};
+  let heldComRowId = null;
   const api = await request.newContext({baseURL:backend});
   let context;
   let page;
@@ -117,6 +118,9 @@ async function viewportRun(viewport) {
       if(data.analysis_id!==ids.older_id || !Number.isSafeInteger(data.revision) || data.revision<=0
         || data.clinical_release!==false || data.reference_display_only!==true
         || data.profiles?.com?.rows?.length!==10)throw Error('Source/identity safety contract absent');
+      // Choose a row without explicit runtime Focus evidence. Do not search for
+      // the text "NC": it also occurs inside the French word "interincisif".
+      heldComRowId=data.profiles.com.rows.find(row=>!row.focus_evidence)?.canonical_measurement_id ?? null;
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
       await panel.waitFor({state:'visible'});
       const table=panel.locator('table[data-r23g4-row-count="10"]');
@@ -131,8 +135,9 @@ async function viewportRun(viewport) {
     });
     await check('NO_FABRICATED_FOCUS_ON_COM_HOLD',async()=>{
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
-      const held=panel.locator('tbody tr').filter({hasText:'NC'}).first();
-      if(await held.count()!==1)throw Error('No held COM row to test');
+      if(!heldComRowId)throw Error('No COM row without source Focus evidence to test');
+      const held=panel.locator(`tbody tr[data-r23g4-factor="${heldComRowId}"]`);
+      if(await held.count()!==1)throw Error('Exact COM row without Focus evidence is absent');
       await held.locator('button[data-r23g4-focus-select]').click();
       const evidence=held.locator('[data-r23g4-focus-authority="refused"]');
       await evidence.waitFor({state:'visible'});
