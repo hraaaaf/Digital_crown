@@ -30,3 +30,49 @@ def test_sql_lab_proposal_replay_conflict(db, dentiste, monkeypatch):
         lab.propose(db, token=token, **{**args, "digest": "0" * 64})
     with pytest.raises(lab.TransferLabRejected, match="DEVICE_AUTH_REQUIRED"):
         lab.propose(db, token="invalid", **args)
+
+
+def test_real_encrypted_media_core_receipt_replay_lab(
+    client, db, dentiste, auth_headers, monkeypatch, tmp_path
+):
+    import hashlib
+    import uuid
+    from io import BytesIO
+    from PIL import Image
+    from sqlalchemy import select
+    from backend.tests.test_imaging_acquisition_preflight_v15 import _lab, _patient
+    from backend.services import imaging_acquisition_transfer_lab_v15 as lab
+    from backend.models_media_core import ClinicalAsset
+
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
+    monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
+    monkeypatch.setattr("backend.services.clinical_asset_storage.get_media_root", lambda: tmp_path)
+    workstation = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    device = "d-" + uuid.uuid4().hex
+    capture = "c-" + uuid.uuid4().hex
+    device_token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
+    output = BytesIO()
+    Image.new("RGB", (4, 4)).save(output, format="PNG")
+    content = output.getvalue()
+    digest = hashlib.sha256(content).hexdigest()
+    lab.propose(db, tenant=dentiste.id, device=device, token=device_token,
+                capture=capture, digest=digest, size=len(content))
+    lab.approve(db, staff=dentiste, tenant=dentiste.id, workstation=workstation,
+                device=device, capture=capture, patient=patient.id, appointment=None)
+    args = dict(tenant=dentiste.id, device=device, token=device_token,
+                capture=capture, payload=content, mime="image/png")
+    original = lab.transfer(db, **args)
+    assert original["status"] == "LAB_SERVER_RECEIPT"
+    assert original["server_confirmed"] is False
+    assert lab.transfer(db, **args) == original
+    assert lab.lookup(db, tenant=dentiste.id, device=device,
+                      token=device_token, capture=capture) == original
+    asset = db.query(ClinicalAsset).filter(ClinicalAsset.id == original["asset_id"]).one()
+    assert asset.patient_id == patient.id
+    assert asset.sha256 == digest
+    assert asset.provenance_json["ingestion_channel"] == "LOT06B_LAB_ONLY"
+    assert len(list(tmp_path.rglob("*.dcm"))) >= 1
+    for table in (lab.receipts, lab.audit, lab.outbox):
+        assert len(db.execute(select(table)).all()) >= 1
