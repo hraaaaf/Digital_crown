@@ -68,14 +68,22 @@ def test_real_encrypted_media_core_receipt_replay_lab(
                     patient_id=patient.id, explicit_staff_action=True)
     approved = client.post(prefix + "/approve", json=approval, headers=auth_headers)
     assert approved.status_code == 200, approved.text
-    args = dict(tenant=dentiste.id, device=device, token=device_token,
-                capture=capture, payload=content, mime="image/png")
-    original = lab.transfer(db, **args)
+    def send(payload=content):
+        return client.post(
+            prefix + "/transfer", headers=device_headers,
+            data=dict(tenant=str(dentiste.id), device=device, capture=capture),
+            files={"file": ("fixture.png", payload, "image/png")},
+        )
+    assert send(b"tampered").status_code == 409
+    reply = send()
+    assert reply.status_code == 200, reply.text
+    original = reply.json()
     assert original["status"] == "LAB_SERVER_RECEIPT"
     assert original["server_confirmed"] is False
-    assert lab.transfer(db, **args) == original
-    assert lab.lookup(db, tenant=dentiste.id, device=device,
-                      token=device_token, capture=capture) == original
+    assert send().json() == original
+    receipt = client.get(prefix + "/receipt", headers=device_headers,
+                         params=dict(tenant=dentiste.id, device=device, capture=capture))
+    assert receipt.status_code == 200 and receipt.json() == original
     asset = db.query(ClinicalAsset).filter(ClinicalAsset.id == original["asset_id"]).one()
     assert asset.patient_id == patient.id
     assert asset.sha256 == digest
