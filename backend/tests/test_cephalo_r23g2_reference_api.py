@@ -50,8 +50,9 @@ def _assert_source_only(reply, analysis_id, revision):
                 assert evidence["measurement_ref"] in row["measurement_refs"]
                 assert evidence["value_authority_method_id"] == row["value_authority_method_id"]
     com = body["profiles"]["com"]["rows"]
-    assert any(row["contract_state"].startswith("PENDING_EQUIVALENCE") and row["value"] is None
-               for row in com)
+    legacy_rows = [row for row in com if row["canonical_measurement_id"].startswith("M_COM_DC_LEGACY_")]
+    assert len(legacy_rows) == 8
+    assert all("NO_CLINICAL_AUTHORITY" in row["contract_state"] for row in legacy_rows)
     return body
 
 

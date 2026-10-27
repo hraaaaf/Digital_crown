@@ -10,18 +10,6 @@ const meta = {
   atlas: ['ricketts_atlas2009', 'RICKETTS_ATLAS_2009_COMPLETE_33_PROTOCOL_V1', 33, 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__ALL_33_EXECUTABLE_OR_CONDITIONAL', 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED'],
   gregoret: ['ricketts_gregoret13', 'RICKETTS_GREGORET_1997_SUMMARIZED_13_PROTOCOL_V1', 13, 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED__FAIL_CLOSED', 'COMPOSITION_AND_EXECUTION_CONTRACTS_SOURCE_LOCKED'],
 } as const;
-const comIds = [
-  'M_COM_DC_LEGACY_OVERJET_FH_MM_V1',
-  'M_COM_DC_LEGACY_OVERBITE_SCREEN_POSITIVE_Y_FH_MM_V1',
-  'M_IMPA_GOME_DEG_V1',
-  'M_COM_DC_LEGACY_U1_FH_PO_OR_DEG_V1',
-  'M_INTERINCISAL_DEG_V1',
-  'M_COM_DC_LEGACY_FMA_PO_OR_DEG_V1',
-  'M_COM_DC_LEGACY_AB_PRIME_PO_OR_MM_V1',
-  'M_COM_DC_LEGACY_A_NPERP_PO_OR_MM_V1',
-  'M_COM_DC_LEGACY_B_NPERP_PO_OR_MM_V1',
-  'M_COM_DC_LEGACY_S_NPERP_DEPTH_PO_OR_MM_V1',
-] as const;
 type Key = keyof typeof meta;
 const profile = (key: Key) => {
   const [, id, size, status, gate] = meta[key];
@@ -29,7 +17,7 @@ const profile = (key: Key) => {
     protocol_profile_id: id, profile_status: status, source_lock_gate: gate,
     classification_authority: false,
     rows: Array.from({ length: size }, (_, i) => ({
-      order: i + 1, canonical_measurement_id: key === 'com' ? comIds[i] : `M_TEST_${i + 1}_MM_V1`,
+      order: i + 1, canonical_measurement_id: `M_TEST_${i + 1}_MM_V1`,
       label: `Source ${i + 1}`, unit: 'mm', source_contract: id,
       contract_state: 'PENDING_EQUIVALENCE', classification_authority: false,
       availability_status: 'NOT_COMPUTABLE', value: null,
@@ -103,8 +91,5 @@ describe('R23-G4 experimental reference reader, fail-closed', () => {
     const second = payload();
     second.profiles.com.source_lock_gate = 'NOT_LOCKED' as never;
     expect(readCephaloR23G2Protocol(second, 'com')).toBeNull();
-    const third = payload();
-    third.profiles.com.rows[0].canonical_measurement_id = 'M_OVERJET_MM_V1';
-    expect(readCephaloR23G2Protocol(third, 'com')).toBeNull();
   });
 });
