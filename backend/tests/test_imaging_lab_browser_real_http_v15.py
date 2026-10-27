@@ -177,27 +177,26 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                          "value": client.cookies["dc_workstation"],
                          "url": backend_origin},
                     ])
-                    context.add_init_script(
-                        """([token,fixture]) => {
-                          localStorage.setItem('token', token);
-                          window.__DC06B_HTTP_TEST__ = fixture;
-                        }""",
-                        [jwt, {
-                            "workstationId": station,
-                            "capture": {
-                                "device": device, "capture": capture,
-                                "modality": "PNG synthetique HTTP",
-                                "claimedSha256": digest,
-                                "receivedAtLabel": "Fixture TEST uniquement",
-                            },
-                            "targets": [{
-                                "patientId": patient.id,
-                                "label": f"Patient synthétique {patient.id}",
-                                "appointments": [{
-                                    "id": rdv.id, "label": "RDV synthétique"
-                                }],
+                    fixture = {
+                        "workstationId": station,
+                        "capture": {
+                            "device": device, "capture": capture,
+                            "modality": "PNG synthetique HTTP",
+                            "claimedSha256": digest,
+                            "receivedAtLabel": "Fixture TEST uniquement",
+                        },
+                        "targets": [{
+                            "patientId": patient.id,
+                            "label": f"Patient synthétique {patient.id}",
+                            "appointments": [{
+                                "id": rdv.id, "label": "RDV synthétique",
                             }],
                         }],
+                    }
+                    context.add_init_script(
+                        "localStorage.setItem('token', " + json.dumps(jwt) +
+                        ");window.__DC06B_HTTP_TEST__=" +
+                        json.dumps(fixture, ensure_ascii=False) + ";"
                     )
                     page = context.new_page()
                     page.goto("http://127.0.0.1:5186/staff-review-http-fixture.html",
@@ -311,7 +310,9 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         ClinicalAsset.patient_id == patient.id,
                     ).all()
                     assert len(assets) == 1 and assets[0].sha256 == digest
-                    assert db.execute(select(lab.receipts)).rowcount != 0 or first
+                    assert len(db.execute(select(lab.receipts).where(
+                        lab.receipts.c.receipt_id == first["receipt_id"]
+                    )).all()) == 1
                     report = {
                         "kind": "LOT06B_REAL_HTTP_ASGI_BROWSER_FIXTURE",
                         "real_fastapi_asgi": True,
@@ -329,8 +330,12 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                             for method,route,status in recorded
                         ],
                     }
-                    evidence = tmp_path / "lot06b-real-http-proof.json"
-                    evidence.write_text(json.dumps(report,indent=2)+"\n",encoding="utf-8")
+                    evidence_root = Path(os.environ.get(
+                        "DC06B_HTTP_EVIDENCE_DIR", str(tmp_path)
+                    ))
+                    evidence_root.mkdir(parents=True, exist_ok=True)
+                    evidence = evidence_root / "lot06b-real-http-proof.json"
+                    evidence.write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
                     print("LOT06B_REAL_HTTP_REACT_FASTAPI_RECEIPT_PASS")
                     context.close()
                 finally:
