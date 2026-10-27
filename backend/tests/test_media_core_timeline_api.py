@@ -1,6 +1,7 @@
 from datetime import datetime
 from io import BytesIO
 
+import fitz
 from PIL import Image
 
 from backend import models
@@ -216,3 +217,51 @@ def test_timeline_rejects_another_tenants_patient(
     response = client.get(f"/api/patients/{patient.id}/assets", headers=auth_headers)
 
     assert response.status_code in {403, 404}
+
+
+def test_authenticated_pdf_page_preview_renders_real_pixels_without_leaking_cross_patient(
+    client, db, dentiste, auth_headers, tmp_path, monkeypatch
+):
+    """LOCAL media-core PDF raster preserves the existing content-route RBAC."""
+    monkeypatch.setenv("SECRET_KEY", "c4-api-test-secret-key-material")
+    monkeypatch.setattr("backend.services.clinical_asset_storage.get_media_root", lambda: tmp_path)
+    patient_a = _patient(db, dentiste.id, "PREVIEW-A")
+    patient_b = _patient(db, dentiste.id, "PREVIEW-B")
+    with fitz.open() as pdf:
+        page = pdf.new_page(width=580, height=370)
+        page.insert_text((50, 80), "QA NON CLINIQUE - PAGE PDF", fontsize=23)
+        content = pdf.tobytes()
+    imported = client.post(
+        f"/api/patients/{patient_a.id}/assets/import",
+        headers=auth_headers,
+        data={"asset_type": "DOCUMENT", "source_kind": "UPLOAD"},
+        files={"file": ("nonclinical-test.pdf", content, "application/pdf")},
+    )
+    assert imported.status_code == 201, imported.text
+    asset_id = imported.json()["id"]
+    url = f"/api/patients/{patient_a.id}/assets/{asset_id}/preview-page"
+    response = client.get(url, params={"page": 1}, headers=auth_headers)
+    assert response.status_code == 200, response.text
+    assert response.headers["content-type"].startswith("image/png")
+    assert response.headers["cache-control"] == "private, no-store"
+    assert response.headers["x-content-type-options"] == "nosniff"
+    assert response.content.startswith(b"\x89PNG\r\n\x1a\n")
+    with Image.open(BytesIO(response.content)) as png:
+        assert png.size[0] >= 580
+        assert png.size[0] <= 1400
+        assert png.getbbox() is not None
+
+    # Never use a linked asset id to bypass exact patient or tenant validation.
+    wrong_patient = client.get(
+        f"/api/patients/{patient_b.id}/assets/{asset_id}/preview-page",
+        headers=auth_headers,
+    )
+    assert wrong_patient.status_code == 404
+    assert client.get(url, params={"page": 2}, headers=auth_headers).status_code == 404
+    assert client.get(url, params={"page": 0}, headers=auth_headers).status_code == 422
+    assert client.get(url).status_code in (401, 403)
+    photo = _import_image(client, auth_headers, patient_a.id, _png_bytes())
+    assert client.get(
+        f"/api/patients/{patient_a.id}/assets/{photo['id']}/preview-page",
+        headers=auth_headers,
+    ).status_code == 404
