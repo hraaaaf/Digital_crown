@@ -85,3 +85,18 @@ class RouteTransitionTests(unittest.TestCase):
             ])
         with self.assertRaises(AssertionError):
             validate_route_transition(baseline, complete + [("/api/clinical/new", ("POST",))])
+
+    def test_review_addition_is_exact_single_private_route(self):
+        from tools.imaging_gateway.qa_visual_runtime import LAB_HTTP, LAB_REVIEW
+        baseline = [EXISTING, P, (LAB_OPERATIONAL, ("GET",))] + list(LAB_HTTP)
+        reviewed = baseline + [LAB_REVIEW]
+        assert validate_route_transition(baseline, reviewed)[4] == [LAB_REVIEW]
+        assert validate_route_transition(reviewed, reviewed)[4:6] == ([], [])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(reviewed, baseline)
+        with self.assertRaises(AssertionError):
+            validate_route_transition(baseline, reviewed + [LAB_REVIEW])
+        with self.assertRaises(AssertionError):
+            validate_route_transition(baseline, baseline + [
+                (LAB_REVIEW[0], ("GET",))
+            ])
