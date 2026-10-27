@@ -126,7 +126,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
     monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
     monkeypatch.setattr(
         "backend.services.clinical_asset_storage.get_media_root",
-        lambda: tmp_path / "ciphertext",
+        lambda: tmp_path,
     )
     station = _lab(client, db, dentiste, auth_headers, monkeypatch)
     patient = _patient(db, dentiste.id, "LIVE" + str(dentiste.id))
@@ -228,21 +228,21 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     assert proposed["body"]["status"] == "AWAITING_STAFF"
                     # Upload cannot work before actual staff approval.
                     pre = page.evaluate(
-                        """async ([origin, tenant, device, capture, token]) => {
+                        """async ([origin,tenant,device,capture,token,encoded]) => {
                           const data=new FormData();
                           data.append('tenant',String(tenant));
                           data.append('device',device);data.append('capture',capture);
-                          data.append('file',new Blob([new Uint8Array([1,2,3])],
-                            {type:'image/png'}),'invalid.png');
+                          const bytes=Uint8Array.from(atob(encoded),x=>x.charCodeAt(0));
+                          data.append('file',new Blob([bytes],{type:'image/png'}),'synthetic.png');
                           const r=await fetch(origin+'/api/imaging-acquisitions/lab/transfer',{
-                            method:'POST',headers:{'X-DC06B-Lab-Device-Token':token},
-                            body:data
+                            method:'POST',headers:{'X-DC06B-Lab-Device-Token':token},body:data
                           });
                           return r.status;
                         }""",
-                        [backend_origin,dentiste.id,device,capture,device_token],
+                        [backend_origin,dentiste.id,device,capture,device_token,
+                         base64.b64encode(image).decode()],
                     )
-                    assert pre == 409  # the bytes do not match original claim
+                    assert pre == 403  # valid bytes cannot bypass approval
                     page.locator("#lab-patient").select_option(str(patient.id))
                     page.locator("#lab-appointment").select_option(str(rdv.id))
                     page.get_by_role("button", name="Vérifier le lien patient").click()
