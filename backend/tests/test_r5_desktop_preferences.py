@@ -122,7 +122,7 @@ def test_r5_two_users_two_workstations_and_production_flag(client,db,dentiste,mo
     db.refresh(station_b)
     client.cookies.set("dc_workstation",station_b_raw)
     assert client.get(url,headers=headers_b).json()["record"] is None
-    assert client.put(url,headers=headers=headers_b,json={"expectedRevision":0,
+    assert client.put(url,headers=headers_b,json={"expectedRevision":0,
         "record":_pref(employee.id,dentiste.id,station_b.id)}).status_code==200
     assert client.get(url,headers=headers_b).json()["record"]["workstationId"]==station_b.id
     monkeypatch.setattr(settings,"ENVIRONMENT","production")
