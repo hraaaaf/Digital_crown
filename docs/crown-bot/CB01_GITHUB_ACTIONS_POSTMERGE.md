@@ -45,3 +45,35 @@ The existing `frontend/scripts/certify-cb01-s01-s12-matrix.mjs` asserts and reco
 - A genuine clinic release or feature-flag activation requires a **separate explicit GO** and physical/staff proof (RPG-P) under its own scope. GitHub Actions green can close the technical CI gate, **not** the real-cabinet usability or release gate.
 
 **Operational rule:** No Desktop Commander is needed to execute or view these GitHub Actions proofs. If a later physical pilot is commissioned, choose any separately authorized test device; don't block the software-only CI stage on the old remote workstation.
+
+
+---
+
+## CB-03 SAFE_ACTIONS — G0 → G1 integration contract (2026-10-27, proposal only)
+
+**Status: design candidate, not implementation or certification.** This section is a bounded handoff for CB-03 G1, not an authorization to turn on CB-02/03 flags or to write clinical data. CB-01/02 release and human field qualification remain independent.
+
+### Verified source facts on master
+
+- `backend/routers/bot_guided_nlu_cb02.py` exposes `POST /guided/preview` only behind both `CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED` and `CROWN_BOT_GUIDED_NLU_ENABLED`. It requires an authenticated user, positive employer/user identity, intent-specific permissions, and tenant-filtered patient lookup; returns `proposal: null`, `executable: false`.
+- `backend/services/bot/guided_nlu_cb02.py` recognizes `RDV_PREPARE` but its required fields are patient/date/time/motif, **not** a verified practitioner, duration or resource. Its output is syntax, not an authorized appointment.
+- `backend/routers/bot.py` has a separate `POST /execute` that accepts only server-persisted `pending_action_id`; `backend/services/bot/atomic_action_claim.py` implements a conditional tenant/user/TTL-bound pending claim, intended to commit atomically with the business write. `action_dispatcher.py` delegates appointment creation to `_create_appointment_validated` and checks `clinical_revision` for status changes.
+- **Missing integration:** no verified CB-02 preview → server-generated pending action handoff. Do not manufacture pending action IDs or patient verification client-side.
+
+### First bounded G1 implementation candidate
+
+1. Add a **separate** server preparation endpoint under an additional default-OFF CB-03 flag. Require authenticated principal, positive tenant, live `agenda` and `patients` permissions. Reparse the original utterance server-side; reject unsupported intents and any stale/ambiguous patient selection.
+2. Re-resolve patient from live tenant-scoped, non-deleted records. Require a **verified practitioner, appointment duration, resource, clinic-local start time** and live availability checks. Reject missing/ambiguous inputs; never silently choose a practitioner or room.
+3. Before issuing any opaque pending action, establish the canonical existing `BotPendingAction` schema/TTL, ownership and transaction boundaries, plus immutable version snapshots needed for anti-ABA. If the existing model cannot represent all necessary checks, **STOP** and revise the contract; do not create a parallel action authority.
+4. Return a clearly labelled non-executed proposal with the exact patient/practitioner/start/duration/motif/resource and expiration. **No appointment INSERT, status UPDATE, document signature, automatic confirmation or client-authored executable payload** in G1.
+5. Keep G2 confirmation separate: explicit user confirmation → existing `/bot/execute` with opaque server ID → full revalidation → canonical transactional business write → server-confirmed success. On timeout, report uncertain and reconcile by ID, never blind retry.
+
+### Required tests before any G1 PR merge
+
+- Flags OFF: 404, no reads/writes of patient or appointment data; 401/403 for auth and permission failures.
+- Tenant isolation, soft-deleted/foreign patient uniform 404, homonyms and stale chosen patient 409, malformed/unsupported intent 422 or explicit refusal.
+- Missing practitioner, resource, duration or slot: **no executable proposal**; overlapping/closed slots and stale versions denied.
+- No appointment or clinical mutation during preparation; no pending action created from client-supplied patient/tenant/action fields.
+- Follow-on G2 tests: concurrent confirmations, CAS replay, expiry, revision anti-ABA, atomic rollback, network-uncertain reconciliation and no false UI success.
+
+**Gate:** no clinical production data, migration, deployment, flag ON, Pocket/mobile activation, merge or release from this design note. Source review and synthetic test fixtures first.
