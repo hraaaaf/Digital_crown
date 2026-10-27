@@ -5,6 +5,16 @@ from datetime import datetime,timedelta
 from zoneinfo import ZoneInfo
 import requests
 from playwright.sync_api import sync_playwright
+# Attest only this brand-new GitHub-hosted CI file, before importing backend.
+assert os.getenv("GITHUB_ACTIONS")=="true" and os.getenv("DIGITALCROWN_ISOLATED_RUNTIME")=="1"
+assert os.getenv("CB03_G7_BROWSER_LAB")=="1" and os.getenv("ENVIRONMENT")=="rehearsal"
+temp=Path(os.environ["RUNNER_TEMP"]).resolve()
+dbfile=temp/"cb03-g7-browser-synthetic.db"
+assert dbfile.parent==temp and not dbfile.exists(),"REFUSED_PREEXISTING_DB"
+target=os.environ.get("DATABASE_URL","")
+assert target=="sqlite:///"+str(dbfile),"REFUSED_DB_TARGET"
+from backend.core.runtime_safety import database_target_fingerprint
+os.environ["DIGITALCROWN_ISOLATION_DB_FINGERPRINT"]=database_target_fingerprint(target)
 from backend import database,models
 from backend.security import get_password_hash
 from sqlalchemy import inspect
