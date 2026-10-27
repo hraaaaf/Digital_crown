@@ -256,3 +256,37 @@ def test_lab_device_and_staff_revocation_prevent_receipt_creation(
     assert db.query(ClinicalAsset).filter(ClinicalAsset.employer_id == dentiste.id,
                                           ClinicalAsset.patient_id == patient.id,
                                           ClinicalAsset.source_kind == "DEVICE_CAPTURE").count() == 1
+
+
+def test_staff_review_challenge_rotation_expiry_and_patient_binding(
+    client, db, dentiste, auth_headers, monkeypatch
+):
+    import hashlib
+    import uuid
+    from backend.tests.test_imaging_acquisition_preflight_v15 import _lab, _patient
+    from backend.services import imaging_acquisition_transfer_lab_v15 as lab
+
+    monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
+    station = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    other = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    device, capture = "review-" + uuid.uuid4().hex, "review-" + uuid.uuid4().hex
+    token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
+    lab.propose(db, tenant=dentiste.id, device=device, token=token,
+                capture=capture, digest=hashlib.sha256(b"test").hexdigest(), size=4)
+    args = dict(staff=dentiste, tenant=dentiste.id, workstation=station,
+                device=device, capture=capture, patient=patient.id, appointment=None)
+    old = lab.issue_review(db, **args)
+    new = lab.issue_review(db, **args)
+    with pytest.raises(lab.TransferLabRejected, match="STAFF_REVIEW_CHALLENGE_INVALID"):
+        lab.approve(db, **args, review_challenge=old["review_challenge"])
+    with pytest.raises(lab.TransferLabRejected, match="STAFF_REVIEW_BINDING_MISMATCH"):
+        lab.approve(db, **{**args, "patient": other.id},
+                    review_challenge=new["review_challenge"])
+    monkeypatch.setattr(lab.time, "time", lambda: new["expires_at"])
+    with pytest.raises(lab.TransferLabRejected, match="STAFF_REVIEW_EXPIRED"):
+        lab.approve(db, **args, review_challenge=new["review_challenge"])
+    monkeypatch.setattr(lab.time, "time", lambda: new["expires_at"] - 1)
+    assert lab.approve(db, **args, review_challenge=new["review_challenge"])["status"] == "APPROVED"
+    with pytest.raises(lab.TransferLabRejected, match="ALREADY_APPROVED"):
+        lab.approve(db, **args, review_challenge=new["review_challenge"])
