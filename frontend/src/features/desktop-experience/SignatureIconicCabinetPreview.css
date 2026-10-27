@@ -9,7 +9,7 @@
   flex-wrap: wrap;
   gap: .5rem;
   margin: 0 0 .75rem;
-  border: 1px solid var(--border-main);
+  border: 1px solid var(--border-color);
   border-radius: .9rem;
   padding: .55rem .75rem;
   background: var(--card-bg);
@@ -28,7 +28,7 @@
   min-height: 44px;
   align-items: center;
   gap: .4rem;
-  border: 1px solid var(--border-main);
+  border: 1px solid var(--border-color);
   border-radius: .65rem;
   background: var(--card-bg);
   padding: .5rem .85rem;
