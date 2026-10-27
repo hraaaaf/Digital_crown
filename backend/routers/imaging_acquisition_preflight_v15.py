@@ -103,3 +103,7 @@ def preflight(
         "source_capture_id": data.source_capture_id,
         "sha256": data.sha256,
     }
+
+# Keep all TEST-only transfer routes within the existing LOT06-B prefix.
+from backend.routers.imaging_acquisition_transfer_lab_v15 import router as _lab_router
+router.include_router(_lab_router)
