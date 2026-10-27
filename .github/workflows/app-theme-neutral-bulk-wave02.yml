@@ -1,13 +1,19 @@
 name: App Theme Wave02 — Exact-Diff Neutral Tokens (NO DEPLOY)
 on:
   push:
-    branches:
-      - fix/theme-neutral-bulk-wave02-20261025
-  pull_request:
-    branches:
-      - master
+    branches: [master]
+    paths:
+      - 'frontend/src/features/admin/Settings/**'
+      - 'frontend/src/features/accounting/**'
+      - 'frontend/src/features/multiview/themeTokens*'
+      - 'scripts/ci/theme_neutral_batch02.py'
+
 permissions:
   contents: read
+concurrency:
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   exact-diff-and-build:
     name: 14 high-debt modules — exact cosmetic diff, TS, regression, build
@@ -27,7 +33,7 @@ jobs:
       # The frozen Wave02 oracle certifies its historical migration, not later PRs.
       # Keep the workflow/check present on every PR (required-check safe).
       - name: Prove frozen historical Wave02 migration
-        if: github.event_name == 'push'
+        if: github.ref == 'refs/heads/fix/theme-neutral-bulk-wave02-20261025'
         run: python scripts/ci/theme_neutral_batch02.py
       - uses: actions/setup-node@v4
         with:

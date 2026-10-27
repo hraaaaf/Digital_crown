@@ -4,7 +4,7 @@ from pathlib import Path
 import sys
 import yaml
 
-FILES = ["cabinet-code-cert-candidate.yml","ceph-p2ter-master-bridge-preflight.yml","ceph-p2ter-master-bridge-real-cabinet.yml","ceph-p2ter-master-bridge-frontend.yml","patient-companion-d2-visual-cert.yml","patient-p1-architecture-after.yml","patient-indicators-cert.yml","ortho-f3-after.yml","ortho-f4-after.yml","ux-continuity-patientdetails-cert.yml","lot07-r3-1-after-screenshots.yml","lot07-r2-ux-polish-9plus.yml","lot07-r2-ronly-dec02-e2e.yml","clinic-p2-patient-billing-visual-cert.yml","media-c5-visual-cert.yml"]
+FILES = ["cabinet-code-cert-candidate.yml","ceph-p2ter-master-bridge-preflight.yml","ceph-p2ter-master-bridge-real-cabinet.yml","ceph-p2ter-master-bridge-frontend.yml","patient-companion-d2-visual-cert.yml","patient-p1-architecture-after.yml","patient-indicators-cert.yml","ortho-f3-after.yml","ortho-f4-after.yml","ux-continuity-patientdetails-cert.yml","lot07-r3-1-after-screenshots.yml","lot07-r2-ux-polish-9plus.yml","lot07-r2-ronly-dec02-e2e.yml","clinic-p2-patient-billing-visual-cert.yml","media-c5-visual-cert.yml", "v15-07-1ab-multiview-cabinet-lab.yml", "v15-07-1ab-g1-real-t2.yml", "app-theme-neutral-bulk-wave02.yml"]
 
 def check():
     errors = []

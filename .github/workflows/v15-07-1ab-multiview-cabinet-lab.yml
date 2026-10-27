@@ -1,30 +1,20 @@
 name: LOT07 07.1 G1 real Cabinet gated MultiView lab
 on:
   push:
-    branches:
-      - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-*'
-      - 'feat/v15-07-r2-patient-route-guard-*'
+    branches: [master]
     paths:
       - 'frontend/src/features/multiview/**'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/PatientDraftRouteGuard.tsx'
       - 'frontend/src/features/patients/patientDraftNavigationGate.ts'
       - 'frontend/src/App.tsx'
-      - '.github/workflows/v15-07-1ab-multiview-cabinet-lab.yml'
-      - 'docs/architecture/V15_07_1_AB_CABINET_G1_INTEGRATION.md'
-  pull_request:
-    branches:
-      - master
-      - 'feat/v15-07-1ab-multiview-nine-layout-contract-*'
-      - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-*'
-      - 'feat/v15-07-1ab-multiview-cabinet-g1-lab-r2-security-*'
-      - 'feat/v15-07-r2-patient-route-guard-*'
 
 permissions:
   contents: read
 
+
 concurrency:
-  group: lot07-071-g1-lab-${{ github.ref }}
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
