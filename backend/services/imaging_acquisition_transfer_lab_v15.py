@@ -207,7 +207,9 @@ def lookup(db: Session, *, tenant: int, device: str, token: str, capture: str) -
 
 
 def transfer(db: Session, *, tenant: int, device: str, token: str, capture: str,
-             payload: bytes, mime: str) -> dict:
+             payload: bytes, mime: str, fail_at: str | None = None) -> dict:
+    if fail_at not in (None, "after_ingest", "after_receipt", "after_audit", "after_outbox"):
+        raise TransferLabRejected("INVALID_LAB_FAILPOINT", 422)
     _device(db, tenant=tenant, device=device, token=token)
     where = (
         (captures.c.tenant == tenant) & (captures.c.device == device)
@@ -264,18 +266,26 @@ def transfer(db: Session, *, tenant: int, device: str, token: str, capture: str,
                 "capture_id": capture,
             },
         )
+        if fail_at == "after_ingest":
+            raise TransferLabRejected("INJECTED_LAB_ROLLBACK", 503)
         rid = "LAB-SERVER-" + secrets.token_hex(16)
         db.execute(insert(receipts).values(
             tenant=tenant, device=device, capture=capture,
             receipt_id=rid, asset_id=result.asset.id,
             patient=row["patient"], digest=row["digest"],
         ))
+        if fail_at == "after_receipt":
+            raise TransferLabRejected("INJECTED_LAB_ROLLBACK", 503)
         db.execute(insert(audit).values(
             receipt_id=rid, event="LAB_ACQUISITION_COMMITTED"
         ))
+        if fail_at == "after_audit":
+            raise TransferLabRejected("INJECTED_LAB_ROLLBACK", 503)
         db.execute(insert(outbox).values(
             receipt_id=rid, event="LAB_MEDIA_READY"
         ))
+        if fail_at == "after_outbox":
+            raise TransferLabRejected("INJECTED_LAB_ROLLBACK", 503)
         db.commit()
         db.refresh(result.asset)
     except (ClinicalAssetIngestionError, ClinicalAssetStorageError, IntegrityError,
