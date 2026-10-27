@@ -21,8 +21,8 @@ export function R3AgendaReadonlyPanel({user}:{user:AppUser}) {
     ? (rows.length===0?'empty':'populated') : appointmentsState;
   return <section data-testid="r3-real-agenda" data-r3-agenda-state={agendaVisualState}
     aria-label="Agenda Cabinet lecture seule"
-    className="min-w-0 space-y-2 p-3 text-text-main">
-    <div className="flex items-center justify-between gap-2">
+    className="dc-r3-agenda min-w-0 space-y-3 p-3 text-text-main">
+    <div className="flex items-center justify-between gap-2 border-b border-border-main pb-2">
       <div className="flex min-w-0 items-center gap-2">
         <h3 className="text-sm font-semibold">Agenda</h3>
         {ready && <span className="rounded-full border border-border-main bg-medical-pearl px-2 py-0.5 text-[11px] font-semibold text-primary-ink">
@@ -43,18 +43,18 @@ export function R3AgendaReadonlyPanel({user}:{user:AppUser}) {
             ? <div data-testid="r3-agenda-empty" className="flex min-h-[120px] items-center justify-center rounded-xl border border-dashed border-border-main bg-medical-pearl/50 px-4 py-5 text-center">
                 <p role="status" className="text-xs text-text-muted">Aucun rendez-vous aujourd'hui.</p>
               </div>
-            : <div className="max-h-[390px] overflow-auto">
-                <table className="w-full text-left text-xs">
+            : <div data-testid="r3-agenda-table-wrap" className="max-h-[390px] overflow-auto rounded-xl border border-border-main bg-card">
+                <table className="w-full table-fixed text-left text-xs">
                   <caption className="sr-only">Rendez-vous vérifiés du jour, lecture seule</caption>
                   <thead><tr className="text-text-muted">
-                    <th scope="col" className="py-2">Heure</th>
-                    <th scope="col" className="py-2">Rendez-vous</th>
-                    <th scope="col" className="py-2">Statut</th>
+                    <th scope="col" className="w-[22%] px-3 py-3">Heure</th>
+                    <th scope="col" className="w-[48%] px-3 py-3">Rendez-vous</th>
+                    <th scope="col" className="w-[30%] px-3 py-3">Statut</th>
                   </tr></thead>
                   <tbody>{rows.map(item=><tr key={item.id} className="border-t border-border-main">
-                    <td className="py-2 tabular-nums">{item.time}</td>
-                    <td className="py-2">{item.patientLabel}</td>
-                    <td className="py-2">{item.status}</td>
+                    <td className="px-3 py-3 font-bold tabular-nums text-primary-ink">{item.time}</td>
+                    <td className="break-words px-3 py-3 font-semibold text-text-main">{item.patientLabel}</td>
+                    <td className="px-3 py-3"><span className="inline-flex max-w-full rounded-full border border-border-main bg-medical-pearl px-2 py-1 text-[11px] font-semibold text-text-main">{item.status}</span></td>
                   </tr>)}</tbody>
                 </table>
               </div>}
