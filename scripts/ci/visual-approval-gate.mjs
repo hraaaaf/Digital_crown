@@ -27,6 +27,48 @@ const head=async(api,pr)=>{
 };
 const hasLabel=async(api,pr)=>
   (await pages(api,`/issues/${pr}/labels`)).some(x=>x?.name===APPROVAL_LABEL);
+
+/**
+ * Human sign-off is for operator-visible UX/UI, NOT every path under frontend/.
+ * Everything unknown remains visual-impacting (fail closed). Only provably
+ * non-rendered source is exempt: tests, typing, static docs and pure API
+ * transport adapters. A rename checks BOTH old and new paths.
+ */
+const NON_VISUAL_EXACT = new Set([
+  'frontend/README.md',
+  'frontend/.gitignore',
+  'frontend/package-lock.json',
+  'frontend/tsconfig.json',
+  'frontend/tsconfig.app.json',
+  'frontend/tsconfig.node.json',
+  'frontend/eslint.config.js',
+]);
+function isClearlyNonVisualFrontendPath(path) {
+  if (NON_VISUAL_EXACT.has(path)) return true;
+  if (/\.d\.[cm]?ts$/.test(path)) return true;
+  if (/\.(?:test|spec)\.[cm]?[jt]sx?$/.test(path)) return true;
+  if (/^frontend\/src\/(?:test|types)\//.test(path)) return true;
+  if (/^frontend\/src\/.*\/(?:__tests__|__mocks__)\//.test(path)) return true;
+  if (/^frontend\/src\/services\/.*\.[cm]?[jt]s$/.test(path)) return true;
+  if (/^frontend\/src\/features\/imaging\/StaffReviewLabApi\.ts$/.test(path)) return true;
+  return false;
+}
+export function requiresHumanVisualReview(files) {
+  if (!Array.isArray(files) || files.length === 0)
+    throw new Error('Visual impact cannot be classified without PR file inventory');
+  for (const file of files) {
+    if (typeof file?.filename !== 'string' || !file.filename)
+      throw new Error('Visual impact inventory contains invalid filename');
+    const paths = [file.filename];
+    if (file.status === 'renamed' &&
+        (typeof file.previous_filename !== 'string' || !file.previous_filename))
+      throw new Error('Renamed file lacks previous path: fail closed');
+    if (typeof file.previous_filename === 'string') paths.push(file.previous_filename);
+    if (paths.some(path => path.startsWith('frontend/') &&
+        !isClearlyNonVisualFrontendPath(path))) return true;
+  }
+  return false;
+}
 /** Owner's 25 Oct 2026 waiver: exact, independently evidenced token-only waves.
  * This is deliberately SHA-bound: an altered diff never inherits the waiver.
  * Future waves require their own exact-diff + build/contrast proof and a
@@ -78,11 +120,11 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
     const actual=await head(api,number);
     if(actual!==eventHead)throw new Error('Stale synchronize event: HEAD differs from PR HEAD');
     const files=await pages(api,`/pulls/${number}/files`);
-    const touchesUI=files.some(x=>typeof x?.filename==='string'&&x.filename.startsWith('frontend/'));
+    const touchesUI=requiresHumanVisualReview(files);
     const priorLabel=await hasLabel(api,number);
     // Do not block back-end/docs PRs that have never needed visual approval.
     // An existing label, even on a non-UI PR, must still be revoked.
-    if(!touchesUI&&!priorLabel)return {state:'skipped-non-ui',head:actual};
+    if(!touchesUI&&!priorLabel)return {state:'skipped-non-visual',head:actual};
     if(priorLabel){
       try{ await api.delete(`/issues/${number}/labels/${APPROVAL_LABEL}`); }
       catch(error){
@@ -93,6 +135,9 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
       throw new Error('Stale visual approval label still present after DELETE');
     if((await head(api,number))!==actual)
       throw new Error('PR HEAD changed during approval revocation');
+    // A technical-only update must not remain RED merely because a previous
+    // visible UI revision carried a now-revoked approval label.
+    if(!touchesUI)return {state:'skipped-non-visual',head:actual};
     if(await verifiedTokenOnlyWaiver(api,number,actual,files)) {
       if((await head(api,number))!==actual)throw new Error('PR HEAD changed during auto token-only synchronize checks');
       return {state:'auto-token-only-verified',head:actual};
@@ -101,8 +146,8 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
   }
 
   const files=await pages(api,`/pulls/${number}/files`);
-  if(!files.some(x=>typeof x?.filename==='string'&&x.filename.startsWith('frontend/')))
-    return {state:'skipped-non-ui',head:await head(api,number)};
+  if(!requiresHumanVisualReview(files))
+    return {state:'skipped-non-visual',head:await head(api,number)};
 
   const actual=await head(api,number);
   if(actual!==eventHead)throw new Error('Stale webhook event: PR HEAD differs from event HEAD');
