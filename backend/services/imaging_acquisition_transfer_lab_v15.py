@@ -140,9 +140,12 @@ def approve(db: Session, *, staff: models.User, tenant: int, workstation: str,
     guard(db)
     if int(staff.get_employer_id()) != tenant or not has_permission(staff, "patients"):
         raise TransferLabRejected("STAFF_NOT_AUTHORIZED", 403)
-    decision = resolve_acquisition_preflight(
-        db, employer_id=tenant, patient_id=patient, appointment_id=appointment
-    )
+    try:
+        decision = resolve_acquisition_preflight(
+            db, employer_id=tenant, patient_id=patient, appointment_id=appointment
+        )
+    except PreflightRejected as exc:
+        raise TransferLabRejected(exc.reason, exc.status_code) from exc
     if decision.patient_id != patient or decision.status != "STAFF_CONFIRMATION_REQUIRED":
         raise TransferLabRejected("PATIENT_LINK_REQUIRED")
     where = (
