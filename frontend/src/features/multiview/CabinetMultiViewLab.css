@@ -957,3 +957,150 @@
     transition: none !important;
   }
 }
+
+
+/* R3-PREMIUM-9V — ONE GATED FINAL LOT / real DEV cabinet lab only.
+   Composition adapts to proven content and real slot widths, not mock data.
+   Existing server GET/RBAC, locked 50/50 ratios and min slot widths unchanged. */
+
+/* 01: media occupies the dominant right-hand region of Overview on wide
+   verified desktop workspaces; dossier width remains >=440px. */
+@media (min-width: 1600px) {
+  [data-v15-071-real-cabinet-lab]
+    [data-v15-071-layout="vue-ensemble"]
+    [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"] {
+    grid-template-columns: minmax(0, .4fr) minmax(0, .6fr) !important;
+    grid-template-rows: minmax(145px, .32fr) minmax(440px, 1.68fr) !important;
+    height: min(62vh, 665px);
+    min-height: 605px;
+  }
+}
+[data-v15-071-real-cabinet-lab]
+  .dc-r3-patient-summary > div:first-child {
+  padding: 12px 15px;
+  border-radius: 14px;
+}
+[data-v15-071-real-cabinet-lab]
+  .dc-r3-patient-summary [data-testid="r3-1-dossier-readonly-help"] {
+  padding: 7px 10px;
+  font-size: 11px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="vue-ensemble"] [data-v15-071-viewslot="dossier"] {
+  background: linear-gradient(160deg,var(--card-bg),var(--bg-medical-pearl));
+}
+
+/* 02,03,08: only truly populated 1..3-appointment desktop panels shrink;
+   loading/denied/nonempty-rich and smaller widths do NOT take this shortcut.
+   50/50 independent scrolling is kept by R3SplitWorkspace. */
+@media (min-width:1500px) and (min-height:850px) {
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-layout="consultation"],
+        [data-v15-071-layout="agenda-cabinet"],
+        [data-v15-071-layout="gestion-administrative"])[data-r3-1-split="two-columns"]
+    [data-testid="r3-1-grid"]:has(
+      [data-r3-agenda-state="populated"] tbody tr:nth-child(-n+3):last-child
+    ) {
+    height: clamp(315px, 31vh, 355px) !important;
+    min-height: 315px !important;
+  }
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-layout="consultation"],
+        [data-v15-071-layout="agenda-cabinet"],
+        [data-v15-071-layout="gestion-administrative"])[data-r3-1-split="two-columns"]
+    [data-testid="r3-1-grid"]:has([data-r3-agenda-state="empty"]) {
+    height: 280px !important;
+    min-height: 280px !important;
+  }
+}
+
+/* 04,08: a media slot's own width owns rail/viewer layout — the browser's
+   1920px viewport must never force 260px fixed rail inside narrow panels. */
+@container (min-width: 510px) and (max-width: 960px) {
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="documents"],[data-v15-071-viewslot="photos"])
+    [data-testid="r3-media-asset-layout"] {
+    grid-template-columns: minmax(148px,.3fr) minmax(0,1fr) !important;
+    gap: 10px;
+  }
+}
+@container (max-width: 509px) {
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="documents"],[data-v15-071-viewslot="photos"])
+    [data-testid="r3-media-asset-layout"] {
+    grid-template-columns: minmax(0,1fr) !important;
+  }
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="documents"],[data-v15-071-viewslot="photos"])
+    [data-testid="media-asset-rail"] {
+    max-height: 145px !important;
+    overflow-y: auto;
+  }
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-viewslot="documents"] [data-testid="r3-document-source-ready"] {
+  position: relative;
+  z-index: 1;
+  min-height: 78px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-viewslot="documents"] [data-testid="r3-document-preview"] iframe {
+  display: block;
+  border: 0;
+  min-height: 270px;
+  background: var(--card-bg);
+}
+
+/* 05: compact the source/header and align the actual T0/T1 measure cards.
+   A numerical delta is sourced from the authenticated compare endpoint. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="comparaison-orthodontique"]
+  [data-r3-cephalo-state="ready"] [data-testid^="r3-cephalo-measure-t"] {
+  min-height: 95px;
+  padding: 12px;
+}
+
+/* 06: three real Master Plan steps prioritize a scan path, not a blank
+   large 3-column hero surface. Keep the lower medical-media slot visible. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="planification-traitements"]
+  [data-v15-071-multiview-grid][data-v15-071-geometry="hero-two"] {
+  grid-template-rows: minmax(150px,.54fr) minmax(335px,1.46fr) !important;
+  height: min(59vh,625px);
+  min-height: 525px;
+}
+[data-v15-071-real-cabinet-lab] .dc-r3-treatment-steps > li {
+  min-height: 106px;
+}
+
+/* 07: authentic timeline starts higher in the split. The existing explicit
+   clinician Focus is still available with independent authorization. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"]
+  [data-v15-071-viewslot="suivi"] [aria-label="Comparaison orthodontique"] {
+  padding: 9px 12px !important;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"]
+  [data-v15-071-viewslot="suivi"] [aria-label="Comparaison orthodontique"]
+  > div:first-child {
+  margin-bottom: 4px !important;
+}
+
+/* 09: visually subordinate DEV controls while local presentation is
+   active; no masking/reveal actions hidden or disabled. */
+[data-v15-071-real-cabinet-lab]:has([data-testid="r3-presentation-visible"])
+  .dc-mv-commandbar {
+  box-shadow: none;
+  padding-top: 9px;
+  padding-bottom: 9px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="presentation-patient"]
+  [data-testid="r3-presentation-visible"] {
+  border-color: var(--border-color);
+  box-shadow: var(--shadow-elite);
+}
