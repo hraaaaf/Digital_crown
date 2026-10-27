@@ -6,6 +6,12 @@ on:
       - 'feat/v15-06-*'
     paths:
       - 'backend/services/imaging_acquisition_preflight_v15.py'
+      - 'backend/services/imaging_acquisition_transfer_lab_v15.py'
+      - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
+      - 'backend/tests/test_imaging_transfer_lab_v15.py'
+      - 'backend/services/imaging_acquisition_transfer_lab_v15.py'
+      - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
+      - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -58,6 +64,9 @@ jobs:
       - name: Compile contract and API
         run: |
           python -m py_compile backend/services/imaging_acquisition_preflight_v15.py
+          python -m py_compile backend/services/imaging_acquisition_transfer_lab_v15.py
+          python -m py_compile backend/routers/imaging_acquisition_transfer_lab_v15.py
+          python -m py_compile backend/tests/test_imaging_transfer_lab_v15.py
           python -m py_compile backend/routers/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_bridge_lifespan_v15.py
@@ -65,7 +74,7 @@ jobs:
           python -m py_compile tools/imaging_gateway/qa_visual_runtime.py
           python -m py_compile tools/imaging_gateway/tests/test_qa_visual_runtime.py
       - name: Preflight negative scenarios and Media Core regressions
-        run: python -m pytest backend/tests/test_imaging_acquisition_preflight_v15.py backend/tests/test_media_core_ingestion_api.py tools/imaging_gateway/tests/test_qa_visual_runtime.py -q
+        run: python -m pytest backend/tests/test_imaging_acquisition_preflight_v15.py backend/tests/test_imaging_transfer_lab_v15.py backend/tests/test_media_core_ingestion_api.py tools/imaging_gateway/tests/test_qa_visual_runtime.py -q
 
       - name: Real FastAPI lifespan + isolated Imaging Bridge synthetic integration
         run: python -m pytest backend/tests/test_imaging_bridge_lifespan_v15.py -q
