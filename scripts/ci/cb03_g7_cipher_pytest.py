@@ -21,7 +21,7 @@ _engine = None
 
 def pytest_configure(config):
     global _tmp, _dbfile, _engine
-    if os.getenv("GITHUB_ACTIONS") != "true" or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "1":
+    if os.getenv("GITHUB_ACTIONS") != "true" or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") not in {"1", "true"}:
         raise RuntimeError("G7_REFUSED_NOT_DISPOSABLE_CI")
     expected = os.getenv("CB03_G7_SOURCE_HEAD", "")
     actual = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
