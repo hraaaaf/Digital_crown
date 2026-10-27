@@ -5,6 +5,7 @@ import type {R5VerifiedScope} from './R5PreferencesPolicy';
 import {createR5Preference as projectR5,readR5Preference as readR5,
   type R5PreferenceRecord} from './R5PreferencesPolicy';
 import {r5PreferencesService,type R5PersistedState} from './R5PreferencesService';
+import {geometryGridStyle,geometrySlotStyle} from './studioGeometry';
 
 export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
   context:R5VerifiedScope;layouts:readonly Layout[];
@@ -100,9 +101,17 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
         className="rounded-lg border border-border-main px-2 py-1.5">Rollback</button>
       <span className="text-text-muted">Révision {state.revision} · aucun contenu patient enregistré</span>
     </div>
-    {preview&&selected&&<p data-testid="r5-multiview-preview" className="mt-2 text-xs" role="status">
-      Aperçu schématique : {selected.label}, {selected.geometry}. Appliquer pour enregistrer.
-    </p>}
+    {preview&&selected&&<div data-testid="r5-multiview-preview" role="status"
+       aria-label="Aperçu schématique sans données patient" className="mt-3">
+       <p className="mb-2 text-xs">Aperçu : {selected.label}. Appliquer pour enregistrer.</p>
+       <div style={{...geometryGridStyle(selected.geometry,ratio),height:152}}>
+         {selected.slots.map((slot,index)=><div key={slot.id}
+           style={geometrySlotStyle(selected.geometry,index)}
+           className="flex items-center justify-center rounded-lg border border-border-main bg-medical-pearl p-2 text-center text-xs">
+           {slot.module}
+         </div>)}
+       </div>
+    </div>}
     {error&&<p role="alert" className="mt-2 text-xs text-danger">{error}</p>}
   </section>;
 }
