@@ -9,6 +9,12 @@ import { PatientMediaTimeline } from '../patients/components/PatientMediaTimelin
 import { OrthoLongitudinalComparePanel } from '../ortho/OrthoLongitudinalComparePanel';
 import { StudioLayoutFrame } from './StudioLayoutFrame';
 import { R3SplitWorkspace } from './R3SplitWorkspace';
+import { R3ThreePaneWorkspace } from './R3ThreePaneWorkspace';
+import { R3AgendaReadonlyPanel } from './R3AgendaReadonlyPanel';
+import { R3TreatmentReadonlyPanel } from './R3TreatmentReadonlyPanel';
+import { R3CephaloTimepointReadonlyPanel } from './R3CephaloTimepointReadonlyPanel';
+import { R3PatientPresentationPanel } from './R3PatientPresentationPanel';
+import { chooseR3Module, r3ModuleOptions, R3_MODULE_LABEL } from './R3ModuleChoice';
 import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
 import { geometryGridStyle, geometrySlotStyle } from './studioGeometry';
@@ -28,6 +34,11 @@ export function isCabinetMultiViewLabEnabled(dev: boolean, flag: string | undefi
 
 /** R3-1 is a second independent DEV-only opt-in, never inferred from R2. */
 export function isR3SplitLabEnabled(dev: boolean, flag: string | undefined): boolean {
+  return dev === true && flag === '1';
+}
+
+/** R3-2 needs a third independent DEV opt-in; never implies R3-1 or production access. */
+export function isR3FocusLabEnabled(dev: boolean, flag: string | undefined): boolean {
   return dev === true && flag === '1';
 }
 
@@ -56,6 +67,17 @@ export function selectablePilotLayouts(allowCephalo: boolean): readonly Layout[]
   return PILOT_LAYOUTS.filter(layout => allowCephalo || layout.slots.every(slot => slot.module !== 'suivi'));
 }
 
+/** Only proven authenticated read-only adapters are enabled; future presets fail closed. */
+export function selectableR3RoadmapLayouts(allowAgenda:boolean,allowCephalo:boolean,allowClinical=false): readonly Layout[] {
+  const proven=[
+    'imagerie',
+    ...(allowAgenda ? ['vue-ensemble','consultation','agenda-cabinet','gestion-administrative'] : []),
+    ...(allowCephalo ? ['suivi-clinique','comparaison-orthodontique'] : []),
+    ...(allowClinical ? ['planification-traitements','presentation-patient'] : []),
+  ];
+  return PRESETS.filter(layout=>proven.includes(layout.id));
+}
+
 function tenantKey(user: AppUser | null): string | null {
   if (!user || !user.id) return null;
   // Mirrors local employer/owner identity purely for in-memory UI partitioning.
@@ -70,12 +92,14 @@ function tenantKey(user: AppUser | null): string | null {
  * Reuses ONE authenticated read-only PatientMediaTimeline and optional existing longitudinal
  * comparison; never mounts arbitrary module names or second CephaloWorkspace.
  */
-export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Split = false}: {
+export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Split = false, enableR3Focus = false}: {
   patient: MultiViewPatient;
   routePatientId: string | undefined;
   user: AppUser | null;
   /** R3-1 opt-in development pilot only. R2 production path is untouched. */
   enableR3Split?: boolean;
+  /** R3-2 extra opt-in; requires R3-1 DEV opt-in and verified cephalo permission. */
+  enableR3Focus?: boolean;
 }) {
   const desktop = useSyncExternalStore(desktopSubscribe, desktopSnapshot, () => false);
   const [workstationProof,setWorkstationProof] = useState<{key:string;id:string}|null>(null);
@@ -83,6 +107,8 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const [workspaceWidth,setWorkspaceWidth] = useState(0);
   const [appliedId,setAppliedId] = useState(PILOT_LAYOUTS[0].id);
   const [draftId,setDraftId] = useState(PILOT_LAYOUTS[0].id);
+  const [appliedCustom,setAppliedCustom] = useState<Layout|null>(null);
+  const [draftCustom,setDraftCustom] = useState<Layout|null>(null);
   const [preview,setPreview] = useState(false);
   const [ratio,setRatio] = useState(50);
   const [splitResetEpoch,setSplitResetEpoch] = useState(0);
@@ -97,6 +123,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   const trustedPatient = patientProof?.key===proofKey ? patientProof.patient : null;
   const canPatients = Boolean(activeIdentity && hasAccess(user,'patients'));
   const canCephalo = Boolean(activeIdentity && hasAccess(user,'cephalo'));
+  const canAgenda = Boolean(activeIdentity && hasAccess(user,'agenda'));
+  // Same explicit clinical permission that gates the canonical master-plan GET.
+  const canClinical = Boolean(activeIdentity && hasAccess(user,'clinical'));
   const patientMatches = Boolean(patient && Number.isSafeInteger(patient.id) &&
     patient.id > 0 && String(patient.id) === routePatientId);
 
@@ -172,12 +201,19 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     <PatientMediaTimeline patientId={patient.id} readOnly/>
   </section>;
 
-  const possible=selectablePilotLayouts(canCephalo);
-  const applied=possible.find(item=>item.id===appliedId) || possible[0];
-  const draft=possible.find(item=>item.id===draftId) || applied;
-  // Premium controls exist only in the real DEV R3 two-pane pilot, not R2/production.
+  // R3-2 is additive: only authorized real adapters, not nine fake presets.
+  const r3FocusPilot = enableR3Split && enableR3Focus && import.meta.env.DEV;
+  const possible=r3FocusPilot
+    ? [...selectablePilotLayouts(canCephalo),...selectableR3RoadmapLayouts(canAgenda,canCephalo,canClinical)]
+    : selectablePilotLayouts(canCephalo);
+  const baseApplied=possible.find(item=>item.id===appliedId) || possible[0];
+  const applied=r3FocusPilot && appliedCustom?.id===baseApplied.id ? appliedCustom : baseApplied;
+  const baseDraft=possible.find(item=>item.id===draftId) || applied;
+  const draft=r3FocusPilot && draftCustom?.id===baseDraft.id ? draftCustom : baseDraft;
+  const r3ThreePane = r3FocusPilot && applied.slots.length===3 &&
+    (applied.geometry==='three-columns' || applied.geometry==='hero-two');
   const premiumR3 = enableR3Split && import.meta.env.DEV &&
-    (applied.geometry==='two-columns' || applied.geometry==='two-rows');
+    (applied.geometry==='two-columns' || applied.geometry==='two-rows' || r3ThreePane);
   const mounted: Layout = exchanged && applied.slots.length>1
     ? {...applied,slots:[...applied.slots].reverse()} : applied;
   const context: WorkspaceContext = {
@@ -187,9 +223,14 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     tenantId:tenantKey(user),
     patientId:patientMatches && trustedPatient ? trustedPatient.id : null,
     cssViewportWidth:workspaceWidth,
+    // Two separately keyed, GET-only timepoint adapters, never two CephaloWorkspace stores.
+    independentlyMountable:r3FocusPilot && (mounted.id==='comparaison-orthodontique' || draft.id==='comparaison-orthodontique')
+      ? ['cephalo'] : undefined,
     allowedModules: [
-      ...(canPatients ? ['dossier','imagerie'] as ModuleKey[] : []),
-      ...(canCephalo ? ['suivi'] as ModuleKey[] : []),
+      ...(canPatients ? ['dossier','imagerie','photos','galerie','documents'] as ModuleKey[] : []),
+      ...(canCephalo ? ['suivi','cephalo'] as ModuleKey[] : []),
+      ...(canAgenda ? ['agenda'] as ModuleKey[] : []),
+      ...(canClinical ? ['traitement','presentation'] as ModuleKey[] : []),
     ],
   };
   const mountedGate=authorizeLayout(mounted,context,ratio);
@@ -203,18 +244,50 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
     Boolean(workstationId && trustedPatient);
   const canApply=authorizeLayout(draft,context,50).ok;
 
-  const renderSlot=(slot:{module:ModuleKey})=>{
+  const changeDraftModule=(slotIndex:number,module:ModuleKey)=>{
+    if (!r3FocusPilot) return;
+    const changed=chooseR3Module(draft,slotIndex,module,context);
+    if (!changed) return;
+    setDraftCustom(changed);setPreview(false);
+  };
+  const applyDraft=()=>{
+    if (!preview || !canApply) return;
+    setAppliedId(draft.id);
+    setAppliedCustom(r3FocusPilot && draftCustom?.id===draft.id ? draftCustom : null);
+    setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);
+  };
+  const cancelDraft=()=>{setDraftId(applied.id);setDraftCustom(appliedCustom);setPreview(false);};
+  const resetLayout=()=>{
+    setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
+    setAppliedCustom(null);setDraftCustom(null);
+    setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);
+  };
+  const renderSlot=(slot:{id:string;module:ModuleKey})=>{
     if (!trustedPatient) return null;
-    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>;
+    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly labReadOnlyPreview
+      fixedAssetType={applied.id==='imagerie' ? 'RADIOGRAPH' : undefined}/>;
+    if (slot.module==='galerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly labReadOnlyPreview fixedAssetType="PHOTO"/>;
+    if (slot.module==='documents') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly labReadOnlyPreview fixedAssetType="DOCUMENT"/>;
+    if (slot.module==='photos') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly labReadOnlyPreview fixedAssetType="PHOTO"/>;
+    if (slot.module==='agenda' && canAgenda && user)
+      return <R3AgendaReadonlyPanel user={user}/>;
+    if (slot.module==='traitement' && canClinical)
+      return <R3TreatmentReadonlyPanel key={proofKey} patientId={trustedPatient.id}/>;
+    if (slot.module==='cephalo' && canCephalo && applied.id==='comparaison-orthodontique' &&
+        (slot.id==='cephalo-t0' || slot.id==='cephalo-t1'))
+      return <R3CephaloTimepointReadonlyPanel key={proofKey+':'+slot.id}
+        patientId={trustedPatient.id} ordinal={slot.id==='cephalo-t0'?0:1}/>;
+    if (slot.module==='presentation' && canClinical && applied.id==='presentation-patient')
+      return <R3PatientPresentationPanel key={proofKey} patient={trustedPatient}/>;
     if (slot.module==='dossier') return (
-      <div data-testid="multiview-real-dossier" className="min-w-0 space-y-2.5 p-2.5 text-sm sm:p-3">
+      <div data-testid="multiview-real-dossier" className="dc-r3-patient-summary min-w-0 space-y-2 p-2.5 text-sm sm:p-3">
         <div className="rounded-2xl bg-gradient-to-br from-primary via-primary to-primary p-4 text-on-primary shadow-sm">
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs font-bold uppercase tracking-[0.12em] text-on-primary/85">Dossier patient</p>
             <span className="inline-flex items-center gap-1 rounded-full border border-on-primary/30 bg-on-primary/10 px-2 py-1 text-[11px] font-semibold"><CheckCircle2 size={12}/> Identité vérifiée</span>
           </div>
-          <div className="mt-3 flex min-w-0 items-center gap-3">
-            <span aria-hidden="true" className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-on-primary/15 text-lg font-extrabold">
+          <div className="mt-2 flex min-w-0 items-center gap-3">
+            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-on-primary/15 text-lg font-extrabold">
               {trustedPatient.prenom.slice(0,1)}{trustedPatient.nom.slice(0,1)}
             </span>
             <div className="min-w-0">
@@ -223,7 +296,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
             </div>
           </div>
         </div>
-        {premiumR3 && <p data-testid="r3-1-dossier-readonly-help"
+        {premiumR3 && !r3ThreePane && <p data-testid="r3-1-dossier-readonly-help"
           className="rounded-lg border border-border-main bg-medical-pearl px-3 py-2 text-xs leading-relaxed text-text-muted">
           Aperçu en consultation seule. Seuls les bilans autorisés sont affichés ci-dessous.
         </p>}
@@ -263,47 +336,70 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           <div className="flex min-w-0 items-center gap-3">
             <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary"><LayoutGrid size={21}/></span>
             <div className="min-w-0">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-primary">Espace clinique · MultiView</p>
-              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight text-text-main">Vues multiples</h2>
-              {!premiumR3 && <p className="text-xs text-text-muted">Un dossier patient, plusieurs perspectives. Dispositions de démonstration non enregistrées.</p>}
+              {r3ThreePane
+                ? <h2 className="text-base font-bold text-text-main">MultiView</h2>
+                : <>
+                    <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-primary">Espace clinique · MultiView</p>
+                    <h2 className="mt-0.5 text-lg font-extrabold tracking-tight text-text-main">Vues multiples</h2>
+                    {!premiumR3 && <p className="text-xs text-text-muted">Un dossier patient, plusieurs perspectives. Dispositions de démonstration non enregistrées.</p>}
+                  </>}
             </div>
           </div>
           <span data-testid="multiview-ronly-contract" className="inline-flex items-center gap-1.5 rounded-full border border-border-hover bg-medical-pearl px-3 py-2 text-xs font-bold text-primary-ink">
-            <LockKeyhole size={15}/> Mode R · consultation seule — édition et signature indisponibles ici
+            <LockKeyhole size={15}/> {r3ThreePane ? 'R · lecture seule' : 'Mode R · consultation seule — édition et signature indisponibles ici'}
           </span>
         </div>
       {premiumR3 ? (
         <div data-testid="r3-1-premium-actions"
           className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-border-main bg-medical-pearl/80 p-2">
           <div className="flex min-w-0 flex-wrap items-center gap-2" role="group" aria-label="Disposition des panneaux">
-            <label htmlFor="multiview-pilot-select" className="text-xs font-semibold text-text-main">Disposition</label>
+            <label htmlFor="multiview-pilot-select" className={r3ThreePane ? 'sr-only' : 'text-xs font-semibold text-text-main'}>Disposition</label>
             <select id="multiview-pilot-select" aria-label="Disposition MultiView"
-              value={draft.id} onChange={e=>{setDraftId(e.target.value);setPreview(false);}}
+              value={draft.id} onChange={e=>{setDraftId(e.target.value);setDraftCustom(null);setPreview(false);}}
               className="min-h-10 max-w-full rounded-lg border border-border-main bg-card px-2 py-1.5 text-xs text-text-main">
               <optgroup label="Connectées aux vrais modules">
                 {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
               </optgroup>
-              <optgroup label="Neuf directions produit — non connectées">
-                {PRESETS.map(item=><option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
+              <optgroup label="Dispositions à intégrer">
+                {PRESETS.filter(item=>!possible.some(layout=>layout.id===item.id)).map(item=>
+                  <option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
               </optgroup>
             </select>
           </div>
+          {r3FocusPilot && draft.slots.length>1 && draft.slots.every(slot=>slot.module!=='cephalo') && (
+            <div data-testid="r3-module-chooser" role="group" aria-label="Modules par panneau"
+              className="flex flex-wrap items-center gap-1.5">
+              {draft.slots.map((slot,index)=>(
+                <label key={slot.id} className="flex items-center gap-1 text-xs text-text-muted">
+                  <span className="sr-only">{'Panneau '+(index+1)}</span>
+                  <select aria-label={'Module panneau '+(index+1)}
+                    value={slot.module}
+                    onChange={e=>changeDraftModule(index,e.target.value as ModuleKey)}
+                    className="min-h-10 rounded-lg border border-border-main bg-card px-2 py-1.5 text-xs text-text-main">
+                    {r3ModuleOptions(draft,index,context).map(module=>
+                      <option key={module} value={module}>{(index+1)+'. '+R3_MODULE_LABEL[module]}</option>)}
+                  </select>
+                </label>
+              ))}
+            </div>
+          )}
           <div role="group" aria-label="Outils de disposition"
             className="flex flex-wrap items-center gap-1 border-l border-border-main pl-2">
             <button type="button" disabled={applied.slots.length<2}
               onClick={()=>setExchanged(value=>!value)}
+              aria-label={r3ThreePane ? 'Échanger les vues' : undefined}
               className="rounded-lg border border-border-main bg-card px-2.5 py-2 text-xs text-text-main hover:bg-medical-pearl disabled:opacity-40">
-              <ArrowLeftRight size={14} className="mr-1 inline-block align-middle"/> Échanger les vues
+              <ArrowLeftRight size={14} className="mr-1 inline-block align-middle"/> {r3ThreePane ? 'Échanger' : 'Échanger les vues'}
             </button>
-            <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
-              setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
+            <button type="button" onClick={resetLayout}
+              aria-label={r3ThreePane ? 'Réinitialiser' : undefined}
               className="rounded-lg border border-border-main bg-card px-2.5 py-2 text-xs text-text-main hover:bg-medical-pearl">
-              Réinitialiser
+              {r3ThreePane ? 'Réinit.' : 'Réinitialiser'}
             </button>
           </div>
           <div role="group" aria-label="Confirmation de disposition"
             className="ml-auto flex flex-wrap items-center gap-1.5 border-l border-border-main pl-2">
-            <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
+            <button type="button" onClick={cancelDraft}
               className="rounded-lg px-2.5 py-2 text-xs text-text-muted hover:bg-card">
               Annuler
             </button>
@@ -312,7 +408,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
               Aperçu
             </button>
             <button type="button" disabled={!preview || !canApply}
-              onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
+              onClick={applyDraft}
               className="rounded-lg border border-primary bg-primary px-3 py-2 text-xs font-semibold text-on-primary disabled:opacity-40">
               Appliquer
             </button>
@@ -323,23 +419,23 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           <div className="flex flex-wrap items-center gap-2">
             <label htmlFor="multiview-pilot-select" className="text-sm">Disposition</label>
             <select id="multiview-pilot-select" aria-label="Disposition MultiView"
-              value={draft.id} onChange={e=>{setDraftId(e.target.value);setPreview(false);}}
+              value={draft.id} onChange={e=>{setDraftId(e.target.value);setDraftCustom(null);setPreview(false);}}
               className="rounded-md border border-border-main bg-card px-2 py-2 text-sm">
               <optgroup label="Connectées aux vrais modules">
                 {possible.map(item=><option key={item.id} value={item.id}>{item.label}</option>)}
               </optgroup>
-              <optgroup label="Neuf directions produit — non connectées">
-                {PRESETS.map(item=><option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
+              <optgroup label="Dispositions à intégrer">
+                {PRESETS.filter(item=>!possible.some(layout=>layout.id===item.id)).map(item=>
+                  <option key={item.id} value={'future-'+item.id} disabled>{item.label} — à intégrer</option>)}
               </optgroup>
             </select>
             <button type="button" onClick={()=>setPreview(true)} className="rounded-md border px-3 py-2 text-xs">Aperçu</button>
             <button type="button" disabled={!preview || !canApply}
-              onClick={()=>{setAppliedId(draft.id);setRatio(50);setSplitResetEpoch(v=>v+1);setExchanged(false);setPreview(false);}}
+              onClick={applyDraft}
               className="rounded-md border px-3 py-2 text-xs disabled:opacity-40">Appliquer</button>
-            <button type="button" onClick={()=>{setDraftId(applied.id);setPreview(false);}}
+            <button type="button" onClick={cancelDraft}
               className="rounded-md border px-3 py-2 text-xs">Annuler</button>
-            <button type="button" onClick={()=>{setAppliedId(PILOT_LAYOUTS[0].id);setDraftId(PILOT_LAYOUTS[0].id);
-              setExchanged(false);setRatio(50);setSplitResetEpoch(v=>v+1);setPreview(false);}}
+            <button type="button" onClick={resetLayout}
               className="rounded-md border px-3 py-2 text-xs">Réinitialiser</button>
           </div>
           {preview && (
@@ -358,7 +454,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
                     slot.module === 'imagerie' ? <Images size={21} className="text-primary"/> :
                     <Activity size={21} className="text-primary"/>}
                   <span className="text-xs font-bold text-text-main">
-                    {slot.module === 'dossier' ? 'Dossier patient' : slot.module === 'imagerie' ? 'Médiathèque' : 'Suivi longitudinal'}
+                    {slot.module === 'dossier' ? 'Dossier patient' : slot.module === 'imagerie' ? 'Médiathèque' : slot.module === 'photos' ? 'Photos' : slot.module === 'galerie' ? 'Galerie' : slot.module === 'documents' ? 'Documents' : slot.module === 'agenda' ? 'Agenda' : 'Suivi longitudinal'}
                   </span>
                   <span className="text-[11px] text-text-muted">Lecture seule</span>
                 </div>)}
@@ -385,19 +481,19 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
         <div aria-label="Aperçu schématique sans données patient" data-testid="multiview-schematic-preview"
           className="mt-2 rounded-xl border border-dashed border-border-hover bg-card p-3">
           <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-            <p className="text-sm font-semibold text-text-main">Prévisualisation des panneaux</p>
+            <p className="text-sm font-semibold text-text-main">{r3ThreePane ? 'Aperçu' : 'Prévisualisation des panneaux'}</p>
             <span className="rounded-full border border-border-main bg-medical-pearl px-2 py-1 text-[11px] font-medium text-text-muted">
-              Schéma · aucune donnée patient
+              {r3ThreePane ? 'Sans données patient' : 'Schéma · aucune donnée patient'}
             </span>
           </div>
           <div data-testid="multiview-preview-geometry" style={{...geometryGridStyle(draft.geometry),height:146}}>
             {draft.slots.map((slot,index)=><div key={slot.id} style={geometrySlotStyle(draft.geometry,index)}
               className="flex min-w-0 min-h-0 flex-col items-center justify-center gap-1.5 overflow-hidden rounded-xl border border-border-main bg-medical-pearl px-2 text-center shadow-sm">
               {slot.module==='dossier' ? <FileText size={21} className="text-primary"/> :
-                slot.module==='imagerie' ? <Images size={21} className="text-primary"/> :
+                (slot.module==='imagerie' || slot.module==='photos') ? <Images size={21} className="text-primary"/> :
                 <Activity size={21} className="text-primary"/>}
               <span className="text-xs font-bold text-text-main">
-                {slot.module==='dossier' ? 'Dossier patient' : slot.module==='imagerie' ? 'Médiathèque' : 'Suivi longitudinal'}
+                {slot.module==='dossier' ? 'Dossier patient' : slot.module==='imagerie' ? 'Médiathèque' : slot.module==='photos' ? 'Photos' : slot.module==='galerie' ? 'Galerie' : slot.module==='documents' ? 'Documents' : slot.module==='agenda' ? 'Agenda' : 'Suivi longitudinal'}
               </span>
               <span className="text-[11px] text-text-muted">Lecture seule</span>
             </div>)}
@@ -420,8 +516,11 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
         : (enableR3Split && import.meta.env.DEV &&
             (mounted.geometry==='two-columns' || mounted.geometry==='two-rows')
           ? <R3SplitWorkspace key={mounted.id + ':' + splitResetEpoch} layout={mounted} context={context} renderSlot={renderSlot}/>
-          : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
-              renderSlot={renderSlot}/>)} 
+          : (r3ThreePane
+            ? <R3ThreePaneWorkspace key={mounted.id + ':' + splitResetEpoch}
+                layout={mounted} context={context} renderSlot={renderSlot}/>
+            : <StudioLayoutFrame layout={mounted} context={context} primaryRatio={ratio}
+                renderSlot={renderSlot}/>))} 
     </div>
   );
 }

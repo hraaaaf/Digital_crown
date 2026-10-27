@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {chromium,request} from 'playwright';
+import {deflateSync} from 'node:zlib';
 
 const sha=process.env.SOURCE_HEAD;
 const secret=process.env.T2_PASSWORD;
@@ -40,14 +41,156 @@ try {
   const rows=await read.json();
   const patient=rows.find(p=>p.numero_dossier==='T2-0001');
   pass('synthetic patient bound',Boolean(patient?.id));
-  const fakePng=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEANmpCD8ongcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfUJxAYTIfIvQAAAAAElFTkSuQmCC','base64');
+  // Synthetic QA-only chart card. Explicitly *not* a radiograph or diagnosis.
+  // Generated locally using the Node standard library, no external fixture or PII.
+  const makeQaCard=(caption)=>{
+    const width=640,height=360,rowBytes=width*4+1;
+    const raw=Buffer.alloc(rowBytes*height);
+    for(let y=0;y<height;y++){
+      raw[y*rowBytes]=0;
+      for(let x=0;x<width;x++){
+        const offset=y*rowBytes+1+x*4;
+        const left=x/width,top=y/height;
+        const box=x>=24&&x<616&&y>=22&&y<338;
+        const band=y>=62&&y<125&&x>=50&&x<590;
+        const checker=x>=68&&x<576&&y>=190&&y<298 && ((Math.floor(x/26)+Math.floor(y/26))%2===0);
+        const rgb=band?[17,53,98]:checker?[196,216,229]:box?[243-Math.round(15*left),247-Math.round(19*top),251-Math.round(14*left)]:[34,65,95];
+        raw[offset]=rgb[0];raw[offset+1]=rgb[1];raw[offset+2]=rgb[2];raw[offset+3]=255;
+      }
+    }
+    // Legible deterministic QA label with a tiny 5x7 bitmap font.
+    const font={
+      'A':['01110','10001','10001','11111','10001','10001','10001'],
+      'C':['01111','10000','10000','10000','10000','10000','01111'],
+      'D':['11110','10001','10001','10001','10001','10001','11110'],
+      'E':['11111','10000','10000','11110','10000','10000','11111'],
+      'H':['10001','10001','10001','11111','10001','10001','10001'],
+      'I':['11111','00100','00100','00100','00100','00100','11111'],
+      'L':['10000','10000','10000','10000','10000','10000','11111'],
+      'M':['10001','11011','10101','10101','10001','10001','10001'],
+      'N':['10001','11001','10101','10011','10001','10001','10001'],
+      'O':['01110','10001','10001','10001','10001','10001','01110'],
+      'P':['11110','10001','10001','11110','10000','10000','10000'],
+      'Q':['01110','10001','10001','10001','10101','10010','01101'],
+      'R':['11110','10001','10001','11110','10100','10010','10001'],
+      'S':['01111','10000','10000','01110','00001','00001','11110'],
+      'T':['11111','00100','00100','00100','00100','00100','00100'],
+      'U':['10001','10001','10001','10001','10001','10001','01110'],
+      'V':['10001','10001','10001','10001','10001','01010','00100'],
+      '0':['01110','10001','10011','10101','11001','10001','01110'],
+      '1':['00100','01100','00100','00100','00100','00100','01110'],
+      ' ':['00000','00000','00000','00000','00000','00000','00000'],
+      '-':['00000','00000','00000','11111','00000','00000','00000'],
+    };
+    const label=('QA NON CLINIQUE').toUpperCase();
+    const paint=(word,left,top,scale,color)=>{
+      [...word].forEach((character,index)=>{
+        const glyph=font[character]||font[' '];
+        glyph.forEach((line,dy)=>[...line].forEach((bit,dx)=>{
+          if(bit!=='1')return;
+          for(let sy=0;sy<scale;sy++)for(let sx=0;sx<scale;sx++){
+            const x=left+index*6*scale+dx*scale+sx,y=top+dy*scale+sy;
+            if(x<0||x>=width||y<0||y>=height)continue;
+            const pos=y*rowBytes+1+x*4;
+            raw[pos]=color[0];raw[pos+1]=color[1];raw[pos+2]=color[2];raw[pos+3]=255;
+          }
+        }));
+      });
+    };
+    paint(label,67,80,4,[255,255,255]);
+    paint(caption,70,151,2,[25,59,101]);
+    const crc=(data)=>{
+      let value=0xffffffff;
+      for(const b of data){value^=b;for(let i=0;i<8;i++)value=(value>>>1)^((value&1)?0xedb88320:0);}
+      return (value^0xffffffff)>>>0;
+    };
+    const chunk=(type,data)=>{
+      const tag=Buffer.from(type,'ascii'),len=Buffer.alloc(4),sum=Buffer.alloc(4);
+      len.writeUInt32BE(data.length);sum.writeUInt32BE(crc(Buffer.concat([tag,data])));
+      return Buffer.concat([len,tag,data,sum]);
+    };
+    const ihdr=Buffer.alloc(13);
+    ihdr.writeUInt32BE(width,0);ihdr.writeUInt32BE(height,4);ihdr[8]=8;ihdr[9]=6;
+    return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),
+      chunk('IHDR',ihdr),chunk('IDAT',deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);
+  };
+  const fakePng=makeQaCard('QA PHOTO T0');
   for(const timepoint of ['T0','T1']){
     const r=await api.post('/api/patients/'+patient.id+'/assets/import',{
-      headers:head,multipart:{file:{name:'071-test-'+timepoint+'.png',mimeType:'image/png',buffer:fakePng},
+      headers:head,multipart:{file:{name:'071-test-'+timepoint+'.png',mimeType:'image/png',buffer:makeQaCard('QA PHOTO '+timepoint)},
         asset_type:'PHOTO',source_kind:'UPLOAD',timepoint},
     });
     pass('real authenticated synthetic media import '+timepoint,r.ok(),{status:r.status()});
   }
+  // P2: exercise the real read-only DOCUMENT and RADIOLOGY adapters with
+  // deliberately non-clinical, synthetic media in the disposable T2 database.
+  // Never intercept network responses or use patient files.
+  // P5: renderable, explicitly NONCLINICAL one-page PDF for the isolated T2
+  // screenshot lab. No real chart, patient documents or synthetic diagnosis.
+  const syntheticPdf=(()=>{
+    const stream='BT /F1 21 Tf 48 180 Td (QA R3 - DOCUMENT NON CLINIQUE) Tj\n'+
+      '/F1 12 Tf 0 -36 Td (Fixture synthetique - aucune donnee patient.) Tj\n'+
+      '0 -24 Td (Lecture seule - verification du rendu documentaire.) Tj ET\n';
+    const objects=[
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 250] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+      '<< /Length '+Buffer.byteLength(stream,'ascii')+' >>\nstream\n'+stream+'endstream',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    ];
+    let body='%PDF-1.4\n';
+    const offsets=[0];
+    objects.forEach((obj,index)=>{
+      offsets.push(Buffer.byteLength(body,'ascii'));
+      body+=(index+1)+' 0 obj\n'+obj+'\nendobj\n';
+    });
+    const startxref=Buffer.byteLength(body,'ascii');
+    body+='xref\n0 '+offsets.length+'\n0000000000 65535 f \n'+
+      offsets.slice(1).map(offset=>String(offset).padStart(10,'0')+' 00000 n ').join('\n')+
+      '\ntrailer\n<< /Size '+offsets.length+' /Root 1 0 R >>\nstartxref\n'+startxref+'\n%%EOF\n';
+    return Buffer.from(body,'ascii');
+  })();
+  for (const asset of [
+    {kind:'DOCUMENT',name:'QA-R3-document-synthetique.pdf',mime:'application/pdf',buffer:syntheticPdf},
+    {kind:'RADIOGRAPH',name:'QA-R3-radiographie-synthetique.png',mime:'image/png',buffer:makeQaCard('QA RADIO DEMO')},
+  ]) {
+    const imported=await api.post('/api/patients/'+patient.id+'/assets/import',{
+      headers:head,multipart:{file:{name:asset.name,mimeType:asset.mime,buffer:asset.buffer},
+        asset_type:asset.kind,source_kind:'UPLOAD'},
+    });
+    pass('real authenticated P2 synthetic '+asset.kind+' media import',imported.ok(),
+      {status:imported.status()});
+  }
+  const p2AssetsResponse=await api.get('/api/patients/'+patient.id+'/assets',{headers:head});
+  pass('real authenticated P2 synthetic asset index',p2AssetsResponse.status()===200,
+    {status:p2AssetsResponse.status()});
+  const p2Assets=await p2AssetsResponse.json();
+  for (const kind of ['DOCUMENT','RADIOGRAPH']) {
+    pass('persisted synthetic '+kind+' exists in real patient asset API',
+      p2Assets.items?.some(item=>item.asset_type===kind),
+      {kind,total:p2Assets.items?.length});
+  }
+  // Final premium gate: actual server-returned PDF bytes, never just a
+  // white iframe or an unverified success assertion in the screenshot.
+  const documentAsset=p2Assets.items?.find(item=>item.asset_type==='DOCUMENT');
+  pass('premium final server-indexed synthetic DOCUMENT has a valid id',
+    Number.isSafeInteger(documentAsset?.id)&&documentAsset.id>0);
+  const fetchedDocument=await api.get('/api/patients/'+patient.id+
+    '/assets/'+documentAsset.id+'/content',{headers:head});
+  const pdfBytes=Buffer.from(await fetchedDocument.body());
+  pass('premium final authenticated PDF content really starts with PDF header',
+    fetchedDocument.status()===200 &&
+    pdfBytes.subarray(0,8).toString('ascii').startsWith('%PDF-1.') &&
+    pdfBytes.includes(Buffer.from('QA R3 - DOCUMENT NON CLINIQUE')),
+    {status:fetchedDocument.status(),size:pdfBytes.length});
+  const pdfRaster=await api.get('/api/patients/'+patient.id+
+    '/assets/'+documentAsset.id+'/preview-page?page=1',{headers:head});
+  const previewBytes=Buffer.from(await pdfRaster.body());
+  pass('premium final authorized local PDF raster is actual PNG image',
+    pdfRaster.status()===200 &&
+    pdfRaster.headers()['content-type']?.startsWith('image/png') &&
+    previewBytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')) &&
+    previewBytes.length>1500, {status:pdfRaster.status(),size:previewBytes.length});
   // A third clinical panel is meaningful only with genuine, seeded T0/T1 data.
   // Create an orthodontic case via the real authenticated API in the disposable T2 DB.
   const syntheticMediaList=await api.get('/api/patients/'+patient.id+'/assets',{headers:head});
@@ -58,6 +201,11 @@ try {
     [timepoint,mediaIndex.items?.find(item=>item.timepoint===timepoint)?.id]));
   pass('two persisted synthetic clinical asset ids',Boolean(byTimepoint.T0 && byTimepoint.T1),
     {timepoints:Object.keys(byTimepoint)});
+  const cephPair={T0:Number(process.env.R3_T2_CEPHALO_T0_ID),T1:Number(process.env.R3_T2_CEPHALO_T1_ID)};
+  pass('two separate persisted synthetic CEPHALO record ids from isolated T2',
+    Number.isSafeInteger(cephPair.T0)&&cephPair.T0>0 &&
+    Number.isSafeInteger(cephPair.T1)&&cephPair.T1>0 &&
+    cephPair.T0!==cephPair.T1,cephPair);
   const orthoCase=await api.post('/api/patients/'+patient.id+'/ortho-case',{
     headers:head,data:{started_at:'2026-01-02T09:00:00'},
   });
@@ -75,7 +223,48 @@ try {
     const link=await api.post('/api/patients/'+patient.id+'/ortho-case/'+orthoCaseId+
       '/timepoints/'+tpId+'/evidences',{headers:head,data:{clinical_asset_id:byTimepoint[timepoint]}});
     pass('real synthetic evidence linked '+timepoint,link.status()===201,{status:link.status()});
+    const cephLink=await api.post('/api/patients/'+patient.id+'/ortho-case/'+orthoCaseId+
+      '/timepoints/'+tpId+'/evidences',{headers:head,data:{cephalo_analysis_id:cephPair[timepoint]}});
+    pass('real authenticated persisted CEPHALO evidence linked '+timepoint,
+      cephLink.status()===201 && (await cephLink.json()).cephalo_analysis_id===cephPair[timepoint],
+      {status:cephLink.status(),ordinal});
   }
+  const actualCompareResponse=await api.get('/api/patients/'+patient.id+'/ortho-case/'+orthoCaseId+
+    '/compare?from_ordinal=0&to_ordinal=1',{headers:head});
+  pass('real authenticated F3 compare endpoint with two synthetic CEPHALO sources',
+    actualCompareResponse.status()===200,{status:actualCompareResponse.status()});
+  const actualCompare=await actualCompareResponse.json();
+  const t0Sources=(actualCompare.from_timepoint?.evidences||[]).filter(e=>e.kind==='CEPHALO');
+  const t1Sources=(actualCompare.to_timepoint?.evidences||[]).filter(e=>e.kind==='CEPHALO');
+  pass('F3 server returns distinct verified T0/T1 CEPHALO bindings and numerical SNA delta',
+    actualCompare.patient_id===patient.id && actualCompare.ortho_case_id===orthoCaseId &&
+    t0Sources.length===1 && t1Sources.length===1 &&
+    t0Sources[0].ref_id===cephPair.T0 && t1Sources[0].ref_id===cephPair.T1 &&
+    actualCompare.measurement_status==='AVAILABLE' &&
+    actualCompare.interpretation_policy==='NUMERIC_ONLY_CLINICIAN_INTERPRETATION' &&
+    actualCompare.measurements.some(m=>m.key==='SNA' && Math.abs(m.from_value-82)<0.01 &&
+      Math.abs(m.to_value-83.2)<0.01),
+    {status:actualCompare.measurement_status,t0:t0Sources.length,t1:t1Sources.length});
+  // Seed an actually populated R-only dashboard through the real encrypted T2
+  // database and authenticated endpoint, not through intercepted network data.
+  const day=new Date().toISOString().slice(0,10);
+  const agendaSeed=await api.get('/api/appointments/?start_date='+day+'T00:00:00&end_date='+day+'T23:59:59',{headers:head});
+  pass('authentic synthetic T2 Agenda GET populated',agendaSeed.status()===200,{status:agendaSeed.status()});
+  const agendaRows=await agendaSeed.json();
+  pass('three persisted and server-authorized distinct T2 agenda rows',
+    agendaRows.length===3 && new Set(agendaRows.map(a=>a.id)).size===3 &&
+    agendaRows.every(a=>a.employer_id===auth.user?.id || a.patient_id===patient.id) &&
+    agendaRows.every(a=>typeof a.motif==='string' && a.motif.startsWith('QA R3')),
+    {count:agendaRows.length});
+  // Master Plan seed via the REAL authenticated clinical API, never mocked.
+  const syntheticPlan=await api.put('/api/patients/'+patient.id+'/master-plan',{
+    headers:head,data:[
+      {title:'Bilan initial synthétique',assistant:'Clinique',status:'done',date_str:'2026-10-01'},
+      {title:'Contrôle de suivi synthétique',assistant:'Clinique',status:'pending',date_str:'2026-11-01'},
+      {title:'Réévaluation synthétique',assistant:'Clinique',status:'postponed',date_str:'2026-12-10'},
+    ],
+  });
+  pass('real authenticated synthetic Master Plan stored',syntheticPlan.ok(),{status:syntheticPlan.status()});
   // Distinct patient B in the SAME disposable cabinet for real SPA A→B→A.
   const otherPatientResponse=await api.post('/api/patients/',{
     headers:head,data:{numero_dossier:'T2-0002',nom:'ISOLATION',prenom:'BETA',
@@ -132,7 +321,16 @@ try {
     .waitFor({state:'visible',timeout:30000});
   pass('exactly one live real Media Timeline',await page.locator('[data-testid="patient-media-timeline"]').count()===1);
   pass('real patient dossier name', (await page.locator('[data-testid="multiview-real-dossier"]').innerText()).includes(patient.numero_dossier));
-  pass('nine product directions explicitly unavailable',await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9);
+  const agendaRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="vue-ensemble"]').count()===1;
+  const followupRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="suivi-clinique"]').count()===1;
+  const imagerieRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="imagerie"]').count()===1;
+  const treatmentRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="planification-traitements"]').count()===1;
+  const orthoRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="comparaison-orthodontique"]').count()===1;
+  const presentationRoadmapReady=await page.locator('select[aria-label="Disposition MultiView"] option[value="presentation-patient"]').count()===1;
+  const provenRoadmapCount=(agendaRoadmapReady ? 4 : 0)+(followupRoadmapReady ? 1 : 0)+(imagerieRoadmapReady ? 1 : 0)
+    +(treatmentRoadmapReady?1:0)+(orthoRoadmapReady?1:0)+(presentationRoadmapReady?1:0);
+  pass('only proven roadmap presets unlocked, all others denied',
+    await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9-provenRoadmapCount);
 
   const pane=page.locator('[data-r3-1-split="two-columns"]');
   await pane.waitFor({state:'visible',timeout:25000});
@@ -244,8 +442,334 @@ try {
   pass('R3-1 content-fit caps dossier while preserving media height',
     fit.firstHeight>0 && fit.firstHeight<=342 && fit.secondHeight>=219,fit);
   await capture(page,'after-r3-1-two-rows-content-fit-high-contrast-1920.png');
-  pass('nine unintegrated presets still unavailable',
-    await page.locator('select[aria-label="Disposition MultiView"] option:disabled').count()===9);
+  // Return to Ghost Elite light-blue palette after explicit contrast-theme QA.
+  await page.evaluate(()=>{
+    document.documentElement.removeAttribute('data-theme');
+    document.body.removeAttribute('data-theme');
+  });
+  const defaultColors=await page.evaluate(()=>{
+    const s=getComputedStyle(document.documentElement);
+    return {primary:s.getPropertyValue('--primary').trim().toLowerCase(),
+      surface:s.getPropertyValue('--bg-medical-pearl').trim().toLowerCase()};
+  });
+  pass('R3 principal screenshots use default blue instead of test dark theme',
+    defaultColors.primary==='#003380' && defaultColors.surface==='#f8fafc',defaultColors);
+  const realRoadmapReady=await select.locator('option[value="vue-ensemble"]').count()===1;
+  pass('roadmap presets unlock only with real Agenda adapter and remain fail-closed otherwise',
+    await select.locator('option:disabled').count()===9-provenRoadmapCount);
+  // R3-2: the third opt-in is independent, and the three modules are TRUE
+  // authenticated patient views. Every focus transition unmounts other viewers.
+  if(process.env.VITE_V15_07_1_R3_2_FOCUS_LAB==='1') {
+    await select.selectOption('dossier-media-suivi-3cols');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const three=page.locator('[data-testid="r3-2-three-real-panes"]');
+    await three.waitFor({state:'visible',timeout:30000});
+    pass('R3-2 three authenticated read-only panel slots mounted',
+      await three.locator('[data-v15-071-viewslot]').count()===3 &&
+      await three.locator('[data-v15-071-viewslot="imagerie"]').count()===1 &&
+      await three.locator('[data-v15-071-viewslot="dossier"]').count()===1 &&
+      await three.locator('[data-v15-071-viewslot="suivi"]').count()===1);
+    pass('R3-2 single real media and true longitudinal source',
+      await three.locator('[data-testid="patient-media-timeline"]').count()===1 &&
+      await three.locator('[data-v15-071-viewslot="suivi"]').count()===1);
+    pass('R3-2 remaining unintegrated roadmap presets are still unavailable',
+      await select.locator('option:disabled').count()===9-provenRoadmapCount);
+    await three.scrollIntoViewIfNeeded();
+    await capture(page,'after-r3-2-three-columns-1920.png');
+
+    await page.getByRole('button',{name:'Agrandir le panneau 2 : imagerie'}).click();
+    const focused=page.locator('[data-testid="r3-2-single-focus"]');
+    await focused.waitFor({state:'visible'});
+    pass('R3-2 focus unmounts dossier and longitudinal rather than hiding them',
+      await focused.locator('[data-v15-071-viewslot]').count()===1 &&
+      await page.locator('[data-v15-071-viewslot="dossier"]').count()===0 &&
+      await page.locator('[data-v15-071-viewslot="suivi"]').count()===0);
+    pass('R3-2 focused media is still a single actual clinical viewer',
+      await focused.locator('[data-testid="patient-media-timeline"]').count()===1);
+    await capture(page,'after-r3-2-focus-media-1920.png');
+    await page.getByRole('button',{name:'Restaurer les trois panneaux'}).click();
+    pass('R3-2 restoration remounts all three authorized read-only views',
+      await page.locator('[data-testid="r3-2-three-real-panes"] [data-v15-071-viewslot]').count()===3);
+    await capture(page,'after-r3-2-restored-three-columns-1920.png');
+
+    await select.selectOption('dossier-media-suivi-hero');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const hero=page.locator('[data-testid="r3-2-three-real-panes"] [data-v15-071-geometry="hero-two"]');
+    await hero.waitFor({state:'visible'});
+    pass('R3-2 three REAL modules use 1+2 hierarchy',
+      await hero.locator('[data-v15-071-viewslot]').count()===3);
+    await hero.scrollIntoViewIfNeeded();
+    await capture(page,'after-r3-2-hero-two-1920.png');
+    await page.getByRole('button',{name:'Agrandir le panneau 3 : suivi'}).click();
+    pass('R3-2 longitudinal focus is sole active clinical pane',
+      await page.locator('[data-testid="r3-2-single-focus"] [data-v15-071-viewslot="suivi"]').count()===1 &&
+      await page.locator('[data-testid="patient-media-timeline"]').count()===0);
+    await capture(page,'after-r3-2-focus-suivi-1920.png');
+    pass('R3-2 authenticated T2 Agenda permission enables 3 exact roadmap presets',
+      realRoadmapReady &&
+      await select.locator('option[value="consultation"]').count()===1 &&
+      await select.locator('option[value="agenda-cabinet"]').count()===1);
+    for (const [id,expectedModules,filename] of [
+      ['vue-ensemble',['dossier','agenda','imagerie'],'after-r3-2-real-vue-ensemble-1920.png'],
+      ['consultation',['dossier','agenda'],'after-r3-2-real-consultation-1920.png'],
+      ['agenda-cabinet',['agenda','dossier'],'after-r3-2-real-agenda-cabinet-1920.png'],
+      ['suivi-clinique',['suivi','photos'],'after-r3-2-real-suivi-clinique-1920.png'],
+      ['imagerie',['imagerie','galerie'],'after-r3-2-real-imagerie-1920.png'],
+      ['gestion-administrative',['agenda','documents'],'after-r3-2-real-gestion-administrative-1920.png'],
+    ]) {
+      await select.selectOption(id);
+      await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+      await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+      const slots=await page.locator('[data-v15-071-viewslot]').evaluateAll(items =>
+        items.map(item=>item.getAttribute('data-v15-071-viewslot')));
+      if(['vue-ensemble','consultation','agenda-cabinet','gestion-administrative'].includes(id)){
+        const agendaView=page.locator('[data-v15-071-layout="'+id+'"] [data-testid="r3-real-agenda"]');
+        await agendaView.locator('tbody tr').first().waitFor({state:'visible',timeout:30000});
+        pass('R3 populated real T2 Agenda in '+id,
+          await agendaView.locator('tbody tr').count()===3 &&
+          await agendaView.getAttribute('data-r3-agenda-state')==='populated',
+          {id,rows:await agendaView.locator('tbody tr').count()});
+      }
+      // P4: the true 3-row agenda is compact, without collapsing either
+      // independently scrollable 50/50 pane or altering permissions.
+      if (['consultation','agenda-cabinet','gestion-administrative'].includes(id)) {
+        const g=await page.locator('[data-v15-071-layout="'+id+'"][data-r3-1-split="two-columns"] [data-testid="r3-1-grid"]')
+          .evaluate(el=>{
+            const panes=[...el.querySelectorAll(':scope > section[data-v15-071-viewslot]')];
+            return {height:Math.round(el.getBoundingClientRect().height),
+              widths:panes.map(p=>Math.round(p.getBoundingClientRect().width)),
+              scrolling:panes.map(p=>getComputedStyle(p).overflowY)};
+          });
+        pass('P4 compact sparse '+id+' is equal-width and scrollable',
+          g.height>=314 && g.height<=(id==='gestion-administrative'?580:356) && g.widths.length===2 &&
+          Math.abs(g.widths[0]-g.widths[1])<=3 &&
+          g.scrolling.every(v=>v==='auto'),g);
+      }
+      const realSourceVerified=id==='suivi-clinique'
+        ? await page.locator('[data-v15-071-viewslot="photos"] select[aria-label="Filtrer par type"]').inputValue()==='PHOTO'
+          && await page.locator('[data-v15-071-viewslot="photos"] select[aria-label="Filtrer par type"]').isDisabled()
+        : id==='imagerie'
+          ? await page.locator('[data-v15-071-viewslot="imagerie"] select[aria-label="Filtrer par type"]').inputValue()==='RADIOGRAPH'
+            && await page.locator('[data-v15-071-viewslot="galerie"] select[aria-label="Filtrer par type"]').inputValue()==='PHOTO'
+            && await page.locator('[data-v15-071-viewslot="imagerie"] select[aria-label="Filtrer par type"]').isDisabled()
+            && await page.locator('[data-v15-071-viewslot="galerie"] select[aria-label="Filtrer par type"]').isDisabled()
+          : id==='gestion-administrative'
+            ? await page.locator('[data-testid="r3-real-agenda"]').count()===1
+              && await page.locator('[data-v15-071-viewslot="documents"] select[aria-label="Filtrer par type"]').inputValue()==='DOCUMENT'
+              && await page.locator('[data-v15-071-viewslot="documents"] select[aria-label="Filtrer par type"]').isDisabled()
+            : await page.locator('[data-testid="r3-real-agenda"]').count()===1;
+      pass('R3-2 real roadmap preset '+id,
+        slots.join(',')===expectedModules.join(',') && realSourceVerified &&
+        await select.locator('option:disabled').count()===9-provenRoadmapCount,
+        {id,slots});
+      if (id==='vue-ensemble') {
+        const geom=await page.locator('[data-v15-071-layout="vue-ensemble"] [data-v15-071-multiview-grid]')
+          .evaluate(root=>{
+            const area=m=>root.querySelector('[data-v15-071-viewslot="'+m+'"]')?.getBoundingClientRect();
+            const a=area('dossier'),b=area('agenda'),m=area('imagerie');
+            return a&&b&&m?{sameLeft:Math.abs(a.left-b.left)<3,
+              mediaRight:m.left>=a.right-3,fullHeight:m.top<=a.top+3&&m.bottom>=b.bottom-3,
+              agendaHeight:Math.round(b.height),mediaWidth:Math.round(m.width)}:null;
+          });
+        pass('premium finish Overview mounts true dossier and 3 Agenda rows next to full-height media',
+          Boolean(geom?.sameLeft&&geom.mediaRight&&geom.fullHeight&&geom.agendaHeight>=325&&geom.mediaWidth>=600),geom);
+      }
+      // P5: verify the REAL narrow-slot media header does not use desktop-xl
+      // toolbar geometry. Check the computed browser boxes, not just a CSS rule.
+      if (id==='imagerie') {
+        await page.waitForFunction(()=>{
+          const images=[...document.querySelectorAll(
+            '[data-v15-071-layout="imagerie"] [data-testid="media-inline-viewer"] img'
+          )];
+          return images.length===2 && images.every(img=>img.complete&&img.naturalWidth>=640);
+        },null,{timeout:20000});
+        pass('premium final genuine authenticated PHOTO+RADIO 640px QA visuals',
+          await page.locator('[data-v15-071-layout="imagerie"] [data-testid="media-inline-viewer"] img')
+            .count()===2);
+      }
+      if (id==='gestion-administrative') {
+        const pdf=page.locator('[data-v15-071-viewslot="documents"] [data-testid="r3-document-source-ready"]');
+        await pdf.waitFor({state:'visible',timeout:20000});
+        const image=page.locator('[data-v15-071-viewslot="documents"] [data-testid="r3-document-page-image"]');
+        await image.waitFor({state:'visible',timeout:20000});
+        await page.waitForFunction(()=>{
+          const img=document.querySelector('[data-v15-071-viewslot="documents"] [data-testid="r3-document-page-image"]');
+          return img instanceof HTMLImageElement && img.complete &&
+            img.naturalWidth>=350 && img.naturalHeight>=100;
+        },null,{timeout:20000});
+        const rendered=await image.evaluate(img=>{
+          const box=img.getBoundingClientRect();
+          const canvas=document.createElement('canvas');
+          canvas.width=img.naturalWidth;canvas.height=img.naturalHeight;
+          const ctx=canvas.getContext('2d',{willReadFrequently:true});
+          if(!ctx)return {naturalWidth:0,bright:0,dark:0,visibleWidth:0};
+          ctx.drawImage(img,0,0);
+          const pixels=ctx.getImageData(0,0,canvas.width,canvas.height).data;
+          let dark=0,bright=0;
+          for(let i=0;i<pixels.length;i+=4){
+            const sum=pixels[i]+pixels[i+1]+pixels[i+2];
+            if(sum<270)dark++;
+            if(sum>690)bright++;
+          }
+          return {naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
+            visibleWidth:Math.round(box.width),visibleHeight:Math.round(box.height),dark,bright};
+        });
+        const admin=await page.locator('[data-v15-071-layout="gestion-administrative"] [data-testid="r3-1-grid"]')
+          .evaluate(el=>({height:Math.round(el.getBoundingClientRect().height),
+            width:Math.round(el.querySelector('[data-v15-071-viewslot="documents"]')?.getBoundingClientRect().width||0)}));
+        pass('premium finish authenticated PDF document has readable tall equal split',
+          admin.height>=520&&admin.height<=580&&admin.width>=600,admin);
+        pass('premium final actual PDF text ink pixels and white paper are decoded',
+          await pdf.getByText(/Page PDF rendue localement/).count()===1 &&
+          rendered.naturalWidth>=350 && rendered.visibleWidth>=250 &&
+          rendered.dark>70 && rendered.bright>1000 &&
+          await page.locator('[data-v15-071-viewslot="documents"] iframe').count()===0,rendered);
+      }
+      if (id==='imagerie' || id==='gestion-administrative') {
+        const module=id==='imagerie'?'imagerie':'documents';
+        const geometry=await page.locator('[data-v15-071-viewslot="'+module+'"] [data-testid="patient-media-timeline"]')
+          .evaluate(root=>{
+            const header=root.firstElementChild?.firstElementChild;
+            const filters=root.querySelector('[aria-label="Recherche et filtres médias"]');
+            if (!(header instanceof HTMLElement) || !(filters instanceof HTMLElement)) return null;
+            const box=filters.getBoundingClientRect();
+            const children=[...filters.children].map(el=>el.getBoundingClientRect());
+            const outside=children.some(b=>b.left<box.left-2 || b.right>box.right+2);
+            const overlap=children.some((b,i)=>children.slice(i+1).some(c=>
+              Math.min(b.right,c.right)-Math.max(b.left,c.left)>2 &&
+              Math.min(b.bottom,c.bottom)-Math.max(b.top,c.top)>2));
+            return {direction:getComputedStyle(header).flexDirection,
+              width:Math.round(box.width),controls:children.length,outside,overlap};
+          });
+        pass('P5 readable authenticated media controls '+id,
+          geometry?.direction==='column' && geometry.width>400 &&
+          geometry.width<960 && geometry.controls===4 &&
+          !geometry.outside && !geometry.overlap,geometry||{missing:true});
+      }
+      if (id==='suivi-clinique') {
+        const split=await page.locator('[data-v15-071-layout="suivi-clinique"][data-r3-1-split="two-rows"] [data-testid="r3-1-grid"]')
+          .evaluate(el=>({height:Math.round(el.getBoundingClientRect().height),
+            panels:el.querySelectorAll(':scope > section[data-v15-071-viewslot]').length}));
+        pass('P5 Follow-up makes more T0/T1 visible in original two-row split',
+          split.height>=620 && split.height<=700 && split.panels===2,split);
+      }
+      await page.locator('[data-v15-071-viewslot]').first().scrollIntoViewIfNeeded();
+      await capture(page,filename);
+      // Integrated 9-view acceptance: accessible full T0/T1 focus must re-gate
+      // and unmount the photo viewer until the original 50/50 is restored.
+      if (id==='suivi-clinique') {
+        await page.getByRole('button',{name:'Agrandir le suivi T0/T1'}).click();
+        const focused=page.getByTestId('r3-1-followup-focus');
+        await focused.waitFor({state:'visible'});
+        pass('integrated Follow-up focus shows only verified T0/T1 read-only',
+          await focused.locator('[data-v15-071-viewslot="suivi"]').count()===1 &&
+          await page.locator('[data-v15-071-viewslot="photos"]').count()===0 &&
+          await focused.locator('[aria-label="Comparaison orthodontique"]').count()===1);
+        await capture(page,'after-r3-followup-t0-t1-focus-1920.png');
+        await page.getByRole('button',{name:'Restaurer le partage 50/50'}).click();
+        pass('integrated Follow-up restores authenticated equal split',
+          await page.locator('[data-v15-071-layout="suivi-clinique"][data-r3-1-split="two-rows"] [data-testid="r3-1-separator"][aria-valuenow="50"]').count()===1 &&
+          await page.locator('[data-v15-071-viewslot="photos"]').count()===1);
+      }
+    }
+  }
+  if(process.env.VITE_V15_07_1_R3_2_FOCUS_LAB==='1') {
+    const chooser=page.getByRole('combobox',{name:'Disposition MultiView'});
+    await chooser.selectOption('planification-traitements');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const recorded=page.locator('[data-testid="r3-real-treatment"]');
+    await recorded.waitFor({state:'visible'});
+    await recorded.getByText(/Contrôle de suivi synthétique/).waitFor({state:'visible'});
+    pass('R3 treatment preset reads canonical authenticated plan, no editor',
+      await recorded.innerText().then(t=>t.includes('Lecture seule')&&t.includes('Contrôle de suivi synthétique')));
+    const planG=await page.locator('[data-v15-071-layout="planification-traitements"] [data-v15-071-multiview-grid]')
+       .evaluate(root=>{
+         const box=m=>root.querySelector('[data-v15-071-viewslot="'+m+'"]')?.getBoundingClientRect();
+         const plan=box('traitement'),d=box('dossier'),media=box('imagerie');
+         return plan&&d&&media?{stacked:Math.abs(plan.left-d.left)<=3,
+           mediaRight:media.left>=plan.right-3,
+           fullHeight:media.top<=plan.top+3&&media.bottom>=d.bottom-3,
+           height:Math.round(media.height)}:null;
+       });
+     pass('premium finish recorded plan and dossier stack by full-height true media',
+       Boolean(planG?.stacked&&planG?.mediaRight&&planG?.fullHeight&&planG?.height>=560),planG);
+     await capture(page,'after-r3-real-treatment-1920.png');
+    await chooser.selectOption('presentation-patient');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    await page.getByRole('button',{name:'Appliquer',exact:true}).click();
+    const presentation=page.locator('[data-testid="r3-patient-presentation"]');
+    await presentation.waitFor({state:'visible'});
+    pass('R3 patient presentation remains masked before explicit action',
+      await presentation.getByText('Présentation masquée').count()===1 &&
+      await page.locator('[data-testid="r3-presentation-visible"]').count()===0);
+    await capture(page,'after-r3-presentation-masked-1920.png');
+    await presentation.getByRole('button',{name:'Présenter sur cet écran'}).click();
+    await presentation.getByText('T2 CERTIFICATION').waitFor({state:'visible',timeout:20000});
+    pass('synthetic patient presentation visible only after clinician-triggered action',
+      await page.locator('[data-testid="r3-presentation-visible"]').count()===1 &&
+      (await presentation.innerText()).includes('Contrôle de suivi synthétique'));
+    await capture(page,'after-r3-presentation-active-t2-only-1920.png');
+    await presentation.getByRole('button',{name:'Masquer immédiatement'}).click();
+    pass('synthetic patient presentation completely hides on clinician demand',
+      await page.locator('[data-testid="r3-presentation-visible"]').count()===0);
+
+    await chooser.selectOption('comparaison-orthodontique');
+    await page.getByRole('button',{name:'Aperçu',exact:true}).click();
+    // 1920px viewport has <1704px of effective clinical workspace. Keep the
+    // fail-closed three-cephalo/photo geometry gate, do not fake a narrow PASS.
+    const applyOrtho=page.getByRole('button',{name:'Appliquer',exact:true});
+    const widthAt1920=await page.locator('[data-v15-071-real-cabinet-lab]').evaluate(
+      el=>Math.floor(el.getBoundingClientRect().width));
+    pass('three-pane cephalo refuses unreadable 1920px nested workspace',
+      widthAt1920<1704 && await applyOrtho.isDisabled(),{cssWidth:widthAt1920});
+
+    // The DEV-only R3 patient media route can occupy a genuine >=1704px
+    // workspace on a wider monitor; widen the real browser, not a mock element.
+    await page.setViewportSize({width:2560,height:1080});
+    await page.waitForFunction(()=> {
+      const root=document.querySelector('[data-v15-071-real-cabinet-lab]');
+      const apply=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.trim()==='Appliquer');
+      return Boolean(root && root.getBoundingClientRect().width>=1704 && apply && !apply.disabled);
+    },null,{timeout:15000});
+    const widthAt2560=await page.locator('[data-v15-071-real-cabinet-lab]').evaluate(
+      el=>Math.floor(el.getBoundingClientRect().width));
+    pass('wider real Cabinet DEV workspace enables readable triple cephalo layout',
+      widthAt2560>=1704 && widthAt2560<=2200 && await applyOrtho.isEnabled(),
+      {cssWidth:widthAt2560});
+    await applyOrtho.click();
+    const clinicalT0=page.getByTestId('r3-cephalo-t0');
+    const clinicalT1=page.getByTestId('r3-cephalo-t1');
+    await clinicalT0.getByText('Analyse source #'+cephPair.T0).waitFor({state:'visible'});
+    await clinicalT1.getByText('Analyse source #'+cephPair.T1).waitFor({state:'visible'});
+    pass('real isolated T0/T1 clinical GET-only panels render distinct canonical source ids',
+      await clinicalT0.getByText('SNA').count()===1 &&
+      await clinicalT1.getByText('SNA').count()===1 &&
+      (await clinicalT0.innerText()).includes('82') &&
+      (await clinicalT1.innerText()).includes('83,2') &&
+      await page.locator('[data-v15-071-viewslot="cephalo"]').count()===2 &&
+      await page.locator('[data-testid="r3-cephalo-missing-t0"]').count()===0 &&
+      await page.locator('[data-testid="r3-cephalo-missing-t1"]').count()===0,
+      {T0:cephPair.T0,T1:cephPair.T1});
+    // Visual acceptance: a 3rd Photos pane on a 2560px monitor is still a
+    // ~700px inline-size container. Its desktop-xl media filter cannot overlap.
+    const photosFilters=page.locator('[data-v15-071-viewslot="photos"] [aria-label="Recherche et filtres médias"]');
+    const photosFilterFit=await photosFilters.evaluate(element=>{
+      const outer=element.getBoundingClientRect();
+      const boxes=Array.from(element.children).map(el=>el.getBoundingClientRect());
+      const overflow=boxes.some(b=>b.left<outer.left-2||b.right>outer.right+2);
+      const collision=boxes.some((b,i)=>boxes.slice(i+1).some(c=>
+        Math.min(b.right,c.right)-Math.max(b.left,c.left)>2 &&
+        Math.min(b.bottom,c.bottom)-Math.max(b.top,c.top)>2));
+      return {width:outer.width,overflow,collision,controls:boxes.length};
+    });
+    pass('R3 T0/T1 Photos controls fit their actual narrow third pane without overlap',
+      photosFilterFit.width>200 && photosFilterFit.controls===4 &&
+      !photosFilterFit.overflow && !photosFilterFit.collision,photosFilterFit);
+    await capture(page,'after-r3-real-ortho-t0-t1-synthetic-records-2560.png');
+  }
   pass('no browser JavaScript errors',errors.length===0,{errors:errors.slice(0,4)});
   console.log('R3-1 AUTHENTIC AFTER PASS '+evidence.tests.length+' tests, '+evidence.screens.length+
     ' synthetic screenshots, exact HEAD '+sha);

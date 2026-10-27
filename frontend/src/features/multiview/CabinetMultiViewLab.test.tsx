@@ -10,12 +10,12 @@ vi.mock('../../services/workstationMode',()=>({
 }));
 vi.mock('../../services/api',()=>({API_BASE:'http://localhost:8005',api:{get:vi.fn()}}));
 vi.mock('../patients/components/PatientMediaTimeline',()=>({
-  PatientMediaTimeline:({patientId,readOnly}:{patientId:number;readOnly?:boolean})=><div data-testid="media-live" data-read-only={String(Boolean(readOnly))}>Media API module patient {patientId}</div>,
+  PatientMediaTimeline:({patientId,readOnly,fixedAssetType}:{patientId:number;readOnly?:boolean;fixedAssetType?:string})=><div data-testid="media-live" data-read-only={String(Boolean(readOnly))} data-fixed-type={fixedAssetType ?? 'ALL'}>Media API module patient {patientId}</div>,
 }));
 vi.mock('../ortho/OrthoLongitudinalComparePanel',()=>({
   OrthoLongitudinalComparePanel:({patientId}:{patientId:number})=><div data-testid="suivi-live">Longitudinal patient {patientId}</div>,
 }));
-import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled, isR3SplitLabEnabled } from './CabinetMultiViewLab';
+import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled, isR3SplitLabEnabled, isR3FocusLabEnabled } from './CabinetMultiViewLab';
 
 const patient={id:17,prenom:'Prénom-A',nom:'NOM-A',numero_dossier:'DOS-A'};
 const user=(permissions:Record<string,boolean>={patients:true,cephalo:true})=>({
@@ -62,6 +62,10 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     expect(isR3SplitLabEnabled(true,undefined)).toBe(false);
     expect(isR3SplitLabEnabled(true,'true')).toBe(false);
     expect(isR3SplitLabEnabled(true,'1')).toBe(true);
+    expect(isR3FocusLabEnabled(false,'1')).toBe(false);
+    expect(isR3FocusLabEnabled(true,undefined)).toBe(false);
+    expect(isR3FocusLabEnabled(true,'true')).toBe(false);
+    expect(isR3FocusLabEnabled(true,'1')).toBe(true);
   });
 
   it('mounts the real MultiView imagerie adapter in read-only R mode',async()=>{
@@ -176,6 +180,265 @@ describe('07.1.A/B actual Cabinet DEV opt-in G1 adapter',()=>{
     fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
     expect(screen.getByRole('separator',{name:'Séparateur vertical des panneaux'})).toBeTruthy();
     expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+  });
+
+  it('R3 module selector previews swaps without mounting duplicates, then applies or cancels',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    expect(screen.getByTestId('r3-module-chooser')).toBeTruthy();
+    const modules=screen.getByRole('combobox',{name:'Module panneau 1'});
+    expect((modules as HTMLSelectElement).value).toBe('dossier');
+    fireEvent.change(modules,{target:{value:'suivi'}});
+    expect((modules as HTMLSelectElement).value).toBe('suivi');
+    // Draft does not mutate the mounted real modules before Apply.
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Annuler'}));
+    expect((screen.getByRole('combobox',{name:'Module panneau 1'}) as HTMLSelectElement).value)
+      .toBe('dossier');
+
+    fireEvent.change(screen.getByRole('combobox',{name:'Module panneau 1'}),{target:{value:'suivi'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    expect(screen.getByTestId('multiview-schematic-preview')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('suivi-live')).toBeTruthy();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getByTestId('r3-module-chooser')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Réinitialiser'}));
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByRole('combobox',{name:'Disposition MultiView'})
+      .querySelectorAll('option:disabled')).toHaveLength(6);
+  });
+
+  it('R3 selector swaps all three authorized slots without duplicated clinical viewers',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    fireEvent.change(screen.getByRole('combobox',{name:'Disposition MultiView'}),{
+      target:{value:'dossier-media-suivi-3cols'},
+    });
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    const chooser=screen.getByRole('combobox',{name:'Module panneau 1'});
+    expect((chooser as HTMLSelectElement).value).toBe('dossier');
+    fireEvent.change(chooser,{target:{value:'suivi'}});
+    expect((screen.getByRole('combobox',{name:'Module panneau 3'}) as HTMLSelectElement).value)
+      .toBe('dossier');
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    const panes=screen.getByTestId('r3-2-three-real-panes').querySelectorAll('[data-v15-071-viewslot]');
+    expect(Array.from(panes,el=>el.getAttribute('data-v15-071-viewslot')))
+      .toEqual(['suivi','imagerie','dossier']);
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+  });
+
+  it('offers 3/9 genuine roadmap layouts only when Agenda and patient permissions are verified',async()=>{
+    const actor=user({patients:true,cephalo:true,agenda:true});
+    useAuthStore.setState({user:actor,isAuthenticated:true});
+    vi.mocked(api.get).mockImplementation(async url =>
+      url.startsWith('/appointments/?') ? {data:[]} as never : {data:patient} as never);
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(2);
+    for(const id of ['vue-ensemble','consultation','agenda-cabinet','suivi-clinique','imagerie','gestion-administrative'])
+      expect(select.querySelector('option[value="'+id+'"]')).toBeTruthy();
+    expect(select.querySelector('option[value="comparaison-orthodontique"]')).toBeTruthy();
+    fireEvent.change(select,{target:{value:'vue-ensemble'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(await screen.findByTestId('r3-real-agenda')).toBeTruthy();
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Agrandir le panneau 2 : agenda'}));
+    expect(screen.getByTestId('r3-2-single-focus')).toBeTruthy();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Restaurer les trois panneaux'}));
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+
+    fireEvent.change(select,{target:{value:'consultation'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('r3-real-agenda')).toBeTruthy();
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    fireEvent.change(select,{target:{value:'agenda-cabinet'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('r3-real-agenda')).toBeTruthy();
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+
+    fireEvent.change(select,{target:{value:'suivi-clinique'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('suivi-live')).toBeTruthy();
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getByTestId('r3-module-chooser')).toBeTruthy();
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(2);
+
+    fireEvent.change(select,{target:{value:'gestion-administrative'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('r3-real-agenda')).toBeTruthy();
+    expect(screen.getByTestId('media-live').getAttribute('data-fixed-type')).toBe('DOCUMENT');
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+  });
+
+  it('enables real R-only treatment planning only with clinical permission and exact verified patient',async()=>{
+    const actor=user({patients:true,cephalo:false,clinical:true});
+    useAuthStore.setState({user:actor,isAuthenticated:true});
+    const persisted={id:51,patient_id:17,created_at:'2026-10-01T10:00:00Z',updated_at:'2026-10-02T10:00:00Z',
+      steps:[{id:101,plan_id:51,title:'Contrôle inscrit',assistant:'Praticien',status:'pending',
+        date_str:'2026-11-03',order_index:0,catalog_snapshot:null}]};
+    vi.mocked(api.get).mockImplementation(async url =>
+      url==='/patients/17/master-plan' ? {data:persisted} as never : {data:patient} as never);
+    const {rerender}=render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelector('option[value="planification-traitements"]')).toBeTruthy();
+    // Clinical permission does not imply Cephalo permission.
+    expect(select.querySelector('option[value="future-comparaison-orthodontique"]')?.hasAttribute('disabled')).toBe(true);
+    expect(select.querySelector('option[value="presentation-patient"]')).toBeTruthy();
+    fireEvent.change(select,{target:{value:'planification-traitements'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(await screen.findByText(/Contrôle inscrit/)).toBeTruthy();
+    expect(screen.getByTestId('r3-real-treatment').textContent).toContain('Lecture seule');
+    expect(vi.mocked(api.get)).toHaveBeenCalledWith('/patients/17/master-plan');
+    expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    fireEvent.click(screen.getByRole('button',{name:'Agrandir le panneau 1 : traitement'}));
+    expect(screen.getByTestId('r3-2-single-focus')).toBeTruthy();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(screen.queryByTestId('media-live')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Restaurer les trois panneaux'}));
+    expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    const revoked=user({patients:true,cephalo:false,clinical:false});
+    useAuthStore.setState({user:revoked,isAuthenticated:true});
+    rerender(<CabinetMultiViewLab patient={patient} routePatientId="17" user={revoked}
+      enableR3Split enableR3Focus/>);
+    expect(screen.queryByTestId('r3-real-treatment')).toBeNull();
+  });
+
+  it('offers only verified R-only orthogonal T0/T1 and a masked patient presentation',async()=>{
+    const actor=user({patients:true,cephalo:true,clinical:true,agenda:true});
+    useAuthStore.setState({user:actor,isAuthenticated:true});
+    vi.spyOn(HTMLElement.prototype,'getBoundingClientRect').mockImplementation(()=>({
+      x:0,y:0,top:0,left:0,right:1900,bottom:850,width:1900,height:850,toJSON:()=>({}),
+    }));
+    vi.mocked(api.get).mockImplementation(async url => {
+      if(url==='/patients/17/ortho-case') return {data:null} as never;
+      if(url==='/patients/17/master-plan')return {data:null} as never;
+      if(url.startsWith('/appointments/?'))return {data:[]} as never;
+      return {data:patient} as never;
+    });
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={actor}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(0);
+    fireEvent.change(select,{target:{value:'comparaison-orthodontique'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(await screen.findByTestId('r3-cephalo-missing-t0')).toBeTruthy();
+    expect(await screen.findByTestId('r3-cephalo-missing-t1')).toBeTruthy();
+    expect(screen.queryByTestId('r3-module-chooser')).toBeNull(); // Scientific timepoint slots are fixed.
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    fireEvent.change(select,{target:{value:'presentation-patient'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('r3-patient-presentation').textContent).toContain('Présentation masquée');
+    expect(screen.queryByText('Prénom-A NOM-A')).toBeNull();
+    expect(screen.queryByTestId('r3-cephalo-t0')).toBeNull();
+    expect(screen.queryByTestId('media-live')).toBeNull();
+  });
+
+  it('Imagerie preset uses independent real RADIOGRAPH and PHOTO media adapters, both R-only',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelector('option[value="imagerie"]')).toBeTruthy();
+    fireEvent.change(select,{target:{value:'imagerie'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    const viewers=screen.getAllByTestId('media-live');
+    expect(viewers).toHaveLength(2);
+    expect(viewers.map(x=>x.getAttribute('data-fixed-type'))).toEqual(['RADIOGRAPH','PHOTO']);
+    expect(viewers.every(x=>x.getAttribute('data-read-only')==='true')).toBe(true);
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(6);
+  });
+
+  it('R3-2 triple-opt-in mounts exactly three TRUE R-only slots and focus unmounts the rest',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    fireEvent.change(select,{target:{value:'dossier-media-suivi-3cols'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    expect(screen.getByTestId('multiview-ronly-contract').textContent).toContain('R · lecture seule');
+    expect(screen.getByRole('heading',{name:'MultiView'})).toBeTruthy();
+    expect(screen.getByRole('button',{name:'Échanger les vues'})).toBeTruthy();
+    expect(screen.getByRole('button',{name:'Réinitialiser'})).toBeTruthy();
+    expect(screen.getByRole('button',{name:'Agrandir le panneau 2 : imagerie'}).textContent).toContain('Médias');
+    expect(screen.getAllByRole('region',{name:/Panneau /})).toHaveLength(3);
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+    expect(screen.getByTestId('suivi-live')).toBeTruthy();
+    expect(screen.getByTestId('multiview-real-dossier')).toBeTruthy();
+    expect(select.querySelectorAll('option:disabled')).toHaveLength(6);
+
+    fireEvent.click(screen.getByRole('button',{name:'Agrandir le panneau 2 : imagerie'}));
+    expect(screen.getByTestId('r3-2-single-focus')).toBeTruthy();
+    expect(screen.getByTestId('media-live').getAttribute('data-read-only')).toBe('true');
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
+    expect(screen.queryByTestId('multiview-real-dossier')).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Restaurer les trois panneaux'}));
+    expect(screen.getByTestId('r3-2-three-real-panes')).toBeTruthy();
+    expect(screen.getByTestId('suivi-live')).toBeTruthy();
+    expect(screen.getAllByTestId('media-live')).toHaveLength(1);
+  });
+
+  it('R3-2 cannot activate with only the R3-1 flag; no new R3-2 viewer mounts',async()=>{
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={user()}
+      enableR3Split enableR3Focus={false}/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    fireEvent.change(select,{target:{value:'dossier-media-suivi-3cols'}});
+    fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
+    fireEvent.click(screen.getByRole('button',{name:'Appliquer'}));
+    expect(screen.queryByTestId('r3-2-three-real-panes')).toBeNull();
+    expect(screen.queryByRole('group',{name:'Agrandir un panneau'})).toBeNull();
+    expect(screen.getByTestId('suivi-live')).toBeTruthy();
+  });
+
+  it('R3-2 hides three-pane selectors and mounted sources without a cephalo permission',async()=>{
+    const restricted=user({patients:true,cephalo:false});
+    useAuthStore.setState({user:restricted,isAuthenticated:true});
+    render(<CabinetMultiViewLab patient={patient} routePatientId="17" user={restricted}
+      enableR3Split enableR3Focus/>);
+    await screen.findByTestId('multiview-real-dossier');
+    const select=screen.getByRole('combobox',{name:'Disposition MultiView'});
+    expect(select.querySelector('option[value="dossier-media-suivi-3cols"]')).toBeNull();
+    expect(select.querySelector('option[value="dossier-media-suivi-hero"]')).toBeNull();
+    expect(screen.queryByTestId('r3-2-three-real-panes')).toBeNull();
+    expect(screen.queryByTestId('suivi-live')).toBeNull();
   });
 
   it('does not offer longitudinal comparison without the canonical cephalo permission',async()=>{

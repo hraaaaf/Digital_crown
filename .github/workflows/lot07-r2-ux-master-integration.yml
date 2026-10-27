@@ -26,7 +26,8 @@ jobs:
     timeout-minutes: 55
     env:
       R2_SOURCE_SHA: ${{ github.event.pull_request.head.sha }}
-      MASTER_SHA: ${{ github.event.pull_request.base.sha }}
+      # Historical event base is informational only: master may advance after the PR event.
+      EVENT_BASE_SHA: ${{ github.event.pull_request.base.sha }}
       ENVIRONMENT: test
       DATABASE_URL: 'sqlite:///:memory:'
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
@@ -52,7 +53,15 @@ jobs:
           test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
           test ! -f digitalcrown.db
           test ! -f t2-runtime-cert.db
-          echo "R2_SOURCE_HEAD=$R2_SOURCE_SHA"
+          # Resolve the real current master ONCE, pin its SHA for all later
+          # temporary merge checks. Refuse a rewrite/divergence from event base.
+          git fetch --no-tags origin master
+          MASTER_SHA="$(git rev-parse FETCH_HEAD)"
+          [[ "$MASTER_SHA" =~ ^[0-9a-f]{40}$ ]]
+          git merge-base --is-ancestor "$EVENT_BASE_SHA" "$MASTER_SHA"
+          git merge-base "$MASTER_SHA" "$R2_SOURCE_SHA" >/dev/null
+          echo "MASTER_SHA=$MASTER_SHA" >> "$GITHUB_ENV"
+          echo "R2_SOURCE_HEAD=$R2_SOURCE_SHA master_pinned=$MASTER_SHA event_base=$EVENT_BASE_SHA"
 
       - name: Assemble disposable three-way merge tree, no commit or remote ref write
         shell: bash

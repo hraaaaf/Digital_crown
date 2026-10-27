@@ -231,6 +231,68 @@ def list_patient_assets(
     }
 
 
+@router.get("/{patient_id}/assets/{asset_id}/preview-page")
+def read_patient_pdf_preview_page(
+    patient_id: int,
+    asset_id: int,
+    page: int = Query(1, ge=1, le=500),
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(get_current_user),
+):
+    """Rasterize one authorised PDF page on the local server, without CDN or PHI cache.
+
+    Same tenant/patient/RBAC and validated encrypted blob as the content route.
+    Native PDF iframes may render blank in headless Chromium; this endpoint returns
+    inspectable real pixels, not inferred/document-like synthetic markup.
+    """
+    _require_patient_permission(current_user)
+    assert_patient_access(patient_id, current_user, db)
+    employer_id = int(current_user.get_employer_id())
+    asset = get_clinical_asset_for_patient(
+        db, employer_id=employer_id, patient_id=patient_id, asset_id=asset_id
+    )
+    if asset is None or asset.mime_type != "application/pdf" or asset.asset_type != "DOCUMENT":
+        raise HTTPException(status_code=404, detail="PDF preview unavailable")
+    try:
+        content = read_clinical_asset_bytes(
+            db, employer_id=employer_id, patient_id=patient_id, asset_id=asset_id
+        )
+    except ClinicalAssetStorageError as exc:
+        raise HTTPException(status_code=503, detail="Clinical media storage unavailable") from exc
+    try:
+        import fitz  # PyMuPDF: pinned locally; no browser/plugin/network dependency.
+
+        with fitz.open(stream=content, filetype="pdf") as pdf:
+            if page > pdf.page_count:
+                raise HTTPException(status_code=404, detail="PDF page not found")
+            selected = pdf.load_page(page - 1)
+            rect = selected.rect
+            longest = max(float(rect.width), float(rect.height))
+            if longest <= 0:
+                raise ValueError("Invalid PDF page geometry")
+            scale = min(1.7, 1400.0 / longest)
+            picture = selected.get_pixmap(
+                matrix=fitz.Matrix(scale, scale), alpha=False, colorspace=fitz.csRGB
+            )
+            image = picture.tobytes("png")
+            if not image.startswith(b"\x89PNG\r\n\x1a\n") or len(image) > 8 * 1024 * 1024:
+                raise ValueError("PDF raster exceeds preview bounds")
+    except HTTPException:
+        raise
+    except (ValueError, RuntimeError, ImportError, OverflowError) as exc:
+        raise HTTPException(status_code=422, detail="PDF preview cannot be rendered") from exc
+    return Response(
+        content=image,
+        media_type="image/png",
+        headers={
+            "Cache-Control": "private, no-store",
+            "Pragma": "no-cache",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": "inline",
+        },
+    )
+
+
 @router.get("/{patient_id}/assets/{asset_id}/content")
 def read_patient_asset_content(
     patient_id: int,

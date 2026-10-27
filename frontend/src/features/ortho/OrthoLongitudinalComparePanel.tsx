@@ -154,6 +154,24 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
         )}
       </div>
 
+      {comparison && comparison.measurements.length > 0 && (
+        <div data-testid="r3-followup-key-measures" aria-label="Résumé chiffré T0 T1 vérifié"
+          className="mb-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+          {comparison.measurements.slice(0,3).map(m=>(
+            <div key={m.key} className="min-w-0 rounded-xl border border-border-main bg-medical-pearl px-3 py-2.5">
+              <p className="text-[10px] font-bold uppercase tracking-wide text-text-muted">{m.label}</p>
+              <p className="mt-1 flex flex-wrap items-baseline gap-x-1.5 tabular-nums text-sm font-extrabold text-text-main">
+                {valueLabel(m.from_value,m.unit)}
+                <span className="text-text-muted">→</span>
+                {valueLabel(m.to_value,m.unit)}
+              </p>
+              <p className="mt-1 text-xs font-bold text-primary-ink">
+                Δ numérique {signed(m.delta,m.unit)}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
         <TimepointSelector
           label="Repère initial"

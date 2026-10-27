@@ -26,6 +26,7 @@ jobs:
       SOURCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
       VITE_V15_07_1_MULTIVIEW_LAB: '1'
       VITE_V15_07_1_R3_SPLIT_LAB: '1'
+      VITE_V15_07_1_R3_2_FOCUS_LAB: '1'
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: '1'
       DATABASE_URL: sqlite:///./t2-runtime-cert.db
@@ -107,6 +108,18 @@ jobs:
           done
           tail -80 /tmp/071-g1-backend.log
           exit 1
+      - name: Seed two separately persisted synthetic CEPHALO timepoint sources (T2 ONLY)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test -n "$DIGITALCROWN_ISOLATION_DB_FINGERPRINT"
+          python scripts/lot07_r3_cephalo_pair_t2.py >/tmp/071-r3-cephalo-pair.env
+          grep -E '^R3_T2_CEPHALO_T[01]_ID=[0-9]+$' /tmp/071-r3-cephalo-pair.env > /tmp/071-r3-cephalo-pair-validated.env
+          test "$(wc -l < /tmp/071-r3-cephalo-pair-validated.env)" -eq 2
+          cat /tmp/071-r3-cephalo-pair-validated.env >> "$GITHUB_ENV"
       - name: Start actual DEV opt-in Cabinet frontend
         working-directory: frontend
         shell: bash

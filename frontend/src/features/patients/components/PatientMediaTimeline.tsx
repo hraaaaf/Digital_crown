@@ -22,6 +22,10 @@ interface PatientMediaTimelineProps {
   patientId: number;
   /** MultiView R-mode: hides editing actions; backend RBAC remains authoritative. */
   readOnly?: boolean;
+  /** R-only hard filter for authenticated split panels, cannot be reset by controls. */
+  fixedAssetType?: 'PHOTO' | 'RADIOGRAPH' | 'DOCUMENT';
+  /** DEV R3 authenticated visual presenter; ordinary patient media stays unchanged. */
+  labReadOnlyPreview?: boolean;
 }
 
 interface ViewerState {
@@ -82,25 +86,33 @@ const AuthenticatedThumbnail = ({ patientId, assetId }: { patientId: number; ass
   return <img src={url} alt="Aperçu clinique" className="absolute inset-0 h-full w-full object-cover" />;
 };
 
-const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { patientId: number; asset: ClinicalAsset | null; compact?: boolean }) => {
+const AuthenticatedAssetPreview = ({ patientId, asset, compact = false, labReadOnlyPreview = false }: { patientId: number; asset: ClinicalAsset | null; compact?: boolean; labReadOnlyPreview?: boolean }) => {
   const [url, setUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
     let disposed = false;
     let objectUrl: string | null = null;
     setUrl(null);
+    setLoadError(false);
     if (!asset) return () => undefined;
 
     setLoading(true);
-    api.get(`/patients/${patientId}/assets/${asset.id}/content`, { responseType: 'blob' })
+    const rasterPdf = labReadOnlyPreview && asset.mime_type === 'application/pdf';
+    const route = `/patients/${patientId}/assets/${asset.id}/` + (rasterPdf ? 'preview-page?page=1' : 'content');
+    api.get(route, { responseType: 'blob' })
       .then((response) => {
         if (disposed) return;
+        if (!(response.data instanceof Blob) || (rasterPdf && response.data.type !== 'image/png')) {
+          setLoadError(true);
+          return;
+        }
         objectUrl = URL.createObjectURL(response.data);
         setUrl(objectUrl);
       })
       .catch(() => {
-        if (!disposed) setUrl(null);
+        if (!disposed) { setUrl(null); setLoadError(true); }
       })
       .finally(() => {
         if (!disposed) setLoading(false);
@@ -110,18 +122,30 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
       disposed = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
-  }, [asset, patientId]);
+  }, [asset, patientId, labReadOnlyPreview]);
 
   const minHeight = compact ? 'min-h-[220px] sm:min-h-[280px] lg:min-h-[360px]' : 'min-h-[220px] sm:min-h-[280px] md:min-h-[390px] lg:min-h-[470px]';
 
   if (!asset) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Images size={44} strokeWidth={1.4} /></div>;
-  if (loading || !url) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Loader2 size={26} className="animate-spin" /></div>;
-  if (asset.mime_type === 'application/pdf') return <iframe src={url} title="Aperçu document clinique" className={cn('w-full bg-card', minHeight)} />;
+  if (loadError) return <div role="alert" className="rounded-xl border border-warning-border bg-warning-surface p-4 text-sm text-warning">Aperçu indisponible : impossible de charger le fichier autorisé.</div>;
+  if (loading || !url) return <div role="status" className={cn('flex items-center justify-center bg-medical-pearl text-text-muted', minHeight)}><Loader2 size={26} className="animate-spin" /></div>;
+  if (asset.mime_type === 'application/pdf') return <div data-testid={labReadOnlyPreview ? 'r3-document-preview' : undefined} className="min-w-0 bg-card">
+    {labReadOnlyPreview && <div data-testid="r3-document-source-ready" className="flex flex-wrap items-center justify-between gap-2 border-b border-border-main bg-medical-pearl px-3 py-3 text-xs text-text-main">
+      <span className="inline-flex items-center gap-2 font-semibold"><FileText size={18} aria-hidden="true"/> Page PDF rendue localement · lecture seule</span>
+      <span className="font-mono text-[11px] text-text-muted">{typeof asset.byte_size === 'number' ? (asset.byte_size / 1024).toFixed(1) + ' Ko' : 'Fichier autorisé'}</span>
+      <span className="w-full text-[11px] text-text-muted">Aperçu extrait du PDF autorisé. Ouvrir en plein écran pour le document intégral.</span>
+    </div>}
+    {labReadOnlyPreview
+      ? <img data-testid="r3-document-page-image" src={url} alt="Première page du document PDF autorisé"
+          className="mx-auto block h-auto max-h-[470px] w-auto max-w-full bg-card object-contain"
+          onError={()=>setLoadError(true)} />
+      : <iframe src={url} title="Aperçu document clinique" className={cn('w-full bg-card', minHeight)} /> }
+  </div>;
 
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
-export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => {
+export const PatientMediaTimeline = ({ patientId, readOnly = false, fixedAssetType, labReadOnlyPreview = false }: PatientMediaTimelineProps) => {
   const [items, setItems] = useState<ClinicalAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -135,6 +159,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
   const [searchTerm, setSearchTerm] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [typeFilter, setTypeFilter] = useState('ALL');
+  const effectiveTypeFilter=readOnly && fixedAssetType ? fixedAssetType : typeFilter;
   const [timepointFilter, setTimepointFilter] = useState('ALL');
   const [compareIds, setCompareIds] = useState<number[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -165,7 +190,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
           limit: PAGE_SIZE,
           offset,
           q: debouncedSearch || undefined,
-          asset_type: typeFilter === 'ALL' ? undefined : typeFilter,
+          asset_type: effectiveTypeFilter === 'ALL' ? undefined : effectiveTypeFilter,
           timepoint: timepointFilter === 'ALL' ? undefined : (timepointFilter === 'Sans repère' ? '__NONE__' : timepointFilter),
         },
       });
@@ -185,7 +210,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
         setLoadingMore(false);
       }
     }
-  }, [debouncedSearch, patientId, timepointFilter, typeFilter]);
+  }, [debouncedSearch, patientId, timepointFilter, effectiveTypeFilter]);
 
   useEffect(() => {
     void loadAssets();
@@ -209,14 +234,14 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
   const filteredItems = useMemo(() => {
     const query = searchTerm.trim().toLocaleLowerCase('fr');
     return items.filter((item) => {
-      if (typeFilter !== 'ALL' && item.asset_type !== typeFilter) return false;
+      if (effectiveTypeFilter !== 'ALL' && item.asset_type !== effectiveTypeFilter) return false;
       const itemTimepoint = item.timepoint || 'Sans repère';
       if (timepointFilter !== 'ALL' && itemTimepoint !== timepointFilter) return false;
       if (!query) return true;
       const haystack = [assetTypeLabel[item.asset_type] || item.asset_type, item.asset_type, item.source_kind, itemTimepoint, formatDate(item.captured_at || item.created_at)].join(' ').toLocaleLowerCase('fr');
       return haystack.includes(query);
     });
-  }, [items, searchTerm, timepointFilter, typeFilter]);
+  }, [items, searchTerm, timepointFilter, effectiveTypeFilter]);
 
   const grouped = useMemo(() => {
     const groups = new Map<string, ClinicalAsset[]>();
@@ -343,7 +368,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
           <div className="min-w-0">
             <div className="flex max-w-full flex-wrap items-center gap-x-2 gap-y-1 text-primary">
               <Images size={17} className="shrink-0" />
-              <h2 className="text-base font-black tracking-tight text-main sm:text-lg">Médiathèque clinique</h2>
+              <h2 className="text-base font-black tracking-tight text-main sm:text-lg">{labReadOnlyPreview && fixedAssetType === 'DOCUMENT' ? 'Documents cliniques' : labReadOnlyPreview && fixedAssetType === 'RADIOGRAPH' ? 'Radiographies' : labReadOnlyPreview && fixedAssetType === 'PHOTO' ? 'Photographies' : 'Médiathèque clinique'}</h2>
               {items.length > 0 && <span className="rounded-full bg-primary/5 px-2 py-0.5 text-[9px] font-black text-primary">{filteredItems.length}/{items.length}</span>}
             </div>
             <p className="mt-0.5 hidden text-[11px] font-medium leading-snug text-text-muted md:block lg:text-xs">Recherche, filtres et comparaison longitudinale T0/T1/T2.</p>
@@ -354,7 +379,10 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
               <Search size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-text-muted" />
               <input value={searchTerm} onChange={(event) => setSearchTerm(event.target.value)} placeholder="Rechercher média…" aria-label="Rechercher un média" className="h-10 w-full rounded-xl border border-border-main bg-card-bg pl-9 pr-2 text-xs font-semibold text-main outline-none focus:border-primary focus:ring-2 focus:ring-blue-100" />
             </label>
-            <select aria-label="Filtrer par type" value={typeFilter} onChange={(event) => setTypeFilter(event.target.value)} className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary">
+            <select aria-label="Filtrer par type" value={effectiveTypeFilter}
+              disabled={Boolean(readOnly && fixedAssetType)}
+              onChange={(event) => {if (!readOnly || !fixedAssetType) setTypeFilter(event.target.value);}}
+              className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary disabled:opacity-70">
               <option value="ALL">Tous types</option><option value="PHOTO">Photos</option><option value="RADIOGRAPH">Radios</option><option value="DOCUMENT">Documents</option>
             </select>
             <select aria-label="Filtrer par repère" value={timepointFilter} onChange={(event) => setTimepointFilter(event.target.value)} className="h-10 min-w-0 rounded-xl border border-border-main bg-card-bg px-2.5 text-xs font-semibold text-main outline-none focus:border-primary">
@@ -411,7 +439,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
             </section>
           )}
 
-          <div className="grid min-w-0 gap-2.5 md:grid-cols-[minmax(210px,0.32fr)_minmax(0,1fr)] lg:grid-cols-[minmax(260px,0.34fr)_minmax(0,1fr)] lg:gap-3">
+          <div data-testid="r3-media-asset-layout" className="grid min-w-0 gap-2.5 md:grid-cols-[minmax(210px,0.32fr)_minmax(0,1fr)] lg:grid-cols-[minmax(260px,0.34fr)_minmax(0,1fr)] lg:gap-3">
             <div data-testid="media-asset-rail" className="order-2 min-w-0 space-y-2.5 md:order-1 md:max-h-[545px] md:overflow-y-auto md:pr-1">
               {grouped.map(([label, assets]) => <section key={label} aria-label={`Temps ${label}`} className="space-y-1.5"><div className="flex items-center gap-2 px-0.5"><span className="inline-flex h-6 min-w-6 items-center justify-center rounded-lg bg-primary px-2 text-[9px] font-black tracking-wider text-white">{label}</span><div className="h-px flex-1 bg-border-main" /><span className="text-[9px] font-black uppercase tracking-widest text-text-muted">{assets.length}</span></div><div className="space-y-1.5">{assets.map((asset) => {
                 const selected = selectedAsset?.id === asset.id;
@@ -423,7 +451,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
 
             <section data-testid="media-inline-viewer" aria-label="Aperçu média clinique" className="order-1 min-w-0 overflow-hidden rounded-[1.25rem] border border-border-main bg-card-bg shadow-sm md:order-2">
               <div className="flex min-h-[44px] items-center justify-between gap-2 border-b border-border-main px-2.5 py-2 sm:px-3 md:px-4"><div className="min-w-0"><p className="text-[8px] font-black uppercase tracking-[0.16em] text-primary">{selectedAsset?.timepoint || 'Sans repère'}</p><div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5"><h3 className="truncate text-xs font-black text-main sm:text-sm">{selectedAsset ? (assetTypeLabel[selectedAsset.asset_type] || selectedAsset.asset_type) : 'Aucun média'}</h3>{selectedAsset && <span className="text-[9px] font-bold text-text-muted">{formatDate(selectedAsset.captured_at || selectedAsset.created_at)}</span>}</div></div>{selectedAsset && <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={() => toggleCompare(selectedAsset.id)} className={cn('inline-flex h-8 items-center justify-center rounded-lg border px-2 text-[9px] font-black uppercase tracking-wider', compareIds.includes(selectedAsset.id) ? 'border-primary bg-primary text-white' : 'border-border-main text-primary')} aria-pressed={compareIds.includes(selectedAsset.id)}>{compareIds.includes(selectedAsset.id) ? 'Ajouté' : 'Comparer'}</button><button type="button" onClick={() => void openAsset(selectedAsset)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border-main bg-card-bg px-2 text-[9px] font-black uppercase tracking-wider text-primary" aria-label="Ouvrir le média sélectionné en plein écran"><Maximize2 size={13} /><span className="hidden sm:inline">Plein écran</span></button></div>}</div>
-              <AuthenticatedAssetPreview patientId={patientId} asset={selectedAsset} />
+              <AuthenticatedAssetPreview patientId={patientId} asset={selectedAsset} labReadOnlyPreview={labReadOnlyPreview} />
             </section>
           </div>
         </>
