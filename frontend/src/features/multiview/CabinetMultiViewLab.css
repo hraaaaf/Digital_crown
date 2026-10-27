@@ -593,3 +593,13 @@
   [data-testid="multiview-bilan-readonly"] {
   padding: 12px;
 }
+
+/* P4 sparse agenda polish. Only applicable to three real rows in wide DEV R3. */
+@media (min-width: 1500px) and (min-height: 850px) {
+  [data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],[data-v15-071-layout="agenda-cabinet"],[data-v15-071-layout="gestion-administrative"])[data-r3-1-split="two-columns"]
+  [data-testid="r3-1-grid"]:has([data-r3-agenda-state="populated"] tbody tr:nth-child(-n+3):last-child) {
+    height: clamp(380px,36vh,425px) !important;
+    min-height: 380px !important;
+  }
+}
