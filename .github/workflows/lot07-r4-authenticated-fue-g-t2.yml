@@ -1,4 +1,6 @@
 name: LOT07 R4 Command x4 and Iconic real Cabinet T2 FUE-G
+# Evidence review requires fresh screenshots/report on this exact commit.
+# No approval, clinical write or production activation is implied by a GREEN FUE.
 
 on:
   push:
