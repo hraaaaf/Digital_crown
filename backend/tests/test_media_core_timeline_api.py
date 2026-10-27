@@ -250,6 +250,9 @@ def test_authenticated_pdf_page_preview_renders_real_pixels_without_leaking_cros
         assert png.size[0] >= 580
         assert png.size[0] <= 1400
         assert png.getbbox() is not None
+        # The accepted synthetic PDF contains dark lettering on pale paper.
+        low, high = png.convert('L').getextrema()
+        assert low < 90 and high > 220
 
     # Never use a linked asset id to bypass exact patient or tenant validation.
     wrong_patient = client.get(
