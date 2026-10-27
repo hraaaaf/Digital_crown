@@ -540,3 +540,56 @@
   height: min(66vh, 720px) !important;
   min-height: 570px !important;
 }
+
+/* R3 POLISH P3 — narrow consultation/agenda/document panes only.
+ * Make the real read-only rows easier to scan; no fabricated clinical data,
+ * permissions, source changes, or modification to the approved 50/50 splitter. */
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="r3-real-agenda"] {
+  padding: 14px 16px;
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="r3-real-agenda"] thead th {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .025em;
+  padding: 10px 8px;
+  background: var(--bg-medical-pearl);
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="r3-real-agenda"] tbody td {
+  padding: 14px 8px;
+  font-size: 12px;
+  line-height: 1.45;
+  vertical-align: middle;
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="r3-real-agenda"] tbody tr:nth-child(even) {
+  background: var(--bg-medical-pearl);
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="multiview-real-dossier"] > div:first-child {
+  padding: 13px 15px;
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],
+      [data-v15-071-layout="agenda-cabinet"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="multiview-bilan-readonly"] {
+  padding: 12px;
+}
