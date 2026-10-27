@@ -36,7 +36,7 @@ export const PatientRvgPanel: React.FC<PatientRvgPanelProps> = ({ patientId }) =
 
   if (loading) {
     return (
-      <div className="min-h-[320px] flex flex-col items-center justify-center gap-3 text-slate-500">
+      <div className="min-h-[320px] flex flex-col items-center justify-center gap-3 text-text-muted">
         <Loader2 className="animate-spin" size={28} />
         <p className="text-sm font-semibold">Chargement des radios intra-orales…</p>
       </div>
@@ -46,15 +46,15 @@ export const PatientRvgPanel: React.FC<PatientRvgPanelProps> = ({ patientId }) =
   if (error) {
     return (
       <div className="min-h-[320px] flex flex-col items-center justify-center gap-4 px-6 text-center">
-        <AlertCircle size={38} className="text-rose-500" />
+        <AlertCircle size={38} className="text-danger" />
         <div>
-          <h3 className="font-black text-slate-800">Impossible de charger les RVG</h3>
-          <p className="text-sm text-slate-500 mt-1">Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé.</p>
+          <h3 className="font-black text-text-main">Impossible de charger les RVG</h3>
+          <p className="text-sm text-text-muted mt-1">Impossible de confirmer l'absence de données tant que le chargement n'est pas terminé.</p>
         </div>
         <button
           type="button"
           onClick={() => setReloadKey(key => key + 1)}
-          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-[#003380] text-white text-xs font-black uppercase tracking-widest"
+          className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary text-xs font-black uppercase tracking-widest"
         >
           <RefreshCw size={15} /> Réessayer
         </button>
@@ -66,24 +66,24 @@ export const PatientRvgPanel: React.FC<PatientRvgPanelProps> = ({ patientId }) =
     <section className="space-y-5 min-w-0" aria-label="Radios RVG et intra-orales">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
-          <h2 className="font-black text-slate-800 text-lg">Radios intra-orales</h2>
-          <p className="text-sm text-slate-500 mt-1">
+          <h2 className="font-black text-text-main text-lg">Radios intra-orales</h2>
+          <p className="text-sm text-text-muted mt-1">
             RVG, périapicales, bitewings et occlusales archivées dans le dossier Patient.
           </p>
         </div>
         <button
           type="button"
           onClick={() => setUploadOpen(true)}
-          className="inline-flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-[#003380] text-white text-xs font-black uppercase tracking-widest"
+          className="inline-flex shrink-0 items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-on-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary text-xs font-black uppercase tracking-widest"
         >
           <ImagePlus size={16} /> Ajouter une RVG
         </button>
       </div>
 
       {documents.length === 0 ? (
-        <div className="rounded-2xl border border-dashed border-slate-300 bg-slate-50/70 py-16 px-6 text-center">
-          <p className="font-black text-slate-700">Aucune radio intra-orale enregistrée</p>
-          <p className="text-sm text-slate-500 mt-1">Cet état vide provient d'une lecture backend réussie.</p>
+        <div className="rounded-2xl border border-dashed border-border-main bg-background/70 py-16 px-6 text-center">
+          <p className="font-black text-text-main">Aucune radio intra-orale enregistrée</p>
+          <p className="text-sm text-text-muted mt-1">Cet état vide provient d'une lecture backend réussie.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
