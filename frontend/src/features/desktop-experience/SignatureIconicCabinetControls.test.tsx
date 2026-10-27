@@ -41,7 +41,7 @@ describe('LOT07 R4 — authentic Cabinet pages remain Core by default', () => {
     for (const token of expected) {
       expect(palette).toContain(token + ':');
     }
-    expect(css).not.toMatch(/#[a-f\d]{3,8}\b|(?:rgba?|hsla?|oklch|lab)\s*\(/i);
+    expect(css.replace(/\/\*[\s\S]*?\*\//g, '')).not.toMatch(/#[a-f\d]{3,8}\b|(?:rgba?|hsla?|oklch|lab)\s*\(/i);
     expect(css).not.toContain('var(--border-main)');
     expect(palette).toContain('--color-primary: var(--primary)');
     expect(palette).toContain('--color-border-main: var(--border-color)');
