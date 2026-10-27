@@ -182,8 +182,12 @@ describe('R2 live root guard contract on Data Router (synthetic pages only)', ()
     await screen.findByRole('alertdialog');
     useAuthStore.setState({user:null,isAuthenticated:false,isLoading:false});
     await waitFor(()=>expect(router.state.location.pathname).toBe('/login'));
+    // Router state can advance before React commits the new route to the DOM.
+    // Wait for the destination, then require the previous editor to be gone.
+    expect(await screen.findByText('Login synthétique')).toBeTruthy();
     expect(screen.queryByRole('alertdialog')).toBeNull();
-    expect(screen.getByText('Login synthétique')).toBeTruthy();
+    expect(screen.queryByLabelText('Éditeur synthétique')).toBeNull();
+    expect(screen.queryByTestId('patient-identity')).toBeNull();
     expect(isPrescriptionDirty()).toBe(false);
   });
 });
