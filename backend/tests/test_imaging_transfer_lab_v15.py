@@ -215,8 +215,12 @@ def test_lab_device_and_staff_revocation_prevent_receipt_creation(
     data = out.getvalue()
     lab.propose(db, tenant=dentiste.id, device=device, token=token,
                 capture=capture, digest=hashlib.sha256(data).hexdigest(), size=len(data))
+    review = lab.issue_review(db, staff=dentiste, tenant=dentiste.id,
+                              workstation=station, device=device, capture=capture,
+                              patient=patient.id, appointment=None)
     lab.approve(db, staff=dentiste, tenant=dentiste.id, workstation=station,
-                device=device, capture=capture, patient=patient.id, appointment=None)
+                device=device, capture=capture, patient=patient.id, appointment=None,
+                review_challenge=review["review_challenge"])
     args = dict(tenant=dentiste.id, device=device, token=token,
                 capture=capture, payload=data, mime="image/png")
     scope = (lab.devices.c.tenant == dentiste.id) & (lab.devices.c.device == device)
