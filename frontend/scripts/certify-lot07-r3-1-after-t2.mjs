@@ -5,6 +5,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import {chromium,request} from 'playwright';
+import {deflateSync} from 'node:zlib';
 
 const sha=process.env.SOURCE_HEAD;
 const secret=process.env.T2_PASSWORD;
@@ -40,10 +41,83 @@ try {
   const rows=await read.json();
   const patient=rows.find(p=>p.numero_dossier==='T2-0001');
   pass('synthetic patient bound',Boolean(patient?.id));
-  const fakePng=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEANmpCD8ongcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfUJxAYTIfIvQAAAAAElFTkSuQmCC','base64');
+  // Synthetic QA-only chart card. Explicitly *not* a radiograph or diagnosis.
+  // Generated locally using the Node standard library, no external fixture or PII.
+  const makeQaCard=(caption)=>{
+    const width=640,height=360,rowBytes=width*4+1;
+    const raw=Buffer.alloc(rowBytes*height);
+    for(let y=0;y<height;y++){
+      raw[y*rowBytes]=0;
+      for(let x=0;x<width;x++){
+        const offset=y*rowBytes+1+x*4;
+        const left=x/width,top=y/height;
+        const box=x>=24&&x<616&&y>=22&&y<338;
+        const band=y>=62&&y<125&&x>=50&&x<590;
+        const checker=x>=68&&x<576&&y>=190&&y<298 && ((Math.floor(x/26)+Math.floor(y/26))%2===0);
+        const rgb=band?[17,53,98]:checker?[196,216,229]:box?[243-Math.round(15*left),247-Math.round(19*top),251-Math.round(14*left)]:[34,65,95];
+        raw[offset]=rgb[0];raw[offset+1]=rgb[1];raw[offset+2]=rgb[2];raw[offset+3]=255;
+      }
+    }
+    // Legible deterministic QA label with a tiny 5x7 bitmap font.
+    const font={
+      'A':['01110','10001','10001','11111','10001','10001','10001'],
+      'C':['01111','10000','10000','10000','10000','10000','01111'],
+      'D':['11110','10001','10001','10001','10001','10001','11110'],
+      'E':['11111','10000','10000','11110','10000','10000','11111'],
+      'H':['10001','10001','10001','11111','10001','10001','10001'],
+      'I':['11111','00100','00100','00100','00100','00100','11111'],
+      'L':['10000','10000','10000','10000','10000','10000','11111'],
+      'M':['10001','11011','10101','10101','10001','10001','10001'],
+      'N':['10001','11001','10101','10011','10001','10001','10001'],
+      'O':['01110','10001','10001','10001','10001','10001','01110'],
+      'P':['11110','10001','10001','11110','10000','10000','10000'],
+      'Q':['01110','10001','10001','10001','10101','10010','01101'],
+      'R':['11110','10001','10001','11110','10100','10010','10001'],
+      'S':['01111','10000','10000','01110','00001','00001','11110'],
+      'T':['11111','00100','00100','00100','00100','00100','00100'],
+      'U':['10001','10001','10001','10001','10001','10001','01110'],
+      'V':['10001','10001','10001','10001','10001','01010','00100'],
+      '0':['01110','10001','10011','10101','11001','10001','01110'],
+      '1':['00100','01100','00100','00100','00100','00100','01110'],
+      ' ':['00000','00000','00000','00000','00000','00000','00000'],
+      '-':['00000','00000','00000','11111','00000','00000','00000'],
+    };
+    const label=('QA NON CLINIQUE').toUpperCase();
+    const paint=(word,left,top,scale,color)=>{
+      [...word].forEach((character,index)=>{
+        const glyph=font[character]||font[' '];
+        glyph.forEach((line,dy)=>[...line].forEach((bit,dx)=>{
+          if(bit!=='1')return;
+          for(let sy=0;sy<scale;sy++)for(let sx=0;sx<scale;sx++){
+            const x=left+index*6*scale+dx*scale+sx,y=top+dy*scale+sy;
+            if(x<0||x>=width||y<0||y>=height)continue;
+            const pos=y*rowBytes+1+x*4;
+            raw[pos]=color[0];raw[pos+1]=color[1];raw[pos+2]=color[2];raw[pos+3]=255;
+          }
+        }));
+      });
+    };
+    paint(label,67,80,4,[255,255,255]);
+    paint(caption,70,151,2,[25,59,101]);
+    const crc=(data)=>{
+      let value=0xffffffff;
+      for(const b of data){value^=b;for(let i=0;i<8;i++)value=(value>>>1)^((value&1)?0xedb88320:0);}
+      return (value^0xffffffff)>>>0;
+    };
+    const chunk=(type,data)=>{
+      const tag=Buffer.from(type,'ascii'),len=Buffer.alloc(4),sum=Buffer.alloc(4);
+      len.writeUInt32BE(data.length);sum.writeUInt32BE(crc(Buffer.concat([tag,data])));
+      return Buffer.concat([len,tag,data,sum]);
+    };
+    const ihdr=Buffer.alloc(13);
+    ihdr.writeUInt32BE(width,0);ihdr.writeUInt32BE(height,4);ihdr[8]=8;ihdr[9]=6;
+    return Buffer.concat([Buffer.from('89504e470d0a1a0a','hex'),
+      chunk('IHDR',ihdr),chunk('IDAT',deflateSync(raw)),chunk('IEND',Buffer.alloc(0))]);
+  };
+  const fakePng=makeQaCard('QA PHOTO T0');
   for(const timepoint of ['T0','T1']){
     const r=await api.post('/api/patients/'+patient.id+'/assets/import',{
-      headers:head,multipart:{file:{name:'071-test-'+timepoint+'.png',mimeType:'image/png',buffer:fakePng},
+      headers:head,multipart:{file:{name:'071-test-'+timepoint+'.png',mimeType:'image/png',buffer:makeQaCard('QA PHOTO '+timepoint)},
         asset_type:'PHOTO',source_kind:'UPLOAD',timepoint},
     });
     pass('real authenticated synthetic media import '+timepoint,r.ok(),{status:r.status()});
@@ -78,7 +152,7 @@ try {
   })();
   for (const asset of [
     {kind:'DOCUMENT',name:'QA-R3-document-synthetique.pdf',mime:'application/pdf',buffer:syntheticPdf},
-    {kind:'RADIOGRAPH',name:'QA-R3-radiographie-synthetique.png',mime:'image/png',buffer:fakePng},
+    {kind:'RADIOGRAPH',name:'QA-R3-radiographie-synthetique.png',mime:'image/png',buffer:makeQaCard('QA RADIO DEMO')},
   ]) {
     const imported=await api.post('/api/patients/'+patient.id+'/assets/import',{
       headers:head,multipart:{file:{name:asset.name,mimeType:asset.mime,buffer:asset.buffer},
