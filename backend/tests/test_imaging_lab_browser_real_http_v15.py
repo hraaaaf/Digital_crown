@@ -305,6 +305,16 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                             return {status:r.status,body:await r.json()};
                           };
                           const first=await upload(bytes);
+                          // Deliberately disregard the original ACK as if it
+                          // never reached the connector. Query independently
+                          // before any replay. This is NOT a crash/restart test.
+                          const beforeReplay=await fetch(
+                            origin+'/api/imaging-acquisitions/lab/receipt?'+
+                            new URLSearchParams({tenant:String(tenant),device,capture}),{
+                              headers:{'X-DC06B-Lab-Device-Token':token}
+                            });
+                          const recovered={status:beforeReplay.status,
+                            body:await beforeReplay.json()};
                           const replay=await upload(bytes);
                           const tamper=await upload(new Uint8Array([0,1,2]));
                           const r=await fetch(origin+'/api/imaging-acquisitions/lab/receipt?'+
@@ -315,7 +325,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                              new URLSearchParams({tenant:String(tenant),device,capture}),{
                              headers:{'X-DC06B-Lab-Device-Token':'invalid'}
                           });
-                          return {first,replay,tamper,lookup:{status:r.status,
+                          return {first,recovered,replay,tamper,lookup:{status:r.status,
                              body:await r.json()},denied:denied.status,expected:digest};
                         }""",
                         [backend_origin,dentiste.id,device,capture,device_token,
@@ -327,6 +337,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     assert first["server_confirmed"] is False
                     assert first["patient_id"] == patient.id
                     assert first["sha256"] == digest
+                    assert results["recovered"] == {"status": 200, "body": first}
                     assert results["replay"]["body"] == first
                     assert results["lookup"] == {"status": 200, "body": first}
                     assert results["tamper"]["status"] == 409
@@ -360,6 +371,8 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         "negative_device_token": results["denied"],
                         "patient_only": patient_only,
                         "audit_reason_code": reason_code,
+                        "lost_ack_receipt_lookup": True,
+                        "backend_restart_or_disk_durability_tested": False,
                         "server_confirmed": False,
                         "route_codes": [
                             {"method": method, "route": route, "status": status}
@@ -370,9 +383,10 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         "DC06B_HTTP_EVIDENCE_DIR", str(tmp_path)
                     ))
                     evidence_root.mkdir(parents=True, exist_ok=True)
-                    evidence = evidence_root / "lot06b-real-http-proof.json"
+                    scenario = "patient-only" if patient_only else "matched-rdv"
+                    evidence = evidence_root / f"lot06b-real-http-proof-{scenario}.json"
                     evidence.write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
-                    print("LOT06B_REAL_HTTP_REACT_FASTAPI_RECEIPT_PASS")
+                    print("LOT06B_REAL_HTTP_REACT_FASTAPI_RECEIPT_PASS", scenario)
                     context.close()
                 finally:
                     browser.close()
