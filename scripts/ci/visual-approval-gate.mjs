@@ -107,6 +107,60 @@ async function verifiedTokenOnlyWaiver(api,number,actual,files) {
   return true;
 }
 
+/**
+ * Owner clarification 2026-10-27: a disconnected DEV-only prototype is not
+ * a product UX/UI change. Never infer this from 'Lab' naming alone.
+ * Exception is limited to one exact, reviewed HEAD and exact seven-file diff,
+ * with GREEN synthetic React/Chromium proof + GitHub screenshot artifact.
+ * Any changed SHA, new route/App.tsx, missing evidence or mixed file FAILS closed.
+ */
+export const CERTIFIED_ISOLATED_UI_PROTOTYPES=Object.freeze({
+  1133:Object.freeze({
+    sha:'8f3c875bcca0e5a5b445ceaa12f507ad26372e40',
+    proof:40584209611,
+    scope:40584209692,
+    artifact:'lot06b-desktop-staff-review-fixture',
+    paths:Object.freeze([
+      '.github/workflows/v15-06b-preflight.yml',
+      'frontend/src/features/imaging/StaffReviewLab.test.tsx',
+      'frontend/src/features/imaging/StaffReviewLab.tsx',
+      'frontend/src/features/imaging/StaffReviewLabApi.ts',
+      'frontend/src/features/imaging/StaffReviewLabDemo.tsx',
+      'frontend/staff-review-lab.html',
+      'tools/imaging_gateway/qa_staff_review_desktop_lab.py',
+    ]),
+  }),
+});
+
+async function verifiedIsolatedPrototype(api,number,actual,files) {
+  const entry=CERTIFIED_ISOLATED_UI_PROTOTYPES[number];
+  if(!entry||entry.sha!==actual)return false;
+  // Exact inventory as independently reviewed, not a wildcard on frontend/.
+  const observed=files.map(f=>f?.filename);
+  const expected=[...entry.paths].sort();
+  if(observed.length!==expected.length ||
+     observed.some(p=>typeof p!=='string') ||
+     JSON.stringify([...observed].sort())!==JSON.stringify(expected) ||
+     files.some(f=>f?.status==='renamed' || f?.previous_filename))
+    throw new Error('Certified DEV prototype has changed file inventory');
+  for(const [runId,expectedName] of [
+    [entry.proof,'V1.5-06B Imaging Preflight Safety'],
+    [entry.scope,'CI Scope Gate'],
+  ]) {
+    const run=await api.get(`/actions/runs/${runId}`);
+    if(run?.head_sha!==actual||run?.status!=='completed'||
+       run?.conclusion!=='success'||run?.event!=='pull_request'||
+       run?.name!==expectedName)
+      throw new Error('DEV prototype exact-SHA CI evidence missing or RED');
+  }
+  const response=await api.get(`/actions/runs/${entry.proof}/artifacts`);
+  if(!Array.isArray(response?.artifacts) ||
+     !response.artifacts.some(a=>a?.name===entry.artifact &&
+       a?.expired===false && Number.isSafeInteger(a?.id) && a.id>0))
+    throw new Error('DEV prototype Chromium screenshot evidence missing');
+  return true;
+}
+
 /** Only the trusted, owner-created approval label event may approve a UI HEAD. */
 export async function runGate({api,repo,number,action,eventHead,eventLabel,eventSender}){
   valid(repo,REPO.test(repo),'repository');
@@ -142,6 +196,10 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
       if((await head(api,number))!==actual)throw new Error('PR HEAD changed during auto token-only synchronize checks');
       return {state:'auto-token-only-verified',head:actual};
     }
+    if(await verifiedIsolatedPrototype(api,number,actual,files)) {
+      if((await head(api,number))!==actual)throw new Error('PR HEAD changed during isolated prototype synchronize checks');
+      return {state:'skipped-certified-dev-prototype',head:actual};
+    }
     throw new Error('PR HEAD changed: approval revoked; new screenshots and explicit approval required');
   }
 
@@ -154,6 +212,10 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
   if(await verifiedTokenOnlyWaiver(api,number,actual,files)) {
     if((await head(api,number))!==actual)throw new Error('PR HEAD changed during auto token-only validation');
     return {state:'auto-token-only-verified',head:actual};
+  }
+  if(await verifiedIsolatedPrototype(api,number,actual,files)) {
+    if((await head(api,number))!==actual)throw new Error('PR HEAD changed during isolated prototype validation');
+    return {state:'skipped-certified-dev-prototype',head:actual};
   }
   if(!(await hasLabel(api,number)))throw new Error('UI changes require explicit visual approval label');
 
