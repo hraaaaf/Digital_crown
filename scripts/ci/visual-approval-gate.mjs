@@ -40,6 +40,9 @@ export const TOKEN_ONLY_CERTIFIED_WAVES=Object.freeze({
   1102:{sha:'db5eeca6991c8560d4984a5f83b5afcf2d0c76bf',proof:40246248646,scope:40246248714,path:'.github/workflows/app-theme-neutral-wave06.yml'},
   1103:{sha:'ede172d1c25891e0c2e40f21eb73e2f02eca7532',proof:40247331818,scope:40247331868,path:'.github/workflows/app-theme-neutral-wave07.yml'},
   1104:{sha:'7a209b5d78de51e0ccf9a8d7fb599e63d3caf40d',proof:40249242088,scope:40249242098,path:'.github/workflows/app-theme-neutral-wave08.yml'},
+  1112:{sha:'713015966650f5c8b22eccce77c5fd884c9baefd',proof:40359767052,scope:40359767295,path:'.github/workflows/theme-wave09-cosmetic.yml',oracle:'scripts/ci/theme_wave09_cosmetic.py',sources:['frontend/src/features/admin/SetupWizard/steps/Step1Identity.tsx','frontend/src/features/admin/SetupWizard/steps/Step2Specialties.tsx','frontend/src/features/admin/SetupWizard/steps/Step7Confirmation.tsx']},
+  1113:{sha:'ad73a1064315bc4d00f75bd617ee96a1bb9b2eb3',proof:40359133018,scope:40359132940,path:'.github/workflows/theme-wave10-cosmetic.yml',oracle:'scripts/ci/theme_wave10_cosmetic.py',sources:['frontend/src/features/admin/SetupWizard/steps/Step5Design.tsx']},
+  1114:{sha:'052f28e8896e096bd17e4ee35cb9f8a49be07d74',proof:40359802932,scope:40359803238,path:'.github/workflows/theme-wave11-cosmetic.yml',oracle:'scripts/ci/theme_wave11_cosmetic.py',sources:['frontend/src/components/PWAInstallPrompt.tsx','frontend/src/pages/ForgotPasswordPage.tsx']},
 });
 async function verifiedTokenOnlyWaiver(api,number,actual,files) {
   const entry=TOKEN_ONLY_CERTIFIED_WAVES[number];
@@ -48,8 +51,12 @@ async function verifiedTokenOnlyWaiver(api,number,actual,files) {
   const paths=files.map(x=>x?.filename);
   if(!paths.length||!paths.some(p=>typeof p==='string'&&p.startsWith('frontend/src/')&&p.endsWith('.tsx')))
     throw new Error('Pinned token-only wave has no TSX source change');
+  // New waves require an exact trusted file inventory; old waves retain their proven contract.
+  const allowlist=entry.sources ? new Set([...entry.sources,entry.path,entry.oracle]) : null;
+  if(allowlist && (paths.length!==allowlist.size || new Set(paths).size!==paths.length))
+    throw new Error('Pinned token-only wave file inventory mismatch');
   for(const p of paths) {
-    if(typeof p!=='string'||!(/^frontend\/src\/.*\.tsx$/.test(p)||p===entry.path||p==='scripts/ci/theme_neutral_batch02.py'))
+    if(typeof p!=='string'||(allowlist ? !allowlist.has(p) : !(p.startsWith('frontend/src/')&&p.endsWith('.tsx')||p===entry.path||p==='scripts/ci/theme_neutral_batch02.py')))
       throw new Error('Pinned token-only wave includes an unapproved path');
   }
   if(!paths.includes(entry.path))throw new Error('Pinned token-only proof workflow is absent');
@@ -65,6 +72,12 @@ async function verifiedTokenOnlyWaiver(api,number,actual,files) {
   return true;
 }
 
+/** A pinned cosmetic-wave PR must never escape attestation by removing its last TSX. */
+function requirePinnedSource(number,files){
+  const entry=TOKEN_ONLY_CERTIFIED_WAVES[number];
+  if(entry?.sources && !files.some(x=>typeof x?.filename==='string'&&entry.sources.includes(x.filename)))
+    throw new Error('Pinned token-only wave file inventory mismatch');
+}
 /** Only the trusted, owner-created approval label event may approve a UI HEAD. */
 export async function runGate({api,repo,number,action,eventHead,eventLabel,eventSender}){
   valid(repo,REPO.test(repo),'repository');
@@ -78,6 +91,7 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
     const actual=await head(api,number);
     if(actual!==eventHead)throw new Error('Stale synchronize event: HEAD differs from PR HEAD');
     const files=await pages(api,`/pulls/${number}/files`);
+    requirePinnedSource(number,files);
     const touchesUI=files.some(x=>typeof x?.filename==='string'&&x.filename.startsWith('frontend/'));
     const priorLabel=await hasLabel(api,number);
     // Do not block back-end/docs PRs that have never needed visual approval.
@@ -101,6 +115,7 @@ export async function runGate({api,repo,number,action,eventHead,eventLabel,event
   }
 
   const files=await pages(api,`/pulls/${number}/files`);
+  requirePinnedSource(number,files);
   if(!files.some(x=>typeof x?.filename==='string'&&x.filename.startsWith('frontend/')))
     return {state:'skipped-non-ui',head:await head(api,number)};
 
