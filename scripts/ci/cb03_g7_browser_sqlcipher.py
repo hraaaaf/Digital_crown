@@ -31,14 +31,14 @@ env.update(CLOUD_AI_ENABLED="false",TELEMETRY_ENABLED="false",ALLOWED_ORIGINS="h
 backend=None;vite=None
 def ready(url,proc):
     for _ in range(150):
-        if proc.poll() is not None:raise RuntimeError("server exited")
+        if proc.poll() is not None:raise RuntimeError("server exited: "+(proc.stdout.read()[-8000:] if proc.stdout else "no logs"))
         try:
             if requests.get(url,timeout=1).status_code in (200,404):return
         except requests.RequestException:pass
         time.sleep(.2)
     raise RuntimeError("server timeout")
 try:
-    backend=subprocess.Popen([sys.executable,"-m","uvicorn","backend.main:app","--host","127.0.0.1","--port","8899","--lifespan","off"],env=env,stdout=subprocess.DEVNULL,stderr=subprocess.STDOUT)
+    backend=subprocess.Popen([sys.executable,"-m","uvicorn","backend.main:app","--host","127.0.0.1","--port","8899","--lifespan","off"],env=env,stdout=subprocess.PIPE,stderr=subprocess.STDOUT,text=True)
     ready(base+"/openapi.json",backend)
     r=requests.post(base+"/api/auth/login",data={"username":"browser-g7@synthetic.invalid","password":password},timeout=20)
     assert r.status_code==200,r.text[:250]
