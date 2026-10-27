@@ -10,7 +10,6 @@ on:
       - 'frontend/src/features/patients/components/PatientCompanionPanel.tsx'
       - 'frontend/src/features/patients/components/PatientCompanionPanel.test.ts'
       - 'frontend/scripts/capture-patient-companion-d2-visual.mjs'
-      - '.github/workflows/patient-companion-d2-visual-cert.yml'
 
 permissions:
   contents: read

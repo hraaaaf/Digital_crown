@@ -1,0 +1,28 @@
+name: CI Post-merge Heavy Policy Contract
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/**'
+      - '.github/CI_GOVERNANCE.md'
+      - 'AGENTS.md'
+      - 'docs/quality/CI_POSTMERGE_HEAVY_POLICY_20261027.md'
+      - 'scripts/ci/assert_postmerge_heavy_policy.py'
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: postmerge-policy-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+jobs:
+  contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install lightweight YAML parser
+        run: python -m pip install PyYAML==6.0.2
+      - name: Validate 15 migrated heavy workflows
+        run: python scripts/ci/assert_postmerge_heavy_policy.py

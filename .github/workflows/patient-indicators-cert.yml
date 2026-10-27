@@ -16,7 +16,6 @@ on:
       - 'frontend/src/features/patients/components/PatientSummaryHoverCard.tsx'
       - 'frontend/src/features/patients/PatientList.tsx'
       - 'frontend/src/features/patients/PatientIndicatorsExplainable.test.ts'
-      - '.github/workflows/patient-indicators-cert.yml'
 
 permissions:
   contents: read

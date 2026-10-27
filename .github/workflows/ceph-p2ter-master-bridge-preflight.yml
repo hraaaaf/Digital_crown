@@ -6,7 +6,6 @@ on:
       - 'backend/routers/cephalo*.py'
       - 'backend/services/cephalo/**'
       - 'backend/tests/test_cephalo_*.py'
-      - '.github/workflows/ceph-p2ter-master-bridge-preflight.yml'
 
 permissions:
   contents: read

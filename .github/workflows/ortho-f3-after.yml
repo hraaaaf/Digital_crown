@@ -7,7 +7,6 @@ on:
       - 'frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx'
       - 'frontend/src/features/ortho/orthoLongitudinalCompare.ts'
       - 'frontend/scripts/capture-ortho-f3-after.mjs'
-      - '.github/workflows/ortho-f3-after.yml'
 
 permissions:
   contents: read

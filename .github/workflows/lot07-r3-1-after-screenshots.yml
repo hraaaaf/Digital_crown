@@ -1,29 +1,26 @@
 name: LOT07 R3-1 genuine AFTER screenshots theme matrix T2
 on:
   push:
-    branches:
-      - 'feat/lot07-r3-1-split-engine-*'
+    branches: [master]
     paths:
       - 'frontend/scripts/certify-lot07-r3-1-after-t2.mjs'
       - 'frontend/src/features/multiview/**'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
-      - '.github/workflows/lot07-r3-1-after-screenshots.yml'
-  pull_request:
-    branches:
-      - master
-      - 'feat/v15-07-1ab-multiview-nine-layout-contract-*'
+
 permissions:
   contents: read
+
 concurrency:
-  group: lot07-r3-1-after-${{ github.ref }}
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
+
 jobs:
   authentic-cabinet-t2:
     name: R3-1 authentic Chromium AFTER / two orientations / eight themes
     runs-on: ubuntu-24.04
     timeout-minutes: 55
     env:
-      SOURCE_HEAD: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.sha || github.sha }}
+      SOURCE_HEAD: ${{ github.sha }}
       VITE_V15_07_1_MULTIVIEW_LAB: '1'
       VITE_V15_07_1_R3_SPLIT_LAB: '1'
       ENVIRONMENT: test

@@ -1,16 +1,19 @@
 name: UX Continuity PatientDetails AFTER
 
 on:
-  pull_request:
+  push:
     branches: [master]
     paths:
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - 'frontend/src/features/patients/PatientDetailsFlowHandoff.test.ts'
       - 'frontend/src/hooks/useFlowHandoff.ts'
-      - '.github/workflows/ux-continuity-patientdetails-cert.yml'
 
 permissions:
   contents: read
+
+concurrency:
+  group: postmerge-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   after:

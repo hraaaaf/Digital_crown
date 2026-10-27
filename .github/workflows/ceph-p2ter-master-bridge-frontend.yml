@@ -4,7 +4,6 @@ on:
     branches: [master]
     paths:
       - 'frontend/src/features/ortho/**'
-      - '.github/workflows/ceph-p2ter-master-bridge-frontend.yml'
 
 permissions:
   contents: read

@@ -9,7 +9,6 @@ on:
       - 'frontend/src/features/ortho/**'
       - 'scripts/ceph_p2ter_seed_t2.py'
       - 'scripts/t2_runtime_server.py'
-      - '.github/workflows/ceph-p2ter-master-bridge-real-cabinet.yml'
 
 permissions:
   contents: read

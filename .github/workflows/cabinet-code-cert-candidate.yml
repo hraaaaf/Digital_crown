@@ -9,7 +9,6 @@ on:
       - 'frontend/src/**'
       - 'frontend/package*.json'
       - '.github/workflows/ci.yml'
-      - '.github/workflows/cabinet-code-cert-candidate.yml'
 
 permissions:
   contents: read
