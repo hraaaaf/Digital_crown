@@ -66,6 +66,17 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     assert proposed.status_code == 200, proposed.text
     approval = dict(workstation_id=workstation, device=device, capture=capture,
                     patient_id=patient.id, explicit_staff_action=True)
+    wrong_patient = client.post(
+        prefix + "/approve", headers=auth_headers,
+        json={**approval, "patient_id": patient.id + 100000},
+    )
+    assert wrong_patient.status_code == 404, wrong_patient.text
+    assert wrong_patient.json()["detail"] == "PATIENT_NOT_FOUND"
+    denied = client.post(
+        prefix + "/approve", headers=auth_headers,
+        json={**approval, "explicit_staff_action": False},
+    )
+    assert denied.status_code == 403, denied.text
     approved = client.post(prefix + "/approve", json=approval, headers=auth_headers)
     assert approved.status_code == 200, approved.text
     def send(payload=content):
