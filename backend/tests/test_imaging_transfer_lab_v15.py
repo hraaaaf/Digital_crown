@@ -85,9 +85,18 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     proposed = client.post(prefix + "/propose", json=proposal, headers=device_headers)
     assert proposed.status_code == 200, proposed.text
     intent = dict(workstation_id=workstation, device=device, capture=capture,
-                  patient_id=patient.id)
+                  patient_id=patient.id, patient_only_reason="LAB_WALK_IN")
+    # A UI-only free-text justification is not sufficient evidence.
+    reasonless = {k: v for k, v in intent.items() if k != "patient_only_reason"}
+    assert client.post(prefix + "/review", json=reasonless,
+                       headers=auth_headers).status_code == 422
+    invalid = client.post(prefix + "/review", headers=auth_headers,
+                          json={**intent, "patient_only_reason": "medical free text"})
+    assert invalid.status_code == 422
+    assert invalid.json()["detail"] == "PATIENT_ONLY_REASON_REQUIRED"
     reviewed = client.post(prefix + "/review", json=intent, headers=auth_headers)
     assert reviewed.status_code == 200, reviewed.text
+    assert reviewed.json()["patient_only_reason"] == "LAB_WALK_IN"
     assert reviewed.json()["status"] == "STAFF_REVIEW_REQUIRED"
     approval = dict(**intent, explicit_staff_action=True,
                     review_challenge=reviewed.json()["review_challenge"])
@@ -107,6 +116,12 @@ def test_real_encrypted_media_core_receipt_replay_lab(
         json={**approval, "review_challenge": "wrong-challenge"},
     )
     assert bad_nonce.status_code == 403, bad_nonce.text
+    wrong_reason = client.post(prefix + "/approve", headers=auth_headers,
+        json={**approval, "patient_only_reason": "LAB_URGENT"})
+    assert wrong_reason.status_code == 403, wrong_reason.text
+    assert wrong_reason.json()["detail"] == "STAFF_REVIEW_BINDING_MISMATCH"
+    assert client.post(prefix + "/approve", headers=auth_headers,
+        json={**approval, "patient_only_reason": None}).status_code == 422
     approved = client.post(prefix + "/approve", json=approval, headers=auth_headers)
     assert approved.status_code == 200, approved.text
     replay_review = client.post(prefix + "/approve", json=approval, headers=auth_headers)
@@ -134,6 +149,10 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     assert len(list(tmp_path.rglob("*.dcm"))) >= 1
     for table in (lab.receipts, lab.audit, lab.outbox):
         assert len(db.execute(select(table)).all()) >= 1
+    audited = db.execute(select(lab.audit).where(
+        lab.audit.c.receipt_id == original["receipt_id"]
+    )).mappings().one()
+    assert audited["patient_only_reason"] == "LAB_WALK_IN"
     # An immutable SQL receipt does not permit serving a damaged encrypted blob.
     blob = tmp_path.joinpath(*asset.storage_key.split("/"))
     assert blob.is_file()
@@ -175,11 +194,13 @@ def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
                 capture=capture, digest=digest, size=len(content))
     review = lab.issue_review(db, staff=dentiste, tenant=dentiste.id,
                               workstation=workstation, device=device, capture=capture,
-                              patient=patient.id, appointment=None)
+                              patient=patient.id, appointment=None,
+                              patient_only_reason="LAB_UNSCHEDULED")
     lab.approve(db, staff=dentiste, tenant=dentiste.id,
                 workstation=workstation, device=device, capture=capture,
                 patient=patient.id, appointment=None,
-                review_challenge=review["review_challenge"])
+                review_challenge=review["review_challenge"],
+                patient_only_reason="LAB_UNSCHEDULED")
     args = dict(tenant=dentiste.id, device=device, token=token,
                 capture=capture, payload=content, mime="image/png")
     base_assets = db.query(ClinicalAsset).count()
@@ -202,6 +223,9 @@ def test_lab_failure_injection_rolls_back_receipt_audit_and_outbox(
     assert [len(db.execute(select(t)).all()) for t in (
         lab.receipts, lab.audit, lab.outbox
     )] == [n + 1 for n in baseline]
+    assert db.execute(select(lab.audit.c.patient_only_reason).where(
+        lab.audit.c.receipt_id == committed["receipt_id"]
+    )).scalar_one() == "LAB_UNSCHEDULED"
 
 
 def test_lab_device_and_staff_revocation_prevent_receipt_creation(
@@ -229,10 +253,12 @@ def test_lab_device_and_staff_revocation_prevent_receipt_creation(
                 capture=capture, digest=hashlib.sha256(data).hexdigest(), size=len(data))
     review = lab.issue_review(db, staff=dentiste, tenant=dentiste.id,
                               workstation=station, device=device, capture=capture,
-                              patient=patient.id, appointment=None)
+                              patient=patient.id, appointment=None,
+                              patient_only_reason="LAB_UNSCHEDULED")
     lab.approve(db, staff=dentiste, tenant=dentiste.id, workstation=station,
                 device=device, capture=capture, patient=patient.id, appointment=None,
-                review_challenge=review["review_challenge"])
+                review_challenge=review["review_challenge"],
+                patient_only_reason="LAB_UNSCHEDULED")
     args = dict(tenant=dentiste.id, device=device, token=token,
                 capture=capture, payload=data, mime="image/png")
     scope = (lab.devices.c.tenant == dentiste.id) & (lab.devices.c.device == device)
@@ -275,7 +301,8 @@ def test_staff_review_challenge_rotation_expiry_and_patient_binding(
     lab.propose(db, tenant=dentiste.id, device=device, token=token,
                 capture=capture, digest=hashlib.sha256(b"test").hexdigest(), size=4)
     args = dict(staff=dentiste, tenant=dentiste.id, workstation=station,
-                device=device, capture=capture, patient=patient.id, appointment=None)
+                device=device, capture=capture, patient=patient.id, appointment=None,
+                patient_only_reason="LAB_WALK_IN")
     old = lab.issue_review(db, **args)
     new = lab.issue_review(db, **args)
     with pytest.raises(lab.TransferLabRejected, match="STAFF_REVIEW_CHALLENGE_INVALID"):
@@ -290,3 +317,69 @@ def test_staff_review_challenge_rotation_expiry_and_patient_binding(
     assert lab.approve(db, **args, review_challenge=new["review_challenge"])["status"] == "APPROVED"
     with pytest.raises(lab.TransferLabRejected, match="ALREADY_APPROVED"):
         lab.approve(db, **args, review_challenge=new["review_challenge"])
+
+
+def test_reason_codes_are_temporary_lab_only_and_rdv_is_mutually_exclusive(
+    client, db, dentiste, auth_headers, monkeypatch
+):
+    """RDV requires no reason; synthetic reasons cannot contain free-text PHI."""
+    import hashlib
+    import uuid
+    from sqlalchemy import select
+    from backend.tests.test_imaging_acquisition_preflight_v15 import _lab, _patient, _rdv
+    from backend.services import imaging_acquisition_transfer_lab_v15 as lab
+
+    monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
+    station = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    appt = _rdv(db, dentiste.id, patient.id)
+    device, capture = "rdv-" + uuid.uuid4().hex, "rdv-" + uuid.uuid4().hex
+    token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
+    lab.propose(db, tenant=dentiste.id, device=device, capture=capture,
+                token=token, digest=hashlib.sha256(b"rdv").hexdigest(), size=3)
+    args = dict(staff=dentiste, tenant=dentiste.id, workstation=station,
+                device=device, capture=capture, patient=patient.id,
+                appointment=appt.id)
+    with pytest.raises(lab.TransferLabRejected, match="PATIENT_ONLY_REASON_WITH_RDV"):
+        lab.issue_review(db, **args, patient_only_reason="LAB_WALK_IN")
+    review = lab.issue_review(db, **args)
+    assert review["patient_only_reason"] is None
+    with pytest.raises(lab.TransferLabRejected, match="PATIENT_ONLY_REASON_WITH_RDV"):
+        lab.approve(db, **args, review_challenge=review["review_challenge"],
+                    patient_only_reason="LAB_URGENT")
+    assert lab.approve(db, **args, review_challenge=review["review_challenge"])["status"] == "APPROVED"
+    row = db.execute(select(lab.captures).where(
+        lab.captures.c.device == device, lab.captures.c.capture == capture
+    )).mappings().one()
+    assert row["appointment"] == appt.id and row["patient_only_reason"] is None
+    assert row["review_reason"] is None
+
+
+def test_patient_only_reason_never_becomes_free_text_or_leaks_on_failed_review(
+    client, db, dentiste, auth_headers, monkeypatch
+):
+    import hashlib
+    import uuid
+    from sqlalchemy import select
+    from backend.tests.test_imaging_acquisition_preflight_v15 import _lab, _patient
+    from backend.services import imaging_acquisition_transfer_lab_v15 as lab
+
+    monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
+    station = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, uuid.uuid4().hex[:8])
+    device, capture = "why-" + uuid.uuid4().hex, "why-" + uuid.uuid4().hex
+    token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
+    lab.propose(db, tenant=dentiste.id, device=device, capture=capture,
+                token=token, digest=hashlib.sha256(b"why").hexdigest(), size=3)
+    args = dict(staff=dentiste, tenant=dentiste.id, workstation=station,
+                device=device, capture=capture, patient=patient.id, appointment=None)
+    for reason in (None, "", "Consultation de Mme Fictive", "LAB_WALK_IN;DROP"):
+        with pytest.raises(lab.TransferLabRejected, match="PATIENT_ONLY_REASON_REQUIRED"):
+            lab.issue_review(db, **args, patient_only_reason=reason)
+    row = db.execute(select(lab.captures).where(
+        lab.captures.c.device == device, lab.captures.c.capture == capture
+    )).mappings().one()
+    assert row["review_sha"] is None and row["review_reason"] is None
+    assert row["patient_only_reason"] is None
+    assert len(db.execute(select(lab.audit)).all()) == 0
+

@@ -33,6 +33,22 @@ from backend.services.imaging_acquisition_preflight_v15 import (
 )
 
 metadata = MetaData()
+# Provisional LAB-only structured codes, not the final cabinet wording/policy.
+# Free text is intentionally prohibited to avoid logging patient information.
+PATIENT_ONLY_REASON_CODES = frozenset({
+    "LAB_WALK_IN", "LAB_UNSCHEDULED", "LAB_URGENT",
+})
+
+
+def _reason(appointment: int | None, reason: str | None) -> str | None:
+    if appointment is None:
+        if reason not in PATIENT_ONLY_REASON_CODES:
+            raise TransferLabRejected("PATIENT_ONLY_REASON_REQUIRED", 422)
+    elif reason is not None:
+        raise TransferLabRejected("PATIENT_ONLY_REASON_WITH_RDV", 422)
+    return reason
+
+
 devices = Table(
     "lot06b_lab_devices", metadata,
     Column("tenant", Integer, primary_key=True),
@@ -58,6 +74,9 @@ captures = Table(
     Column("review_station", String(36)),
     Column("review_patient", Integer),
     Column("review_appointment", Integer),
+    Column("review_reason", String(32)),
+    # Immutable once explicitly approved; still only an isolated LAB ledger.
+    Column("patient_only_reason", String(32)),
 )
 receipts = Table(
     "lot06b_lab_receipts", metadata,
@@ -73,6 +92,7 @@ audit = Table(
     "lot06b_lab_audit", metadata,
     Column("receipt_id", String(64), primary_key=True),
     Column("event", String(64), nullable=False),
+    Column("patient_only_reason", String(32)),
 )
 outbox = Table(
     "lot06b_lab_outbox", metadata,
@@ -144,7 +164,8 @@ def propose(db: Session, *, tenant: int, device: str, token: str, capture: str,
 
 
 def issue_review(db: Session, *, staff: models.User, tenant: int, workstation: str,
-                 device: str, capture: str, patient: int, appointment: int | None) -> dict:
+                 device: str, capture: str, patient: int, appointment: int | None,
+                 patient_only_reason: str | None = None) -> dict:
     """Synthetic server-issued one-use binding, NOT operator UI proof."""
     guard(db)
     if int(staff.get_employer_id()) != tenant or not has_permission(staff, "patients"):
@@ -157,6 +178,7 @@ def issue_review(db: Session, *, staff: models.User, tenant: int, workstation: s
         raise TransferLabRejected(exc.reason, exc.status_code) from exc
     if decision.patient_id != patient or decision.status != "STAFF_CONFIRMATION_REQUIRED":
         raise TransferLabRejected("PATIENT_LINK_REQUIRED", 409)
+    patient_only_reason = _reason(appointment, patient_only_reason)
     where = (
         (captures.c.tenant == tenant) & (captures.c.device == device)
         & (captures.c.capture == capture)
@@ -179,19 +201,21 @@ def issue_review(db: Session, *, staff: models.User, tenant: int, workstation: s
         review_sha=hashlib.sha256(challenge.encode()).hexdigest(),
         review_deadline=deadline, review_staff=staff.id,
         review_station=workstation, review_patient=patient,
-        review_appointment=appointment,
+        review_appointment=appointment, review_reason=patient_only_reason,
     ))
     db.commit()
     return {
         "status": "STAFF_REVIEW_REQUIRED", "review_challenge": challenge,
         "expires_at": deadline, "patient_id": patient,
-        "appointment_id": appointment, "server_confirmed": False,
+        "appointment_id": appointment,
+        "patient_only_reason": patient_only_reason,
+        "server_confirmed": False,
     }
 
 
 def approve(db: Session, *, staff: models.User, tenant: int, workstation: str,
             device: str, capture: str, patient: int, appointment: int | None,
-            review_challenge: str) -> dict:
+            review_challenge: str, patient_only_reason: str | None = None) -> dict:
     guard(db)
     if int(staff.get_employer_id()) != tenant or not has_permission(staff, "patients"):
         raise TransferLabRejected("STAFF_NOT_AUTHORIZED", 403)
@@ -203,6 +227,7 @@ def approve(db: Session, *, staff: models.User, tenant: int, workstation: str,
         raise TransferLabRejected(exc.reason, exc.status_code) from exc
     if decision.patient_id != patient or decision.status != "STAFF_CONFIRMATION_REQUIRED":
         raise TransferLabRejected("PATIENT_LINK_REQUIRED")
+    patient_only_reason = _reason(appointment, patient_only_reason)
     where = (
         (captures.c.tenant == tenant) & (captures.c.device == device)
         & (captures.c.capture == capture)
@@ -222,7 +247,8 @@ def approve(db: Session, *, staff: models.User, tenant: int, workstation: str,
         raise TransferLabRejected("STAFF_REVIEW_CHALLENGE_REQUIRED", 403)
     if (row["review_staff"] != staff.id or row["review_station"] != workstation
             or row["review_patient"] != patient
-            or row["review_appointment"] != appointment):
+            or row["review_appointment"] != appointment
+            or row["review_reason"] != patient_only_reason):
         raise TransferLabRejected("STAFF_REVIEW_BINDING_MISMATCH", 403)
     if not row["review_deadline"] or int(time.time()) >= row["review_deadline"]:
         raise TransferLabRejected("STAFF_REVIEW_EXPIRED", 403)
@@ -233,8 +259,10 @@ def approve(db: Session, *, staff: models.User, tenant: int, workstation: str,
         where & (captures.c.review_sha == supplied) & (captures.c.staff.is_(None))
     ).values(
         patient=patient, appointment=appointment, staff=staff.id, workstation=workstation,
+        patient_only_reason=patient_only_reason,
         review_sha=None, review_deadline=None, review_staff=None,
         review_station=None, review_patient=None, review_appointment=None,
+        review_reason=None,
     ))
     if applied.rowcount != 1:
         db.rollback()
@@ -299,6 +327,8 @@ def transfer(db: Session, *, tenant: int, device: str, token: str, capture: str,
         return existing
     if row["staff"] is None or row["patient"] is None:
         raise TransferLabRejected("EXPLICIT_STAFF_APPROVAL_REQUIRED", 403)
+    # Never commit a patient-only image whose reason was not bound at approval.
+    _reason(row["appointment"], row["patient_only_reason"])
     current_staff = db.query(models.User).filter(
         models.User.id == row["staff"], models.User.is_active.is_(True)
     ).first()
@@ -356,7 +386,8 @@ def transfer(db: Session, *, tenant: int, device: str, token: str, capture: str,
         if fail_at == "after_receipt":
             raise TransferLabRejected("INJECTED_LAB_ROLLBACK", 503)
         db.execute(insert(audit).values(
-            receipt_id=rid, event="LAB_ACQUISITION_COMMITTED"
+            receipt_id=rid, event="LAB_ACQUISITION_COMMITTED",
+            patient_only_reason=row["patient_only_reason"],
         ))
         if fail_at == "after_audit":
             raise TransferLabRejected("INJECTED_LAB_ROLLBACK", 503)
