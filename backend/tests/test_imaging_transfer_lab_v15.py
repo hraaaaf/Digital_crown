@@ -57,10 +57,17 @@ def test_real_encrypted_media_core_receipt_replay_lab(
     Image.new("RGB", (4, 4)).save(output, format="PNG")
     content = output.getvalue()
     digest = hashlib.sha256(content).hexdigest()
-    lab.propose(db, tenant=dentiste.id, device=device, token=device_token,
-                capture=capture, digest=digest, size=len(content))
-    lab.approve(db, staff=dentiste, tenant=dentiste.id, workstation=workstation,
-                device=device, capture=capture, patient=patient.id, appointment=None)
+    prefix = "/api/imaging-acquisitions/lab"
+    device_headers = {"X-DC06B-Lab-Device-Token": device_token}
+    proposal = dict(tenant=dentiste.id, device=device, capture=capture,
+                    sha256=digest, byte_size=len(content))
+    assert client.post(prefix + "/propose", json=proposal).status_code == 401
+    proposed = client.post(prefix + "/propose", json=proposal, headers=device_headers)
+    assert proposed.status_code == 200, proposed.text
+    approval = dict(workstation_id=workstation, device=device, capture=capture,
+                    patient_id=patient.id, explicit_staff_action=True)
+    approved = client.post(prefix + "/approve", json=approval, headers=auth_headers)
+    assert approved.status_code == 200, approved.text
     args = dict(tenant=dentiste.id, device=device, token=device_token,
                 capture=capture, payload=content, mime="image/png")
     original = lab.transfer(db, **args)
