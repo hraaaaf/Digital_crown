@@ -51,7 +51,31 @@ try {
   // P2: exercise the real read-only DOCUMENT and RADIOLOGY adapters with
   // deliberately non-clinical, synthetic media in the disposable T2 database.
   // Never intercept network responses or use patient files.
-  const syntheticPdf=Buffer.from('%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Count 1/Kids[3 0 R]>>endobj\n3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 200 200]/Contents 4 0 R>>endobj\n4 0 obj<</Length 0>>stream\nendstream\nendobj\ntrailer<</Root 1 0 R>>\n%%EOF','utf8');
+  // P5: renderable, explicitly NONCLINICAL one-page PDF for the isolated T2
+  // screenshot lab. No real chart, patient documents or synthetic diagnosis.
+  const syntheticPdf=(()=>{
+    const stream='BT /F1 21 Tf 48 180 Td (QA R3 - DOCUMENT NON CLINIQUE) Tj\n'+
+      '/F1 12 Tf 0 -36 Td (Fixture synthetique - aucune donnee patient.) Tj\n'+
+      '0 -24 Td (Lecture seule - verification du rendu documentaire.) Tj ET\n';
+    const objects=[
+      '<< /Type /Catalog /Pages 2 0 R >>',
+      '<< /Type /Pages /Kids [3 0 R] /Count 1 >>',
+      '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 600 250] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>',
+      '<< /Length '+Buffer.byteLength(stream,'ascii')+' >>\nstream\n'+stream+'endstream',
+      '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>',
+    ];
+    let body='%PDF-1.4\n';
+    const offsets=[0];
+    objects.forEach((obj,index)=>{
+      offsets.push(Buffer.byteLength(body,'ascii'));
+      body+=(index+1)+' 0 obj\n'+obj+'\nendobj\n';
+    });
+    const startxref=Buffer.byteLength(body,'ascii');
+    body+='xref\n0 '+offsets.length+'\n0000000000 65535 f \n'+
+      offsets.slice(1).map(offset=>String(offset).padStart(10,'0')+' 00000 n ').join('\n')+
+      '\ntrailer\n<< /Size '+offsets.length+' /Root 1 0 R >>\nstartxref\n'+startxref+'\n%%EOF\n';
+    return Buffer.from(body,'ascii');
+  })();
   for (const asset of [
     {kind:'DOCUMENT',name:'QA-R3-document-synthetique.pdf',mime:'application/pdf',buffer:syntheticPdf},
     {kind:'RADIOGRAPH',name:'QA-R3-radiographie-synthetique.png',mime:'image/png',buffer:fakePng},
