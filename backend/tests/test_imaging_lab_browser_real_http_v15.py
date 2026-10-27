@@ -47,7 +47,7 @@ def real_loopback_asgi():
             self.send_response(status)
             self.send_header("Content-Type", content_type)
             self.send_header("Content-Length", str(length))
-            self.send_header("Access-Control-Allow-Origin", "http://127.0.0.1:5186")
+            self.send_header("Access-Control-Allow-Origin", "http://127.0.0.1:5187")
             self.send_header("Access-Control-Allow-Credentials", "true")
             self.send_header("Access-Control-Allow-Headers",
                              "Authorization,Content-Type,X-DC06B-Lab-Device-Token")
@@ -158,11 +158,11 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
         env["BROWSER"] = "none"
         process = subprocess.Popen(
             ["npm", "run", "dev", "--", "--host", "127.0.0.1",
-             "--port", "5186", "--strictPort"],
+             "--port", "5187", "--strictPort"],
             cwd=frontend, env=env, stdout=stream, stderr=subprocess.STDOUT,
         )
         try:
-            _vite_ready(5186, process)
+            _vite_ready(5187, process)
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=True)
                 try:
@@ -199,7 +199,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         json.dumps(fixture, ensure_ascii=False) + ";"
                     )
                     page = context.new_page()
-                    page.goto("http://127.0.0.1:5186/staff-review-http-fixture.html",
+                    page.goto("http://127.0.0.1:5187/staff-review-http-fixture.html",
                               wait_until="networkidle")
                     page.get_by_role(
                         "heading", name="Associer une capture au bon patient"
