@@ -14,6 +14,9 @@ on:
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
       - 'backend/main.py'
+      - 'tools/imaging_gateway/qa_staff_review_desktop_lab.py'
+      - 'frontend/src/features/imaging/**'
+      - 'frontend/staff-review-lab.html'
       - '.github/workflows/v15-06b-preflight.yml'
   pull_request:
     paths:
@@ -26,6 +29,9 @@ on:
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
       - 'backend/main.py'
+      - 'tools/imaging_gateway/qa_staff_review_desktop_lab.py'
+      - 'frontend/src/features/imaging/**'
+      - 'frontend/staff-review-lab.html'
       - '.github/workflows/v15-06b-preflight.yml'
   workflow_dispatch:
 
@@ -73,6 +79,7 @@ jobs:
           python -m py_compile backend/main.py
           python -m py_compile tools/imaging_gateway/qa_visual_runtime.py
           python -m py_compile tools/imaging_gateway/tests/test_qa_visual_runtime.py
+          python -m py_compile tools/imaging_gateway/qa_staff_review_desktop_lab.py
       - name: Preflight negative scenarios and Media Core regressions
         run: python -m pytest backend/tests/test_imaging_acquisition_preflight_v15.py backend/tests/test_imaging_transfer_lab_v15.py backend/tests/test_media_core_ingestion_api.py tools/imaging_gateway/tests/test_qa_visual_runtime.py -q
 
@@ -106,5 +113,39 @@ jobs:
         with:
           name: lot06-preflight-runtime-before-after
           path: lot06-visual-evidence/
+          if-no-files-found: error
+          retention-days: 14
+      - uses: actions/setup-node@v4
+        if: github.event_name == 'pull_request'
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Test DEV-only React patient/RDV review and browser screenshots
+        if: github.event_name == 'pull_request'
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --prefix frontend
+          npm --prefix frontend run test -- src/features/imaging/StaffReviewLab.test.tsx
+          (
+            cd frontend
+            npm run dev -- --host 127.0.0.1 --port 5186 > "$RUNNER_TEMP/lot06b-vite.log" 2>&1 &
+            echo $! > "$RUNNER_TEMP/lot06b-vite.pid"
+          )
+          for attempt in $(seq 1 45); do
+            if curl --fail --silent --output /dev/null http://127.0.0.1:5186/staff-review-lab.html; then break; fi
+            sleep 2
+          done
+          curl --fail --silent --output /dev/null http://127.0.0.1:5186/staff-review-lab.html
+          python tools/imaging_gateway/qa_staff_review_desktop_lab.py \
+            --url http://127.0.0.1:5186/staff-review-lab.html \
+            --out lot06b-desktop-evidence
+      - name: Publish DEV-only staff desktop FUE screenshot evidence
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06b-desktop-staff-review-fixture
+          path: lot06b-desktop-evidence/
           if-no-files-found: error
           retention-days: 14
