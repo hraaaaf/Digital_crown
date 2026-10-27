@@ -67,7 +67,7 @@ export function StaffReviewLab({
   const [error, setError] = useState('');
   const generation = useRef(0);
   const submitting = useRef(false);
-  const captureKey = capture.device + ':' + capture.capture;
+  const captureKey = [capture.device, capture.capture, capture.claimedSha256, capture.modality].join(':');
 
   const patient = targets.find(p => String(p.patientId) === patientId);
   const appointment = patient?.appointments.find(a => String(a.id) === appointmentId);
