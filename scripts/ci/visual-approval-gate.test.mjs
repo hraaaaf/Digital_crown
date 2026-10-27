@@ -301,3 +301,99 @@ test('automatic waiver fails closed on a HEAD race during synchronize checks',as
   const f=tokenWaiverFixture({raceAfterHeadGet:3});
   await assert.rejects(f.run('synchronize'),/HEAD changed during auto token-only synchronize checks/);
 });
+
+
+test('visual gate requires review for new or changed visible UI source and media', () => {
+  for (const path of [
+    'frontend/src/features/imaging/StaffReviewLab.tsx',
+    'frontend/src/App.tsx',
+    'frontend/src/styles/theme.css',
+    'frontend/src/data/copy.ts',
+    'frontend/public/logo.svg',
+    'frontend/staff-review-lab.html',
+    'frontend/vite.config.ts',
+  ]) {
+    assert.equal(requiresHumanVisualReview([{ filename: path }]), true, path);
+  }
+});
+
+test('non-rendered frontend files and backend-only changes do not need human screenshots', () => {
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'backend/services/acquisition.py' },
+    { filename: '.github/workflows/ci.yml' },
+    { filename: 'docs/imaging.md' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLabApi.ts' },
+    { filename: 'frontend/src/services/api.ts' },
+    { filename: 'frontend/src/types/models.ts' },
+    { filename: 'frontend/src/components/__tests__/Preview.test.tsx' },
+    { filename: 'frontend/src/test/setup.ts' },
+    { filename: 'frontend/src/vite-env.d.ts' },
+    { filename: 'frontend/package-lock.json' },
+    { filename: 'frontend/README.md' },
+  ]), false);
+});
+
+test('one UI file dominates mixed technical changes', () => {
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'backend/security.py' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.tsx' },
+  ]), true);
+});
+
+test('renames and deletions of visible components still require exact HEAD approval', () => {
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'frontend/src/types/Legacy.d.ts',
+      status: 'renamed',
+      previous_filename: 'frontend/src/pages/Legacy.tsx' },
+  ]), true);
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'frontend/src/pages/Legacy.tsx', status: 'removed' },
+  ]), true);
+  assert.throws(() => requiresHumanVisualReview([
+    { filename: 'frontend/src/types/New.d.ts', status: 'renamed' },
+  ]), /previous path/);
+});
+
+test('ambiguous frontend script cannot silently escape visual review', () => {
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'frontend/src/hooks/useOperatorFlow.ts' },
+  ]), true);
+  assert.equal(requiresHumanVisualReview([
+    { filename: 'frontend/src/assets/runtime-copy.json' },
+  ]), true);
+});
+
+test('missing/invalid GitHub file inventory fails closed', () => {
+  assert.throws(() => requiresHumanVisualReview([]), /cannot be classified/);
+  assert.throws(() => requiresHumanVisualReview([{ filename: null }]), /invalid filename/);
+  assert.throws(() => requiresHumanVisualReview(null), /cannot be classified/);
+});
+
+test('technical-only frontend opening skips approval (unlike actual UI TSX)', async () => {
+  const f = fixture({ label: false, files: [
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLabApi.ts' },
+    { filename: '.github/workflows/v15-06b-preflight.yml' },
+  ] });
+  assert.deepEqual(await f.run('opened'), { state: 'skipped-non-visual', head: old });
+  assert.equal(f.posts, 0);
+});
+
+test('UI component mixed with non-visual tests still demands owner label', async () => {
+  const f = fixture({ label: false, files: [
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.tsx' },
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+  ] });
+  await assert.rejects(f.run('opened'), /require explicit visual approval label/);
+});
+
+test('pure test file update revokes stale label but does not demand new approval', async () => {
+  const f = fixture({ files: [
+    { filename: 'frontend/src/features/imaging/StaffReviewLab.test.tsx' },
+  ] });
+  assert.deepEqual(await f.run('synchronize'), { state: 'skipped-non-visual', head: old });
+  assert.equal(f.deletes, 1);
+  assert.equal(f.state.labels.has(APPROVAL_LABEL), false);
+});
