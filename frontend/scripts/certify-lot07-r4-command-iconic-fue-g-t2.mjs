@@ -231,6 +231,13 @@ try {
       status: otherGet.status, otherCabinetAppointmentVisible: true,
       foreignIdVisible: false, separateWorkstation: true,
     });
+    const otherPatient = await authGET(otherToken, '/api/patients/' + ownerFixture.patient_id, otherCookies);
+    assert.ok([403, 404].includes(otherPatient.status),
+      'Owner B cannot access owner A patient detail even with a separately enrolled workstation');
+    const ownerAgain = await authGET(ownerToken, '/api/patients/' + ownerFixture.patient_id, cookies);
+    assert.equal(ownerAgain.status, 200, 'A must still access own patient after B denial');
+    assert.equal(ownerAgain.body.id, ownerFixture.patient_id, 'A patient identity intact');
+    point('r4-patient-tenant-a-b-a',{A:200,B:otherPatient.status,Aagain:200});
   } finally {
     await independentEnrollment.dispose();
   }
@@ -401,6 +408,29 @@ try {
           assert.equal(await page.locator('[data-ux1-c-crownbot-floating]').count(), 0,
             '200% Command must not be overlapped by floating CrownBot');
           assert.ok(viewport.scrollWidth <= viewport.clientWidth + 2, 'Body must not overflow at CSS 200% lab approximation');
+          // Validate Iconic on THREE other true Signature routes, not merely
+          // Command tabs. Navigate the actual protected React Router workflow.
+          for (const target of [
+            {label:'agenda',url:'/agenda'},
+            {label:'dossier',url:'/patients/'+ownerFixture.patient_id+'?tab=tracking'},
+            {label:'imagerie',url:'/patients/'+ownerFixture.patient_id+'?tab=radiology&radioTab=media'},
+          ]) {
+            await page.goto(uiBase+target.url,{waitUntil:'domcontentloaded',timeout:90000});
+            await page.locator('[data-testid="r4-real-signature-preview"]').waitFor({state:'visible',timeout:40000});
+            assert.equal(await page.locator('[data-r4-signature]').getAttribute('data-r4-signature'),'core');
+            if (target.label === 'imagerie') {
+              await page.locator('[data-testid="patient-media-timeline"]').waitFor({state:'visible',timeout:40000});
+            } else if (target.label === 'dossier') {
+              await page.getByText('T2-0001',{exact:false}).first().waitFor({state:'visible',timeout:40000});
+            }
+            await capture(page,'owner-r4-signature-'+target.label+'-core');
+            await page.getByRole('button',{name:'Signature Iconic'}).click();
+            assert.equal(await page.locator('[data-r4-signature]').getAttribute('data-r4-signature'),'iconic');
+            await capture(page,'owner-r4-signature-'+target.label+'-iconic');
+            await page.getByRole('button',{name:'Signature Core'}).click();
+            assert.equal(await page.locator('[data-r4-signature]').getAttribute('data-r4-signature'),'core');
+            point('r4-signature-real-'+target.label,{core:true,iconic:true,rollback:true});
+          }
         }
       } else {
         await page.waitForURL(x => new URL(x).pathname === '/dashboard', { timeout: 45000 });
