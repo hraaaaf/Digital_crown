@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
 import { CrownBotGuidedNluCb02 } from './CrownBotGuidedNluCb02';
+import { CrownBotGuidedActionsG3 } from './CrownBotGuidedActionsG3';
 
 type CabinetDay = {
   day: string; timezone: string; start_date: string; end_date: string;
@@ -245,6 +246,11 @@ export function CrownBotWorkflowPreview({ practitionerId, requirePractitioner = 
       {import.meta.env.VITE_CROWN_BOT_GUIDED_NLU_ENABLED === 'true' && (
         <CrownBotGuidedNluCb02 />
       )}
+      {/* G3 is separately opt-in. No action controls appear on CB-01 or CB-02
+          alone, and no G3 state survives chat history/principal/route changes. */}
+      {import.meta.env.VITE_CROWN_BOT_GUIDED_NLU_ENABLED === 'true'
+        && import.meta.env.VITE_CROWN_BOT_CB03_G3_ENABLED === 'true'
+        && <CrownBotGuidedActionsG3 practitionerId={practitionerId} />}
       {programme && (
         <div role="status" aria-label="Programme du jour" className="rounded-lg border border-slate-200 bg-white p-3 text-sm text-slate-800">
           <p className="font-semibold">Programme du {programme.day}</p>

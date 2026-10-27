@@ -1,0 +1,91 @@
+name: CB-03 G4 Windows Native Zoom + Real NVDA (experimental isolated)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - master
+      - feature/cb03-g3-guided-confirm-ux-20261024
+    paths:
+      - frontend/scripts/certify-cb03-g4-windows-nvda.mjs
+      - frontend/src/components/CrownBot/CrownBotGuidedActionsG3.tsx
+      - frontend/src/components/CrownBot/CB03G3VisualLab.tsx
+      - frontend/cb03-g3-visual-lab.html
+      - .github/workflows/cb03-g4-windows-nvda.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb03-g4-windows-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-real-nvda-native-zoom:
+    name: Hosted Windows G3 real NVDA speech + Chromium native getZoom(2)
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      CB03_G4_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      CB03_G4_WINDOWS_NVDA_EXPERIMENT: "1"
+      VITE_CB03_G3_VISUAL_LAB: "true"
+      VITE_CROWN_BOT_CB03_G3_ENABLED: "true"
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CI: "true"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Assert immutable G3 HEAD and no backend flags
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:CB03_G4_SOURCE_HEAD) { throw 'REFUSED: wrong SHA' }
+          if ($env:DIGITALCROWN_ISOLATED_RUNTIME -ne '1') { throw 'REFUSED: not isolated' }
+          if ($env:CROWN_BOT_CB03_CONFIRMATION_ENABLED -ne 'false') { throw 'REFUSED: backend enabled' }
+          if (-not (Test-Path frontend/cb03-g3-visual-lab.html)) { throw 'REFUSED: no lab' }
+          'CB03 G4 windows experiment: source only, no backend/database/clinic, no production flags.' >> $env:GITHUB_STEP_SUMMARY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Locked frontend + temporary real NVDA packages
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npm install --no-save --no-audit --no-fund playwright@1.55.0 @guidepup/guidepup@0.36.3 @guidepup/setup@0.29.3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Setup genuine NVDA on hosted Windows
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npx --no-install guidepup setup --ci
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: OS NVDA prerequisites failed' }
+          npx --no-install guidepup install nvda
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: real NVDA installation failed' }
+      - name: Native Chromium 200 zoom and NVDA speech on G3 controls
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          node scripts/certify-cb03-g4-windows-nvda.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: G3 native zoom or real NVDA evidence missing' }
+          'Passed hosted Windows real NVDA on synthetic G3 UI at Chromium native 200% zoom.' >> $env:GITHUB_STEP_SUMMARY
+          'NOT a clinic user acceptance / full app backend / production activation certificate.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Preserve screenshots and NVDA text log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g4-windows-nvda-native-zoom
+          path: artifacts/cb03-g4/windows-nvda-native
+          retention-days: 14
+          if-no-files-found: warn

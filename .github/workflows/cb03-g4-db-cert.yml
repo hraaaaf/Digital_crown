@@ -1,0 +1,159 @@
+name: CB-03 G4 Independent PostgreSQL + SQLCipher Certification (isolated)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - master
+      - feature/cb03-g3-guided-confirm-ux-20261024
+    paths:
+      - scripts/ci/cb03_g4_pg_http.py
+      - scripts/ci/cb03_g4_sqlcipher.py
+      - .github/workflows/cb03-g4-db-cert.yml
+      - backend/routers/bot_cb03_confirm_g2.py
+      - backend/services/bot/atomic_action_claim.py
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb03-g4-db-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  postgres-full-http:
+    name: Real CB-03 HTTP on disposable PG full Alembic (no real users)
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_DB: cb03_g4_ephemeral
+          POSTGRES_USER: cb03_g4
+          POSTGRES_PASSWORD: synthetic-ci-password-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cb03_g4 -d cb03_g4_ephemeral"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      CB03_G4_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      DATABASE_URL: postgresql://cb03_g4:synthetic-ci-password-only@127.0.0.1:5432/cb03_g4_ephemeral
+      ENVIRONMENT: rehearsal
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      SECRET_KEY: synthetic-g4-postgres-only-secret-long-enough-2026
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      DEBUG: "false"
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: "false"
+      CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Assert exact SHA and disposable loopback DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB03_G4_SOURCE_HEAD"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
+          test "$CLOUD_AI_ENABLED" = false
+          case "$DATABASE_URL" in
+            postgresql://cb03_g4:*@127.0.0.1:5432/cb03_g4_ephemeral) ;;
+            *) exit 1 ;;
+          esac
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install backend dependencies isolated
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb03-g4-pg-req.txt
+          pip install -r /tmp/cb03-g4-pg-req.txt
+          python -m pip check
+      - name: Verify empty fresh PostgreSQL DB before schema
+        run: |
+          python - <<'PY'
+          from sqlalchemy import create_engine, inspect
+          import os
+          e=create_engine(os.environ["DATABASE_URL"])
+          assert inspect(e).get_table_names() == []
+          print("CB03_G4_EMPTY_PG_CONFIRMED")
+          PY
+      - name: Full Alembic schema migration to disposable PG
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DIGITALCROWN_ISOLATION_DB_FINGERPRINT="$(python -c 'import hashlib;print(hashlib.sha256(b"postgresql://cb03_g4@loopback:5432/cb03_g4_ephemeral").hexdigest())')"
+          export MEDIA_ROOT="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cb03-g4-rehearsal-media-XXXXXX")"
+          trap 'rm -rf -- "$MEDIA_ROOT"' EXIT
+          python -m alembic upgrade head
+          PYTHONPATH=. python scripts/ci/cb03_g4_pg_http.py
+      - name: Persist PG evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g4-postgresql-real-http
+          path: artifacts/cb03-g4/postgres-real-http.json
+          if-no-files-found: warn
+          retention-days: 14
+
+  sqlcipher-persistence:
+    name: Real encrypted SQLCipher file/claim/rollback (minimal fixture)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CB03_G4_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Immutable SHA and OFF flags
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB03_G4_SOURCE_HEAD"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install real SQLCipher runtime and SQLAlchemy
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install "SQLAlchemy>=2.0,<2.1" "sqlcipher3>=0.5,<1"
+          python - <<'PY'
+          from sqlcipher3 import dbapi2 as sqlcipher
+          c=sqlcipher.connect(":memory:")
+          assert c.execute("PRAGMA cipher_version").fetchone()[0]
+          c.close()
+          print("REAL_SQLCIPHER_CIPHER_VERSION_AVAILABLE")
+          PY
+      - name: Persistent encryption, CAS race, crash rollback, revision
+        run: PYTHONPATH=. python scripts/ci/cb03_g4_sqlcipher.py
+      - name: Persist SQLCipher evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g4-sqlcipher-encrypted-primitives
+          path: artifacts/cb03-g4/sqlcipher-persistent-primitives.json
+          if-no-files-found: warn
+          retention-days: 14

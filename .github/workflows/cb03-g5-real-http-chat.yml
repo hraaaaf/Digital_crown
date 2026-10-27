@@ -1,0 +1,149 @@
+name: CB-03 G5 REAL CrownBotChat FastAPI PG SIGKILL (DISPOSABLE)
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - feature/cb03-g4b-integrated-cert-20261024
+    paths:
+      - scripts/ci/cb03_g4b_integrated.py
+      - frontend/src/components/CrownBot/CrownBotChat.tsx
+      - frontend/src/components/CrownBot/CrownBotGuidedConversationG5.tsx
+      - frontend/src/components/CrownBot/CB03G5RealChatLab.tsx
+      - frontend/cb03-g5-chat-lab.html
+      - scripts/ci/cb03_g4b_server.py
+      - frontend/cb03-g4b-live-pg-lab.html
+      - frontend/src/components/CrownBot/CB03G4BRealPgLab.tsx
+      - .github/workflows/cb03-g5-real-http-chat.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb03-g5-real-http-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-sigkill-and-real-browser-postgres:
+    name: Actual CrownBotChat→FastAPI→PG and real OS SIGKILL pre/post COMMIT
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cb03_g4b
+          POSTGRES_PASSWORD: disposable-only-ci-secret
+          POSTGRES_DB: cb03_g4b_disposable
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cb03_g4b -d cb03_g4b_disposable"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      CB03_G4B_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      CB03_G5_REAL_CHAT_PG: "1"
+      VITE_CROWN_BOT_CB03_CHAT_ENABLED: "false"
+      VITE_CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED: "false"
+      GITHUB_ACTIONS: "true"
+      DATABASE_URL: postgresql://cb03_g4b:disposable-only-ci-secret@127.0.0.1:5432/cb03_g4b_disposable
+      ENVIRONMENT: rehearsal
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      SECRET_KEY: cb03-g4b-isolated-rehearsal-secret-32chars-2026
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      DEBUG: "false"
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: "false"
+      CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+      VITE_CROWN_BOT_CB03_G3_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Assert isolated CI SHA, loopback PG and OFF baseline
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB03_G4B_SOURCE_HEAD"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$CLOUD_AI_ENABLED" = false
+          test "$TELEMETRY_ENABLED" = false
+          test "$CROWN_BOT_CB03_CONFIRMATION_ENABLED" = false
+          test "$VITE_CROWN_BOT_CB03_CHAT_ENABLED" = false
+          test "$CB03_G5_REAL_CHAT_PG" = 1
+          test "$VITE_CROWN_BOT_CB03_G3_ENABLED" = false
+          case "$DATABASE_URL" in
+            postgresql://cb03_g4b:*@127.0.0.1:5432/cb03_g4b_disposable) ;;
+            *) echo 'REFUSED: unexpected PG target'; exit 1 ;;
+          esac
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend dependencies (no external clinical services)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb03-g4b-requirements.txt
+          pip install -r /tmp/cb03-g4b-requirements.txt
+          pip install playwright==1.55.0 requests
+          python -m pip check
+      - name: Install frontend and actual headed-browser engine
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          python -m playwright install --with-deps chromium
+      - name: Compile isolated harness files, TS component and boundaries
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/ci/cb03_g4b_server.py scripts/ci/cb03_g4b_integrated.py
+          cd frontend
+          npx tsc --noEmit -p tsconfig.app.json
+      - name: Verify genuinely empty dedicated PostgreSQL
+        run: |
+          python - <<'PY'
+          import os
+          from sqlalchemy import create_engine, inspect
+          e=create_engine(os.environ["DATABASE_URL"])
+          assert inspect(e).get_table_names()==[], "Not an empty disposable DB"
+          print("CB03_G4B_EMPTY_ISOLATED_PG_PASS")
+          PY
+      - name: Full Alembic schema and real OS/network failure certification
+        shell: bash
+        run: |
+          set -euo pipefail
+          export DIGITALCROWN_ISOLATION_DB_FINGERPRINT="$(python -c 'import hashlib;print(hashlib.sha256(b"postgresql://cb03_g4b@loopback:5432/cb03_g4b_disposable").hexdigest())')"
+          export MEDIA_ROOT="$(mktemp -d "${RUNNER_TEMP:-/tmp}/cb03-g4b-rehearsal-media-XXXXXX")"
+          trap 'rm -rf -- "$MEDIA_ROOT"' EXIT
+          alembic upgrade head
+          PYTHONPATH=. python scripts/ci/cb03_g4b_integrated.py
+      - name: Upload G4-B exact SHA independent evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g5-real-crownbotchat-pg-sigkill
+          path: artifacts/cb03-g4b
+          if-no-files-found: warn
+          retention-days: 14
+      - name: Strict classification
+        if: success()
+        shell: bash
+        run: |
+          echo "CB-03 G5: ACTUAL CrownBotChat React mounted into loopback floating shell → FastAPI real HTTP → ephemeral full-Alembic PostgreSQL; SIGKILL before commit and after commit before ACK. Synthetic only." >> "$GITHUB_STEP_SUMMARY"
+          echo "NOT full MainLayout shell, Windows NVDA, full SQLCipher, real clinical session or production. All clinic flags OFF outside temporary CI workers." >> "$GITHUB_STEP_SUMMARY"

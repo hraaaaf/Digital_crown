@@ -1,0 +1,93 @@
+name: CB-03 G9 Targeted FUE Real App SQLCipher
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+    branches:
+      - feature/cb03-g8-mainlayout-sqlcipher-g2-sigkill-20261027
+    paths:
+      - scripts/ci/cb03_g9_fue.py
+      - .github/workflows/cb03-g9-fue.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cb03-g9-fue-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  only-new-g9-fue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      CB03_G9_SOURCE_HEAD: ${{ github.event.pull_request.head.sha }}
+      GITHUB_ACTIONS: "true"
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      ENVIRONMENT: test
+      CB03_G9_FUE: "1"
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+      SECRET_KEY: "cb03-g9-fue-isolated-auth-secret-not-production"
+      CROWN_BOT_DETERMINISTIC_WORKFLOWS_ENABLED: "false"
+      CROWN_BOT_GUIDED_NLU_ENABLED: "false"
+      CROWN_BOT_CB03_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_STATUS_PREPARATION_ENABLED: "false"
+      CROWN_BOT_CB03_CONFIRMATION_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install isolated dependencies (do not execute certified G7/G8)
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$CB03_G9_SOURCE_HEAD"
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)' requirements.txt > /tmp/cb03-g9-requirements.txt
+          pip install -r /tmp/cb03-g9-requirements.txt
+          pip install "sqlcipher3>=0.5,<1" "playwright==1.55.0" requests
+          python -m pip check
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend and Chromium
+        run: |
+          set -euo pipefail
+          cd frontend
+          npm ci --no-audit --no-fund
+          python -m playwright install --with-deps chromium
+      - name: Generate fresh per-run SQLCipher key
+        run: |
+          python - <<'PY'
+          import os,secrets
+          with open(os.environ["GITHUB_ENV"],"a") as out:
+              out.write("SQLCIPHER_KEY_HEX="+secrets.token_hex(32)+chr(10))
+          PY
+      - name: G9 ONLY real App FUE 390/1280, workstation, login, bot, SQLCipher
+        env:
+          DATABASE_URL: sqlite:///${{ runner.temp }}/cb03-g9-fue-synthetic.db
+          ENVIRONMENT: rehearsal
+        run: |
+          set -euo pipefail
+          test ! -e "${RUNNER_TEMP}/cb03-g9-fue-synthetic.db"
+          test ! -e "${RUNNER_TEMP}/cb03-g9-fue-rehearsal-media"
+          PYTHONPATH=. python scripts/ci/cb03_g9_fue.py
+      - name: Upload new G9 FUE evidence only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cb03-g9-fue-real-app
+          path: artifacts/cb03-g9/
+          if-no-files-found: warn
+      - name: Scope statement
+        if: success()
+        run: |
+          echo "G9 PASS: REAL App/ProtectedRoute + real LoginPage, workstation enrollment + context, Dashboard, MainLayout, CrownBotChat G1/G2, real API, SQLCipher synthetic file, 390 and 1280 Chromium; screenshots and structured report." >> "$GITHUB_STEP_SUMMARY"
+          echo "G7 #40496890801 and G8 #40504497364 are frozen and NOT rerun by this workflow." >> "$GITHUB_STEP_SUMMARY"
+          echo "Not certified: physical Windows installer, native peripherals, real patient data or clinical approval for production. No merge or deployment." >> "$GITHUB_STEP_SUMMARY"

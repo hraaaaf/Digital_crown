@@ -74,7 +74,8 @@ class BotPendingAction(Base):
     action_type: Mapped[str] = mapped_column(String(50), nullable=False)
     params_json: Mapped[dict] = mapped_column(JSON, nullable=False, default=dict)
 
-    # pending | executed | expired | cancelled
+    # prepared (CB-03 G1-A, never executable by /bot/execute) | pending |
+    # executing | executed | failed | expired | cancelled
     status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
 
     expires_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

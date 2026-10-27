@@ -103,6 +103,53 @@ describe('CrownBot G9 reachable interaction truth', () => {
     expect(getMock).not.toHaveBeenCalledWith('/appointments/', expect.anything());
   });
 
+  it('G5 appears in the ACTUAL CrownBotChat only when all four opt-ins are present', async () => {
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_GUIDED_NLU_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_CB03_G3_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_CB03_CHAT_ENABLED', 'true');
+    renderCrownBot();
+    const panel = screen.getByRole('tabpanel', { name: 'Chat' });
+    expect(panel).toContainElement(screen.getByRole('region', {
+      name: 'Conversation Crown Bot — actions guidées CB-03',
+    }));
+    expect(screen.getByRole('textbox', { name: 'Votre message à Crown Bot' })).toBeInTheDocument();
+    expect(screen.queryByRole('textbox', { name: 'Votre demande en français' })).not.toBeInTheDocument();
+    // No G1 or G2 POST on showing the real floating/sidecar chat.
+    expect(postMock).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('textbox', { name: 'Votre message à Crown Bot' }), {
+      target: { value: 'Prépare un RDV demain 10h pour Mme Benali contrôle' },
+    });
+    postMock.mockResolvedValueOnce({ data: {
+      status: 'prepared', executable: false,
+      preparation_id: 'd4a97731-cdcb-4b9c-94d3-f1d21c242a21',
+      expires_at: '2026-11-01T12:30:00',
+      summary: { patient: { id: 21, nom: 'Benali', prenom: 'Salma', numero_dossier: 'S-21' },
+        praticien_id: 9, resource_id: null, datetime_start: '2026-11-07T10:00:00',
+        duration_minutes: 30, motif: 'CONTROLE' },
+    } } as any);
+    fireEvent.click(screen.getByRole('button', { name: 'Envoyer' }));
+    expect(await screen.findByText('Salma Benali · Dossier S-21')).toBeInTheDocument();
+    expect(postMock).toHaveBeenCalledWith('/bot/guided/prepare-appointment', {
+      utterance: 'Prépare un RDV demain 10h pour Mme Benali contrôle',
+      duration_minutes: 30,
+    });
+    expect(screen.getByRole('button', { name: 'Confirmer explicitement cette action' })).toBeDisabled();
+  });
+
+  it('G5 must not appear under only one experimental flag', () => {
+    vi.stubEnv('VITE_CROWN_BOT_WORKFLOW_PREVIEW_ENABLED', 'true');
+    vi.stubEnv('VITE_CROWN_BOT_GUIDED_NLU_ENABLED', 'false');
+    vi.stubEnv('VITE_CROWN_BOT_CB03_G3_ENABLED', 'false');
+    vi.stubEnv('VITE_CROWN_BOT_CB03_CHAT_ENABLED', 'true');
+    renderCrownBot();
+    expect(screen.queryByRole('region', {
+      name: 'Conversation Crown Bot — actions guidées CB-03',
+    })).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: 'Assistant Crown Bot — consultation' })).toBeInTheDocument();
+    expect(postMock).not.toHaveBeenCalled();
+  });
+
   it('keeps an insight visible and unread when backend read-ack is refused', async () => {
     const onUnreadChange = renderCrownBot();
     await seedInsight();
