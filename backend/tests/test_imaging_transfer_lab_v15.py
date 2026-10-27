@@ -3,6 +3,26 @@ import pytest
 from backend.services.imaging_acquisition_transfer_lab_v15 import TransferLabRejected, guard
 
 
+@pytest.fixture(autouse=True)
+def _cleanup_isolated_lab_tables(db):
+    """These intentionally separate LAB tables are NOT part of Base.metadata.
+
+    Remove test-only receipts before the shared test fixture clears ClinicalAsset,
+    so re-used SQLite asset IDs cannot collide with an earlier test's receipts.
+    """
+    yield
+    from sqlalchemy import inspect
+    from backend.services import imaging_acquisition_transfer_lab_v15 as lab
+
+    db.rollback()
+    existing = set(inspect(db.get_bind()).get_table_names())
+    tables = (lab.outbox, lab.audit, lab.receipts, lab.captures, lab.devices)
+    for table in tables:
+        if table.name in existing:
+            db.execute(table.delete())
+    db.commit()
+
+
 def test_transfer_is_disabled_in_production(db, monkeypatch):
     monkeypatch.setenv("ENVIRONMENT", "production")
     monkeypatch.setenv("DC_V15_06_TRANSFER_LAB", "1")
