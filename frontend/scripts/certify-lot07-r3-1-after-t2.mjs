@@ -183,6 +183,14 @@ try {
     pdfBytes.subarray(0,8).toString('ascii').startsWith('%PDF-1.') &&
     pdfBytes.includes(Buffer.from('QA R3 - DOCUMENT NON CLINIQUE')),
     {status:fetchedDocument.status(),size:pdfBytes.length});
+  const pdfRaster=await api.get('/api/patients/'+patient.id+
+    '/assets/'+documentAsset.id+'/preview-page?page=1',{headers:head});
+  const previewBytes=Buffer.from(await pdfRaster.body());
+  pass('premium final authorized local PDF raster is actual PNG image',
+    pdfRaster.status()===200 &&
+    pdfRaster.headers()['content-type']?.startsWith('image/png') &&
+    previewBytes.subarray(0,8).equals(Buffer.from('89504e470d0a1a0a','hex')) &&
+    previewBytes.length>1500, {status:pdfRaster.status(),size:previewBytes.length});
   // A third clinical panel is meaningful only with genuine, seeded T0/T1 data.
   // Create an orthodontic case via the real authenticated API in the disposable T2 DB.
   const syntheticMediaList=await api.get('/api/patients/'+patient.id+'/assets',{headers:head});
@@ -572,11 +580,22 @@ try {
       if (id==='gestion-administrative') {
         const pdf=page.locator('[data-v15-071-viewslot="documents"] [data-testid="r3-document-source-ready"]');
         await pdf.waitFor({state:'visible',timeout:20000});
-        const frame=page.locator('[data-v15-071-viewslot="documents"] iframe[title="Aperçu document clinique"]');
-        pass('premium final DOCUMENT source ready, visible metadata + native reader',
-          await pdf.getByText(/Document PDF récupéré/).count()===1 &&
-          await frame.count()===1 &&
-          await frame.getAttribute('src').then(url=>Boolean(url?.startsWith('blob:'))));
+        const image=page.locator('[data-v15-071-viewslot="documents"] [data-testid="r3-document-page-image"]');
+        await image.waitFor({state:'visible',timeout:20000});
+        await page.waitForFunction(()=>{
+          const img=document.querySelector('[data-v15-071-viewslot="documents"] [data-testid="r3-document-page-image"]');
+          return img instanceof HTMLImageElement && img.complete &&
+            img.naturalWidth>=350 && img.naturalHeight>=100;
+        },null,{timeout:20000});
+        const rendered=await image.evaluate(img=>{
+          const box=img.getBoundingClientRect();
+          return {naturalWidth:img.naturalWidth,naturalHeight:img.naturalHeight,
+            visibleWidth:Math.round(box.width),visibleHeight:Math.round(box.height)};
+        });
+        pass('premium final PDF has genuinely rendered PNG page pixels in Chromium',
+          await pdf.getByText(/Page PDF rendue localement/).count()===1 &&
+          rendered.naturalWidth>=350 && rendered.visibleWidth>=250 &&
+          await page.locator('[data-v15-071-viewslot="documents"] iframe').count()===0,rendered);
       }
       if (id==='imagerie' || id==='gestion-administrative') {
         const module=id==='imagerie'?'imagerie':'documents';
