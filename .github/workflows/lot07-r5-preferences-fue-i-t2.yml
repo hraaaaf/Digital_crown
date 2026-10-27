@@ -1,0 +1,131 @@
+name: LOT07 R5 07-D real preferences FUE-I (isolated T2, no deploy)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/lot07-r5-preferences-fue-i-t2.yml'
+      - 'frontend/scripts/certify-lot07-r5-preferences-fue-i-t2.mjs'
+      - 'frontend/src/features/desktop-experience/R5SignaturePreferencesPanel.tsx'
+      - 'frontend/src/features/multiview/R5PreferencesService.ts'
+      - 'frontend/src/features/multiview/R5PreferencesPolicy.ts'
+      - 'backend/routers/r5_preferences.py'
+      - 'backend/models_platform.py'
+      - 'alembic/versions/neo000000033_r5_desktop_preferences.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-frontend-backend-r5-fue-i:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: lot07-r5-t2-disposable-ci-not-a-production-key
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      TZ: Africa/Casablanca
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      VITE_V15_07_R4_SIGNATURE_LAB: 'true'
+      VITE_V15_07_R5_PREFS_LAB: 'true'
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact PR head
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EVALUATED_SHA }}
+      - name: Fail closed on incorrect scope/HEAD
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EVALUATED_SHA"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test "$VITE_V15_07_R5_PREFS_LAB" = true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate ephemeral masked synthetic account password
+        shell: bash
+        run: |
+          pw="$(python -c 'import secrets;print(secrets.token_urlsafe(28))')"
+          echo "::add-mask::$pw"
+          echo "T2_PASSWORD=$pw" >> "$GITHUB_ENV"
+      - name: Install actual FastAPI test runtime dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/lot07-r5-fue-i-deps.txt
+          pip install -r /tmp/lot07-r5-fue-i-deps.txt
+          python -m pip check
+      - name: Install React frontend + Chromium (real browser)
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --check scripts/certify-lot07-r5-preferences-fue-i-t2.mjs
+      - name: Boot actual backend.main on disposable isolated T2 DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/lot07-r5-fue-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 120 /tmp/lot07-r5-fue-backend.log
+          exit 1
+      - name: Boot actual React Dashboard with R5 DEV lab opt-in only
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/lot07-r5-fue-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 120 /tmp/lot07-r5-fue-vite.log
+          exit 1
+      - name: Execute real login A-B-A, second station, apply, cancel, rollback and refusals
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/certify-lot07-r5-preferences-fue-i-t2.mjs
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync('../artifacts/lot07-r5-prefs-fue-i/report.json'));
+          if(!r.pass||r.sha!==process.env.EVALUATED_SHA||r.backendMocked||
+             r.postgresqlE2E||r.production||r.humanVisualApproval||
+             r.checks.length<7)process.exit(1);
+          console.log('LOT07_R5_FUE_I_PASS',r.checks.length,r.sha);
+          NODE
+      - name: Bounded failure diagnostics (no credentials or DB artifacts)
+        if: failure()
+        run: |
+          tail -n 90 /tmp/lot07-r5-fue-backend.log 2>/dev/null || true
+          tail -n 90 /tmp/lot07-r5-fue-vite.log 2>/dev/null || true
+      - name: Retain synthetic BEFORE/ACTION/AFTER and exact SHA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-r5-07d-real-t2-fue-i-${{ env.EVALUATED_SHA }}
+          path: artifacts/lot07-r5-prefs-fue-i
+          if-no-files-found: error
+          retention-days: 14
