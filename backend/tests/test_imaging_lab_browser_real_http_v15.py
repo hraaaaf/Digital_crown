@@ -17,6 +17,7 @@ from pathlib import Path
 import subprocess
 import threading
 import time
+import uuid
 from urllib.request import urlopen
 from contextlib import contextmanager
 
@@ -135,8 +136,11 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
     patient = _patient(db, dentiste.id, "LIVE" + str(dentiste.id))
     rdv = None if patient_only else _rdv(db, dentiste.id, patient.id)
     reason_code = "LAB_UNSCHEDULED" if patient_only else None
-    device = "real-http-synthetic-bridge"
-    capture = "capture-live-http-20261027"
+    # LAB tables use their own MetaData and survive the Base.metadata test
+    # fixture cleanup. Never reuse a synthetic device/capture identity.
+    fixture_id = uuid.uuid4().hex[:12]
+    device = "real-http-synthetic-" + fixture_id
+    capture = "capture-http-" + fixture_id
     device_token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
     png = BytesIO()
     Image.new("RGB", (4, 4), color=(120, 80, 40)).save(png, format="PNG")
