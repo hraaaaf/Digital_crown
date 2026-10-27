@@ -379,6 +379,52 @@ try {
           await page.locator('[data-testid="patient-media-timeline"]').waitFor({state:'visible',timeout:30000});
           await capture(page,'owner-r4-imagerie-real');
           point('r4-four-real-surfaces-owner',{dashboard:true,agenda:true,dossierId:ownerFixture.patient_id,imagerieReadOnly:true});
+          // Confirm the SAME Iconic button, card and border inherit active Cabinet theme
+          // tokens. Simulate the existing applyTheme data-theme mechanism in this isolated
+          // browser only; restore all inline overrides and attributes, no settings writes.
+          await page.getByRole('button', {name:'Signature Iconic'}).click();
+          const themeSamples = await page.evaluate(() => {
+            const nodes = [document.documentElement, document.body];
+            const saved = nodes.map(el => ({
+              theme: el.getAttribute('data-theme'),
+              primary: el.style.getPropertyValue('--primary'),
+              priority: el.style.getPropertyPriority('--primary'),
+            }));
+            const button = document.querySelector('.dc07-r4-signature-controls button[aria-pressed="true"]');
+            const controls = document.querySelector('.dc07-r4-signature-controls');
+            if (!(button instanceof HTMLElement) || !(controls instanceof HTMLElement)) {
+              throw new Error('Iconic controls must be mounted on the real Cabinet');
+            }
+            const sample = {};
+            try {
+              for (const theme of ['emerald', 'prestige']) {
+                for (const el of nodes) {
+                  el.setAttribute('data-theme', theme);
+                  el.style.removeProperty('--primary');
+                }
+                sample[theme] = {
+                  buttonColor: getComputedStyle(button).color,
+                  cardColor: getComputedStyle(controls).backgroundColor,
+                  borderColor: getComputedStyle(controls).borderTopColor,
+                };
+              }
+            } finally {
+              for (let i = 0; i < nodes.length; i++) {
+                if (saved[i].theme === null) nodes[i].removeAttribute('data-theme');
+                else nodes[i].setAttribute('data-theme', saved[i].theme);
+                if (saved[i].primary) {
+                  nodes[i].style.setProperty('--primary', saved[i].primary, saved[i].priority);
+                } else nodes[i].style.removeProperty('--primary');
+              }
+            }
+            return sample;
+          });
+          await page.getByRole('button', {name:'Signature Core'}).click();
+          for (const key of ['buttonColor', 'cardColor', 'borderColor']) {
+            assert.notEqual(themeSamples.emerald[key], themeSamples.prestige[key],
+              'R4 ' + key + ' MUST inherit selected theme rather than hardcoded colors');
+          }
+          point('r4-live-active-theme-token-inheritance', themeSamples);
           // Switch Iconic/Core on Command's true authenticated components at multiple widths.
           for (const width of [1280,1920,2560]) {
             await page.setViewportSize({width,height:900});
