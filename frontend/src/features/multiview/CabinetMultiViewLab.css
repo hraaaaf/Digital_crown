@@ -1254,8 +1254,12 @@
   [data-v15-071-real-cabinet-lab]
     [data-v15-071-layout="gestion-administrative"][data-r3-1-split="two-columns"]
     [data-testid="r3-1-grid"]:has(
+      [data-r3-agenda-state="populated"] tbody tr:nth-child(-n+3):last-child
+    ):has(
       [data-v15-071-viewslot="documents"] [data-testid="r3-document-page-image"]
     ) {
+    /* Override the older sparse three-RDV compact selector (higher specificity).
+       Only once the authenticated PDF page is genuinely present. */
     height: min(55vh, 565px) !important;
     min-height: 520px !important;
   }
