@@ -64,6 +64,7 @@ describe('07-C / real Cabinet read-only boundary', () => {
     const { container } = render(<CommandCabinetReadOnlyRoute />);
     expect(mockToday).toHaveBeenCalledTimes(1);
     expect(screen.getByTestId('command-count')).toHaveTextContent('1');
+    fireEvent.click(screen.getByRole('button', { name: 'Agenda' }));
     expect(within(screen.getByRole('table')).getByText('09:15')).toBeInTheDocument();
     expect(within(screen.getByRole('table')).getByText('EN_S_ATTENTE')).toBeInTheDocument();
     expect(container.textContent).not.toContain('TEST-NOM');
@@ -75,11 +76,11 @@ describe('07-C / real Cabinet read-only boundary', () => {
   it('permits patient display only with patients permission, without any mutation controls', () => {
     useAuthStore.setState({ user: userWith({ agenda: true, patients: true }), isAuthenticated: true, isLoading: false });
     render(<CommandCabinetReadOnlyRoute />);
+    fireEvent.click(screen.getByRole('button', { name: 'Agenda' }));
     expect(screen.getByText('TEST-PRÉNOM TEST-NOM')).toBeInTheDocument();
     expect(screen.queryByText(/modifier|terminer le rendez-vous|encaisser/i)).not.toBeInTheDocument();
-    const buttons = screen.getAllByRole('button');
-    expect(buttons).toHaveLength(1);
-    expect(buttons[0]).toHaveAccessibleName('Actualiser les rendez-vous');
+    expect(screen.getAllByRole('button')).toHaveLength(5);
+    expect(screen.getByRole('button', { name: /Actualiser les rendez-vous/i })).toBeInTheDocument();
   });
 
   it('refuses to turn an API failure or malformed response into a false empty agenda', () => {
@@ -122,6 +123,7 @@ describe('07-C / real Cabinet read-only boundary', () => {
     });
     useAuthStore.setState({ user: userWith({ agenda: true, patients: true }), isAuthenticated: true, isLoading: false });
     const { container } = render(<CommandCabinetReadOnlyRoute />);
+    fireEvent.click(screen.getByRole('button', { name: 'Agenda' }));
     expect(screen.getByText('TEST-PRÉNOM TEST-NOM')).toBeInTheDocument();
     const nextActor = { ...userWith({ agenda: true, patients: true }), id: '202', employer_id: 20 } as AppUser;
     act(() => {
@@ -135,12 +137,25 @@ describe('07-C / real Cabinet read-only boundary', () => {
   it('redacts patient names immediately if the patients permission is revoked', () => {
     useAuthStore.setState({ user: userWith({ agenda: true, patients: true }), isAuthenticated: true, isLoading: false });
     const { container } = render(<CommandCabinetReadOnlyRoute />);
+    fireEvent.click(screen.getByRole('button', { name: 'Agenda' }));
     expect(screen.getByText('TEST-PRÉNOM TEST-NOM')).toBeInTheDocument();
     act(() => {
       useAuthStore.setState({ user: userWith({ agenda: true, patients: false }), isAuthenticated: true, isLoading: false });
     });
     expect(container.textContent).not.toContain('TEST-NOM');
     expect(screen.getAllByRole('cell').map((cell) => cell.textContent)).toContain('Rendez-vous');
+  });
+
+
+  it('R4 exposes four real surfaces but refuses clinical and media views to agenda-only roles', () => {
+    useAuthStore.setState({ user: userWith({ agenda: true, patients: false }), isAuthenticated: true, isLoading: false });
+    render(<CommandCabinetReadOnlyRoute />);
+    const nav = screen.getByRole('navigation', { name: 'Quatre surfaces Command' });
+    expect(within(nav).getAllByRole('button')).toHaveLength(4);
+    fireEvent.click(within(nav).getByRole('button', { name: 'Dossier patient' }));
+    expect(screen.getByTestId('r4-patient-denied')).toHaveTextContent('permission patients');
+    fireEvent.click(within(nav).getByRole('button', { name: 'Imagerie' }));
+    expect(screen.getByTestId('r4-patient-denied')).toHaveTextContent('permission patients');
   });
 
   it('projects actual FastAPI AppointmentOut schema and does not leak patient_name to agenda-only staff', () => {
