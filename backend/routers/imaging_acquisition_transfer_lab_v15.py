@@ -25,14 +25,18 @@ class Proposal(BaseModel):
     byte_size: int = Field(ge=1, le=_MAX_BYTES)
 
 
-class Approval(BaseModel):
+class ReviewRequest(BaseModel):
     model_config = ConfigDict(extra="forbid", strict=True)
     workstation_id: str = Field(min_length=1, max_length=36)
     device: str = Field(pattern=r"^[A-Za-z0-9_-]{1,64}$")
     capture: str = Field(pattern=r"^[A-Za-z0-9_-]{8,128}$")
     patient_id: int = Field(ge=1)
     appointment_id: int | None = Field(default=None, ge=1)
+
+
+class Approval(ReviewRequest):
     explicit_staff_action: bool
+    review_challenge: str = Field(min_length=1, max_length=256)
 
 
 def _token(request: Request) -> str:
@@ -51,28 +55,49 @@ def propose(data: Proposal, request: Request, db: Session = Depends(database.get
         raise HTTPException(exc.status_code, exc.reason) from exc
 
 
+def _authorized_staff(data: ReviewRequest, request: Request,
+                      db: Session, user: models.User) -> int:
+    lab.guard(db)
+    bearer = request.headers.get("authorization", "")
+    cookie = request.cookies.get("access_token")
+    if (not bearer.startswith("Bearer ") or not bearer[7:].strip() or
+            (cookie and not secrets.compare_digest(cookie, bearer[7:].strip()))):
+        raise HTTPException(401, "EXPLICIT_STAFF_BEARER_REQUIRED")
+    tenant = int(user.get_employer_id())
+    if not has_permission(user, "patients"):
+        raise HTTPException(403, "PATIENT_PERMISSION_REQUIRED")
+    station = _find_workstation(request, db, tenant)
+    if station is None or station.id != data.workstation_id:
+        raise HTTPException(403, "WORKSTATION_NOT_AUTHORIZED")
+    return tenant
+
+
+@router.post("/lab/review", include_in_schema=False)
+def review(data: ReviewRequest, request: Request, db: Session = Depends(database.get_db),
+           user: models.User = Depends(get_current_user)):
+    try:
+        tenant = _authorized_staff(data, request, db, user)
+        return lab.issue_review(
+            db, staff=user, tenant=tenant, workstation=data.workstation_id,
+            device=data.device, capture=data.capture, patient=data.patient_id,
+            appointment=data.appointment_id,
+        )
+    except lab.TransferLabRejected as exc:
+        db.rollback()
+        raise HTTPException(exc.status_code, exc.reason) from exc
+
+
 @router.post("/lab/approve", include_in_schema=False)
 def approve(data: Approval, request: Request, db: Session = Depends(database.get_db),
             user: models.User = Depends(get_current_user)):
     try:
-        lab.guard(db)
-        bearer = request.headers.get("authorization", "")
-        cookie = request.cookies.get("access_token")
-        if (not bearer.startswith("Bearer ") or not bearer[7:].strip() or
-                (cookie and not secrets.compare_digest(cookie, bearer[7:].strip()))):
-            raise HTTPException(401, "EXPLICIT_STAFF_BEARER_REQUIRED")
+        tenant = _authorized_staff(data, request, db, user)
         if data.explicit_staff_action is not True:
             raise HTTPException(403, "EXPLICIT_STAFF_ACTION_REQUIRED")
-        tenant = int(user.get_employer_id())
-        if not has_permission(user, "patients"):
-            raise HTTPException(403, "PATIENT_PERMISSION_REQUIRED")
-        station = _find_workstation(request, db, tenant)
-        if station is None or station.id != data.workstation_id:
-            raise HTTPException(403, "WORKSTATION_NOT_AUTHORIZED")
         return lab.approve(
             db, staff=user, tenant=tenant, workstation=data.workstation_id,
             device=data.device, capture=data.capture, patient=data.patient_id,
-            appointment=data.appointment_id,
+            appointment=data.appointment_id, review_challenge=data.review_challenge,
         )
     except lab.TransferLabRejected as exc:
         db.rollback()
