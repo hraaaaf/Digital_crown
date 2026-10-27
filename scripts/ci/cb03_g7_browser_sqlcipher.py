@@ -15,6 +15,10 @@ target=os.environ.get("DATABASE_URL","")
 assert target=="sqlite:///"+str(dbfile),"REFUSED_DB_TARGET"
 from backend.core.runtime_safety import database_target_fingerprint
 os.environ["DIGITALCROWN_ISOLATION_DB_FINGERPRINT"]=database_target_fingerprint(target)
+media_root=temp/"cb03-g7-rehearsal-media"
+assert media_root.parent==temp and not media_root.exists(),"REFUSED_PREEXISTING_MEDIA"
+media_root.mkdir(mode=0o700)
+os.environ["MEDIA_ROOT"]=str(media_root)
 from backend import database,models
 from backend.security import get_password_hash
 from sqlalchemy import inspect
