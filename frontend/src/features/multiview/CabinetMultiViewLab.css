@@ -754,3 +754,206 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* =============================================================
+ * LOT07 R3 — INTEGRATED NINE-VIEW PREMIUM COMPOSITION / DEV ONLY
+ * Evidence-led, actual slot width, genuine data. Never modifies
+ * authorizeLayout, R-only gates, data fetches or the 50/50 tracks.
+ * ============================================================= */
+
+/* Shared: hierarchy is defined inside the clinical area, not across the
+ * whole patient route. Controls remain visible and focusable. */
+[data-v15-071-real-cabinet-lab] [data-v15-071-viewslot] {
+  scrollbar-gutter: stable;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-viewslot] :is(h2,h3) {
+  text-wrap: balance;
+}
+[data-v15-071-real-cabinet-lab] [data-v15-071-viewslot] :is(button,select,input):focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* 01 OVERVIEW — the REAL dossier, three authenticated appointments and real
+ * Media Timeline remain separate, with visually clear read-only surfaces. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="vue-ensemble"] [data-testid="multiview-real-dossier"] {
+  align-content: start;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="vue-ensemble"] [data-testid="r3-real-agenda"] {
+  background: var(--card-bg);
+  border-radius: 12px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="vue-ensemble"] [data-v15-071-viewslot="imagerie"] {
+  background: var(--card-bg);
+}
+
+/* 02 CONSULTATION — no empty-document skyscraper; leave a truthful
+ * ready/empty/error state and make the authorized appointment list scannable. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="consultation"] [data-r3-bilan-state="empty"],
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="agenda-cabinet"] [data-r3-bilan-state="empty"] {
+  padding: 10px 12px;
+  box-shadow: none;
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="consultation"],[data-v15-071-layout="agenda-cabinet"])
+  [data-r3-bilan-state="empty"] [data-testid="r3-bilan-honest-empty"] {
+  border-style: solid;
+  border-color: var(--border-color);
+  padding: 9px 11px;
+}
+
+/* 03 AGENDA — fixed table columns, accessible sticky headings, readable
+ * real event statuses. Neither a phantom appointment nor an inferred state. */
+[data-v15-071-real-cabinet-lab] .dc-r3-agenda [data-testid="r3-agenda-table-wrap"] {
+  scrollbar-width: thin;
+  border-color: var(--border-color);
+}
+[data-v15-071-real-cabinet-lab] .dc-r3-agenda thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  text-align: left;
+  background: var(--bg-medical-pearl);
+  border-bottom: 1px solid var(--border-color);
+}
+[data-v15-071-real-cabinet-lab] .dc-r3-agenda tbody tr:hover {
+  background: var(--bg-medical-pearl);
+}
+[data-v15-071-real-cabinet-lab] .dc-r3-agenda tbody td {
+  overflow-wrap: anywhere;
+}
+
+/* 04 IMAGERIE + 08 GESTION DOCUMENTAIRE — the media rail is navigable while
+ * the selected authenticated asset receives the remaining panel width.
+ * A document's black/white viewer is not replaced by fake clinical data. */
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="imagerie"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="patient-media-timeline"] {
+  min-width: 0;
+}
+[data-v15-071-real-cabinet-lab]
+  :is([data-v15-071-layout="imagerie"],
+      [data-v15-071-layout="gestion-administrative"])
+  [data-testid="media-inline-viewer"] {
+  background: var(--card-bg);
+  border-color: var(--border-color);
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="gestion-administrative"]
+  [data-v15-071-viewslot="documents"] iframe[title="Aperçu document clinique"] {
+  min-height: 260px;
+  border: 0;
+  background: var(--card-bg);
+}
+
+/* Actual container-width rules: 1920px desktop still means a narrow split
+ * slot. Nested rails and previews must not overflow their own boundaries. */
+@container (max-width: 920px) {
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [data-testid="patient-media-timeline"] > div:first-child {
+    padding: 10px;
+  }
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [data-testid="media-asset-rail"] article {
+    background: var(--card-bg);
+    border-color: var(--border-color);
+  }
+  [data-v15-071-real-cabinet-lab]
+    :is([data-v15-071-viewslot="imagerie"],[data-v15-071-viewslot="galerie"],
+        [data-v15-071-viewslot="photos"],[data-v15-071-viewslot="documents"])
+    [aria-label="Recherche et filtres médias"] :is(input,select,button) {
+    min-width: 0;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.35;
+  }
+}
+
+/* 05 ORTHODONTIE — distinct verified CEPHALO T0/T1 become visible numeric
+ * evidence cards; center source labels without implying diagnosis. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="comparaison-orthodontique"]
+  [data-r3-cephalo-state="ready"] {
+  padding: 15px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="comparaison-orthodontique"]
+  [data-r3-cephalo-state="ready"] [data-testid^="r3-cephalo-measure-t"] {
+  min-height: 110px;
+  align-content: center;
+  background: linear-gradient(135deg,var(--card-bg),var(--bg-medical-pearl));
+  border-color: var(--border-color);
+}
+
+/* 06 TREATMENTS — display the genuine read-only Master Plan as an actual
+ * compact stepper rather than three isolated cards and a large blank area. */
+[data-v15-071-real-cabinet-lab] .dc-r3-treatment [data-r3-plan-state="ready"] {
+  color: var(--text-main);
+}
+[data-v15-071-real-cabinet-lab] .dc-r3-treatment-steps {
+  grid-template-columns: minmax(0,1fr);
+  align-items: stretch;
+}
+@container (min-width: 680px) {
+  [data-v15-071-real-cabinet-lab] .dc-r3-treatment-steps {
+    grid-template-columns: repeat(3,minmax(0,1fr));
+  }
+}
+[data-v15-071-real-cabinet-lab] .dc-r3-treatment-steps > li {
+  border-left: 3px solid var(--primary);
+  min-width: 0;
+  box-shadow: var(--shadow-elite);
+}
+
+/* 07 FOLLOW-UP — preserve the equal-row splitter and separate focus/scroll,
+ * while showing more of the actual longitudinal comparison above its fold. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"]
+  [data-v15-071-viewslot="suivi"] [aria-label="Comparaison orthodontique"] {
+  border-radius: 14px;
+  padding: 12px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"]
+  [data-v15-071-viewslot="suivi"] [aria-label="Comparaison orthodontique"] > div:first-child {
+  margin-bottom: 7px;
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="suivi-clinique"]
+  [data-v15-071-viewslot="photos"] {
+  scrollbar-width: thin;
+}
+
+/* 09 PRESENTATION — explicit mask/unmask unchanged, real steps become
+ * legible patient-facing cards and tool chrome stays visually subordinate. */
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="presentation-patient"]
+  [data-testid="r3-presentation-visible"] {
+  max-width: 100%;
+  padding: clamp(22px,2.4vw,42px);
+  background: linear-gradient(160deg,var(--card-bg) 65%,var(--bg-medical-pearl));
+}
+[data-v15-071-real-cabinet-lab]
+  [data-v15-071-layout="presentation-patient"]
+  [data-testid="r3-presentation-visible"] ol > li {
+  border-top: 3px solid var(--primary);
+  min-height: 100px;
+}
+
+/* Accessibility: themes own all surface/ink tokens and motion is optional. */
+@media (prefers-reduced-motion: reduce) {
+  [data-v15-071-real-cabinet-lab] .dc-r3-treatment-steps > li {
+    transition: none !important;
+  }
+}
