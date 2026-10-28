@@ -1,0 +1,60 @@
+name: LOT07 R6 07.1.C T0 T1 T2 canonical read-only contract
+
+on:
+  push:
+    branches:
+      - 'feat/lot07-r6-071c-*'
+    paths:
+      - 'frontend/src/features/ortho/r6ThreeTimepoints.ts'
+      - 'frontend/src/features/ortho/r6ThreeTimepoints.test.ts'
+      - 'frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx'
+      - '.github/workflows/lot07-r6-071c-triptych.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - 'frontend/src/features/ortho/r6ThreeTimepoints.ts'
+      - 'frontend/src/features/ortho/r6ThreeTimepoints.test.ts'
+      - 'frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx'
+      - '.github/workflows/lot07-r6-071c-triptych.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  r6-three-points-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      VITE_LOT07_R6_071C_LAB: 'true'
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Prove exact HEAD and product opt-in remains DEV-only
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          grep -q "import.meta.env.DEV && import.meta.env.VITE_LOT07_R6_071C_LAB" frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx
+      - name: Locked install
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: T0 T1 T2 source/identity/chronology denials and F3 regression
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm test -- src/features/ortho/r6ThreeTimepoints.test.ts src/features/ortho/orthoLongitudinalCompare.test.ts
+      - name: Production build must not enable R6 LAB
+        working-directory: frontend
+        env:
+          VITE_LOT07_R6_071C_LAB: 'false'
+        run: |
+          set -euo pipefail
+          npm run build
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
