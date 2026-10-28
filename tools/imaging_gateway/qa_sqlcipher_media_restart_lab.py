@@ -35,7 +35,9 @@ def require_test(tmp: Path) -> tuple[Path, Path]:
     tmp = tmp.resolve()
     if "pytest-" not in str(tmp) and "lot06b-durable-" not in str(tmp):
         raise RuntimeError("UNSAFE_SQLCIPHER_TEST_PATH")
-    return tmp / "lab-media.db", tmp / "media"
+    media_root = tmp / "media"
+    os.environ["MEDIA_ROOT"] = str(media_root)
+    return tmp / "lab-media.db", media_root
 
 
 def connect_db(path: Path, *, wrong_key: bool = False):
@@ -145,7 +147,15 @@ def verify(path: Path, root: Path, *, expect_tampered: bool = False):
     engine = engine_for(path)
     try:
         with Session(engine) as db:
-            assert db.execute(select(lab.receipts)).rowcount != 999  # fetch below
+            # The actual transfer LAB must remain fail-closed on persistent
+            # databases despite this independent Media Core recovery proof.
+            os.environ["DC_V15_06_TRANSFER_LAB"] = "1"
+            try:
+                lab.guard(db)
+            except lab.TransferLabRejected as exc:
+                assert exc.reason == "ISOLATED_TRANSFER_DISABLED"
+            else:
+                raise AssertionError("PERSISTENT_LAB_GUARD_BYPASSED")
             assert len(db.execute(select(lab.receipts)).all()) == 1
             assert len(db.execute(select(lab.audit)).all()) == 1
             assert len(db.execute(select(lab.outbox)).all()) == 1
