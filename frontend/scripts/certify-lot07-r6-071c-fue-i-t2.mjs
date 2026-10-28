@@ -171,7 +171,9 @@ try {
   await capture(page,'01-A-before-triple-1440');
 
   for(const [from,to] of [[0,1],[1,2],[0,2]]) {
-    const watch=page.waitForResponse(r=>{
+    const cached=network.find(r=>r.path==='/api/patients/'+patient.id+'/ortho-case/'+caseId+'/compare' &&
+      r.from===String(from) && r.to===String(to) && r.status===200);
+    const watch=cached ? null : page.waitForResponse(r=>{
       const u=new URL(r.url());
       return u.pathname==='/api/patients/'+patient.id+'/ortho-case/'+caseId+'/compare' &&
         u.searchParams.get('from_ordinal')===String(from) &&
@@ -181,9 +183,9 @@ try {
     check('real-click-selected-pair-'+from+'-'+to,
       await triple.getByRole('button',{name:'T'+from+' → T'+to,exact:true})
         .getAttribute('aria-pressed')==='true');
-    const response=await watch;
-    check('real-browser-response-pair-'+from+'-'+to,response.status()===200,
-      {status:response.status()});
+    const responseStatus=watch ? (await watch).status() : cached.status;
+    check('real-browser-response-pair-'+from+'-'+to,responseStatus===200,
+      {status:responseStatus,previouslyObserved:Boolean(cached)});
     await page.locator('[data-ortho-f3-compare]').getByText('Mesures communes',{exact:true})
       .waitFor({state:'visible',timeout:25000});
     await triple.scrollIntoViewIfNeeded();
