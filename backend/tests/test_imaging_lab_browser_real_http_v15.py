@@ -15,6 +15,7 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 from pathlib import Path
 import subprocess
+import signal
 import threading
 import time
 import uuid
@@ -168,6 +169,9 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
             ["npm", "run", "dev", "--", "--host", "127.0.0.1",
              "--port", "5187", "--strictPort"],
             cwd=frontend, env=env, stdout=stream, stderr=subprocess.STDOUT,
+            # npm run dev spawns an independent Vite Node child. Terminate its
+            # whole process group between parametrized pytest cases.
+            start_new_session=True,
         )
         try:
             _vite_ready(5187, process)
@@ -212,6 +216,14 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     page.get_by_role(
                         "heading", name="Associer une capture au bon patient"
                     ).wait_for()
+                    # Never let a surviving Vite child from a previous test
+                    # silently aim Axios at that test's now-dead ASGI origin.
+                    configured_origin = page.evaluate(
+                        "() => window.__DC06B_HTTP_API_ORIGIN__"
+                    )
+                    assert configured_origin == backend_origin, (
+                        "STALE_VITE_API_ORIGIN / wrong isolated TEST server"
+                    )
                     assert page.locator("#lab-patient").input_value() == ""
                     assert page.get_by_role(
                         "button", name="Vérifier le lien patient"
@@ -436,10 +448,16 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                 finally:
                     browser.close()
         finally:
-            process.terminate()
+            # SIGTERM the isolated npm+shell+Vite process group, not just npm.
+            # Otherwise the second no-RDV case reuses stale VITE_API_URL from
+            # the first case and never reaches its real FastAPI HTTP server.
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             try:
                 process.wait(timeout=8)
             except subprocess.TimeoutExpired:
-                process.kill()
+                os.killpg(process.pid, signal.SIGKILL)
                 process.wait(timeout=8)
             standalone.unlink(missing_ok=True)
