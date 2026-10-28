@@ -55,6 +55,7 @@ def test_synthetic_sqlcipher_encrypted_receipt_survives_real_process_restart(
         ("verify-interrupted", 0,
          "UNCOMMITTED_RECEIPT_ROLLED_BACK_ENCRYPTED_ORPHAN_QUARANTINED"),
         ("wrong-key", 0, "WRONG_SQLCIPHER_KEY_BLOCKED"),
+        ("wrong-media-key", 0, "WRONG_MEDIA_AESGCM_KEY_BLOCKED"),
         ("tamper", 0, "SYNTHETIC_MEDIA_CORRUPTED"),
         ("verify-tampered", 0, "TAMPER_INTEGRITY_BLOCKED"),
     )
@@ -62,13 +63,17 @@ def test_synthetic_sqlcipher_encrypted_receipt_survives_real_process_restart(
     for phase, code, expected in phases:
         # Every phase launches the script in a NEW operating system process,
         # discarding DB connections and decryptor memory between each run.
+        phase_env = dict(env)
+        if phase == "wrong-media-key":
+            # DB remains valid, only AES-GCM media credential changes.
+            phase_env["DC06B_TEST_MEDIA_KEY"] = secrets.token_hex(32)
         done = subprocess.run(
             [
                 sys.executable, "-m",
                 "tools.imaging_gateway.qa_durable_receipt_restart_lab",
                 "--root", str(root), "--phase", phase,
             ],
-            env=env, text=True, capture_output=True, timeout=35, check=False,
+            env=phase_env, text=True, capture_output=True, timeout=35, check=False,
         )
         assert done.returncode == code, (
             f"Durability phase {phase} exit {done.returncode}; "
@@ -105,6 +110,7 @@ def test_synthetic_sqlcipher_encrypted_receipt_survives_real_process_restart(
             "crash_before_sql_has_no_authoritative_receipt": True,
             "crash_after_receipt_audit_outbox_before_commit_is_atomic": True,
             "wrong_sqlcipher_key_rejected": True,
+            "wrong_aesgcm_media_key_rejected_on_original_ciphertext": True,
             "tampered_ciphertext_rejected": True,
             "actual_power_cut_tested": False,
             "directory_fsync_tested": False,
