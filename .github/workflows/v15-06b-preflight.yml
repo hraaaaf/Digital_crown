@@ -10,6 +10,10 @@ on:
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
+      - 'backend/tests/test_imaging_durable_receipt_restart_v15.py'
+      - 'backend/tests/test_imaging_backup_restore_rollback_v15.py'
+      - 'tools/imaging_gateway/qa_backup_restore_witness_lab.py'
+      - 'tools/imaging_gateway/qa_durable_receipt_restart_lab.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -26,6 +30,10 @@ on:
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
+      - 'backend/tests/test_imaging_durable_receipt_restart_v15.py'
+      - 'backend/tests/test_imaging_backup_restore_rollback_v15.py'
+      - 'tools/imaging_gateway/qa_backup_restore_witness_lab.py'
+      - 'tools/imaging_gateway/qa_durable_receipt_restart_lab.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -76,6 +84,10 @@ jobs:
           python -m py_compile backend/routers/imaging_acquisition_transfer_lab_v15.py
           python -m py_compile backend/tests/test_imaging_transfer_lab_v15.py
           python -m py_compile backend/tests/test_imaging_lab_browser_real_http_v15.py
+          python -m py_compile backend/tests/test_imaging_durable_receipt_restart_v15.py
+          python -m py_compile backend/tests/test_imaging_backup_restore_rollback_v15.py
+          python -m py_compile tools/imaging_gateway/qa_backup_restore_witness_lab.py
+          python -m py_compile tools/imaging_gateway/qa_durable_receipt_restart_lab.py
           python -m py_compile backend/routers/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_bridge_lifespan_v15.py
@@ -85,6 +97,46 @@ jobs:
           python -m py_compile tools/imaging_gateway/qa_staff_review_desktop_lab.py
       - name: Preflight negative scenarios and Media Core regressions
         run: python -m pytest backend/tests/test_imaging_acquisition_preflight_v15.py backend/tests/test_imaging_transfer_lab_v15.py backend/tests/test_media_core_ingestion_api.py tools/imaging_gateway/tests/test_qa_visual_runtime.py -q
+
+      - name: DR-04 independent process restart SQLCipher + AES-GCM (synthetic only)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06B_DURABILITY_EVIDENCE_DIR: lot06b-durable-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06B_DURABILITY_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_imaging_durable_receipt_restart_v15.py -q -s
+          test -s "$DC06B_DURABILITY_EVIDENCE_DIR/lot06b-sqlcipher-restart-fue.json"
+          test -s "$DC06B_DURABILITY_EVIDENCE_DIR/lot06b-actual-clinical-asset-restart-fue.json"
+          python -c 'import json; d=json.load(open("lot06b-durable-evidence/lot06b-sqlcipher-restart-fue.json")); assert d["wrong_aesgcm_media_key_rejected_on_original_ciphertext"] is True'
+      - name: Publish isolated process-restart FUE (NO PRODUCT CERTIFICATION)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06b-sqlcipher-restart-synthetic-fue
+          path: lot06b-durable-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: DR-05 cold SQLCipher backup+AES media restore+antirollback witness FUE
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06B_BACKUP_EVIDENCE_DIR: lot06b-backup-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06B_BACKUP_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_imaging_backup_restore_rollback_v15.py -q -s
+          test -s "$DC06B_BACKUP_EVIDENCE_DIR/lot06b-backup-restore-antirollback-fue.json"
+      - name: Publish synthetic backup restore rollback witness FUE
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06b-backup-restore-rollback-synthetic-fue
+          path: lot06b-backup-evidence/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Real FastAPI lifespan + isolated Imaging Bridge synthetic integration
         run: python -m pytest backend/tests/test_imaging_bridge_lifespan_v15.py -q
