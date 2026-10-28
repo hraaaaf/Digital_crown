@@ -1,5 +1,9 @@
 from datetime import datetime
 import hashlib
+import json
+import os
+import stat
+from pathlib import Path
 from pathlib import PurePosixPath
 
 import pytest
@@ -284,3 +288,105 @@ def test_filesystem_failure_does_not_bind_unverified_storage_metadata(db, tmp_pa
     assert asset.stored_at is None
     assert list(tmp_path.rglob("*.dcm")) == []
     assert list(tmp_path.rglob(".tmp-*")) == []
+
+
+@pytest.mark.skipif(os.name != "posix", reason="LOT06-C1 parent fsync proof is POSIX-only")
+def test_durable_parent_barrier_sync_order(tmp_path, monkeypatch):
+    """FUE-C03a: file fsync precedes atomic rename + directory fsync."""
+    from backend.services import clinical_asset_storage as storage
+
+    real_fsync = storage.os.fsync
+    calls = []
+
+    def _observed_fsync(fd):
+        calls.append("directory" if stat.S_ISDIR(os.fstat(fd).st_mode) else "file")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(storage.os, "fsync", _observed_fsync)
+    target = tmp_path / "encrypted-synthetic.dcm"
+    plaintext = b"synthetic-c1-aesgcm-roundtrip"
+    digest = hashlib.sha256(plaintext).hexdigest()
+    ciphertext = storage._encrypt_payload(plaintext, employer_id=31, digest=digest)
+    storage._atomic_write(target, ciphertext)
+    assert target.read_bytes() == ciphertext
+    assert ciphertext.startswith(b"DCM1") and plaintext not in ciphertext
+    assert storage._read_verified_path(
+        target, employer_id=31, digest=digest, byte_size=len(plaintext)
+    ) == plaintext
+    assert calls == ["file", "directory"]
+    assert list(tmp_path.glob(".tmp-*")) == []
+    print("LOT06C1_PARENT_DIRECTORY_SYNC_ORDER_PASS")
+
+
+@pytest.mark.skipif(os.name != "posix", reason="LOT06-C1 parent fsync proof is POSIX-only")
+def test_durable_parent_barrier_fails_closed_and_retries_orphan(db, tmp_path, monkeypatch):
+    """FUE-C03b: parent fsync failure cannot authorize a SQL asset binding."""
+    from backend.services import clinical_asset_storage as storage
+
+    owner = _make_user(db, suffix="c1-dirsync")
+    patient = _make_patient(db, owner.id, suffix="C1")
+    asset = _make_asset(db, employer_id=owner.id, patient_id=patient.id)
+    payload = b"synthetic-directory-durability-c1"
+    real_fsync = storage.os.fsync
+    failure_dirs = []
+
+    def _reject_directory_fsync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            failure_dirs.append(True)
+            raise OSError("synthetic directory sync failure")
+        return real_fsync(fd)
+
+    monkeypatch.setattr(storage.os, "fsync", _reject_directory_fsync)
+    with pytest.raises(ClinicalAssetStorageError, match="directory durability barrier failed"):
+        store_clinical_asset_bytes(
+            db, employer_id=owner.id, patient_id=patient.id,
+            asset_id=asset.id, content=payload, media_root=tmp_path,
+        )
+
+    db.refresh(asset)
+    assert failure_dirs
+    assert asset.storage_key is None and asset.stored_at is None
+    assert asset.sha256 is None and asset.storage_format is None
+    encrypted = list(tmp_path.rglob("*.dcm"))
+    assert len(encrypted) == 1
+    assert encrypted[0].read_bytes().startswith(b"DCM1")
+    assert payload not in encrypted[0].read_bytes()
+    assert list(tmp_path.rglob(".tmp-*")) == []
+
+    successful_dirs = []
+
+    def _accept_directory_fsync(fd):
+        if stat.S_ISDIR(os.fstat(fd).st_mode):
+            successful_dirs.append(True)
+        return real_fsync(fd)
+
+    monkeypatch.setattr(storage.os, "fsync", _accept_directory_fsync)
+    result = store_clinical_asset_bytes(
+        db, employer_id=owner.id, patient_id=patient.id,
+        asset_id=asset.id, content=payload, media_root=tmp_path,
+    )
+    assert result.deduplicated is True
+    assert successful_dirs, "REPLAY_DID_NOT_REESTABLISH_DIRECTORY_BARRIER"
+    assert list(tmp_path.rglob("*.dcm")) == encrypted
+    db.commit()
+    db.refresh(asset)
+    assert read_clinical_asset_bytes(
+        db, employer_id=owner.id, patient_id=patient.id,
+        asset_id=asset.id, media_root=tmp_path,
+    ) == payload
+
+    evidence_dir = Path(os.environ.get("DC06C1_EVIDENCE_DIR", str(tmp_path)))
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    (evidence_dir / "lot06c1-parent-fsync-fue.json").write_text(json.dumps({
+        "kind": "LOT06C1_POSIX_PARENT_DIRECTORY_DURABILITY_REHEARSAL",
+        "file_and_parent_fsync_tested": True,
+        "failure_refuses_sql_asset_binding": True,
+        "failed_sync_keeps_only_encrypted_orphan": True,
+        "retry_resyncs_original_encrypted_blob_before_sql_binding": True,
+        "actual_power_loss_tested": False,
+        "ancestor_directory_creation_fsync_certified": False,
+        "windows_durability_certified": False,
+        "postgresql_transaction_certified": False,
+        "product_ready": False,
+    }, sort_keys=True, indent=2) + "\n", encoding="utf-8")
+    print("LOT06C1_DIRECTORY_SYNC_FAILURE_ORPHAN_RETRY_PASS")
