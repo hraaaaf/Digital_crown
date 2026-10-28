@@ -20,12 +20,14 @@ declare global {
     };
     // Synthetic e2e debugging only; no patient identifiers, secrets or codes.
     __DC06B_HTTP_TRACE__?: string;
+    __DC06B_HTTP_API_ORIGIN__?: string;
   }
 }
 
 if (!import.meta.env.DEV || window.location.hostname !== '127.0.0.1') {
   throw new Error('ISOLATED_HTTP_HARNESS_DISABLED');
 }
+window.__DC06B_HTTP_API_ORIGIN__ = import.meta.env.VITE_API_URL;
 const fixture = window.__DC06B_HTTP_TEST__;
 if (!fixture || !fixture.workstationId || fixture.targets.length === 0) {
   throw new Error('ISOLATED_HTTP_FIXTURE_REQUIRED');
