@@ -194,9 +194,15 @@ def _child(mode: str, root: Path) -> int:
 
 
 def _run(mode: str, root: Path, env: dict[str,str]) -> subprocess.CompletedProcess[str]:
+    child_env = env.copy()
+    # Running an absolute test file sets sys.path[0] to backend/tests, not the
+    # repository root. Mirror the same import boundary as python -m pytest.
+    repo_root = str(Path(__file__).resolve().parents[2])
+    child_env["PYTHONPATH"] = repo_root + os.pathsep + child_env.get("PYTHONPATH", "")
     return subprocess.run(
         [sys.executable, str(Path(__file__).resolve()), "--dr04-child", mode, str(root)],
-        env=env, check=False, capture_output=True, text=True, timeout=40
+        cwd=repo_root, env=child_env, check=False,
+        capture_output=True, text=True, timeout=40
     )
 
 
@@ -282,7 +288,6 @@ def test_dr04_interrupted_persistent_write_has_no_committed_receipt(tmp_path,mod
     writer = _run(mode, root, env)
     assert writer.returncode == expected, writer.stdout[-400:] + writer.stderr[-400:]
     # Process really ended; reopen SQLCipher on disk independently.
-    from sqlcipher3 import dbapi2 as sqlcipher
     # Test runner's own key must be explicit and never fall back to plaintext.
     monkey = os.environ.get("DC06B_DR_SQLCIPHER_KEY_HEX")
     try:
