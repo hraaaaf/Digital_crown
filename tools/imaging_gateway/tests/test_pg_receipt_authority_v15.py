@@ -7,6 +7,7 @@ Not the production clinical router, storage authority, or permission system.
 from concurrent.futures import ThreadPoolExecutor
 from dataclasses import asdict, replace
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -17,7 +18,13 @@ import uuid
 import pytest
 from sqlalchemy import create_engine, func, select
 
-from backend.services import imaging_pg_receipt_authority_v15 as pg
+# Load the intentionally *unwired* candidate module without executing the
+# application's backend/__init__.py (full API imports aren't part of this FUE).
+_module_path = Path(__file__).resolve().parents[3] / "backend" / "services" / "imaging_pg_receipt_authority_v15.py"
+_spec = importlib.util.spec_from_file_location("lot06c05a_postgres_authority", _module_path)
+pg = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = pg
+_spec.loader.exec_module(pg)
 
 
 @pytest.fixture(scope="module")
@@ -103,12 +110,15 @@ def test_c05a_concurrent_writers_rollback_and_lost_ack(db_engine, tmp_path):
     env = os.environ.copy()
     env["DC06C05A_CLAIM_JSON"] = json.dumps(asdict(ack_claim))
     script = """
-import json, os
+import importlib.util, json, os, pathlib, sys
 from sqlalchemy import create_engine
-from backend.services.imaging_pg_receipt_authority_v15 import ApprovalClaim, issue_test_receipt
+spec = importlib.util.spec_from_file_location("lot06c05a_postgres_authority", pathlib.Path.cwd() / "backend" / "services" / "imaging_pg_receipt_authority_v15.py")
+module = importlib.util.module_from_spec(spec)
+sys.modules[spec.name] = module
+spec.loader.exec_module(module)
 engine = create_engine(os.environ["DC06C05A_TEST_DSN"])
-claim = ApprovalClaim(**json.loads(os.environ["DC06C05A_CLAIM_JSON"]))
-issue_test_receipt(engine, claim)
+claim = module.ApprovalClaim(**json.loads(os.environ["DC06C05A_CLAIM_JSON"]))
+module.issue_test_receipt(engine, claim)
 os._exit(75)
 """
     done = subprocess.run(
