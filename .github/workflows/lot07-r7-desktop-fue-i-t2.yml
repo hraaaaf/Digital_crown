@@ -1,0 +1,141 @@
+name: LOT07 R7 07.1.E Desktop matrix genuine FastAPI Chromium FUE-I
+
+on:
+  push:
+    branches: ['feat/lot07-r7-071e-*']
+  pull_request:
+    branches: ['feat/lot07-r6-071d-*',master]
+    paths:
+      - 'frontend/scripts/certify-lot07-r7-desktop-matrix.mjs'
+      - 'docs/quality/LOT07_R7_DESKTOP_PHYSICAL_FUE.md'
+      - 'frontend/scripts/certify-lot07-r6-071d-fue-i-t2.mjs'
+      - '.github/workflows/lot07-r7-desktop-fue-i-t2.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  genuine-r6-frontend-backend-fue-i:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      SECRET_KEY: lot07-r6-t2-temporary-not-production
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      VITE_LOT07_R6_071C_LAB: 'true'
+      VITE_LOT07_R6_071D_LAB: 'true'
+      LOT07_R7_DESKTOP_CERT: '1'
+      TZ: Africa/Casablanca
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout exact R6 HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+      - name: Validate immutable scope and disposable environment
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test "$VITE_LOT07_R6_071C_LAB" = true
+          test "$VITE_LOT07_R6_071D_LAB" = true
+          test "$LOT07_R7_DESKTOP_CERT" = 1
+          test ! -f t2-runtime-cert.db
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Create one masked synthetic password for disposable actors
+        shell: bash
+        run: |
+          set -euo pipefail
+          pw="$(python -c 'import secrets;print(secrets.token_urlsafe(28))')"
+          echo "::add-mask::$pw"
+          echo "T2_PASSWORD=$pw" >> "$GITHUB_ENV"
+      - name: Install real FastAPI backend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/lot07-r6-fue-deps.txt
+          pip install -r /tmp/lot07-r6-fue-deps.txt
+          python -m pip check
+      - name: Install actual React and headless Chromium
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --check scripts/certify-lot07-r6-071d-fue-i-t2.mjs
+          node --check scripts/certify-lot07-r7-desktop-matrix.mjs
+      - name: Boot real backend.main with fresh T2 SQLite
+        run: |
+          set -euo pipefail
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/lot07-r6-fue-backend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 100 /tmp/lot07-r6-fue-backend.log
+          exit 1
+      - name: Boot real Vite React patient application in R6 DEV-only lab
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/lot07-r6-fue-vite.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -n 100 /tmp/lot07-r6-fue-vite.log
+          exit 1
+      - name: R7 real desktop matrix and authenticated R6D FUE
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          node scripts/certify-lot07-r6-071d-fue-i-t2.mjs
+          node - <<'NODE'
+          const fs=require('node:fs');
+          const r=JSON.parse(fs.readFileSync('../artifacts/lot07-r6-071d-fue-i/report.json'));
+          if(!r.pass||r.head!==process.env.SOURCE_HEAD||
+            !r.syntheticOnly||!r.actualFastAPI||!r.actualReactBrowser||
+            r.routeIntercepted||r.production||r.humanApproved||
+            r.physicalSecondScreen||r.zoomPanCertified||r.checks.length<35||
+            r.screenshots.length<14||
+            !r.r7||r.r7.testedViewports.join(',')!=='1280,1440,1920,2560'||
+            r.r7.nativeWindows200Percent||r.r7.realPhysicalSecondDisplay||
+            r.r7.nvdaScreenReader||r.r7.humanVisualApproval||
+            r.r7.sessionServerRevocation||
+            !r.denials.some(d=>d.reason==='STAFF_RBAC'&&d.status===403)||
+            !r.denials.some(d=>d.reason==='SOURCE_REUSE'&&d.status===409))process.exit(1);
+          console.log('LOT07_R7_DESKTOP_FUE_VERIFIED',r.checks.length,r.screenshots.length,r.head);
+          NODE
+      - name: Bounded failure diagnostics, no bearer tokens or database artifacts
+        if: failure()
+        run: |
+          tail -n 70 /tmp/lot07-r6-fue-backend.log 2>/dev/null || true
+          tail -n 70 /tmp/lot07-r6-fue-vite.log 2>/dev/null || true
+      - name: Retain synthetic browser BEFORE AFTER and SHA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-r7-desktop-viewport-t2-fue-i-${{ env.SOURCE_HEAD }}
+          path: artifacts/lot07-r6-071d-fue-i
+          if-no-files-found: error
+          retention-days: 14
