@@ -282,8 +282,34 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         page.locator("#lab-reason").fill("LAB_UNSCHEDULED")
                     else:
                         page.locator("#lab-appointment").select_option(str(rdv.id))
-                    page.get_by_role("button", name="Vérifier le lien patient").click()
-                    page.get_by_text("Vérifier avant confirmation").wait_for()
+                    with page.expect_response(
+                        lambda response: response.url.endswith(
+                            "/api/imaging-acquisitions/lab/review"
+                        ) and response.request.method == "POST",
+                        timeout=20000,
+                    ) as review_event:
+                        page.get_by_role(
+                            "button", name="Vérifier le lien patient"
+                        ).click()
+                    review_http = review_event.value
+                    # Fail with a precise sanitized HTTP status (not a
+                    # 30-second generic UI timeout); never print JWT/challenge.
+                    assert review_http.status == 200, (
+                        "STAFF_REVIEW_HTTP_" + str(review_http.status) +
+                        " DETAILS_" + str(
+                            review_http.json().get("detail", "unknown")
+                        )[:96]
+                    )
+                    try:
+                        page.get_by_text("Vérifier avant confirmation").wait_for(
+                            timeout=7000
+                        )
+                    except Exception as exc:
+                        error = page.get_by_role("alert")
+                        hint = error.inner_text() if error.count() else "NO_UI_ALERT"
+                        raise AssertionError(
+                            "STAFF_REVIEW_UI_MISSING_AFTER_HTTP_200: " + hint
+                        ) from exc
                     assert ("POST", "/api/imaging-acquisitions/lab/review", 200) in recorded
                     assert not any(path.endswith("/approve") for _,path,_ in recorded)
                     page.get_by_role("button", name="Confirmer ce patient").click()
