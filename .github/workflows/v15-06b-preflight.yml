@@ -10,6 +10,8 @@ on:
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
+      - 'backend/tests/test_imaging_sqlcipher_restart_v15.py'
+      - 'tools/imaging_gateway/qa_sqlcipher_media_restart_lab.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -26,6 +28,8 @@ on:
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
+      - 'backend/tests/test_imaging_sqlcipher_restart_v15.py'
+      - 'tools/imaging_gateway/qa_sqlcipher_media_restart_lab.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -76,6 +80,8 @@ jobs:
           python -m py_compile backend/routers/imaging_acquisition_transfer_lab_v15.py
           python -m py_compile backend/tests/test_imaging_transfer_lab_v15.py
           python -m py_compile backend/tests/test_imaging_lab_browser_real_http_v15.py
+          python -m py_compile backend/tests/test_imaging_sqlcipher_restart_v15.py
+          python -m py_compile tools/imaging_gateway/qa_sqlcipher_media_restart_lab.py
           python -m py_compile backend/routers/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_bridge_lifespan_v15.py
@@ -86,6 +92,22 @@ jobs:
       - name: Preflight negative scenarios and Media Core regressions
         run: python -m pytest backend/tests/test_imaging_acquisition_preflight_v15.py backend/tests/test_imaging_transfer_lab_v15.py backend/tests/test_media_core_ingestion_api.py tools/imaging_gateway/tests/test_qa_visual_runtime.py -q
 
+      - name: Durable Media Core / actual SQLCipher restart FUE (TEST-only)
+        shell: bash
+        env:
+          DC06B_DURABILITY_EVIDENCE_DIR: lot06b-durability-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06B_DURABILITY_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_imaging_sqlcipher_restart_v15.py -q -s
+          test -s "$DC06B_DURABILITY_EVIDENCE_DIR/sqlcipher-media-restart-proof.json"
+      - name: Publish actual SQLCipher process-restart proof (no PHI or secrets)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06b-sqlcipher-media-core-restart
+          path: lot06b-durability-evidence/
+          if-no-files-found: error
+          retention-days: 14
       - name: Real FastAPI lifespan + isolated Imaging Bridge synthetic integration
         run: python -m pytest backend/tests/test_imaging_bridge_lifespan_v15.py -q
 
