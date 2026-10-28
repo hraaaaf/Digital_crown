@@ -20,6 +20,9 @@ describe('LOT07 R6 07.1.C — real T0/T1/T2 fail-closed source projection',()=>{
     expect(gate.ok).toBe(true);
     if(gate.ok) {
       expect(gate.trajectory.points.map(p=>p.ordinal)).toEqual([0,1,2]);
+      expect(gate.trajectory.points[0].sources).toEqual([{kind:'CEPHALO',refId:2100}]);
+      expect(JSON.stringify(gate.trajectory)).not.toContain('SYNTHETIC PRIVATE NOTE');
+      expect(JSON.stringify(gate.trajectory)).not.toContain('created_by');
       expect(JSON.stringify(gate.trajectory)).not.toContain('interpretation');
     }
   });
