@@ -224,7 +224,7 @@ def test_c02_c04_postcommit_crash_lost_ack_replay_identity_denial(tmp_path):
         assert env["DC06B_TEST_MEDIA_KEY"] not in done.stdout + done.stderr
         executed.append({"phase": phase, "pass": True, "exit": expected_exit})
 
-    assert (root / "isolated-ledger.db").read_bytes()[:16] != b"SQLite format 3\\x00"
+    assert (root / "isolated-ledger.db").read_bytes()[:16] != b"SQLite format 3\x00"
     blobs = list((root / "media").rglob("*.dcm"))
     assert len(blobs) == 2 and all(b.read_bytes().startswith(b"DCM1") for b in blobs)
     evidence = Path(os.environ.get("DC06C02C04_EVIDENCE_DIR", str(tmp_path)))
@@ -246,6 +246,6 @@ def test_c02_c04_postcommit_crash_lost_ack_replay_identity_denial(tmp_path):
             "postgresql_clinical_authority_certified": False,
             "product_ready": False,
             "phases": executed,
-        }, sort_keys=True, indent=2) + "\\n", encoding="utf-8",
+        }, sort_keys=True, indent=2) + "\n", encoding="utf-8",
     )
     print("LOT06C02C04_POSTCOMMIT_LOST_ACK_IDENTITY_FUE_PASS")
