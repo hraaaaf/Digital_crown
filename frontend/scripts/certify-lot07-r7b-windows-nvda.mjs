@@ -54,6 +54,11 @@ export async function certifyR7RealWindowsNvda({page,check,report,capture}) {
   try{
     const trigger=page.getByRole('button',{name:'Ouvrir sur un autre écran'});
     await trigger.waitFor({state:'visible',timeout:25000});
+    await page.waitForFunction(()=>{
+      const button=Array.from(document.querySelectorAll('button'))
+        .find(el=>(el.textContent||'').includes('Ouvrir sur un autre écran'));
+      return Boolean(button&&!button.disabled);
+    },null,{timeout:30000});
     check('r7b-nvda-real-react-button-before-screenreader',await trigger.isEnabled());
     await page.bringToFront();
     await nvda.start({capture:true});
