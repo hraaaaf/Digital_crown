@@ -167,6 +167,27 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: LOT06-C02/C04 post-COMMIT lost ACK identity FUE (SQLCipher synthetic)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06C02C04_EVIDENCE_DIR: lot06c02c04-postcommit-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06C02C04_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_imaging_durable_receipt_restart_v15.py -q -s -k postcommit_crash_lost_ack
+          test -s "$DC06C02C04_EVIDENCE_DIR/lot06c02c04-postcommit-lost-ack-fue.json"
+          python -c 'import json; d=json.load(open("lot06c02c04-postcommit-evidence/lot06c02c04-postcommit-lost-ack-fue.json")); assert all(d[k] is True for k in ("encrypted_sqlcipher_file", "encrypted_media_verified_after_restart", "real_os_process_exit_after_commit_before_ack", "three_independent_process_replays_same_receipt", "identity_digest_size_tenant_patient_reason_conflicts_rejected", "unique_capture_db_constraint_rejects_duplicate_insert", "receipt_audit_outbox_single_row_each_per_capture")); assert d["product_ready"] is False and d["real_concurrent_writers_tested"] is False and d["lab_transfer_persistent_db_used"] is False'
+
+      - name: Publish LOT06-C02/C04 postcommit FUE (NO CLINICAL CERTIFICATION)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c02c04-postcommit-lost-ack-synthetic-fue
+          path: lot06c02c04-postcommit-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: DR-05 cold SQLCipher backup+AES media restore+antirollback witness FUE
         if: github.event_name == 'pull_request'
         shell: bash
