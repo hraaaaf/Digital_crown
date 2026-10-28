@@ -10,6 +10,7 @@ on:
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
+      - 'backend/tests/test_imaging_sqlcipher_restart_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -26,6 +27,7 @@ on:
       - 'backend/routers/imaging_acquisition_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
+      - 'backend/tests/test_imaging_sqlcipher_restart_v15.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
@@ -76,6 +78,7 @@ jobs:
           python -m py_compile backend/routers/imaging_acquisition_transfer_lab_v15.py
           python -m py_compile backend/tests/test_imaging_transfer_lab_v15.py
           python -m py_compile backend/tests/test_imaging_lab_browser_real_http_v15.py
+          python -m py_compile backend/tests/test_imaging_sqlcipher_restart_v15.py
           python -m py_compile backend/routers/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_bridge_lifespan_v15.py
@@ -89,6 +92,24 @@ jobs:
       - name: Real FastAPI lifespan + isolated Imaging Bridge synthetic integration
         run: python -m pytest backend/tests/test_imaging_bridge_lifespan_v15.py -q
 
+      - name: DR-S1 synthetic SQLCipher disk and AES-GCM media across real process restart
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06_DR_S1_EVIDENCE_DIR: lot06-dr-s1-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06_DR_S1_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_imaging_sqlcipher_restart_v15.py -q -s
+          test -s "$DC06_DR_S1_EVIDENCE_DIR/lot06-dr-s1-restart-proof.json"
+      - name: Publish synthetic durability boundary and restart witness
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-dr-s1-synthetic-sqlcipher-restart
+          path: lot06-dr-s1-evidence/
+          if-no-files-found: error
+          retention-days: 14
       - name: Install isolated browser for operational route evidence
         if: github.event_name == 'pull_request'
         run: |
