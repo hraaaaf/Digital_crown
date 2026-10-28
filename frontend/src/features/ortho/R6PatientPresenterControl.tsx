@@ -6,7 +6,7 @@ import {
   type OrthoLongitudinalCompare,
 } from './orthoLongitudinalCompare';
 import { gateR6ThreeTimepoints, type R6Trajectory } from './r6ThreeTimepoints';
-import { projectR6Presenter, R6PresenterWindow } from './r6PatientPresenter';
+import { normalizeR6PresenterUserId, projectR6Presenter, R6PresenterWindow } from './r6PatientPresenter';
 
 type Props = {
   patientId: number;
@@ -56,7 +56,7 @@ export const R6PatientPresenterControl = ({
     const serial=++epoch.current;
     const verify=async()=>{
       const auth=useAuthStore.getState();
-      if (!auth.isAuthenticated || auth.user?.id!==userId ||
+      if (!auth.isAuthenticated || normalizeR6PresenterUserId(auth.user?.id)!==userId ||
           !hasAccess(auth.user,'patients') || !hasAccess(auth.user,'clinical')) {
         if(serial===epoch.current)close();
         return;
@@ -89,7 +89,7 @@ export const R6PatientPresenterControl = ({
     void verify();
     const poll=window.setInterval(()=>{void verify();},9_000);
     const unsubscribe=useAuthStore.subscribe((state)=>{
-      if(!state.isAuthenticated||state.user?.id!==userId ||
+      if(!state.isAuthenticated||normalizeR6PresenterUserId(state.user?.id)!==userId ||
          !hasAccess(state.user,'clinical')||!hasAccess(state.user,'patients'))close();
     });
     return()=>{epoch.current++;window.clearInterval(poll);unsubscribe();};
