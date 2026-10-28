@@ -135,7 +135,10 @@ footer{padding-top:32px;font-size:15px;color:#c5d2e2}
         main.appendChild(card);
       }
       const footer=make('footer','Sources canoniques vérifiées. Lecture seule. Aucune interprétation clinique automatique.');
-      doc.head.replaceChildren(style);
+      const policy=doc.createElement('meta');
+      policy.httpEquiv='Content-Security-Policy';
+      policy.content="default-src 'none'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'";
+      doc.head.replaceChildren(policy,style);
       doc.body.replaceChildren(header,main,footer);
       this.refreshExpiry();
       return true;
