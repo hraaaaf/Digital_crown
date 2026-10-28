@@ -40,6 +40,11 @@ export async function certifyR7HostedWindowsBrowserZoom({page,patientId,webBase,
   const before=await measure();
   evidence.before=before;
   await capture(page,'r7b-win-before-native-zoom-100');
+  if(process.env.LOT07_R7_NVDA_CERT==='1'){
+    const {certifyR7RealWindowsNvda}=await import('./certify-lot07-r7b-windows-nvda.mjs');
+    await certifyR7RealWindowsNvda({page,check,capture,report});
+    await page.bringToFront();
+  }
   for(let i=0;i<5;i++){
     await page.keyboard.press('Control+Shift+Equal');
     await sleep(250);
@@ -47,14 +52,17 @@ export async function certifyR7HostedWindowsBrowserZoom({page,patientId,webBase,
   let after=await measure();
   evidence.method='Playwright Chromium real key accelerator';
   if(after.dpr<before.dpr*1.95){
-    for(let i=0;i<5;i++){
-      execFileSync('powershell.exe',['-NoProfile','-Command',
-        'Add-Type -AssemblyName System.Windows.Forms; [System.Windows.Forms.SendKeys]::SendWait("^{ADD}")'],
-      {stdio:'pipe',timeout:12000});
-      await sleep(250);
-    }
+    // Avoid SendWait blocking the Windows desktop message loop. Send the
+    // actual OS shortcut without waiting synchronously for each key, then
+    // measure the live browser DPR+viewport. Never fake zoom via CSS or CDP.
+    const cmd='Add-Type -AssemblyName System.Windows.Forms; '+
+      '1..5 | ForEach-Object { [System.Windows.Forms.SendKeys]::Send("^{ADD}"); '+
+      'Start-Sleep -Milliseconds 230 }';
+    execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',cmd],
+      {stdio:'pipe',timeout:30000});
+    await sleep(950);
     after=await measure();
-    evidence.method='Windows native SendKeys Ctrl+Plus';
+    evidence.method='Windows native nonblocking SendKeys Ctrl+Plus';
   }
   evidence.after=after;
   check('r7b-windows-headed-chromium-native-200-percent-zoom',
