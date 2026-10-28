@@ -293,16 +293,21 @@ def _run(root: Path, phase: str):
         )
         payload = _png((15, 45, 75))
         files = list((root / "media").rglob("*.dcm"))
-        assert len(files) == 1, "SYNTHETIC_MEDIA_COUNT_MISMATCH"
-        try:
-            _read_verified_path(
-                files[0], employer_id=TENANT,
-                digest=hashlib.sha256(payload).hexdigest(), byte_size=len(payload),
-            )
-        except ClinicalAssetIntegrityError:
-            print("WRONG_MEDIA_AESGCM_KEY_BLOCKED")
-            return 0
-        raise AssertionError("WRONG_MEDIA_AESGCM_KEY_ACCEPTED")
+        assert len(files) == 3, "SYNTHETIC_MEDIA_COUNT_MISMATCH"
+        # Among these three ciphertexts is the original committed blob; all
+        # must fail authentication with the distinct test media key.
+        for file in files:
+            assert file.read_bytes().startswith(b"DCM1"), "MEDIA_ENVELOPE_MISSING"
+            try:
+                _read_verified_path(
+                    file, employer_id=TENANT,
+                    digest=hashlib.sha256(payload).hexdigest(), byte_size=len(payload),
+                )
+            except ClinicalAssetIntegrityError:
+                continue
+            raise AssertionError("WRONG_MEDIA_AESGCM_KEY_ACCEPTED")
+        print("WRONG_MEDIA_AESGCM_KEY_BLOCKED")
+        return 0
     if phase == "tamper":
         p = _blob(root, _png((15, 45, 75)))
         raw = bytearray(p.read_bytes())
