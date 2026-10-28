@@ -20,7 +20,7 @@ const compare:OrthoLongitudinalCompare={
 };
 describe('LOT07 R6 07.1.D — patient-facing read-only strict projection',()=>{
   it('projects only canonical ordinal, dates and source IDs, no PHI or clinical claims',()=>{
-    const snap=projectR6Presenter(base,compare,7,0,2);
+    const snap=projectR6Presenter(base,compare,'user-7',0,2);
     expect(snap?.pair).toEqual([0,2]);
     expect(snap?.points.map(p=>p.sources[0].refId)).toEqual([301,302,303]);
     const serialized=JSON.stringify(snap);
@@ -30,18 +30,18 @@ describe('LOT07 R6 07.1.D — patient-facing read-only strict projection',()=>{
   });
   it('refuses missing identity, foreign case, stale pair and unsupported order',()=>{
     expect(projectR6Presenter(base,compare,null,0,2)).toBeNull();
-    expect(projectR6Presenter(base,compare,0,0,2)).toBeNull();
-    expect(projectR6Presenter(base,{...compare,patient_id:23},7,0,2)).toBeNull();
-    expect(projectR6Presenter(base,{...compare,ortho_case_id:45},7,0,2)).toBeNull();
-    expect(projectR6Presenter(base,compare,7,0,1)).toBeNull();
-    expect(projectR6Presenter(base,compare,7,2,0)).toBeNull();
-    expect(projectR6Presenter(null,compare,7,0,2)).toBeNull();
+    expect(projectR6Presenter(base,compare,'',0,2)).toBeNull();
+    expect(projectR6Presenter(base,{...compare,patient_id:23},'user-7',0,2)).toBeNull();
+    expect(projectR6Presenter(base,{...compare,ortho_case_id:45},'user-7',0,2)).toBeNull();
+    expect(projectR6Presenter(base,compare,'user-7',0,1)).toBeNull();
+    expect(projectR6Presenter(base,compare,'user-7',2,0)).toBeNull();
+    expect(projectR6Presenter(null,compare,'user-7',0,2)).toBeNull();
   });
   it('refuses mismatched canonical timepoint IDs/dates and automatic clinical interpretation',()=>{
     const wrongId={...compare,to_timepoint:{...compare.to_timepoint,id:999}};
     const wrongDate={...compare,to_timepoint:{...compare.to_timepoint,occurred_at:'2026-10-02T09:00:00Z'}};
-    expect(projectR6Presenter(base,wrongId,7,0,2)).toBeNull();
-    expect(projectR6Presenter(base,wrongDate,7,0,2)).toBeNull();
-    expect(projectR6Presenter(base,{...compare,interpretation_policy:'AI_IMPROVEMENT' as any},7,0,2)).toBeNull();
+    expect(projectR6Presenter(base,wrongId,'user-7',0,2)).toBeNull();
+    expect(projectR6Presenter(base,wrongDate,'user-7',0,2)).toBeNull();
+    expect(projectR6Presenter(base,{...compare,interpretation_policy:'AI_IMPROVEMENT' as any},'user-7',0,2)).toBeNull();
   });
 });
