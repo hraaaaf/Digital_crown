@@ -30,7 +30,7 @@ def main() -> None:
         browser = playwright.chromium.launch(headless=True)
         try:
             for width, height in ((1280, 900), (1440, 900)):
-                context = browser.new_context(viewport={"width": width, "height": height})
+                context = browser.new_context(viewport={"width": width, "height": height}, service_workers="block")
                 page = context.new_page()
                 page.goto(args.url, wait_until="networkidle")
                 page.get_by_role("heading", name="Associer une capture au bon patient").wait_for()

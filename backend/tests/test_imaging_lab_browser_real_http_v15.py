@@ -15,15 +15,18 @@ from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from io import BytesIO
 from pathlib import Path
 import subprocess
+import signal
 import threading
 import time
+import uuid
 from urllib.request import urlopen
 from contextlib import contextmanager
 
 from fastapi.testclient import TestClient
 from PIL import Image
+import pytest
 from playwright.sync_api import sync_playwright
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from backend.main import app
 from backend.models_media_core import ClinicalAsset
@@ -118,8 +121,10 @@ def _vite_ready(port: int, process: subprocess.Popen, timeout: int = 75):
     raise AssertionError("VITE_DEV_TIMEOUT")
 
 
+@pytest.mark.parametrize("patient_only", [False, True],
+                         ids=["matched-rdv", "patient-only-audited"])
 def test_real_browser_patient_rdv_approve_upload_receipt(
-    client, db, dentiste, auth_headers, monkeypatch, tmp_path
+    client, db, dentiste, auth_headers, monkeypatch, tmp_path, patient_only
 ):
     monkeypatch.setenv("ENVIRONMENT", "test")
     monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
@@ -128,11 +133,26 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
         "backend.services.clinical_asset_storage.get_media_root",
         lambda: tmp_path,
     )
+    # These isolated LAB tables use their own MetaData rather than the app's
+    # Base.metadata. The shared pytest SQLite :memory: engine survives across
+    # parametrized cases while ClinicalAsset's fixture table is reset. Clear
+    # ONLY synthetic LAB rows so the next case cannot reuse a deleted asset
+    # ID against an old receipt UNIQUE(asset_id) (never relax that invariant).
+    lab.guard(db)
+    for table in (lab.outbox, lab.audit, lab.receipts,
+                  lab.captures, lab.devices):
+        db.execute(delete(table))
+    db.commit()
+    assert not db.execute(select(lab.receipts)).first()
     station = _lab(client, db, dentiste, auth_headers, monkeypatch)
     patient = _patient(db, dentiste.id, "LIVE" + str(dentiste.id))
-    rdv = _rdv(db, dentiste.id, patient.id)
-    device = "real-http-synthetic-bridge"
-    capture = "capture-live-http-20261027"
+    rdv = None if patient_only else _rdv(db, dentiste.id, patient.id)
+    reason_code = "LAB_UNSCHEDULED" if patient_only else None
+    # LAB tables use their own MetaData and survive the Base.metadata test
+    # fixture cleanup. Never reuse a synthetic device/capture identity.
+    fixture_id = uuid.uuid4().hex[:12]
+    device = "real-http-synthetic-" + fixture_id
+    capture = "capture-http-" + fixture_id
     device_token = lab.enroll_fixture(db, tenant=dentiste.id, device=device)
     png = BytesIO()
     Image.new("RGB", (4, 4), color=(120, 80, 40)).save(png, format="PNG")
@@ -160,13 +180,16 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
             ["npm", "run", "dev", "--", "--host", "127.0.0.1",
              "--port", "5187", "--strictPort"],
             cwd=frontend, env=env, stdout=stream, stderr=subprocess.STDOUT,
+            # npm run dev spawns an independent Vite Node child. Terminate its
+            # whole process group between parametrized pytest cases.
+            start_new_session=True,
         )
         try:
             _vite_ready(5187, process)
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=True)
                 try:
-                    context = browser.new_context(viewport={"width": 1280, "height": 900})
+                    context = browser.new_context(viewport={"width": 1280, "height": 900}, service_workers="block")
                     # Access-cookie pairing and workstation identity use actual
                     # credentials created by /api/auth/login & _lab fixture.
                     jwt = auth_headers["Authorization"].removeprefix("Bearer ")
@@ -188,7 +211,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         "targets": [{
                             "patientId": patient.id,
                             "label": f"Patient synthétique {patient.id}",
-                            "appointments": [{
+                            "appointments": [] if patient_only else [{
                                 "id": rdv.id, "label": "RDV synthétique",
                             }],
                         }],
@@ -204,6 +227,14 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     page.get_by_role(
                         "heading", name="Associer une capture au bon patient"
                     ).wait_for()
+                    # Never let a surviving Vite child from a previous test
+                    # silently aim Axios at that test's now-dead ASGI origin.
+                    configured_origin = page.evaluate(
+                        "() => window.__DC06B_HTTP_API_ORIGIN__"
+                    )
+                    assert configured_origin == backend_origin, (
+                        "STALE_VITE_API_ORIGIN / wrong isolated TEST server"
+                    )
                     assert page.locator("#lab-patient").input_value() == ""
                     assert page.get_by_role(
                         "button", name="Vérifier le lien patient"
@@ -244,9 +275,79 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     )
                     assert pre == 403  # valid bytes cannot bypass approval
                     page.locator("#lab-patient").select_option(str(patient.id))
-                    page.locator("#lab-appointment").select_option(str(rdv.id))
-                    page.get_by_role("button", name="Vérifier le lien patient").click()
-                    page.get_by_text("Vérifier avant confirmation").wait_for()
+                    if patient_only:
+                        # Same actual FastAPI endpoint must deny missing/free-text
+                        # reason even when staff JWT/station is otherwise valid.
+                        invalid = page.evaluate(
+                            """async ([origin,station,device,capture,patient]) => {
+                              const base={workstation_id:station,device,capture,
+                                patient_id:patient,appointment_id:null};
+                              const bearer=localStorage.getItem('token');
+                              const req=async(payload)=> {
+                                const r=await fetch(origin+'/api/imaging-acquisitions/lab/review',{
+                                  method:'POST',credentials:'include',
+                                  headers:{'Content-Type':'application/json',
+                                    'Authorization':'Bearer '+bearer},
+                                  body:JSON.stringify(payload)
+                                });
+                                return {status:r.status,body:await r.json()};
+                              };
+                              return {
+                                missing:await req(base),
+                                free_text:await req({...base,
+                                  patient_only_reason:'Informations médicales libres'})
+                              };
+                            }""",
+                            [backend_origin, station, device, capture, patient.id],
+                        )
+                        assert invalid["missing"]["status"] == 422, invalid
+                        assert invalid["free_text"]["status"] == 422, invalid
+                        page.locator("#lab-reason").fill("LAB_UNSCHEDULED")
+                    else:
+                        page.locator("#lab-appointment").select_option(str(rdv.id))
+                    if patient_only:
+                        assert page.locator("#lab-reason").input_value() == reason_code
+                        assert page.get_by_role(
+                            "button", name="Vérifier le lien patient"
+                        ).is_enabled()
+                    try:
+                        with page.expect_response(
+                            lambda response: response.url.endswith(
+                                "/api/imaging-acquisitions/lab/review"
+                            ) and response.request.method == "POST",
+                            timeout=12000,
+                        ) as review_event:
+                            page.get_by_role(
+                                "button", name="Vérifier le lien patient"
+                            ).click()
+                        review_http = review_event.value
+                    except Exception as exc:
+                        trace = page.evaluate(
+                            "() => window.__DC06B_HTTP_TRACE__ || 'NO_ADAPTER_CALL'"
+                        )
+                        alert = page.get_by_role("alert")
+                        alert_text = alert.inner_text() if alert.count() else "NO_UI_ALERT"
+                        raise AssertionError(
+                            "NO_HTTP_REVIEW: " + str(trace) + " / " + alert_text
+                        ) from exc
+                    # Fail with a precise sanitized HTTP status (not a
+                    # 30-second generic UI timeout); never print JWT/challenge.
+                    assert review_http.status == 200, (
+                        "STAFF_REVIEW_HTTP_" + str(review_http.status) +
+                        " DETAILS_" + str(
+                            review_http.json().get("detail", "unknown")
+                        )[:96]
+                    )
+                    try:
+                        page.get_by_text("Vérifier avant confirmation").wait_for(
+                            timeout=7000
+                        )
+                    except Exception as exc:
+                        error = page.get_by_role("alert")
+                        hint = error.inner_text() if error.count() else "NO_UI_ALERT"
+                        raise AssertionError(
+                            "STAFF_REVIEW_UI_MISSING_AFTER_HTTP_200: " + hint
+                        ) from exc
                     assert ("POST", "/api/imaging-acquisitions/lab/review", 200) in recorded
                     assert not any(path.endswith("/approve") for _,path,_ in recorded)
                     page.get_by_role("button", name="Confirmer ce patient").click()
@@ -272,6 +373,16 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                             return {status:r.status,body:await r.json()};
                           };
                           const first=await upload(bytes);
+                          // Deliberately disregard the original ACK as if it
+                          // never reached the connector. Query independently
+                          // before any replay. This is NOT a crash/restart test.
+                          const beforeReplay=await fetch(
+                            origin+'/api/imaging-acquisitions/lab/receipt?'+
+                            new URLSearchParams({tenant:String(tenant),device,capture}),{
+                              headers:{'X-DC06B-Lab-Device-Token':token}
+                            });
+                          const recovered={status:beforeReplay.status,
+                            body:await beforeReplay.json()};
                           const replay=await upload(bytes);
                           const tamper=await upload(new Uint8Array([0,1,2]));
                           const r=await fetch(origin+'/api/imaging-acquisitions/lab/receipt?'+
@@ -282,7 +393,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                              new URLSearchParams({tenant:String(tenant),device,capture}),{
                              headers:{'X-DC06B-Lab-Device-Token':'invalid'}
                           });
-                          return {first,replay,tamper,lookup:{status:r.status,
+                          return {first,recovered,replay,tamper,lookup:{status:r.status,
                              body:await r.json()},denied:denied.status,expected:digest};
                         }""",
                         [backend_origin,dentiste.id,device,capture,device_token,
@@ -294,6 +405,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     assert first["server_confirmed"] is False
                     assert first["patient_id"] == patient.id
                     assert first["sha256"] == digest
+                    assert results["recovered"] == {"status": 200, "body": first}
                     assert results["replay"]["body"] == first
                     assert results["lookup"] == {"status": 200, "body": first}
                     assert results["tamper"]["status"] == 409
@@ -303,7 +415,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                     row = db.execute(select(lab.audit).where(
                         lab.audit.c.receipt_id == first["receipt_id"]
                     )).mappings().one()
-                    assert row["patient_only_reason"] is None  # RDV is valid
+                    assert row["patient_only_reason"] == reason_code
                     assets = db.query(ClinicalAsset).filter(
                         ClinicalAsset.id == first["asset_id"],
                         ClinicalAsset.employer_id == dentiste.id,
@@ -325,6 +437,11 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         "negative_preapproval": pre,
                         "negative_tamper": results["tamper"]["status"],
                         "negative_device_token": results["denied"],
+                        "patient_only": patient_only,
+                        "audit_reason_code": reason_code,
+                        "lost_ack_receipt_lookup": True,
+                        "backend_restart_or_disk_durability_tested": False,
+                        "server_confirmed": False,
                         "route_codes": [
                             {"method": method, "route": route, "status": status}
                             for method,route,status in recorded
@@ -334,17 +451,24 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         "DC06B_HTTP_EVIDENCE_DIR", str(tmp_path)
                     ))
                     evidence_root.mkdir(parents=True, exist_ok=True)
-                    evidence = evidence_root / "lot06b-real-http-proof.json"
+                    scenario = "patient-only" if patient_only else "matched-rdv"
+                    evidence = evidence_root / f"lot06b-real-http-proof-{scenario}.json"
                     evidence.write_text(json.dumps(report, indent=2)+"\n", encoding="utf-8")
-                    print("LOT06B_REAL_HTTP_REACT_FASTAPI_RECEIPT_PASS")
+                    print("LOT06B_REAL_HTTP_REACT_FASTAPI_RECEIPT_PASS", scenario)
                     context.close()
                 finally:
                     browser.close()
         finally:
-            process.terminate()
+            # SIGTERM the isolated npm+shell+Vite process group, not just npm.
+            # Otherwise the second no-RDV case reuses stale VITE_API_URL from
+            # the first case and never reaches its real FastAPI HTTP server.
+            try:
+                os.killpg(process.pid, signal.SIGTERM)
+            except ProcessLookupError:
+                pass
             try:
                 process.wait(timeout=8)
             except subprocess.TimeoutExpired:
-                process.kill()
+                os.killpg(process.pid, signal.SIGKILL)
                 process.wait(timeout=8)
             standalone.unlink(missing_ok=True)
