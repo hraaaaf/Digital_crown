@@ -7,6 +7,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
+import { verifyR7DesktopMatrix } from './certify-lot07-r7-desktop-matrix.mjs';
 
 const sha = process.env.SOURCE_HEAD;
 const password = process.env.T2_PASSWORD;
@@ -307,6 +308,11 @@ try {
     forbidden.status()===404,{status:forbidden.status()});
   report.denials.push({reason:'CROSS_TENANT',status:forbidden.status()});
 
+  if(process.env.LOT07_R7_DESKTOP_CERT === '1') {
+    await verifyR7DesktopMatrix({
+      context, webBase, patient, patientB, clinicalAssets, check, capture, report,
+    });
+  }
   check('no-unhandled-browser-errors',errors.length===0,{errors:errors.slice(0,2)});
   report.pass=report.checks.every(c=>c.pass) && report.screenshots.length>=6;
   console.log('LOT07_R6D_FUE_I_PASS',report.checks.length,sha);
