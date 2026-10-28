@@ -26,7 +26,7 @@ from fastapi.testclient import TestClient
 from PIL import Image
 import pytest
 from playwright.sync_api import sync_playwright
-from sqlalchemy import select
+from sqlalchemy import delete, select
 
 from backend.main import app
 from backend.models_media_core import ClinicalAsset
@@ -133,6 +133,17 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
         "backend.services.clinical_asset_storage.get_media_root",
         lambda: tmp_path,
     )
+    # These isolated LAB tables use their own MetaData rather than the app's
+    # Base.metadata. The shared pytest SQLite :memory: engine survives across
+    # parametrized cases while ClinicalAsset's fixture table is reset. Clear
+    # ONLY synthetic LAB rows so the next case cannot reuse a deleted asset
+    # ID against an old receipt UNIQUE(asset_id) (never relax that invariant).
+    lab.guard(db)
+    for table in (lab.outbox, lab.audit, lab.receipts,
+                  lab.captures, lab.devices):
+        db.execute(delete(table))
+    db.commit()
+    assert not db.execute(select(lab.receipts)).first()
     station = _lab(client, db, dentiste, auth_headers, monkeypatch)
     patient = _patient(db, dentiste.id, "LIVE" + str(dentiste.id))
     rdv = None if patient_only else _rdv(db, dentiste.id, patient.id)
