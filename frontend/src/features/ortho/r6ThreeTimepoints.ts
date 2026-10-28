@@ -18,10 +18,22 @@ export type R6TrajectoryDenial =
   | 'CANONICAL_SOURCE_MISSING'
   | 'SOURCE_REUSED';
 
+export type R6SourceRef = Readonly<{
+  kind: 'CLINICAL_ASSET' | 'CEPHALO' | 'PANORAMIC';
+  refId: number;
+}>;
+
+export type R6TrajectoryPoint = Readonly<{
+  id: number;
+  ordinal: 0 | 1 | 2;
+  occurred_at: string;
+  sources: readonly R6SourceRef[];
+}>;
+
 export type R6Trajectory = Readonly<{
   patientId: number;
   caseId: number;
-  points: readonly [OrthoTimepointSummary, OrthoTimepointSummary, OrthoTimepointSummary];
+  points: readonly [R6TrajectoryPoint, R6TrajectoryPoint, R6TrajectoryPoint];
 }>;
 
 export type R6TrajectoryGate =
@@ -81,7 +93,20 @@ export function gateR6ThreeTimepoints(
       globalSources.add(key);
     }
   }
-  return {ok:true,trajectory:{patientId,caseId,points:triple}};
+  // Strict display projection: DO NOT copy note, created_by or free text to the
+  // triptych view, emitted reports or patient-facing screenshots.
+  const projected = triple.map((point,ordinal) => ({
+    id: point.id,
+    ordinal: ordinal as 0 | 1 | 2,
+    occurred_at: point.occurred_at,
+    sources: point.evidences.map((evidence): R6SourceRef =>
+      positiveId(evidence.cephalo_analysis_id)
+        ? {kind:'CEPHALO',refId:evidence.cephalo_analysis_id}
+        : positiveId(evidence.panoramic_analysis_id)
+          ? {kind:'PANORAMIC',refId:evidence.panoramic_analysis_id}
+          : {kind:'CLINICAL_ASSET',refId:evidence.clinical_asset_id!}),
+  })) as [R6TrajectoryPoint,R6TrajectoryPoint,R6TrajectoryPoint];
+  return {ok:true,trajectory:{patientId,caseId,points:projected}};
 }
 
 /** Refuse stale React Query compare responses before any patient evidence is rendered. */
