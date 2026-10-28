@@ -69,11 +69,10 @@ export function gateR6ThreeTimepoints(
       if (!evidence || !positiveId(evidence.id)) {
         return {ok:false,reason:'CANONICAL_SOURCE_MISSING'};
       }
-      const linked = [
-        ['asset',evidence.clinical_asset_id],
-        ['cephalo',evidence.cephalo_analysis_id],
-        ['panoramic',evidence.panoramic_analysis_id],
-      ].filter((pair): pair is [string,number] => positiveId(pair[1]));
+      const linked: [string,number][] = [];
+      if (positiveId(evidence.clinical_asset_id)) linked.push(['asset',evidence.clinical_asset_id]);
+      if (positiveId(evidence.cephalo_analysis_id)) linked.push(['cephalo',evidence.cephalo_analysis_id]);
+      if (positiveId(evidence.panoramic_analysis_id)) linked.push(['panoramic',evidence.panoramic_analysis_id]);
       // A timepoint evidence must point at exactly one canonical source.
       if (linked.length !== 1) return {ok:false,reason:'CANONICAL_SOURCE_MISSING'};
       const key = sourceKey(linked[0][0],linked[0][1]);
