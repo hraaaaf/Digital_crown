@@ -174,6 +174,8 @@ try {
   // No route intercept, bearer token, patient URL or second API client.
   await page.locator('[data-testid="r6d-patient-presenter-control"]')
     .waitFor({state:'visible',timeout:30000});
+  check('r6d-presenter-open-enabled-for-authenticated-clinician',
+    await page.getByRole('button',{name:'Ouvrir sur un autre écran'}).isEnabled());
   const windowPromise=page.waitForEvent('popup',{timeout:25000});
   await page.getByRole('button',{name:'Ouvrir sur un autre écran'}).click();
   const popup=await windowPromise;
