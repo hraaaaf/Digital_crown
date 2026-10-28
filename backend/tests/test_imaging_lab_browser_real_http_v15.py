@@ -174,7 +174,7 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
             with sync_playwright() as playwright:
                 browser = playwright.chromium.launch(headless=True)
                 try:
-                    context = browser.new_context(viewport={"width": 1280, "height": 900})
+                    context = browser.new_context(viewport={"width": 1280, "height": 900}, service_workers="block")
                     # Access-cookie pairing and workstation identity use actual
                     # credentials created by /api/auth/login & _lab fixture.
                     jwt = auth_headers["Authorization"].removeprefix("Bearer ")
