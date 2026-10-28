@@ -17,7 +17,18 @@ export type R6PresenterSnapshot = Readonly<{
   }>[];
 }>;
 
-const validUserId = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+/**
+ * Backend /auth/me may supply a numeric database ID while AppUser extends
+ * Supabase's string ID type. Accept only actual nonempty strings or positive
+ * safe integers, then compare a single canonical string in all lifecycle gates.
+ */
+export function normalizeR6PresenterUserId(value: unknown): string | null {
+  if (typeof value === 'string') return value.trim() || null;
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value > 0) {
+    return String(value);
+  }
+  return null;
+}
 
 export function projectR6Presenter(
   trajectory: R6Trajectory | null,
@@ -26,7 +37,7 @@ export function projectR6Presenter(
   fromOrdinal: number | null,
   toOrdinal: number | null,
 ): R6PresenterSnapshot | null {
-  if (!trajectory || !validUserId(userId) ||
+  if (!trajectory || !normalizeR6PresenterUserId(userId) ||
       ![0, 1].includes(fromOrdinal ?? -1) || ![1, 2].includes(toOrdinal ?? -1) ||
       fromOrdinal! >= toOrdinal! ||
       !trustedR6Comparison(comparison, trajectory.patientId, trajectory.caseId, fromOrdinal, toOrdinal)) {
