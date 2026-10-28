@@ -174,6 +174,31 @@ def _decrypt_payload(payload: bytes, employer_id: int, digest: str) -> bytes:
         raise ClinicalAssetIntegrityError("clinical media authentication failed") from exc
 
 
+def _sync_parent_directory(target: Path) -> None:
+    """Durability barrier for an already-renamed encrypted media entry.
+
+    POSIX-only stage C1: the containing directory must be synced before the
+    caller may persist a SQL binding. This does NOT yet certify newly created
+    ancestor directories, power-loss behavior or Windows SCM.
+    """
+    if os.name != "posix":
+        raise ClinicalAssetStorageError(
+            "clinical media directory durability is not certified on this platform"
+        )
+    fd = None
+    try:
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
+        fd = os.open(str(target.parent), flags)
+        os.fsync(fd)
+    except OSError as exc:
+        raise ClinicalAssetStorageError(
+            "clinical media directory durability barrier failed"
+        ) from exc
+    finally:
+        if fd is not None:
+            os.close(fd)
+
+
 def _atomic_write(target: Path, payload: bytes) -> None:
     if target.is_symlink():
         raise ClinicalAssetStorageError("clinical media target cannot be a symlink")
@@ -191,6 +216,9 @@ def _atomic_write(target: Path, payload: bytes) -> None:
             os.chmod(target, 0o600)
         except OSError:
             pass
+        # A rename is not a persisted directory entry until this succeeds.
+        # On failure the encrypted orphan is held without any SQL binding.
+        _sync_parent_directory(target)
     finally:
         if fd is not None:
             os.close(fd)
@@ -263,6 +291,10 @@ def store_clinical_asset_bytes(
         if existing != content:
             # Defensive collision/corruption guard beyond the SHA-256 comparison.
             raise ClinicalAssetIntegrityError("clinical media dedupe candidate does not match source bytes")
+        # Replays may encounter an orphan left by an interrupted first write.
+        # Never promote an existing encrypted file to a SQL binding without
+        # also confirming the containing-directory durability barrier.
+        _sync_parent_directory(target)
     else:
         _atomic_write(target, _encrypt_payload(content, employer_id, digest))
         stored = _read_verified_path(
