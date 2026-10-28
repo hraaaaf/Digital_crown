@@ -40,6 +40,18 @@
 - [ ] B11. Approbation visuelle et clinique explicite du propriétaire, **liée au SHA exact et aux captures**, après corrections. Une ancienne validation R3 ne vaut pas R7.
 - [ ] B12. Autorisation de fusion, puis autorisation de release/activation, **distinctes**. Vérifier les CI `master` après fusion, pas avant.
 
+## Revue B10 — source du risque et preuve automatisée
+
+**Statut : BLOCKED — pas une certification clinique.**
+
+Le popup Digital Crown R6D utilise `window.open('about:blank')` puis construit un DOM statique et applique une CSP par balise `meta`. Le fait d'effacer `window.opener` ne change pas l'origine du document : un `about:blank` ouvert par un parent hérite normalement de son origine. Par conséquent, **la fenêtre n'est pas un contexte de stockage isolé** et le contrôle de l'absence de boutons/scripts ne démontre pas l'inaccessibilité des jetons applicatifs. Ce constat architectural est indépendant de la présence effective d'un script malveillant.
+
+À partir de la passe R7B, le FUE Chromium teste uniquement si la surface `localStorage` du popup donne accès au jeton **entièrement synthétique** injecté dans le test. Le résultat `inheritedCredentialSurfaceReadable` est un booléen : ne jamais écrire le jeton dans un log, un fichier, une capture ou une télémétrie. Le rapport doit obligatoirement conserver `detachedOriginIsolationCertified=false`, `clinicalActivationApproved=false`, `review=BLOCKED_PENDING_ISOLATED_ORIGIN`. Un FUE automatisé GREEN peut prouver la mesure de ce risque ; il **ne ferme pas B10**.
+
+**Gate de correction avant usage clinique :** présenter sur un contexte réellement isolé du stockage d'authentification du Cabinet (origine distincte ou politique de sandbox à origine opaque appropriée) et prouver l'impossibilité d'accéder aux jetons/cookies/données cabinet depuis ce contexte. Le canal de transmission doit être limité à une projection minimale et authentifiée du patient choisi, avec fermeture sur expiration, déconnexion, changement de dossier et révocation serveur. Répéter un FUE négatif sans mocks puis demander la revue indépendante. Ne pas supprimer les vérifications simplement pour rendre la CI verte.
+
+Références techniques : MDN Same-origin policy (about:blank inherited origins) ; documentation Chromium « Special Case URLs » ; MDN CSP sandbox (opaque origin).
+
 ## Verdict de livraison
 
 - **R7A AUTOMATED** = GREEN uniquement avec workflows et preuves FUE au même HEAD.
