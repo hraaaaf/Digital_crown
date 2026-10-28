@@ -1,4 +1,4 @@
-name: LOT07 R7B hosted Windows real Cabinet browser 200 zoom FUE-I
+name: LOT07 R7B Windows real Cabinet native zoom + NVDA spoken UI FUE-I
 
 on:
   push:
@@ -7,6 +7,7 @@ on:
     branches: ['feat/lot07-r7-071e-*', master]
     paths:
       - 'frontend/scripts/certify-lot07-r7b-windows-zoom.mjs'
+      - 'frontend/scripts/certify-lot07-r7b-windows-nvda.mjs'
       - 'frontend/scripts/certify-lot07-r7-desktop-matrix.mjs'
       - 'frontend/scripts/certify-lot07-r6-071d-fue-i-t2.mjs'
       - '.github/workflows/lot07-r7b-windows-actions.yml'
@@ -33,6 +34,7 @@ jobs:
       VITE_LOT07_R6_071D_LAB: 'true'
       LOT07_R7_DESKTOP_CERT: '1'
       LOT07_R7_WINDOWS_NATIVE: '1'
+      LOT07_R7_NVDA_CERT: '1'
       SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       CI: 'true'
       TZ: Africa/Casablanca
@@ -94,7 +96,7 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
-          npm install --no-save --no-package-lock playwright@1.56.1
+          npm install --no-save --no-package-lock playwright@1.56.1 @guidepup/guidepup@0.36.3 @guidepup/setup@0.29.3
           if ($LASTEXITCODE -ne 0) { throw 'Playwright install failed' }
           npx playwright install chromium
           if ($LASTEXITCODE -ne 0) { throw 'Chromium install failed' }
@@ -104,7 +106,17 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'R7 matrix syntax error' }
           node --check scripts/certify-lot07-r7b-windows-zoom.mjs
           if ($LASTEXITCODE -ne 0) { throw 'R7B zoom syntax error' }
-      - name: Real authenticated Windows Cabinet, native zoom and negative FUE
+          node --check scripts/certify-lot07-r7b-windows-nvda.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'R7B NVDA script syntax error' }
+      - name: Install real Windows NVDA screen reader for R7B
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npx --no-install guidepup setup --ci
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA OS setup failed' }
+          npx --no-install guidepup install nvda
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA install failed' }
+      - name: Real authenticated Windows Cabinet, native zoom, NVDA and negative FUE
         shell: pwsh
         run: |
           $backend = $null
@@ -152,11 +164,15 @@ jobs:
                 $r.r7Windows.nativeWindowsDisplayDpi200 -or
                 $r.r7Windows.physicalSecondDisplay -or $r.r7Windows.nvdaSpeechCertified -or
                 $r.r7.presenterOriginSecurity.detachedOriginIsolationCertified -or
-                $r.checks.Count -lt 75 -or $r.screenshots.Count -lt 16) {
+                -not $r.r7Nvda.realNvdaStarted -or -not $r.r7Nvda.pass -or
+                -not $r.r7Nvda.spokenRoles.command -or -not $r.r7Nvda.spokenRoles.comparison -or
+                -not $r.r7Nvda.spokenRoles.popupHeading -or -not $r.r7Nvda.spokenRoles.popupTimepoint -or
+                $r.r7Nvda.physicalSecondDisplay -or $r.r7Nvda.osDisplayDpi200 -or
+                $r.checks.Count -lt 81 -or $r.screenshots.Count -lt 17) {
               throw 'REFUSED: incomplete Windows browser/native zoom evidence'
             }
             Write-Output "LOT07_R7B_WINDOWS_FUE_VERIFIED $($r.checks.Count) $($r.screenshots.Count) $env:SOURCE_HEAD"
-            'Hosted Windows Chromium-native browser zoom and real FastAPI FUE: GREEN. NOT Windows OS DPI 200%, real NVDA, or physical dual monitors.' >> $env:GITHUB_STEP_SUMMARY
+            'Hosted Windows genuine FastAPI+React, Chromium native zoom, Guidepup NVDA speech: GREEN if checks pass. NOT Windows OS DPI 200%, physical dual monitor or owner clinical approval.' >> $env:GITHUB_STEP_SUMMARY
           } finally {
             if($frontend){Stop-Process -Id $frontend.Id -Force -ErrorAction SilentlyContinue}
             if($backend){Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue}
@@ -165,7 +181,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lot07-r7b-windows-native-browser-zoom-${{ env.SOURCE_HEAD }}
+          name: lot07-r7b-windows-native-zoom-NVDA-${{ env.SOURCE_HEAD }}
           path: artifacts/lot07-r6-071d-fue-i
           if-no-files-found: warn
           retention-days: 14
