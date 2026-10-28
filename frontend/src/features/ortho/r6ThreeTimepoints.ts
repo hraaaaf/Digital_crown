@@ -95,9 +95,9 @@ export function gateR6ThreeTimepoints(
   }
   // Strict display projection: DO NOT copy note, created_by or free text to the
   // triptych view, emitted reports or patient-facing screenshots.
-  const projected = triple.map((point,ordinal) => ({
+  const projectPoint = (point: OrthoTimepointSummary, ordinal: 0 | 1 | 2): R6TrajectoryPoint => ({
     id: point.id,
-    ordinal: ordinal as 0 | 1 | 2,
+    ordinal,
     occurred_at: point.occurred_at,
     sources: point.evidences.map((evidence): R6SourceRef =>
       positiveId(evidence.cephalo_analysis_id)
@@ -105,7 +105,12 @@ export function gateR6ThreeTimepoints(
         : positiveId(evidence.panoramic_analysis_id)
           ? {kind:'PANORAMIC',refId:evidence.panoramic_analysis_id}
           : {kind:'CLINICAL_ASSET',refId:evidence.clinical_asset_id!}),
-  })) as [R6TrajectoryPoint,R6TrajectoryPoint,R6TrajectoryPoint];
+  });
+  const projected: [R6TrajectoryPoint,R6TrajectoryPoint,R6TrajectoryPoint] = [
+    projectPoint(triple[0],0),
+    projectPoint(triple[1],1),
+    projectPoint(triple[2],2),
+  ];
   return {ok:true,trajectory:{patientId,caseId,points:projected}};
 }
 
