@@ -37,7 +37,13 @@ let browser;
 let page;
 const contexts=[];
 const api=await request.newContext({baseURL:apiBase});
-const fakePng=Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAY0lEQVR4nO3PQQ3AIADAQEANmpCD8ongcVnSU9DOfe74s6UDXjWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgNaA1oDWgfUJxAYTIfIvQAAAAAElFTkSuQmCC','base64');
+// Three distinct Pillow-verified PNGs with schematic color/grid only.
+// The old 150-byte inherited fixture was a truncated image (HTTP 422).
+const syntheticPngBase64={
+  T0:'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAABTklEQVR42u2aSxHCMBCGW4Y7DqqEGAEF1AEKcFAUoKROcIADDlwyTUNJso9/md0bt3yzH80+0h9PU2c5dp3xcAAHaIz94vf8uICfOJzvrhCyQrlMqUfObVfIARzgjwHm6WkY4HN6fIYMwOsakyBjZAAONys6ZRUK4xDGAZ9h4yuUMqBhbH9GFwxoqfjpHkDWqeAiw9Sp7CYG1Km4lEDTqbIWwtGpvpgD0ampGkXQiaCc1tWJph9Q1ImsodHSibgjk9eJvqUU1omlJ17ViQmDsamXSQXvVELgny0xVmHVSWguxKeT3GCLSSfpyRy5TgqjRVqddGajhDppDndJdFKeTrfrpD9eb9QJZT9QrRPQgqNOJ6wNTYVOiCumIp1Ad2SpTvHOxQDAik7JzgUdIE7FSkKsAHw/feeLbgdojux7Ify3Z64QRvT+9NgBHMB2vAFErp6uMTyTCAAAAABJRU5ErkJggg==',
+  T1:'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAA/0lEQVR42u3aPQ6CQBCGYTBT0XA/vQGFFm7DCWhobLiBB6ShtkANBX+R3dkd805JgOzDfGSZhPx+vmaW65QZLwAAABgvmT3aPh8JrtVdbkTISoTWu6Zc63kmQgAAAAAAAAAAAH8J6Gv7HejrtivarjA8D7y/yD8GVw12AGUzDjTTDiQo2e7Ad62zkugY2X/qrCR6W+SHa6YLjR4wOXj9esAUJOLrRrEk4v2OyhIJ11wdiSi8Z0ElkilWiC1FFRBiS4kD8LilRAbsCtj4YV82qQM2A2ZvInPV4Kph6dmbGimXDQz1AAAAAAAAAIBwE1ma/90QoZQq58dXAAAAADhSL82XaQeyJRBnAAAAAElFTkSuQmCC',
+  T2:'iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAxUlEQVR42u3aOw2AMBSFYSDseKkIUNAFHOAABTjAAQtVgAm84ICNiZSSPrhN/rOy3K+cpLlJy61vi5xTFZkHAAAAAAB4pbZ80+suZEozdFQoxwq5/MGocekwFQIAAAAAAAAAAAAAAIDs6EV5bWS/TXlOYVbKBAcZdydONqUZj8ed2LKU1/+OGPEP6EXdFfw6cfApw1co5YgegGZ+raDce0DOGXMTAwAAAAAAAAAAAJAap4VGzpsDKiQvJc8uAQAAAABAzrkAZHojy0cT8bsAAAAASUVORK5CYII=',
+};
 try {
   const login=await api.post('/api/auth/login',{
     form:{username:'t2-browser@cabinet.ma',password},
@@ -55,7 +61,7 @@ try {
   for (const label of ['T0','T1','T2']) {
     const response=await api.post('/api/patients/'+patient.id+'/assets/import',{
       headers:head,
-      multipart:{file:{name:'r6-synthetic-'+label+'.png',mimeType:'image/png',buffer:fakePng},
+      multipart:{file:{name:'r6-synthetic-'+label+'.png',mimeType:'image/png',buffer:Buffer.from(syntheticPngBase64[label],'base64')},
         asset_type:'PHOTO',source_kind:'UPLOAD',timepoint:label},
     });
     check('real-import-'+label,response.status()===201 || response.status()===200,{status:response.status()});
