@@ -15,10 +15,12 @@ import {
   type OrthoCompareEvidence,
 } from './orthoLongitudinalCompare';
 import { gateR6ThreeTimepoints, trustedR6Comparison } from './r6ThreeTimepoints';
+import { R6PatientPresenterControl } from './R6PatientPresenterControl';
 
 // Deliberate pilot opt-in: never claim 07.1.C is clinically activated by import.
 const R6_THREE_POINTS_LAB = import.meta.env.DEV && import.meta.env.VITE_LOT07_R6_071C_LAB === 'true';
 
+const R6_PRESENTER_LAB = R6_THREE_POINTS_LAB && import.meta.env.VITE_LOT07_R6_071D_LAB === 'true';
 const F5_ENGINEERING_PREVIEW = import.meta.env.VITE_F5_ENGINEERING_PREVIEW === '1';
 
 interface Props {
@@ -198,6 +200,20 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
                 </button>
               ))}
             </div>
+            {R6_PRESENTER_LAB && (
+              <R6PatientPresenterControl
+                patientId={patientId}
+                caseId={caseId ?? 0}
+                userId={user?.id ?? null}
+                allowed={hasAccess(user,'patients') && hasAccess(user,'clinical')}
+                trajectory={r6Trajectory.trajectory}
+                comparison={trustedR6Comparison(
+                  comparisonQuery.data, patientId, caseId ?? 0, fromOrdinal, toOrdinal,
+                ) ? comparisonQuery.data : undefined}
+                fromOrdinal={fromOrdinal}
+                toOrdinal={toOrdinal}
+              />
+            )}
           </div>
         ) : (
           <p role="status" data-testid="r6-trajectory-denied"
