@@ -50,6 +50,14 @@ export async function verifyR7DesktopMatrix({
         sourceIds.every(id=>shown.includes('#'+id)) &&
         !shown.includes('R6_PRIVATE_SYNTHETIC_NOTE_DO_NOT_RENDER'));
       const button=view.getByRole('button',{name:'Ouvrir sur un autre écran'});
+      // The three-source region mounts before React Query's validated
+      // comparison arrives. Wait for the real auth/source gate to turn true;
+      // fail closed if it never does, do not force-enable the button.
+      await view.waitForFunction(()=>{
+        const control=Array.from(document.querySelectorAll('button'))
+          .find(b=>(b.textContent||'').includes('Ouvrir sur un autre écran'));
+        return Boolean(control && !control.disabled);
+      },null,{timeout:30000});
       check('r7-presenter-available-to-authenticated-owner-'+width,
         await button.isEnabled());
       results.timingsMs.push({width,render:Date.now()-started});
