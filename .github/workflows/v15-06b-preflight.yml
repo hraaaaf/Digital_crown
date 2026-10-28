@@ -15,6 +15,8 @@ on:
       - 'tools/imaging_gateway/qa_backup_restore_witness_lab.py'
       - 'tools/imaging_gateway/qa_durable_receipt_restart_lab.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
+      - 'backend/services/clinical_asset_storage.py'
+      - 'backend/tests/test_clinical_asset_storage.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -35,6 +37,8 @@ on:
       - 'tools/imaging_gateway/qa_backup_restore_witness_lab.py'
       - 'tools/imaging_gateway/qa_durable_receipt_restart_lab.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
+      - 'backend/services/clinical_asset_storage.py'
+      - 'backend/tests/test_clinical_asset_storage.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -79,6 +83,8 @@ jobs:
           pip install -r /tmp/requirements-v15-06b.txt
       - name: Compile contract and API
         run: |
+          python -m py_compile backend/services/clinical_asset_storage.py
+          python -m py_compile backend/tests/test_clinical_asset_storage.py
           python -m py_compile backend/services/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/services/imaging_acquisition_transfer_lab_v15.py
           python -m py_compile backend/routers/imaging_acquisition_transfer_lab_v15.py
@@ -97,6 +103,27 @@ jobs:
           python -m py_compile tools/imaging_gateway/qa_staff_review_desktop_lab.py
       - name: Preflight negative scenarios and Media Core regressions
         run: python -m pytest backend/tests/test_imaging_acquisition_preflight_v15.py backend/tests/test_imaging_transfer_lab_v15.py backend/tests/test_media_core_ingestion_api.py tools/imaging_gateway/tests/test_qa_visual_runtime.py -q
+
+      - name: LOT06-C1 POSIX parent directory sync / encrypted orphan FUE (synthetic only)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06C1_EVIDENCE_DIR: lot06c1-fsync-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06C1_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_clinical_asset_storage.py -q -s -k durable_parent_barrier
+          test -s "$DC06C1_EVIDENCE_DIR/lot06c1-parent-fsync-fue.json"
+          python -c 'import json; d=json.load(open("lot06c1-fsync-evidence/lot06c1-parent-fsync-fue.json")); assert all(d[k] is True for k in ("file_and_parent_fsync_tested", "failure_refuses_sql_asset_binding", "failed_sync_keeps_only_encrypted_orphan", "retry_resyncs_original_encrypted_blob_before_sql_binding")); assert d["product_ready"] is False and d["windows_durability_certified"] is False'
+
+      - name: Publish LOT06-C1 POSIX durability FUE (NO PRODUCT CERTIFICATION)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c1-parent-fsync-synthetic-fue
+          path: lot06c1-fsync-evidence/
+          if-no-files-found: error
+          retention-days: 14
 
       - name: DR-04 independent process restart SQLCipher + AES-GCM (synthetic only)
         if: github.event_name == 'pull_request'
