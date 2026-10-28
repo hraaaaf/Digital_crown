@@ -71,8 +71,22 @@ export async function verifyR7DesktopMatrix({
     await view.locator('[data-testid="r6-longitudinal-three-points"]')
       .waitFor({state:'visible',timeout:70000});
     const button=view.getByRole('button',{name:'Ouvrir sur un autre écran'});
-    await button.focus();
-    check('r7-keyboard-button-focus',await button.evaluate(el=>document.activeElement===el));
+    // The 1440 re-navigation can remount a disabled comparison button while
+    // React Query refreshes. Wait for actual canonical readiness, then require
+    // a real focused enabled browser control, never an injected focus state.
+    await view.waitForFunction(()=>{
+      const control=Array.from(document.querySelectorAll('button'))
+        .find(el=>(el.textContent||'').includes('Ouvrir sur un autre écran'));
+      return Boolean(control&&!control.disabled);
+    },null,{timeout:30000});
+    let focused=false;
+    for(let attempt=0;attempt<8;attempt++){
+      await button.focus();
+      focused=await button.evaluate(el=>document.activeElement===el && !el.disabled);
+      if(focused)break;
+      await view.waitForTimeout(350);
+    }
+    check('r7-keyboard-button-focus',focused);
     const [popup]=await Promise.all([
       view.waitForEvent('popup',{timeout:20000}),
       view.keyboard.press('Enter'),
