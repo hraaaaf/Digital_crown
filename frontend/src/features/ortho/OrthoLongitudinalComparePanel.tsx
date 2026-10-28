@@ -16,6 +16,7 @@ import {
 } from './orthoLongitudinalCompare';
 import { gateR6ThreeTimepoints, trustedR6Comparison } from './r6ThreeTimepoints';
 import { R6PatientPresenterControl } from './R6PatientPresenterControl';
+import { normalizeR6PresenterUserId } from './r6PatientPresenter';
 
 // Deliberate pilot opt-in: never claim 07.1.C is clinically activated by import.
 const R6_THREE_POINTS_LAB = import.meta.env.DEV && import.meta.env.VITE_LOT07_R6_071C_LAB === 'true';
@@ -204,7 +205,7 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
               <R6PatientPresenterControl
                 patientId={patientId}
                 caseId={caseId ?? 0}
-                userId={user?.id ?? null}
+                userId={normalizeR6PresenterUserId(user?.id)}
                 allowed={hasAccess(user,'patients') && hasAccess(user,'clinical')}
                 trajectory={r6Trajectory.trajectory}
                 comparison={trustedR6Comparison(
