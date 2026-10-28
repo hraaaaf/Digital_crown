@@ -11,7 +11,7 @@ import { projectR6Presenter, R6PresenterWindow } from './r6PatientPresenter';
 type Props = {
   patientId: number;
   caseId: number;
-  userId: number | null;
+  userId: string | null;
   allowed: boolean;
   trajectory: R6Trajectory | null;
   comparison: OrthoLongitudinalCompare | undefined;
