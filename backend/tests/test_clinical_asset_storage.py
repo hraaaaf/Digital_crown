@@ -435,9 +435,10 @@ def test_c1b_new_ancestor_links_are_synced_before_ciphertext_binding(
     for directory in created:
         assert directory in synced, "NEW_DIRECTORY_NOT_SYNCED"
         assert directory.parent in synced, "NEW_DIRECTORY_PARENT_NOT_SYNCED"
-        assert synced.index(directory) < synced.index(directory.parent), (
-            "NEW_DIRECTORY_SYNC_ORDER_WRONG"
-        )
+        assert any(
+            synced[i] == directory and synced[i + 1] == directory.parent
+            for i in range(len(synced) - 1)
+        ), "NEW_DIRECTORY_SYNC_ORDER_WRONG"
     assert synced[-1] == target.parent, "FINAL_RENAME_DIRECTORY_NOT_SYNCED"
     print("LOT06C1B_ANCESTOR_LINKS_SYNCED_BEFORE_SQL_BINDING_PASS")
 
