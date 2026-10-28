@@ -133,7 +133,12 @@ try {
   const patientB=await responseB.json();
   check('synthetic-patient-identities-distinct',patientB.id!==patient.id);
 
-  browser=await chromium.launch({headless:true});
+  // Hosted Windows uses headed Chromium for real browser native-zoom checks.
+  // Linux FUE remains headless; neither mode certifies physical dual monitors.
+  browser=await chromium.launch({
+    headless:process.platform!=='win32',
+    args:process.platform==='win32'?['--disable-gpu']:[],
+  });
   const context=await browser.newContext({
     viewport:{width:1440,height:900},locale:'fr-FR',reducedMotion:'reduce',
     serviceWorkers:'block',
