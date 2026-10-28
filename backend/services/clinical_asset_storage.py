@@ -134,11 +134,48 @@ def _resolve_storage_path(storage_key: str, employer_id: int, media_root: Option
 
 
 def _ensure_private_directory(path: Path) -> None:
-    path.mkdir(parents=True, exist_ok=True)
+    """Create each missing namespace directory and persist its parent link.
+
+    POSIX C1b: mkdir(parents=True) alone does not durably link newly created
+    directories. Fail before touching any encrypted file if an ancestor barrier
+    cannot be verified. Existing-directory policy is intentionally unchanged.
+    """
+    if os.name != "posix":
+        raise ClinicalAssetStorageError(
+            "clinical media ancestor durability is not certified on this platform"
+        )
+    missing: list[Path] = []
+    cursor = path
+    while not cursor.exists():
+        if cursor.is_symlink():
+            raise ClinicalAssetStorageError("clinical media directory cannot be a symlink")
+        missing.append(cursor)
+        if cursor.parent == cursor:
+            raise ClinicalAssetStorageError("clinical media directory has no existing ancestor")
+        cursor = cursor.parent
+    if cursor.is_symlink() or not cursor.is_dir():
+        raise ClinicalAssetStorageError("clinical media ancestor is not a directory")
+
+    for directory in reversed(missing):
+        if directory.is_symlink():
+            raise ClinicalAssetStorageError("clinical media directory cannot be a symlink")
+        try:
+            directory.mkdir(mode=0o700)
+        except FileExistsError:
+            if directory.is_symlink() or not directory.is_dir():
+                raise ClinicalAssetStorageError("clinical media directory is not safe")
+        try:
+            os.chmod(directory, 0o700)
+        except OSError:
+            pass
+        # Sync metadata in the new directory, then its name in the parent.
+        _fsync_directory(directory)
+        _fsync_directory(directory.parent)
+    if path.is_symlink() or not path.is_dir():
+        raise ClinicalAssetStorageError("clinical media directory is not safe")
     try:
         os.chmod(path, 0o700)
     except OSError:
-        # Windows ACLs are governed by the app data directory/platform adapter.
         pass
 
 
@@ -174,21 +211,16 @@ def _decrypt_payload(payload: bytes, employer_id: int, digest: str) -> bytes:
         raise ClinicalAssetIntegrityError("clinical media authentication failed") from exc
 
 
-def _sync_parent_directory(target: Path) -> None:
-    """Durability barrier for an already-renamed encrypted media entry.
-
-    POSIX-only stage C1: the containing directory must be synced before the
-    caller may persist a SQL binding. This does NOT yet certify newly created
-    ancestor directories, power-loss behavior or Windows SCM.
-    """
+def _fsync_directory(directory: Path) -> None:
+    """Fail-closed POSIX directory metadata/name durability barrier."""
     if os.name != "posix":
         raise ClinicalAssetStorageError(
             "clinical media directory durability is not certified on this platform"
         )
     fd = None
     try:
-        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0)
-        fd = os.open(str(target.parent), flags)
+        flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(str(directory), flags)
         os.fsync(fd)
     except OSError as exc:
         raise ClinicalAssetStorageError(
@@ -197,6 +229,11 @@ def _sync_parent_directory(target: Path) -> None:
     finally:
         if fd is not None:
             os.close(fd)
+
+
+def _sync_parent_directory(target: Path) -> None:
+    """Sync the final directory entry after atomically renaming encrypted media."""
+    _fsync_directory(target.parent)
 
 
 def _atomic_write(target: Path, payload: bytes) -> None:
