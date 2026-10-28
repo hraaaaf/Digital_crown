@@ -69,18 +69,25 @@ jobs:
       - name: Install real backend on Windows (no cabinet SQLCipher, no production data)
         shell: pwsh
         run: |
-          python -m pip install --upgrade pip
+          # GitHub Windows has globally installed pipx that conflicts with
+          # pinned Cabinet versions. Use a disposable VENV, retain pip check.
+          $venv = Join-Path $env:RUNNER_TEMP "r7b-cabinet-venv"
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw 'Windows isolated venv creation failed' }
+          $python = Join-Path $venv "Scripts/python.exe"
+          Add-Content -Path $env:GITHUB_ENV -Value "R7B_PYTHON=$python"
+          & $python -m pip install --upgrade pip
           if ($LASTEXITCODE -ne 0) { throw 'pip bootstrap failed' }
-          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          & $python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
           if ($LASTEXITCODE -ne 0) { throw 'CPU torch install failed' }
           $deps = Get-Content requirements.txt | Where-Object {
             $_ -notmatch '^(torch|torchvision|torchaudio|sqlcipher3)=='
           }
           $deps | Set-Content -Path "$env:RUNNER_TEMP/r7b-windows-requirements.txt"
-          python -m pip install -r "$env:RUNNER_TEMP/r7b-windows-requirements.txt"
+          & $python -m pip install -r "$env:RUNNER_TEMP/r7b-windows-requirements.txt"
           if ($LASTEXITCODE -ne 0) { throw 'Windows requirements failed' }
-          python -m pip check
-          if ($LASTEXITCODE -ne 0) { throw 'Windows Python dependency conflict' }
+          & $python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'Windows isolated dependency conflict' }
       - name: Install real React and Chromium for hosted Windows
         shell: pwsh
         working-directory: frontend
@@ -105,7 +112,7 @@ jobs:
           $apiLog = Join-Path $env:RUNNER_TEMP "r7b-windows-api.log"
           $viteLog = Join-Path $env:RUNNER_TEMP "r7b-windows-vite.log"
           try {
-            $backend = Start-Process -FilePath "python.exe" -ArgumentList @("-u","scripts/t2_runtime_server.py") -WorkingDirectory $env:GITHUB_WORKSPACE -RedirectStandardOutput $apiLog -PassThru -WindowStyle Hidden
+            $backend = Start-Process -FilePath $env:R7B_PYTHON -ArgumentList @("-u","scripts/t2_runtime_server.py") -WorkingDirectory $env:GITHUB_WORKSPACE -RedirectStandardOutput $apiLog -PassThru -WindowStyle Hidden
             $ready = $false
             for($i=0;$i -lt 100;$i++){
               try {
