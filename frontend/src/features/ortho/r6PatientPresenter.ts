@@ -8,7 +8,7 @@ import { trustedR6Comparison, type R6Trajectory, type R6SourceRef } from './r6Th
 export type R6PresenterSnapshot = Readonly<{
   patientId: number;
   caseId: number;
-  userId: number;
+  userId: string;
   pair: readonly [number, number];
   points: readonly Readonly<{
     ordinal: number;
@@ -17,16 +17,16 @@ export type R6PresenterSnapshot = Readonly<{
   }>[];
 }>;
 
-const positiveId = (n: number) => Number.isSafeInteger(n) && n > 0;
+const validUserId = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
 
 export function projectR6Presenter(
   trajectory: R6Trajectory | null,
   comparison: OrthoLongitudinalCompare | null | undefined,
-  userId: number | null | undefined,
+  userId: string | null | undefined,
   fromOrdinal: number | null,
   toOrdinal: number | null,
 ): R6PresenterSnapshot | null {
-  if (!trajectory || !positiveId(userId ?? 0) ||
+  if (!trajectory || !validUserId(userId) ||
       ![0, 1].includes(fromOrdinal ?? -1) || ![1, 2].includes(toOrdinal ?? -1) ||
       fromOrdinal! >= toOrdinal! ||
       !trustedR6Comparison(comparison, trajectory.patientId, trajectory.caseId, fromOrdinal, toOrdinal)) {
