@@ -242,7 +242,7 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
         <>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:mt-4 sm:gap-3 md:grid-cols-2">
             {[comparison.from_timepoint, comparison.to_timepoint].map((tp) => (
-              <div key={tp.id} className="rounded-xl border border-border-main bg-background/60 p-3 sm:rounded-2xl sm:p-4">
+              <div key={tp.id} data-ortho-compare-timepoint={tp.ordinal} className="rounded-xl border border-border-main bg-background/60 p-3 sm:rounded-2xl sm:p-4">
                 <div className="mb-2 flex items-baseline justify-between gap-2 sm:mb-3 sm:gap-3">
                   <div className="text-base font-black text-text-main sm:text-lg">T{tp.ordinal}</div>
                   <div className="text-[11px] font-bold text-text-muted">
