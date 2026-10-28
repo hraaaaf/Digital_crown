@@ -18,6 +18,8 @@ declare global {
       capture: LabCapturePreview;
       targets: LabStaffTarget[];
     };
+    // Synthetic e2e debugging only; no patient identifiers, secrets or codes.
+    __DC06B_HTTP_TRACE__?: string;
   }
 }
 
@@ -40,19 +42,31 @@ function enteredReason(): string | null {
 }
 const e2eHttpClient: LabReviewClient = {
   async review(input) {
+    window.__DC06B_HTTP_TRACE__ = 'review-called';
     const reason = input.appointment_id === null ? enteredReason() : null;
     if (input.appointment_id === null && !codes.has(reason ?? '')) {
+      window.__DC06B_HTTP_TRACE__ = 'reason-code-not-visible';
       throw new Error('ISOLATED_LAB_REASON_CODE_REQUIRED');
     }
     reviewedReason = null;
     const payload = { ...input, patient_only_reason: reason };
-    const response = await labStaffHttpClient.review(payload);
-    const verified = response as typeof response & { patient_only_reason?: string | null };
-    if (verified.patient_only_reason !== reason) {
-      throw new Error('ISOLATED_LAB_REASON_NOT_BOUND');
+    window.__DC06B_HTTP_TRACE__ = 'sending-fastapi-review';
+    try {
+      const response = await labStaffHttpClient.review(payload);
+      window.__DC06B_HTTP_TRACE__ = 'received-fastapi-review';
+      const verified = response as typeof response & { patient_only_reason?: string | null };
+      if (verified.patient_only_reason !== reason) {
+        window.__DC06B_HTTP_TRACE__ = 'reason-binding-invalid';
+        throw new Error('ISOLATED_LAB_REASON_NOT_BOUND');
+      }
+      reviewedReason = reason;
+      return response;
+    } catch (error) {
+      if (window.__DC06B_HTTP_TRACE__ === 'sending-fastapi-review') {
+        window.__DC06B_HTTP_TRACE__ = 'fastapi-review-http-rejected';
+      }
+      throw error;
     }
-    reviewedReason = reason;
-    return response;
   },
   async approve(input) {
     const reason = input.appointment_id === null ? enteredReason() : null;
