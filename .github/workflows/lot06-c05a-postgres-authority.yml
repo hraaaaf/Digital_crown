@@ -4,7 +4,7 @@ on:
   pull_request:
     paths:
       - 'backend/services/imaging_pg_receipt_authority_v15.py'
-      - 'tools/imaging_gateway/tests/test_pg_receipt_authority_v15.py'
+      - 'isolated_fue_lot06c/test_pg_receipt_authority_v15.py'
       - '.github/workflows/lot06-c05a-postgres-authority.yml'
   workflow_dispatch:
 
@@ -55,13 +55,13 @@ jobs:
       - name: Compile isolated authority and FUE
         run: |
           python -m py_compile backend/services/imaging_pg_receipt_authority_v15.py
-          python -m py_compile tools/imaging_gateway/tests/test_pg_receipt_authority_v15.py
+          python -m py_compile isolated_fue_lot06c/test_pg_receipt_authority_v15.py
       - name: C05A approval lock + concurrency + post-COMMIT lost ACK FUE
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p "$DC06C05A_EVIDENCE_DIR"
-          python -m pytest tools/imaging_gateway/tests/test_pg_receipt_authority_v15.py -q -s
+          python -m pytest isolated_fue_lot06c/test_pg_receipt_authority_v15.py -q -s
           test -s "$DC06C05A_EVIDENCE_DIR/lot06c05a-postgres-authority-fue.json"
           python -c 'import json,os; d=json.load(open(os.path.join(os.environ["DC06C05A_EVIDENCE_DIR"],"lot06c05a-postgres-authority-fue.json"))); assert all(d[k] is True for k in ("real_ephemeral_postgres_server_used","six_concurrent_independent_pg_transactions_same_receipt","approval_version_and_binding_conflicts_rejected","receipt_audit_outbox_atomic_on_injected_failures","postcommit_os_exit_before_ack_recovered","replay_same_receipt_after_restart","sql_db_recovery_and_uniqueness_verified")); assert all(d[k] is False for k in ("clinical_device_staff_authorization_wired","aes_media_verified_in_authority","clinical_migration_applied","clinical_endpoint_enabled","actual_power_cut_tested","product_ready"))'
       - name: Upload isolated PostgreSQL FUE (NO PRODUCT CERTIFICATION)
