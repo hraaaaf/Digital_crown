@@ -1,7 +1,7 @@
 import {describe,expect,it} from 'vitest';
 import type {OrthoLongitudinalCompare} from './orthoLongitudinalCompare';
 import {type R6Trajectory} from './r6ThreeTimepoints';
-import {projectR6Presenter} from './r6PatientPresenter';
+import {normalizeR6PresenterUserId,projectR6Presenter} from './r6PatientPresenter';
 
 const base:R6Trajectory={
   patientId:22,caseId:44,
@@ -19,6 +19,19 @@ const compare:OrthoLongitudinalCompare={
   measurement_status:'AVAILABLE',interpretation_policy:'NUMERIC_ONLY_CLINICIAN_INTERPRETATION',
 };
 describe('LOT07 R6 07.1.D — patient-facing read-only strict projection',()=>{
+  it('normalizes real backend numeric owner IDs and Supabase string IDs while rejecting missing or unsafe identities',()=>{
+    expect(normalizeR6PresenterUserId(7)).toBe('7');
+    expect(normalizeR6PresenterUserId('7')).toBe('7');
+    expect(normalizeR6PresenterUserId(' practitioner-uuid ')).toBe('practitioner-uuid');
+    expect(normalizeR6PresenterUserId(0)).toBeNull();
+    expect(normalizeR6PresenterUserId(-7)).toBeNull();
+    expect(normalizeR6PresenterUserId(Number.MAX_SAFE_INTEGER+1)).toBeNull();
+    expect(normalizeR6PresenterUserId(null)).toBeNull();
+    expect(normalizeR6PresenterUserId('   ')).toBeNull();
+    expect(normalizeR6PresenterUserId({id:7})).toBeNull();
+    const id=normalizeR6PresenterUserId(7);
+    expect(projectR6Presenter(base,compare,id,0,2)?.userId).toBe('7');
+  });
   it('projects only canonical ordinal, dates and source IDs, no PHI or clinical claims',()=>{
     const snap=projectR6Presenter(base,compare,'user-7',0,2);
     expect(snap?.pair).toEqual([0,2]);
