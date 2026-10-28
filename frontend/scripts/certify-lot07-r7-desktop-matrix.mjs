@@ -152,10 +152,7 @@ export async function verifyR7DesktopMatrix({
       await certifyR7HostedWindowsBrowserZoom({
         page:view,patientId:patient.id,webBase,check,capture,report,
       });
-      if(process.env.LOT07_R7_NVDA_CERT==='1'){
-        const {certifyR7RealWindowsNvda}=await import('./certify-lot07-r7b-windows-nvda.mjs');
-        await certifyR7RealWindowsNvda({page:view,check,capture,report});
-      }
+
     }
     check('r7-no-physical-or-nvda-certification-inferred',
       !results.nativeWindows200Percent && !results.realPhysicalSecondDisplay &&
