@@ -282,16 +282,31 @@ def test_real_browser_patient_rdv_approve_upload_receipt(
                         page.locator("#lab-reason").fill("LAB_UNSCHEDULED")
                     else:
                         page.locator("#lab-appointment").select_option(str(rdv.id))
-                    with page.expect_response(
-                        lambda response: response.url.endswith(
-                            "/api/imaging-acquisitions/lab/review"
-                        ) and response.request.method == "POST",
-                        timeout=20000,
-                    ) as review_event:
-                        page.get_by_role(
+                    if patient_only:
+                        assert page.locator("#lab-reason").input_value() == reason_code
+                        assert page.get_by_role(
                             "button", name="Vérifier le lien patient"
-                        ).click()
-                    review_http = review_event.value
+                        ).is_enabled()
+                    try:
+                        with page.expect_response(
+                            lambda response: response.url.endswith(
+                                "/api/imaging-acquisitions/lab/review"
+                            ) and response.request.method == "POST",
+                            timeout=12000,
+                        ) as review_event:
+                            page.get_by_role(
+                                "button", name="Vérifier le lien patient"
+                            ).click()
+                        review_http = review_event.value
+                    except Exception as exc:
+                        trace = page.evaluate(
+                            "() => window.__DC06B_HTTP_TRACE__ || 'NO_ADAPTER_CALL'"
+                        )
+                        alert = page.get_by_role("alert")
+                        alert_text = alert.inner_text() if alert.count() else "NO_UI_ALERT"
+                        raise AssertionError(
+                            "NO_HTTP_REVIEW: " + str(trace) + " / " + alert_text
+                        ) from exc
                     # Fail with a precise sanitized HTTP status (not a
                     # 30-second generic UI timeout); never print JWT/challenge.
                     assert review_http.status == 200, (
