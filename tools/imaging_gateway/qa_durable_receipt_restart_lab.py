@@ -131,10 +131,12 @@ def _assert_integrity(root: Path, con):
 def _run(root: Path, phase: str):
     os.environ["CABINET_MASTER_KEY_HEX"] = _require_key("DC06B_TEST_MEDIA_KEY")
     if phase == "wrong-key":
+        # A missing SQLCipher module must NOT be counted as a bad-key success.
+        from sqlcipher3 import dbapi2 as sqlcipher
         try:
             with _open(root, incorrect=True) as con:
                 con.execute("SELECT COUNT(*) FROM synthetic_receipts").fetchone()
-        except Exception:
+        except sqlcipher.DatabaseError:
             print("WRONG_SQLCIPHER_KEY_BLOCKED")
             return 0
         raise AssertionError("WRONG_KEY_WAS_ACCEPTED")
