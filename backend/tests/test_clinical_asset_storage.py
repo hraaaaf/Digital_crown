@@ -304,8 +304,15 @@ def test_durable_parent_barrier_sync_order(tmp_path, monkeypatch):
 
     monkeypatch.setattr(storage.os, "fsync", _observed_fsync)
     target = tmp_path / "encrypted-synthetic.dcm"
-    storage._atomic_write(target, b"DCM1-synthetic-payload")
-    assert target.read_bytes() == b"DCM1-synthetic-payload"
+    plaintext = b"synthetic-c1-aesgcm-roundtrip"
+    digest = hashlib.sha256(plaintext).hexdigest()
+    ciphertext = storage._encrypt_payload(plaintext, employer_id=31, digest=digest)
+    storage._atomic_write(target, ciphertext)
+    assert target.read_bytes() == ciphertext
+    assert ciphertext.startswith(b"DCM1") and plaintext not in ciphertext
+    assert storage._read_verified_path(
+        target, employer_id=31, digest=digest, byte_size=len(plaintext)
+    ) == plaintext
     assert calls == ["file", "directory"]
     assert list(tmp_path.glob(".tmp-*")) == []
     print("LOT06C1_PARENT_DIRECTORY_SYNC_ORDER_PASS")
