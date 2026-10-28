@@ -11,6 +11,8 @@ on:
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
       - 'backend/tests/test_imaging_durable_receipt_restart_v15.py'
+      - 'backend/tests/test_imaging_backup_restore_rollback_v15.py'
+      - 'tools/imaging_gateway/qa_backup_restore_witness_lab.py'
       - 'tools/imaging_gateway/qa_durable_receipt_restart_lab.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
@@ -29,6 +31,8 @@ on:
       - 'backend/tests/test_imaging_transfer_lab_v15.py'
       - 'backend/tests/test_imaging_lab_browser_real_http_v15.py'
       - 'backend/tests/test_imaging_durable_receipt_restart_v15.py'
+      - 'backend/tests/test_imaging_backup_restore_rollback_v15.py'
+      - 'tools/imaging_gateway/qa_backup_restore_witness_lab.py'
       - 'tools/imaging_gateway/qa_durable_receipt_restart_lab.py'
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
@@ -81,6 +85,8 @@ jobs:
           python -m py_compile backend/tests/test_imaging_transfer_lab_v15.py
           python -m py_compile backend/tests/test_imaging_lab_browser_real_http_v15.py
           python -m py_compile backend/tests/test_imaging_durable_receipt_restart_v15.py
+          python -m py_compile backend/tests/test_imaging_backup_restore_rollback_v15.py
+          python -m py_compile tools/imaging_gateway/qa_backup_restore_witness_lab.py
           python -m py_compile tools/imaging_gateway/qa_durable_receipt_restart_lab.py
           python -m py_compile backend/routers/imaging_acquisition_preflight_v15.py
           python -m py_compile backend/tests/test_imaging_acquisition_preflight_v15.py
@@ -108,6 +114,25 @@ jobs:
         with:
           name: lot06b-sqlcipher-restart-synthetic-fue
           path: lot06b-durable-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: DR-05 cold SQLCipher backup+AES media restore+antirollback witness FUE
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06B_BACKUP_EVIDENCE_DIR: lot06b-backup-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06B_BACKUP_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_imaging_backup_restore_rollback_v15.py -q -s
+          test -s "$DC06B_BACKUP_EVIDENCE_DIR/lot06b-backup-restore-antirollback-fue.json"
+      - name: Publish synthetic backup restore rollback witness FUE
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06b-backup-restore-rollback-synthetic-fue
+          path: lot06b-backup-evidence/
           if-no-files-found: error
           retention-days: 14
 
