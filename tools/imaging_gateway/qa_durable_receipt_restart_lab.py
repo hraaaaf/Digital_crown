@@ -271,10 +271,126 @@ def _core_phase(root: Path, phase: str):
         engine.dispose()
 
 
+POST_ACK_CAPTURE = "synthetic-lost-ack-after-sql-commit"
+POST_ACK_RECEIPT = "SYNTH-ACK-POSTCOMMIT-02"
+
+
+def _postcommit_phase(root: Path, phase: str) -> int:
+    """Test-ledger rehearsal ONLY; never route to persistent lab.transfer."""
+    if (os.environ.get("ENVIRONMENT") != "test"
+            or os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") != "true"):
+        raise RuntimeError("POSTCOMMIT_SYNTHETIC_ONLY")
+    from backend.services.clinical_asset_storage import _read_verified_path
+
+    payload = _png((45, 83, 117))
+    digest = hashlib.sha256(payload).hexdigest()
+    with _open(root) as con:
+        if phase == "postcommit-commit-exit":
+            _assert_integrity(root, con)  # seed receipt exists
+            _store(root, payload)  # encrypted and file-synced before SQL
+            con.execute("BEGIN IMMEDIATE")
+            con.execute(
+                "INSERT INTO synthetic_receipts VALUES(?,?,?,?,?,?,?,?)",
+                (TENANT, DEVICE, POST_ACK_CAPTURE, POST_ACK_RECEIPT,
+                 3, PATIENT, digest, len(payload)),
+            )
+            con.execute(
+                "INSERT INTO synthetic_audit VALUES(?,?,?)",
+                (POST_ACK_RECEIPT, "LAB_ACQUISITION_COMMITTED", REASON),
+            )
+            con.execute(
+                "INSERT INTO synthetic_outbox VALUES(?,?)",
+                (POST_ACK_RECEIPT, "LAB_MEDIA_READY"),
+            )
+            con.commit()
+            # Abrupt OS exit after committed SQL + durable AES media but before
+            # sending any ACK. This is not a kernel crash or physical power cut.
+            os._exit(75)
+
+        assert phase == "postcommit-verify-replay"
+        _assert_integrity(root, con)
+        rows = con.execute(
+            "SELECT tenant,device,capture,receipt_id,asset_id,patient,digest,size "
+            "FROM synthetic_receipts WHERE tenant=? AND device=? AND capture=?",
+            (TENANT, DEVICE, POST_ACK_CAPTURE),
+        ).fetchall()
+        assert len(rows) == 1, "ACK_LOSS_RECEIPT_DUPLICATED"
+        row = rows[0]
+        assert row == (TENANT, DEVICE, POST_ACK_CAPTURE, POST_ACK_RECEIPT,
+                       3, PATIENT, digest, len(payload)), "ACK_LOSS_IDENTITY_CHANGED"
+        assert con.execute(
+            "SELECT event,patient_only_reason FROM synthetic_audit WHERE receipt_id=?",
+            (POST_ACK_RECEIPT,),
+        ).fetchone() == ("LAB_ACQUISITION_COMMITTED", REASON)
+        assert con.execute(
+            "SELECT event FROM synthetic_outbox WHERE receipt_id=?",
+            (POST_ACK_RECEIPT,),
+        ).fetchone() == ("LAB_MEDIA_READY",)
+        assert _read_verified_path(
+            _blob(root, payload), employer_id=TENANT,
+            digest=digest, byte_size=len(payload),
+        ) == payload
+
+        # Synthetic replay policy: immutable identity including tenant, device,
+        # capture, digest, size, patient and approved reason. Fail closed
+        # before any insert if a client supplies contradictory identity data.
+        def replay(*, tenant=TENANT, device=DEVICE, capture=POST_ACK_CAPTURE,
+                   claimed_digest=digest, claimed_size=len(payload),
+                   patient=PATIENT, reason=REASON):
+            expected = (TENANT, DEVICE, POST_ACK_CAPTURE, digest,
+                        len(payload), PATIENT, REASON)
+            candidate = (tenant, device, capture, claimed_digest,
+                         claimed_size, patient, reason)
+            if candidate != expected:
+                raise ValueError("SYNTHETIC_CAPTURE_IDENTITY_CONFLICT")
+            return POST_ACK_RECEIPT
+
+        assert replay() == POST_ACK_RECEIPT
+        for changed in (
+            {"claimed_digest": "0" * 64},
+            {"claimed_size": len(payload) + 1},
+            {"patient": PATIENT + 1},
+            {"tenant": TENANT + 1},
+            {"device": "another-device"},
+            {"capture": "another-capture"},
+            {"reason": "LAB_URGENT"},
+        ):
+            try:
+                replay(**changed)
+            except ValueError as exc:
+                assert str(exc) == "SYNTHETIC_CAPTURE_IDENTITY_CONFLICT"
+            else:
+                raise AssertionError("CONFLICT_REPLAY_ACCEPTED")
+
+        # DB primary-key uniqueness independently refuses a duplicate insert
+        # even when a second writer bypasses the synthetic replay check.
+        from sqlcipher3 import dbapi2 as sqlcipher
+        con.execute("SAVEPOINT duplicate_guard")
+        try:
+            con.execute(
+                "INSERT INTO synthetic_receipts VALUES(?,?,?,?,?,?,?,?)",
+                (TENANT, DEVICE, POST_ACK_CAPTURE, "SYNTH-DUPLICATE",
+                 99, PATIENT, digest, len(payload)),
+            )
+        except sqlcipher.IntegrityError:
+            con.execute("ROLLBACK TO SAVEPOINT duplicate_guard")
+        else:
+            raise AssertionError("DUPLICATE_CAPTURE_INSERT_SUCCEEDED")
+        finally:
+            con.execute("RELEASE SAVEPOINT duplicate_guard")
+        for table in ("synthetic_receipts", "synthetic_audit", "synthetic_outbox"):
+            assert con.execute(f"SELECT COUNT(*) FROM {table}").fetchone()[0] == 2
+        print("POSTCOMMIT_LOST_ACK_REPLAY_IDENTICAL_RECEIPT")
+        print("POSTCOMMIT_CONFLICT_AND_DUPLICATE_INSERT_REJECTED")
+    return 0
+
+
 def _run(root: Path, phase: str):
     os.environ["CABINET_MASTER_KEY_HEX"] = _require_key("DC06B_TEST_MEDIA_KEY")
     if phase.startswith("core-"):
         return _core_phase(root, phase)
+    if phase.startswith("postcommit-"):
+        return _postcommit_phase(root, phase)
     if phase == "wrong-key":
         # A missing SQLCipher module must NOT be counted as a bad-key success.
         from sqlcipher3 import dbapi2 as sqlcipher
@@ -411,7 +527,8 @@ if __name__ == "__main__":
         "write", "verify", "replay", "interrupt-pre-sql", "verify-pre-sql",
         "interrupt", "verify-interrupted", "wrong-key", "wrong-media-key", "tamper",
         "verify-tampered", "core-write", "core-verify", "core-tamper",
-        "core-verify-tampered",
+        "core-verify-tampered", "postcommit-commit-exit",
+        "postcommit-verify-replay",
     ], required=True)
     opts = parser.parse_args()
     opts.root.mkdir(parents=True, exist_ok=True)
