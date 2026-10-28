@@ -122,6 +122,11 @@ jobs:
             r.r7.nativeWindows200Percent||r.r7.realPhysicalSecondDisplay||
             r.r7.nvdaScreenReader||r.r7.humanVisualApproval||
             r.r7.sessionServerRevocation||
+            !r.r7.presenterOriginSecurity||
+            typeof r.r7.presenterOriginSecurity.inheritedCredentialSurfaceReadable!=='boolean'||
+            r.r7.presenterOriginSecurity.detachedOriginIsolationCertified||
+            r.r7.presenterOriginSecurity.clinicalActivationApproved||
+            r.r7.presenterOriginSecurity.review!=='BLOCKED_PENDING_ISOLATED_ORIGIN'||
             !r.denials.some(d=>d.reason==='STAFF_RBAC'&&d.status===403)||
             !r.denials.some(d=>d.reason==='SOURCE_REUSE'&&d.status===409))process.exit(1);
           console.log('LOT07_R7_DESKTOP_FUE_VERIFIED',r.checks.length,r.screenshots.length,r.head);
