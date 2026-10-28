@@ -3,12 +3,14 @@
  * Real browser + real authenticated FastAPI data created by R6D synthetic T2 FUE.
  * Simulated Chromium pixel density is NOT native Windows DPI / screen reader proof.
  */
+import { certifyR7HostedWindowsBrowserZoom } from './certify-lot07-r7b-windows-zoom.mjs';
+
 export async function verifyR7DesktopMatrix({
   context,webBase,patient,patientB,clinicalAssets,check,capture,report,
 }) {
   const results={
     testedViewports:[1280,1440,1920,2560],
-    browser:'Chromium headed=false / Linux CI',
+    browser:process.platform==='win32' ? 'Windows headed Chromium CI' : 'Linux headless Chromium CI',
     nativeWindows200Percent:false,
     realPhysicalSecondDisplay:false,
     nvdaScreenReader:false,
@@ -138,6 +140,11 @@ export async function verifyR7DesktopMatrix({
     check('r7-rbac-and-foreign-tenant-refusals-observed',
       report.denials.some(x=>x.reason==='STAFF_RBAC' && x.status===403) &&
       report.denials.some(x=>x.reason==='CROSS_TENANT' && [403,404].includes(x.status)));
+    if(process.platform==='win32' && process.env.LOT07_R7_WINDOWS_NATIVE==='1'){
+      await certifyR7HostedWindowsBrowserZoom({
+        page:view,patientId:patient.id,webBase,check,capture,report,
+      });
+    }
     check('r7-no-physical-or-nvda-certification-inferred',
       !results.nativeWindows200Percent && !results.realPhysicalSecondDisplay &&
       !results.nvdaScreenReader && !results.humanVisualApproval &&
