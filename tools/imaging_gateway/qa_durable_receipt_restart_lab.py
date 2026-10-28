@@ -308,7 +308,14 @@ def _postcommit_phase(root: Path, phase: str) -> int:
             os._exit(75)
 
         assert phase == "postcommit-verify-replay"
-        _assert_integrity(root, con)
+        # The original fixture remains present alongside the postcommit one.
+        # _assert_integrity checks a one-row total and is seed-only.
+        seed = con.execute(
+            "SELECT receipt_id FROM synthetic_receipts WHERE "
+            "tenant=? AND device=? AND capture=?",
+            (TENANT, DEVICE, CAPTURE),
+        ).fetchone()
+        assert seed == (RECEIPT,), "ORIGINAL_RECEIPT_LOST"
         rows = con.execute(
             "SELECT tenant,device,capture,receipt_id,asset_id,patient,digest,size "
             "FROM synthetic_receipts WHERE tenant=? AND device=? AND capture=?",
