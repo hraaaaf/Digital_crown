@@ -148,7 +148,7 @@ try {
   page.on('response',response=>{
     const url=new URL(response.url());
     if(url.pathname.includes('/ortho-case')) {
-      network.push({path:url.pathname,status:response.status()});
+      network.push({path:url.pathname,from:url.searchParams.get('from_ordinal'),to:url.searchParams.get('to_ordinal'),status:response.status()});
     }
   });
   await page.goto(webBase+'/patients/'+patient.id+'?tab=tracking',{
