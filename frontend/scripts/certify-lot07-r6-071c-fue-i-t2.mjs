@@ -188,6 +188,7 @@ try {
       {status:responseStatus,previouslyObserved:Boolean(cached)});
     await page.locator('[data-ortho-f3-compare]').getByText('Mesures communes',{exact:true})
       .waitFor({state:'visible',timeout:25000});
+    await page.waitForFunction(({from,to}) => { const a=Array.from(document.querySelectorAll('[data-ortho-compare-timepoint]'), el=>Number(el.getAttribute('data-ortho-compare-timepoint'))); return a.length===2 && a[0]===from && a[1]===to; }, {from,to},{timeout:25000});
     await triple.scrollIntoViewIfNeeded();
     await capture(page,'02-pair-'+from+'-'+to+'-1440');
   }
