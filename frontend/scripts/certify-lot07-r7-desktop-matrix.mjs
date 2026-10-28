@@ -88,6 +88,23 @@ export async function verifyR7DesktopMatrix({
     check('r7-presenter-no-private-clinical-notes',
       !popupSafe.text.includes('R6_PRIVATE_SYNTHETIC_NOTE_DO_NOT_RENDER') &&
       sourceIds.every(id=>popupSafe.text.includes('source #'+id)));
+    // SECURITY REVIEW: about:blank inherits the app's origin. Even if the
+    // document contains no script, this is NOT origin-isolated. Never export
+    // credential values; report only whether the synthetic token is readable.
+    const credentialSurfaceReadable=await popup.evaluate(()=>{
+      try { return Boolean(localStorage.getItem('token')); }
+      catch { return false; }
+    });
+    results.presenterOriginSecurity={
+      inheritedCredentialSurfaceReadable:credentialSurfaceReadable,
+      detachedOriginIsolationCertified:false,
+      clinicalActivationApproved:false,
+      review:'BLOCKED_PENDING_ISOLATED_ORIGIN',
+    };
+    check('r7-records-popout-origin-security-gate-without-token',
+      typeof credentialSurfaceReadable==='boolean' &&
+      results.presenterOriginSecurity.detachedOriginIsolationCertified===false &&
+      results.presenterOriginSecurity.review==='BLOCKED_PENDING_ISOLATED_ORIGIN');
     await capture(popup,'r7-1440-detached-TARGET');
 
     // Stress stale patient identity through actual React Router, not mocked API.
