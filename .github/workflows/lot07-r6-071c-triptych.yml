@@ -50,6 +50,9 @@ jobs:
         run: |
           set -euo pipefail
           npm test -- src/features/ortho/r6ThreeTimepoints.test.ts src/features/ortho/orthoLongitudinalCompare.test.ts
+      - name: Strict TypeScript source and tuple verification
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
       - name: Production build must not enable R6 LAB
         working-directory: frontend
         env:
