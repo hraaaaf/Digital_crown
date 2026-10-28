@@ -181,3 +181,71 @@ def test_actual_clinical_asset_model_sqlcipher_restart_and_tamper(tmp_path):
         encoding="utf-8",
     )
     print("LOT06B_ACTUAL_CLINICAL_ASSET_RESTART_CONVERGENCE_PASS")
+
+
+def test_c02_c04_postcommit_crash_lost_ack_replay_identity_denial(tmp_path):
+    """Synthetic-only SQLCipher fixture: OS exit after COMMIT, before ACK.
+
+    This does not run clinical lab.transfer on a persistent database, and does
+    not certify a product transfer identity/approval version or actual power cut.
+    """
+    root = tmp_path / "postcommit-lost-ack"
+    root.mkdir()
+    env = os.environ.copy()
+    env.update({
+        "ENVIRONMENT": "test",
+        "DIGITALCROWN_ISOLATED_RUNTIME": "true",
+        "DC06B_TEST_SQLCIPHER_KEY": secrets.token_hex(32),
+        "DC06B_TEST_MEDIA_KEY": secrets.token_hex(32),
+    })
+    phases = (
+        ("write", 0, "FILE_SQLCIPHER_AND_AESGCM_RECEIPT_COMMITTED"),
+        ("postcommit-commit-exit", 75, ""),
+        ("postcommit-verify-replay", 0, "POSTCOMMIT_CONFLICT_AND_DUPLICATE_INSERT_REJECTED"),
+        ("postcommit-verify-replay", 0, "POSTCOMMIT_LOST_ACK_REPLAY_IDENTICAL_RECEIPT"),
+        ("postcommit-verify-replay", 0, "POSTCOMMIT_LOST_ACK_REPLAY_IDENTICAL_RECEIPT"),
+    )
+    executed = []
+    for phase, expected_exit, expected_marker in phases:
+        done = subprocess.run(
+            [
+                sys.executable, "-m",
+                "tools.imaging_gateway.qa_durable_receipt_restart_lab",
+                "--root", str(root), "--phase", phase,
+            ],
+            env=env, text=True, capture_output=True, timeout=60, check=False,
+        )
+        assert done.returncode == expected_exit, (
+            f"POSTCOMMIT_PHASE_{phase}_EXIT_{done.returncode}_EXPECTED_{expected_exit}"
+        )
+        if expected_marker:
+            assert expected_marker in done.stdout, f"POSTCOMMIT_MARKER_{phase}_MISSING"
+        assert env["DC06B_TEST_SQLCIPHER_KEY"] not in done.stdout + done.stderr
+        assert env["DC06B_TEST_MEDIA_KEY"] not in done.stdout + done.stderr
+        executed.append({"phase": phase, "pass": True, "exit": expected_exit})
+
+    assert (root / "isolated-ledger.db").read_bytes()[:16] != b"SQLite format 3\\x00"
+    blobs = list((root / "media").rglob("*.dcm"))
+    assert len(blobs) == 2 and all(b.read_bytes().startswith(b"DCM1") for b in blobs)
+    evidence = Path(os.environ.get("DC06C02C04_EVIDENCE_DIR", str(tmp_path)))
+    evidence.mkdir(parents=True, exist_ok=True)
+    (evidence / "lot06c02c04-postcommit-lost-ack-fue.json").write_text(
+        json.dumps({
+            "kind": "LOT06_C02_C04_SYNTHETIC_POSTCOMMIT_ACK_LOSS",
+            "encrypted_sqlcipher_file": True,
+            "encrypted_media_verified_after_restart": True,
+            "real_os_process_exit_after_commit_before_ack": True,
+            "three_independent_process_replays_same_receipt": True,
+            "identity_digest_size_tenant_patient_reason_conflicts_rejected": True,
+            "unique_capture_db_constraint_rejects_duplicate_insert": True,
+            "receipt_audit_outbox_single_row_each_per_capture": True,
+            "lab_transfer_persistent_db_used": False,
+            "real_concurrent_writers_tested": False,
+            "clinical_approval_version_certified": False,
+            "actual_power_cut_tested": False,
+            "postgresql_clinical_authority_certified": False,
+            "product_ready": False,
+            "phases": executed,
+        }, sort_keys=True, indent=2) + "\\n", encoding="utf-8",
+    )
+    print("LOT06C02C04_POSTCOMMIT_LOST_ACK_IDENTITY_FUE_PASS")
