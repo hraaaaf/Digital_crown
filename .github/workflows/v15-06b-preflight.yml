@@ -125,6 +125,27 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
+      - name: LOT06-C1b new ancestor directory durability FUE (synthetic POSIX)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06C1B_EVIDENCE_DIR: lot06c1b-ancestor-evidence
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06C1B_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_clinical_asset_storage.py -q -s -k c1b_
+          test -s "$DC06C1B_EVIDENCE_DIR/lot06c1b-ancestor-fsync-fue.json"
+          python -c 'import json; d=json.load(open("lot06c1b-ancestor-evidence/lot06c1b-ancestor-fsync-fue.json")); assert all(d[k] is True for k in ("new_ancestor_and_parent_sync_barriers_checked", "failed_ancestor_sync_blocks_sql_binding", "failed_ancestor_sync_writes_no_clinical_media", "retry_after_failure_restores_verified_aesgcm")); assert d["product_ready"] is False and d["actual_power_loss_tested"] is False and d["windows_ntfs_certified"] is False'
+
+      - name: Publish LOT06-C1b ancestor fsync FUE (NO PRODUCT CERTIFICATION)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c1b-ancestor-fsync-synthetic-fue
+          path: lot06c1b-ancestor-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
       - name: DR-04 independent process restart SQLCipher + AES-GCM (synthetic only)
         if: github.event_name == 'pull_request'
         shell: bash
