@@ -285,6 +285,24 @@ def _run(root: Path, phase: str):
             print("WRONG_SQLCIPHER_KEY_BLOCKED")
             return 0
         raise AssertionError("WRONG_KEY_WAS_ACCEPTED")
+    if phase == "wrong-media-key":
+        # Use the original disk path, never a newly-derived path under the
+        # wrong key: this must prove AES-GCM tag rejection, not missing file.
+        from backend.services.clinical_asset_storage import (
+            ClinicalAssetIntegrityError, _read_verified_path,
+        )
+        payload = _png((15, 45, 75))
+        files = list((root / "media").rglob("*.dcm"))
+        assert len(files) == 1, "SYNTHETIC_MEDIA_COUNT_MISMATCH"
+        try:
+            _read_verified_path(
+                files[0], employer_id=TENANT,
+                digest=hashlib.sha256(payload).hexdigest(), byte_size=len(payload),
+            )
+        except ClinicalAssetIntegrityError:
+            print("WRONG_MEDIA_AESGCM_KEY_BLOCKED")
+            return 0
+        raise AssertionError("WRONG_MEDIA_AESGCM_KEY_ACCEPTED")
     if phase == "tamper":
         p = _blob(root, _png((15, 45, 75)))
         raw = bytearray(p.read_bytes())
@@ -386,7 +404,7 @@ if __name__ == "__main__":
     parser.add_argument("--root", type=Path, required=True)
     parser.add_argument("--phase", choices=[
         "write", "verify", "replay", "interrupt-pre-sql", "verify-pre-sql",
-        "interrupt", "verify-interrupted", "wrong-key", "tamper",
+        "interrupt", "verify-interrupted", "wrong-key", "wrong-media-key", "tamper",
         "verify-tampered", "core-write", "core-verify", "core-tamper",
         "core-verify-tampered",
     ], required=True)
