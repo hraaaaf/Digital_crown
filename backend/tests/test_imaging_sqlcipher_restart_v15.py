@@ -124,7 +124,14 @@ def _worker(mode: str, db_path: Path, media_root: Path) -> dict:
             assert row is not None
             rid, owner, stored_digest, size, stored_key = row
             assert owner == patient and stored_digest == digest
-            assert stored_key == key and size == len(png)
+            assert size == len(png)
+            # The verified path is the authenticated SQLCipher ledger's
+            # actual binding, not a new HMAC locator computed with a bad key.
+            # Otherwise wrong_media_key would just test a missing file rather
+            # than AES-GCM rejection of the real persisted ciphertext.
+            target = _target(media_root, stored_key)
+            if mode != "wrong_media_key":
+                assert stored_key == key
             assert conn.execute(
                 "SELECT count(*) FROM probe_receipts"
             ).fetchone()[0] == 1
