@@ -327,16 +327,15 @@ def test_durable_parent_barrier_fails_closed_and_retries_orphan(db, tmp_path, mo
     patient = _make_patient(db, owner.id, suffix="C1")
     asset = _make_asset(db, employer_id=owner.id, patient_id=patient.id)
     payload = b"synthetic-directory-durability-c1"
-    real_fsync = storage.os.fsync
+    real_parent_sync = storage._sync_parent_directory
     failure_dirs = []
 
-    def _reject_directory_fsync(fd):
-        if stat.S_ISDIR(os.fstat(fd).st_mode):
-            failure_dirs.append(True)
-            raise OSError("synthetic directory sync failure")
-        return real_fsync(fd)
+    def _reject_directory_fsync(_target):
+        # Target the leaf rename barrier, not the C1b ancestor barriers.
+        failure_dirs.append(True)
+        raise ClinicalAssetStorageError("clinical media directory durability barrier failed")
 
-    monkeypatch.setattr(storage.os, "fsync", _reject_directory_fsync)
+    monkeypatch.setattr(storage, "_sync_parent_directory", _reject_directory_fsync)
     with pytest.raises(ClinicalAssetStorageError, match="directory durability barrier failed"):
         store_clinical_asset_bytes(
             db, employer_id=owner.id, patient_id=patient.id,
@@ -355,12 +354,11 @@ def test_durable_parent_barrier_fails_closed_and_retries_orphan(db, tmp_path, mo
 
     successful_dirs = []
 
-    def _accept_directory_fsync(fd):
-        if stat.S_ISDIR(os.fstat(fd).st_mode):
-            successful_dirs.append(True)
-        return real_fsync(fd)
+    def _accept_directory_fsync(target):
+        successful_dirs.append(True)
+        return real_parent_sync(target)
 
-    monkeypatch.setattr(storage.os, "fsync", _accept_directory_fsync)
+    monkeypatch.setattr(storage, "_sync_parent_directory", _accept_directory_fsync)
     result = store_clinical_asset_bytes(
         db, employer_id=owner.id, patient_id=patient.id,
         asset_id=asset.id, content=payload, media_root=tmp_path,
@@ -390,3 +388,127 @@ def test_durable_parent_barrier_fails_closed_and_retries_orphan(db, tmp_path, mo
         "product_ready": False,
     }, sort_keys=True, indent=2) + "\n", encoding="utf-8")
     print("LOT06C1_DIRECTORY_SYNC_FAILURE_ORPHAN_RETRY_PASS")
+
+
+
+@pytest.mark.skipif(os.name != "posix", reason="LOT06-C1b ancestor durability is POSIX-only")
+def test_c1b_new_ancestor_links_are_synced_before_ciphertext_binding(
+    db, tmp_path, monkeypatch,
+):
+    """FUE-C03c: each newly created directory and parent get a sync barrier."""
+    from backend.services import clinical_asset_storage as storage
+
+    owner = _make_user(db, suffix="c1b-chain")
+    patient = _make_patient(db, owner.id, suffix="C1B-A")
+    asset = _make_asset(db, employer_id=owner.id, patient_id=patient.id)
+    media_root = tmp_path / "new-media-root" / "nested-root"
+    payload = b"synthetic-c1b-ancestor-chain"
+    actual_sync = storage._fsync_directory
+    synced = []
+
+    def _record_sync(directory):
+        synced.append(Path(directory))
+        actual_sync(directory)
+
+    monkeypatch.setattr(storage, "_fsync_directory", _record_sync)
+    result = store_clinical_asset_bytes(
+        db, employer_id=owner.id, patient_id=patient.id,
+        asset_id=asset.id, content=payload, media_root=media_root,
+    )
+    db.commit()
+    db.refresh(asset)
+    assert result.deduplicated is False
+    target = _stored_path(media_root, asset.storage_key)
+    assert target.read_bytes().startswith(b"DCM1")
+    assert payload not in target.read_bytes()
+    assert read_clinical_asset_bytes(
+        db, employer_id=owner.id, patient_id=patient.id,
+        asset_id=asset.id, media_root=media_root,
+    ) == payload
+    # Every newly created directory must be fsynced, then its parent,
+    # before the encrypted file may be authorized by the SQL metadata.
+    cursor = tmp_path
+    created = []
+    for part in media_root.relative_to(tmp_path).parts + target.parent.relative_to(media_root).parts:
+        cursor = cursor / part
+        created.append(cursor)
+    for directory in created:
+        assert directory in synced, "NEW_DIRECTORY_NOT_SYNCED"
+        assert directory.parent in synced, "NEW_DIRECTORY_PARENT_NOT_SYNCED"
+        assert any(
+            synced[i] == directory and synced[i + 1] == directory.parent
+            for i in range(len(synced) - 1)
+        ), "NEW_DIRECTORY_SYNC_ORDER_WRONG"
+    assert synced[-1] == target.parent, "FINAL_RENAME_DIRECTORY_NOT_SYNCED"
+    print("LOT06C1B_ANCESTOR_LINKS_SYNCED_BEFORE_SQL_BINDING_PASS")
+
+
+@pytest.mark.skipif(os.name != "posix", reason="LOT06-C1b ancestor durability is POSIX-only")
+def test_c1b_ancestor_fsync_failure_blocks_sql_and_replays_cleanly(
+    db, tmp_path, monkeypatch,
+):
+    """FUE-C03d: newly created ancestor fsync failure leaves no clinical binding."""
+    from backend.services import clinical_asset_storage as storage
+
+    owner = _make_user(db, suffix="c1b-fail")
+    patient = _make_patient(db, owner.id, suffix="C1B-B")
+    asset = _make_asset(db, employer_id=owner.id, patient_id=patient.id)
+    media_root = tmp_path / "new-c1b-root"
+    namespace = media_root / "clinical-assets"
+    actual_sync = storage._fsync_directory
+    rejected = []
+
+    def _fail_namespace_parent(directory):
+        # Trigger ONLY after namespace creation, at its parent's barrier.
+        if Path(directory) == media_root and namespace.exists():
+            rejected.append(True)
+            raise ClinicalAssetStorageError(
+                "clinical media directory durability barrier failed"
+            )
+        actual_sync(directory)
+
+    monkeypatch.setattr(storage, "_fsync_directory", _fail_namespace_parent)
+    payload = b"synthetic-c1b-ancestor-fsync-failure"
+    with pytest.raises(ClinicalAssetStorageError, match="directory durability barrier failed"):
+        store_clinical_asset_bytes(
+            db, employer_id=owner.id, patient_id=patient.id,
+            asset_id=asset.id, content=payload, media_root=media_root,
+        )
+    db.refresh(asset)
+    assert rejected and namespace.is_dir()
+    assert asset.storage_key is None and asset.stored_at is None
+    assert asset.sha256 is None and asset.storage_format is None
+    assert list(media_root.rglob("*.dcm")) == [], "MEDIA_WRITTEN_AFTER_ANCESTOR_SYNC_FAIL"
+    assert list(media_root.rglob(".tmp-*")) == []
+    assert list(tmp_path.rglob("*.png")) == []
+
+    monkeypatch.setattr(storage, "_fsync_directory", actual_sync)
+    result = store_clinical_asset_bytes(
+        db, employer_id=owner.id, patient_id=patient.id,
+        asset_id=asset.id, content=payload, media_root=media_root,
+    )
+    assert result.deduplicated is False
+    db.commit()
+    db.refresh(asset)
+    assert read_clinical_asset_bytes(
+        db, employer_id=owner.id, patient_id=patient.id,
+        asset_id=asset.id, media_root=media_root,
+    ) == payload
+
+    proof = Path(os.environ.get("DC06C1B_EVIDENCE_DIR", str(tmp_path)))
+    proof.mkdir(parents=True, exist_ok=True)
+    (proof / "lot06c1b-ancestor-fsync-fue.json").write_text(
+        json.dumps({
+            "kind": "LOT06C1B_POSIX_NEW_DIRECTORY_DURABILITY_TEST",
+            "new_ancestor_and_parent_sync_barriers_checked": True,
+            "failed_ancestor_sync_blocks_sql_binding": True,
+            "failed_ancestor_sync_writes_no_clinical_media": True,
+            "retry_after_failure_restores_verified_aesgcm": True,
+            "symlink_toc_tou_races_certified": False,
+            "actual_power_loss_tested": False,
+            "windows_ntfs_certified": False,
+            "postgresql_clinical_transaction_certified": False,
+            "product_ready": False,
+        }, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    print("LOT06C1B_ANCESTOR_SYNC_FAILURE_NO_BINDING_RETRY_PASS")
