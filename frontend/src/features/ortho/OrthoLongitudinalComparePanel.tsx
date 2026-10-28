@@ -179,7 +179,12 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
                 <div key={point.id} className="rounded-xl border border-border-main bg-card p-3">
                   <p className="text-sm font-black text-text-main">T{point.ordinal}</p>
                   <p className="text-xs text-text-muted">{format(new Date(point.occurred_at), 'd MMM yyyy', {locale:fr})}</p>
-                  <p className="mt-1 text-xs font-bold text-text-muted">{point.evidences.length} source(s) liée(s)</p>
+                  <p className="mt-1 text-xs font-bold text-text-muted">{point.sources.length} source(s) liée(s)</p>
+                  {point.sources.map(source => (
+                    <p key={source.kind+':'+source.refId} className="text-[11px] text-text-muted">
+                      {source.kind === 'CEPHALO' ? 'Céphalo' : source.kind === 'PANORAMIC' ? 'Panoramique' : 'Média'} #{source.refId}
+                    </p>
+                  ))}
                 </div>
               ))}
             </div>
