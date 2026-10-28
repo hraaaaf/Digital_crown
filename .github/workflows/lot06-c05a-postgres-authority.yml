@@ -1,0 +1,74 @@
+name: LOT06-C05A PostgreSQL Receipt Authority FUE (isolated)
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/imaging_pg_receipt_authority_v15.py'
+      - 'isolated_fue_lot06c/test_pg_receipt_authority_v15.py'
+      - '.github/workflows/lot06-c05a-postgres-authority.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-postgres-authority:
+    name: PostgreSQL 16 concurrent receipt FUE (NO CLINICAL GO)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: dc_lot06c_test
+          POSTGRES_USER: dc_test
+          POSTGRES_PASSWORD: isolated-test-only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dc_test -d dc_lot06c_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 15
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05A_PG_TEST: '1'
+      DC06C05A_TEST_DSN: postgresql+psycopg2://dc_test:isolated-test-only@127.0.0.1:5432/dc_lot06c_test
+      DC06C05A_EVIDENCE_DIR: lot06c05a-pg-evidence
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+      - name: Set Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Minimal pinned backend DB test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install SQLAlchemy==2.0.28 psycopg2-binary==2.9.9 pytest==9.0.3
+      - name: Compile isolated authority and FUE
+        run: |
+          python -m py_compile backend/services/imaging_pg_receipt_authority_v15.py
+          python -m py_compile isolated_fue_lot06c/test_pg_receipt_authority_v15.py
+      - name: C05A approval lock + concurrency + post-COMMIT lost ACK FUE
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$DC06C05A_EVIDENCE_DIR"
+          python -m pytest isolated_fue_lot06c/test_pg_receipt_authority_v15.py -q -s
+          test -s "$DC06C05A_EVIDENCE_DIR/lot06c05a-postgres-authority-fue.json"
+          python -c 'import json,os; d=json.load(open(os.path.join(os.environ["DC06C05A_EVIDENCE_DIR"],"lot06c05a-postgres-authority-fue.json"))); assert all(d[k] is True for k in ("real_ephemeral_postgres_server_used","six_concurrent_independent_pg_transactions_same_receipt","approval_version_and_binding_conflicts_rejected","receipt_audit_outbox_atomic_on_injected_failures","postcommit_os_exit_before_ack_recovered","replay_same_receipt_after_restart","sql_db_recovery_and_uniqueness_verified")); assert all(d[k] is False for k in ("clinical_device_staff_authorization_wired","aes_media_verified_in_authority","clinical_migration_applied","clinical_endpoint_enabled","actual_power_cut_tested","product_ready"))'
+      - name: Upload isolated PostgreSQL FUE (NO PRODUCT CERTIFICATION)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c05a-postgres-concurrency-ack-synthetic-fue
+          path: lot06c05a-pg-evidence/
+          if-no-files-found: warn
+          retention-days: 14
