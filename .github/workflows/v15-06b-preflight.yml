@@ -109,6 +109,7 @@ jobs:
           python -m pytest backend/tests/test_imaging_durable_receipt_restart_v15.py -q -s
           test -s "$DC06B_DURABILITY_EVIDENCE_DIR/lot06b-sqlcipher-restart-fue.json"
           test -s "$DC06B_DURABILITY_EVIDENCE_DIR/lot06b-actual-clinical-asset-restart-fue.json"
+          python -c 'import json; d=json.load(open("lot06b-durable-evidence/lot06b-sqlcipher-restart-fue.json")); assert d["wrong_aesgcm_media_key_rejected_on_original_ciphertext"] is True'
       - name: Publish isolated process-restart FUE (NO PRODUCT CERTIFICATION)
         if: github.event_name == 'pull_request'
         uses: actions/upload-artifact@v4
