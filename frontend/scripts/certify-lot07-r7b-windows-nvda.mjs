@@ -10,7 +10,7 @@ const indicators={
   command:s=>/ouvrir sur un autre [ée]cran/i.test(s)&&/button|bouton/i.test(s),
   comparison:s=>/\bT\s*0\b.{0,90}\bT\s*2\b/i.test(s)&&/button|bouton/i.test(s),
   popupHeading:s=>/suivi orthodontique/i.test(s)&&/heading|titre|en-t[eê]te/i.test(s),
-  popupTimepoint:s=>/\bT0\b/i.test(s)&&/heading|titre|en-t[eê]te/i.test(s),
+  popupTimepoint:s=>/\bT\s*(?:0|zero|z[eé]ro)\b/i.test(s)&&/heading|titre|en-t[eê]te/i.test(s),
 };
 export async function certifyR7RealWindowsNvda({page,check,report,capture}) {
   if(process.platform!=='win32'||process.env.GITHUB_ACTIONS!=='true'||
@@ -41,6 +41,7 @@ export async function certifyR7RealWindowsNvda({page,check,report,capture}) {
       headingRole:phrases.some(v=>/heading|titre|en-t[eê]te/i.test(v)),
       openName:phrases.some(v=>/ouvrir sur un autre [ée]cran/i.test(v)),
       comparisonName:phrases.some(v=>/\bT\s*0\b.{0,90}\bT\s*2\b/i.test(v)),
+      t0Name:phrases.some(v=>/\bT\s*(?:0|zero|z[eé]ro)\b/i.test(v)),
       roles:{...evidence.spokenRoles}};
     evidence.speechDiagnostics.push(meta);
     console.log('LOT07_R7B_NVDA_SPEECH_META',JSON.stringify(meta));
@@ -116,7 +117,19 @@ export async function certifyR7RealWindowsNvda({page,check,report,capture}) {
     await nvda.clearSpokenPhraseLog();
     try{await nvda.perform(nvda.keyboardCommands.exitFocusMode);}catch{}
     try{await nvda.press('Control+Home');}catch{}
-    await navigate('next',42);
+    // NVDA native quick navigation '2' jumps to the next actual H2.
+    // This is an OS screen-reader action, never DOM-derived speech.
+    try{
+      await nvda.press('2');
+      await sleep(500);
+      await record('popup-native-quicknav-heading-level-2');
+    }catch(e){
+      evidence.errors.push('popup heading 2 '+String(e).slice(0,130));
+    }
+    if(!evidence.spokenRoles.popupTimepoint){
+      try{await nvda.press('Control+Home');}catch{}
+      await navigate('next',42);
+    }
     check('r7b-nvda-reads-popup-headings-and-T0',
       evidence.spokenRoles.popupHeading&&evidence.spokenRoles.popupTimepoint,
       {roles:evidence.spokenRoles});
