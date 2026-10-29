@@ -6,7 +6,7 @@
 import { certifyR7HostedWindowsBrowserZoom } from './certify-lot07-r7b-windows-zoom.mjs';
 
 export async function verifyR7DesktopMatrix({
-  context,webBase,patient,patientB,clinicalAssets,check,capture,report,
+  context,webBase,patient,patientB,clinicalAssets,check,capture,report,zoomWorker=null,
 }) {
   const results={
     testedViewports:[1280,1440,1920,2560],
@@ -164,7 +164,7 @@ export async function verifyR7DesktopMatrix({
       report.denials.some(x=>x.reason==='CROSS_TENANT' && [403,404].includes(x.status)));
     if(process.platform==='win32' && process.env.LOT07_R7_WINDOWS_NATIVE==='1'){
       await certifyR7HostedWindowsBrowserZoom({
-        page:view,patientId:patient.id,webBase,check,capture,report,
+        page:view,patientId:patient.id,webBase,check,capture,report,zoomWorker,
       });
 
     }
