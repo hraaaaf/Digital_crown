@@ -13,7 +13,7 @@
 | A03. React réel à 1920 × 900 | Même identité source + capture | À exécuter |
 | A04. React réel à 2560 × 900 | Même identité source + capture | À exécuter |
 | A05. Ouverture clavier via Enter | Focus du bouton et nouvelle fenêtre effective (pas seulement un état React) | À exécuter |
-| A06. Popout en lecture seule | Trois repères, aucune commande d'écriture ni script embarqué | À exécuter |
+| A06. Popout en lecture seule | Trois repères, aucune commande d'écriture, **script interne hashé et autorisé par CSP HTTP**, aucun script réseau ou non autorisé | À exécuter |
 | A07. Changement patient A → B | Fermeture prouvée de la fenêtre A et aucune source A dans B | À exécuter |
 | A08. Réseau retardé A → B → A | Ne jamais afficher des sources de A dans la vue B | Hérité et réexécuté via FUE R6D |
 | A09. RBAC et tenant | Refus authentiques 403 et 403/404, aucun faux 423 | Hérité et réexécuté via FUE R6D |
@@ -82,6 +82,39 @@ expiration ; l'origine attendue et l'identifiant de canal sont vérifiés.
 **Statut B10 = REVUE SÉCURITÉ INDÉPENDANTE REQUISE** même si les FUE automatisés
 deviennent GREEN. La correction ne valide **pas** Windows OS 200 %, deux écrans
 physiques, la révocation serveur ou le consentement du propriétaire.
+
+## B10 hardening après revue de code — PR #1152 DRAFT, FUE à rerun
+
+Le protocole de sécurité distingue maintenant **absence de balise script visible**
+et **absence d'exécution de scripts** : supprimer la balise après rendu ne
+désactive pas ses callbacks. Un script de contrôle hashé reste volontairement
+actif ; son empreinte SHA-256 est vérifiée contre le vrai header HTTP CSP,
+avec `connect-src 'none'`, sans `unsafe-eval`, et aucune commande d'écriture.
+
+La page sandbox conserve l'identité de son opener **seulement dans la closure
+isolée**, vérifie `event.source === parent`, l'origine du Cabinet et le canal
+aléatoire à chaque établissement initial. Le parent envoie un signal de vie
+toutes les deux secondes après `READY` ; le child devient vide et ferme
+automatiquement après **8 secondes sans heartbeat**. Les 8 secondes sont un
+délai de récupération mesurable, pas une preuve de disparition instantanée.
+Les pauses du thread, suspensions Windows et changements de fréquence des
+timers sont à évaluer sur machine physique avant acceptation clinique.
+
+Les FUE de laboratoire ajoutés au script réellement exécuté vérifient :
+- refus d'un `INIT` depuis une **autre fenêtre de même origine** même si
+  le canal est connu, et refus d'un canal erroné depuis le vrai opener ;
+- fermeture d'une fenêtre sans handshake valide, sans jamais afficher T0/T1/T2 ;
+- établissement d'un canal légitime avec projection T0/T1/T2 synthétique
+  puis disparition du contenu après silence du port (aucun heartbeat) ;
+- survie d'une présentation autorisée durant **plus de 8 secondes** grâce
+  au heartbeat d'application, puis fermeture sur **vraie déconnexion UI**
+  confirmée par l'endpoint HTTP `POST /api/auth/logout`.
+
+**À ne pas confondre :** le test de silence du port simule une défaillance
+de transport contrôlée, pas un crash électrique/OS certifié. Aucun de ces
+tests ne remplace B01–B12 physiques, révocation réelle côté serveur,
+revue sécurité humaine indépendante ni validation clinique propriétaire.
+Si CI RED, B10 hardening reste ouvert ; nouveau HEAD et preuves exactes requis.
 
 ## Verdict de livraison
 
