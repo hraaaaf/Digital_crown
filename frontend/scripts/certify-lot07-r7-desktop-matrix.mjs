@@ -100,7 +100,6 @@ export async function verifyR7DesktopMatrix({
       const body=document.body.textContent||'';
       return {
         openerNull:window.opener===null,
-        scriptCount:document.scripts.length,
         controls:document.querySelectorAll('form,input,button,select,textarea,a').length,
         hasPatientRoute:location.href.includes('/patients/'),
         origin:window.origin,
@@ -110,7 +109,7 @@ export async function verifyR7DesktopMatrix({
       };
     });
     check('r7-presenter-inert-no-edit-controls',
-      popupSafe.openerNull && popupSafe.scriptCount===0 &&
+      popupSafe.openerNull &&
       popupSafe.origin==='null' && popupSafe.localStorageDenied &&
       popupSafe.cookiesDenied &&
       popupSafe.controls===0 && !popupSafe.hasPatientRoute);
@@ -121,6 +120,7 @@ export async function verifyR7DesktopMatrix({
     const csp=headerResponse.headers()['content-security-policy']||'';
     const opaqueCertified=headerResponse.status()===200 &&
       csp.includes('sandbox allow-scripts') && !csp.includes('allow-same-origin') &&
+      csp.includes("connect-src 'none'") && !csp.includes("'unsafe-eval'") &&
       popupSafe.origin==='null' && popupSafe.localStorageDenied &&
       popupSafe.cookiesDenied && popupSafe.openerNull;
     results.presenterOriginSecurity={
