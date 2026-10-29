@@ -1,11 +1,14 @@
-name: LOT07 R7 07.1.E Desktop matrix genuine FastAPI Chromium FUE-I
+name: LOT07 B10 Linux opaque-origin + R7 desktop genuine FastAPI FUE-I
 
 on:
   push:
-    branches: ['feat/lot07-r7-071e-*']
+    branches: ['feat/lot07-r7-071e-*','feat/lot07-b10-opaque-presenter-*']
   pull_request:
-    branches: ['feat/lot07-r6-071d-*',master]
+    branches: ['feat/lot07-r6-071d-*','feat/lot07-r7b-windows-actions-*',master]
     paths:
+      - 'backend/routers/ortho_presenter_sandbox.py'
+      - 'backend/main.py'
+      - 'frontend/src/features/ortho/r6PatientPresenter.ts'
       - 'frontend/scripts/certify-lot07-r7-desktop-matrix.mjs'
       - 'docs/quality/LOT07_R7_DESKTOP_PHYSICAL_FUE.md'
       - 'frontend/scripts/certify-lot07-r6-071d-fue-i-t2.mjs'
@@ -124,9 +127,9 @@ jobs:
             r.r7.sessionServerRevocation||
             !r.r7.presenterOriginSecurity||
             typeof r.r7.presenterOriginSecurity.inheritedCredentialSurfaceReadable!=='boolean'||
-            r.r7.presenterOriginSecurity.detachedOriginIsolationCertified||
+            !r.r7.presenterOriginSecurity.detachedOriginIsolationCertified||
             r.r7.presenterOriginSecurity.clinicalActivationApproved||
-            r.r7.presenterOriginSecurity.review!=='BLOCKED_PENDING_ISOLATED_ORIGIN'||
+            r.r7.presenterOriginSecurity.review!=='AWAITING_INDEPENDENT_SECURITY_REVIEW'||
             !r.denials.some(d=>d.reason==='STAFF_RBAC'&&d.status===403)||
             !r.denials.some(d=>d.reason==='SOURCE_REUSE'&&d.status===409))process.exit(1);
           console.log('LOT07_R7_DESKTOP_FUE_VERIFIED',r.checks.length,r.screenshots.length,r.head);
