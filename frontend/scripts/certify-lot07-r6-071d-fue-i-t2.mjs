@@ -6,6 +6,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import os from 'node:os';
 import { chromium, request } from 'playwright';
 import { verifyR7DesktopMatrix } from './certify-lot07-r7-desktop-matrix.mjs';
 
@@ -35,6 +36,9 @@ const capture = async (page,name) => {
   report.screenshots.push(name+'.png');
 };
 let browser;
+let zoomWorker=null;
+let isolatedWindowsProfile=null;
+let isolatedWindowsExtension=null;
 let page;
 const contexts=[];
 const api=await request.newContext({baseURL:apiBase});
@@ -133,16 +137,47 @@ try {
   const patientB=await responseB.json();
   check('synthetic-patient-identities-distinct',patientB.id!==patient.id);
 
-  // Hosted Windows uses headed Chromium for real browser native-zoom checks.
-  // Linux FUE remains headless; neither mode certifies physical dual monitors.
-  browser=await chromium.launch({
-    headless:process.platform!=='win32',
-    args:process.platform==='win32'?['--disable-gpu']:[],
-  });
-  const context=await browser.newContext({
-    viewport:{width:1440,height:900},locale:'fr-FR',reducedMotion:'reduce',
-    serviceWorkers:'block',
-  });
+  // Real extension-only native Chromium zoom on DISPOSABLE GitHub Windows.
+  // The extension has tabs metadata permission, not scripting, and can only
+  // inspect the local T2 React URL. No production hosts/credentials/PHI.
+  const winZoom=process.platform==='win32' &&
+    process.env.GITHUB_ACTIONS==='true' &&
+    process.env.LOT07_R7_WINDOWS_NATIVE==='1';
+  let context;
+  if(winZoom){
+    isolatedWindowsProfile=await fs.mkdtemp(path.join(os.tmpdir(),'r7b-win-profile-'));
+    isolatedWindowsExtension=await fs.mkdtemp(path.join(os.tmpdir(),'r7b-win-zoom-extension-'));
+    await fs.writeFile(path.join(isolatedWindowsExtension,'manifest.json'),JSON.stringify({
+      manifest_version:3,name:'LOT07 R7B local synthetic zoom oracle',version:'1.0',
+      permissions:['tabs'],host_permissions:[webBase+'/*'],
+      background:{service_worker:'worker.js'},
+    }));
+    await fs.writeFile(path.join(isolatedWindowsExtension,'worker.js'),
+      'chrome.runtime.onInstalled.addListener(()=>{});\n');
+    context=await chromium.launchPersistentContext(isolatedWindowsProfile,{
+      channel:'chromium',headless:false,
+      viewport:{width:1440,height:900},locale:'fr-FR',
+      reducedMotion:'reduce',
+      args:['--disable-gpu',
+        '--disable-extensions-except='+isolatedWindowsExtension,
+        '--load-extension='+isolatedWindowsExtension,
+        '--no-first-run','--disable-background-networking'],
+    });
+    // A persistent context is closeable like a Browser; no other context is
+    // created. The extension service worker must genuinely exist.
+    browser=context;
+    zoomWorker=context.serviceWorkers()[0]||
+      await context.waitForEvent('serviceworker',{timeout:25000});
+    check('r7b-native-chromium-extension-service-worker',
+      zoomWorker.url().startsWith('chrome-extension://') &&
+      await zoomWorker.evaluate(()=>Boolean(chrome.tabs?.setZoom && chrome.tabs?.getZoom)));
+  } else {
+    browser=await chromium.launch({headless:process.platform!=='win32'});
+    context=await browser.newContext({
+      viewport:{width:1440,height:900},locale:'fr-FR',
+      reducedMotion:'reduce',serviceWorkers:'block',
+    });
+  }
   await context.addInitScript(({access,refresh})=>{
     localStorage.setItem('token',access);
     localStorage.setItem('refresh_token',refresh||'');
@@ -316,6 +351,7 @@ try {
   if(process.env.LOT07_R7_DESKTOP_CERT === '1') {
     await verifyR7DesktopMatrix({
       context, webBase, patient, patientB, clinicalAssets, check, capture, report,
+      zoomWorker,
     });
   }
   check('no-unhandled-browser-errors',errors.length===0,{errors:errors.slice(0,2)});
@@ -328,6 +364,12 @@ try {
 } finally {
   await fs.writeFile(path.join(directory,'report.json'),JSON.stringify(report,null,2));
   await browser?.close();
+  if(isolatedWindowsExtension)await fs.rm(isolatedWindowsExtension,{
+    recursive:true,force:true,maxRetries:6,retryDelay:150,
+  }).catch(()=>{});
+  if(isolatedWindowsProfile)await fs.rm(isolatedWindowsProfile,{
+    recursive:true,force:true,maxRetries:6,retryDelay:150,
+  }).catch(()=>{});
   for(const context of contexts)await context.dispose();
   await api.dispose();
   console.log('LOT07_R6D_FUE_I_RESULT',JSON.stringify({
