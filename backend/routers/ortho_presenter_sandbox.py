@@ -29,6 +29,13 @@ if(!origin || !/^https?:\/\/[^/]+$/.test(origin) ||
    !channel || !/^[0-9a-f-]{36}$/.test(channel)) return;
 let attached=false;
 let expiry;
+let heartbeatExpiry;
+const HEARTBEAT_TIMEOUT_MS=8000;
+const parent=window.opener;
+const armHeartbeat=()=>{
+  clearTimeout(heartbeatExpiry);
+  heartbeatExpiry=setTimeout(close,HEARTBEAT_TIMEOUT_MS);
+};
 const make=(tag,value,attr)=>{
   const el=document.createElement(tag);
   el.textContent=value;
@@ -49,6 +56,8 @@ const valid=(snapshot)=>{
       Number.isSafeInteger(s.refId) && s.refId>0));
 };
 const close=()=>{
+  clearTimeout(expiry);
+  clearTimeout(heartbeatExpiry);
   document.body.replaceChildren();
   window.close();
 };
@@ -83,7 +92,8 @@ const render=(snapshot)=>{
   expiry=setTimeout(close,28000);
 };
 window.addEventListener('message',(event)=>{
-  if(attached || event.origin!==origin || event.data?.type!=='DC_PRESENTER_INIT' ||
+  if(attached || !parent || event.source!==parent ||
+     event.origin!==origin || event.data?.type!=='DC_PRESENTER_INIT' ||
      event.data.channel!==channel || event.ports?.length!==1)return;
   const port=event.ports[0];
   attached=true;
@@ -91,14 +101,20 @@ window.addEventListener('message',(event)=>{
     const data=message.data;
     if(!data || data.channel!==channel)return;
     if(data.type==='DC_PRESENTER_CLOSE'){close();return;}
+    if(data.type==='DC_PRESENTER_HEARTBEAT'){
+      armHeartbeat();
+      port.postMessage({type:'DC_PRESENTER_HEARTBEAT_ACK',channel});
+      return;
+    }
     if(data.type!=='DC_PRESENTER_UPDATE')return;
     render(data.snapshot);
+    armHeartbeat();
     port.postMessage({type:'DC_PRESENTER_ACK',channel,seq:data.seq});
   };
   port.start();
+  armHeartbeat();
   port.postMessage({type:'DC_PRESENTER_READY',channel});
 });
-const parent=window.opener;
 if(parent){
   parent.postMessage({type:'DC_PRESENTER_HELLO',channel},origin);
   window.opener=null;
