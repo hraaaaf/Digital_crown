@@ -95,14 +95,50 @@ export const R6PatientPresenterControl = ({
     return()=>{epoch.current++;window.clearInterval(poll);unsubscribe();};
   },[opened,snapshot,allowed,trajectory,patientId,caseId,userId,fromOrdinal,toOrdinal,close]);
 
-  const open=()=>{
+  // FUE B10 security: the visible snapshot can outlive a revoked server
+  // session until the 9s authority poll. Never expose it to the patient display
+  // before a fresh real backend authorization check at the click boundary.
+  const open=async()=>{
     if(!snapshot||!allowed)return;
     setBlocked(false);
     close();
-    const newPresenter=R6PresenterWindow.open(snapshot);
-    if (!newPresenter) {setBlocked(true);return;}
-    presenter.current=newPresenter;
-    setOpened(true);
+    const attempt=epoch.current;
+    const authorized=()=>{
+      const auth=useAuthStore.getState();
+      return auth.isAuthenticated &&
+        normalizeR6PresenterUserId(auth.user?.id)===userId &&
+        hasAccess(auth.user,'patients') && hasAccess(auth.user,'clinical');
+    };
+    if(!authorized()){setBlocked(true);return;}
+    try {
+      const [verifiedCase,points]=await Promise.all([
+        fetchOrthoCase(patientId),
+        fetchOrthoTimepoints(patientId,caseId),
+      ]);
+      if(attempt!==epoch.current)return;
+      const fresh=gateR6ThreeTimepoints(
+        patientId,caseId,
+        verifiedCase?.id===caseId && verifiedCase.patient_id===patientId?points:null,
+      );
+      if(!fresh.ok || !trajectory ||
+          JSON.stringify(fresh.trajectory)!==JSON.stringify(trajectory)) {
+        setBlocked(true);return;
+      }
+      const pair=await fetchOrthoLongitudinalCompare(
+        patientId,caseId,fromOrdinal!,toOrdinal!,
+      );
+      if(attempt!==epoch.current)return;
+      if(!authorized() ||
+          !projectR6Presenter(fresh.trajectory,pair,userId,fromOrdinal,toOrdinal)) {
+        setBlocked(true);return;
+      }
+      const newPresenter=R6PresenterWindow.open(snapshot);
+      if(!newPresenter){setBlocked(true);return;}
+      presenter.current=newPresenter;
+      setOpened(true);
+    } catch {
+      if(attempt===epoch.current)setBlocked(true);
+    }
   };
 
   return (
