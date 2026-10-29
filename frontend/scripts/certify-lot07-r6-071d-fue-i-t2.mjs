@@ -550,6 +550,7 @@ try {
       .waitFor({state:'visible',timeout:20000});
     check('r6d-revocation-open-presenter-before-server-denial',
       await revokedPopup.locator('[data-r6d-ordinal]').count()===3);
+    const revokedAt=Date.now();
     const revocationClosed=revokedPopup.waitForEvent('close',{timeout:25000});
     const revoked=await api.post('/api/auth/logout',{
       headers:{Authorization:'Bearer '+revokedAuth.access_token},
@@ -564,6 +565,10 @@ try {
       deniedAfterRevoke.status()===401,{status:deniedAfterRevoke.status()});
     await revocationClosed;
     check('r6d-server-revocation-closes-open-second-screen',revokedPopup.isClosed());
+    if(report.r7){
+      report.r7.sessionServerRevocationLab=true;
+      report.r7.serverRevocationClosureMs=Date.now()-revokedAt;
+    }
     await revocationContext.close();
   } finally {
     await revocationBrowser.close();
