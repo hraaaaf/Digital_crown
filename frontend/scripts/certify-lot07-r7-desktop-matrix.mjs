@@ -94,7 +94,7 @@ export async function verifyR7DesktopMatrix({
     await popup.locator('[data-testid="r6d-readonly-presenter"]')
       .waitFor({state:'visible',timeout:20000});
     check('r7-keyboard-opens-real-detached-window',
-      popup.url()==='about:blank' &&
+      popup.url().startsWith('http://127.0.0.1:8005/api/ortho/presenter-window?') &&
       await popup.locator('[data-r6d-ordinal]').count()===3);
     const popupSafe=await popup.evaluate(()=>{
       const body=document.body.textContent||'';
@@ -103,32 +103,35 @@ export async function verifyR7DesktopMatrix({
         scriptCount:document.scripts.length,
         controls:document.querySelectorAll('form,input,button,select,textarea,a').length,
         hasPatientRoute:location.href.includes('/patients/'),
+        origin:location.origin,
+        localStorageDenied:(()=>{try{localStorage.getItem('token');return false;}catch{return true;}})(),
+        cookiesDenied:(()=>{try{document.cookie;return false;}catch{return true;}})(),
         text:body,
       };
     });
     check('r7-presenter-inert-no-edit-controls',
-      popupSafe.openerNull && popupSafe.scriptCount===0 &&
+      popupSafe.openerNull && popupSafe.scriptCount===1 &&
+      popupSafe.origin==='null' && popupSafe.localStorageDenied &&
+      popupSafe.cookiesDenied &&
       popupSafe.controls===0 && !popupSafe.hasPatientRoute);
     check('r7-presenter-no-private-clinical-notes',
       !popupSafe.text.includes('R6_PRIVATE_SYNTHETIC_NOTE_DO_NOT_RENDER') &&
       sourceIds.every(id=>popupSafe.text.includes('source #'+id)));
-    // SECURITY REVIEW: about:blank inherits the app's origin. Even if the
-    // document contains no script, this is NOT origin-isolated. Never export
-    // credential values; report only whether the synthetic token is readable.
-    const credentialSurfaceReadable=await popup.evaluate(()=>{
-      try { return Boolean(localStorage.getItem('token')); }
-      catch { return false; }
-    });
+    const headerResponse=await popup.request.get('http://127.0.0.1:8005/api/ortho/presenter-window');
+    const csp=headerResponse.headers()['content-security-policy']||'';
+    const opaqueCertified=headerResponse.status()===200 &&
+      csp.includes('sandbox allow-scripts') && !csp.includes('allow-same-origin') &&
+      popupSafe.origin==='null' && popupSafe.localStorageDenied &&
+      popupSafe.cookiesDenied && popupSafe.openerNull;
     results.presenterOriginSecurity={
-      inheritedCredentialSurfaceReadable:credentialSurfaceReadable,
-      detachedOriginIsolationCertified:false,
+      inheritedCredentialSurfaceReadable:false,
+      detachedOriginIsolationCertified:opaqueCertified,
       clinicalActivationApproved:false,
-      review:'BLOCKED_PENDING_ISOLATED_ORIGIN',
+      review:'AWAITING_INDEPENDENT_SECURITY_REVIEW',
     };
-    check('r7-records-popout-origin-security-gate-without-token',
-      typeof credentialSurfaceReadable==='boolean' &&
-      results.presenterOriginSecurity.detachedOriginIsolationCertified===false &&
-      results.presenterOriginSecurity.review==='BLOCKED_PENDING_ISOLATED_ORIGIN');
+    check('r7-popout-opaque-origin-denies-auth-storage',
+      opaqueCertified,{cspSandbox:csp.includes('sandbox allow-scripts'),
+        origin:popupSafe.origin,storageDenied:popupSafe.localStorageDenied});
     await capture(popup,'r7-1440-detached-TARGET');
 
     // Stress stale patient identity through actual React Router, not mocked API.
