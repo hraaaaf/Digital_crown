@@ -40,11 +40,6 @@ export async function certifyR7HostedWindowsBrowserZoom({page,patientId,webBase,
   const before=await measure();
   evidence.before=before;
   await capture(page,'r7b-win-before-native-zoom-100');
-  if(process.env.LOT07_R7_NVDA_CERT==='1'){
-    const {certifyR7RealWindowsNvda}=await import('./certify-lot07-r7b-windows-nvda.mjs');
-    await certifyR7RealWindowsNvda({page,check,capture,report});
-    await page.bringToFront();
-  }
   for(let i=0;i<5;i++){
     await page.keyboard.press('Control+Shift+Equal');
     await sleep(250);
@@ -76,6 +71,14 @@ export async function certifyR7HostedWindowsBrowserZoom({page,patientId,webBase,
     await triple.isVisible());
   await capture(page,'r7b-win-after-native-browser-zoom-200');
   evidence.nativeBrowserZoom200=true;
+  // Verify native zoom while Chromium still owns Windows focus. Starting NVDA
+  // before browser zoom steals accelerator focus on the hosted desktop.
+  // NVDA then speaks against the already zoomed REAL authenticated browser.
+  if(process.env.LOT07_R7_NVDA_CERT==='1'){
+    const {certifyR7RealWindowsNvda}=await import('./certify-lot07-r7b-windows-nvda.mjs');
+    await certifyR7RealWindowsNvda({page,check,capture,report});
+    await page.bringToFront();
+  }
   // These gates are *not* inferred from browser zoom or hosted CI.
   check('r7b-windows-no-fake-physical-display-or-dpi-claim',
     !evidence.nativeWindowsDisplayDpi200 &&
