@@ -113,20 +113,34 @@ Les FUE de laboratoire ajoutés au script réellement exécuté vérifient :
 **À ne pas confondre :** le test de silence du port simule une défaillance
 de transport contrôlée, pas un crash électrique/OS certifié. Aucun de ces
 tests ne remplace B01–B12 physiques, révocation réelle côté serveur,
-revue sécurité humaine indépendante ni validation clinique propriétaire.
+vérifications spécifiques de sécurité confidentialité/RBAC ni approbation visuelle propriétaire.
 Si CI RED, B10 hardening reste ouvert ; nouveau HEAD et preuves exactes requis.
 
 ## Complément FUE-I laboratoire : révocation côté serveur, sans matériel physique
 
 Une session authentifiée *distincte*, entièrement synthétique, ouvre le vrai popout React/FastAPI. Le test révoque l'access et le refresh token via **POST /api/auth/logout** depuis le contexte API, sans cliquer sur Déconnexion dans l'UI ni modifier localStorage/Zustand ; la requête clinique avec le jeton révoqué doit ensuite répondre **401** et le popout déjà ouvert doit se fermer suite au poll d'autorisation parent (9 secondes, timeout test 25 secondes). La durée d'extinction observée est enregistrée dans `report.r7.serverRevocationClosureMs` ; `sessionServerRevocationLab` ne devient true que si toutes les assertions ont réussi.
 
-Le champ historique `sessionServerRevocation=false` du rapport R7 demeure réservé au **gate physique LOT10** et ne doit jamais devenir true à partir de ce test de navigateur hébergé. Un test LAB GREEN ne remplace pas une révocation sur poste Cabinet réel, une coupure d'alimentation ou une revue indépendante.
+Le champ historique `sessionServerRevocation=false` du rapport R7 demeure réservé au **gate physique LOT10** et ne doit jamais devenir true à partir de ce test de navigateur hébergé. Un test LAB GREEN ne remplace pas une révocation sur poste Cabinet réel ou une coupure d'alimentation. L'ancienne exigence de reviewer indépendant est supplantée par la décision FUE-first propriétaire du 29 octobre 2026.
+
+## Batterie finale FUE-I sécurité sur mesure (décision propriétaire, 29 octobre 2026)
+
+Le chemin FUE-first remplace le gate B10 « reviewer indépendant ». Preuves à conserver au **même SHA final** : `report.json`, assertions PASS/FAIL non escamotées, captures et liens des workflows Linux et Windows. Contrôles exclusivement sur vraie application React et API FastAPI, base et médias synthétiques jetables, aucun patient réel ni route interceptée.
+
+| Test | BEFORE → ACTION → AFTER | Oracle obligatoire |
+| --- | --- | --- |
+| S1 Confidentialité sandbox | Fenêtre autorisée → tentative `fetch('/api/auth/me')` dans le child → connexion interdite | HTTP CSP `connect-src 'none'`, origine opaque ; aucune API ni cookie accessible |
+| S2 Injection/canal | Popout avec trois temps → `INIT` frauduleux et `UPDATE` envoyé par `window.postMessage` hors port → contenu intact | Pas de mutation ni rendu falsifié |
+| S3 Révocation *avant* ouverture | UI autorisée conserve un aperçu → API révoque access/refresh token et endpoint clinique renvoie 401 → tentative immédiate d'ouvrir | Pas une seule présentation patient divulguée ; préflight backend fail-closed |
+| S4 Révocation *pendant* présentation | Popup actif → révocation réelle serveur → 401 et fermeture | Fenêtre fermée, durée mesurée, ne pas inventer du temps réel garanti |
+| S5 A→B/logout/perte de canal | Écran autorisé → switch ou logout/timeout → plus de données A dans B | Refus et fermeture selon tests hérités R6D/R7 |
+
+**Domaine : LOT07 logicielle exclusivement**. Double écran physique, DPI OS 200 %, arrêt brutal Windows/réseau et NVDA matériel restent réservés au LOT10. Si S1–S5 RED ou MAJOR : pas de clôture B10, correction puis rerun exact HEAD. Les décisions de merge, release et activation restent séparées.
 
 ## Verdict de livraison
 
 - **R7A AUTOMATED** = GREEN uniquement avec workflows et preuves FUE au même HEAD.
 - **V1.5-10 PHYSICAL** = **NOT RUN** ; B01–B09 sont reportés au LOT10 (10.1/10.4/10.7/10.8) sans bloquer administrativement R8.
-- **R7 LOGICIEL** = **OPEN** jusqu'aux preuves laboratoire du SHA exact, à la revue sécurité indépendante B10 et à l'approbation UX/clinique logicielle propriétaire applicable. Une batterie CI GREEN seule ne constitue pas ces validations humaines.
+- **R7 LOGICIEL / B10** = **FUE-FIRST** : clôturer avec les preuves FUE ciblées de confidentialité, RBAC, handshake et révocation sur le SHA exact, 0 BLOCKER/MAJOR et accord UX visuel propriétaire applicable. **Aucun reviewer indépendant obligatoire par défaut**, conformément au `Skills.md` v2.0 et à la décision explicite propriétaire du 29 octobre 2026. Une CI GREEN ne vaut pas une garantie universelle de sécurité ni une autorisation clinique de mise en service.
 - **R8 GOUVERNANCE** = peut être préparé après clôture logicielle R7 ; toute fusion et tout déploiement nécessitent un GO explicite DISTINCT. La certification terrain finale reste V1.5-10, hors R8 logiciel.
 
 Dernier enregistrement des preuves : dans le canonique Notion LOT07, URL PR et GitHub Actions exacts, SHA et date, sans aucune donnée patient réelle.
