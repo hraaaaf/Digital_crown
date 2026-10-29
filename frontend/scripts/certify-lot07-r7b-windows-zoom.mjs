@@ -3,14 +3,12 @@
  * Browser chrome zoom != Windows OS display DPI. Never report this as native
  * Windows display scaling, NVDA, or two physical screens.
  */
-import { execFileSync } from 'node:child_process';
-
 const sleep=ms=>new Promise(resolve=>setTimeout(resolve,ms));
-export async function certifyR7HostedWindowsBrowserZoom({page,patientId,webBase,check,capture,report}) {
+export async function certifyR7HostedWindowsBrowserZoom({page,patientId,webBase,check,capture,report,zoomWorker}) {
   if(process.platform!=='win32'||process.env.GITHUB_ACTIONS!=='true')
     throw Error('R7B only on hosted Windows CI');
   const evidence={
-    platform:process.platform,mode:'HEADed Chromium native browser accelerator',
+    platform:process.platform,mode:'Chromium extension chrome.tabs.setZoom/getZoom (real native browser)',
     nativeBrowserZoom200:false,nativeWindowsDisplayDpi200:false,
     nvdaSpeechCertified:false,physicalSecondDisplay:false,
     method:null,before:null,after:null,
@@ -37,34 +35,47 @@ export async function certifyR7HostedWindowsBrowserZoom({page,patientId,webBase,
     }
     throw Error('Windows native browser measurement failed: '+String(error));
   };
+  if(!zoomWorker || !zoomWorker.url().startsWith('chrome-extension://'))
+    throw Error('NOT_CERTIFIED: real Chromium extension service worker missing');
+  const tabUrl=page.url();
+  if(!tabUrl.startsWith(webBase+'/patients/'+patientId+'?tab=tracking'))
+    throw Error('REFUSED: non-canonical T2 patient zoom target');
+  // Chrome's real tabs API, NOT Playwright deviceScaleFactor, CSS zoom,
+  // OS SendKeys, or an emulated CDP metric. Only local synthetic patient tab.
+  const nativeZoom=async(target)=>{
+    const result=await zoomWorker.evaluate(async({url,target})=>{
+      const tabs=(await chrome.tabs.query({})).filter(tab=>
+        typeof tab.id==='number' && tab.url===url);
+      if(tabs.length!==1)throw Error('NOT_CERTIFIED: expected one real synthetic Chromium tab');
+      const id=tabs[0].id;
+      if(target!==null)await chrome.tabs.setZoom(id,target);
+      return {id,value:await chrome.tabs.getZoom(id)};
+    },{url:tabUrl,target});
+    if(target!==null && Math.abs(result.value-target)>0.01)
+      throw Error('NOT_CERTIFIED: Chrome native zoom API disagrees with requested zoom');
+    return result;
+  };
+  const zoom100=await nativeZoom(1);
+  await page.waitForFunction(()=>Math.abs(window.devicePixelRatio-1)<0.05,
+    null,{timeout:10000});
   const before=await measure();
   evidence.before=before;
   await capture(page,'r7b-win-before-native-zoom-100');
-  for(let i=0;i<5;i++){
-    await page.keyboard.press('Control+Shift+Equal');
-    await sleep(250);
-  }
-  let after=await measure();
-  evidence.method='Playwright Chromium real key accelerator';
-  if(after.dpr<before.dpr*1.95){
-    // Avoid SendWait blocking the Windows desktop message loop. Send the
-    // actual OS shortcut without waiting synchronously for each key, then
-    // measure the live browser DPR+viewport. Never fake zoom via CSS or CDP.
-    const cmd='Add-Type -AssemblyName System.Windows.Forms; '+
-      '1..5 | ForEach-Object { [System.Windows.Forms.SendKeys]::Send("^{ADD}"); '+
-      'Start-Sleep -Milliseconds 230 }';
-    execFileSync('powershell.exe',['-NoProfile','-NonInteractive','-Command',cmd],
-      {stdio:'pipe',timeout:30000});
-    await sleep(950);
-    after=await measure();
-    evidence.method='Windows native nonblocking SendKeys Ctrl+Plus';
-  }
+  const zoom200=await nativeZoom(2);
+  if(zoom200.id!==zoom100.id)throw Error('NOT_CERTIFIED: Chrome tab identity changed at zoom');
+  await page.waitForFunction(()=>window.devicePixelRatio>=1.95,
+    null,{timeout:10000});
+  const after=await measure();
   evidence.after=after;
+  evidence.method='native Chromium chrome.tabs.setZoom/getZoom';
+  evidence.nativeZoomAt100=zoom100.value;
+  evidence.nativeZoomAt200=zoom200.value;
   check('r7b-windows-headed-chromium-native-200-percent-zoom',
+    Math.abs(zoom100.value-1)<0.01 && Math.abs(zoom200.value-2)<0.01 &&
     before.dpr>0 && after.dpr/before.dpr>=1.95 &&
     after.dpr/before.dpr<=2.06 && after.innerWidth<before.innerWidth*0.61 &&
     before.cssZoom==='' && after.cssZoom==='',
-    {before,after,method:evidence.method});
+    {before,after,nativeApi:{at100:zoom100.value,at200:zoom200.value},method:evidence.method});
   const triple=page.locator('[data-testid="r6-longitudinal-three-points"]');
   await triple.scrollIntoViewIfNeeded();
   check('r7b-windows-zoom200-real-react-triptych-still-visible',
