@@ -1,6 +1,6 @@
 # Digital Crown · LOT07 R7 / 07.1.E + 07-E — protocole FUE Desktop
 
-**Statut :** dossier de validation, PAS une approbation clinique. Les tests synthétiques Linux/Chromium ne certifient pas la plateforme Windows physique ni deux vrais moniteurs.
+**Statut :** dossier de validation logicielle LOT07 et **scénarios terrain transférés au LOT10** ; ce fichier n'est PAS une approbation clinique. Les tests synthétiques Linux/Chromium/Windows CI ne certifient pas le matériel physique, réservé à V1.5-10. Voir les canoniques Notion LOT07 et V1.5-10.
 
 **Base technique :** R6/07.1.D PR #1145, SHA `abcd74eaa0e6615a16d7d1895a03297dee9ef025`, 6/6 workflows applicables SUCCESS, FUE 54/54 et 8 captures. R7 est une PR STACKED distincte. Ne jamais fusionner ni déployer sur simple GO pour un test.
 
@@ -23,9 +23,9 @@
 
 **Règle :** un FUE RED reste RED ; interdiction de masquer un 403, ignorer un timeout, utiliser des routes interceptées ou revendiquer un PASS à partir d'un ancien SHA. Les images et comptes sont uniquement synthétiques.
 
-## FUE-B — test physique obligatoire avant R8
+## FUE-B — cahier de tests matériels transféré au LOT10 (NON exigible avant R8 logiciel)
 
-À réaliser sur un poste Cabinet **Windows** autorisé, deux moniteurs réellement branchés en **mode Étendre**. Ne pas utiliser de véritable dossier patient dans une capture partagée.
+**LOT10 PHYSICAL NOT RUN.** À exécuter pendant V1.5-10 sur un poste Cabinet **Windows** autorisé, deux moniteurs réellement branchés en **mode Étendre**. Ne pas utiliser de véritable dossier patient dans une capture partagée. Les checks ci-dessous sont des scénarios hérités, non un gate physique autonome LOT07. Les vérifications de sécurité purement logicielles / reviewer B10 et l'approbation UX logicielle restent au LOT07 ; merge/release sont des décisions de gouvernance distinctes.
 
 - [ ] B01. Windows Paramètres → Affichage → Mise à l'échelle à **200 % natifs** ; relevé de l'affichage Windows et de la résolution effective. Une émulation Chromium/deviceScaleFactor n'est PAS une preuve.
 - [ ] B02. Vérifier 1280 / 1440 / 1920 / 2560 selon l'équipement, ou signaler **impossible** si l'écran ne les supporte pas ; prendre BEFORE, TARGET, AFTER pour chaque largeur réalisée.
@@ -83,7 +83,7 @@ expiration ; l'origine attendue et l'identifiant de canal sont vérifiés.
 deviennent GREEN. La correction ne valide **pas** Windows OS 200 %, deux écrans
 physiques, la révocation serveur ou le consentement du propriétaire.
 
-## B10 hardening après revue de code — PR #1152 DRAFT, FUE à rerun
+## B10 hardening après revue de code — PR #1152 DRAFT, FUE laboratoire à confirmer au HEAD
 
 Le protocole de sécurité distingue maintenant **absence de balise script visible**
 et **absence d'exécution de scripts** : supprimer la balise après rendu ne
@@ -116,11 +116,17 @@ tests ne remplace B01–B12 physiques, révocation réelle côté serveur,
 revue sécurité humaine indépendante ni validation clinique propriétaire.
 Si CI RED, B10 hardening reste ouvert ; nouveau HEAD et preuves exactes requis.
 
+## Complément FUE-I laboratoire : révocation côté serveur, sans matériel physique
+
+Une session authentifiée *distincte*, entièrement synthétique, ouvre le vrai popout React/FastAPI. Le test révoque l'access et le refresh token via **POST /api/auth/logout** depuis le contexte API, sans cliquer sur Déconnexion dans l'UI ni modifier localStorage/Zustand ; la requête clinique avec le jeton révoqué doit ensuite répondre **401** et le popout déjà ouvert doit se fermer suite au poll d'autorisation parent (9 secondes, timeout test 25 secondes). La durée d'extinction observée est enregistrée dans `report.r7.serverRevocationClosureMs` ; `sessionServerRevocationLab` ne devient true que si toutes les assertions ont réussi.
+
+Le champ historique `sessionServerRevocation=false` du rapport R7 demeure réservé au **gate physique LOT10** et ne doit jamais devenir true à partir de ce test de navigateur hébergé. Un test LAB GREEN ne remplace pas une révocation sur poste Cabinet réel, une coupure d'alimentation ou une revue indépendante.
+
 ## Verdict de livraison
 
 - **R7A AUTOMATED** = GREEN uniquement avec workflows et preuves FUE au même HEAD.
-- **R7B PHYSICAL** = **NOT RUN** en l'absence de preuve du vrai poste et de l'accord humain.
-- **R7 GLOBAL** = **BLOCKED** jusqu'à clôture de B01–B12, revue sécurité popout comprise.
-- **R8** = **NOT AUTHORIZED** par le GO R7.
+- **V1.5-10 PHYSICAL** = **NOT RUN** ; B01–B09 sont reportés au LOT10 (10.1/10.4/10.7/10.8) sans bloquer administrativement R8.
+- **R7 LOGICIEL** = **OPEN** jusqu'aux preuves laboratoire du SHA exact, à la revue sécurité indépendante B10 et à l'approbation UX/clinique logicielle propriétaire applicable. Une batterie CI GREEN seule ne constitue pas ces validations humaines.
+- **R8 GOUVERNANCE** = peut être préparé après clôture logicielle R7 ; toute fusion et tout déploiement nécessitent un GO explicite DISTINCT. La certification terrain finale reste V1.5-10, hors R8 logiciel.
 
 Dernier enregistrement des preuves : dans le canonique Notion LOT07, URL PR et GitHub Actions exacts, SHA et date, sans aucune donnée patient réelle.
