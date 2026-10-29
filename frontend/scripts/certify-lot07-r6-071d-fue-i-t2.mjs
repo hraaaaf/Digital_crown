@@ -228,7 +228,7 @@ try {
     let localStorageDenied=false,cookieDenied=false;
     try{localStorage.getItem('token');}catch{localStorageDenied=true;}
     try{document.cookie;}catch{cookieDenied=true;}
-    return {origin:location.origin,localStorageDenied,cookieDenied,
+    return {origin:window.origin,urlOrigin:location.origin,localStorageDenied,cookieDenied,
       openerNull:window.opener===null,scriptCount:document.scripts.length};
   });
   const opaqueShell=await api.get('/api/ortho/presenter-window');
@@ -238,7 +238,8 @@ try {
     !csp.includes('allow-same-origin') &&
     isolated.origin==='null' && isolated.localStorageDenied &&
     isolated.cookieDenied && isolated.openerNull &&
-    isolated.scriptCount===1,{status:opaqueShell.status(),security:isolated,
+    isolated.scriptCount===0 && csp.includes("script-src 'sha256-") &&
+    !csp.includes("script-src 'unsafe-inline'"),{status:opaqueShell.status(),security:isolated,
       cspHeaderSandbox:csp.includes('sandbox allow-scripts')});
   check('r6d-three-canonic-panels',
     await popup.locator('[data-r6d-ordinal]').count()===3);
