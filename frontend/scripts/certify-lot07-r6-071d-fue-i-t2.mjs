@@ -4,6 +4,7 @@
  * Does not certify physical 2nd screen, native Windows 200% or cephalo zoom/pan.
  */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import os from 'node:os';
@@ -229,16 +230,23 @@ try {
     try{localStorage.getItem('token');}catch{localStorageDenied=true;}
     try{document.cookie;}catch{cookieDenied=true;}
     return {origin:window.origin,urlOrigin:location.origin,localStorageDenied,cookieDenied,
-      openerNull:window.opener===null,scriptCount:document.scripts.length};
+      openerNull:window.opener===null};
   });
   const opaqueShell=await api.get('/api/ortho/presenter-window');
   const csp=opaqueShell.headers()['content-security-policy']||'';
+  const html=await opaqueShell.text();
+  const inlineScript=html.match(/<script>([\s\S]*?)<\/script>/)?.[1];
+  const scriptDigest=inlineScript
+    ? createHash('sha256').update(inlineScript).digest('base64') : null;
+  check('r6d-sandbox-authorized-script-hash-exact',
+    Boolean(scriptDigest && csp.includes("script-src 'sha256-"+scriptDigest+"'")) &&
+    csp.includes("connect-src 'none'") && !csp.includes("'unsafe-eval'"));
   check('r6d-patient-window-HTTP-CSP-opaque-origin',
     opaqueShell.status()===200 && csp.includes('sandbox allow-scripts') &&
     !csp.includes('allow-same-origin') &&
     isolated.origin==='null' && isolated.localStorageDenied &&
     isolated.cookieDenied && isolated.openerNull &&
-    isolated.scriptCount===0 && csp.includes("script-src 'sha256-") &&
+    csp.includes("script-src 'sha256-") &&
     !csp.includes("script-src 'unsafe-inline'"),{status:opaqueShell.status(),security:isolated,
       cspHeaderSandbox:csp.includes('sandbox allow-scripts')});
   check('r6d-three-canonic-panels',
@@ -372,6 +380,139 @@ try {
       zoomWorker,
     });
   }
+
+  // B10 security protocol probes use real browser windows + the actual HTTP
+  // sandbox. Test-only click targets supply browser user activation, never
+  // intercept FastAPI/React routes or inject code into the isolated popup.
+  const prepareProbe=async (id, action)=>{
+    await page.evaluate(({id,action,apiBase})=>{
+      const control=document.createElement('button');
+      control.id=id;
+      control.textContent='LOT07 synthetic IPC probe';
+      control.addEventListener('click',()=>{
+        const bytes=new Uint8Array(16);
+        crypto.getRandomValues(bytes);
+        const hex=Array.from(bytes,x=>x.toString(16).padStart(2,'0')).join('');
+        const channel=[hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
+        if(action==='attacker'){
+          window.__lot07Attacker=window.open('about:blank','_blank','popup,width=560,height=400');
+        }else{
+          const url=apiBase+'/api/ortho/presenter-window?origin='+
+            encodeURIComponent(location.origin)+'&channel='+channel;
+          if(action==='orphan'){
+            window.__lot07OrphanChannel=channel;
+            window.__lot07Orphan=window.open(url,'_blank','popup,width=560,height=400');
+          }else if(action==='silent'){
+            const listener=(event)=>{
+              if(event.source!==window.__lot07Silent || event.origin!=='null' ||
+                 event.data?.type!=='DC_PRESENTER_HELLO' ||
+                 event.data.channel!==channel)return;
+              window.removeEventListener('message',listener);
+              const bridge=new MessageChannel();
+              window.__lot07SilentPort=bridge.port1;
+              bridge.port1.onmessage=message=>{
+                if(message.data?.type==='DC_PRESENTER_READY' && message.data.channel===channel){
+                  bridge.port1.postMessage({
+                    type:'DC_PRESENTER_UPDATE',channel,seq:1,
+                    snapshot:{pair:[0,1],points:[
+                      {ordinal:0,occurred_at:'2026-01-02T09:00:00',sources:[]},
+                      {ordinal:1,occurred_at:'2026-04-02T09:00:00',sources:[]},
+                      {ordinal:2,occurred_at:'2026-07-02T09:00:00',sources:[]},
+                    ]},
+                  });
+                  // Deliberately never heartbeat: mimic a dead parent transport.
+                }
+              };
+              bridge.port1.start();
+              window.__lot07Silent.postMessage({type:'DC_PRESENTER_INIT',channel},
+                '*',[bridge.port2]);
+            };
+            window.addEventListener('message',listener);
+            window.__lot07Silent=window.open(url,'_blank','popup,width=560,height=400');
+          }
+        }
+        control.remove();
+      },{once:true});
+      document.body.append(control);
+    },{id,action,apiBase});
+    const pending=page.waitForEvent('popup',{timeout:15000});
+    await page.locator('#'+id).click();
+    return await pending;
+  };
+
+  const orphan=await prepareProbe('lot07-b10-orphan','orphan');
+  const attacker=await prepareProbe('lot07-b10-attacker','attacker');
+  const forgedSource=await attacker.evaluate(()=>{
+    const target=window.opener?.__lot07Orphan;
+    const channel=window.opener?.__lot07OrphanChannel;
+    if(!target || !channel)return {sent:false,origin:window.origin};
+    const channelPort=new MessageChannel();
+    target.postMessage({type:'DC_PRESENTER_INIT',channel},'*',[channelPort.port2]);
+    return {sent:true,origin:window.origin};
+  });
+  await page.evaluate(()=>{
+    const channelPort=new MessageChannel();
+    window.__lot07Orphan.postMessage({
+      type:'DC_PRESENTER_INIT',channel:'00000000-0000-0000-0000-000000000000',
+    },'*',[channelPort.port2]);
+  });
+  await page.waitForTimeout(550);
+  check('r6d-cross-window-forged-handshake-refused',
+    forgedSource.sent && forgedSource.origin===webBase &&
+    await orphan.locator('[data-testid="r6d-readonly-presenter"]').count()===0,
+    {sameOriginAttacker:forgedSource.origin===webBase});
+  if(!orphan.isClosed())await orphan.waitForEvent('close',{timeout:15000});
+  check('r6d-missing-valid-handshake-closes-without-patient-data',orphan.isClosed());
+  await attacker.close();
+  await page.evaluate(()=>{
+    delete window.__lot07Orphan;delete window.__lot07OrphanChannel;
+    delete window.__lot07Attacker;
+  });
+
+  const silent=await prepareProbe('lot07-b10-silent','silent');
+  await silent.locator('[data-testid="r6d-readonly-presenter"]')
+    .waitFor({state:'visible',timeout:10000});
+  check('r6d-silent-port-initially-received-valid-projection',
+    await silent.locator('[data-r6d-ordinal]').count()===3);
+  if(!silent.isClosed())await silent.waitForEvent('close',{timeout:16000});
+  check('r6d-lost-heartbeat-blanks-and-closes-opaque-popup',silent.isClosed());
+  await page.evaluate(()=>{
+    window.__lot07SilentPort?.close();
+    delete window.__lot07Silent;delete window.__lot07SilentPort;
+  });
+
+  // Exercise the real Cabinet logout, not a simulated Zustand mutation or
+  // pathname change. The parent heartbeat must keep the genuine popup alive
+  // beyond its eight-second silence budget before logout closes it.
+  await goPatient(patient.id);
+  await triple.waitFor({state:'visible',timeout:45000});
+  await page.waitForFunction(()=>{
+    const el=Array.from(document.querySelectorAll('button'))
+      .find(b=>(b.textContent||'').includes('Ouvrir sur un autre écran'));
+    return Boolean(el && !el.disabled);
+  },null,{timeout:30000});
+  const livePromise=page.waitForEvent('popup',{timeout:20000});
+  await page.getByRole('button',{name:'Ouvrir sur un autre écran'}).click();
+  const live=await livePromise;
+  await live.locator('[data-testid="r6d-readonly-presenter"]')
+    .waitFor({state:'visible',timeout:20000});
+  await page.waitForTimeout(9200);
+  check('r6d-live-parent-heartbeat-keeps-popup-readable',
+    !live.isClosed() && await live.locator('[data-r6d-ordinal]').count()===3);
+  const liveClosed=live.waitForEvent('close',{timeout:20000});
+  const actualLogout=page.waitForResponse(response=>
+    new URL(response.url()).pathname==='/api/auth/logout' &&
+    response.request().method()==='POST',{timeout:20000});
+  await page.getByTitle('Déconnexion').click();
+  await page.getByRole('button',{name:'Confirmer',exact:true}).click();
+  const logoutResponse=await actualLogout;
+  await liveClosed;
+  await page.waitForURL('**/login',{timeout:20000});
+  check('r6d-real-HTTP-logout-closes-active-presenter',
+    logoutResponse.status()===204 && live.isClosed() &&
+    new URL(page.url()).pathname==='/login',
+    {httpStatus:logoutResponse.status()});
+
   check('no-unhandled-browser-errors',errors.length===0,{errors:errors.slice(0,2)});
   report.pass=report.checks.every(c=>c.pass) && report.screenshots.length>=6;
   console.log('LOT07_R6D_FUE_I_PASS',report.checks.length,sha);
