@@ -513,6 +513,62 @@ try {
     new URL(page.url()).pathname==='/login',
     {httpStatus:logoutResponse.status()});
 
+
+  // Server-side revocation, separately from the already-proven user UI logout.
+  // A second synthetic owner session has real workstation cookies and uses
+  // Chromium + FastAPI: there are no route mocks or client-side auth mutations.
+  const newSession=await api.post('/api/auth/login',{
+    form:{username:'t2-browser@cabinet.ma',password},
+  });
+  check('r6d-revocation-session-real-login',newSession.status()===200,
+    {status:newSession.status()});
+  const revokedAuth=await newSession.json();
+  const revocationBrowser=await chromium.launch({
+    headless:true,...(process.platform==='win32'?{channel:'chromium'}:{}),
+  });
+  try {
+    const revocationContext=await revocationBrowser.newContext({
+      storageState:await api.storageState(),
+      viewport:{width:1440,height:900},locale:'fr-FR',
+      reducedMotion:'reduce',serviceWorkers:'block',
+    });
+    await revocationContext.addInitScript(({access,refresh})=>{
+      localStorage.setItem('token',access);
+      localStorage.setItem('refresh_token',refresh||'');
+      localStorage.setItem('appMode','prod');
+    },{access:revokedAuth.access_token,refresh:revokedAuth.refresh_token});
+    const revocationPage=await revocationContext.newPage();
+    await revocationPage.goto(webBase+'/patients/'+patient.id+'?tab=tracking',{
+      waitUntil:'domcontentloaded',timeout:90000,
+    });
+    await revocationPage.locator('[data-testid="r6-longitudinal-three-points"]')
+      .waitFor({state:'visible',timeout:60000});
+    const pendingRevokePopup=revocationPage.waitForEvent('popup',{timeout:20000});
+    await revocationPage.getByRole('button',{name:'Ouvrir sur un autre écran'}).click();
+    const revokedPopup=await pendingRevokePopup;
+    await revokedPopup.locator('[data-testid="r6d-readonly-presenter"]')
+      .waitFor({state:'visible',timeout:20000});
+    check('r6d-revocation-open-presenter-before-server-denial',
+      await revokedPopup.locator('[data-r6d-ordinal]').count()===3);
+    const revocationClosed=revokedPopup.waitForEvent('close',{timeout:25000});
+    const revoked=await api.post('/api/auth/logout',{
+      headers:{Authorization:'Bearer '+revokedAuth.access_token},
+      data:{refresh_token:revokedAuth.refresh_token||''},
+    });
+    check('r6d-revocation-authentic-backend-logout',revoked.status()===204,
+      {status:revoked.status()});
+    const deniedAfterRevoke=await api.get('/api/patients/'+patient.id+'/ortho-case',{
+      headers:{Authorization:'Bearer '+revokedAuth.access_token},
+    });
+    check('r6d-revoked-session-refused-at-real-API',
+      deniedAfterRevoke.status()===401,{status:deniedAfterRevoke.status()});
+    await revocationClosed;
+    check('r6d-server-revocation-closes-open-second-screen',revokedPopup.isClosed());
+    await revocationContext.close();
+  } finally {
+    await revocationBrowser.close();
+  }
+
   check('no-unhandled-browser-errors',errors.length===0,{errors:errors.slice(0,2)});
   report.pass=report.checks.every(c=>c.pass) && report.screenshots.length>=6;
   console.log('LOT07_R6D_FUE_I_PASS',report.checks.length,sha);
