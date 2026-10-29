@@ -261,6 +261,31 @@ try {
     !projected.includes(auth.access_token) &&
     !projected.includes(patient.numero_dossier) &&
     !popup.url().includes('/patients/'));
+  // FUE sur mesure S1/S2 — genuine sandboxed popup: no API connection,
+  // no stolen credentials and no forged ordinary window-message updates.
+  const beforeForgery=await popup.locator('body').innerText();
+  const injected=await popup.evaluate(async()=>{
+    const channel=new URLSearchParams(location.search).get('channel');
+    window.dispatchEvent(new MessageEvent('message',{
+      data:{type:'DC_PRESENTER_INIT',channel},
+      origin:'https://attacker.invalid',
+    }));
+    window.postMessage({
+      type:'DC_PRESENTER_UPDATE',channel,seq:999,
+      snapshot:{pair:[0,2],points:[],secret:'FORGED_CONTENT_DO_NOT_RENDER'},
+    },'*');
+    let apiFetchDenied=false;
+    try {await fetch('/api/auth/me',{credentials:'include'});}
+    catch {apiFetchDenied=true;}
+    return {apiFetchDenied,realOrigin:window.origin};
+  });
+  check('fue-s1-sandbox-denies-network-credentials',
+    injected.apiFetchDenied && injected.realOrigin==='null',
+    {apiFetchDenied:injected.apiFetchDenied,origin:injected.realOrigin});
+  check('fue-s2-forged-window-init-and-update-ignored',
+    (await popup.locator('body').innerText())===beforeForgery &&
+    !(await popup.locator('body').innerText()).includes('FORGED_CONTENT_DO_NOT_RENDER'));
+
   await capture(popup,'r6d-02-detached-readonly-1440');
 
   for(const [from,to] of [[0,1],[1,2],[0,2]]) {
@@ -570,6 +595,67 @@ try {
       report.r7.serverRevocationClosureMs=Date.now()-revokedAt;
     }
     await revocationContext.close();
+
+    // FUE sur mesure S3 — revoke server credentials BEFORE clicking "Open".
+    // The old authenticated UI has a valid cached T0/T1/T2 snapshot. A
+    // just-in-time backend gate must forbid any popout after revocation.
+    const beforeLogin=await api.post('/api/auth/login',{
+      form:{username:'t2-browser@cabinet.ma',password},
+    });
+    check('fue-s3-real-fresh-auth-for-preopen-revocation',
+      beforeLogin.status()===200,{status:beforeLogin.status()});
+    const beforeAuth=await beforeLogin.json();
+    const beforeContext=await revocationBrowser.newContext({
+      storageState:await api.storageState(),
+      viewport:{width:1440,height:900},locale:'fr-FR',
+      reducedMotion:'reduce',serviceWorkers:'block',
+    });
+    try {
+      await beforeContext.addInitScript(({access,refresh})=>{
+        localStorage.setItem('token',access);
+        localStorage.setItem('refresh_token',refresh||'');
+        localStorage.setItem('appMode','prod');
+      },{access:beforeAuth.access_token,refresh:beforeAuth.refresh_token});
+      const beforePage=await beforeContext.newPage();
+      await beforePage.goto(webBase+'/patients/'+patient.id+'?tab=tracking',{
+        waitUntil:'domcontentloaded',timeout:90000,
+      });
+      await beforePage.locator('[data-testid="r6-longitudinal-three-points"]')
+        .waitFor({state:'visible',timeout:60000});
+      const oldOpen=beforePage.getByRole('button',{name:'Ouvrir sur un autre écran'});
+      check('fue-s3-old-snapshot-still-openable-before-revocation',
+        await oldOpen.isEnabled());
+      const leakedPopups=[];
+      beforePage.on('popup',p=>leakedPopups.push(p));
+      const cutoff=await api.post('/api/auth/logout',{
+        headers:{Authorization:'Bearer '+beforeAuth.access_token},
+        data:{refresh_token:beforeAuth.refresh_token||''},
+      });
+      check('fue-s3-backend-invalidates-before-click',
+        cutoff.status()===204,{status:cutoff.status()});
+      const denied=await api.get('/api/patients/'+patient.id+'/ortho-case',{
+        headers:{Authorization:'Bearer '+beforeAuth.access_token},
+      });
+      check('fue-s3-revoked-token-cannot-fetch-case',
+        denied.status()===401,{status:denied.status()});
+      // Trigger immediately, before the scheduled 9-second client poll.
+      await oldOpen.click({timeout:5000});
+      await beforePage.waitForTimeout(2500);
+      check('fue-s3-revoked-cached-snapshot-opens-no-display',
+        leakedPopups.length===0,{opened:leakedPopups.length});
+      if(report.r7){
+        report.r7.customSecurityFUE={
+          serverRevokedBeforeOpenNoPatientProjection:true,
+          opaqueSandboxDeniedFetch:true,
+          forgedWindowUpdateIgnored:true,
+          previousOpenWindowRevocationCloses:true,
+          physicalFUEPerformed:false,
+        };
+      }
+      await capture(beforePage,'r7-fue-s3-revoked-before-open-AFTER');
+    } finally {
+      await beforeContext.close();
+    }
   } finally {
     await revocationBrowser.close();
   }
