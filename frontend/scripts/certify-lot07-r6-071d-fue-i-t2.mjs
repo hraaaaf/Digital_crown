@@ -222,7 +222,24 @@ try {
   const popup=await windowPromise;
   await popup.locator('[data-testid="r6d-readonly-presenter"]')
     .waitFor({state:'visible',timeout:25000});
-  check('r6d-actual-browser-detached-window',popup.url()==='about:blank');
+  check('r6d-actual-browser-detached-window',
+    popup.url().startsWith(apiBase+'/api/ortho/presenter-window?'));
+  const isolated=await popup.evaluate(()=>{
+    let localStorageDenied=false,cookieDenied=false;
+    try{localStorage.getItem('token');}catch{localStorageDenied=true;}
+    try{document.cookie;}catch{cookieDenied=true;}
+    return {origin:location.origin,localStorageDenied,cookieDenied,
+      openerNull:window.opener===null,scriptCount:document.scripts.length};
+  });
+  const opaqueShell=await api.get('/api/ortho/presenter-window');
+  const csp=opaqueShell.headers()['content-security-policy']||'';
+  check('r6d-patient-window-HTTP-CSP-opaque-origin',
+    opaqueShell.status()===200 && csp.includes('sandbox allow-scripts') &&
+    !csp.includes('allow-same-origin') &&
+    isolated.origin==='null' && isolated.localStorageDenied &&
+    isolated.cookieDenied && isolated.openerNull &&
+    isolated.scriptCount===1,{status:opaqueShell.status(),security:isolated,
+      cspHeaderSandbox:csp.includes('sandbox allow-scripts')});
   check('r6d-three-canonic-panels',
     await popup.locator('[data-r6d-ordinal]').count()===3);
   check('r6d-readonly-no-controls',
