@@ -117,6 +117,15 @@ export async function certifyR7RealWindowsNvda({page,check,report,capture}) {
     await nvda.clearSpokenPhraseLog();
     try{await nvda.perform(nvda.keyboardCommands.exitFocusMode);}catch{}
     try{await nvda.press('Control+Home');}catch{}
+    // Independently certify actual NVDA speech for H1 before moving to H2.
+    try{
+      await nvda.press('1');
+      await sleep(500);
+      await record('popup-native-quicknav-heading-level-1');
+    }catch(e){
+      evidence.errors.push('popup heading 1 '+String(e).slice(0,130));
+    }
+    try{await nvda.press('Control+Home');}catch{}
     // NVDA native quick navigation '2' jumps to the next actual H2.
     // This is an OS screen-reader action, never DOM-derived speech.
     try{
