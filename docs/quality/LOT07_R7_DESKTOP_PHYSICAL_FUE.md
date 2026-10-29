@@ -52,6 +52,37 @@ Le popup Digital Crown R6D utilise `window.open('about:blank')` puis construit u
 
 Références techniques : MDN Same-origin policy (about:blank inherited origins) ; documentation Chromium « Special Case URLs » ; MDN CSP sandbox (opaque origin).
 
+## Proposition corrective B10 — PR #1152 DRAFT (non certifiée)
+
+Le comportement historique R6D/R7B (`window.open('about:blank')` de même origine)
+n'est pas acceptable comme preuve d'isolation. La PR #1152 propose **sans
+activation en production** une vraie page FastAPI vide
+(`/api/ortho/presenter-window`), servie avec un **en-tête HTTP** CSP :
+`sandbox allow-scripts` **sans** `allow-same-origin`, scripts et styles
+hashés, `connect-src 'none'`, `form-action 'none'`, `Cache-Control: no-store`.
+Il n'y a jamais de patient, dossier ou JWT dans l'URL ou dans la réponse HTTP.
+
+La projection canonique seule (3 dates, ordinaux T0/T1/T2, types et références
+de sources) est transmise après handshake depuis le Cabinet autorisé sur un
+**MessageChannel dédié** ; l'écran sandbox ne reçoit aucun client API ni compte
+utilisateur. Le canal ferme en cas de changement patient, déconnexion ou
+expiration ; l'origine attendue et l'identifiant de canal sont vérifiés.
+
+**FUE de refus obligatoires avant revue de sécurité :**
+- La réponse HTTP applique la CSP `sandbox` (une balise `meta` est insuffisante).
+- Origine effective du popup `null`, lecture `localStorage` refusée,
+  aucune lecture des cookies, aucun accès API ni contrôle modifiable.
+- DOM du popup : exactement T0/T1/T2 de l'utilisateur autorisé,
+  aucune note, JWT, e-mail ou image brute.
+- Changement patient A→B, déconnexion et échec du canal :
+  fermeture/expiration, aucune persistance du contenu antérieur.
+- FastAPI/React réels sur données T2 synthétiques, 0 interception de route ;
+  captures et rapport liés au SHA exact, tests NVDA et zoom navigateur maintenus.
+
+**Statut B10 = REVUE SÉCURITÉ INDÉPENDANTE REQUISE** même si les FUE automatisés
+deviennent GREEN. La correction ne valide **pas** Windows OS 200 %, deux écrans
+physiques, la révocation serveur ou le consentement du propriétaire.
+
 ## Verdict de livraison
 
 - **R7A AUTOMATED** = GREEN uniquement avec workflows et preuves FUE au même HEAD.
