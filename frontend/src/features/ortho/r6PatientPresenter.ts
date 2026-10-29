@@ -84,6 +84,7 @@ export class R6PresenterWindow {
   private seq=0;
   private latest: Pick<R6PresenterSnapshot,'pair'|'points'> | null=null;
   private expiry: number | undefined;
+  private heartbeatTimer: number | undefined;
 
   private constructor(child: Window, channel: string) {
     this.child=child;
@@ -100,6 +101,7 @@ export class R6PresenterWindow {
         if(message.data.type==='DC_PRESENTER_READY'){
           this.ready=true;
           this.sendLatest();
+          this.startHeartbeat();
         }
       };
       this.port.start();
@@ -134,6 +136,17 @@ export class R6PresenterWindow {
     try {return !this.child.closed;}catch{return false;}
   }
 
+  private startHeartbeat(): void {
+    if(this.heartbeatTimer!==undefined)window.clearInterval(this.heartbeatTimer);
+    const ping=()=>{
+      if(!this.isOpen()){this.close();return;}
+      try{this.port?.postMessage({type:'DC_PRESENTER_HEARTBEAT',channel:this.channel});}
+      catch{this.close();}
+    };
+    ping();
+    this.heartbeatTimer=window.setInterval(ping,2000);
+  }
+
   private sendLatest(): void {
     if(!this.port || !this.ready || !this.latest || !this.isOpen())return;
     this.port.postMessage({
@@ -165,6 +178,8 @@ export class R6PresenterWindow {
     window.removeEventListener('pagehide',this.pagehide);
     window.removeEventListener('message',this.onHello);
     if(this.expiry!==undefined)window.clearTimeout(this.expiry);
+    if(this.heartbeatTimer!==undefined)window.clearInterval(this.heartbeatTimer);
+    this.heartbeatTimer=undefined;
     try{this.port?.postMessage({type:'DC_PRESENTER_CLOSE',channel:this.channel});}catch{}
     this.port?.close();
     this.port=null;
