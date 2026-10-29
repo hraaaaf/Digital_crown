@@ -103,14 +103,14 @@ export async function verifyR7DesktopMatrix({
         scriptCount:document.scripts.length,
         controls:document.querySelectorAll('form,input,button,select,textarea,a').length,
         hasPatientRoute:location.href.includes('/patients/'),
-        origin:location.origin,
+        origin:window.origin,
         localStorageDenied:(()=>{try{localStorage.getItem('token');return false;}catch{return true;}})(),
         cookiesDenied:(()=>{try{document.cookie;return false;}catch{return true;}})(),
         text:body,
       };
     });
     check('r7-presenter-inert-no-edit-controls',
-      popupSafe.openerNull && popupSafe.scriptCount===1 &&
+      popupSafe.openerNull && popupSafe.scriptCount===0 &&
       popupSafe.origin==='null' && popupSafe.localStorageDenied &&
       popupSafe.cookiesDenied &&
       popupSafe.controls===0 && !popupSafe.hasPatientRoute);
