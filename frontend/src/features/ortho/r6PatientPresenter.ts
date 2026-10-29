@@ -1,5 +1,6 @@
 import type { OrthoLongitudinalCompare } from './orthoLongitudinalCompare';
 import { trustedR6Comparison, type R6Trajectory, type R6SourceRef } from './r6ThreeTimepoints';
+import { API_BASE } from '../../services/api';
 
 /**
  * LOT07 R6 / 07.1.D — patient-facing projection, never a new clinical source.
@@ -66,115 +67,108 @@ export function projectR6Presenter(
 const STALE_WINDOW_MS = 28_000;
 
 /**
- * Inert about:blank child. Parent owns lifecycle and refreshes its expiry.
- * No app bundle, auth storage, URL patient IDs, API clients or form controls.
- * If parent crashes, the popup removes its contents and closes on expiry.
+ * LOT07 B10: an empty backend-served document gets a real HTTP CSP sandbox
+ * WITHOUT allow-same-origin. Its origin is opaque ('null'), so it cannot read
+ * Cabinet localStorage/cookies, and it has no API client or clinical URL.
+ *
+ * Only a bounded, text-only projection travels over a MessageChannel after a
+ * HELLO/READY handshake. No token, patient ID, clinical note or media blob.
  */
 export class R6PresenterWindow {
   private readonly child: Window;
-  private expiry: number | undefined;
+  private readonly channel: string;
   private readonly pagehide: () => void;
+  private readonly onHello: (event: MessageEvent) => void;
+  private port: MessagePort | null = null;
+  private ready=false;
+  private seq=0;
+  private latest: Pick<R6PresenterSnapshot,'pair'|'points'> | null=null;
+  private expiry: number | undefined;
 
-  private constructor(child: Window) {
+  private constructor(child: Window, channel: string) {
     this.child=child;
+    this.channel=channel;
     this.pagehide=()=>this.close();
+    this.onHello=(event)=>{
+      if(event.source!==this.child || event.origin!=='null' ||
+         event.data?.type!=='DC_PRESENTER_HELLO' || event.data.channel!==this.channel ||
+         this.port || this.child.closed)return;
+      const bridge=new MessageChannel();
+      this.port=bridge.port1;
+      this.port.onmessage=(message)=>{
+        if(message.data?.channel!==this.channel)return;
+        if(message.data.type==='DC_PRESENTER_READY'){
+          this.ready=true;
+          this.sendLatest();
+        }
+      };
+      this.port.start();
+      // The target has a deliberately opaque origin; '*' is mandatory for
+      // MessagePort transfer. No clinical content is included in this message.
+      this.child.postMessage({type:'DC_PRESENTER_INIT',channel:this.channel},'*',[bridge.port2]);
+    };
+    window.addEventListener('message',this.onHello);
     window.addEventListener('pagehide',this.pagehide);
+    this.refreshExpiry();
   }
 
   static open(snapshot: R6PresenterSnapshot): R6PresenterWindow | null {
-    const child=window.open('about:blank','_blank','popup,width=1120,height=720');
-    if (!child) return null;
-    try {
-      child.opener=null;
-      const presenter=new R6PresenterWindow(child);
-      presenter.update(snapshot);
-      return presenter;
-    } catch {
-      child.close();
+    const bytes=new Uint8Array(16);
+    crypto.getRandomValues(bytes);
+    const hex=Array.from(bytes,b=>b.toString(16).padStart(2,'0')).join('');
+    const channel=[hex.slice(0,8),hex.slice(8,12),hex.slice(12,16),hex.slice(16,20),hex.slice(20)].join('-');
+    const url=new URL(API_BASE+'/api/ortho/presenter-window');
+    url.searchParams.set('origin',window.location.origin);
+    url.searchParams.set('channel',channel);
+    const child=window.open(url.href,'_blank','popup,width=1120,height=720');
+    if(!child)return null;
+    const presenter=new R6PresenterWindow(child,channel);
+    if(!presenter.update(snapshot)){
+      presenter.close();
       return null;
     }
+    return presenter;
   }
 
   isOpen(): boolean {
-    try { return !this.child.closed && this.child.location.href==='about:blank'; }
-    catch { return false; }
+    try {return !this.child.closed;}catch{return false;}
+  }
+
+  private sendLatest(): void {
+    if(!this.port || !this.ready || !this.latest || !this.isOpen())return;
+    this.port.postMessage({
+      type:'DC_PRESENTER_UPDATE',channel:this.channel,seq:++this.seq,
+      snapshot:this.latest,
+    });
   }
 
   update(snapshot: R6PresenterSnapshot): boolean {
-    if (!this.isOpen()) { this.close(); return false; }
-    try {
-      const doc=this.child.document;
-      doc.title='Digital Crown · Présentation du suivi';
-      const style=doc.createElement('style');
-      style.textContent=`html{font-family:system-ui,Arial,sans-serif;background:#0d1b2a;color:#f5f8fc}
-body{margin:0;padding:clamp(20px,5vw,70px)}header{border-bottom:1px solid #526175;padding-bottom:26px}
-h1{font-size:clamp(24px,3vw,42px);margin:8px 0}
-small,p{color:#cfdae9}small{letter-spacing:.13em;text-transform:uppercase}
-main{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px;margin-top:32px}
-article{border:1px solid #566983;border-radius:18px;background:#1b3045;padding:22px;min-height:158px}
-h2{font-size:30px;margin:0 0 12px}li{margin:8px 0;word-wrap:break-word}
-footer{padding-top:32px;font-size:15px;color:#c5d2e2}
-@media(max-width:650px){main{grid-template-columns:1fr}}`;
-      const make=(tag: string,value: string,attr?:string)=>{
-        const element=doc.createElement(tag);
-        element.textContent=value;
-        if(attr)element.setAttribute('data-testid',attr);
-        return element;
-      };
-      const header=doc.createElement('header');
-      header.append(
-        make('small','Digital Crown · Présentation en lecture seule'),
-        make('h1','Suivi orthodontique · T0 → T1 → T2'),
-        make('p',`Comparaison sélectionnée : T${snapshot.pair[0]} → T${snapshot.pair[1]}`,'r6d-pair'),
-      );
-      const main=doc.createElement('main');
-      main.setAttribute('data-testid','r6d-readonly-presenter');
-      for (const point of snapshot.points) {
-        const card=doc.createElement('article');
-        card.setAttribute('data-r6d-ordinal',String(point.ordinal));
-        const iso=new Date(point.occurred_at);
-        card.append(
-          make('h2','T'+point.ordinal),
-          make('p',iso.toLocaleDateString('fr-FR',{year:'numeric',month:'long',day:'numeric'})),
-        );
-        const sources=doc.createElement('ul');
-        for (const source of point.sources) {
-          const label=source.kind==='CEPHALO'?'Céphalo':source.kind==='PANORAMIC'?'Panoramique':'Média';
-          sources.appendChild(make('li',label+' · source #'+source.refId));
-        }
-        card.appendChild(sources);
-        main.appendChild(card);
-      }
-      const footer=make('footer','Sources canoniques vérifiées. Lecture seule. Aucune interprétation clinique automatique.');
-      const policy=doc.createElement('meta');
-      policy.httpEquiv='Content-Security-Policy';
-      policy.content="default-src 'none'; style-src 'unsafe-inline'; connect-src 'none'; form-action 'none'; base-uri 'none'";
-      doc.head.replaceChildren(policy,style);
-      doc.body.replaceChildren(header,main,footer);
-      this.refreshExpiry();
-      return true;
-    } catch {
-      this.close();
-      return false;
-    }
+    if(!this.isOpen()){this.close();return false;}
+    this.latest={
+      pair:[...snapshot.pair] as [number,number],
+      points:snapshot.points.map(p=>({
+        ordinal:p.ordinal,occurred_at:p.occurred_at,
+        sources:p.sources.map(s=>({kind:s.kind,refId:s.refId})),
+      })),
+    };
+    this.sendLatest();
+    this.refreshExpiry();
+    return true;
   }
 
   private refreshExpiry(): void {
-    if (this.expiry!==undefined) this.child.clearTimeout(this.expiry);
-    this.expiry=this.child.setTimeout(()=>{
-      try { this.child.document.body.replaceChildren(); } catch { /* navigated */ }
-      this.child.close();
-    },STALE_WINDOW_MS);
+    if(this.expiry!==undefined)window.clearTimeout(this.expiry);
+    this.expiry=window.setTimeout(()=>this.close(),STALE_WINDOW_MS);
   }
 
   close(): void {
     window.removeEventListener('pagehide',this.pagehide);
-    try {
-      if (this.expiry!==undefined) this.child.clearTimeout(this.expiry);
-      this.child.document.body.replaceChildren();
-      this.child.close();
-    } catch {
-      try { this.child.close(); } catch { /* already gone */ }
-    }
+    window.removeEventListener('message',this.onHello);
+    if(this.expiry!==undefined)window.clearTimeout(this.expiry);
+    try{this.port?.postMessage({type:'DC_PRESENTER_CLOSE',channel:this.channel});}catch{}
+    this.port?.close();
+    this.port=null;
+    this.latest=null;
+    try{this.child.close();}catch{/* may already be closed */}
   }
 }
