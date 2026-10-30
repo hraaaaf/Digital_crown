@@ -1,83 +1,78 @@
-"""LOT06 C05B-03G four REAL remote Ubuntu GitHub runners -> one isolated TEST receiver.
-
-One runner hosts a loopback-only synthetic HTTP receiver through a TEMPORARY
-Cloudflare Quick Tunnel; four other GitHub runner VMs send deterministic PNGs
-over HTTPS to that ONE origin. Actual LOT06-A HotFolder / SQLite / AES-GCM is
-used after the phase barrier. Never expose Digital Crown backend or cabinet.
-NO clinical transfer, authorization, physical device or release certification.
+"""LOT06 C05B-03G: FOUR isolated Ubuntu Docker clients -> ONE shared Docker-server.
+Only a private Docker bridge, NEVER a public tunnel or cabinet service.
+Actual HotFolder SQLite/AES-GCM spool, synthetic PNG, no real clinical ACK.
+Different container IPs/network namespaces on ONE GitHub host; NOT four VMs.
 """
 from __future__ import annotations
 
 import argparse
 from collections import Counter
-from concurrent.futures import ThreadPoolExecutor, as_completed
-import hashlib
-import io
+from http.server import ThreadingHTTPServer
 import json
 import os
 from pathlib import Path
-import re
 import secrets
-import shutil
-import subprocess
-import sys
 import tempfile
 import threading
 import time
-import urllib.error
-import urllib.request
-import zipfile
 
 from isolated_fue_lot06c.qa_multi_ubuntu_hotfolder_stress_v15 import (
-    Receiver, ReceiverHandler, new_collector, payload,
+    Receiver, payload, new_collector,
 )
 from tools.imaging_gateway import HotFolder
 
 CLIENTS = {"u22a": 24, "u22b": 48, "u24a": 24, "u24b": 48}
-PHASE_NAMES = {"two": 2, "bulk": None, "flood": 16}
-TOTAL_HEALTHY = sum(2 + n for n in CLIENTS.values())  # 152
-TOTAL_RECEIVED = TOTAL_HEALTHY + len(CLIENTS) * 16  # 216
+TOTAL_HEALTHY = 8 + sum(CLIENTS.values())
+TOTAL_RECEIVED = TOTAL_HEALTHY + 4 * 16
 CAPACITY = 160
-TIME_LIMIT_S = 510
-PHASE_TIMEOUT_S = 170
 
+# The reusable deterministic barriers and SHA/AES-GCM/SQLite oracles from
+# the prior C05B-03G lab file are intentionally reproduced here. No network
+# exposure or remote GitHub token is required for this Docker-only harness.
+import hashlib
+import re
+from concurrent.futures import ThreadPoolExecutor, as_completed
+import urllib.error
+import urllib.request
 
 def guard():
-    assert (os.environ.get("ENVIRONMENT") == "test"
-            and os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "true"
-            and os.environ.get("DC06C05B03G_TEST_ONLY") == "1"), "ISOLATED_G_ONLY"
-    assert os.environ.get("GITHUB_ACTIONS") == "true", "GITHUB_ACTIONS_ONLY"
-    assert os.environ.get("EXPECTED_SHA") == os.environ.get("GITHUB_SHA_EXACT"), "SHA_UNPINNED"
+    if not (os.getenv("ENVIRONMENT") == "test"
+            and os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") == "true"
+            and os.getenv("DC06C05B03G_TEST_ONLY") == "1"
+            and os.getenv("GITHUB_ACTIONS") == "true"
+            and os.getenv("EXPECTED_SHA")
+            and os.getenv("EXPECTED_SHA") == os.getenv("GITHUB_SHA_EXACT")):
+        raise RuntimeError("C05B03G_PRIVATE_DOCKER_TEST_ONLY")
+    token = os.getenv("DC06G_TEST_TOKEN", "")
+    if len(token) < 36:
+        raise RuntimeError("C05B03G_EPHEMERAL_TEST_TOKEN_REQUIRED")
+    return token
 
-
-def ensure(cond, code):
-    if not cond:
+def ensure(value, code):
+    if not value:
         raise AssertionError(code)
 
-
 def names(label, phase):
-    n = CLIENTS[label] if phase == "bulk" else PHASE_NAMES[phase]
-    return [f"stress_{label}_{phase}_{i:05d}" for i in range(n)]
+    count = CLIENTS[label] if phase == "bulk" else (2 if phase == "two" else 16)
+    return [f"stress_{label}_{phase}_{i:05d}" for i in range(count)]
 
-
-class SharedReceiver(Receiver):
+class PrivateReceiver(Receiver):
     def __init__(self, watch, token):
-        super().__init__(("127.0.0.1", 0), watch, token)
-        self.RequestHandlerClass = SharedHandler
+        # Explicit TEST-only Docker bridge ingress. No -p/published ports.
+        ThreadingHTTPServer.__init__(self, ("0.0.0.0", 7077), PrivateHandler)
+        self.watch, self.token = watch, token
+        self.write_lock = threading.Lock()
+        self.accepted, self.denied = 0, 0
         self.lock = threading.Lock()
         self.ready = set()
         self.progress = {p: set() for p in ("two", "bulk", "flood")}
         self.phase = "ready"
         self.start_at = None
-        self.received_by_stage = Counter()
+        self.accepted_by_phase = Counter()
 
-
-class SharedHandler(ReceiverHandler):
-    def _auth(self):
-        return secrets.compare_digest(
-            self.headers.get("X-Lab-Token", ""), self.server.token
-        )
-
+class PrivateHandler(__import__(
+    "isolated_fue_lot06c.qa_multi_ubuntu_hotfolder_stress_v15",
+    fromlist=["ReceiverHandler"]).ReceiverHandler):
     def _json(self, status, obj):
         data = json.dumps(obj, sort_keys=True).encode()
         self.send_response(status)
@@ -87,14 +82,19 @@ class SharedHandler(ReceiverHandler):
         self.end_headers()
         self.wfile.write(data)
 
+    def _auth(self):
+        return secrets.compare_digest(self.headers.get("X-Lab-Token", ""),
+                                      self.server.token)
+
     def do_GET(self):
         if not self._auth() or self.path != "/test-only/status":
             self._json(403, {"error": "LAB_AUTH_REQUIRED"})
             return
         with self.server.lock:
-            self._json(200, {"phase": self.server.phase,
-                             "start_at": self.server.start_at,
-                             "ready_count": len(self.server.ready)})
+            reply = {"phase": self.server.phase,
+                     "start_at": self.server.start_at,
+                     "ready_count": len(self.server.ready)}
+        self._json(200, reply)
 
     def do_POST(self):
         server = self.server
@@ -102,42 +102,43 @@ class SharedHandler(ReceiverHandler):
             if not self._auth():
                 self._json(403, {"error": "LAB_AUTH_REQUIRED"})
                 return
-            cap = self.headers.get("X-Capture", "")
-            match = re.fullmatch(r"stress_(u22a|u22b|u24a|u24b)_(two|bulk|flood)_[0-9]{5}", cap)
-            if not match or cap not in names(match.group(1), match.group(2)):
+            capture = self.headers.get("X-Capture", "")
+            match = re.fullmatch(
+                r"stress_(u22a|u22b|u24a|u24b)_(two|bulk|flood)_[0-9]{5}",
+                capture,
+            )
+            if not match or capture not in names(match.group(1), match.group(2)):
                 self._json(422, {"error": "UNKNOWN_SYNTHETIC_CAPTURE"})
                 return
             with server.lock:
-                active = server.phase
-            if active != match.group(2):
+                phase = server.phase
+            if phase != match.group(2):
                 self._json(409, {"error": "PHASE_BLOCKED"})
                 return
-            # ReceiverHandler checks exact payload, identity, token, bounds
-            # and atomically writes only .png and .ready under a single lock.
-            super().do_POST()
-            return
+            return super().do_POST()
         if not self._auth():
             self._json(403, {"error": "LAB_AUTH_REQUIRED"})
             return
-        match = re.fullmatch(r"/test-only/(ready|two-done|bulk-done|flood-done)", self.path)
-        raw = self.headers.get("Content-Length", "")
-        if not match or not raw.isdecimal() or int(raw) > 120:
+        match = re.fullmatch(
+            r"/test-only/(ready|two-done|bulk-done|flood-done)", self.path)
+        size = self.headers.get("Content-Length", "")
+        if not match or not size.isdecimal() or not 0 < int(size) <= 120:
             self._json(422, {"error": "INVALID_CONTROL"})
             return
         try:
-            d = json.loads(self.rfile.read(int(raw)))
-        except (ValueError, UnicodeError):
-            self._json(422, {"error": "BAD_JSON"})
+            record = json.loads(self.rfile.read(int(size)))
+        except (UnicodeError, ValueError):
+            self._json(422, {"error": "INVALID_CONTROL_JSON"})
             return
-        label = d.get("label") if isinstance(d, dict) else None
+        label = record.get("label") if isinstance(record, dict) else None
         if label not in CLIENTS:
-            self._json(422, {"error": "UNKNOWN_LAB_CLIENT"})
+            self._json(422, {"error": "UNKNOWN_TEST_CLIENT"})
             return
         command = match.group(1)
         with server.lock:
             if command == "ready":
                 if server.phase != "ready":
-                    self._json(409, {"error": "LATE_READY"})
+                    self._json(409, {"error": "LATE_CLIENT"})
                     return
                 server.ready.add(label)
             else:
@@ -148,361 +149,207 @@ class SharedHandler(ReceiverHandler):
                 server.progress[phase].add(label)
         self._json(200, {"ok": True})
 
-
-def wait_for(predicate, code, *, timeout=PHASE_TIMEOUT_S):
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if predicate():
+def wait_for(check, code, seconds=120):
+    until = time.monotonic() + seconds
+    while time.monotonic() < until:
+        if check():
             return
-        time.sleep(.2)
+        time.sleep(.15)
     raise AssertionError(code)
 
+def phase_progress(server, name):
+    with server.lock:
+        return len(server.progress[name])
 
-def snapshot(receiver, phase):
-    with receiver.lock:
-        return (receiver.phase == phase,
-                len(receiver.ready),
-                len(receiver.progress.get(phase, ())))
-
-
-def verified_ledger(agent, count, expected):
+def verify(agent, expected, *, count):
     rows = agent.items()
-    ensure(len(rows) == count, "QUEUE_COUNT_INCORRECT")
-    ensure(all(row["state"] == "PENDING_CONFIRMATION" for row in rows),
-           "FALSE_CLINICAL_STATE")
-    actual = Counter(row["digest"] for row in rows)
-    possible = Counter(hashlib.sha256(payload(name)).hexdigest() for name in expected)
-    ensure(not (actual - possible), "UNEXPECTED_CAPTURE_IN_LEDGER")
+    ensure(len(rows) == count, "SQLITE_QUEUE_COUNT_MISMATCH")
+    ensure(all(r["state"] == "PENDING_CONFIRMATION" for r in rows),
+           "FALSE_CLINICAL_CONFIRMATION")
+    originals = Counter(hashlib.sha256(payload(n)).hexdigest() for n in expected)
+    actual = Counter(r["digest"] for r in rows)
+    ensure(not (actual - originals), "WRONG_CLIENT_DATA")
     for row in rows:
-        data = agent.read_verified(row["id"])
-        ensure(hashlib.sha256(data).hexdigest() == row["digest"],
-               "CIPHERTEXT_READBACK_FAILED")
+        body = agent.read_verified(row["id"])
+        ensure(hashlib.sha256(body).hexdigest() == row["digest"],
+               "AES_GCM_READBACK_OR_SHA_FAILED")
         ensure(agent.audit(row["id"]) == ["PENDING_CONFIRMATION"],
-               "AUDIT_MISSING")
+               "AUDIT_INCONSISTENT")
     return agent.storage_health()
 
-
-def verify_files(root, all_names):
-    watch = root / "incoming"
-    actual = {p.stem for p in watch.glob("*.png")}
-    ensure(actual == set(all_names), "ORIGINAL_SOURCE_LOST_OR_WRONG")
-    ensure(len(list(watch.glob("*.png.ready"))) == len(all_names),
-           "PRODUCER_MARKER_MISSING")
-    for cap in all_names:
-        ensure((watch / (cap + ".png")).read_bytes() == payload(cap),
-               "SOURCE_BYTES_CORRUPTED")
-
-
-def orchestrate(receiver, agent, root, config):
+def run_server():
+    token = guard()
+    root = Path(tempfile.mkdtemp(prefix="lot06c05b03g-private-"))
+    agent, config = new_collector(root, CAPACITY)
+    server = PrivateReceiver(config.watch, token)
+    worker = threading.Thread(target=server.serve_forever, daemon=True)
+    worker.start()
     try:
-        wait_for(lambda: snapshot(receiver, "ready")[1] == 4, "MISSING_REMOTE_RUNNER", timeout=330)
-        with receiver.lock:
-            receiver.phase, receiver.start_at = "two", time.time() + 5
-        wait_for(lambda: snapshot(receiver, "two")[2] == 4, "TWO_REMOTE_SENDERS_INCOMPLETE")
-        ensure(receiver.accepted == 8, "SIMULTANEOUS_TWO_PER_HOST_MISSING")
-        print("LOT06C05B03G_EIGHT_REAL_REMOTE_TWO_FILE_SENDERS_PASS", flush=True)
-
-        with receiver.lock:
-            receiver.phase, receiver.start_at = "bulk", time.time() + 3
-        wait_for(lambda: snapshot(receiver, "bulk")[2] == 4, "REMOTE_BULK_INCOMPLETE")
-        ensure(receiver.accepted == TOTAL_HEALTHY, "REMOTE_BULK_RECEIVE_COUNT")
-        first = agent.scan_once()
-        second = agent.scan_once()
-        ensure(first["unstable"] == TOTAL_HEALTHY, "BULK_READY_STABILITY_GATE_MISSING")
+        wait_for(lambda: len(server.ready) == 4,
+                 "FOUR_ISOLATED_CONTAINERS_NOT_READY", seconds=120)
+        with server.lock:
+            server.phase, server.start_at = "two", time.time() + 2.5
+        wait_for(lambda: phase_progress(server, "two") == 4,
+                 "TWO_SIMULTANEOUS_PER_CLIENT_INCOMPLETE")
+        ensure(server.accepted == 8, "FIRST_EIGHT_FILES_MISSING")
+        print("LOT06C05B03G_PRIVATE_FOUR_CLIENTS_SIMULTANEOUS_TWO_PASS", flush=True)
+        with server.lock:
+            server.phase, server.start_at = "bulk", time.time() + 2
+        wait_for(lambda: phase_progress(server, "bulk") == 4,
+                 "MULTI_CONTAINER_BULK_INCOMPLETE", seconds=150)
+        ensure(server.accepted == TOTAL_HEALTHY, "BULK_HTTP_COUNT")
+        seen = [n for label in CLIENTS for phase in ("two", "bulk")
+                for n in names(label, phase)]
+        first, second = agent.scan_once(), agent.scan_once()
+        ensure(first["unstable"] == TOTAL_HEALTHY,
+               "FIRST_SCAN_STABILITY_GATE_MISSING")
         ensure(second["staged"] == TOTAL_HEALTHY and second["deferred"] == 0,
-               "BULK_QUEUE_STAGING_FAILED")
-        healthy = [n for label in CLIENTS for phase in ("two", "bulk")
-                   for n in names(label, phase)]
-        health = verified_ledger(agent, TOTAL_HEALTHY, healthy)
-        ensure(health["queued_items"] == TOTAL_HEALTHY, "BULK_LEDGER_COUNT")
-        print("LOT06C05B03G_REAL_SHARED_SERVER_SQLITE_AES_QUEUE_PASS", flush=True)
-
-        with receiver.lock:
-            receiver.phase, receiver.start_at = "flood", time.time() + 3
-        wait_for(lambda: snapshot(receiver, "flood")[2] == 4, "REMOTE_FLOOD_INCOMPLETE")
-        ensure(receiver.accepted == TOTAL_RECEIVED, "FLOOD_RECEIVE_COUNT")
+               "REAL_QUEUE_NOT_STAGING_152")
+        verify(agent, seen, count=TOTAL_HEALTHY)
+        print("LOT06C05B03G_ONE_SHARED_HOTFOLDER_152_AES_SQLITE_PASS", flush=True)
+        with server.lock:
+            server.phase, server.start_at = "flood", time.time() + 2
+        wait_for(lambda: phase_progress(server, "flood") == 4,
+                 "FOUR_CONCURRENT_FLOOD_CLIENTS_INCOMPLETE")
+        ensure(server.accepted == TOTAL_RECEIVED, "216_HTTP_FILES_NOT_RECEIVED")
         extra = [n for label in CLIENTS for n in names(label, "flood")]
-        first = agent.scan_once()
-        second = agent.scan_once()
-        ensure(first["unstable"] == len(extra), "FLOOD_STABILITY_GATE_MISSING")
-        ensure(second["staged"] == CAPACITY - TOTAL_HEALTHY,
-               "CAPACITY_NOT_ENFORCED")
-        ensure(second["deferred"] == TOTAL_RECEIVED - CAPACITY,
-               "BACKPRESSURE_MISSING")
-        state = verified_ledger(agent, CAPACITY, healthy + extra)
-        ensure(state["state"] == "BACKPRESSURE", "BACKPRESSURE_HEALTH_MISSING")
-        verify_files(root, healthy + extra)
-        print("LOT06C05B03G_REMOTE_BACKPRESSURE_SOURCES_PRESERVED_PASS", flush=True)
-
+        a, b = agent.scan_once(), agent.scan_once()
+        ensure(a["unstable"] == 64, "FLOOD_FILE_STABILITY_MISSING")
+        ensure(b["staged"] == 8 and b["deferred"] == 56,
+               "QUEUE_BACKPRESSURE_WRONG")
+        state = verify(agent, seen + extra, count=CAPACITY)
+        ensure(state["state"] == "BACKPRESSURE", "BACKPRESSURE_STATE_MISSING")
+        directory = config.watch
+        expected_names = set(seen + extra)
+        actual_names = {p.stem for p in directory.glob("*.png")}
+        ensure(actual_names == expected_names, "SOURCE_FILE_LOSS")
+        ensure(len(list(directory.glob("*.png.ready"))) == TOTAL_RECEIVED,
+               "SOURCE_MANIFEST_LOSS")
+        for n in expected_names:
+            ensure((directory / (n + ".png")).read_bytes() == payload(n),
+                   "SOURCE_HASH_MISMATCH")
+        print("LOT06C05B03G_SHARED_QUEUE_160_AND_56_SOURCES_DEFERRED_PASS",
+              flush=True)
         restarted = HotFolder(config)
         restarted.scan_once()
-        final = restarted.scan_once()
-        ensure(final["staged"] == 0 and len(restarted.items()) == CAPACITY,
-               "COLD_RESTART_DUPLICATED")
-        ensure(receiver.accepted == TOTAL_RECEIVED,
-               "REMOTE_FILES_LOST")
-        print("LOT06C05B03G_REMOTE_RESTART_IDEMPOTENCY_PASS", flush=True)
+        last = restarted.scan_once()
+        ensure(last["staged"] == 0 and len(restarted.items()) == CAPACITY,
+               "RESTART_REPLAY_CREATED_DUPLICATES")
         report = {
-            "kind": "LOT06_C05B03G_REAL_REMOTE_SHARED_SERVER_LAB",
+            "kind": "LOT06_C05B03G_PRIVATE_DOCKER_MULTI_UBUNTU",
             "head_sha": os.environ["EXPECTED_SHA"],
-            "expected_clients": sorted(CLIENTS),
-            "remote_http_received": receiver.accepted,
-            "pre_saturation_queue": TOTAL_HEALTHY,
-            "final_sqlite_encrypted_queue": CAPACITY,
-            "deferred_sources_preserved": TOTAL_RECEIVED - CAPACITY,
-            "external_clients_all_joined": len(receiver.ready) == 4,
-            "two_per_host_simultaneous_barrier": True,
-            "all_source_sha256_and_aesgcm_verified": True,
-            "cold_restart_no_duplicate": True,
-            "tests_are_synthetic": True,
-            "production_endpoint_touched": False,
-            "clinical_receipt_issued": False,
-            "physical_powercut_tested": False,
+            "client_count": 4,
+            "container_os": {"u22a": "ubuntu22", "u22b": "ubuntu22",
+                             "u24a": "ubuntu24", "u24b": "ubuntu24"},
+            "received_http": TOTAL_RECEIVED,
+            "encrypted_sqlite_queued": CAPACITY,
+            "deferred_sources_intact": TOTAL_RECEIVED - CAPACITY,
+            "two_concurrent_files_per_client": True,
+            "aes_gcm_and_sha_verified": True,
+            "cold_restart_without_duplication": True,
+            "network_boundary": "private_docker_bridge_only",
+            "four_distinct_github_vms_tested": False,
+            "public_endpoint_created": False,
+            "clinical_upload_ack": False,
             "product_ready": False,
         }
         Path("server-proof.json").write_text(
-            json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-        return report
+            json.dumps(report, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        print("LOT06C05B03G_FOUR_UBUNTU_PRIVATE_NETWORK_SHARED_SERVER_PASS",
+              flush=True)
     finally:
-        with receiver.lock:
-            receiver.phase = "finished"
+        with server.lock:
+            server.phase = "finished"
+        server.shutdown()
+        server.server_close()
+        worker.join(timeout=5)
 
-
-def start_tunnel(local_port):
-    env = dict(os.environ)
-    env["NO_AUTOUPDATE"] = "true"
-    tunnel = subprocess.Popen(
-        ["./cloudflared", "tunnel", "--no-autoupdate", "--url",
-         "http://127.0.0.1:" + str(local_port)],
-        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True,
-        bufsize=1, env=env,
-    )
-    endpoint = []
-    ready = threading.Event()
-
-    def consume():
-        try:
-            for line in tunnel.stdout:
-                match = re.search(r"https://[a-z0-9-]+\.trycloudflare\.com", line)
-                if match and not endpoint:
-                    endpoint.append(match.group())
-                    ready.set()
-        finally:
-            ready.set()
-
-    threading.Thread(target=consume, daemon=True).start()
-    if not ready.wait(85) or not endpoint:
-        tunnel.terminate()
-        raise AssertionError("QUICK_TUNNEL_NO_ENDPOINT")
-    return tunnel, endpoint[0]
-
-
-def request_json(url, token, path, data=None, timeout=20):
-    headers = {"X-Lab-Token": token, "Cache-Control": "no-store"}
+def request_json(url, token, path, data=None):
+    headers = {"X-Lab-Token": token}
     if data is not None:
         headers["Content-Type"] = "application/json"
-        data = json.dumps(data, separators=(",", ":")).encode()
+        data = json.dumps(data).encode()
     req = urllib.request.Request(url + path, data=data, headers=headers,
                                  method="POST" if data is not None else "GET")
-    for attempt in range(4):
-        try:
-            with urllib.request.urlopen(req, timeout=timeout) as response:
-                return json.loads(response.read())
-        except urllib.error.HTTPError as exc:
-            if exc.code not in (429, 502, 503, 504, 520, 522, 530) or attempt == 3:
-                raise
-        except (urllib.error.URLError, TimeoutError):
-            if attempt == 3:
-                raise
-        time.sleep(1 + attempt)
-    raise AssertionError("UNREACHABLE_REMOTE")
-
-
-def run_host():
-    guard()
-    root = Path(tempfile.mkdtemp(prefix="lot06-c05b03g-shared-"))
-    agent, config = new_collector(root, CAPACITY)
-    receiver = SharedReceiver(config.watch, secrets.token_urlsafe(35))
-    thread = threading.Thread(target=receiver.serve_forever, daemon=True)
-    thread.start()
-    tunnel = None
-    try:
-        tunnel, url = start_tunnel(receiver.server_port)
-        # Verify that HTTPS actually traverses Cloudflare to this ONE origin.
-        wait_for(lambda: _probe(url, receiver.token), "TUNNEL_HTTPS_NOT_ACCESSIBLE",
-                 timeout=75)
-        private = {
-            "schema": "LOT06_C05B03G_EPHEMERAL_RUN_ONLY",
-            "head_sha": os.environ["EXPECTED_SHA"],
-            "run_id": os.environ["GITHUB_RUN_ID"],
-            "url": url,
-            "token": receiver.token,
-        }
-        out = Path("rendezvous-private.json")
-        out.write_text(json.dumps(private, sort_keys=True), encoding="utf-8")
-        os.chmod(out, 0o600)
-        print("LOT06C05B03G_REAL_SHARED_TUNNEL_READY (endpoint redacted)", flush=True)
-        orchestrate(receiver, agent, root, config)
-    finally:
-        if tunnel is not None and tunnel.poll() is None:
-            tunnel.terminate()
-            try:
-                tunnel.wait(timeout=8)
-            except subprocess.TimeoutExpired:
-                tunnel.kill()
-        receiver.shutdown()
-        receiver.server_close()
-        thread.join(timeout=5)
-        shutil.rmtree(root, ignore_errors=True)
-
-
-def _probe(url, token):
-    try:
-        d = request_json(url, token, "/test-only/status", timeout=5)
-        return d.get("phase") == "ready"
-    except Exception:
-        return False
-
-
-def github_rendezvous():
-    guard()
-    repo = os.environ["GITHUB_REPOSITORY"]
-    run_id = os.environ["GITHUB_RUN_ID"]
-    token = os.environ["GH_API_TOKEN"]
-    api = "https://api.github.com/repos/" + repo
-    label = "lot06-c05b03g-private-rendezvous-" + run_id
-    deadline = time.monotonic() + 330
-    while time.monotonic() < deadline:
-        req = urllib.request.Request(
-            api + "/actions/runs/" + run_id + "/artifacts?per_page=100",
-            headers={"Authorization": "Bearer " + token,
-                     "Accept": "application/vnd.github+json",
-                     "X-GitHub-Api-Version": "2022-11-28"},
-        )
-        try:
-            with urllib.request.urlopen(req, timeout=15) as res:
-                artifacts = json.loads(res.read()).get("artifacts", [])
-        except (urllib.error.HTTPError, urllib.error.URLError):
-            time.sleep(4)
-            continue
-        found = next((a for a in artifacts if a["name"] == label and not a["expired"]), None)
-        if found:
-            req = urllib.request.Request(
-                api + "/actions/artifacts/" + str(found["id"]) + "/zip",
-                headers={"Authorization": "Bearer " + token,
-                         "Accept": "application/vnd.github+json"},
-            )
-            with urllib.request.urlopen(req, timeout=25) as res:
-                archive = res.read()
-            with zipfile.ZipFile(io.BytesIO(archive)) as z:
-                data = json.loads(z.read("rendezvous-private.json"))
-            ensure(data["head_sha"] == os.environ["EXPECTED_SHA"], "RENDEZVOUS_SHA_MISMATCH")
-            ensure(data["run_id"] == run_id, "RENDEZVOUS_RUN_MISMATCH")
-            ensure(re.fullmatch(r"https://[a-z0-9-]+\.trycloudflare\.com",
-                                data["url"]) is not None, "RENDEZVOUS_HOST_INVALID")
-            ensure(len(data["token"]) > 35, "RENDEZVOUS_TOKEN_INVALID")
-            return data
-        time.sleep(4)
-    raise AssertionError("SERVER_RENDEZVOUS_NOT_PUBLISHED")
-
+    with urllib.request.urlopen(req, timeout=12) as reply:
+        return json.loads(reply.read())
 
 def wait_phase(url, token, phase):
-    deadline = time.monotonic() + PHASE_TIMEOUT_S
-    while time.monotonic() < deadline:
-        d = request_json(url, token, "/test-only/status")
-        if d["phase"] == phase and d["start_at"] is not None:
-            return float(d["start_at"])
-        if d["phase"] == "finished":
-            raise AssertionError("SHARED_RECEIVER_FINISHED_EARLY")
-        time.sleep(.25)
-    raise AssertionError("REMOTE_PHASE_BARRIER_NOT_RELEASED_" + phase)
-
-
-def post_bytes(url, token, cap):
-    data = payload(cap)
-    req = urllib.request.Request(
-        url + "/test-only/incoming", data=data,
-        method="POST", headers={"X-Lab-Token": token,
-                                "X-Capture": cap, "Content-Type": "image/png"},
-    )
-    began = time.perf_counter()
-    for attempt in range(4):
+    until = time.monotonic() + 145
+    while time.monotonic() < until:
         try:
-            with urllib.request.urlopen(req, timeout=25) as response:
-                ensure(response.status == 201, "REMOTE_NOT_CREATED")
-                return (time.perf_counter() - began) * 1000
-        except urllib.error.HTTPError as exc:
-            if exc.code == 409:
-                # If an HTTP ACK was lost, re-sending is a duplicate;
-                # server validates deterministic synthetic bytes and source.
-                if attempt > 0:
-                    return (time.perf_counter() - began) * 1000
-                raise
-            if exc.code not in (429, 502, 503, 504, 520, 522, 530) or attempt == 3:
-                raise
+            info = request_json(url, token, "/test-only/status")
         except (urllib.error.URLError, TimeoutError):
-            if attempt == 3:
-                raise
-        time.sleep(.5 * (attempt + 1))
-    raise AssertionError("REMOTE_UPLOAD_FAILED")
+            time.sleep(.25)
+            continue
+        if info["phase"] == phase and info["start_at"] is not None:
+            return float(info["start_at"])
+        if info["phase"] == "finished":
+            raise AssertionError("SERVER_FINISHED_BEFORE_CLIENT")
+        time.sleep(.1)
+    raise AssertionError("CLIENT_BARRIER_TIMEOUT_" + phase)
 
-
-def send_phase(url, token, label, phase, start_at):
-    while time.time() < start_at:
-        time.sleep(.01)
-    begin = time.perf_counter()
-    ns = names(label, phase)
-    with ThreadPoolExecutor(max_workers=(2 if phase == "two" else 6)) as pool:
-        futures = [pool.submit(post_bytes, url, token, cap) for cap in ns]
-        ms = [f.result(timeout=115) for f in as_completed(futures)]
-    elapsed = time.perf_counter() - begin
-    ordered = sorted(ms)
-    return {"files": len(ns), "elapsed_s": round(elapsed, 3),
-            "requests_per_s": round(len(ns) / elapsed, 2),
-            "p95_ms": round(ordered[min(len(ordered)-1, int(.95*len(ordered)))], 2)}
-
+def send_one(url, token, capture):
+    blob = payload(capture)
+    req = urllib.request.Request(url + "/test-only/incoming", data=blob,
+                                 method="POST",
+                                 headers={"X-Lab-Token": token,
+                                          "X-Capture": capture,
+                                          "Content-Type": "image/png"})
+    with urllib.request.urlopen(req, timeout=15) as r:
+        ensure(r.status == 201, "FILE_SEND_NOT_201")
+    return capture
 
 def run_client(label):
-    guard()
-    ensure(label in CLIENTS, "WRONG_RUNNER_LABEL")
-    room = github_rendezvous()
-    url, token = room["url"], room["token"]
-    request_json(url, token, "/test-only/ready", {"label": label})
+    token = guard()
+    ensure(label in CLIENTS, "UNKNOWN_UBUNTU_CONTAINER")
+    url = "http://dc06g-server:7077"
+    until = time.monotonic() + 80
+    while True:
+        try:
+            request_json(url, token, "/test-only/ready", {"label": label})
+            break
+        except (urllib.error.URLError, TimeoutError):
+            ensure(time.monotonic() < until, "PRIVATE_SERVER_UNREACHABLE")
+            time.sleep(.3)
     metrics = {}
     for phase in ("two", "bulk", "flood"):
-        start = wait_phase(url, token, phase)
-        metrics[phase] = send_phase(url, token, label, phase, start)
-        request_json(url, token, "/test-only/" + phase + "-done", {"label": label})
-        print("LOT06C05B03G_REMOTE_" + phase.upper() + "_CLIENT_PASS", flush=True)
-    report = {
-        "kind": "LOT06_C05B03G_REAL_REMOTE_CLIENT_PROOF",
-        "head_sha": os.environ["EXPECTED_SHA"],
-        "run_id": os.environ["GITHUB_RUN_ID"],
-        "label": label,
-        "uploads": sum(x["files"] for x in metrics.values()),
-        "metrics": metrics,
-        "real_https_to_single_shared_test_server": True,
-        "source_files_synthetic": True,
-        "clinical_receipt_issued": False,
-        "physical_powercut_tested": False,
-        "product_ready": False,
-    }
+        target = wait_phase(url, token, phase)
+        while time.time() < target:
+            time.sleep(.01)
+        began = time.monotonic()
+        caps = names(label, phase)
+        with ThreadPoolExecutor(max_workers=2 if phase == "two" else 6) as pool:
+            futures = [pool.submit(send_one, url, token, capture) for capture in caps]
+            delivered = [f.result(timeout=60) for f in as_completed(futures)]
+        ensure(set(delivered) == set(caps), "CLIENT_SENT_FILES_MISSING")
+        elapsed = time.monotonic() - began
+        metrics[phase] = {"files": len(caps),
+                          "elapsed_s": round(elapsed, 3),
+                          "files_per_s": round(len(caps) / elapsed, 2)}
+        request_json(url, token, "/test-only/" + phase + "-done",
+                     {"label": label})
+    report = {"label": label, "head_sha": os.environ["EXPECTED_SHA"],
+              "files_sent": sum(v["files"] for v in metrics.values()),
+              "metrics": metrics,
+              "same_server_dns": "dc06g-server",
+              "isolated_private_docker_client": True,
+              "real_remote_github_vm_client": False,
+              "clinical_receipt": False}
     Path("client-proof.json").write_text(
         json.dumps(report, sort_keys=True, indent=2) + "\n", encoding="utf-8")
-    print("LOT06C05B03G_REMOTE_CLIENT_COMPLETE_PASS", flush=True)
-
+    print("LOT06C05B03G_PRIVATE_UBUNTU_CLIENT_PASS", label, flush=True)
 
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("role", choices=("server", "client"))
-    parser.add_argument("--label", choices=tuple(CLIENTS))
-    a = parser.parse_args()
+    ap = argparse.ArgumentParser()
+    ap.add_argument("role", choices=("server", "client"))
+    ap.add_argument("--label", choices=tuple(CLIENTS))
+    a = ap.parse_args()
     if a.role == "server":
-        run_host()
+        run_server()
     else:
         ensure(a.label is not None, "CLIENT_LABEL_REQUIRED")
         run_client(a.label)
-
 
 if __name__ == "__main__":
     main()
