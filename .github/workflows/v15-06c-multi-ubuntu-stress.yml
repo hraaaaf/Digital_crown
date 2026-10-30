@@ -1,0 +1,118 @@
+name: V1.5-06C Multi-Ubuntu HotFolder Stress LAB
+
+on:
+  pull_request:
+    paths:
+      - 'isolated_fue_lot06c/qa_multi_ubuntu_hotfolder_stress_v15.py'
+      - '.github/workflows/v15-06c-multi-ubuntu-stress.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  parallel-ubuntu-stress:
+    name: "Ubuntu isolated load / ${{ matrix.name }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 18
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - { name: ubuntu22-a, os: ubuntu-22.04, shard: 0, files: 96 }
+          - { name: ubuntu22-b, os: ubuntu-22.04, shard: 1, files: 192 }
+          - { name: ubuntu24-a, os: ubuntu-24.04, shard: 0, files: 96 }
+          - { name: ubuntu24-b, os: ubuntu-24.04, shard: 1, files: 192 }
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03F_TEST_ONLY: '1'
+      STRESS_RUNNER_LABEL: ${{ matrix.name }}
+      STRESS_EVIDENCE_DIR: stress-evidence
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify immutable source SHA (not PR synthetic merge ref)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - name: Install existing HotFolder crypto runtime (no clinical dependencies)
+        shell: bash
+        run: |
+          python -m pip install 'cryptography>=42,<48'
+      - name: Stress real HotFolder on this isolated Ubuntu machine
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile isolated_fue_lot06c/qa_multi_ubuntu_hotfolder_stress_v15.py
+          python -m isolated_fue_lot06c.qa_multi_ubuntu_hotfolder_stress_v15 --files ${{ matrix.files }} --shard ${{ matrix.shard }}
+          test -s "stress-evidence/runner-${{ matrix.shard }}-stress.json"
+      - name: Upload per-runner FUE measurements (NO patient data)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03f-${{ matrix.name }}
+          path: stress-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    name: Verify FOUR independent Ubuntu runner proofs
+    needs: [parallel-ubuntu-stress]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lot06-c05b03f-*
+          path: all-stress
+          merge-multiple: false
+      - name: Reject missing runner / lost file / false clinical success
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,os,pathlib
+          root=pathlib.Path("all-stress")
+          expected={"ubuntu22-a":(96,0),"ubuntu22-b":(192,1),
+                    "ubuntu24-a":(96,0),"ubuntu24-b":(192,1)}
+          actual={p.name.replace("lot06-c05b03f-","") for p in root.iterdir() if p.is_dir()}
+          assert actual==set(expected),(actual,expected)
+          total=0
+          for label,(files,shard) in expected.items():
+              f=root/("lot06-c05b03f-"+label)/("runner-"+str(shard)+"-stress.json")
+              d=json.loads(f.read_text())
+              assert d["head_sha"]==os.environ["EXPECTED_SHA"]
+              assert d["ubuntu_runner_requested"]==label
+              assert d["host_os"]=="Linux" and d["shard"]==shard
+              assert d["case_healthy"]["received_count"]==files+4
+              assert d["case_healthy"]["queue_count"]==files+4
+              assert d["case_healthy"]["deferred_at_capacity"]==0
+              assert d["case_saturated"]["received_count"]==16
+              assert d["case_saturated"]["queue_count"]==8
+              assert d["case_saturated"]["deferred_at_capacity"]==8
+              assert all(v is True for v in d["tests"].values())
+              assert all(v is False for v in d["negative_certification"].values())
+              for case in ("case_healthy","case_saturated"):
+                  assert d[case]["restarted_without_duplication"] is True
+                  assert d[case]["two_files_simultaneous"] is True
+              total+=d["case_healthy"]["received_count"]+d["case_saturated"]["received_count"]
+              print(label,"PASS queue="+str(files+4), "backpressure=8", "p95_ms="+str(d["case_healthy"]["two_file_sender_metrics"]["request_p95_ms"]))
+          assert total== (96+4)+(192+4)+(96+4)+(192+4)+4*16
+          print("LOT06C05B03F_FOUR_UBUNTU_RUNNERS_AGGREGATED_PASS total_received="+str(total))
+          PY
+      - name: Upload cross-runner test proof bundle (isolated/NO cross-host transfer claim)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03f-aggregate-four-ubuntu-proofs
+          path: all-stress/
+          if-no-files-found: error
+          retention-days: 14
