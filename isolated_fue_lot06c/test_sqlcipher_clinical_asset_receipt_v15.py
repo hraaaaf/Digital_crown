@@ -19,7 +19,7 @@ from sqlalchemy.orm import Session
 
 from backend.models_media_core import ClinicalAsset
 from backend.services.clinical_asset_storage import (
-    store_clinical_asset_bytes, read_clinical_asset_bytes, ClinicalAssetStorageError,
+    store_clinical_asset_bytes, read_clinical_asset_bytes,
 )
 from backend.services.imaging_clinical_asset_verifier_v15 import (
     verify_device_capture_media_binding, MediaBindingRejected,
@@ -231,7 +231,7 @@ def test_c05b03b_actual_asset_sqlcipher_atomic_and_lost_ack(tmp_path, monkeypatc
     # without returning ACK. Parent must recover from disk with full AES check.
     env = dict(os.environ, DC06C05B03B_ROOT=str(root))
     child = subprocess.run(
-        [sys.executable, str(Path(__file__).resolve()), "--commit-exit"],
+        [sys.executable, "-m", "isolated_fue_lot06c.test_sqlcipher_clinical_asset_receipt_v15", "--commit-exit"],
         env=env, capture_output=True, text=True, timeout=60, check=False,
     )
     assert child.returncode == 75, f"POSTCOMMIT_CHILD_EXIT_{child.returncode}"
@@ -246,8 +246,8 @@ def test_c05b03b_actual_asset_sqlcipher_atomic_and_lost_ack(tmp_path, monkeypatc
     with pytest.raises(MediaBindingRejected, match="MEDIA_INTEGRITY_BLOCKED"):
         _issue(root, first)
     assert _counts(root) == (2, 2, 2, 2)  # blocked replay, no extra SQL state
-    with pytest.raises(ClinicalAssetStorageError):
-        # Reusing the same blob for another capture is not permitted if tampered.
+    with pytest.raises(ValueError, match="SQLCIPHER_APPROVAL_VERSION_BINDING_CONFLICT"):
+        # An unknown capture is denied before any media read or SQL receipt.
         _issue(root, _claim("not-approved-capture", 1003))
 
     evidence = Path(os.environ.get("DC06C05B03B_EVIDENCE_DIR", str(tmp_path)))
