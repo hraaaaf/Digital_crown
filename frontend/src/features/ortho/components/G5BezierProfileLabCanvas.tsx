@@ -1,4 +1,5 @@
 import React, {useRef, useState} from 'react';
+import {G5VisualReferenceOverlay} from './G5VisualReferenceOverlay';
 import {
   g5SampleBezierContour,
   type G5CubicSegment,
@@ -27,6 +28,7 @@ type Props = {
   onNodesChange?:(nodes:G5BezierNode[])=>void;
   borderColor:string;
   textColor:string;
+  showVisualReference?:boolean;
 };
 const initialNode=(p:G5PixelPoint):Node=>({
   anchor:p,incoming:p,outgoing:p,
@@ -38,6 +40,7 @@ const sub=(a:G5PixelPoint,b:G5PixelPoint):G5PixelPoint=>[a[0]-b[0],a[1]-b[1]];
 export const G5BezierProfileLabCanvas:React.FC<Props>=({
   imageUrl,imageWidth,imageHeight,viewport,otherContours,disabled,
   onSampledChange,initialNodes,onNodesChange,borderColor,textColor,
+  showVisualReference=false,
 })=>{
   const svg=useRef<SVGSVGElement|null>(null);
   const dragging=useRef<Drag|null>(null);
@@ -177,6 +180,7 @@ export const G5BezierProfileLabCanvas:React.FC<Props>=({
       }}
       onPointerCancel={()=>{dragging.current=null;}}>
       <image href={imageUrl} x="0" y="0" width={imageWidth} height={imageHeight}/>
+      {showVisualReference&&<G5VisualReferenceOverlay/>}
       {otherContours.map(curve=><polyline key={curve.id}
         points={curve.points.map(p=>p.join(',')).join(' ')}
         fill="none" stroke={curve.color} strokeWidth="5"
