@@ -3,8 +3,9 @@
 Uses real ClinicalAsset, SQLAlchemy tenant/patient scoping, and AES-GCM bytes.
 Does not exercise staff/device authority or issue any PostgreSQL receipt.
 """
-from dataclasses import replace
 import hashlib
+import json
+import os
 from pathlib import Path
 
 import pytest
@@ -87,6 +88,22 @@ def test_c05b02a_cross_scope_wrong_claims_and_tamper_fail_closed(db, tmp_path):
 
     assert db.query(ClinicalAsset).filter(ClinicalAsset.id == asset.id).count() == 1
     assert asset.storage_key is not None  # metadata persists, no false receipt created
+    evidence = Path(os.environ.get("DC06C05B02A_EVIDENCE_DIR", str(tmp_path)))
+    evidence.mkdir(parents=True, exist_ok=True)
+    (evidence / "lot06c05b02a-media-binding-fue.json").write_text(
+        json.dumps({
+            "kind": "LOT06_C05B02A_READ_ONLY_REAL_CLINICAL_ASSET_AESGCM",
+            "actual_clinical_asset_model_used": True,
+            "actual_storage_read_decrypts_and_rehashes": True,
+            "tenant_patient_staff_asset_sha_size_checked": True,
+            "tampered_ciphertext_and_missing_blob_rejected": True,
+            "non_device_capture_provenance_rejected_in_separate_test": True,
+            "real_staff_device_authorization_verified": False,
+            "approval_version_bound_to_receipt": False,
+            "postgresql_receipt_transaction_connected": False,
+            "product_ready": False,
+        }, indent=2, sort_keys=True) + "\n", encoding="utf-8",
+    )
     print("LOT06C05B02A_MEDIA_WRONG_SCOPE_TAMPER_MISSING_FAIL_CLOSED_PASS")
 
 
