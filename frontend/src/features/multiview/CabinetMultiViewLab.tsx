@@ -179,6 +179,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   // Premium controls exist only in the real DEV R3 two-pane pilot, not R2/production.
   const premiumR3 = enableR3Split && import.meta.env.DEV &&
     (applied.geometry==='two-columns' || applied.geometry==='two-rows');
+  const r5ClinicalPolishEnabled = import.meta.env.DEV &&
+    import.meta.env.VITE_V15_07_R5_PREFS_LAB === 'true' &&
+    Boolean(workstationId && trustedPatient);
   const mounted: Layout = exchanged && applied.slots.length>1
     ? {...applied,slots:[...applied.slots].reverse()} : applied;
   const context: WorkspaceContext = {
@@ -239,7 +242,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
   };
 
   return (
-    <div ref={root} data-v15-071-real-cabinet-lab className="min-w-0 space-y-3">
+    <div ref={root} data-v15-071-real-cabinet-lab
+      data-lot07-polish02={r5ClinicalPolishEnabled ? 'clinical-first' : undefined}
+      className={r5ClinicalPolishEnabled ? 'min-w-0 space-y-2' : 'min-w-0 space-y-3'}>
       {import.meta.env.DEV && import.meta.env.VITE_V15_07_R5_PREFS_LAB === 'true' &&
         workstationId && trustedPatient && (
           <R5MultiViewPreferencesPanel
@@ -273,13 +278,15 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
         </section>
       ) : (
       <header className={'dc-mv-commandbar rounded-2xl border border-border-main bg-card shadow-sm ' +
-        (premiumR3 ? 'p-2.5 sm:p-3' : 'p-3 sm:p-4')}>
+        (r5ClinicalPolishEnabled ? 'p-2.5 shadow-none' : premiumR3 ? 'p-2.5 sm:p-3' : 'p-3 sm:p-4')}>
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary"><LayoutGrid size={21}/></span>
+            <span aria-hidden="true" className={'flex shrink-0 items-center justify-center rounded-xl bg-primary text-on-primary ' +
+              (r5ClinicalPolishEnabled ? 'h-9 w-9' : 'h-11 w-11')}><LayoutGrid size={21}/></span>
             <div className="min-w-0">
-              <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-primary">Espace clinique · MultiView</p>
-              <h2 className="mt-0.5 text-lg font-extrabold tracking-tight text-text-main">Vues multiples</h2>
+              <p className={r5ClinicalPolishEnabled ? 'sr-only' : 'text-[11px] font-extrabold uppercase tracking-[0.13em] text-primary'}>Espace clinique · MultiView</p>
+              <h2 className={'font-extrabold tracking-tight text-text-main ' +
+                (r5ClinicalPolishEnabled ? 'text-base' : 'mt-0.5 text-lg')}>Vues multiples</h2>
               {!premiumR3 && <p data-testid="multiview-legacy-help" className="text-xs text-text-muted">Un dossier patient, plusieurs perspectives. Dispositions de démonstration non enregistrées.</p>}
             </div>
           </div>
@@ -334,7 +341,9 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
           </div>
         </div>
       ) : (
-          <div className="mt-3 space-y-3 rounded-xl border border-border-main bg-medical-pearl/80 p-3">
+          <div className={r5ClinicalPolishEnabled
+              ? 'mt-2 space-y-2 rounded-lg bg-medical-pearl/60 p-2'
+              : 'mt-3 space-y-3 rounded-xl border border-border-main bg-medical-pearl/80 p-3'}>
           <div data-testid="multiview-legacy-selection" className="flex flex-wrap items-center gap-2">
             <label htmlFor="multiview-pilot-select" className="text-sm">Disposition</label>
             <select id="multiview-pilot-select" aria-label="Disposition MultiView"
