@@ -83,6 +83,8 @@ jobs:
           echo "C05B03H_REAL_GITHUB_HOSTED_VM_PRECHECK_PASS"
 
   one-shared-receiver:
+    # Never start private network operations until tailnet ACL was human-reviewed.
+    if: ${{ needs.secure-preflight.result == 'success' && vars.C05B03H_NETWORK_POLICY_APPROVED == 'true' }}
     name: "FUE-03H one REAL Ubuntu24 VM serving encrypted TEST queue"
     needs: [secure-preflight]
     runs-on: ubuntu-24.04
@@ -195,6 +197,8 @@ jobs:
           rm -f rendezvous-private.json
 
   four-real-vms:
+    # 4 true VMs are opt-in after explicit network policy authorization.
+    if: ${{ needs.secure-preflight.result == 'success' && vars.C05B03H_NETWORK_POLICY_APPROVED == 'true' }}
     name: "FUE-03H ACTUAL separate GitHub Ubuntu VM ${{ matrix.label }}"
     needs: [secure-preflight]
     runs-on: ${{ matrix.os }}
