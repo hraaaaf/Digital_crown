@@ -129,14 +129,22 @@ try {
     .waitFor({state:'visible',timeout:60000});
   assert.equal(await a.page.locator('[data-lot07-polish02]').getAttribute('data-lot07-polish02'),
     'clinical-first','POLISH-02 must remain gated to the DEV workstation lab');
-  const clinical1440 = await a.page.locator('[data-v15-071-viewslot="dossier"]')
-    .boundingBox();
+  // At 1440 CSS px, the trusted inner workspace can be <1280 after the
+  // sidebar/patient shell. Accept ONLY the existing read-only safety fallback,
+  // never force an unreadable two-pane dossier just to pass a visual gate.
+  const dossier1440=a.page.locator('[data-v15-071-viewslot="dossier"]');
+  const safeFallback1440=a.page.locator('[data-testid="multiview-responsive-single-media-fallback"]');
+  const twoPanes1440=await dossier1440.count()===1;
+  assert.ok(twoPanes1440 || await safeFallback1440.isVisible(),
+    '1440px must show either the authorized clinical layout or its safe fallback');
+  const clinical1440 = await (twoPanes1440 ? dossier1440 : safeFallback1440).boundingBox();
   assert.ok(clinical1440 && clinical1440.x >= -1 &&
     clinical1440.x + clinical1440.width <= 1441,
-    'Real 1440px clinical dossier must stay in the viewport');
+    'Real 1440px safe clinical content must stay in the viewport');
   await screenshot(a.page,'R5-MultiView-desktop-before-1440');
   checked('polish02-real-authenticated-clinical-first-1440', {
-    width:1440,clinicalTop:Math.round(clinical1440.y)});
+    width:1440,clinicalTop:Math.round(clinical1440.y),
+    layout:twoPanes1440 ? 'verified-two-pane' : 'read-only-safe-fallback'});
   await a.page.setViewportSize({width:1920,height:1080});
   await a.page.goto(uiBase+patientMediaPath,{
     waitUntil:'domcontentloaded',timeout:90000});
