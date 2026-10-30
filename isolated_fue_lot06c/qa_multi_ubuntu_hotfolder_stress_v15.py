@@ -133,6 +133,7 @@ def child_send(args):
     now = time.time()
     if args.start_at > now:
         time.sleep(args.start_at - now)
+    send_started_at = time.time()
     durations = []
     accepted = 0
     errors = []
@@ -155,7 +156,9 @@ def child_send(args):
             errors.append("SEND_REJECTED")
         durations.append((time.perf_counter() - begin) * 1000)
     print(json.dumps({"sent": args.count, "accepted": accepted,
-                      "errors": errors, "ms": durations}), flush=True)
+                      "errors": errors, "ms": durations,
+                      "first_send_at": send_started_at,
+                      "last_send_at": time.time()}), flush=True)
 
 
 def send_parallel(server, *, group, files, workers):
@@ -189,6 +192,11 @@ def send_parallel(server, *, group, files, workers):
                 child.kill()
                 child.communicate()
     elapsed = time.perf_counter() - started
+    # Distinguish active HTTP request window from process startup/sync barrier.
+    active_s = max(o["last_send_at"] for o in outputs) - min(
+        o["first_send_at"] for o in outputs
+    )
+    assert active_s > 0
     assert sum(r["accepted"] for r in outputs) == files
     assert not any(r["errors"] for r in outputs)
     latencies = [t for r in outputs for t in r["ms"]]
@@ -198,8 +206,9 @@ def send_parallel(server, *, group, files, workers):
         "sent": files,
         "accepted": files,
         "workers": workers,
-        "elapsed_s": round(elapsed, 3),
-        "requests_per_s": round(files / elapsed, 2),
+        "total_process_start_to_finish_s": round(elapsed, 3),
+        "active_http_window_s": round(active_s, 3),
+        "requests_per_s": round(files / active_s, 2),
         "request_p95_ms": round(latencies[min(len(latencies)-1, int(.95*len(latencies)))], 2),
     }
 
