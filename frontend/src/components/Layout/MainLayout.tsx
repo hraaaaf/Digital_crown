@@ -197,7 +197,8 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
 
         <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-3 sm:p-4 lg:p-8'}`}>
           {r5SignaturePrefsEnabled ? (
-            <R5SignaturePreferencesPanel user={user} mode={r4SignatureMode} onChange={setR4SignatureMode} />
+            <R5SignaturePreferencesPanel user={user} mode={r4SignatureMode} onChange={setR4SignatureMode}
+              compactOnPatientRoute={isPatientRoute} />
           ) : r4SignaturePreviewEnabled && (
             <SignatureIconicCabinetControls mode={r4SignatureMode} onChange={setR4SignatureMode} />
           )}

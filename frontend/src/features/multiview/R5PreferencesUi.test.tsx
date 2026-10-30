@@ -41,10 +41,11 @@ beforeEach(()=>{
 });
 afterEach(()=>cleanup());
 
-function SignatureHarness(){
+function SignatureHarness({compact=false}:{compact?:boolean}){
   const [mode,setMode]=useState<'core'|'iconic'>('core');
   return <><output data-testid="live-signature">{mode}</output>
-    <R5SignaturePreferencesPanel user={mockUser} mode={mode} onChange={setMode}/></>;
+    <R5SignaturePreferencesPanel user={mockUser} mode={mode} onChange={setMode}
+      compactOnPatientRoute={compact}/></>;
 }
 
 describe('LOT07 R5 07-D — actual buttons, server-saved preferences (DEV only)',()=>{
@@ -63,6 +64,20 @@ describe('LOT07 R5 07-D — actual buttons, server-saved preferences (DEV only)'
     fireEvent.click(screen.getByRole('button',{name:'Appliquer et enregistrer'}));
     await waitFor(()=>expect(store.save).toHaveBeenCalledWith(
       expect.objectContaining({signature:'iconic',userId:'10',workstationId:'station-test'}),0));
+  });
+
+  it('keeps real patient Signature collapsed until explicit edit while Dashboard stays unchanged',async()=>{
+    render(<SignatureHarness compact/>);
+    await screen.findByTestId('r5-signature-prefs');
+    const toggle=screen.getByTestId('r5-signature-toggle');
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button',{name:'Signature Iconic'})).toBeNull();
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(screen.getByRole('button',{name:'Signature Iconic'})).toBeTruthy();
+    fireEvent.click(toggle);
+    expect(screen.queryByRole('button',{name:'Signature Iconic'})).toBeNull();
+    expect(store.save).not.toHaveBeenCalled();
   });
 
   it('preserves the R4-only non-persisted preview wording',()=>{
@@ -87,6 +102,10 @@ describe('LOT07 R5 07-D — actual buttons, server-saved preferences (DEV only)'
     render(<R5MultiViewPreferencesPanel context={scope} layouts={options}
       ratio={50} onApply={onApply}/>);
     await screen.findByTestId('r5-multiview-prefs');
+    expect(screen.getByTestId('r5-multiview-toggle').getAttribute('aria-expanded')).toBe('false');
+    expect(screen.queryByRole('button',{name:'Aperçu'})).toBeNull();
+    fireEvent.click(screen.getByRole('button',{name:'Configurer'}));
+    expect(screen.getByTestId('r5-multiview-toggle').getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
     expect(screen.getByTestId('r5-multiview-preview').textContent).toContain('dossier');
     expect(screen.getByTestId('r5-multiview-preview').textContent).not.toMatch(/patientId|17|token/i);
@@ -95,6 +114,8 @@ describe('LOT07 R5 07-D — actual buttons, server-saved preferences (DEV only)'
     await waitFor(()=>expect(store.save).toHaveBeenCalledWith(
       expect.objectContaining({layout:expect.objectContaining({id:'consultation'})}),0));
     await waitFor(()=>expect(onApply).toHaveBeenCalled());
+    await waitFor(()=>expect(screen.getByTestId('r5-multiview-toggle').getAttribute('aria-expanded')).toBe('false'));
+    expect(screen.queryByRole('button',{name:'Aperçu'})).toBeNull();
   });
 
   it('rejects cross-user restore without rendering saved preferences',async()=>{

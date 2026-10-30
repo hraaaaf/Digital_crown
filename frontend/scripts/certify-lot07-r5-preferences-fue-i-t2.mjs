@@ -139,7 +139,35 @@ try {
   assert.equal(await a.page.getByRole('button',{name:'Échanger les vues'}).isVisible(),
     true,'R3 view-exchange must remain available');
   checked('single-visible-r5-disposition-retains-r3-view-tools');
+  // Clinical-first: both preference panels start compact on a genuine patient
+  // dossier, retain a keyboard-accessible, explicit way to reopen them, and
+  // reclaim meaningful vertical room for the real read-only clinical slots.
+  const signatureToggle=a.page.locator('[data-testid="r5-signature-toggle"]');
+  const multiToggle=layoutPanel.locator('[data-testid="r5-multiview-toggle"]');
+  assert.equal(await signatureToggle.getAttribute('aria-expanded'),'false');
+  assert.equal(await multiToggle.getAttribute('aria-expanded'),'false');
+  assert.equal(await layoutPanel.getByRole('combobox',{name:'Disposition R5'}).count(),0);
+  const clinicalOffset=()=>a.page.evaluate(()=>{
+    const a=document.querySelector('[data-testid="r5-signature-prefs"]');
+    const b=document.querySelector('[data-v15-071-viewslot="dossier"]');
+    if(!a||!b)throw Error('Missing authenticated clinical landmark');
+    return Math.round(b.getBoundingClientRect().top-a.getBoundingClientRect().top);
+  });
+  const compactOffset=await clinicalOffset();
   await screenshot(a.page,'R5-MultiView-desktop-before-1920');
+  await signatureToggle.click();
+  await multiToggle.click();
+  assert.equal(await signatureToggle.getAttribute('aria-expanded'),'true');
+  assert.equal(await multiToggle.getAttribute('aria-expanded'),'true');
+  const expandedOffset=await clinicalOffset();
+  assert.ok(expandedOffset-compactOffset>=120,
+    'Compact preference panels must recover at least 120 CSS pixels above clinical content');
+  checked('desktop-clinical-first-reclaimed-height-1920',
+    {compactOffset,expandedOffset,reclaimedPx:expandedOffset-compactOffset});
+  await screenshot(a.page,'R5-MultiView-desktop-expanded-1920');
+  // Return Signature to a compact summary; the MultiView editor remains open
+  // so the next existing preview/cancel and isolation assertions stay genuine.
+  await signatureToggle.click();
   checked('real-authenticated-r5-multiview-1920-visual-evidence');
   await layoutPanel.getByRole('combobox',{name:'Disposition R5'})
     .selectOption('dossier-media-2rows');

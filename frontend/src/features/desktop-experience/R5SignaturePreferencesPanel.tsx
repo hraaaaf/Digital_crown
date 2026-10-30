@@ -15,8 +15,9 @@ function tenantId(user: AppUser): string | null {
 /** DEV-only signature experience: persists no clinical data. Permission checks
  * and workstation enrollment are server-owned and repeated for each mutation.
  */
-export function R5SignaturePreferencesPanel({user,mode,onChange}:{
+export function R5SignaturePreferencesPanel({user,mode,onChange,compactOnPatientRoute=false}:{
   user:AppUser|null;mode:R5Signature;onChange:(value:R5Signature)=>void;
+  compactOnPatientRoute?:boolean;
 }) {
   const principal=user?String(user.id)+':'+tenantId(user)+':'+user.role:'anonymous';
   const [scope,setScope]=useState<R5VerifiedScope|null>(null);
@@ -25,10 +26,12 @@ export function R5SignaturePreferencesPanel({user,mode,onChange}:{
   const [pending,setPending]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const [ready,setReady]=useState(false);
+  const [detailsOpen,setDetailsOpen]=useState(false);
+  const showDetails=!compactOnPatientRoute||detailsOpen;
 
   useEffect(()=>{
     let active=true;
-    setScope(null);setSaved(null);setDraft('core');setReady(false);setError(null);
+    setScope(null);setSaved(null);setDraft('core');setReady(false);setError(null);setDetailsOpen(false);
     onChange('core');
     const load=async()=>{
       if(!user||!tenantId(user)||!useAuthStore.getState().isAuthenticated) return;
@@ -59,6 +62,8 @@ export function R5SignaturePreferencesPanel({user,mode,onChange}:{
     return ()=>{active=false;unsubscribe();};
   },[principal]); // Reinitialize on user/tenant change, not on each rerender.
 
+  useEffect(()=>{setDetailsOpen(false);},[compactOnPatientRoute]);
+
   async function verifyScope():Promise<boolean> {
     if(!scope||!user||!useAuthStore.getState().isAuthenticated||
       String(useAuthStore.getState().user?.id)!==scope.userId) return false;
@@ -79,7 +84,7 @@ export function R5SignaturePreferencesPanel({user,mode,onChange}:{
         createR5Preference(scope,draft,null);
       if(!record) throw new Error('invalid');
       const response=await r5PreferencesService.save(record,saved.revision);
-      setSaved(response);onChange(draft);
+      setSaved(response);onChange(draft);setDetailsOpen(false);
     }catch{
       setDraft(saved.record?.signature||'core');
       onChange(saved.record?.signature||'core');
@@ -102,7 +107,19 @@ export function R5SignaturePreferencesPanel({user,mode,onChange}:{
   </p>;
   return <section data-testid="r5-signature-prefs" aria-label="R5 préférences Signature"
     className="mb-2 rounded-xl border border-border-main bg-card px-3 py-2 text-text-main">
-    <div className="flex flex-col gap-3">
+    {compactOnPatientRoute && <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex min-w-0 items-center gap-2 text-xs">
+        <strong className="text-text-main">Signature du cabinet</strong>
+        <span className="text-text-muted">{saved.record?.signature==='iconic'?'Iconic':'Core'} · poste vérifié · révision {saved.revision}</span>
+      </div>
+      <button type="button" data-testid="r5-signature-toggle"
+        aria-expanded={showDetails} aria-controls="r5-signature-settings"
+        onClick={()=>setDetailsOpen(value=>!value)}
+        className="min-h-9 rounded-lg border border-border-main px-3 py-1.5 text-xs font-semibold text-text-main">
+        {showDetails?'Replier':'Personnaliser'}
+      </button>
+    </div>}
+    {showDetails && <div id="r5-signature-settings" className="flex flex-col gap-3 pt-1">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 className="text-sm font-bold text-text-main">Signature du cabinet</h2>
@@ -128,7 +145,7 @@ export function R5SignaturePreferencesPanel({user,mode,onChange}:{
           ? 'Sélection non enregistrée : utilisez « Appliquer et enregistrer » pour la conserver.'
           : 'Préférence actuelle enregistrée pour ce compte et ce poste.'}
       </p>
-    </div>
+    </div>}
     {error&&<p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
   </section>;
 }

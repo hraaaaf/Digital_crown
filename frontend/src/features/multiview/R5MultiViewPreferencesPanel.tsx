@@ -14,6 +14,7 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
   const [state,setState]=useState<R5PersistedState|null>(null);
   const [choice,setChoice]=useState(layouts[0]?.id||'');
   const [preview,setPreview]=useState(false);
+  const [expanded,setExpanded]=useState(false);
   const [busy,setBusy]=useState(false);
   const [error,setError]=useState<string|null>(null);
   const scopeKey=[context.tenantId,context.userId,context.workstationId,
@@ -31,7 +32,7 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
   }
   useEffect(()=>{
     let active=true;
-    setState(null);setPreview(false);setError(null);
+    setState(null);setPreview(false);setExpanded(false);setError(null);
     const load=async()=>{
       try{
         const persisted=await r5PreferencesService.load();
@@ -63,7 +64,7 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
       const result=await r5PreferencesService.save(pref,state.revision);
       const validated=readR5(result.record,context);
       if(!validated)throw new Error('scope');
-      setState(result);onApply(selected,ratio);setPreview(false);
+      setState(result);onApply(selected,ratio);setPreview(false);setExpanded(false);
     }catch{setPreview(false);setError('Enregistrement refusé : utilisateur, poste ou révision à vérifier.');}
     finally{setBusy(false);}
   }
@@ -75,21 +76,27 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
       if(result.record&&!readR5(result.record,context))throw new Error('scope');
       setState(result);const previous=matching(result.record);
       if(previous){setChoice(previous.id);onApply(previous,result.record!.layout!.ratio);}
-      setPreview(false);
+      setPreview(false);setExpanded(false);
     }catch{setError('Rollback refusé.');}finally{setBusy(false);}
   }
   if(!context.authenticated||!context.workstationVerified||!context.workstationId||
       !context.userId||!context.tenantId||!state)return null;
   return <section data-testid="r5-multiview-prefs" aria-label="R5 dispositions persistantes"
     className="mb-2 rounded-xl border border-border-main bg-card px-3 py-3 text-text-main">
-    <div className="flex flex-col gap-3 text-xs">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div>
-          <h2 className="text-sm font-bold">Disposition du cabinet · R5</h2>
-          <p className="text-text-muted">Une disposition par compte et poste, sans données patient.</p>
-        </div>
-        <span className="rounded-full border border-border-main bg-medical-pearl px-3 py-1 text-text-muted">Révision {state.revision}</span>
+    <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+      <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+        <strong className="text-sm">Disposition du cabinet · R5</strong>
+        <span className="text-text-muted">{matching(state.record)?.label||'Disposition standard'} · poste vérifié · révision {state.revision}</span>
       </div>
+      <button type="button" data-testid="r5-multiview-toggle"
+        aria-expanded={expanded} aria-controls="r5-multiview-settings"
+        onClick={()=>{setExpanded(value=>!value);setPreview(false);}}
+        className="min-h-9 rounded-lg border border-border-main px-3 py-1.5 font-semibold text-text-main">
+        {expanded?'Replier':'Configurer'}
+      </button>
+    </div>
+    {expanded && <div id="r5-multiview-settings" className="mt-3 flex flex-col gap-3 text-xs">
+      <p className="text-text-muted">Une disposition par compte et poste, sans données patient.</p>
       <label className="flex flex-wrap items-center gap-2 font-semibold">Disposition
         <select value={choice} aria-label="Disposition R5" onChange={e=>{setChoice(e.target.value);setPreview(false);}}
           className="min-h-10 max-w-full rounded-lg border border-border-main bg-card px-3 py-2 font-normal">
@@ -107,8 +114,8 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
       <button type="button" disabled={busy||!state.canRollback} onClick={()=>void rollback()}
         className="min-h-10 rounded-lg px-3 py-2 text-text-muted hover:underline disabled:opacity-50">Rollback</button>
       </div>
-    </div>
-    {preview&&selected&&<div data-testid="r5-multiview-preview" role="status"
+    </div>}
+    {expanded&&preview&&selected&&<div data-testid="r5-multiview-preview" role="status"
        aria-label="Aperçu schématique sans données patient" className="mt-3">
        <p className="mb-2 text-xs">Aperçu : {selected.label}. Appliquer pour enregistrer.</p>
        <div style={{...geometryGridStyle(selected.geometry,ratio),height:152}}>
