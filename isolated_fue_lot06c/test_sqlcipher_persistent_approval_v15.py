@@ -224,10 +224,13 @@ def _issue(root, claim, fail_at=None):
     try:
         with Session(engine, expire_on_commit=False) as db:
             db.connection().exec_driver_sql("BEGIN IMMEDIATE")
+            # Reject revoked actors on every requester call, including ACK replay.
+            # Immutable historical records remain available through internal audit only.
+            _authorize(db, claim)
             old = _existing(db, claim, root)
             if old is not None:
                 db.commit()
-                return old  # historical LOOKUP, never a fresh authorization after revocation
+                return old  # identity-bound ACK replay by a currently authorized requester
             _authorize(db, claim)  # DB authority under writer lock, not client-provided token
             asset = ClinicalAsset(
                 id=claim.asset_id, employer_id=claim.tenant, patient_id=claim.patient,
@@ -351,12 +354,18 @@ def test_c05b03c_atomic_receipt_historical_replay_and_exit(tmp_path, monkeypatch
     _change(root, "UPDATE c05b03c_devices SET active=0")
     with pytest.raises(ValueError, match="PERSISTED_STAFF_DEVICE_STATION_REVOKED"):
         _issue(root, blocked)
-    assert _issue(root, first) == rid  # retrieval not a new write/approval
-    assert _issue(root, ack) == recovered
-    with pytest.raises(ValueError, match="HISTORICAL_RECEIPT_BINDING_CONFLICT"):
-        _issue(root, replace(first, version=7))
+    # Revoked requesters must not receive existing receipts either.
+    for old_claim in (first, ack):
+        with pytest.raises(ValueError, match="PERSISTED_STAFF_DEVICE_STATION_REVOKED"):
+            _issue(root, old_claim)
     engine = _engine(root)
     try:
+        # This internal-only audit helper retains and verifies evidence after revocation.
+        with Session(engine) as audit:
+            assert _existing(audit, first, root) == rid
+            assert _existing(audit, ack, root) == recovered
+            with pytest.raises(ValueError, match="HISTORICAL_RECEIPT_BINDING_CONFLICT"):
+                _existing(audit, replace(first, version=7), root)
         with pytest.raises(IntegrityError, match="RECEIPT_IMMUTABLE"):
             with engine.begin() as c:
                 c.exec_driver_sql("UPDATE c05b03c_receipts SET version=7")
@@ -388,7 +397,8 @@ def test_c05b03c_atomic_receipt_historical_replay_and_exit(tmp_path, monkeypatch
         "persisted_tenant_staff_device_station_revision_checked": True,
         "cross_tenant_identity_version_and_role_refused": True,
         "revocation_before_issue_refused": True,
-        "historical_receipt_readback_after_revocation": True,
+        "historical_receipt_internal_audit_after_revocation": True,
+        "revoked_requester_receipt_replay_denied": True,
         "receipt_immutable_test_trigger_enforced": True,
         "four_sql_failpoints_atomic_rollback": True,
         "real_aesgcm_media_bound_before_sql_commit": True,
