@@ -115,7 +115,7 @@ export function R5SignaturePreferencesPanel({user,mode,onChange,compactOnPatient
       <button type="button" data-testid="r5-signature-toggle"
         aria-expanded={showDetails} aria-controls="r5-signature-settings"
         onClick={()=>setDetailsOpen(value=>!value)}
-        className="min-h-9 rounded-lg border border-border-main px-3 py-1.5 text-xs font-semibold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
+        className="min-h-9 rounded-lg border border-border-main px-3 py-1.5 text-xs font-semibold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-main">
         {showDetails?'Replier':'Personnaliser'}
       </button>
     </div>}
