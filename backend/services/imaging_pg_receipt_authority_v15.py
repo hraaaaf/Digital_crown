@@ -92,6 +92,40 @@ def guard(engine: Engine) -> None:
         raise AuthorityRejected("ISOLATED_PG_AUTHORITY_DISABLED")
 
 
+def install_immutable_test_guards(engine: Engine) -> None:
+    """Install DB-level anti-mutation guards in the isolated PostgreSQL fixture.
+
+    This is a C05B-01 DDL *prototype*, never an Alembic cabinet migration.
+    It blocks normal SQL UPDATE/DELETE on approved captures and their receipt,
+    audit and outbox records, even when a client bypasses Python validation.
+    PostgreSQL DDL owners/superusers can still drop triggers; no product claim.
+    Tables must already have been created by the isolated test fixture.
+    """
+    guard(engine)
+    tables = (approvals, receipts, audit, outbox)
+    with engine.begin() as conn:
+        conn.exec_driver_sql("""
+CREATE OR REPLACE FUNCTION lot06c05a_reject_row_mutation()
+RETURNS TRIGGER LANGUAGE plpgsql AS $body$
+BEGIN
+    RAISE EXCEPTION 'LOT06C05A_IMMUTABLE_ROW' USING ERRCODE = '23514';
+END;
+$body$;
+""")
+        for table in tables:
+            # Table and trigger names are constants from local SQLAlchemy
+            # metadata, never client-provided strings.
+            trigger = f"{table.name}_immutable"
+            conn.exec_driver_sql(
+                f'DROP TRIGGER IF EXISTS "{trigger}" ON "{table.name}"'
+            )
+            conn.exec_driver_sql(
+                f'CREATE TRIGGER "{trigger}" BEFORE UPDATE OR DELETE '
+                f'ON "{table.name}" FOR EACH ROW '
+                'EXECUTE FUNCTION lot06c05a_reject_row_mutation()'
+            )
+
+
 def _where(claim: ApprovalClaim):
     return (
         (approvals.c.tenant == claim.tenant)
