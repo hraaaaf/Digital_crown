@@ -82,24 +82,31 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
       !context.userId||!context.tenantId||!state)return null;
   return <section data-testid="r5-multiview-prefs" aria-label="R5 dispositions persistantes"
     className="mb-2 rounded-xl border border-border-main bg-card px-3 py-3 text-text-main">
-    <div className="flex flex-wrap items-center gap-2 text-xs">
-      <strong>R5 · Disposition par utilisateur et poste</strong>
-      <label>Disposition
+    <div className="flex flex-col gap-3 text-xs">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-bold">Disposition du cabinet · R5</h2>
+          <p className="text-text-muted">Une disposition par compte et poste, sans données patient.</p>
+        </div>
+        <span className="rounded-full border border-border-main bg-medical-pearl px-3 py-1 text-text-muted">Révision {state.revision}</span>
+      </div>
+      <label className="flex flex-wrap items-center gap-2 font-semibold">Disposition
         <select value={choice} aria-label="Disposition R5" onChange={e=>{setChoice(e.target.value);setPreview(false);}}
-          className="ml-2 rounded-lg border border-border-main bg-card p-1.5">
+          className="min-h-10 max-w-full rounded-lg border border-border-main bg-card px-3 py-2 font-normal">
           {layouts.map(l=><option key={l.id} value={l.id}
              disabled={!authorizeLayout(l,context,ratio).ok}>{l.label}</option>)}
         </select>
       </label>
+      <div className="flex flex-wrap items-center gap-2 border-t border-border-main pt-3">
       <button type="button" disabled={busy||!allowed} onClick={()=>setPreview(true)}
-        className="rounded-lg border border-border-main px-2 py-1.5">Aperçu</button>
+        className="min-h-10 rounded-lg border border-border-main px-3 py-2 font-semibold disabled:opacity-50">Aperçu</button>
       <button type="button" disabled={busy||!allowed} onClick={()=>void save()}
-        className="rounded-lg bg-primary px-2 py-1.5 font-bold text-on-primary">Appliquer</button>
+        className="min-h-10 rounded-lg bg-primary px-4 py-2 font-bold text-on-primary disabled:opacity-50">Appliquer</button>
       <button type="button" disabled={busy} onClick={()=>setPreview(false)}
-        className="rounded-lg border border-border-main px-2 py-1.5">Annuler</button>
+        className="min-h-10 rounded-lg border border-border-main px-3 py-2 disabled:opacity-50">Annuler</button>
       <button type="button" disabled={busy||!state.canRollback} onClick={()=>void rollback()}
-        className="rounded-lg border border-border-main px-2 py-1.5">Rollback</button>
-      <span className="text-text-muted">Révision {state.revision} · aucun contenu patient enregistré</span>
+        className="min-h-10 rounded-lg px-3 py-2 text-text-muted hover:underline disabled:opacity-50">Rollback</button>
+      </div>
     </div>
     {preview&&selected&&<div data-testid="r5-multiview-preview" role="status"
        aria-label="Aperçu schématique sans données patient" className="mt-3">

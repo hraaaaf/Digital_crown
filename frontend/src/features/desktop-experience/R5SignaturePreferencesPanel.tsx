@@ -102,17 +102,32 @@ export function R5SignaturePreferencesPanel({user,mode,onChange}:{
   </p>;
   return <section data-testid="r5-signature-prefs" aria-label="R5 préférences Signature"
     className="mb-2 rounded-xl border border-border-main bg-card px-3 py-2 text-text-main">
-    <div className="flex flex-wrap items-center gap-2">
-      <SignatureIconicCabinetControls mode={draft} onChange={setDraft}/>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <h2 className="text-sm font-bold text-text-main">Signature du cabinet</h2>
+          <p className="text-xs text-text-muted">Prévisualiser sans enregistrer, puis confirmer pour conserver.</p>
+        </div>
+        <span className="rounded-full border border-border-main bg-medical-pearl px-3 py-1 text-xs text-text-muted">
+          Compte et poste vérifiés · révision {saved.revision}
+        </span>
+      </div>
+      <SignatureIconicCabinetControls mode={draft} onChange={setDraft} persisted/>
+      <div className="flex flex-wrap items-center gap-2 border-t border-border-main pt-3">
       <button type="button" disabled={pending||draft===mode} onClick={()=>onChange(draft)}
-        className="rounded-lg border border-border-main px-3 py-1.5 text-xs font-semibold">Aperçu</button>
+        className="min-h-10 rounded-lg border border-border-main px-3 py-2 text-xs font-semibold disabled:opacity-50">Aperçu</button>
       <button type="button" disabled={pending||draft===saved.record?.signature} onClick={()=>void apply()}
-        className="rounded-lg bg-primary px-3 py-1.5 text-xs font-bold text-on-primary">Appliquer et enregistrer</button>
+        className="min-h-10 rounded-lg bg-primary px-4 py-2 text-xs font-bold text-on-primary shadow-sm disabled:opacity-50">Appliquer et enregistrer</button>
       <button type="button" disabled={pending} onClick={()=>{const original=saved.record?.signature||'core';setDraft(original);onChange(original);}}
-        className="rounded-lg border border-border-main px-3 py-1.5 text-xs">Annuler</button>
+        className="min-h-10 rounded-lg border border-border-main px-3 py-2 text-xs disabled:opacity-50">Annuler</button>
       <button type="button" disabled={pending||!saved.canRollback} onClick={()=>void rollback()}
-        className="rounded-lg border border-border-main px-3 py-1.5 text-xs">Rollback</button>
-      <span className="text-xs text-text-muted">Utilisateur et poste vérifiés · révision {saved.revision}</span>
+        className="min-h-10 rounded-lg px-3 py-2 text-xs text-text-muted hover:underline disabled:opacity-50">Rollback</button>
+      </div>
+      <p role="status" className="text-xs text-text-muted">
+        {draft!==saved.record?.signature
+          ? 'Sélection non enregistrée : utilisez « Appliquer et enregistrer » pour la conserver.'
+          : 'Préférence actuelle enregistrée pour ce compte et ce poste.'}
+      </p>
     </div>
     {error&&<p role="alert" className="mt-1 text-xs text-danger">{error}</p>}
   </section>;

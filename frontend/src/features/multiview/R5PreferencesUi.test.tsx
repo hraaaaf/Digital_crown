@@ -3,6 +3,7 @@ import {cleanup,fireEvent,render,screen,waitFor} from '@testing-library/react';
 import {useState} from 'react';
 import type {AppUser} from '../../types';
 import {R5SignaturePreferencesPanel} from '../desktop-experience/R5SignaturePreferencesPanel';
+import {SignatureIconicCabinetControls} from '../desktop-experience/SignatureIconicCabinetControls';
 import {R5MultiViewPreferencesPanel} from './R5MultiViewPreferencesPanel';
 import {PRESETS,type WorkspaceContext} from './studioLayouts';
 import {createR5Preference} from './R5PreferencesPolicy';
@@ -52,6 +53,8 @@ describe('LOT07 R5 07-D — actual buttons, server-saved preferences (DEV only)'
     store.save.mockResolvedValue({record,revision:1,canRollback:false});
     render(<SignatureHarness/>);
     await screen.findByTestId('r5-signature-prefs');
+    expect(screen.getByText('R5 · Préférence enregistrable par compte et poste')).toBeTruthy();
+    expect(screen.queryByText('R4 · Aperçu local non persisté')).toBeNull();
     fireEvent.click(screen.getByRole('button',{name:'Signature Iconic'}));
     expect(screen.getByTestId('live-signature').textContent).toBe('core');
     fireEvent.click(screen.getByRole('button',{name:'Aperçu'}));
@@ -60,6 +63,12 @@ describe('LOT07 R5 07-D — actual buttons, server-saved preferences (DEV only)'
     fireEvent.click(screen.getByRole('button',{name:'Appliquer et enregistrer'}));
     await waitFor(()=>expect(store.save).toHaveBeenCalledWith(
       expect.objectContaining({signature:'iconic',userId:'10',workstationId:'station-test'}),0));
+  });
+
+  it('preserves the R4-only non-persisted preview wording',()=>{
+    render(<SignatureIconicCabinetControls mode="core" onChange={vi.fn()}/>);
+    expect(screen.getByText('R4 · Aperçu local non persisté')).toBeTruthy();
+    expect(screen.queryByText('R5 · Préférence enregistrable par compte et poste')).toBeNull();
   });
 
   it('never mounts restored controls for unverified workstations',async()=>{

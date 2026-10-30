@@ -96,6 +96,18 @@ try {
   for(const key of ['patientId','token','patientName','patient','medical'])
     assert.ok(!Object.hasOwn(saved.record,key),'Sensitive field not persisted: '+key);
   await screenshot(a.page,'A-03-applied');
+  // Exact-SHA real authenticated responsive screenshots, not a MultiView
+  // certification or human visual approval.
+  for (const width of [390,430,768,1280]) {
+    await a.page.setViewportSize({width,height:900});
+    const rect=await a.panel.boundingBox();
+    assert.ok(rect && rect.x>=-1 && rect.x+rect.width<=width+1,
+      'R5 signature panel exceeds viewport at '+width);
+    assert.equal(await a.page.locator('[data-r4-signature]').getAttribute('data-r4-signature'),'iconic');
+    await screenshot(a.page,'A-03-applied-'+width);
+    checked('responsive-R5-signature-'+width+'px',{width});
+  }
+  await a.page.setViewportSize({width:1440,height:900});
   await a.page.reload({waitUntil:'domcontentloaded'});
   await a.page.locator('[data-testid="r5-signature-prefs"]').waitFor({timeout:30000});
   assert.equal(await a.page.locator('[data-r4-signature]').getAttribute('data-r4-signature'),'iconic');
