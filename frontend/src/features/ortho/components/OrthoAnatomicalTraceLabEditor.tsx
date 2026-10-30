@@ -1,6 +1,8 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {cephaloRepository} from '../cephaloRepository';
 import {G5BezierProfileLabCanvas, type G5BezierNode} from './G5BezierProfileLabCanvas';
+import {G5VisualReferenceOverlay} from './G5VisualReferenceOverlay';
+import {verifyG5ReferenceFilm} from '../utils/g5VisualReference';
 import {useOrthoStore} from '../stores/useOrthoStore';
 
 /** Only mounted with VITE_ODF_G5_LAB=1; API separately refuses all non-LAB calls.
@@ -34,6 +36,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const [panMode,setPanMode]=useState(false);
   const [bezierMode,setBezierMode]=useState(false);
   const [bezierNodes,setBezierNodes]=useState<G5BezierNode[]|null>(null);
+  const [referenceMatched,setReferenceMatched]=useState(false);
+  const [showReference,setShowReference]=useState(false);
   const [viewportCenter,setViewportCenter]=useState<Point>([W/2,H/2]);
   const [selected,setSelected]=useState<CurveId>('cranial_base');
   const [revision,setRevision]=useState<number|null>(null);
@@ -56,6 +60,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     setViewportCenter([W/2,H/2]);
     setCurves(fresh());setRevision(null);setDraftVersion(0);
     setDirty(false);setServerApproved(false);setError('');setNotice('');
+    setReferenceMatched(false);setShowReference(false);
     if(!patientId||!analysisId)return;
     setLoading(true);
     (async()=>{
@@ -79,6 +84,10 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
             outgoing:[n.outgoing[0],n.outgoing[1]] as Point,
           })):null);
         setServerApproved(server.approved);
+        // The guide remains hidden unless both study provenance AND the
+        // displayed film's actual bytes match the fixed Aariz review target.
+        const matched=await verifyG5ReferenceFilm(study);
+        if(id===requestId.current)setReferenceMatched(matched);
       }catch(e){
         if(id===requestId.current)setError(e instanceof Error?e.message:'Tracé non disponible');
       }finally{if(id===requestId.current)setLoading(false);}
@@ -162,6 +171,27 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         {serverApproved?'Approuvé (LAB)':dirty?'Modifié, non approuvé':'Brouillon'}
       </span>
     </div>
+    <div className="flex flex-wrap items-center gap-2">
+      <button type="button" data-testid="g5-reference-toggle"
+        disabled={!referenceMatched||loading||busy}
+        aria-pressed={showReference}
+        onClick={()=>setShowReference(v=>!v)}
+        className="rounded-lg border px-3 py-2 text-xs font-semibold"
+        style={{borderColor:P.border,color:P.text}}>
+        {showReference?'Masquer la référence QA':'Afficher la référence QA (lecture seule)'}
+      </button>
+      <span data-testid="g5-reference-source-status" className="text-xs"
+        style={{color:P.textMuted}}>
+        {referenceMatched
+          ?'Source Aariz vérifiée · 2 contours pleins, 4 incertains en pointillés · NON CLINIQUE'
+          :'Référence indisponible : image et étude source non confirmées'}
+      </span>
+    </div>
+    {showReference&&referenceMatched&&<p data-testid="g5-reference-warning"
+      className="text-xs font-semibold" style={{color:'#a55e37'}}>
+      Référence visuelle uniquement : jamais copiée dans le brouillon ou le PDF
+      clinique. Tracez et corrigez vous-même chaque structure avant approbation.
+    </p>}
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {STRUCTURES.map(spec=>{
         const n=curves.find(c=>c.id===spec.id)?.points.length||0;
@@ -225,6 +255,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         }))}
         disabled={busy||loading||!revision||panMode}
         borderColor={P.border} textColor={P.textMuted}
+        showVisualReference={showReference&&referenceMatched}
         initialNodes={bezierNodes}
         onNodesChange={setBezierNodes}
         onSampledChange={points=>{
@@ -271,6 +302,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
       onPointerCancel={()=>{drawing.current=false;panStart.current=null;}}>
       <image href={pairedImage} x="0" y="0" width={W} height={H}/>
+      {showReference&&referenceMatched&&<G5VisualReferenceOverlay/>}
       {curves.map(curve=>{
         const color=STRUCTURES.find(s=>s.id===curve.id)?.color||'#111111';
         const points=curve.points.map(p=>p.join(',')).join(' ');
