@@ -229,6 +229,122 @@ try {
   checked('desktop-clinical-first-reclaimed-height-1920',
     {compactOffset,expandedOffset,reclaimedPx:expandedOffset-compactOffset});
   await screenshot(a.page,'R5-MultiView-desktop-expanded-1920');
+  // POLISH-02 accessibility: measured computed-color ratios on REAL R5 controls.
+  // Includes alpha composition; no assumption that inherited tokens prove contrast.
+  const wcagAudit=await a.page.evaluate(()=>{
+    const themeNames=['default','emerald','rose','ocean','graphite','prestige','dark','high-contrast'];
+    const root=document.documentElement, original=root.getAttribute('data-theme');
+    const parse=s=>{
+      const m=String(s).match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s\/]+([\d.]+))?\s*\)$/);
+      return m?[Number(m[1]),Number(m[2]),Number(m[3]),m[4]===undefined?1:Number(m[4])]:null;
+    };
+    const composite=(front,back)=>front.slice(0,3).map((v,i)=>v*front[3]+back[i]*(1-front[3]));
+    const bgAt=node=>{
+      const chain=[];for(let n=node;n;n=n.parentElement)chain.unshift(n);
+      let bg=[255,255,255];
+      for(const el of chain){const c=parse(getComputedStyle(el).backgroundColor);if(c)bg=composite(c,bg);}
+      return bg;
+    };
+    const lum=c=>c.map(x=>x/255).map(x=>x<=0.04045?x/12.92:Math.pow((x+0.055)/1.055,2.4))
+      .reduce((sum,x,i)=>sum+x*[0.2126,0.7152,0.0722][i],0);
+    const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);};
+    const signature=document.querySelector('[data-testid="r5-signature-prefs"]');
+    const multiview=document.querySelector('[data-testid="r5-multiview-prefs"]');
+    if(!signature||!multiview)throw Error('Missing real R5 rails for WCAG audit');
+    const samples=[],failures=[];
+    try{
+      for(const theme of themeNames){
+        root.setAttribute('data-theme',theme);
+        const targets=[
+          ['signature-heading',signature.querySelector('h2')],
+          ['signature-description',signature.querySelector('p.text-text-muted')],
+          ['signature-toggle',signature.querySelector('[data-testid="r5-signature-toggle"]')],
+          ['signature-primary',signature.querySelector('button.bg-primary')],
+          ['multiview-heading',multiview.querySelector('strong')],
+          ['multiview-description',multiview.querySelector('span.text-text-muted')],
+          ['multiview-toggle',multiview.querySelector('[data-testid="r5-multiview-toggle"]')],
+          ['multiview-primary',multiview.querySelector('button.bg-primary')]
+        ];
+        for(const [name,el] of targets){
+          if(!el||!el.getClientRects().length){
+            failures.push({theme,name,reason:'missing-or-hidden'});continue;
+          }
+          if(el.matches(':disabled'))continue; // WCAG inactive-control exception.
+          const s=getComputedStyle(el),fg=parse(s.color),bg=bgAt(el);
+          if(!fg){failures.push({theme,name,reason:'unparseable-computed-color',color:s.color});continue;}
+          const actual=ratio(composite(fg,bg),bg);
+          const large=parseFloat(s.fontSize)>=24||
+            (parseFloat(s.fontSize)>=18.66&&parseInt(s.fontWeight,10)>=700);
+          const minimum=large?3:4.5;
+          samples.push({theme,name,ratio:Number(actual.toFixed(2)),minimum});
+          if(actual+0.001<minimum)failures.push({theme,name,ratio:Number(actual.toFixed(2)),minimum});
+        }
+        for(const name of ['r5-signature-toggle','r5-multiview-toggle']){
+          const el=document.querySelector('[data-testid="'+name+'"]');
+          el.focus();const s=getComputedStyle(el),c=parse(s.outlineColor);
+          const bg=bgAt(el.parentElement);
+          const actual=c?ratio(composite(c,bg),bg):0;
+          const active=el.matches(':focus-visible')&&s.outlineStyle!=='none'&&parseFloat(s.outlineWidth)>=2;
+          samples.push({theme,name:name+'-keyboard-focus',ratio:Number(actual.toFixed(2)),minimum:3,active});
+          if(!active||actual+0.001<3)failures.push({theme,name:name+'-keyboard-focus',active,ratio:Number(actual.toFixed(2)),minimum:3});
+        }
+      }
+    }finally{
+      if(original===null)root.removeAttribute('data-theme');else root.setAttribute('data-theme',original);
+    }
+    return {samples,failures};
+  });
+  checked('polish02-wcag-actual-r5-eight-theme-contrast',
+    {pass:wcagAudit.failures.length===0,samples:wcagAudit.samples,failures:wcagAudit.failures});
+  // The keyboard tab establishes keyboard modality before :focus-visible checks;
+  // pass/fail is not inferred from CSS tokens or zero-width outlines.
+  const reflowResults=[];
+  const measureReflow=()=>a.page.evaluate(()=>{
+    const width=document.documentElement.clientWidth;
+    const probes=['r5-signature-prefs','r5-signature-toggle','r5-multiview-prefs','r5-multiview-toggle'];
+    const landmarks=probes.map(name=>{
+      const el=document.querySelector('[data-testid="'+name+'"]');
+      if(!el)return {name,present:false};
+      const r=el.getBoundingClientRect();
+      return {name,present:true,visible:r.width>0&&r.height>0,
+        left:Math.round(r.left),right:Math.round(r.right),
+        fits:r.left>=-2&&r.right<=width+2};
+    });
+    return {cssViewport:width,documentScrollWidth:document.documentElement.scrollWidth,landmarks,
+      fallbackVisible:Boolean(document.querySelector('[data-testid="multiview-responsive-single-media-fallback"]'))};
+  });
+  try{
+    await a.page.keyboard.press('Tab');
+    await a.page.evaluate(()=>document.documentElement.style.setProperty('font-size','200%'));
+    const enlarged=await measureReflow();
+    reflowResults.push({mode:'200-percent-text-resize',...enlarged});
+    await screenshot(a.page,'POLISH02-text-resize-200-percent');
+    await a.page.evaluate(()=>document.documentElement.style.removeProperty('font-size'));
+    // A 720px CSS layout represents 1440px/2 at 200% browser zoom.
+    // This verifies responsive reflow, NOT a native browser-chrome zoom gesture.
+    for(const width of [720,640]){
+      await a.page.setViewportSize({width,height:900});
+      const result=await measureReflow();
+      reflowResults.push({mode:'half-width-200-percent-zoom-equivalent',referenceWidth:width*2,...result});
+      await screenshot(a.page,'POLISH02-reflow-200-percent-'+width);
+    }
+  }finally{
+    await a.page.evaluate(()=>document.documentElement.style.removeProperty('font-size'));
+    await a.page.setViewportSize({width:1920,height:1080});
+  }
+  const reflowFailures=reflowResults.flatMap(result=>{
+    const bad=result.landmarks.filter(el=>!el.present||!el.visible||!el.fits);
+    if(result.documentScrollWidth>result.cssViewport+2)bad.push({name:'document-horizontal-overflow'});
+    return bad.map(el=>({mode:result.mode,viewport:result.cssViewport,...el}));
+  });
+  checked('polish02-text-resize-and-200-percent-layout-reflow',
+    {pass:reflowFailures.length===0,measurements:reflowResults,failures:reflowFailures});
+  report.accessibility={contrastFailures:wcagAudit.failures,reflowFailures,
+    caveat:'Half-width CSS layout is not native Chromium browser zoom; screenshots require human visual review.'};
+  if(wcagAudit.failures.length||reflowFailures.length){
+    throw Error('POLISH-02 ACCESSIBILITY BLOCKER: computed contrast / 200% reflow violations; see report.json');
+  }
+
   // Return Signature to a compact summary; the MultiView editor remains open
   // so the next existing preview/cancel and isolation assertions stay genuine.
   await signatureToggle.click();
