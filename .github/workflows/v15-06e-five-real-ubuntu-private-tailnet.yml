@@ -17,6 +17,46 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  source-validation:
+    name: "FUE-03H standalone syntax + fail-closed controls (no network/secrets)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate exact SHA, Python syntax, guards, synthetic PNG and private IP checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python -m pip install 'cryptography>=42,<48'
+          python -m py_compile isolated_fue_lot06c/qa_five_vm_private_tailnet_stress_v15.py
+          python - <<'PY'
+          import os
+          from isolated_fue_lot06c.qa_five_vm_private_tailnet_stress_v15 import (
+              CLIENTS, TOTAL_HEALTHY, TOTAL_RECEIVED, valid_ip, guard,
+              payload, names,
+          )
+          assert len(CLIENTS)==4 and TOTAL_HEALTHY==152 and TOTAL_RECEIVED==216
+          assert valid_ip("100.64.0.2") and valid_ip("100.127.255.254")
+          assert not valid_ip("127.0.0.1") and not valid_ip("8.8.8.8")
+          assert not valid_ip("192.168.1.10")
+          assert payload(names("u22a","two")[0]).startswith(b"\\x89PNG")
+          try:
+              guard()
+          except AssertionError:
+              pass
+          else:
+              raise AssertionError("UNSAFE: LAB GUARD DID NOT REJECT MISSING SECRETS")
+          print("C05B03H_STATIC_GUARDS_AND_SYNTHETIC_SOURCE_PASS")
+          PY
+
   secure-preflight:
     name: "FUE-03H blocked unless Tailscale OIDC credentials exist"
     if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
