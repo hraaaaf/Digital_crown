@@ -59,7 +59,17 @@ jobs:
         run: |
           set -euo pipefail
           git fetch --no-tags origin master
-          test "$(git rev-parse FETCH_HEAD)" = "$MASTER_SHA"
+          LIVE_MASTER_SHA="$(git rev-parse FETCH_HEAD)"
+          # The PR event pins MASTER_SHA to the event's base. master may advance
+          # while Actions jobs wait for runners; require ancestry, not equality.
+          # Reject a rewritten/force-pushed base, and still integrate/test the
+          # exact event SHA with all existing security and regression assertions.
+          git cat-file -e "$MASTER_SHA^{commit}"
+          if ! git merge-base --is-ancestor "$MASTER_SHA" "$LIVE_MASTER_SHA"; then
+            echo "R2_EVENT_MASTER_REWRITTEN event=$MASTER_SHA live=$LIVE_MASTER_SHA" >&2
+            exit 1
+          fi
+          echo "R2_EVENT_BASE_IN_LIVE_MASTER event=$MASTER_SHA live=$LIVE_MASTER_SHA"
           test "$(git rev-parse HEAD)" = "$R2_SOURCE_SHA"
           test -z "$(git status --porcelain)"
           git cat-file -e "$R2_SOURCE_SHA^{commit}"
@@ -181,7 +191,17 @@ jobs:
           test "$(git write-tree)" = "$INTEGRATION_TREE_SHA"
           git diff --quiet
           git fetch --no-tags origin master
-          test "$(git rev-parse FETCH_HEAD)" = "$MASTER_SHA"
+          LIVE_MASTER_SHA="$(git rev-parse FETCH_HEAD)"
+          # The PR event pins MASTER_SHA to the event's base. master may advance
+          # while Actions jobs wait for runners; require ancestry, not equality.
+          # Reject a rewritten/force-pushed base, and still integrate/test the
+          # exact event SHA with all existing security and regression assertions.
+          git cat-file -e "$MASTER_SHA^{commit}"
+          if ! git merge-base --is-ancestor "$MASTER_SHA" "$LIVE_MASTER_SHA"; then
+            echo "R2_EVENT_MASTER_REWRITTEN event=$MASTER_SHA live=$LIVE_MASTER_SHA" >&2
+            exit 1
+          fi
+          echo "R2_EVENT_BASE_IN_LIVE_MASTER event=$MASTER_SHA live=$LIVE_MASTER_SHA"
           test ! -f .git/MERGE_HEAD
           test "$DATABASE_URL" = 'sqlite:///:memory:'
           test "$DIGITALCROWN_ISOLATED_RUNTIME" = true

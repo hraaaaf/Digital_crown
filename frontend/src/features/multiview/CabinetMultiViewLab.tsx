@@ -12,6 +12,7 @@ import { R3SplitWorkspace } from './R3SplitWorkspace';
 import { HistoricBilanReadonlyPanel } from './HistoricBilanReadonlyPanel';
 import { authorizeLayout, PRESETS, type Geometry, type Layout, type ModuleKey, type WorkspaceContext } from './studioLayouts';
 import { geometryGridStyle, geometrySlotStyle } from './studioGeometry';
+import {R5MultiViewPreferencesPanel} from './R5MultiViewPreferencesPanel';
 import './CabinetMultiViewLab.css';
 
 export interface MultiViewPatient {
@@ -239,6 +240,20 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
 
   return (
     <div ref={root} data-v15-071-real-cabinet-lab className="min-w-0 space-y-3">
+      {import.meta.env.DEV && import.meta.env.VITE_V15_07_R5_PREFS_LAB === 'true' &&
+        workstationId && trustedPatient && (
+          <R5MultiViewPreferencesPanel
+            key={String(user?.id)+':'+workstationId}
+            context={{...context,workstationVerified:true}}
+            layouts={possible} ratio={ratio}
+            onApply={(layout,nextRatio)=>{
+              if(authorizeLayout(layout,context,nextRatio).ok){
+                setAppliedId(layout.id);setDraftId(layout.id);setRatio(nextRatio);
+                setExchanged(false);setSplitResetEpoch(n=>n+1);
+              }
+            }}
+          />
+      )}
       {responsiveSingleMediaFallback && trustedPatient ? (
         <section role="status" data-testid="multiview-layout-safe-info"
           className="dc-mv-desktop-compact flex min-w-0 flex-wrap items-center gap-3 rounded-2xl border border-border-main bg-card px-4 py-3 text-text-main">

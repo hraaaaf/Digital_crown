@@ -936,6 +936,7 @@ from backend.models_platform import (
     AuditLog,
     WorkstationSecurityPolicy,
     WorkstationMode,
+    R5DesktopPreference,
     WorkstationPairingCode,
     WorkstationPatientSession,
     RevokedToken,

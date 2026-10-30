@@ -104,8 +104,11 @@ jobs:
           const output = path.resolve('../../artifacts/cust-02-motifs');
           await fs.mkdir(output, { recursive: true });
 
-          const beforeServer = await createServer({ root: beforeRoot, server: { host: '127.0.0.1', port: 4186, strictPort: true }, clearScreen: false });
-          const afterServer = await createServer({ root: afterRoot, server: { host: '127.0.0.1', port: 4187, strictPort: true }, clearScreen: false });
+          // BEFORE and AFTER share node_modules through a symlink, but must NEVER
+          // share Vite's optimizeDeps cache: concurrent dev servers otherwise race
+          // and can return HTTP 504 (Outdated Optimize Dep) before any UI renders.
+          const beforeServer = await createServer({ root: beforeRoot, cacheDir: path.join(beforeRoot, '.cust02-vite-cache'), server: { host: '127.0.0.1', port: 4186, strictPort: true }, clearScreen: false });
+          const afterServer = await createServer({ root: afterRoot, cacheDir: path.join(afterRoot, '.cust02-vite-cache'), server: { host: '127.0.0.1', port: 4187, strictPort: true }, clearScreen: false });
           await beforeServer.listen();
           await afterServer.listen();
 
