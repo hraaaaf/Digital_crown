@@ -32,10 +32,11 @@ export async function verifyG5ReferenceFilm(
     // anonymous raw fetch: the same authorization boundary applies to G5.
     const response = await api.get<ArrayBuffer>(
       '/static/uploads/radios/t2-cephalo-seeded.png',
-      {responseType:'arraybuffer',headers:{'Cache-Control':'no-cache'}},
+      {responseType:'arraybuffer'}, // No custom request headers: avoid CORS preflight.
     );
     return response.data;
   },
+  onVerifiedFilm?: (bytes: ArrayBuffer) => void,
 ): Promise<boolean> {
   if (!isG5ReferenceStudy(study) || !globalThis.crypto?.subtle) return false;
   try {
@@ -47,7 +48,10 @@ export async function verifyG5ReferenceFilm(
     const digest=await crypto.subtle.digest('SHA-256',bytes);
     const actual=Array.from(new Uint8Array(digest))
       .map(byte=>byte.toString(16).padStart(2,'0')).join('');
-    return actual===G5_VISUAL_REFERENCE.source.display_sha256;
+    if(actual!==G5_VISUAL_REFERENCE.source.display_sha256)return false;
+    // Only the same authenticated, SHA-matched pixels may be displayed as guide.
+    onVerifiedFilm?.(bytes);
+    return true;
   }catch{
     return false;
   }
