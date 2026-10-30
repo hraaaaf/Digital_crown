@@ -4,11 +4,12 @@
 
 ## Contrat canonique, une source seulement
 
-- `docs/audits/fixtures/g5/g5_visual_reference.json` : six jeux exacts de points-guides de la planche acceptée (44/25/13/19/12/10), couleurs, ordre, styles, avertissements et provenance; aucune génération de courbes à partir de landmarks.
+- `docs/audits/fixtures/g5/g5_visual_reference.json` : six jeux exacts de points-guides de la planche acceptée (44/25/13/21/12/10), couleurs, ordre, styles, avertissements et provenance; aucune génération de courbes à partir de landmarks.
 - Source : jeu Aariz, film `cks2ip8fp29yl0yuf6ry9266i.png`, article Figshare 27986417, fichier 51041642, CC BY 4.0, DOI 10.1038/s41597-025-05542-3.
 - Image affichée : **1935×2400**, SHA-256 `7f0746c91faeebbd5a80180b13e0dfa5baa0fe1e0d9403f59f85cf1c03f7eb50`. Film original 1972×2225, SHA-256 `c2c391d7637206123b81c4e43b98d2e21f14ce9b5723698d768d68d3292e88c7`. La transformation affine est consignée dans le JSON.
 - Un image test ANUG, ou toute autre étude dont le SHA-256 est différent, doit **échouer**, non tenter un réalignement approximatif.
 - Seuls **soft_tissue_profile** et **mandible** sont affichés en continu; **maxilla**, **cranial_base**, **upper_incisor**, **lower_incisor** en **pointillés**, comme sur la planche.
+- **Correctif visuel obligatoire** : l'ancien manifeste comportait 19 points pour `cranial_base`, avec une diagonale jusqu'à x=1251, qui ne correspondait **pas** à la planche validée. Le manifeste canonique utilise désormais 21 points, secteur court sinueux x=585–856, y=899–979, et reste en pointillés. Vérifier la comparaison visuelle, pas seulement le respect du schéma.
 
 ## Commande de reproduction visuelle (preuve de QA, pas PDF clinique)
 
