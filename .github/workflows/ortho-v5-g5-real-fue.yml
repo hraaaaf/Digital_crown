@@ -43,6 +43,10 @@ on:
   workflow_dispatch:
 permissions:
   contents: read
+# Superseded reference-test commits must not occupy additional GitHub runners.
+concurrency:
+  group: odf-v5-g5-lab-${{ github.event.pull_request.head.ref || github.ref }}
+  cancel-in-progress: true
 jobs:
   disposable-real-browser-odf-lab:
     runs-on: ubuntu-24.04
@@ -182,6 +186,12 @@ jobs:
           data=read_reference(manifest,film)
           assert data['clinical_approval'] is False and len(data['curves'])==6
           assert sum(c['style']=='dashed' for c in data['curves'])==4
+          # Accepted board has a short winding cranial segment near the sella,
+          # not the earlier erroneous long diagonal toward the frontal vault.
+          cranial=next(c for c in data['curves'] if c['id']=='cranial_base')
+          assert len(cranial['points'])==21
+          assert 800 < max(p[0] for p in cranial['points']) < 900
+          assert 970 < max(p[1] for p in cranial['points']) < 995
           assert data['source']['display_sha256']==hashlib.sha256(film.read_bytes()).hexdigest()
           assert all(len(sample(c['points']))>=100 for c in data['curves'])
           proof=json.loads((root/'G5_reference_evidence.json').read_text())

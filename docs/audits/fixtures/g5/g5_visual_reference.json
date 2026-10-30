@@ -2,7 +2,7 @@
   "schema": "DIGITAL_CROWN_G5_VISUAL_REFERENCE_V1",
   "reference_state": "PRACTITIONER_APPROVED_VISUAL_TARGET_NOT_CLINICALLY_SIGNED",
   "clinical_approval": false,
-  "reference_decision": "Planche globale acceptée visuellement par le praticien; quatre couches pointillées toujours incertaines, aucune signature clinique.",
+  "reference_decision": "Planche globale acceptée visuellement par le praticien; 4 courbes pointillées incertaines et non signées. Secteur crânien corrigé sur pixels de la planche acceptée, 21 points guides.",
   "source": {
     "dataset": "Aariz Cephalometric Dataset",
     "article_id": 27986417,
@@ -396,76 +396,84 @@
           954
         ],
         [
-          595,
-          924
+          590,
+          934
         ],
         [
-          616,
-          912
+          599,
+          915
         ],
         [
-          640,
+          610,
+          905
+        ],
+        [
+          624,
           902
         ],
         [
-          669,
-          901
+          637,
+          908
         ],
         [
-          700,
-          898
+          647,
+          927
         ],
         [
-          732,
-          899
+          654,
+          945
         ],
         [
-          763,
-          897
+          660,
+          967
         ],
         [
-          797,
-          888
+          677,
+          977
         ],
         [
-          825,
-          879
+          697,
+          975
         ],
         [
-          862,
-          861
+          712,
+          969
         ],
         [
-          905,
-          836
+          726,
+          956
         ],
         [
-          951,
-          815
+          740,
+          938
         ],
         [
-          1001,
-          787
+          753,
+          928
         ],
         [
-          1053,
-          758
+          773,
+          920
         ],
         [
-          1109,
-          733
+          790,
+          914
         ],
         [
-          1164,
-          708
+          809,
+          909
         ],
         [
-          1217,
-          697
+          829,
+          906
         ],
         [
-          1251,
-          702
+          848,
+          902
+        ],
+        [
+          856,
+          905
         ]
       ]
     },
