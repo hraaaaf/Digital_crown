@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {cephaloRepository} from '../cephaloRepository';
 import {G5BezierProfileLabCanvas, type G5BezierNode} from './G5BezierProfileLabCanvas';
 import {G5VisualReferenceOverlay} from './G5VisualReferenceOverlay';
-import {verifyG5ReferenceFilm} from '../utils/g5VisualReference';
+import {G5_VISUAL_REFERENCE,verifyG5ReferenceFilm} from '../utils/g5VisualReference';
 import {API_BASE} from '../../../services/api';
 import {useOrthoStore} from '../stores/useOrthoStore';
 
@@ -22,6 +22,7 @@ const STRUCTURES:{id:CurveId;label:string;min:number;color:string}[]=[
   {id:'soft_tissue_profile',label:'Profil cutané',min:16,color:'#B26B55'},
 ];
 const W=1935,H=2400;
+const UNCERTAIN:CurveId[]=['cranial_base','maxilla','upper_incisor','lower_incisor'];
 const fresh=():Curve[]=>STRUCTURES.map(item=>({id:item.id,points:[]}));
 const sourceFilmUrl=`${API_BASE}/api/static/uploads/radios/t2-cephalo-seeded.png`;
 
@@ -41,6 +42,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const [bezierNodes,setBezierNodes]=useState<G5BezierNode[]|null>(null);
   const [referenceMatched,setReferenceMatched]=useState(false);
   const [showReference,setShowReference]=useState(false);
+  const [reviewFocus,setReviewFocus]=useState<CurveId|null>(null);
   const [checkingReference,setCheckingReference]=useState(false);
   const [viewportCenter,setViewportCenter]=useState<Point>([W/2,H/2]);
   const [selected,setSelected]=useState<CurveId>('cranial_base');
@@ -65,6 +67,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     setCurves(fresh());setRevision(null);setDraftVersion(0);
     setDirty(false);setServerApproved(false);setError('');setNotice('');
     setReferenceMatched(false);setShowReference(false);setCheckingReference(false);
+    setReviewFocus(null);
     if(verifiedFilmUrl.current){URL.revokeObjectURL(verifiedFilmUrl.current);verifiedFilmUrl.current=null;}
     setImageUrl(sourceFilmUrl);
     if(!patientId||!analysisId)return;
@@ -171,6 +174,23 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
 
   // Explicit retry for transient authenticated film/network failure after reload.
   // Never enable the reference without re-reading study revision AND all PNG bytes.
+  // Focus only an uncertain READ-ONLY guide; the practitioner must draw their
+  // own curve. No guide coordinates reach save/approval.
+  const focusUncertainGuide=(id:CurveId)=>{
+    if(!referenceMatched||!showReference||loading||busy||checkingReference)return;
+    const guide=G5_VISUAL_REFERENCE.curves.find(c=>c.id===id);
+    if(!guide||guide.style!=='dashed'||!UNCERTAIN.includes(id))return;
+    const xs=guide.points.map(p=>p[0]),ys=guide.points.map(p=>p[1]);
+    setReviewFocus(id);setSelected(id);setBezierMode(false);
+    setZoom(4);setPanMode(false);
+    setViewportCenter([(Math.min(...xs)+Math.max(...xs))/2,
+      (Math.min(...ys)+Math.max(...ys))/2]);
+  };
+  const exitGuideFocus=()=>{
+    setReviewFocus(null);setZoom(1);setPanMode(false);
+    setViewportCenter([W/2,H/2]);
+  };
+
   const retryReference=async()=>{
     if(!analysisId||!revision||loading||busy||checkingReference)return;
     const id=requestId.current;
@@ -216,7 +236,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
       <button type="button" data-testid="g5-reference-toggle"
         disabled={!referenceMatched||loading||busy||checkingReference}
         aria-pressed={showReference}
-        onClick={()=>setShowReference(v=>!v)}
+        onClick={()=>{setShowReference(v=>!v);setReviewFocus(null);}}
         className="rounded-lg border px-3 py-2 text-xs font-semibold"
         style={{borderColor:P.border,color:P.text}}>
         {showReference?'Masquer la référence QA':'Afficher la référence QA (lecture seule)'}
@@ -239,12 +259,42 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
       Référence visuelle uniquement : jamais copiée dans le brouillon ou le PDF
       clinique. Tracez et corrigez vous-même chaque structure avant approbation.
     </p>}
+    {showReference&&referenceMatched&&<div data-testid="g5-uncertain-review"
+      className="rounded-lg border p-3 space-y-2" style={{borderColor:P.border}}>
+      <p className="text-xs font-semibold" style={{color:P.text}}>
+        Revue manuelle des quatre zones incertaines — non approuvées
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {UNCERTAIN.map(id=>{
+          const spec=STRUCTURES.find(s=>s.id===id)!;
+          return <button type="button" key={id}
+            data-testid={`g5-review-focus-${id}`}
+            disabled={loading||busy||checkingReference}
+            aria-pressed={reviewFocus===id}
+            onClick={()=>focusUncertainGuide(id)}
+            className="rounded-lg border px-3 py-2 text-xs"
+            style={{borderColor:reviewFocus===id?P.accent:P.border,color:P.text}}>
+            {spec.label} · zoom ×4
+          </button>;
+        })}
+        <button type="button" data-testid="g5-review-overview"
+          disabled={loading||busy} onClick={exitGuideFocus}
+          className="rounded-lg border px-3 py-2 text-xs"
+          style={{borderColor:P.border,color:P.text}}>Revenir à la vue complète</button>
+      </div>
+      <p data-testid="g5-review-focus-status" className="text-xs"
+        style={{color:P.textMuted}}>
+        {reviewFocus
+          ?`Guide ${STRUCTURES.find(s=>s.id===reviewFocus)?.label} isolé en pointillés · à redessiner manuellement, jamais signé automatiquement`
+          :'Choisissez une région pour isoler le guide incertain, sans écrire dans le dossier.'}
+      </p>
+    </div>}
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {STRUCTURES.map(spec=>{
         const n=curves.find(c=>c.id===spec.id)?.points.length||0;
         return <button type="button" key={spec.id} disabled={busy||loading||!revision}
           aria-pressed={selected===spec.id}
-          onClick={()=>{setSelected(spec.id);setBezierMode(false);}}
+          onClick={()=>{setSelected(spec.id);setBezierMode(false);setReviewFocus(null);}}
           className="rounded-lg border px-2 py-2 text-left text-xs"
           style={{color:P.text,borderColor:selected===spec.id?spec.color:P.border,
             background:selected===spec.id?P.bgInput:P.bgCard}}>
@@ -349,7 +399,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
       onPointerCancel={()=>{drawing.current=false;panStart.current=null;}}>
       <image data-testid="g5-source-film-image" href={imageUrl} x="0" y="0" width={W} height={H}/>
-      {showReference&&referenceMatched&&<G5VisualReferenceOverlay/>}
+      {showReference&&referenceMatched&&<G5VisualReferenceOverlay focusId={reviewFocus}/>}
       {curves.map(curve=>{
         const color=STRUCTURES.find(s=>s.id===curve.id)?.color||'#111111';
         const points=curve.points.map(p=>p.join(',')).join(' ');
