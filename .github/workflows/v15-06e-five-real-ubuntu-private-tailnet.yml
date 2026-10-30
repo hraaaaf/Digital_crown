@@ -297,7 +297,10 @@ jobs:
           assert not server["clinical_ack_issued"] and not server["product_ready"]
           assert set(server["client_src_ipv4"])==set(expected)
           ips={server["server_tailscale_ipv4"]}
-          hosts={server["server_runner_hostname"]}
+          # Hostnames can repeat across independent GitHub-hosted runner VMs.
+          # Assert distinct GitHub runner identities AND Tailscale peer IPs.
+          runners={server["server_runner_name"]}
+          assert server["server_runner_name"]
           total=0
           for label,bulk in expected.items():
               c=json.loads((root/("lot06-c05b03h-proof-"+label)/"client-proof.json").read_text())
@@ -308,7 +311,7 @@ jobs:
               assert c["sender_vm_tailnet_ipv4"]==server["client_src_ipv4"][label]
               assert c["server_tailnet_ipv4"]==server["server_tailscale_ipv4"]
               assert c["sender_vm_tailnet_ipv4"] not in ips
-              assert c["sender_vm_hostname"] not in hosts
+              assert c["sender_vm_runner_name"] and c["sender_vm_runner_name"] not in runners
               assert c["github_hosted_runner_vm"] and not c["source_container_mode"]
               assert c["one_explicit_duplicate_http_409"]
               assert not c["clinical_ack_issued"] and not c["product_ready"]
@@ -317,12 +320,12 @@ jobs:
               assert c["metrics"]["flood"]["files"]==16
               assert c["files_sent"]==bulk+18
               ips.add(c["sender_vm_tailnet_ipv4"])
-              hosts.add(c["sender_vm_hostname"])
+              runners.add(c["sender_vm_runner_name"])
               total+=c["files_sent"]
               print("C05B03H_VERIFIED_DISTINCT_REMOTE_VM",label,"bulk_rps",
                     c["metrics"]["bulk"]["files_per_s"])
           net=ipaddress.IPv4Network("100.64.0.0/10")
-          assert len(ips)==5 and len(hosts)==5
+          assert len(ips)==5 and len(runners)==5
           assert all(ipaddress.IPv4Address(x) in net for x in ips)
           assert total==216
           print("C05B03H_FIVE_TRUE_GITHUB_UBUNTU_VMS_ONE_REMOTE_SERVER_GREEN")
