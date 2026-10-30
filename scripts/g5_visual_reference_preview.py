@@ -11,6 +11,7 @@ import json
 from pathlib import Path
 
 from PIL import Image, ImageDraw, ImageFont
+import fitz
 from scipy.interpolate import PchipInterpolator
 import numpy as np
 
@@ -96,7 +97,21 @@ def render(data:dict,source:Path,out:Path)->dict:
     overlay.save(overlay_path)
     clean.save(clean_path)
     pdf_path=out/'G5_reference_two_views_REVIEW_ONLY.pdf'
-    overlay.save(pdf_path,format='PDF',save_all=True,append_images=[clean],resolution=190)
+    pdf=fitz.open()
+    for picture,title in ((overlay_path,'Vue 1 / radio + courbes'),
+                          (clean_path,'Vue 2 / courbes seules')):
+        page=pdf.new_page(width=595.276,height=841.89)
+        page.insert_text((26,31),'DIGITAL CROWN G5 / REFERENCE VISUELLE',
+                         fontsize=13,fontname='helv',color=(0.15,0.2,0.3))
+        page.insert_text((26,49),title,fontsize=10,fontname='helv')
+        page.insert_image(fitz.Rect(23,64,572,744),filename=str(picture),keep_proportion=True)
+        page.insert_text((26,781),'NON CLINIQUE / 4 CALQUES INCERTAINS EN POINTILLES',
+                         fontsize=10,fontname='helv',color=(0.65,0.16,0.12))
+        page.insert_text((26,800),'GO visuel de planche uniquement - pas de signature ni mesure.',
+                         fontsize=8,fontname='helv')
+    pdf.set_metadata({'title':'G5 reference visuelle non clinique','subject':'QA source-locked unapproved contours'})
+    pdf.save(pdf_path,deflate=True)
+    pdf.close()
     report={'schema':EXPECTED_SCHEMA,'clinical_approval':False,
             'source_display_sha256':data['source']['display_sha256'],
             'source_dimensions':[1935,2400],
