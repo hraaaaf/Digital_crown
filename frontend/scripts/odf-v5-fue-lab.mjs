@@ -245,6 +245,26 @@ try{
     check((await ui.getByTestId('g5-reference-source-status').innerText())
       .includes('Source Aariz vérifiée'),
       'G5_VISUAL_REFERENCE_ACTUAL_FILM_SHA_VERIFIED');
+    // The film displayed under the guide must be the authenticated PNG
+    // we SHA-verified, not Vite's 200/HTML fallback on a relative /api path.
+    await page.waitForFunction(()=>document.querySelector(
+      '[data-testid="g5-source-film-image"]')?.getAttribute('href')?.startsWith('blob:'),
+      null,{timeout:12000});
+    const shownBlob=await page.evaluate(async()=>{
+      const href=document.querySelector('[data-testid="g5-source-film-image"]')
+        ?.getAttribute('href');
+      if(!href||!href.startsWith('blob:'))return null;
+      const response=await fetch(href);
+      const bytes=await response.arrayBuffer();
+      const actual=Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+        .map(byte=>byte.toString(16).padStart(2,'0')).join('');
+      return {size:bytes.byteLength,sha256:actual,
+        signature:[...new Uint8Array(bytes.slice(0,8))]};
+    });
+    check(Boolean(shownBlob&&shownBlob.size>100000
+      &&shownBlob.sha256===createHash('sha256').update(media).digest('hex')
+      &&JSON.stringify(shownBlob.signature)===JSON.stringify([137,80,78,71,13,10,26,10])),
+      'G5_VERIFIED_FILM_BLOB_REAL_SOURCE_PIXELS_RENDERED');
     await referenceToggle.click();
     const reference=ui.getByTestId('g5-visual-reference-overlay');
     await reference.waitFor({state:'visible'});
