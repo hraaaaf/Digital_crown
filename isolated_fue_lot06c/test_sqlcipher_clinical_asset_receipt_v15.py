@@ -24,7 +24,8 @@ from backend.services.clinical_asset_storage import (
 from backend.services.imaging_clinical_asset_verifier_v15 import (
     verify_device_capture_media_binding, MediaBindingRejected,
 )
-from tools.imaging_gateway.qa_durable_receipt_restart_lab import _core_engine
+from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
 
 TENANT, PATIENT, STAFF = 31, 73, 81
 DEVICE, REASON = "synthetic-sqlcipher-device", "LAB_UNSCHEDULED"
@@ -64,8 +65,64 @@ def _png() -> bytes:
 
 
 def _root_engine(root: Path):
+    """Use the same SQLCipher journaling/sync policy as backend/database.py.
+
+    The older DR04 helper uses DELETE/FULL; useful for DR04 but *not* proof of
+    cabinet WAL/NORMAL parity. Never modify global application DB configuration.
+    This isolated file has its own synthetic key and DBAPI connections.
+    """
     _guard()
-    return _core_engine(root)
+    from sqlcipher3 import dbapi2 as sqlcipher
+
+    key = os.environ.get("DC06B_TEST_SQLCIPHER_KEY", "")
+    if len(key) != 64 or any(c not in "0123456789abcdef" for c in key):
+        raise RuntimeError("C05B03B_TEST_SQLCIPHER_KEY_REQUIRED")
+
+    def connect():
+        con = sqlcipher.connect(str(root / "clinical-asset-lab.db"), timeout=30)
+        try:
+            con.execute(f"PRAGMA key = '{key}'")
+            if not con.execute("PRAGMA cipher_version").fetchone():
+                raise RuntimeError("C05B03B_SQLCIPHER_DRIVER_REQUIRED")
+            con.execute("PRAGMA journal_mode=WAL")
+            con.execute("PRAGMA synchronous=NORMAL")
+            # Fixture uses synthetic patient/user IDs without corresponding rows.
+            con.execute("PRAGMA foreign_keys=OFF")
+            con.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
+            mode = con.execute("PRAGMA journal_mode").fetchone()[0]
+            sync = con.execute("PRAGMA synchronous").fetchone()[0]
+            if str(mode).lower() != "wal" or sync != 1:
+                raise RuntimeError("C05B03B_CABINET_PRAGMA_PARITY_FAILED")
+            return con
+        except BaseException:
+            con.close()
+            raise
+
+    return create_engine("sqlite://", creator=connect, poolclass=NullPool, future=True)
+
+
+def test_c05b03b_cabinet_sqlcipher_wal_normal_policy(tmp_path, monkeypatch):
+    """Exercise real SQLCipher PRAGMAs and pin their source-of-truth policy."""
+    _guard()
+    # Fail if the cabinet runtime changes its documented connection settings.
+    runtime = (Path(__file__).resolve().parents[1] / "backend" / "database.py").read_text(
+        encoding="utf-8"
+    )
+    assert 'cursor.execute("PRAGMA journal_mode=WAL")' in runtime
+    assert 'cursor.execute("PRAGMA synchronous=NORMAL")' in runtime
+
+    monkeypatch.setenv("DC06B_TEST_SQLCIPHER_KEY", secrets.token_hex(32))
+    root = tmp_path / "cabinet-policy-only"
+    root.mkdir()
+    engine = _root_engine(root)
+    try:
+        with engine.connect() as conn:
+            assert conn.exec_driver_sql("PRAGMA journal_mode").scalar_one().lower() == "wal"
+            assert conn.exec_driver_sql("PRAGMA synchronous").scalar_one() == 1
+            assert conn.exec_driver_sql("PRAGMA cipher_version").scalar_one()
+    finally:
+        engine.dispose()
+    print("LOT06C05B03B_CABINET_WAL_NORMAL_CONFIG_PARITY_PASS")
 
 
 def _claim(capture: str, asset_id: int) -> tuple:
@@ -262,6 +319,10 @@ def test_c05b03b_actual_asset_sqlcipher_atomic_and_lost_ack(tmp_path, monkeypatc
             "encrypted_orphan_retained_and_rechecked": True,
             "postcommit_os_exit_recovered_with_real_media": True,
             "tampered_ciphertext_blocks_receipt_replay": True,
+            "cabinet_sqlcipher_wal_normal_used": True,
+            "cabinet_policy_source_checked_in_separate_test": True,
+            "per_commit_powerloss_durability_certified": False,
+            "actual_power_cut_tested": False,
             "real_device_staff_authentication": False,
             "real_approval_schema_migration": False,
             "sql_and_filesystem_globally_atomic": False,
