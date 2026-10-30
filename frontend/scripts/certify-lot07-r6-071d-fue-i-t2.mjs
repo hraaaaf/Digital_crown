@@ -623,6 +623,14 @@ try {
       await beforePage.locator('[data-testid="r6-longitudinal-three-points"]')
         .waitFor({state:'visible',timeout:60000});
       const oldOpen=beforePage.getByRole('button',{name:'Ouvrir sur un autre écran'});
+      // A visible triptych is not proof that the live comparison query has
+      // completed. Wait for the genuine clinician's button to be enabled
+      // BEFORE revoking the backend token; do not skip the positive precondition.
+      await beforePage.waitForFunction(()=>{
+        const button=Array.from(document.querySelectorAll('button'))
+          .find(b=>(b.textContent||'').includes('Ouvrir sur un autre écran'));
+        return Boolean(button && !button.disabled);
+      },null,{timeout:30000});
       check('fue-s3-old-snapshot-still-openable-before-revocation',
         await oldOpen.isEnabled());
       const leakedPopups=[];
