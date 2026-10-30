@@ -479,6 +479,36 @@ try{
     const reopenedToggle=page.getByTestId('g5-reference-toggle');
     check(await reopenedToggle.getAttribute('aria-pressed')==='false',
       'G5_REFERENCE_HIDDEN_AGAIN_AFTER_FULL_RELOAD');
+    const afterReloadStudy=(await (await api.get(
+      '/api/ia/analyses/'+ids.older_id,{headers})).json());
+    const afterReloadProbe=await page.evaluate(async id=>{
+      try{
+        const {api,API_BASE}=await import('/src/services/api.ts');
+        const ref=await import('/src/features/ortho/utils/g5VisualReference.ts');
+        const study=(await api.get('/ia/analyses/'+id)).data;
+        const response=await api.get('/static/uploads/radios/t2-cephalo-seeded.png',
+          {responseType:'arraybuffer'});
+        const bytes=response.data;
+        const sha=bytes instanceof ArrayBuffer
+          ?Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+            .map(v=>v.toString(16).padStart(2,'0')).join(''):null;
+        return {apiBase:API_BASE,eligible:ref.isG5ReferenceStudy(study),
+          verified:await ref.verifyG5ReferenceFilm(study),
+          studyPath:study.image_original_path,
+          align:study.angles_data?.odf_lab_image_landmark_alignment,
+          studySha:study.angles_data?.odf_lab_display_png_sha256,
+          sha,bytesType:Object.prototype.toString.call(bytes)};
+      }catch(e){return {error:String(e)};}
+    },ids.older_id);
+    console.log('G5_REFERENCE_REOPEN_PROBE',JSON.stringify({
+      frontend:afterReloadProbe,backendStudySha:
+        afterReloadStudy.angles_data?.odf_lab_display_png_sha256,
+      backendAlignment:
+        afterReloadStudy.angles_data?.odf_lab_image_landmark_alignment,
+      sourceStatus:await reopened.getByTestId('g5-reference-source-status').innerText(),
+      toggleDisabled:await reopenedToggle.isDisabled(),
+      studyRevision:afterReloadStudy.angles_data?.scientific_read_path?.revision,
+    }));
     await reopenedToggle.click();
     check(await reopenedCanvas.getByTestId('g5-visual-reference-overlay')
       .locator('path').count()===6,
