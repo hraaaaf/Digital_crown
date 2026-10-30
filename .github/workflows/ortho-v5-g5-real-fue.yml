@@ -7,6 +7,12 @@ on:
       - 'design/cephalo-premium-pdf-v2-20261023'
     paths:
       - 'frontend/scripts/odf-v5-fue-lab.mjs'
+      - 'frontend/src/features/ortho/components/OrthoAnatomicalTraceLabEditor.tsx'
+      - 'frontend/src/features/ortho/components/G5BezierProfileLabCanvas.tsx'
+      - 'frontend/src/features/ortho/components/G5VisualReferenceOverlay.tsx'
+      - 'frontend/src/features/ortho/fixtures/g5VisualReference.json'
+      - 'frontend/src/features/ortho/utils/g5VisualReference.ts'
+      - 'frontend/src/features/ortho/utils/g5VisualReference.test.ts'
       - 'scripts/g5_visual_reference_preview.py'
       - 'docs/audits/fixtures/g5/g5_visual_reference.json'
       - '.github/workflows/ortho-v5-g5-real-fue.yml'
@@ -111,6 +117,23 @@ jobs:
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
           npx tsc --noEmit -p tsconfig.app.json
+      - name: Verify source-pinned browser guide and PCHIP pure unit tests
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import json
+          canonical=Path('docs/audits/fixtures/g5/g5_visual_reference.json').read_bytes()
+          browser=Path('frontend/src/features/ortho/fixtures/g5VisualReference.json').read_bytes()
+          assert canonical==browser,'G5_BROWSER_GUIDE_DRIFT_FROM_ACCEPTED_CANONICAL'
+          data=json.loads(browser)
+          assert data['clinical_approval'] is False
+          assert len(data['curves'])==6
+          assert sum(c['style']=='dashed' for c in data['curves'])==4
+          assert len(next(c for c in data['curves'] if c['id']=='cranial_base')['points'])==21
+          print('ODF_G5_BROWSER_GUIDE_CANONICAL_BYTES_MATCH_NOT_CLINICALLY_APPROVED')
+          PY
+          cd frontend
+          npx vitest run src/features/ortho/utils/g5VisualReference.test.ts src/features/ortho/components/G5BezierProfileLabCanvas.test.tsx
       - name: Start separate throwaway FastAPI cabinet
         run: |
           python scripts/t2_runtime_server.py > /tmp/odf-lab-backend.log 2>&1 &
@@ -287,6 +310,16 @@ jobs:
                   'G5_CANNOT_APPROVE_WITHOUT_MANUAL_STROKES',
                   'G5_MISSING_REAL_CURVE_LENGTH_REFUSED',
                   'G5_DIFFERENT_STUDY_NOT_SHARED'}.issubset(set(report['checks']))
+          guide_must={
+              'G5_VISUAL_REFERENCE_HIDDEN_BY_DEFAULT',
+              'G5_VISUAL_REFERENCE_ACTUAL_FILM_SHA_VERIFIED',
+              'G5_VISUAL_REFERENCE_SIX_LAYERS_FOUR_DASHED',
+              'G5_VISUAL_REFERENCE_EXPLICIT_NONCLINICAL_WARNING',
+              'G5_REFERENCE_OVERLAY_DOES_NOT_WRITE_OR_APPROVE_DRAFT',
+              'G5_REFERENCE_HIDE_REMOVES_OVERLAY_WITHOUT_EDIT',
+              'G5_REFERENCE_HIDDEN_AGAIN_AFTER_FULL_RELOAD',
+              'G5_REFERENCE_VISIBLE_IN_BEZIER_MODE'}
+          assert guide_must.issubset(set(report['checks'])),sorted(guide_must-set(report['checks']))
           must={'REAL_BROWSER_JWT_LOGIN','REAL_WORKSTATION_ENROLLMENT',
               'PUBLIC_LATERAL_CEPHALOGRAM_SERVABLE','REAL_HTTP_SAVE_DRAFT',
               'REAL_DENTIST_EXPLICIT_APPROVAL','PERSISTED_STRUCTURED_ANGLE_BILATERAL_AND_SIGNED',
