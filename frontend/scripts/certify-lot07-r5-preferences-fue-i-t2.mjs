@@ -163,6 +163,46 @@ try {
   assert.equal(await a.page.getByRole('button',{name:'Échanger les vues'}).isVisible(),
     true,'R3 view-exchange must remain available');
   checked('single-visible-r5-disposition-retains-r3-view-tools');
+  // POLISH-02 theme contract: inspect computed styles on the actual authenticated
+  // patient rails, not just CSS source tokens or unrelated R3 frames.
+  const themeAudit=await a.page.evaluate(()=>{
+    const themes=['default','emerald','rose','ocean','graphite','prestige','dark','high-contrast'];
+    const root=document.documentElement;
+    const original=root.getAttribute('data-theme');
+    const signature=document.querySelector('[data-testid="r5-signature-prefs"]');
+    const multiview=document.querySelector('[data-testid="r5-multiview-prefs"]');
+    const button=document.querySelector('[data-testid="r5-multiview-toggle"]');
+    if(!signature||!multiview||!button)throw Error('Missing actual POLISH-02 rails');
+    const results=[];
+    try{
+      for(const theme of themes){
+        root.setAttribute('data-theme',theme);
+        const tokens=getComputedStyle(root);
+        const sig=getComputedStyle(signature);
+        const mv=getComputedStyle(multiview);
+        const focus=getComputedStyle(button);
+        const primary=tokens.getPropertyValue('--primary').trim();
+        const bg=tokens.getPropertyValue('--bg-medical-pearl').trim();
+        const text=tokens.getPropertyValue('--text-main').trim();
+        if(!primary||!bg||!text)throw Error('Missing semantic tokens: '+theme);
+        if(sig.backgroundColor!==mv.backgroundColor)
+          throw Error('Signature/MultiView rail theme mismatch: '+theme);
+        if(focus.color!==sig.color)
+          throw Error('Preference action text does not inherit theme: '+theme);
+        results.push({theme,bg:tokens.getPropertyValue('--bg-medical-pearl').trim(),
+          rail:sig.backgroundColor,text:sig.color,focus:focus.outlineColor});
+      }
+    }finally{
+      if(original===null)root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme',original);
+    }
+    if(new Set(results.map(x=>x.rail)).size<4)
+      throw Error('Theme rails did not change computed background across themes');
+    return results;
+  });
+  assert.equal(themeAudit.length,8);
+  checked('polish02-eight-themes-real-rails-inherit-semantic-tokens',themeAudit);
+
   // Clinical-first: both preference panels start compact on a genuine patient
   // dossier, retain a keyboard-accessible, explicit way to reopen them, and
   // reclaim meaningful vertical room for the real read-only clinical slots.
