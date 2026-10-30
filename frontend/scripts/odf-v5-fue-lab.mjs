@@ -304,7 +304,7 @@ try{
       const drawn=ui.getByTestId('odf-g5-drawing-surface');
       const overlay=drawn.getByTestId('g5-visual-reference-overlay');
       const guides=overlay.locator('path');
-      const viewBox=(await drawn.getAttribute('viewBox')||'').split(/\\s+/).map(Number);
+      const viewBox=(await drawn.getAttribute('viewBox')||'').split(/\s+/).map(Number);
       check(await focus.getAttribute('aria-pressed')==='true'
         &&await ui.getByTestId('g5-zoom-4').getAttribute('aria-pressed')==='true'
         &&await guides.count()===1
