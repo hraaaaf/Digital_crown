@@ -41,6 +41,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const [bezierNodes,setBezierNodes]=useState<G5BezierNode[]|null>(null);
   const [referenceMatched,setReferenceMatched]=useState(false);
   const [showReference,setShowReference]=useState(false);
+  const [checkingReference,setCheckingReference]=useState(false);
   const [viewportCenter,setViewportCenter]=useState<Point>([W/2,H/2]);
   const [selected,setSelected]=useState<CurveId>('cranial_base');
   const [revision,setRevision]=useState<number|null>(null);
@@ -63,7 +64,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     setViewportCenter([W/2,H/2]);
     setCurves(fresh());setRevision(null);setDraftVersion(0);
     setDirty(false);setServerApproved(false);setError('');setNotice('');
-    setReferenceMatched(false);setShowReference(false);
+    setReferenceMatched(false);setShowReference(false);setCheckingReference(false);
     if(verifiedFilmUrl.current){URL.revokeObjectURL(verifiedFilmUrl.current);verifiedFilmUrl.current=null;}
     setImageUrl(sourceFilmUrl);
     if(!patientId||!analysisId)return;
@@ -168,6 +169,32 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     finally{setBusy(false);}
   };
 
+  // Explicit retry for transient authenticated film/network failure after reload.
+  // Never enable the reference without re-reading study revision AND all PNG bytes.
+  const retryReference=async()=>{
+    if(!analysisId||!revision||loading||busy||checkingReference)return;
+    const id=requestId.current;
+    setCheckingReference(true);setReferenceMatched(false);setShowReference(false);
+    try{
+      const study=await cephaloRepository.getAnalysis(analysisId);
+      if(study.id!==analysisId ||
+        study.angles_data?.scientific_read_path?.revision!==revision)
+        throw Error('Source ou révision différente : rouvrez l’étude');
+      const matched=await verifyG5ReferenceFilm(study,undefined,bytes=>{
+        if(id!==requestId.current)return;
+        const objectUrl=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));
+        if(verifiedFilmUrl.current)URL.revokeObjectURL(verifiedFilmUrl.current);
+        verifiedFilmUrl.current=objectUrl;setImageUrl(objectUrl);
+      });
+      if(id!==requestId.current)return;
+      setReferenceMatched(matched);
+      if(!matched)setNotice('Référence indisponible : source non vérifiée, aucune superposition.');
+      else setNotice('Radiographie Aariz vérifiée ; guide de revue disponible.');
+    }catch{
+      if(id===requestId.current)setNotice('Vérification indisponible : connexion ou source invalide. Réessayer.');
+    }finally{if(id===requestId.current)setCheckingReference(false);}
+  };
+
   if(import.meta.env.VITE_ODF_G5_LAB!=='1')return null;
   return <section data-testid="odf-g5-manual-tracing"
     className="space-y-3 rounded-xl border p-4" style={{background:P.bgCard,borderColor:P.border}}>
@@ -187,13 +214,19 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     </div>
     <div className="flex flex-wrap items-center gap-2">
       <button type="button" data-testid="g5-reference-toggle"
-        disabled={!referenceMatched||loading||busy}
+        disabled={!referenceMatched||loading||busy||checkingReference}
         aria-pressed={showReference}
         onClick={()=>setShowReference(v=>!v)}
         className="rounded-lg border px-3 py-2 text-xs font-semibold"
         style={{borderColor:P.border,color:P.text}}>
         {showReference?'Masquer la référence QA':'Afficher la référence QA (lecture seule)'}
       </button>
+      {!referenceMatched&&revision&&!loading&&<button type="button"
+        data-testid="g5-reference-retry" disabled={busy||checkingReference}
+        onClick={retryReference} className="rounded-lg border px-3 py-2 text-xs"
+        style={{borderColor:P.border,color:P.text}}>
+        {checkingReference?'Vérification de la source…':'Réessayer la vérification de la source'}
+      </button>}
       <span data-testid="g5-reference-source-status" className="text-xs"
         style={{color:P.textMuted}}>
         {referenceMatched
