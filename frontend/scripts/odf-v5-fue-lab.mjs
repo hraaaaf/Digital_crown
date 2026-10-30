@@ -190,9 +190,39 @@ try{
       b=>b.textContent?.includes('Base du crâne'));
       return Boolean(b && !b.disabled);
     },{timeout:30000});
+    // Source-bound VISUAL GUIDE: no coordinates may be copied to a draft.
+    // The film is source-matched G3; only explicit user action can reveal the
+    // non-clinical, pointer-transparent reference.
+    const referenceToggle=ui.getByTestId('g5-reference-toggle');
+    await referenceToggle.waitFor({state:'visible'});
+    await page.waitForFunction(()=>{const el=document.querySelector(
+      '[data-testid="g5-reference-toggle"]');return Boolean(el&&!el.hasAttribute('disabled'));},
+      {timeout:20000});
+    check(await referenceToggle.getAttribute('aria-pressed')==='false'
+      &&await ui.getByTestId('g5-visual-reference-overlay').count()===0,
+      'G5_VISUAL_REFERENCE_HIDDEN_BY_DEFAULT');
+    check((await ui.getByTestId('g5-reference-source-status').innerText())
+      .includes('Source Aariz vérifiée'),
+      'G5_VISUAL_REFERENCE_ACTUAL_FILM_SHA_VERIFIED');
+    await referenceToggle.click();
+    const reference=ui.getByTestId('g5-visual-reference-overlay');
+    await reference.waitFor({state:'visible'});
+    check(await reference.locator('path').count()===6
+      &&await reference.locator('path[stroke-dasharray="18 18"]').count()===4,
+      'G5_VISUAL_REFERENCE_SIX_LAYERS_FOUR_DASHED');
+    check((await ui.getByTestId('g5-reference-warning').innerText()).includes('jamais copiée'),
+      'G5_VISUAL_REFERENCE_EXPLICIT_NONCLINICAL_WARNING');
+    await snap('g5-00-source-verified-reference-readonly');
     const before=await api.get(g5Url,{headers,params:{expected_revision:revision}});
-    check(before.status()===200 && (await before.json()).draft_version===0,
-      'G5_NO_INHERITED_ANATOMY_CONTOURS_BEFORE_DRAWING');
+    const beforeData=await before.json();
+    check(before.status()===200 && beforeData.draft_version===0
+      &&!beforeData.approved
+      &&beforeData.contours.every(c=>c.points.length===0),
+      'G5_REFERENCE_OVERLAY_DOES_NOT_WRITE_OR_APPROVE_DRAFT');
+    await referenceToggle.click();
+    check(await ui.getByTestId('g5-visual-reference-overlay').count()===0,
+      'G5_REFERENCE_HIDE_REMOVES_OVERLAY_WITHOUT_EDIT');
+
     const noContourApproval=await api.post(g5Url+'/approve',{
       headers,data:{expected_revision:revision,expected_draft_version:1,
         confirmation:'JE_VALIDE_LE_TRACE_ANATOMIQUE'}});
@@ -385,6 +415,15 @@ try{
     await bezierToggle.click();
     const reopenedCanvas=page.getByTestId('odf-g5-bezier-surface');
     await reopenedCanvas.waitFor({state:'visible'});
+    const reopenedToggle=page.getByTestId('g5-reference-toggle');
+    check(await reopenedToggle.getAttribute('aria-pressed')==='false',
+      'G5_REFERENCE_HIDDEN_AGAIN_AFTER_FULL_RELOAD');
+    await reopenedToggle.click();
+    check(await reopenedCanvas.getByTestId('g5-visual-reference-overlay')
+      .locator('path').count()===6,
+      'G5_REFERENCE_VISIBLE_IN_BEZIER_MODE');
+    await snap('g5-v2-04b-signed-unsigned-reference-in-bezier-test-only');
+    await reopenedToggle.click();
     check(await page.getByTestId('g5-bezier-anchor-2').count()===1
       &&await page.getByTestId('g5-bezier-handle-1-incoming').count()===1,
       'G5_V2_BROWSER_REOPEN_VISIBLE_SAVED_ANCHORS_AND_HANDLES');
