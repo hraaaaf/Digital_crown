@@ -147,7 +147,17 @@ api.interceptors.response.use(
       (window.location.pathname === '/hub' || window.location.pathname === '/control-center');
 
     if (!error.response) {
-      if (recoveryWorkstationProbe) return Promise.reject(error);
+      // G5's optional, read-only Aariz reference image can fail briefly on
+      // re-entry. Its own fail-closed status and explicit retry handle this.
+      // Do not show a misleading global "server unavailable" toast for only
+      // this specific LAB film probe. All clinical API errors stay visible.
+      const optionalG5ReferenceFilmProbe =
+        import.meta.env.VITE_ODF_G5_LAB === '1' &&
+        original?.url === '/static/uploads/radios/t2-cephalo-seeded.png' &&
+        original?.method?.toLowerCase() === 'get' &&
+        original?.responseType === 'arraybuffer';
+      if (recoveryWorkstationProbe || optionalG5ReferenceFilmProbe)
+        return Promise.reject(error);
       if (!_authFailed) {
         const method = original?.method?.toLowerCase() || 'get';
         if (isPublicStationRoute()) return Promise.reject(error);
