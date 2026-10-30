@@ -335,7 +335,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
         </div>
       ) : (
           <div className="mt-3 space-y-3 rounded-xl border border-border-main bg-medical-pearl/80 p-3">
-          <div className="flex flex-wrap items-center gap-2">
+          <div data-testid="multiview-legacy-selection" className="flex flex-wrap items-center gap-2">
             <label htmlFor="multiview-pilot-select" className="text-sm">Disposition</label>
             <select id="multiview-pilot-select" aria-label="Disposition MultiView"
               value={draft.id} onChange={e=>{setDraftId(e.target.value);setPreview(false);}}

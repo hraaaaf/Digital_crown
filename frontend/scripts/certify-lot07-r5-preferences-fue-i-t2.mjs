@@ -128,6 +128,15 @@ try {
   await layoutPanel.waitFor({state:'visible',timeout:60000});
   assert.match(await layoutPanel.innerText(),/Disposition du cabinet/);
   assert.equal(await a.page.locator('[data-v15-071-viewslot]').count(),2);
+  // R5 persistence must be the sole visible disposition selector on desktop;
+  // R3's independent view-exchange control remains accessible.
+  assert.equal(await a.page.locator('select[aria-label="Disposition MultiView"]').isVisible(),
+    false,'Duplicate R3 layout selector visible');
+  assert.equal(await a.page.locator('[data-testid="multiview-legacy-selection"]').isVisible(),
+    false,'Duplicate R3 preview/apply buttons visible');
+  assert.equal(await a.page.getByRole('button',{name:'Échanger les vues'}).isVisible(),
+    true,'R3 view-exchange must remain available');
+  checked('single-visible-r5-disposition-retains-r3-view-tools');
   await screenshot(a.page,'R5-MultiView-desktop-before-1920');
   checked('real-authenticated-r5-multiview-1920-visual-evidence');
   await layoutPanel.getByRole('combobox',{name:'Disposition R5'})
