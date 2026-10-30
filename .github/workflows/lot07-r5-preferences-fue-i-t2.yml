@@ -34,6 +34,7 @@ jobs:
       ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
       VITE_V15_07_R4_SIGNATURE_LAB: 'true'
       VITE_V15_07_R5_PREFS_LAB: 'true'
+      VITE_V15_07_1_MULTIVIEW_LAB: '1'
       EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
     steps:
       - name: Checkout exact PR head

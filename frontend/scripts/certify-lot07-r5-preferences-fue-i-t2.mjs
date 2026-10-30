@@ -112,6 +112,32 @@ try {
   await a.page.locator('[data-testid="r5-signature-prefs"]').waitFor({timeout:30000});
   assert.equal(await a.page.locator('[data-r4-signature]').getAttribute('data-r4-signature'),'iconic');
   checked('apply-persist-reload-with-real-browser-and-api');
+
+  // Genuine R5 MultiView on an authenticated, synthetic patient route:
+  // visual evidence only; no clinical write and no production activation.
+  assert.equal(process.env.VITE_V15_07_1_MULTIVIEW_LAB,'1');
+  const peopleResponse=await ownerAPI.get('/api/patients/');
+  assert.equal(peopleResponse.status(),200);
+  const people=await peopleResponse.json();
+  const fixture=people.find(p=>p.numero_dossier==='T2-0001');
+  assert.ok(Number.isSafeInteger(fixture?.id)&&fixture.id>0);
+  await a.page.setViewportSize({width:1920,height:1080});
+  await a.page.goto(uiBase+'/patients/'+fixture.id+'?tab=radiology&radioTab=media',{
+    waitUntil:'domcontentloaded',timeout:90000});
+  const layoutPanel=a.page.locator('[data-testid="r5-multiview-prefs"]');
+  await layoutPanel.waitFor({state:'visible',timeout:60000});
+  assert.match(await layoutPanel.innerText(),/Disposition du cabinet/);
+  assert.equal(await a.page.locator('[data-v15-071-viewslot]').count(),2);
+  await screenshot(a.page,'R5-MultiView-desktop-before-1920');
+  checked('real-authenticated-r5-multiview-1920-visual-evidence');
+  await layoutPanel.getByRole('combobox',{name:'Disposition R5'})
+    .selectOption('dossier-media-2rows');
+  await layoutPanel.getByRole('button',{name:'Aperçu',exact:true}).click();
+  await layoutPanel.locator('[data-testid="r5-multiview-preview"]')
+    .waitFor({state:'visible',timeout:15000});
+  await screenshot(a.page,'R5-MultiView-desktop-preview-1920');
+  assert.equal((await (await ownerAPI.get(route)).json()).revision,1);
+  checked('r5-multiview-preview-does-not-persist');
   await a.ctx.close();
 
   // B is a different real authenticated user under the same tenant/station.
