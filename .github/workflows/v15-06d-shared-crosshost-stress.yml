@@ -1,0 +1,183 @@
+name: V1.5-06D Private Network Multi-Ubuntu Shared Queue Stress
+
+on:
+  pull_request:
+    paths:
+      - 'isolated_fue_lot06c/qa_shared_server_crosshost_stress_v15.py'
+      - '.github/workflows/v15-06d-shared-crosshost-stress.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-ubuntu-topology:
+    name: "5 isolated Ubuntu containers / shared encrypted queue / runner ${{ matrix.os }}"
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 22
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        os: [ubuntu-22.04, ubuntu-24.04]
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03G_TEST_ONLY: '1'
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      GITHUB_SHA_EXACT: ${{ github.event.pull_request.head.sha || github.sha }}
+      PRIVATE_PROOF_DIR: proof-${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify source; build two isolated Ubuntu client image variants
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python3 -m py_compile isolated_fue_lot06c/qa_shared_server_crosshost_stress_v15.py
+          cat > /tmp/dc06g-Dockerfile <<'EOF'
+          ARG UBUNTU_VERSION
+          FROM ubuntu:${UBUNTU_VERSION}
+          ENV DEBIAN_FRONTEND=noninteractive
+          RUN apt-get update -qq && apt-get install -y --no-install-recommends python3 python3-cryptography ca-certificates \
+              && rm -rf /var/lib/apt/lists/*
+          EOF
+          docker build --quiet --build-arg UBUNTU_VERSION=22.04 -f /tmp/dc06g-Dockerfile -t dc06g-u22 /tmp
+          docker build --quiet --build-arg UBUNTU_VERSION=24.04 -f /tmp/dc06g-Dockerfile -t dc06g-u24 /tmp
+      - name: Launch 4 simultaneous private Ubuntu senders to ONE real HotFolder server
+        shell: bash
+        run: |
+          set -euo pipefail
+          docker network create --driver bridge dc06g-private
+          mkdir -p "$PRIVATE_PROOF_DIR"/{server,u22a,u22b,u24a,u24b}
+          # Ephemeral test-only token: not a cabinet credential, never uploaded.
+          export DC06G_TEST_TOKEN
+          DC06G_TEST_TOKEN="$(python3 -c 'import secrets; print(secrets.token_urlsafe(36))')"
+          base="-e ENVIRONMENT -e DIGITALCROWN_ISOLATED_RUNTIME -e DC06C05B03G_TEST_ONLY -e GITHUB_ACTIONS -e EXPECTED_SHA -e GITHUB_SHA_EXACT -e DC06G_TEST_TOKEN"
+          docker run -d --name dc06g-server --network dc06g-private --network-alias dc06g-server \
+            $base -e PYTHONPATH=/repo -v "$PWD:/repo:ro" \
+            -v "$PWD/$PRIVATE_PROOF_DIR/server:/proof" -w /proof \
+            dc06g-u24 python3 -m isolated_fue_lot06c.qa_shared_server_crosshost_stress_v15 server
+          for label in u22a u22b u24a u24b; do
+            image=dc06g-u24
+            case "$label" in u22*) image=dc06g-u22 ;; esac
+            docker run -d --name "dc06g-$label" --network dc06g-private \
+              $base -e PYTHONPATH=/repo -v "$PWD:/repo:ro" \
+              -v "$PWD/$PRIVATE_PROOF_DIR/$label:/proof" -w /proof \
+              "$image" python3 -m isolated_fue_lot06c.qa_shared_server_crosshost_stress_v15 client --label "$label"
+          done
+          failed=0
+          for label in u22a u22b u24a u24b server; do
+            status="$(timeout 310 docker wait "dc06g-$label")" || status=timeout
+            if test "$status" != "0"; then
+              echo "LOT06C05B03G_CONTAINER_FAILED $label status=$status"
+              docker logs "dc06g-$label" 2>&1 | tail -n 45
+              failed=1
+            fi
+          done
+          test "$failed" = 0
+          test -s "$PRIVATE_PROOF_DIR/server/server-proof.json"
+          for label in u22a u22b u24a u24b; do
+            test -s "$PRIVATE_PROOF_DIR/$label/client-proof.json"
+          done
+      - name: Validate 5 container proofs and reject false multi-VM claims
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,pathlib
+          root=pathlib.Path(os.environ["PRIVATE_PROOF_DIR"])
+          s=json.loads((root/"server"/"server-proof.json").read_text())
+          assert s["head_sha"] == os.environ["EXPECTED_SHA"]
+          assert s["received_http"] == 216
+          assert s["encrypted_sqlite_queued"] == 160
+          assert s["deferred_sources_intact"] == 56
+          assert s["network_boundary"] == "private_docker_bridge_only"
+          assert s["two_concurrent_files_per_client"] is True
+          assert s["aes_gcm_and_sha_verified"] is True
+          assert s["cold_restart_without_duplication"] is True
+          assert s["four_distinct_github_vms_tested"] is False
+          assert s["public_endpoint_created"] is False
+          assert s["clinical_upload_ack"] is False and s["product_ready"] is False
+          totals=0
+          for label,bulk in {"u22a":24,"u22b":48,"u24a":24,"u24b":48}.items():
+              c=json.loads((root/label/"client-proof.json").read_text())
+              assert c["head_sha"] == os.environ["EXPECTED_SHA"]
+              assert c["label"] == label and c["same_server_dns"] == "dc06g-server"
+              assert c["isolated_private_docker_client"] is True
+              assert c["real_remote_github_vm_client"] is False
+              assert not c["clinical_receipt"]
+              assert c["metrics"]["two"]["files"] == 2
+              assert c["metrics"]["bulk"]["files"] == bulk
+              assert c["metrics"]["flood"]["files"] == 16
+              assert c["files_sent"] == 18 + bulk
+              totals += c["files_sent"]
+              print("LOT06C05B03G_CLIENT_PASS",label, c["files_sent"],
+                    "bulk_files_per_second",c["metrics"]["bulk"]["files_per_s"])
+          assert totals==216
+          print("LOT06C05B03G_PRIVATE_FOUR_UBUNTU_ONE_SERVER_PASS: 216 received; 160 AES-GCM queued; 56 deferred unchanged")
+          PY
+      - name: Archive proof from this runner (no secrets or media)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03g-private-network-${{ matrix.os }}
+          path: proof-${{ matrix.os }}/
+          if-no-files-found: error
+          retention-days: 14
+      - name: Always terminate lab-only containers/network
+        if: always()
+        shell: bash
+        run: |
+          for label in u22a u22b u24a u24b server; do
+            docker rm -f "dc06g-$label" >/dev/null 2>&1 || true
+          done
+          docker network rm dc06g-private >/dev/null 2>&1 || true
+
+  aggregate:
+    name: Two host-runner Ubuntu versions, each 5-node private stress proof
+    runs-on: ubuntu-24.04
+    needs: [isolated-ubuntu-topology]
+    timeout-minutes: 5
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lot06-c05b03g-private-network-*
+          path: combined
+      - name: Independently validate both Ubuntu hosts and all 10 containers
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json,os,pathlib
+          root=pathlib.Path("combined")
+          actual={p.name for p in root.iterdir() if p.is_dir()}
+          assert actual=={"lot06-c05b03g-private-network-ubuntu-22.04",
+                         "lot06-c05b03g-private-network-ubuntu-24.04"},actual
+          total=0
+          for runner in ("ubuntu-22.04","ubuntu-24.04"):
+              r=root/("lot06-c05b03g-private-network-"+runner)
+              s=json.loads((r/"server"/"server-proof.json").read_text())
+              assert s["head_sha"]==os.environ["EXPECTED_SHA"]
+              assert s["received_http"]==216 and s["encrypted_sqlite_queued"]==160
+              assert s["deferred_sources_intact"]==56
+              assert not s["four_distinct_github_vms_tested"]
+              assert not s["clinical_upload_ack"] and not s["product_ready"]
+              for name in ("u22a","u22b","u24a","u24b"):
+                  c=json.loads((r/name/"client-proof.json").read_text())
+                  assert c["head_sha"]==os.environ["EXPECTED_SHA"]
+                  assert c["same_server_dns"]=="dc06g-server"
+                  assert not c["real_remote_github_vm_client"]
+              total+=s["received_http"]
+          assert total==432
+          print("LOT06C05B03G_TWO_UBUNTU_HOSTS_TEN_CONTAINERS_AGGREGATE_PASS")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03g-aggregate-private-network
+          path: combined/
+          if-no-files-found: error
+          retention-days: 14
