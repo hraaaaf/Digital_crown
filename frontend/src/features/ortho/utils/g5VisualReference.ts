@@ -1,4 +1,5 @@
 import sourceReference from '../fixtures/g5VisualReference.json';
+import {api} from '../../../services/api';
 
 /** QA visual guide, NOT clinical contour data and never an approval source. */
 export const G5_VISUAL_REFERENCE = sourceReference;
@@ -26,21 +27,28 @@ export function isG5ReferenceStudy(study: Study): boolean {
 /** Exact bytes of the displayed film must match the reviewed pixel coordinate space. */
 export async function verifyG5ReferenceFilm(
   study: Study,
-  getFilm: typeof fetch = fetch,
+  readAuthenticatedFilm: () => Promise<ArrayBuffer> = async () => {
+    // This source may require the cabinet JWT. Never read it using an
+    // anonymous raw fetch: the same authorization boundary applies to G5.
+    const response = await api.get<ArrayBuffer>(
+      '/static/uploads/radios/t2-cephalo-seeded.png',
+      {responseType:'arraybuffer',headers:{'Cache-Control':'no-cache'}},
+    );
+    return response.data;
+  },
 ): Promise<boolean> {
   if (!isG5ReferenceStudy(study) || !globalThis.crypto?.subtle) return false;
   try {
-    const response = await getFilm(G5_PAIRED_FILM_URL, {
-      credentials: 'same-origin', cache: 'no-store',
-    });
-    if (!response.ok) return false;
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('image/png')) return false;
-    const digest = await crypto.subtle.digest('SHA-256', await response.arrayBuffer());
-    const actual = Array.from(new Uint8Array(digest))
-      .map(byte => byte.toString(16).padStart(2, '0')).join('');
-    return actual === G5_VISUAL_REFERENCE.source.display_sha256;
-  } catch {
+    const bytes=await readAuthenticatedFilm();
+    if (!(bytes instanceof ArrayBuffer)) return false;
+    const png=new Uint8Array(bytes);
+    const signature=[137,80,78,71,13,10,26,10];
+    if(png.length<100000||!signature.every((value,i)=>png[i]===value)) return false;
+    const digest=await crypto.subtle.digest('SHA-256',bytes);
+    const actual=Array.from(new Uint8Array(digest))
+      .map(byte=>byte.toString(16).padStart(2,'0')).join('');
+    return actual===G5_VISUAL_REFERENCE.source.display_sha256;
+  }catch{
     return false;
   }
 }
