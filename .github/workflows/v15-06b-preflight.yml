@@ -19,6 +19,8 @@ on:
       - 'backend/tests/test_clinical_asset_storage.py'
       - 'backend/services/imaging_clinical_asset_verifier_v15.py'
       - 'backend/tests/test_imaging_clinical_asset_verifier_v15.py'
+      - 'backend/services/imaging_lab_authorized_media_gate_v15.py'
+      - 'backend/tests/test_imaging_lab_authorized_media_gate_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -43,6 +45,8 @@ on:
       - 'backend/tests/test_clinical_asset_storage.py'
       - 'backend/services/imaging_clinical_asset_verifier_v15.py'
       - 'backend/tests/test_imaging_clinical_asset_verifier_v15.py'
+      - 'backend/services/imaging_lab_authorized_media_gate_v15.py'
+      - 'backend/tests/test_imaging_lab_authorized_media_gate_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -169,6 +173,29 @@ jobs:
         with:
           name: lot06c05b02a-clinical-media-verification-synthetic-fue
           path: lot06c05b02a-media-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: LOT06-C05B-02B lab staff/device approval + real AES media FUE
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06C05B02B_EVIDENCE_DIR: lot06c05b02b-auth-media-evidence
+          DC_V15_06_TRANSFER_LAB: '1'
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/services/imaging_lab_authorized_media_gate_v15.py
+          python -m py_compile backend/tests/test_imaging_lab_authorized_media_gate_v15.py
+          mkdir -p "$DC06C05B02B_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_imaging_lab_authorized_media_gate_v15.py -q -s
+          test -s "$DC06C05B02B_EVIDENCE_DIR/lot06c05b02b-lab-auth-media-fue.json"
+          python -c 'import json,os; d=json.load(open(os.path.join(os.environ["DC06C05B02B_EVIDENCE_DIR"],"lot06c05b02b-lab-auth-media-fue.json"))); assert all(d[k] is True for k in ("real_lab_server_review_challenge_consumed","lab_device_token_and_revocation_checked","current_staff_permission_and_revocation_checked","approved_capture_claims_and_media_provenance_checked","real_aesgcm_media_tamper_refused","lab_guard_persistent_disabled")); assert d["negative_claims_rejected"]==9;assert all(d[k] is False for k in ("clinical_receipt_authorization_granted","approval_version_persisted_in_postgres","production_device_trust_certified","sql_fs_atomicity_certified","product_ready"))'
+      - name: Upload LOT06-C05B-02B lab authorization/media FUE
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c05b02b-lab-authorized-media-synthetic-fue
+          path: lot06c05b02b-auth-media-evidence/
           if-no-files-found: error
           retention-days: 14
 
