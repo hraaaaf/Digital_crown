@@ -42,7 +42,7 @@ describe('G5 reference — read-only source-verified visual target',()=>{
   });
 
   it('rejects unrelated studies before trying to load the image',async()=>{
-    const request=vi.fn();
+    const request=vi.fn<() => Promise<ArrayBuffer>>();
     for(const study of [
       {...matched,image_original_path:'/api/static/uploads/radios/other.png'},
       {...matched,angles_data:{...matched.angles_data,
@@ -51,7 +51,7 @@ describe('G5 reference — read-only source-verified visual target',()=>{
         odf_lab_image_landmark_alignment:'UNVERIFIED'}},
     ]){
       expect(isG5ReferenceStudy(study)).toBe(false);
-      expect(await verifyG5ReferenceFilm(study,request as unknown as typeof fetch))
+      expect(await verifyG5ReferenceFilm(study,request))
         .toBe(false);
     }
     expect(request).not.toHaveBeenCalled();
