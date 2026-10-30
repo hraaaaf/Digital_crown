@@ -382,6 +382,10 @@ def test_c05b03c_atomic_receipt_historical_replay_and_exit(tmp_path, monkeypatch
                 )
     finally:
         engine.dispose()
+    # Verify corruption denial with a presently authorized requester, not a
+    # revoked requester already blocked at the authorization boundary.
+    _change(root, "UPDATE c05b03c_devices SET active=1")
+    assert _issue(root, first) == rid
     blob = next((root / "media").rglob("*.dcm"))
     data = blob.read_bytes()
     blob.write_bytes(data[:-1] + bytes([data[-1] ^ 1]))
