@@ -292,7 +292,9 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
       {STRUCTURES.map(spec=>{
         const n=curves.find(c=>c.id===spec.id)?.points.length||0;
-        return <button type="button" key={spec.id} disabled={busy||loading||!revision}
+        return <button type="button" key={spec.id}
+          data-testid={`g5-structure-select-${spec.id}`}
+          disabled={busy||loading||!revision}
           aria-pressed={selected===spec.id}
           onClick={()=>{setSelected(spec.id);setBezierMode(false);setReviewFocus(null);}}
           className="rounded-lg border px-2 py-2 text-left text-xs"
