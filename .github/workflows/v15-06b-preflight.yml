@@ -25,6 +25,9 @@ on:
       - 'isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py'
       - 'isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py'
       - 'isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py'
+      - 'isolated_fue_lot06c/test_physical_power_witness_protocol_v15.py'
+      - 'tools/imaging_gateway/qa_physical_power_witness_lab.py'
+      - 'tools/imaging_gateway/LOT06-C05B03E-PHYSICAL-DURABILITY-RUNBOOK.md'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -55,6 +58,9 @@ on:
       - 'isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py'
       - 'isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py'
       - 'isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py'
+      - 'isolated_fue_lot06c/test_physical_power_witness_protocol_v15.py'
+      - 'tools/imaging_gateway/qa_physical_power_witness_lab.py'
+      - 'tools/imaging_gateway/LOT06-C05B03E-PHYSICAL-DURABILITY-RUNBOOK.md'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -293,6 +299,29 @@ jobs:
         with:
           name: lot06c05b03d-wal-normal-full-ack-lab-fue
           path: lot06c05b03d-durability-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: LOT06-C05B-03E external physical witness collector fail-closed FUE (NO PHYSICAL TEST)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06C05B03E_TEST_ONLY: '1'
+          DC06C05B03E_EVIDENCE_DIR: lot06c05b03e-witness-evidence
+        run: |
+          set -euo pipefail
+          python -m py_compile tools/imaging_gateway/qa_physical_power_witness_lab.py
+          python -m py_compile isolated_fue_lot06c/test_physical_power_witness_protocol_v15.py
+          mkdir -p "$DC06C05B03E_EVIDENCE_DIR"
+          python -m pytest isolated_fue_lot06c/test_physical_power_witness_protocol_v15.py -q -s
+          test -s "$DC06C05B03E_EVIDENCE_DIR/lot06c05b03e-physical-witness-protocol-fue.json"
+          python -c 'import json,os; d=json.load(open(os.path.join(os.environ["DC06C05B03E_EVIDENCE_DIR"],"lot06c05b03e-physical-witness-protocol-fue.json"))); assert all(d[k] is True for k in ("isolated_root_and_no_real_patient_data","external_pre_event_manifest_required","sqlcipher_wal_normal_and_full_reopened_in_new_process","sqlcipher_receipt_audit_outbox_identity_verified","real_synthetic_aesgcm_media_corruption_and_missing_denied","falsified_operator_power_claim_cannot_self_certify","non_posix_not_covered_by_ci")); assert all(d[k] is False for k in ("actual_physical_power_cut_tested","external_power_witness_independently_verified","os_kernel_crash_tested","hardware_sync_guarantees_verified","windows_ntfs_certified","real_clinical_asset_used","real_staff_device_authentication","production_durable_receipt_enabled","human_clinical_approval_recorded","product_ready"))'
+      - name: Upload LOT06-C05B-03E external witness protocol evidence (NO HARDWARE CERTIFICATION)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c05b03e-external-witness-protocol-synthetic-fue
+          path: lot06c05b03e-witness-evidence/
           if-no-files-found: error
           retention-days: 14
 
