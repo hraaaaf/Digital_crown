@@ -509,6 +509,19 @@ try{
       toggleDisabled:await reopenedToggle.isDisabled(),
       studyRevision:afterReloadStudy.angles_data?.scientific_read_path?.revision,
     }));
+    if(await reopenedToggle.isDisabled()){
+      check((await reopened.getByTestId('g5-reference-source-status').innerText())
+        .includes('Référence indisponible'),
+        'G5_REFERENCE_RELOAD_NETWORK_FAILURE_FAILS_CLOSED');
+      const recover=reopened.getByTestId('g5-reference-retry');
+      await recover.click();
+      await page.waitForFunction(()=>{const toggle=document.querySelector(
+        '[data-testid="g5-reference-toggle"]');
+        return Boolean(toggle&&!toggle.hasAttribute('disabled'));},
+        null,{timeout:25000});
+      check(await reopenedToggle.isEnabled(),
+        'G5_REFERENCE_EXPLICIT_SOURCE_REVERIFY_AFTER_RELOAD');
+    }
     await reopenedToggle.click();
     check(await reopenedCanvas.getByTestId('g5-visual-reference-overlay')
       .locator('path').count()===6,
