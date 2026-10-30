@@ -232,12 +232,14 @@ try {
   // POLISH-02 accessibility: measured computed-color ratios on REAL R5 controls.
   // Includes alpha composition; no assumption that inherited tokens prove contrast.
   await a.page.keyboard.press('Tab');
-  const wcagAudit=await a.page.evaluate(()=>{
+  const wcagAudit=await a.page.evaluate(async()=>{
     const themeNames=['default','emerald','rose','ocean','graphite','prestige','dark','high-contrast'];
     const root=document.documentElement, original=root.getAttribute('data-theme');
     const parse=s=>{
       const m=String(s).match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s\/]+([\d.]+))?\s*\)$/);
-      return m?[Number(m[1]),Number(m[2]),Number(m[3]),m[4]===undefined?1:Number(m[4])]:null;
+      if(m)return [Number(m[1]),Number(m[2]),Number(m[3]),m[4]===undefined?1:Number(m[4])];
+      const srgb=String(s).match(/^color\\(srgb\\s+([\\d.]+)\\s+([\\d.]+)\\s+([\\d.]+)(?:\\s*\\/\\s*([\\d.]+))?\\)$/);
+      return srgb?[255*Number(srgb[1]),255*Number(srgb[2]),255*Number(srgb[3]),srgb[4]===undefined?1:Number(srgb[4])]:null;
     };
     const composite=(front,back)=>front.slice(0,3).map((v,i)=>v*front[3]+back[i]*(1-front[3]));
     const bgAt=node=>{
@@ -256,6 +258,8 @@ try {
     try{
       for(const theme of themeNames){
         root.setAttribute('data-theme',theme);
+        // body/bg-primary transition for 400 ms; measure fully settled pixels, not intermediates.
+        await new Promise(resolve=>setTimeout(resolve,500));
         const targets=[
           ['signature-heading',signature.querySelector('h2')],
           ['signature-description',signature.querySelector('p.text-text-muted')],
@@ -286,7 +290,9 @@ try {
           const bg=bgAt(el.parentElement);
           const actual=c?ratio(composite(c,bg),bg):0;
           const active=el.matches(':focus-visible')&&s.outlineStyle!=='none'&&parseFloat(s.outlineWidth)>=2;
-          samples.push({theme,name:name+'-keyboard-focus',ratio:Number(actual.toFixed(2)),minimum:3,active});
+          samples.push({theme,name:name+'-keyboard-focus',ratio:Number(actual.toFixed(2)),
+            minimum:3,active,outlineColor:s.outlineColor,backdrop:bg,
+            primaryToken:getComputedStyle(root).getPropertyValue('--primary').trim()});
           if(!active||actual+0.001<3)failures.push({theme,name:name+'-keyboard-focus',active,ratio:Number(actual.toFixed(2)),minimum:3});
         }
       }
@@ -311,8 +317,15 @@ try {
         left:Math.round(r.left),right:Math.round(r.right),
         fits:r.left>=-2&&r.right<=width+2};
     });
+    const safeMobile=document.querySelector('[data-testid="multiview-mobile-safe-view"]');
+    const safeMobileRect=safeMobile?.getBoundingClientRect();
+    const mobileSafeVisible=Boolean(safeMobileRect && safeMobileRect.width>0 && safeMobileRect.height>0);
+    const mobileSafeFits=Boolean(safeMobileRect && safeMobileRect.left>=-2 && safeMobileRect.right<=width+2);
+    const fallback=document.querySelector('[data-testid="multiview-responsive-single-media-fallback"]');
+    const fallbackRect=fallback?.getBoundingClientRect();
     return {cssViewport:width,documentScrollWidth:document.documentElement.scrollWidth,landmarks,
-      fallbackVisible:Boolean(document.querySelector('[data-testid="multiview-responsive-single-media-fallback"]'))};
+      mobileSafeVisible,mobileSafeFits,
+      fallbackVisible:Boolean(fallbackRect&&fallbackRect.width>0&&fallbackRect.height>0)};
   });
   try{
     await a.page.keyboard.press('Tab');
@@ -334,7 +347,12 @@ try {
     await a.page.setViewportSize({width:1920,height:1080});
   }
   const reflowFailures=reflowResults.flatMap(result=>{
-    const bad=result.landmarks.filter(el=>!el.present||!el.visible||!el.fits);
+    const safeResponsive=result.mode==='half-width-200-percent-zoom-equivalent' &&
+      result.mobileSafeVisible && result.mobileSafeFits;
+    const bad=result.landmarks.filter(el=>
+      (!el.present||!el.visible||!el.fits) &&
+      !(safeResponsive && (el.name==='r5-multiview-prefs'||el.name==='r5-multiview-toggle')));
+    if(result.mobileSafeVisible&&!result.mobileSafeFits)bad.push({name:'mobile-safe-view-exceeds-viewport'});
     if(result.documentScrollWidth>result.cssViewport+2)bad.push({name:'document-horizontal-overflow'});
     return bad.map(el=>({mode:result.mode,viewport:result.cssViewport,...el}));
   });
