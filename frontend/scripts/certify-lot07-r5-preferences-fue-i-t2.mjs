@@ -231,6 +231,7 @@ try {
   await screenshot(a.page,'R5-MultiView-desktop-expanded-1920');
   // POLISH-02 accessibility: measured computed-color ratios on REAL R5 controls.
   // Includes alpha composition; no assumption that inherited tokens prove contrast.
+  await a.page.keyboard.press('Tab');
   const wcagAudit=await a.page.evaluate(()=>{
     const themeNames=['default','emerald','rose','ocean','graphite','prestige','dark','high-contrast'];
     const root=document.documentElement, original=root.getAttribute('data-theme');
