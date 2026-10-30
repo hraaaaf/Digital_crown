@@ -24,6 +24,7 @@ on:
       - 'isolated_fue_lot06c/test_sqlcipher_onprem_authority_v15.py'
       - 'isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py'
       - 'isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py'
+      - 'isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -53,6 +54,7 @@ on:
       - 'isolated_fue_lot06c/test_sqlcipher_onprem_authority_v15.py'
       - 'isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py'
       - 'isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py'
+      - 'isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -269,6 +271,28 @@ jobs:
         with:
           name: lot06c05b03c-persistent-sqlcipher-approval-synthetic-fue
           path: lot06c05b03c-authority-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: LOT06-C05B-03D SQLCipher WAL NORMAL/FULL process crash and ACK policy FUE (LAB ONLY)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06C05B03D_TEST_ONLY: '1'
+          DC06C05B03D_EVIDENCE_DIR: lot06c05b03d-durability-evidence
+        run: |
+          set -euo pipefail
+          python -m py_compile isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py
+          mkdir -p "$DC06C05B03D_EVIDENCE_DIR"
+          python -m pytest isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py -q -s
+          test -s "$DC06C05B03D_EVIDENCE_DIR/lot06c05b03d-wal-sync-uncertain-ack-fue.json"
+          python -c 'import json,os; d=json.load(open(os.path.join(os.environ["DC06C05B03D_EVIDENCE_DIR"],"lot06c05b03d-wal-sync-uncertain-ack-fue.json"))); assert all(d[k] is True for k in ("actual_sqlcipher_wal_normal_and_full_config_observed","cabinet_wal_normal_source_pinned","full_requires_same_writer_connection","normal_refused_for_strict_policy","normal_full_sql_triplet_rollback_verified","normal_full_precommit_os_process_exit_verified","normal_full_postcommit_os_process_exit_ack_recovered","identity_and_media_corruption_block_receipt_recovery","uncertain_commit_no_receipt_never_acknowledged","test_only_synthetic_aesgcm_media_not_clinical_asset","observed_os_process_exit_not_power_failure")); assert all(d[k] is False for k in ("actual_power_loss_tested","os_kernel_crash_tested","vfs_xsync_invocations_instrumented","physical_media_flush_guaranteed","windows_ntfs_certified","clinical_staff_device_authenticated","production_schema_migrated","sql_and_filesystem_globally_atomic","per_commit_powerloss_durability_certified","production_durable_receipt_enabled","product_ready")); assert d["sqlite_primary_documentation_wal_sync_semantics"] == "https://www.sqlite.org/pragma.html"'
+      - name: Upload LOT06-C05B-03D SQLCipher WAL synchronicity FUE (NO POWERLOSS CLAIM)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c05b03d-wal-normal-full-ack-lab-fue
+          path: lot06c05b03d-durability-evidence/
           if-no-files-found: error
           retention-days: 14
 
