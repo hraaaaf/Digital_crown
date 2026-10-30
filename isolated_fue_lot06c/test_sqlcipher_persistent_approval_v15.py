@@ -16,7 +16,7 @@ import sys
 
 import pytest
 from sqlalchemy import event
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlcipher3.dbapi2 import IntegrityError, OperationalError  # creator=SQLCipher DBAPI
 from sqlalchemy.orm import Session
 
 from backend.models_media_core import ClinicalAsset
