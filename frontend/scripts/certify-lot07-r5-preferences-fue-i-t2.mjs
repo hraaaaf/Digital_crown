@@ -364,12 +364,22 @@ try {
     throw Error('POLISH-02 ACCESSIBILITY BLOCKER: computed contrast / 200% reflow violations; see report.json');
   }
 
-  // Return Signature to a compact summary; the MultiView editor remains open
-  // so the next existing preview/cancel and isolation assertions stay genuine.
-  await signatureToggle.click();
+  // Returning from 720/640 mobile mode remounts the desktop R5 panel.
+  // Do not assume its expanded state survived the responsive fallback.
+  await layoutPanel.waitFor({state:'visible',timeout:30000});
+  if(await signatureToggle.getAttribute('aria-expanded')==='true')
+    await signatureToggle.click();
+  const multiToggleAfterReflow=layoutPanel.locator('[data-testid="r5-multiview-toggle"]');
+  await multiToggleAfterReflow.waitFor({state:'visible',timeout:30000});
+  if(await multiToggleAfterReflow.getAttribute('aria-expanded')==='false')
+    await multiToggleAfterReflow.click();
+  assert.equal(await signatureToggle.getAttribute('aria-expanded'),'false');
+  assert.equal(await multiToggleAfterReflow.getAttribute('aria-expanded'),'true');
+  const reflowRestoredSelect=layoutPanel.getByRole('combobox',{name:'Disposition R5'});
+  await reflowRestoredSelect.waitFor({state:'visible',timeout:15000});
+  checked('polish02-desktop-editor-restored-after-responsive-fallback');
   checked('real-authenticated-r5-multiview-1920-visual-evidence');
-  await layoutPanel.getByRole('combobox',{name:'Disposition R5'})
-    .selectOption('dossier-media-2rows');
+  await reflowRestoredSelect.selectOption('dossier-media-2rows');
   await layoutPanel.getByRole('button',{name:'Aperçu',exact:true}).click();
   await layoutPanel.locator('[data-testid="r5-multiview-preview"]')
     .waitFor({state:'visible',timeout:15000});
