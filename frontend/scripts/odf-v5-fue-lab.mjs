@@ -238,7 +238,7 @@ try{
     const surface=page.getByTestId('odf-g5-drawing-surface');
     await surface.waitFor({state:'visible',timeout:30000});
     const ui=page.getByTestId('odf-g5-manual-tracing');
-    await ui.getByRole('button',{name:/Base du crâne/}).waitFor({state:'visible'});
+    await ui.getByTestId('g5-structure-select-cranial_base').waitFor({state:'visible'});
     await page.waitForFunction(()=>{const b=[...document.querySelectorAll(
       '[data-testid="odf-g5-manual-tracing"] button')].find(
       b=>b.textContent?.includes('Base du crâne'));
@@ -343,7 +343,7 @@ try{
       'G5_BEZIER_REFERENCE_BEFORE_ANY_SYNTHETIC_ANNOTATION');
     await snapG5Complete('bezier-pristine-reference','odf-g5-bezier-surface');
     await pristineBezierToggle.click();
-    await ui.getByRole('button',{name:/Base du crâne/}).click();
+    await ui.getByTestId('g5-structure-select-cranial_base').click();
     const before=await api.get(g5Url,{headers,params:{expected_revision:revision}});
     const beforeData=await before.json();
     check(before.status()===200 && beforeData.draft_version===0
@@ -369,10 +369,10 @@ try{
 
     // Distinct smooth pointer strokes are executed in the actual browser.
     // Their positions are AUTOMATION DEMO, not expert ceph traces.
-    const layers=['Base du crâne','Maxillaire','Mandibule',
-      'Incisive supérieure','Incisive inférieure','Profil cutané'];
+    const layers=['cranial_base','maxilla','mandible',
+      'upper_incisor','lower_incisor','soft_tissue_profile'];
     for(const [i,label] of layers.entries()){
-      await ui.getByRole('button',{name:new RegExp(label)}).click();
+      await ui.getByTestId('g5-structure-select-'+label).click();
       await surface.scrollIntoViewIfNeeded();
       const bounds=await surface.boundingBox();
       check(Boolean(bounds&&bounds.width>200&&bounds.height>300),
@@ -385,7 +385,7 @@ try{
         await page.mouse.move(left+n*10,top+n*4+Math.sin(n/3)*9);
       }
       await page.mouse.up();
-      const count=await ui.getByRole('button',{name:new RegExp(label)})
+      const count=await ui.getByTestId('g5-structure-select-'+label)
         .innerText();
       check(/2[0-9]\/\d+ points minimum/.test(count),
         'G5_BROWSER_POINTER_STROKE_RECORDED_'+i);
