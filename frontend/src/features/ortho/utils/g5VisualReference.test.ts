@@ -1,4 +1,4 @@
-import {describe,expect,it,vi} from 'vitest';
+import {afterEach,describe,expect,it,vi} from 'vitest';
 import {
   G5_VISUAL_REFERENCE,G5_PAIRED_FILM_URL,
   g5ReferenceSvgPath,isG5ReferenceStudy,verifyG5ReferenceFilm,
@@ -13,6 +13,7 @@ const matched={
 };
 
 describe('G5 reference — read-only source-verified visual target',()=>{
+  afterEach(()=>vi.unstubAllGlobals());
   it('has exactly the unsigned practitioner visual six-layer contract',()=>{
     const curves=G5_VISUAL_REFERENCE.curves;
     expect(G5_VISUAL_REFERENCE.clinical_approval).toBe(false);
@@ -56,15 +57,22 @@ describe('G5 reference — read-only source-verified visual target',()=>{
     expect(request).not.toHaveBeenCalled();
   });
 
-  it('fails closed for invalid bytes or a non-PNG source',async()=>{
+  it('accepts ONLY authorized PNG bytes matching the exact SHA-256',async()=>{
     expect(isG5ReferenceStudy(matched)).toBe(true);
-    const altered=vi.fn().mockResolvedValue(new Response('fake image',{
-      status:200,headers:{'content-type':'image/png'},
-    }));
-    expect(await verifyG5ReferenceFilm(matched,altered)).toBe(false);
-    const wrongFormat=vi.fn().mockResolvedValue(new Response('fake',{
-      status:200,headers:{'content-type':'text/html'},
-    }));
-    expect(await verifyG5ReferenceFilm(matched,wrongFormat)).toBe(false);
+    const png=new Uint8Array(100001);
+    png.set([137,80,78,71,13,10,26,10]);
+    const expected=Uint8Array.from(G5_VISUAL_REFERENCE.source.display_sha256
+      .match(/.{2}/g)!.map(h=>parseInt(h,16)));
+    const digest=vi.fn().mockResolvedValue(expected.buffer);
+    vi.stubGlobal('crypto',{subtle:{digest}});
+    const authorized=vi.fn().mockResolvedValue(png.buffer);
+    expect(await verifyG5ReferenceFilm(matched,authorized)).toBe(true);
+    expect(authorized).toHaveBeenCalledOnce();
+    expect(digest).toHaveBeenCalledOnce();
+    digest.mockResolvedValue(new Uint8Array(32).buffer);
+    expect(await verifyG5ReferenceFilm(matched,authorized)).toBe(false);
+    const corrupted=vi.fn().mockResolvedValue(new TextEncoder().encode('not png').buffer);
+    expect(await verifyG5ReferenceFilm(matched,corrupted)).toBe(false);
+    expect(digest).toHaveBeenCalledTimes(2);
   });
 });
