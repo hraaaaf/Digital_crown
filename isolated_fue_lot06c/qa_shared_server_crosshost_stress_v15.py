@@ -57,6 +57,10 @@ def names(label, phase):
     return [f"stress_{label}_{phase}_{i:05d}" for i in range(count)]
 
 class PrivateReceiver(Receiver):
+    # 4 independent clients x up to 6 concurrent HTTP sends each. The
+    # default TCPServer backlog=5 causes SYN resets under the flood FUE.
+    request_queue_size = 128
+
     def __init__(self, watch, token):
         # Explicit TEST-only Docker bridge ingress. No -p/published ports.
         ThreadingHTTPServer.__init__(self, ("0.0.0.0", 7077), PrivateHandler)
@@ -290,15 +294,38 @@ def wait_phase(url, token, phase):
     raise AssertionError("CLIENT_BARRIER_TIMEOUT_" + phase)
 
 def send_one(url, token, capture):
+    """Bounded transport retry: acknowledge 409 only after a lost-ACK attempt.
+
+    All remote source counts, AES payload hashes and source .ready manifests
+    are independently checked by the server at the end, so retry cannot
+    manufacture a green file result.
+    """
     blob = payload(capture)
     req = urllib.request.Request(url + "/test-only/incoming", data=blob,
                                  method="POST",
                                  headers={"X-Lab-Token": token,
                                           "X-Capture": capture,
                                           "Content-Type": "image/png"})
-    with urllib.request.urlopen(req, timeout=15) as r:
-        ensure(r.status == 201, "FILE_SEND_NOT_201")
-    return capture
+    had_transient = False
+    for attempt in range(4):
+        try:
+            with urllib.request.urlopen(req, timeout=18) as r:
+                ensure(r.status == 201, "FILE_SEND_NOT_201")
+            return capture
+        except urllib.error.HTTPError as exc:
+            # A first 409 is an error; after an ACK loss, server may already
+            # have written exact deterministic bytes and refuse a duplicate.
+            # Final server-side SHA+ready+216-count checks are mandatory.
+            if exc.code == 409 and had_transient:
+                return capture
+            raise
+        except (ConnectionResetError, ConnectionAbortedError, BrokenPipeError,
+                TimeoutError, urllib.error.URLError):
+            had_transient = True
+            if attempt == 3:
+                raise
+            time.sleep(.18 * (attempt + 1))
+    raise AssertionError("FILE_SEND_RETRY_EXHAUSTED")
 
 def run_client(label):
     token = guard()
