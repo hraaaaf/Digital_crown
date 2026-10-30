@@ -105,7 +105,12 @@ jobs:
                   assert d[case]["restarted_without_duplication"] is True
                   assert d[case]["two_files_simultaneous"] is True
               total+=d["case_healthy"]["received_count"]+d["case_saturated"]["received_count"]
-              print(label,"PASS queue="+str(files+4), "backpressure=8", "p95_ms="+str(d["case_healthy"]["two_file_sender_metrics"]["request_p95_ms"]))
+              bulk=d["case_healthy"]["bulk_sender_metrics"]
+              assert bulk["accepted"]==files and bulk["workers"]>=8
+              assert bulk["requests_per_s"]>0 and bulk["request_p95_ms"]>=0
+              print(label,"PASS queue="+str(files+4), "backpressure=8",
+                    "burst_files="+str(files), "burst_rps="+str(bulk["requests_per_s"]),
+                    "burst_p95_ms="+str(bulk["request_p95_ms"]))
           assert total== (96+4)+(192+4)+(96+4)+(192+4)+4*16
           print("LOT06C05B03F_FOUR_UBUNTU_RUNNERS_AGGREGATED_PASS total_received="+str(total))
           PY
