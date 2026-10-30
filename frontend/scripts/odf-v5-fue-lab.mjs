@@ -290,6 +290,20 @@ try{
       'G5_VISUAL_REFERENCE_EXPLICIT_NONCLINICAL_WARNING');
     await snap('g5-00-source-verified-reference-readonly');
     await snapG5Complete('reference-readonly','odf-g5-drawing-surface');
+    // Separate real Bézier reference screenshot BEFORE synthetic QA strokes:
+    // the saved browser demo curves below are deliberately NOT anatomy.
+    await ui.getByRole('button',{name:/Profil cutané/}).click();
+    const pristineBezierToggle=ui.getByTestId('g5-bezier-mode-toggle');
+    await pristineBezierToggle.click();
+    const pristineBezierSurface=ui.getByTestId('odf-g5-bezier-surface');
+    await pristineBezierSurface.waitFor({state:'visible'});
+    check(await pristineBezierSurface.getByTestId('g5-visual-reference-overlay')
+      .locator('path').count()===6 &&
+      await ui.getByTestId('g5-bezier-anchor-0').count()===0,
+      'G5_BEZIER_REFERENCE_BEFORE_ANY_SYNTHETIC_ANNOTATION');
+    await snapG5Complete('bezier-pristine-reference','odf-g5-bezier-surface');
+    await pristineBezierToggle.click();
+    await ui.getByRole('button',{name:/Base du crâne/}).click();
     const before=await api.get(g5Url,{headers,params:{expected_revision:revision}});
     const beforeData=await before.json();
     check(before.status()===200 && beforeData.draft_version===0
