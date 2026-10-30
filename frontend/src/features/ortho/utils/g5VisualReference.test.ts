@@ -66,11 +66,14 @@ describe('G5 reference — read-only source-verified visual target',()=>{
     const digest=vi.fn().mockResolvedValue(expected.buffer);
     vi.stubGlobal('crypto',{subtle:{digest}});
     const authorized=vi.fn().mockResolvedValue(png.buffer);
-    expect(await verifyG5ReferenceFilm(matched,authorized)).toBe(true);
+    const onVerifiedFilm=vi.fn();
+    expect(await verifyG5ReferenceFilm(matched,authorized,onVerifiedFilm)).toBe(true);
+    expect(onVerifiedFilm).toHaveBeenCalledExactlyOnceWith(png.buffer);
     expect(authorized).toHaveBeenCalledOnce();
     expect(digest).toHaveBeenCalledOnce();
     digest.mockResolvedValue(new Uint8Array(32).buffer);
-    expect(await verifyG5ReferenceFilm(matched,authorized)).toBe(false);
+    expect(await verifyG5ReferenceFilm(matched,authorized,onVerifiedFilm)).toBe(false);
+    expect(onVerifiedFilm).toHaveBeenCalledTimes(1);
     const corrupted=vi.fn().mockResolvedValue(new TextEncoder().encode('not png').buffer);
     expect(await verifyG5ReferenceFilm(matched,corrupted)).toBe(false);
     expect(digest).toHaveBeenCalledTimes(2);
