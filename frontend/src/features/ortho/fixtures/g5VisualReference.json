@@ -1,0 +1,598 @@
+{
+  "schema": "DIGITAL_CROWN_G5_VISUAL_REFERENCE_V1",
+  "reference_state": "PRACTITIONER_APPROVED_VISUAL_TARGET_NOT_CLINICALLY_SIGNED",
+  "clinical_approval": false,
+  "reference_decision": "Planche globale acceptée visuellement par le praticien; 4 courbes pointillées incertaines et non signées. Secteur crânien corrigé sur pixels de la planche acceptée, 21 points guides.",
+  "source": {
+    "dataset": "Aariz Cephalometric Dataset",
+    "article_id": 27986417,
+    "file_id": 51041642,
+    "image_entry": "Aariz/test/Cephalograms/cks2ip8fp29yl0yuf6ry9266i.png",
+    "license": "CC BY 4.0",
+    "doi": "https://doi.org/10.1038/s41597-025-05542-3",
+    "source_original_sha256": "c2c391d7637206123b81c4e43b98d2e21f14ce9b5723698d768d68d3292e88c7",
+    "display_sha256": "7f0746c91faeebbd5a80180b13e0dfa5baa0fe1e0d9403f59f85cf1c03f7eb50",
+    "width": 1935,
+    "height": 2400,
+    "source_original_width": 1972,
+    "source_original_height": 2225,
+    "transform": {
+      "scale_x": 0.981237322515213,
+      "scale_y": 0.981123595505618,
+      "left": 0,
+      "top": 108
+    },
+    "expert_landmarks_not_contour_data": true
+  },
+  "curves": [
+    {
+      "id": "soft_tissue_profile",
+      "label": "Profil cutané",
+      "color": "#FB8E52",
+      "provisional": true,
+      "style": "solid",
+      "clinical_confidence": "revue prioritaire: mieux visible",
+      "points": [
+        [
+          1363,
+          837
+        ],
+        [
+          1372,
+          863
+        ],
+        [
+          1399,
+          895
+        ],
+        [
+          1436,
+          939
+        ],
+        [
+          1472,
+          979
+        ],
+        [
+          1508,
+          1019
+        ],
+        [
+          1550,
+          1070
+        ],
+        [
+          1594,
+          1124
+        ],
+        [
+          1636,
+          1181
+        ],
+        [
+          1662,
+          1225
+        ],
+        [
+          1673,
+          1258
+        ],
+        [
+          1666,
+          1291
+        ],
+        [
+          1647,
+          1311
+        ],
+        [
+          1614,
+          1324
+        ],
+        [
+          1577,
+          1338
+        ],
+        [
+          1542,
+          1341
+        ],
+        [
+          1530,
+          1353
+        ],
+        [
+          1526,
+          1381
+        ],
+        [
+          1533,
+          1412
+        ],
+        [
+          1554,
+          1439
+        ],
+        [
+          1578,
+          1471
+        ],
+        [
+          1582,
+          1499
+        ],
+        [
+          1571,
+          1520
+        ],
+        [
+          1541,
+          1536
+        ],
+        [
+          1516,
+          1547
+        ],
+        [
+          1497,
+          1559
+        ],
+        [
+          1511,
+          1570
+        ],
+        [
+          1529,
+          1590
+        ],
+        [
+          1536,
+          1615
+        ],
+        [
+          1534,
+          1637
+        ],
+        [
+          1515,
+          1652
+        ],
+        [
+          1482,
+          1656
+        ],
+        [
+          1454,
+          1670
+        ],
+        [
+          1438,
+          1690
+        ],
+        [
+          1444,
+          1719
+        ],
+        [
+          1461,
+          1750
+        ],
+        [
+          1480,
+          1790
+        ],
+        [
+          1490,
+          1830
+        ],
+        [
+          1488,
+          1862
+        ],
+        [
+          1471,
+          1896
+        ],
+        [
+          1440,
+          1924
+        ],
+        [
+          1404,
+          1943
+        ],
+        [
+          1363,
+          1950
+        ],
+        [
+          1314,
+          1942
+        ]
+      ]
+    },
+    {
+      "id": "mandible",
+      "label": "Bord inférieur mandibulaire",
+      "color": "#54D0BA",
+      "provisional": true,
+      "style": "solid",
+      "clinical_confidence": "provisoire: bord cortical inférieur",
+      "points": [
+        [
+          636,
+          1495
+        ],
+        [
+          637,
+          1541
+        ],
+        [
+          642,
+          1593
+        ],
+        [
+          658,
+          1650
+        ],
+        [
+          685,
+          1700
+        ],
+        [
+          717,
+          1724
+        ],
+        [
+          771,
+          1743
+        ],
+        [
+          835,
+          1759
+        ],
+        [
+          902,
+          1777
+        ],
+        [
+          973,
+          1798
+        ],
+        [
+          1040,
+          1818
+        ],
+        [
+          1108,
+          1836
+        ],
+        [
+          1186,
+          1853
+        ],
+        [
+          1249,
+          1865
+        ],
+        [
+          1299,
+          1870
+        ],
+        [
+          1331,
+          1860
+        ],
+        [
+          1353,
+          1841
+        ],
+        [
+          1368,
+          1815
+        ],
+        [
+          1372,
+          1787
+        ],
+        [
+          1356,
+          1743
+        ],
+        [
+          1337,
+          1703
+        ],
+        [
+          1347,
+          1667
+        ],
+        [
+          1365,
+          1622
+        ],
+        [
+          1381,
+          1582
+        ],
+        [
+          1392,
+          1548
+        ]
+      ]
+    },
+    {
+      "id": "maxilla",
+      "label": "Contour palatin postérieur → ANS",
+      "color": "#FFCB6B",
+      "provisional": true,
+      "style": "dashed",
+      "clinical_confidence": "segment osseux ambigu: à confirmer",
+      "points": [
+        [
+          922,
+          1322
+        ],
+        [
+          957,
+          1326
+        ],
+        [
+          998,
+          1330
+        ],
+        [
+          1042,
+          1330
+        ],
+        [
+          1088,
+          1327
+        ],
+        [
+          1138,
+          1326
+        ],
+        [
+          1190,
+          1328
+        ],
+        [
+          1244,
+          1327
+        ],
+        [
+          1291,
+          1325
+        ],
+        [
+          1330,
+          1321
+        ],
+        [
+          1365,
+          1318
+        ],
+        [
+          1384,
+          1322
+        ],
+        [
+          1400,
+          1330
+        ]
+      ]
+    },
+    {
+      "id": "cranial_base",
+      "label": "Secteur selle / base antérieure",
+      "color": "#8AC6FF",
+      "provisional": true,
+      "style": "dashed",
+      "clinical_confidence": "superposition importante: à reprendre",
+      "points": [
+        [
+          585,
+          954
+        ],
+        [
+          590,
+          934
+        ],
+        [
+          599,
+          915
+        ],
+        [
+          610,
+          905
+        ],
+        [
+          624,
+          902
+        ],
+        [
+          637,
+          908
+        ],
+        [
+          647,
+          927
+        ],
+        [
+          654,
+          945
+        ],
+        [
+          660,
+          967
+        ],
+        [
+          677,
+          977
+        ],
+        [
+          697,
+          975
+        ],
+        [
+          712,
+          969
+        ],
+        [
+          726,
+          956
+        ],
+        [
+          740,
+          938
+        ],
+        [
+          753,
+          928
+        ],
+        [
+          773,
+          920
+        ],
+        [
+          790,
+          914
+        ],
+        [
+          809,
+          909
+        ],
+        [
+          829,
+          906
+        ],
+        [
+          848,
+          902
+        ],
+        [
+          856,
+          905
+        ]
+      ]
+    },
+    {
+      "id": "upper_incisor",
+      "label": "Incisive supérieure (couronne)",
+      "color": "#FF78BE",
+      "provisional": true,
+      "style": "dashed",
+      "clinical_confidence": "racine non déterminée",
+      "points": [
+        [
+          1374,
+          1437
+        ],
+        [
+          1386,
+          1457
+        ],
+        [
+          1396,
+          1483
+        ],
+        [
+          1409,
+          1507
+        ],
+        [
+          1418,
+          1531
+        ],
+        [
+          1409,
+          1540
+        ],
+        [
+          1394,
+          1547
+        ],
+        [
+          1381,
+          1544
+        ],
+        [
+          1370,
+          1524
+        ],
+        [
+          1367,
+          1505
+        ],
+        [
+          1368,
+          1479
+        ],
+        [
+          1374,
+          1437
+        ]
+      ]
+    },
+    {
+      "id": "lower_incisor",
+      "label": "Incisive inférieure (estimée)",
+      "color": "#C3A7FF",
+      "provisional": true,
+      "style": "dashed",
+      "clinical_confidence": "tooth overlap: pas de contour fiable",
+      "points": [
+        [
+          1391,
+          1545
+        ],
+        [
+          1409,
+          1545
+        ],
+        [
+          1426,
+          1559
+        ],
+        [
+          1434,
+          1581
+        ],
+        [
+          1432,
+          1601
+        ],
+        [
+          1420,
+          1608
+        ],
+        [
+          1400,
+          1600
+        ],
+        [
+          1389,
+          1584
+        ],
+        [
+          1387,
+          1560
+        ],
+        [
+          1391,
+          1545
+        ]
+      ]
+    }
+  ],
+  "restrictions": [
+    "qa_lab_only",
+    "not_auto_approved",
+    "not_patient_record",
+    "no_clinical_pdf",
+    "no_r14_claim",
+    "uncertain_segments_must_remain_dashed",
+    "no_auto_import_to_signed_anatomical_trace"
+  ]
+}
