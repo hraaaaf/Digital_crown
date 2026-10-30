@@ -17,6 +17,8 @@ on:
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/services/clinical_asset_storage.py'
       - 'backend/tests/test_clinical_asset_storage.py'
+      - 'backend/services/imaging_clinical_asset_verifier_v15.py'
+      - 'backend/tests/test_imaging_clinical_asset_verifier_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -39,6 +41,8 @@ on:
       - 'backend/routers/imaging_acquisition_preflight_v15.py'
       - 'backend/services/clinical_asset_storage.py'
       - 'backend/tests/test_clinical_asset_storage.py'
+      - 'backend/services/imaging_clinical_asset_verifier_v15.py'
+      - 'backend/tests/test_imaging_clinical_asset_verifier_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -143,6 +147,28 @@ jobs:
         with:
           name: lot06c1b-ancestor-fsync-synthetic-fue
           path: lot06c1b-ancestor-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: LOT06-C05B-02A actual ClinicalAsset AES-GCM media binding FUE (TEST ONLY)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06C05B02A_EVIDENCE_DIR: lot06c05b02a-media-evidence
+        run: |
+          set -euo pipefail
+          python -m py_compile backend/services/imaging_clinical_asset_verifier_v15.py
+          python -m py_compile backend/tests/test_imaging_clinical_asset_verifier_v15.py
+          mkdir -p "$DC06C05B02A_EVIDENCE_DIR"
+          python -m pytest backend/tests/test_imaging_clinical_asset_verifier_v15.py -q -s
+          test -s "$DC06C05B02A_EVIDENCE_DIR/lot06c05b02a-media-binding-fue.json"
+          python -c 'import json,os; d=json.load(open(os.path.join(os.environ["DC06C05B02A_EVIDENCE_DIR"],"lot06c05b02a-media-binding-fue.json"))); assert all(d[k] is True for k in ("actual_clinical_asset_model_used","actual_storage_read_decrypts_and_rehashes","tenant_patient_staff_asset_sha_size_checked","tampered_ciphertext_and_missing_blob_rejected","non_device_capture_provenance_rejected_in_separate_test")); assert all(d[k] is False for k in ("real_staff_device_authorization_verified","approval_version_bound_to_receipt","postgresql_receipt_transaction_connected","product_ready"))'
+      - name: Upload LOT06-C05B-02A clinical media verification LAB FUE
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c05b02a-clinical-media-verification-synthetic-fue
+          path: lot06c05b02a-media-evidence/
           if-no-files-found: error
           retention-days: 14
 
