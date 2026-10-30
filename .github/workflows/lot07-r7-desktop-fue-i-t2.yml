@@ -1,5 +1,12 @@
 name: LOT07 B10 Linux opaque-origin + R7 desktop genuine FastAPI FUE-I
 
+# Cancel superseded pull-request revisions of this workflow only.
+# Preserve independent push/manual runs and all required checks and matrices.
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
 on:
   push:
     branches: ['feat/lot07-r7-071e-*','feat/lot07-b10-opaque-presenter-*']
