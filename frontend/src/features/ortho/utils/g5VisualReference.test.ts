@@ -57,6 +57,35 @@ describe('G5 reference — read-only source-verified visual target',()=>{
     expect(request).not.toHaveBeenCalled();
   });
 
+  it('recovers a transient transport error without skipping SHA verification',async()=>{
+    const png=new Uint8Array(100001);
+    png.set([137,80,78,71,13,10,26,10]);
+    const expected=Uint8Array.from(G5_VISUAL_REFERENCE.source.display_sha256
+      .match(/.{2}/g)!.map(h=>parseInt(h,16)));
+    const digest=vi.fn().mockResolvedValue(expected.buffer);
+    vi.stubGlobal('crypto',{subtle:{digest}});
+    const read=vi.fn<() => Promise<ArrayBuffer>>()
+      .mockRejectedValueOnce(new Error('Transient network error'))
+      .mockResolvedValue(png.buffer);
+    const onVerified=vi.fn();
+    expect(await verifyG5ReferenceFilm(matched,read,onVerified)).toBe(true);
+    expect(read).toHaveBeenCalledTimes(2);
+    expect(digest).toHaveBeenCalledTimes(1);
+    expect(onVerified).toHaveBeenCalledOnce();
+  });
+
+  it('rejects incorrect image immediately without retrying or rendering',async()=>{
+    const bad=new Uint8Array(100001);
+    bad.set([137,80,78,71,13,10,26,10]);
+    const digest=vi.fn().mockResolvedValue(new Uint8Array(32).buffer);
+    vi.stubGlobal('crypto',{subtle:{digest}});
+    const read=vi.fn<() => Promise<ArrayBuffer>>().mockResolvedValue(bad.buffer);
+    const onVerified=vi.fn();
+    expect(await verifyG5ReferenceFilm(matched,read,onVerified)).toBe(false);
+    expect(read).toHaveBeenCalledTimes(1);
+    expect(onVerified).not.toHaveBeenCalled();
+  });
+
   it('accepts ONLY authorized PNG bytes matching the exact SHA-256',async()=>{
     expect(isG5ReferenceStudy(matched)).toBe(true);
     const png=new Uint8Array(100001);
