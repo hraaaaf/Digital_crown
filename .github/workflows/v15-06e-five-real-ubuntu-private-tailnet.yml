@@ -1,0 +1,338 @@
+name: V1.5-06E FIVE REAL GitHub Ubuntu VMs Private Shared HotFolder LAB
+
+on:
+  pull_request:
+    paths:
+      - 'isolated_fue_lot06c/qa_five_vm_private_tailnet_stress_v15.py'
+      - '.github/workflows/v15-06e-five-real-ubuntu-private-tailnet.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: dc06-c05b03h-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  source-validation:
+    name: "FUE-03H standalone syntax + fail-closed controls (no network/secrets)"
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Validate exact SHA, Python syntax, guards, synthetic PNG and private IP checks
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python -m pip install 'cryptography>=42,<48'
+          python -m py_compile isolated_fue_lot06c/qa_five_vm_private_tailnet_stress_v15.py
+          python - <<'PY'
+          import os
+          from isolated_fue_lot06c.qa_five_vm_private_tailnet_stress_v15 import (
+              CLIENTS, TOTAL_HEALTHY, TOTAL_RECEIVED, valid_ip, guard,
+              payload, names,
+          )
+          assert len(CLIENTS)==4 and TOTAL_HEALTHY==152 and TOTAL_RECEIVED==216
+          assert valid_ip("100.64.0.2") and valid_ip("100.127.255.254")
+          assert not valid_ip("127.0.0.1") and not valid_ip("8.8.8.8")
+          assert not valid_ip("192.168.1.10")
+          assert payload(names("u22a","two")[0]).startswith(bytes((137, 80, 78, 71)))
+          try:
+              guard()
+          except AssertionError:
+              pass
+          else:
+              raise AssertionError("UNSAFE: LAB GUARD DID NOT REJECT MISSING SECRETS")
+          print("C05B03H_STATIC_GUARDS_AND_SYNTHETIC_SOURCE_PASS")
+          PY
+
+  secure-preflight:
+    name: "FUE-03H blocked unless Tailscale OIDC credentials exist"
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      TAILNET_OIDC_CLIENT: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TAILNET_OIDC_AUDIENCE: ${{ secrets.TS_AUDIENCE }}
+    steps:
+      - name: Assert authorized private networking before allocating FIVE VM jobs
+        shell: bash
+        run: |
+          set -euo pipefail
+          if test -z "$TAILNET_OIDC_CLIENT" || test -z "$TAILNET_OIDC_AUDIENCE"; then
+            echo "::error title=C05B-03H BLOCKED::No Tailscale federated identity configured. Required GitHub repository secrets: TS_OAUTH_CLIENT_ID and TS_AUDIENCE, plus tag:dc06-lab with narrow tailnet ACL. Do not substitute a public tunnel or four containers."
+            exit 1
+          fi
+          echo "C05B03H_TAILNET_OIDC_SECRETS_PRESENT_NO_VALUES_LOGGED"
+      - name: Affirm repository-only PR and five-VM test plan
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          echo "C05B03H_REAL_GITHUB_HOSTED_VM_PRECHECK_PASS"
+
+  one-shared-receiver:
+    # Never start private network operations until tailnet ACL was human-reviewed.
+    if: ${{ needs.secure-preflight.result == 'success' && vars.C05B03H_NETWORK_POLICY_APPROVED == 'true' }}
+    name: "FUE-03H one REAL Ubuntu24 VM serving encrypted TEST queue"
+    needs: [secure-preflight]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 34
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03H_TEST_ONLY: '1'
+      GITHUB_SHA_EXACT: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Confirm exact SHA and isolated runtime dependencies only
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python -m pip install 'cryptography>=42,<48'
+          python -m py_compile isolated_fue_lot06c/qa_five_vm_private_tailnet_stress_v15.py
+      - name: Join ephemeral encrypted Tailnet with GitHub OIDC (no public port)
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:dc06-lab
+      - name: Restrict server binding to own Tailscale IPv4
+        shell: bash
+        run: |
+          set -euo pipefail
+          ip="$(tailscale ip -4 | head -n 1)"
+          case "$ip" in 100.*) ;; *) echo "::error::TAILSCALE_PRIVATE_IP_NOT_ASSIGNED"; exit 1 ;; esac
+          echo "DC06H_TAIL_IP=$ip" >> "$GITHUB_ENV"
+      - name: Start ONLY synthetic queue server, no cloud/public tunnel
+        shell: bash
+        run: |
+          set -euo pipefail
+          nohup python -m isolated_fue_lot06c.qa_five_vm_private_tailnet_stress_v15 server > host-lab.log 2>&1 </dev/null &
+          echo "$!" > host.pid
+          for i in $(seq 1 90); do
+            if test -s rendezvous-private.json; then
+              echo "C05B03H_REAL_VM_TAILNET_RECEIVER_READY"
+              exit 0
+            fi
+            if ! kill -0 "$(cat host.pid)" 2>/dev/null; then
+              tail -n 30 host-lab.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::C05B03H_SERVER_BOOT_TIMEOUT"
+          exit 1
+      - name: Publish short-lived private test-only rendezvous (never real credentials)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03h-private-room-${{ github.run_id }}
+          path: rendezvous-private.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Receive FOUR real remote Ubuntu VM clients and attest real HotFolder
+        shell: bash
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 1320); do
+            if test -s server-proof.json; then
+              python - <<'PY'
+          import json,os
+          proof=json.load(open("server-proof.json"))
+          assert proof["kind"]=="C05B03H_FIVE_REAL_GITHUB_VMS_TEST_ONLY"
+          assert proof["expected_sha"]==os.environ["EXPECTED_SHA"]
+          assert proof["number_of_distinct_remote_client_tailnet_ips"]==4
+          assert proof["http_received"]==216
+          assert proof["sqlite_aesgcm_queued"]==160
+          assert proof["deferred_sources_unchanged"]==56
+          assert proof["duplicate_http_409_rejected"]==4
+          assert proof["sha_aead_audit_validated"] and proof["cold_restart_no_duplicates"]
+          assert not proof["containers_substituted_for_remote_vms"]
+          assert not proof["clinical_ack_issued"] and not proof["product_ready"]
+          print("C05B03H_FIVE_VM_ONE_PRIVATE_RECEIVER_216_160_56_PASS")
+          PY
+              exit 0
+            fi
+            if ! kill -0 "$(cat host.pid)" 2>/dev/null; then
+              echo "::error::C05B03H_RECEIVER_EXITED_WITHOUT_SHARED_QUEUE_PROOF"
+              tail -n 35 host-lab.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::C05B03H_FIVE_VM_REAL_NETWORK_TIMEOUT_NO_GREEN"
+          exit 1
+      - name: Upload test-only queue proof (no images, private token or patient)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03h-proof-server
+          path: server-proof.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Terminate test-only receiver and delete rendezvous secret
+        if: always()
+        shell: bash
+        run: |
+          if test -s host.pid; then
+            kill "$(cat host.pid)" 2>/dev/null || true
+          fi
+          rm -f rendezvous-private.json
+
+  four-real-vms:
+    # 4 true VMs are opt-in after explicit network policy authorization.
+    if: ${{ needs.secure-preflight.result == 'success' && vars.C05B03H_NETWORK_POLICY_APPROVED == 'true' }}
+    name: "FUE-03H ACTUAL separate GitHub Ubuntu VM ${{ matrix.label }}"
+    needs: [secure-preflight]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 32
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - { label: u22a, os: ubuntu-22.04, files: 24 }
+          - { label: u22b, os: ubuntu-22.04, files: 48 }
+          - { label: u24a, os: ubuntu-24.04, files: 24 }
+          - { label: u24b, os: ubuntu-24.04, files: 48 }
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03H_TEST_ONLY: '1'
+      GITHUB_SHA_EXACT: ${{ github.event.pull_request.head.sha || github.sha }}
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      GH_API_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Exact SHA and isolated crypto runtime
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python -m pip install 'cryptography>=42,<48'
+      - name: Join SAME ephemeral private Tailnet from this dedicated VM
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:dc06-lab
+      - name: Identify own VM independent Tailscale IPv4 (no Docker)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          ip="$(tailscale ip -4 | head -n 1)"
+          case "$ip" in 100.*) ;; *) echo "::error::TAILNET_IPV4_NOT_ASSIGNED"; exit 1 ;; esac
+          echo "DC06H_TAIL_IP=$ip" >> "$GITHUB_ENV"
+      - name: REAL private WireGuard HTTP sends to one other Ubuntu VM
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m isolated_fue_lot06c.qa_five_vm_private_tailnet_stress_v15 client --label ${{ matrix.label }}
+          test -s client-proof.json
+      - name: Upload independent VM identity and transfer proof only
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03h-proof-${{ matrix.label }}
+          path: client-proof.json
+          if-no-files-found: error
+          retention-days: 14
+
+  independent-fue-aggregate:
+    name: Independently verify FIVE VM identities + all encrypted source receipts
+    needs: [one-shared-receiver, four-real-vms]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lot06-c05b03h-proof-*
+          path: five-vm-evidence
+      - name: Reject substitute container tests, wrong peers, loss, false clinical claims
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from collections import Counter
+          import ipaddress,json,os,pathlib
+          root=pathlib.Path("five-vm-evidence")
+          expected={"u22a":24,"u22b":48,"u24a":24,"u24b":48}
+          actual={p.name for p in root.iterdir() if p.is_dir()}
+          assert actual=={"lot06-c05b03h-proof-server"}|{"lot06-c05b03h-proof-"+k for k in expected},actual
+          server=json.loads((root/"lot06-c05b03h-proof-server"/"server-proof.json").read_text())
+          assert server["kind"]=="C05B03H_FIVE_REAL_GITHUB_VMS_TEST_ONLY"
+          assert server["expected_sha"]==os.environ["EXPECTED_SHA"]
+          assert server["http_received"]==216
+          assert server["sqlite_aesgcm_queued"]==160
+          assert server["deferred_sources_unchanged"]==56
+          assert server["duplicate_http_409_rejected"]==4
+          assert server["simultaneous_two_file_arrival_span_ms"]<=12000
+          assert server["sha_aead_audit_validated"] and server["cold_restart_no_duplicates"]
+          assert server["network"]=="TAILSCALE_PRIVATE_WIREGUARD_FIVE_GITHUB_HOSTED_VMS"
+          assert server["containers_substituted_for_remote_vms"] is False
+          assert not server["clinical_ack_issued"] and not server["product_ready"]
+          assert set(server["client_src_ipv4"])==set(expected)
+          ips={server["server_tailscale_ipv4"]}
+          # Hostnames can repeat across independent GitHub-hosted runner VMs.
+          # Assert distinct GitHub runner identities AND Tailscale peer IPs.
+          runners={server["server_runner_name"]}
+          assert server["server_runner_name"]
+          total=0
+          for label,bulk in expected.items():
+              c=json.loads((root/("lot06-c05b03h-proof-"+label)/"client-proof.json").read_text())
+              assert c["kind"]==server["kind"]
+              assert c["expected_sha"]==os.environ["EXPECTED_SHA"]
+              assert c["run_id"]==server["run_id"]
+              assert c["label"]==label
+              assert c["sender_vm_tailnet_ipv4"]==server["client_src_ipv4"][label]
+              assert c["server_tailnet_ipv4"]==server["server_tailscale_ipv4"]
+              assert c["sender_vm_tailnet_ipv4"] not in ips
+              assert c["sender_vm_runner_name"] and c["sender_vm_runner_name"] not in runners
+              assert c["github_hosted_runner_vm"] and not c["source_container_mode"]
+              assert c["one_explicit_duplicate_http_409"]
+              assert not c["clinical_ack_issued"] and not c["product_ready"]
+              assert c["metrics"]["two"]["files"]==2
+              assert c["metrics"]["bulk"]["files"]==bulk
+              assert c["metrics"]["flood"]["files"]==16
+              assert c["files_sent"]==bulk+18
+              ips.add(c["sender_vm_tailnet_ipv4"])
+              runners.add(c["sender_vm_runner_name"])
+              total+=c["files_sent"]
+              print("C05B03H_VERIFIED_DISTINCT_REMOTE_VM",label,"bulk_rps",
+                    c["metrics"]["bulk"]["files_per_s"])
+          net=ipaddress.IPv4Network("100.64.0.0/10")
+          assert len(ips)==5 and len(runners)==5
+          assert all(ipaddress.IPv4Address(x) in net for x in ips)
+          assert total==216
+          print("C05B03H_FIVE_TRUE_GITHUB_UBUNTU_VMS_ONE_REMOTE_SERVER_GREEN")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03h-aggregate-five-vm-fue
+          path: five-vm-evidence/
+          if-no-files-found: error
+          retention-days: 14
