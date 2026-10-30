@@ -290,6 +290,46 @@ try{
       'G5_VISUAL_REFERENCE_EXPLICIT_NONCLINICAL_WARNING');
     await snap('g5-00-source-verified-reference-readonly');
     await snapG5Complete('reference-readonly','odf-g5-drawing-surface');
+    // Four practitioner review stops: guide isolated (READ-ONLY), source
+    // pixel ×4 region, manually editable selected contour, no API mutation.
+    const uncertainGuides=[
+      ['cranial_base','Base du crâne'],
+      ['maxilla','Maxillaire'],
+      ['upper_incisor','Incisive supérieure'],
+      ['lower_incisor','Incisive inférieure'],
+    ];
+    for(const [id,label] of uncertainGuides){
+      const focus=ui.getByTestId('g5-review-focus-'+id);
+      await focus.click();
+      const drawn=ui.getByTestId('odf-g5-drawing-surface');
+      const overlay=drawn.getByTestId('g5-visual-reference-overlay');
+      const guides=overlay.locator('path');
+      const viewBox=(await drawn.getAttribute('viewBox')||'').split(/\\s+/).map(Number);
+      check(await focus.getAttribute('aria-pressed')==='true'
+        &&await ui.getByTestId('g5-zoom-4').getAttribute('aria-pressed')==='true'
+        &&await guides.count()===1
+        &&await overlay.getByTestId('g5-reference-'+id).count()===1
+        &&await guides.first().getAttribute('stroke-dasharray')==='18 18'
+        &&Math.abs(viewBox[2]-1935/4)<0.01
+        &&Math.abs(viewBox[3]-2400/4)<0.01,
+        'G5_UNCERTAIN_REGION_SOURCE_PIXEL_FOCUS_'+id);
+      check((await ui.getByTestId('g5-review-focus-status').innerText())
+        .includes('jamais signé automatiquement'),
+        'G5_UNCERTAIN_REGION_NOT_AUTO_APPROVED_'+id);
+      await drawn.screenshot({path:path.join(out,'G5-review-zone-'+id+'-source-pixel-x4.png'),
+        animations:'disabled'});
+      report.screenshots.push('G5-review-zone-'+id+'-source-pixel-x4.png');
+    }
+    const stillEmpty=await api.get(g5Url,{headers,params:{expected_revision:revision}});
+    const stillEmptyData=await stillEmpty.json();
+    check(stillEmpty.status()===200 && stillEmptyData.draft_version===0
+      &&!stillEmptyData.approved
+      &&stillEmptyData.contours.every(c=>c.points.length===0),
+      'G5_FOUR_UNCERTAIN_GUIDE_FOCUS_NO_API_WRITE');
+    await ui.getByTestId('g5-review-overview').click();
+    check(await ui.getByTestId('g5-zoom-1').getAttribute('aria-pressed')==='true'
+      &&await surface.getByTestId('g5-visual-reference-overlay').locator('path').count()===6,
+      'G5_UNCERTAIN_REGION_OVERVIEW_RESTORE_SIX_GUIDES');
     // Separate real Bézier reference screenshot BEFORE synthetic QA strokes:
     // the saved browser demo curves below are deliberately NOT anatomy.
     await ui.getByRole('button',{name:/Profil cutané/}).click();
