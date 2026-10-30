@@ -16,7 +16,8 @@ import sys
 import uuid
 
 import pytest
-from sqlalchemy import create_engine, func, select
+from sqlalchemy import create_engine, func, select, text
+from sqlalchemy.exc import DBAPIError
 
 # Load the intentionally *unwired* candidate module without executing the
 # application's backend/__init__.py (full API imports aren't part of this FUE).
@@ -155,3 +156,67 @@ os._exit(75)
         }, indent=2, sort_keys=True) + "\n", encoding="utf-8",
     )
     print("LOT06C05A_PG_CONCURRENT_APPROVAL_COMMIT_ACK_RECOVERY_PASS")
+
+
+def test_c05b01_raw_sql_immutability_guards_fail_closed(db_engine, tmp_path):
+    """Real PostgreSQL rejects hostile direct SQL mutation, not just Python calls."""
+    pg.install_immutable_test_guards(db_engine)
+    claim = _claim("immutable-" + uuid.uuid4().hex, asset_id=1003)
+    pg.seed_test_approval(db_engine, claim)
+    confirmed = pg.issue_test_receipt(db_engine, claim)
+    rid = confirmed["receipt_id"]
+    before = _counts(db_engine, claim)
+    assert confirmed["server_confirmed"] is False
+    params = dict(
+        tenant=claim.tenant, device=claim.device,
+        capture=claim.capture, rid=rid,
+    )
+
+    mutations = (
+        # No client can change a previously approved version or rebind patient.
+        "UPDATE lot06c05a_approved_captures SET approval_version=approval_version+1 "
+        "WHERE tenant=:tenant AND device=:device AND capture=:capture",
+        "UPDATE lot06c05a_approved_captures SET patient=999 "
+        "WHERE tenant=:tenant AND device=:device AND capture=:capture",
+        "DELETE FROM lot06c05a_approved_captures "
+        "WHERE tenant=:tenant AND device=:device AND capture=:capture",
+        "UPDATE lot06c05a_receipts SET digest=:digest WHERE receipt_id=:rid",
+        "DELETE FROM lot06c05a_receipts WHERE receipt_id=:rid",
+        "UPDATE lot06c05a_audit SET event='TAMPER' WHERE receipt_id=:rid",
+        "DELETE FROM lot06c05a_audit WHERE receipt_id=:rid",
+        "UPDATE lot06c05a_outbox SET event='TAMPER' WHERE receipt_id=:rid",
+        "DELETE FROM lot06c05a_outbox WHERE receipt_id=:rid",
+    )
+    params["digest"] = "0" * 64
+    for mutation in mutations:
+        with pytest.raises(DBAPIError) as error:
+            with db_engine.begin() as conn:
+                conn.execute(text(mutation), params)
+        assert getattr(error.value.orig, "pgcode", None) == "23514"
+        assert "LOT06C05A_IMMUTABLE_ROW" in str(error.value.orig)
+
+    assert _counts(db_engine, claim) == before
+    assert pg.lookup_test_receipt(db_engine, claim) == confirmed
+    assert pg.issue_test_receipt(db_engine, claim) == confirmed
+
+    # A hostile SQL writer must not bypass the immutable version binding
+    # while a legitimate duplicate ACK replays exactly the same receipt.
+    evidence_dir = Path(os.environ.get("DC06C05B01_EVIDENCE_DIR", str(tmp_path)))
+    evidence_dir.mkdir(parents=True, exist_ok=True)
+    (evidence_dir / "lot06c05b01-postgres-immutable-fue.json").write_text(
+        json.dumps({
+            "kind": "LOT06_C05B01_POSTGRES_DB_LEVEL_IMMUTABILITY_TEST",
+            "ephemeral_postgres16_server": True,
+            "raw_sql_update_delete_refused_by_db_trigger": True,
+            "version_patient_digest_and_events_fail_closed": True,
+            "receipt_audit_outbox_preserved": True,
+            "safe_replay_returns_same_receipt": True,
+            "negative_mutation_count": len(mutations),
+            "migration_applied_to_real_cabinet": False,
+            "production_api_wired": False,
+            "clinical_asset_aesgcm_binding_verified": False,
+            "db_owner_superuser_tamper_protected": False,
+            "product_ready": False,
+        }, sort_keys=True, indent=2) + "\n", encoding="utf-8",
+    )
+    print("LOT06C05B01_POSTGRES_IMMUTABLE_RAW_SQL_FUE_PASS")

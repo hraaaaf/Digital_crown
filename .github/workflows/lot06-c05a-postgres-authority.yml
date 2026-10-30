@@ -36,6 +36,7 @@ jobs:
       DC06C05A_PG_TEST: '1'
       DC06C05A_TEST_DSN: postgresql+psycopg2://dc_test:isolated-test-only@127.0.0.1:5432/dc_lot06c_test
       DC06C05A_EVIDENCE_DIR: lot06c05a-pg-evidence
+      DC06C05B01_EVIDENCE_DIR: lot06c05b01-pg-evidence
       TELEMETRY_ENABLED: 'false'
       CLOUD_AI_ENABLED: 'false'
     steps:
@@ -64,6 +65,20 @@ jobs:
           python -m pytest isolated_fue_lot06c/test_pg_receipt_authority_v15.py -q -s
           test -s "$DC06C05A_EVIDENCE_DIR/lot06c05a-postgres-authority-fue.json"
           python -c 'import json,os; d=json.load(open(os.path.join(os.environ["DC06C05A_EVIDENCE_DIR"],"lot06c05a-postgres-authority-fue.json"))); assert all(d[k] is True for k in ("real_ephemeral_postgres_server_used","six_concurrent_independent_pg_transactions_same_receipt","approval_version_and_binding_conflicts_rejected","receipt_audit_outbox_atomic_on_injected_failures","postcommit_os_exit_before_ack_recovered","replay_same_receipt_after_restart","sql_db_recovery_and_uniqueness_verified")); assert all(d[k] is False for k in ("clinical_device_staff_authorization_wired","aes_media_verified_in_authority","clinical_migration_applied","clinical_endpoint_enabled","actual_power_cut_tested","product_ready"))'
+      - name: C05B-01 fail-closed SQL immutability FUE gate
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s "$DC06C05B01_EVIDENCE_DIR/lot06c05b01-postgres-immutable-fue.json"
+          python -c 'import json,os;d=json.load(open(os.path.join(os.environ["DC06C05B01_EVIDENCE_DIR"],"lot06c05b01-postgres-immutable-fue.json")));assert all(d[k] is True for k in ("ephemeral_postgres16_server","raw_sql_update_delete_refused_by_db_trigger","version_patient_digest_and_events_fail_closed","receipt_audit_outbox_preserved","safe_replay_returns_same_receipt"));assert d["negative_mutation_count"] == 9;assert all(d[k] is False for k in ("migration_applied_to_real_cabinet","production_api_wired","clinical_asset_aesgcm_binding_verified","db_owner_superuser_tamper_protected","product_ready"))'
+      - name: Upload C05B-01 immutable Postgres FUE (NO CLINICAL GO)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c05b01-postgres-immutability-synthetic-fue
+          path: lot06c05b01-pg-evidence/
+          if-no-files-found: error
+          retention-days: 14
       - name: Upload isolated PostgreSQL FUE (NO PRODUCT CERTIFICATION)
         if: always()
         uses: actions/upload-artifact@v4
