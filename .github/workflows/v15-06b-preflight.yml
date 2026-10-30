@@ -21,6 +21,7 @@ on:
       - 'backend/tests/test_imaging_clinical_asset_verifier_v15.py'
       - 'backend/services/imaging_lab_authorized_media_gate_v15.py'
       - 'backend/tests/test_imaging_lab_authorized_media_gate_v15.py'
+      - 'isolated_fue_lot06c/test_sqlcipher_onprem_authority_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -47,6 +48,7 @@ on:
       - 'backend/tests/test_imaging_clinical_asset_verifier_v15.py'
       - 'backend/services/imaging_lab_authorized_media_gate_v15.py'
       - 'backend/tests/test_imaging_lab_authorized_media_gate_v15.py'
+      - 'isolated_fue_lot06c/test_sqlcipher_onprem_authority_v15.py'
       - 'backend/tests/test_imaging_acquisition_preflight_v15.py'
       - 'backend/tests/test_imaging_bridge_lifespan_v15.py'
       - 'tools/imaging_gateway/bridge_background_lab.py'
@@ -196,6 +198,28 @@ jobs:
         with:
           name: lot06c05b02b-lab-authorized-media-synthetic-fue
           path: lot06c05b02b-auth-media-evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: LOT06-C05B-03A on-prem SQLCipher concurrent receipt + ACK recovery FUE
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          DC06C05B03A_TEST_SQLCIPHER: '1'
+          DC06C05B03A_EVIDENCE_DIR: lot06c05b03a-sqlcipher-evidence
+        run: |
+          set -euo pipefail
+          python -m py_compile isolated_fue_lot06c/test_sqlcipher_onprem_authority_v15.py
+          mkdir -p "$DC06C05B03A_EVIDENCE_DIR"
+          python -m pytest isolated_fue_lot06c/test_sqlcipher_onprem_authority_v15.py -q -s
+          test -s "$DC06C05B03A_EVIDENCE_DIR/lot06c05b03a-sqlcipher-target-fue.json"
+          python -c 'import json,os; d=json.load(open(os.path.join(os.environ["DC06C05B03A_EVIDENCE_DIR"],"lot06c05b03a-sqlcipher-target-fue.json"))); assert all(d[k] is True for k in ("encrypted_sqlcipher_file_and_wrong_key_refusal","six_concurrent_independent_sqlcipher_connections","begin_immediate_serializes_writers","sql_receipt_audit_outbox_atomic_rollback","postcommit_os_process_exit_before_ack_replayed","postgres_for_update_not_supported_by_sqlite","approval_and_version_conflicts_fail_closed")); assert all(d[k] is False for k in ("actual_clinical_asset_joined","production_schema_migration_applied","real_staff_device_identity_certified","physical_power_loss_tested","product_ready"))'
+      - name: Upload LOT06-C05B-03A SQLCipher target FUE (NO CLINICAL GO)
+        if: github.event_name == 'pull_request'
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06c05b03a-sqlcipher-onprem-concurrency-synthetic-fue
+          path: lot06c05b03a-sqlcipher-evidence/
           if-no-files-found: error
           retention-days: 14
 
