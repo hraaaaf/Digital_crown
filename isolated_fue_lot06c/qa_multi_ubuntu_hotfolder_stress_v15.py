@@ -17,7 +17,6 @@ from pathlib import Path
 import platform
 import re
 import secrets
-import statistics
 import subprocess
 import sys
 import tempfile
@@ -249,8 +248,9 @@ def run_case(root, *, files, cap, shard, label):
         assert second["staged"] == 2 and second["deferred"] == 0
         assert len(agent.items()) == 2
         print("LOT06C05B03F_SIMULTANEOUS_TWO_FILES_PASS", flush=True)
-        assert send_parallel(server, group=label + "bulk", files=files,
-                             workers=12 if files % 12 == 0 else 8)["accepted"] == files
+        bulk = send_parallel(server, group=label + "bulk", files=files,
+                             workers=12 if files % 12 == 0 else 8)
+        assert bulk["accepted"] == files
         extra = send_parallel(server, group=label + "duplicate", files=2, workers=2)
         all_names = ([f"stress_{label}two_{i:05d}" for i in range(2)]
                      + [f"stress_{label}bulk_{i:05d}" for i in range(files)]
@@ -293,6 +293,7 @@ def run_case(root, *, files, cap, shard, label):
             "encrypted_queue_and_verified_payload": True,
             "no_clinical_server_receipt": True,
             "two_file_sender_metrics": two,
+            "bulk_sender_metrics": bulk,
             "receiver_accepted_count": server.accepted,
         }
     finally:
