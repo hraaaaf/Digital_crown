@@ -37,6 +37,60 @@ const snap=async label=>{
   await page.screenshot({path:path.join(out,name),fullPage:false,animations:'disabled'});
   report.screenshots.push(name);
 };
+/**
+ * Capture the REAL rendered G5 SVG at its entire 1935 x 2400 source extent
+ * and the COMPLETE clinical editor. Ordinary 1280x900 page screenshots cut
+ * off the film; this read-only DOM clone preserves the live image blob, all
+ * 6 guide paths and every source-pixel coordinate. No screenshot mock-up.
+ */
+const snapG5Complete=async(label,surfaceTestId)=>{
+  const section=page.getByTestId('odf-g5-manual-tracing');
+  const svg=page.getByTestId(surfaceTestId);
+  check(await svg.getByTestId('g5-visual-reference-overlay').locator('path').count()===6,
+    'G5_CAPTURE_SIX_LIVE_REFERENCE_PATHS_'+label);
+  const before=page.viewportSize();
+  await page.setViewportSize({width:2048,height:2560});
+  const sectionName='G5-editor-integral-'+label+'.png';
+  const filmName='G5-film-complet-1935x2400-'+label+'.png';
+  try{
+    await section.screenshot({path:path.join(out,sectionName),
+      animations:'disabled',timeout:30000});
+    await page.evaluate(testId=>{
+      const source=document.querySelector('[data-testid="'+testId+'"]');
+      if(!(source instanceof SVGSVGElement))throw Error('G5_SOURCE_SVG_NOT_FOUND');
+      const img=source.querySelector('image');
+      const url=img?.getAttribute('href')||img?.getAttribute('xlink:href');
+      if(!url?.startsWith('blob:'))throw Error('G5_CAPTURE_NOT_VERIFIED_BLOB');
+      if(source.querySelectorAll('[data-testid="g5-visual-reference-overlay"] path').length!==6)
+        throw Error('G5_CAPTURE_MISSING_REFERENCE_PATHS');
+      const clone=source.cloneNode(true);
+      clone.setAttribute('viewBox','0 0 1935 2400');
+      clone.setAttribute('width','1935');
+      clone.setAttribute('height','2400');
+      clone.style.setProperty('width','1935px','important');
+      clone.style.setProperty('height','2400px','important');
+      clone.style.setProperty('max-width','none','important');
+      clone.style.setProperty('aspect-ratio','auto','important');
+      clone.style.setProperty('border','none','important');
+      const stage=document.createElement('div');
+      stage.setAttribute('data-testid','g5-review-source-film-stage');
+      stage.style.cssText='position:fixed;left:32px;top:32px;width:1935px;height:2400px;z-index:2147483647;background:#141a20;pointer-events:none';
+      stage.appendChild(clone);document.body.appendChild(stage);
+    },surfaceTestId);
+    const stage=page.getByTestId('g5-review-source-film-stage');
+    await stage.screenshot({path:path.join(out,filmName),
+      animations:'disabled',timeout:30000});
+    const filmBytes=await fs.readFile(path.join(out,filmName));
+    check(filmBytes.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]))
+      &&filmBytes.readUInt32BE(16)===1935&&filmBytes.readUInt32BE(20)===2400,
+      'G5_CAPTURE_FULL_RADIO_NATIVE_DIMENSIONS_'+label);
+    report.screenshots.push(sectionName,filmName);
+  }finally{
+    await page.evaluate(()=>document.querySelector(
+      '[data-testid="g5-review-source-film-stage"]')?.remove()).catch(()=>{});
+    await page.setViewportSize(before??{width:1280,height:900});
+  }
+};
 try{
   const auth=await api.post('/api/auth/login',
     {form:{username:'odf-lab-dentiste@example.com',password}});
@@ -195,47 +249,8 @@ try{
     // non-clinical, pointer-transparent reference.
     const referenceToggle=ui.getByTestId('g5-reference-toggle');
     await referenceToggle.waitFor({state:'visible'});
-    const browserProbe=await page.evaluate(async()=>{
-      const url='/api/static/uploads/radios/t2-cephalo-seeded.png';
-      const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
-      const b=await response.arrayBuffer();
-      const hasCrypto=Boolean(globalThis.crypto?.subtle);
-      const digest=hasCrypto?await crypto.subtle.digest('SHA-256',b):null;
-      const sha=digest?Array.from(new Uint8Array(digest))
-        .map(i=>i.toString(16).padStart(2,'0')).join(''):null;
-      return {status:response.status,mime:response.headers.get('content-type'),
-        length:b.byteLength,hasCrypto,sha};
-    });
-    const referenceStudy=(await (await api.get('/api/ia/analyses/'+ids.older_id,
-      {headers})).json());
-    console.log('G5_REFERENCE_SOURCE_PROBE',JSON.stringify({
-      browser:browserProbe,backendFilmSha:createHash('sha256').update(media).digest('hex'),
-      studyPath:referenceStudy.image_original_path,
-      alignment:referenceStudy.angles_data?.odf_lab_image_landmark_alignment,
-      studySha:referenceStudy.angles_data?.odf_lab_display_png_sha256,
-      uiStatus:await ui.getByTestId('g5-reference-source-status').innerText(),
-      toggleDisabled:await referenceToggle.isDisabled(),
-    }));
-    const moduleProbe=await page.evaluate(async analysisId=>{
-      try{
-        const {api,API_BASE}=await import('/src/services/api.ts');
-        const ref=await import('/src/features/ortho/utils/g5VisualReference.ts');
-        const study=(await api.get('/ia/analyses/'+analysisId)).data;
-        const response=await api.get('/static/uploads/radios/t2-cephalo-seeded.png',
-          {responseType:'arraybuffer'});
-        const bytes=response.data;
-        const hash=bytes instanceof ArrayBuffer
-          ?Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
-            .map(v=>v.toString(16).padStart(2,'0')).join(''):null;
-        return {apiBase:API_BASE,eligible:ref.isG5ReferenceStudy(study),
-          verified:await ref.verifyG5ReferenceFilm(study),
-          studyPath:study.image_original_path,
-          shaSource:study.angles_data?.odf_lab_display_png_sha256,
-          bytesType:Object.prototype.toString.call(bytes),
-          mime:response.headers['content-type'],size:bytes?.byteLength,hash};
-      }catch(e){return {error:String(e)};}
-    },ids.older_id);
-    console.log('G5_BROWSER_REFERENCE_MODULE_PROBE',JSON.stringify(moduleProbe));
+    // The UI has already performed its authenticated, SHA256-bound probe.
+    // Avoid redundant diagnostic requests that themselves produce network toasts.
     await page.waitForFunction(()=>{const el=document.querySelector(
       '[data-testid="g5-reference-toggle"]');return Boolean(el&&!el.hasAttribute('disabled'));},
       null,{timeout:8000});
@@ -274,6 +289,7 @@ try{
     check((await ui.getByTestId('g5-reference-warning').innerText()).includes('jamais copiée'),
       'G5_VISUAL_REFERENCE_EXPLICIT_NONCLINICAL_WARNING');
     await snap('g5-00-source-verified-reference-readonly');
+    await snapG5Complete('reference-readonly','odf-g5-drawing-surface');
     const before=await api.get(g5Url,{headers,params:{expected_revision:revision}});
     const beforeData=await before.json();
     check(before.status()===200 && beforeData.draft_version===0
@@ -479,36 +495,6 @@ try{
     const reopenedToggle=page.getByTestId('g5-reference-toggle');
     check(await reopenedToggle.getAttribute('aria-pressed')==='false',
       'G5_REFERENCE_HIDDEN_AGAIN_AFTER_FULL_RELOAD');
-    const afterReloadStudy=(await (await api.get(
-      '/api/ia/analyses/'+ids.older_id,{headers})).json());
-    const afterReloadProbe=await page.evaluate(async id=>{
-      try{
-        const {api,API_BASE}=await import('/src/services/api.ts');
-        const ref=await import('/src/features/ortho/utils/g5VisualReference.ts');
-        const study=(await api.get('/ia/analyses/'+id)).data;
-        const response=await api.get('/static/uploads/radios/t2-cephalo-seeded.png',
-          {responseType:'arraybuffer'});
-        const bytes=response.data;
-        const sha=bytes instanceof ArrayBuffer
-          ?Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
-            .map(v=>v.toString(16).padStart(2,'0')).join(''):null;
-        return {apiBase:API_BASE,eligible:ref.isG5ReferenceStudy(study),
-          verified:await ref.verifyG5ReferenceFilm(study),
-          studyPath:study.image_original_path,
-          align:study.angles_data?.odf_lab_image_landmark_alignment,
-          studySha:study.angles_data?.odf_lab_display_png_sha256,
-          sha,bytesType:Object.prototype.toString.call(bytes)};
-      }catch(e){return {error:String(e)};}
-    },ids.older_id);
-    console.log('G5_REFERENCE_REOPEN_PROBE',JSON.stringify({
-      frontend:afterReloadProbe,backendStudySha:
-        afterReloadStudy.angles_data?.odf_lab_display_png_sha256,
-      backendAlignment:
-        afterReloadStudy.angles_data?.odf_lab_image_landmark_alignment,
-      sourceStatus:await reopened.getByTestId('g5-reference-source-status').innerText(),
-      toggleDisabled:await reopenedToggle.isDisabled(),
-      studyRevision:afterReloadStudy.angles_data?.scientific_read_path?.revision,
-    }));
     if(await reopenedToggle.isDisabled()){
       check((await reopened.getByTestId('g5-reference-source-status').innerText())
         .includes('Référence indisponible'),
@@ -527,6 +513,7 @@ try{
       .locator('path').count()===6,
       'G5_REFERENCE_VISIBLE_IN_BEZIER_MODE');
     await snap('g5-v2-04b-signed-unsigned-reference-in-bezier-test-only');
+    await snapG5Complete('bezier-test-only','odf-g5-bezier-surface');
     await reopenedToggle.click();
     check(await page.getByTestId('g5-bezier-anchor-2').count()===1
       &&await page.getByTestId('g5-bezier-handle-1-incoming').count()===1,
