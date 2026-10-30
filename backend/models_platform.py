@@ -62,6 +62,21 @@ class WorkstationMode(Base):
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
 
 
+class R5DesktopPreference(Base):
+    """Nonclinical per-user/per-tenant/per-registered-workstation UI preference."""
+    __tablename__ = "r5_desktop_preferences"
+    __table_args__ = (UniqueConstraint("employer_id", "user_id", "workstation_id", name="uq_r5_pref_principal_station"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    employer_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    user_id: Mapped[int] = mapped_column(ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True)
+    workstation_id: Mapped[str] = mapped_column(ForeignKey("workstation_modes.id", ondelete="CASCADE"), nullable=False, index=True)
+    payload: Mapped[dict] = mapped_column(JSON, nullable=False)
+    previous_payload: Mapped[Optional[dict]] = mapped_column(JSON, nullable=True)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=func.now(), onupdate=func.now(), nullable=False)
+
+
 class WorkstationPairingCode(Base):
     __tablename__ = "workstation_pairing_codes"
     __table_args__ = (

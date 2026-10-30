@@ -334,3 +334,20 @@
     transition: none;
   }
 }
+
+/* LOT07 R8.3 — one visible disposition authority on verified R5 desktop.
+   Activate ONLY when the real persisted R5 panel actually rendered.
+   R3 remains accessible if R5 is absent, refused, or still loading.
+   Preserve view exchange, reset, clinical adapters and split handles. */
+[data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
+  [data-testid="multiview-legacy-selection"],
+[data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
+  [data-testid="multiview-legacy-help"],
+[data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
+  [data-testid="r3-1-premium-actions"] [aria-label="Disposition des panneaux"],
+[data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
+  [data-testid="r3-1-premium-actions"] [aria-label="Confirmation de disposition"],
+[data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
+  [data-testid="multiview-schematic-preview"] {
+  display: none;
+}
