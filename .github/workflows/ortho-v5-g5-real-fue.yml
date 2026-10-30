@@ -7,6 +7,8 @@ on:
       - 'design/cephalo-premium-pdf-v2-20261023'
     paths:
       - 'frontend/scripts/odf-v5-fue-lab.mjs'
+      - 'scripts/g5_visual_reference_preview.py'
+      - 'docs/audits/fixtures/g5/g5_visual_reference.json'
       - '.github/workflows/ortho-v5-g5-real-fue.yml'
   pull_request:
     paths:
@@ -163,6 +165,57 @@ jobs:
           assert available.intersection({'M_U1_NA_DEG_V1','M_L1_NB_DEG_V1','M_INTERINCISAL_DEG_V1','M_IMPA_GOME_DEG_V1'}), 'SOURCE_BOUND_DENTAL_ANGLE_NOT_AVAILABLE'
           print('ODF_G3_REAL_IMAGE_EXPERT_COORDINATES_MATCH_VERIFIED')
           PY
+      - name: Verify practitioner-accepted G5 VISUAL fixture against exact Aariz pixels (UNSIGNED)
+        run: |
+          python -m scripts.g5_visual_reference_preview \
+            --manifest docs/audits/fixtures/g5/g5_visual_reference.json \
+            --source artifacts/ortho-v5-g3-expert-lateral/expert-matched-cephalogram.png \
+            --out artifacts/ortho-v5-g5-visual-reference
+          python - <<'PY'
+          import json,hashlib,tempfile
+          from pathlib import Path
+          import fitz
+          from scripts.g5_visual_reference_preview import read_reference,sample
+          root=Path('artifacts/ortho-v5-g5-visual-reference')
+          manifest=Path('docs/audits/fixtures/g5/g5_visual_reference.json')
+          film=Path('artifacts/ortho-v5-g3-expert-lateral/expert-matched-cephalogram.png')
+          data=read_reference(manifest,film)
+          assert data['clinical_approval'] is False and len(data['curves'])==6
+          assert sum(c['style']=='dashed' for c in data['curves'])==4
+          assert data['source']['display_sha256']==hashlib.sha256(film.read_bytes()).hexdigest()
+          assert all(len(sample(c['points']))>=100 for c in data['curves'])
+          proof=json.loads((root/'G5_reference_evidence.json').read_text())
+          assert proof['research_only'] and proof['clinical_approval'] is False
+          assert len(proof['layers'])==6 and sum(c['style']=='dashed' for c in proof['layers'])==4
+          # Deliberately refuse the DIFFERENT seeded X-ray used by the existing
+          # editor; candidate contours must never silently shift to that film.
+          wrong=Path('artifacts/ortho-v5-first-user-lab/radiographie-profil-lab-apercu.png')
+          try:read_reference(manifest,wrong)
+          except ValueError as exc:assert 'WRONG_AARIZ_DISPLAY_SOURCE_SHA256' in str(exc)
+          else:raise AssertionError('G5_SOURCE_MISMATCH_ACCEPTED')
+          with tempfile.TemporaryDirectory() as tmp:
+              bad=json.loads(manifest.read_text());bad['clinical_approval']=True
+              tmpfile=Path(tmp)/'bad.json';tmpfile.write_text(json.dumps(bad))
+              try:read_reference(tmpfile)
+              except ValueError as exc:assert 'UNSIGNED_VISUAL_REFERENCE_ONLY' in str(exc)
+              else:raise AssertionError('CLINICAL_PROMOTION_UNSAFELY_ACCEPTED')
+              bad['clinical_approval']=False;bad['curves'][2]['style']='solid'
+              tmpfile.write_text(json.dumps(bad))
+              try:read_reference(tmpfile)
+              except ValueError as exc:assert 'UNVERIFIED_LINES_MUST_REMAIN_DASHED' in str(exc)
+              else:raise AssertionError('UNCERTAIN_LAYER_PROMOTED_TO_SOLID')
+          with fitz.open(root/'G5_reference_two_views_REVIEW_ONLY.pdf') as doc:
+              assert len(doc)==2
+              rasters=[]
+              for page in doc:
+                  assert abs(page.rect.width-595.276)<2 and abs(page.rect.height-841.89)<2
+                  assert 'NON CLINIQUE' in page.get_text()
+                  images=[p for p in page.get_images(full=True) if p[2:4]==(1935,2400)]
+                  assert len(images)==1,'G5_A4_FULL_SOURCE_RASTER_MISSING'
+                  rasters.append(hashlib.sha256(fitz.Pixmap(doc,images[0][0]).samples).hexdigest())
+              assert rasters[0]!=rasters[1],'G5_TWO_VIEWS_NOT_DISTINCT'
+          print('ODF_G5_VISUAL_REFERENCE_SOURCE_BOUND_DUAL_A4_PASS_NOT_CLINICALLY_APPROVED')
+          PY
       - name: Start isolated real React Cabinet
         working-directory: frontend
         run: |
@@ -293,6 +346,7 @@ jobs:
           path: |
             artifacts/ortho-v5-first-user-lab/
             artifacts/ortho-v5-g3-expert-lateral/
+            artifacts/ortho-v5-g5-visual-reference/
           if-no-files-found: warn
           retention-days: 14
       - name: Erase disposable runtime and any copies of credentials
