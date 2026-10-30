@@ -342,6 +342,8 @@
 [data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
   [data-testid="multiview-legacy-selection"],
 [data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
+  [data-testid="multiview-legacy-help"],
+[data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
   [data-testid="r3-1-premium-actions"] [aria-label="Disposition des panneaux"],
 [data-v15-071-real-cabinet-lab]:has(> [data-testid="r5-multiview-prefs"])
   [data-testid="r3-1-premium-actions"] [aria-label="Confirmation de disposition"],

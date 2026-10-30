@@ -134,6 +134,8 @@ try {
     false,'Duplicate R3 layout selector visible');
   assert.equal(await a.page.locator('[data-testid="multiview-legacy-selection"]').isVisible(),
     false,'Duplicate R3 preview/apply buttons visible');
+  assert.equal(await a.page.locator('[data-testid="multiview-legacy-help"]').isVisible(),
+    false,'Misleading R3 non-persisted copy visible alongside R5 persistence');
   assert.equal(await a.page.getByRole('button',{name:'Échanger les vues'}).isVisible(),
     true,'R3 view-exchange must remain available');
   checked('single-visible-r5-disposition-retains-r3-view-tools');

@@ -280,7 +280,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
             <div className="min-w-0">
               <p className="text-[11px] font-extrabold uppercase tracking-[0.13em] text-primary">Espace clinique · MultiView</p>
               <h2 className="mt-0.5 text-lg font-extrabold tracking-tight text-text-main">Vues multiples</h2>
-              {!premiumR3 && <p className="text-xs text-text-muted">Un dossier patient, plusieurs perspectives. Dispositions de démonstration non enregistrées.</p>}
+              {!premiumR3 && <p data-testid="multiview-legacy-help" className="text-xs text-text-muted">Un dossier patient, plusieurs perspectives. Dispositions de démonstration non enregistrées.</p>}
             </div>
           </div>
           <span data-testid="multiview-ronly-contract" className="inline-flex items-center gap-1.5 rounded-full border border-border-hover bg-medical-pearl px-3 py-2 text-xs font-bold text-primary-ink">
