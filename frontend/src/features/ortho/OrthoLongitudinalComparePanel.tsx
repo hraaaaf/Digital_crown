@@ -14,7 +14,14 @@ import {
   fetchOrthoTimepoints,
   type OrthoCompareEvidence,
 } from './orthoLongitudinalCompare';
+import { gateR6ThreeTimepoints, trustedR6Comparison } from './r6ThreeTimepoints';
+import { R6PatientPresenterControl } from './R6PatientPresenterControl';
+import { normalizeR6PresenterUserId } from './r6PatientPresenter';
 
+// Deliberate pilot opt-in: never claim 07.1.C is clinically activated by import.
+const R6_THREE_POINTS_LAB = import.meta.env.DEV && import.meta.env.VITE_LOT07_R6_071C_LAB === 'true';
+
+const R6_PRESENTER_LAB = R6_THREE_POINTS_LAB && import.meta.env.VITE_LOT07_R6_071D_LAB === 'true';
 const F5_ENGINEERING_PREVIEW = import.meta.env.VITE_F5_ENGINEERING_PREVIEW === '1';
 
 interface Props {
@@ -84,6 +91,10 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
     () => [...(timepointsQuery.data ?? [])].sort((a, b) => a.ordinal - b.ordinal),
     [timepointsQuery.data],
   );
+  const r6Trajectory = useMemo(() => gateR6ThreeTimepoints(
+    patientId, caseId ?? 0,
+    caseQuery.data?.patient_id === patientId ? timepoints : null,
+  ), [patientId, caseId, caseQuery.data?.patient_id, timepoints]);
 
   useEffect(() => {
     if (timepoints.length < 2) return;
@@ -117,7 +128,11 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
     );
   }
 
-  const comparison = comparisonQuery.data;
+  // An older request must never display evidence from a prior patient, case,
+  // or selected pair after account/patient/workspace navigation.
+  const comparison = trustedR6Comparison(
+    comparisonQuery.data, patientId, caseId ?? 0, fromOrdinal, toOrdinal,
+  ) ? comparisonQuery.data : undefined;
 
   const openEvidence = (item: OrthoCompareEvidence) => {
     const radioTab =
@@ -154,6 +169,61 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
         )}
       </div>
 
+      {R6_THREE_POINTS_LAB && (
+        r6Trajectory.ok ? (
+          <div className="mb-4 space-y-3 rounded-2xl border border-border-main bg-background/70 p-3"
+            data-testid="r6-longitudinal-three-points" aria-label="Trajectoire canonique T0 T1 T2">
+            <div>
+              <h3 className="text-sm font-black text-text-main">Trajectoire T0 → T1 → T2 · lecture seule</h3>
+              <p className="text-xs font-bold text-text-muted">Dates et sources canoniques vérifiées. Aucune conclusion clinique automatique.</p>
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+              {r6Trajectory.trajectory.points.map(point => (
+                <div key={point.id} className="rounded-xl border border-border-main bg-card p-3">
+                  <p className="text-sm font-black text-text-main">T{point.ordinal}</p>
+                  <p className="text-xs text-text-muted">{format(new Date(point.occurred_at), 'd MMM yyyy', {locale:fr})}</p>
+                  <p className="mt-1 text-xs font-bold text-text-muted">{point.sources.length} source(s) liée(s)</p>
+                  {point.sources.map(source => (
+                    <p key={source.kind+':'+source.refId} className="text-[11px] text-text-muted">
+                      {source.kind === 'CEPHALO' ? 'Céphalo' : source.kind === 'PANORAMIC' ? 'Panoramique' : 'Média'} #{source.refId}
+                    </p>
+                  ))}
+                </div>
+              ))}
+            </div>
+            <div className="flex flex-wrap gap-2" role="group" aria-label="Choisir la comparaison longitudinale">
+              {([[0,1],[1,2],[0,2]] as const).map(([from,to]) => (
+                <button key={from+'-'+to} type="button"
+                  aria-pressed={fromOrdinal===from && toOrdinal===to}
+                  onClick={() => {setSuperimpositionOpen(false);setFromOrdinal(from);setToOrdinal(to);}}
+                  className="rounded-lg border border-border-main bg-card px-3 py-2 text-xs font-bold text-text-main focus-visible:outline-2 focus-visible:outline-primary">
+                  T{from} → T{to}
+                </button>
+              ))}
+            </div>
+            {R6_PRESENTER_LAB && (
+              <R6PatientPresenterControl
+                patientId={patientId}
+                caseId={caseId ?? 0}
+                userId={normalizeR6PresenterUserId(user?.id)}
+                allowed={hasAccess(user,'patients') && hasAccess(user,'clinical')}
+                trajectory={r6Trajectory.trajectory}
+                comparison={trustedR6Comparison(
+                  comparisonQuery.data, patientId, caseId ?? 0, fromOrdinal, toOrdinal,
+                ) ? comparisonQuery.data : undefined}
+                fromOrdinal={fromOrdinal}
+                toOrdinal={toOrdinal}
+              />
+            )}
+          </div>
+        ) : (
+          <p role="status" data-testid="r6-trajectory-denied"
+            className="mb-4 rounded-xl border border-border-main bg-background p-3 text-xs font-bold text-text-muted">
+            Trajectoire T0/T1/T2 indisponible : trois repères datés avec sources canoniques indépendantes sont requis.
+          </p>
+        )
+      )}
+
       <div className="grid grid-cols-1 gap-2 sm:gap-3 md:grid-cols-[1fr_auto_1fr] md:items-stretch">
         <TimepointSelector
           label="Repère initial"
@@ -189,7 +259,7 @@ export const OrthoLongitudinalComparePanel = ({ patientId }: Props) => {
         <>
           <div className="mt-3 grid grid-cols-1 gap-2 sm:mt-4 sm:gap-3 md:grid-cols-2">
             {[comparison.from_timepoint, comparison.to_timepoint].map((tp) => (
-              <div key={tp.id} className="rounded-xl border border-border-main bg-background/60 p-3 sm:rounded-2xl sm:p-4">
+              <div key={tp.id} data-ortho-compare-timepoint={tp.ordinal} className="rounded-xl border border-border-main bg-background/60 p-3 sm:rounded-2xl sm:p-4">
                 <div className="mb-2 flex items-baseline justify-between gap-2 sm:mb-3 sm:gap-3">
                   <div className="text-base font-black text-text-main sm:text-lg">T{tp.ordinal}</div>
                   <div className="text-[11px] font-bold text-text-muted">

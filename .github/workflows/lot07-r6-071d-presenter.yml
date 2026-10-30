@@ -1,0 +1,80 @@
+name: LOT07 R6 07.1.D detached patient presenter contract (no deploy)
+
+on:
+  push:
+    branches: ['feat/lot07-r6-071d-*']
+    paths:
+      - 'frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx'
+      - 'frontend/src/features/ortho/r6PatientPresenter.ts'
+      - 'frontend/src/features/ortho/R6PatientPresenterControl.tsx'
+      - 'frontend/src/features/ortho/r6PatientPresenter.test.ts'
+      - '.github/workflows/lot07-r6-071d-presenter.yml'
+  pull_request:
+    branches: ['feat/lot07-r6-071c-*',master]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  r6d-source-static-window:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_LOT07_R6_071C_LAB: 'true'
+      VITE_LOT07_R6_071D_LAB: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Exact HEAD and DEV-only presenter policy
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          grep -q "R6_PRESENTER_LAB = R6_THREE_POINTS_LAB && import.meta.env.VITE_LOT07_R6_071D_LAB" frontend/src/features/ortho/OrthoLongitudinalComparePanel.tsx
+          # B10: the HTTP-CSP opaque-origin child, not the authenticated parent,
+          # drops window.opener after securing the MessageChannel handshake.
+          # Verify the actual mechanism; never reintroduce the old parent-side
+          # child.opener=null check which predated the sandboxed presenter.
+          python3 - <<'PY'
+          from pathlib import Path
+          backend = Path('backend/routers/ortho_presenter_sandbox.py').read_text()
+          client = Path('frontend/src/features/ortho/r6PatientPresenter.ts').read_text()
+          assert '_CSP = (' in backend
+          policy = backend.split('_CSP = (', 1)[1].split('\\n)', 1)[0]
+          assert 'sandbox allow-scripts; default-src' in policy
+          assert 'allow-same-origin' not in policy
+          assert "connect-src 'none'" in policy
+          for required in ('const parent=window.opener;', 'window.opener=null;',
+                           'event.source!==parent', 'event.origin!==origin',
+                           'DC_PRESENTER_INIT'):
+              assert required in backend, f'Missing child authority gate: {required}'
+          for required in ("event.source!==this.child", "event.origin!=='null'",
+                           'new MessageChannel()', 'crypto.getRandomValues(bytes)'):
+              assert required in client, f'Missing parent authority gate: {required}'
+          print('LOT07_R6D_B10_OPAQUE_SOURCE_CONTRACT_PASS')
+          PY
+      - name: Locked frontend install
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: T0 T1 T2 + source projection/foreign scope denial tests
+        working-directory: frontend
+        run: npm test -- src/features/ortho/r6PatientPresenter.test.ts src/features/ortho/r6ThreeTimepoints.test.ts
+      - name: Strict TS application check
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Strict production opt-outs remain disabled
+        working-directory: frontend
+        env:
+          VITE_LOT07_R6_071C_LAB: 'false'
+          VITE_LOT07_R6_071D_LAB: 'false'
+        run: |
+          set -euo pipefail
+          npm run build
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"

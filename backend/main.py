@@ -510,7 +510,7 @@ async def license_check_middleware(request: Request, call_next):
         "/static", "/api/static", "/assets",
         "/api/auth", "/api/clinics/recheck-license", "/api/clinics/license-status",
         "/api/clinics/init-status",  # Route publique : vérif setup wizard
-        "/health"
+        "/health", "/api/ortho/presenter-window"
     )
     if request.url.path.startswith(allowed_prefixes) or request.method == "OPTIONS":
         return await call_next(request)
@@ -686,6 +686,9 @@ app.include_router(clinics.router, prefix="/api/clinics", tags=["Clinics"])
 app.include_router(workstation_mode.router, prefix="/api/workstation", tags=["Workstation Mode"])
 app.include_router(station_patient_session.router, prefix="/api/workstation", tags=["Station Patient Session"])
 app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
+# LOT07 B10: public empty shell only; data enters via isolated MessagePort.
+from backend.routers import ortho_presenter_sandbox
+app.include_router(ortho_presenter_sandbox.router, prefix="/api/ortho", tags=["Opaque Patient Presenter"])
 app.include_router(ia.router, prefix="/api/ia", tags=["IA & Analysis"])
 app.include_router(documents.router, prefix="/api/documents", tags=["Documents"])
 app.include_router(verification.router, prefix="/api/documents", tags=["Vérification publique"])

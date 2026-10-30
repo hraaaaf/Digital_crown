@@ -1,0 +1,192 @@
+name: LOT07 B10 Windows opaque presenter + native zoom + NVDA FUE-I
+
+on:
+  push:
+    branches: ['feat/lot07-r7b-windows-actions-*', 'feat/lot07-b10-opaque-presenter-*']
+  pull_request:
+    branches: ['feat/lot07-r7-071e-*', 'feat/lot07-r7b-windows-actions-*', master]
+    paths:
+      - 'backend/routers/ortho_presenter_sandbox.py'
+      - 'backend/main.py'
+      - 'frontend/src/features/ortho/r6PatientPresenter.ts'
+      - 'frontend/scripts/certify-lot07-r7b-windows-zoom.mjs'
+      - 'frontend/scripts/certify-lot07-r7b-windows-nvda.mjs'
+      - 'frontend/scripts/certify-lot07-r7-desktop-matrix.mjs'
+      - 'frontend/scripts/certify-lot07-r6-071d-fue-i-t2.mjs'
+      - '.github/workflows/lot07-r7b-windows-actions.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-r7b-authenticated-desktop:
+    name: Windows headed Chromium real FastAPI T2 and native browser 200%
+    runs-on: windows-latest
+    timeout-minutes: 65
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      VITE_LOT07_R6_071C_LAB: 'true'
+      VITE_LOT07_R6_071D_LAB: 'true'
+      LOT07_R7_DESKTOP_CERT: '1'
+      LOT07_R7_WINDOWS_NATIVE: '1'
+      LOT07_R7_NVDA_CERT: '1'
+      SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CI: 'true'
+      TZ: Africa/Casablanca
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.SOURCE_HEAD }}
+          persist-credentials: false
+      - name: Verify exact SHA and disposable Windows-only authority
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:SOURCE_HEAD) { throw 'REFUSED: wrong source SHA' }
+          if (-not $IsWindows -or $env:DIGITALCROWN_ISOLATED_RUNTIME -ne '1' -or
+              $env:ENVIRONMENT -ne 'test' -or $env:DATABASE_URL -ne 'sqlite:///./t2-runtime-cert.db') {
+            throw 'REFUSED: not disposable Windows T2'
+          }
+          if (Test-Path t2-runtime-cert.db) { throw 'REFUSED: stale T2 database' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Disposable masked synthetic actor credentials
+        shell: pwsh
+        run: |
+          $pw = python -c "import secrets;print(secrets.token_urlsafe(28))"
+          if ($LASTEXITCODE -ne 0) { throw 'Random actor generation failed' }
+          Write-Output "::add-mask::$pw"
+          Add-Content -Path $env:GITHUB_ENV -Value "T2_PASSWORD=$pw"
+      - name: Install real backend on Windows (no cabinet SQLCipher, no production data)
+        shell: pwsh
+        run: |
+          # GitHub Windows has globally installed pipx that conflicts with
+          # pinned Cabinet versions. Use a disposable VENV, retain pip check.
+          $venv = Join-Path $env:RUNNER_TEMP "r7b-cabinet-venv"
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw 'Windows isolated venv creation failed' }
+          $python = Join-Path $venv "Scripts/python.exe"
+          Add-Content -Path $env:GITHUB_ENV -Value "R7B_PYTHON=$python"
+          & $python -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { throw 'pip bootstrap failed' }
+          & $python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          if ($LASTEXITCODE -ne 0) { throw 'CPU torch install failed' }
+          $deps = Get-Content requirements.txt | Where-Object {
+            $_ -notmatch '^(torch|torchvision|torchaudio|sqlcipher3)=='
+          }
+          $deps | Set-Content -Path "$env:RUNNER_TEMP/r7b-windows-requirements.txt"
+          & $python -m pip install -r "$env:RUNNER_TEMP/r7b-windows-requirements.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'Windows requirements failed' }
+          & $python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'Windows isolated dependency conflict' }
+      - name: Install real React and Chromium for hosted Windows
+        shell: pwsh
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          if ($LASTEXITCODE -ne 0) { throw 'npm ci failed' }
+          npm install --no-save --no-package-lock playwright@1.56.1 @guidepup/guidepup@0.36.3 @guidepup/setup@0.29.3
+          if ($LASTEXITCODE -ne 0) { throw 'Playwright install failed' }
+          npx playwright install chromium
+          if ($LASTEXITCODE -ne 0) { throw 'Chromium install failed' }
+          node --check scripts/certify-lot07-r6-071d-fue-i-t2.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'R6D browser FUE syntax error' }
+          node --check scripts/certify-lot07-r7-desktop-matrix.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'R7 matrix syntax error' }
+          node --check scripts/certify-lot07-r7b-windows-zoom.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'R7B zoom syntax error' }
+          node --check scripts/certify-lot07-r7b-windows-nvda.mjs
+          if ($LASTEXITCODE -ne 0) { throw 'R7B NVDA script syntax error' }
+      - name: Install real Windows NVDA screen reader for R7B
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npx --no-install guidepup setup --ci
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA OS setup failed' }
+          npx --no-install guidepup install nvda
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA install failed' }
+      - name: Real authenticated Windows Cabinet, native zoom, NVDA and negative FUE
+        shell: pwsh
+        run: |
+          $backend = $null
+          $frontend = $null
+          $apiLog = Join-Path $env:RUNNER_TEMP "r7b-windows-api.log"
+          $viteLog = Join-Path $env:RUNNER_TEMP "r7b-windows-vite.log"
+          try {
+            $backend = Start-Process -FilePath $env:R7B_PYTHON -ArgumentList @("-u","scripts/t2_runtime_server.py") -WorkingDirectory $env:GITHUB_WORKSPACE -RedirectStandardOutput $apiLog -PassThru -WindowStyle Hidden
+            $ready = $false
+            for($i=0;$i -lt 100;$i++){
+              try {
+                $res = Invoke-WebRequest "http://127.0.0.1:8005/health" -TimeoutSec 2 -UseBasicParsing
+                if($res.StatusCode -eq 200){$ready = $true;break}
+              }catch{}
+              if($backend.HasExited){break}
+              Start-Sleep -Seconds 1
+            }
+            if(-not $ready){
+              if(Test-Path $apiLog){ Get-Content $apiLog -Tail 50 }
+              throw "Real Windows FastAPI T2 not ready"
+            }
+            $frontend = Start-Process -FilePath "node.exe" -ArgumentList @("node_modules/vite/bin/vite.js","--host","127.0.0.1","--port","5173") -WorkingDirectory (Join-Path $env:GITHUB_WORKSPACE "frontend") -RedirectStandardOutput $viteLog -PassThru -WindowStyle Hidden
+            $ready = $false
+            for($i=0;$i -lt 65;$i++){
+              try{
+                $res=Invoke-WebRequest "http://127.0.0.1:5173" -TimeoutSec 2 -UseBasicParsing
+                if($res.StatusCode -eq 200){$ready=$true;break}
+              }catch{}
+              if($frontend.HasExited){break}
+              Start-Sleep -Seconds 1
+            }
+            if(-not $ready){
+              if(Test-Path $viteLog){ Get-Content $viteLog -Tail 50 }
+              throw 'Real Windows Vite not ready'
+            }
+            Push-Location frontend
+            try {
+              node scripts/certify-lot07-r6-071d-fue-i-t2.mjs
+              if ($LASTEXITCODE -ne 0) { throw "R7B Windows genuine FUE red" }
+            } finally { Pop-Location }
+            $r = Get-Content "artifacts/lot07-r6-071d-fue-i/report.json" -Raw | ConvertFrom-Json
+            if (-not $r.pass -or $r.head -ne $env:SOURCE_HEAD -or
+                -not $r.actualFastAPI -or -not $r.actualReactBrowser -or
+                $r.routeIntercepted -or $r.production -or -not $r.r7Windows.nativeBrowserZoom200 -or
+                $r.r7Windows.nativeWindowsDisplayDpi200 -or
+                $r.r7Windows.physicalSecondDisplay -or $r.r7Windows.nvdaSpeechCertified -or
+                -not $r.r7.presenterOriginSecurity.detachedOriginIsolationCertified -or
+                $r.r7.presenterOriginSecurity.clinicalActivationApproved -or
+                $r.r7.presenterOriginSecurity.review -ne 'AWAITING_INDEPENDENT_SECURITY_REVIEW' -or
+                -not $r.r7Nvda.realNvdaStarted -or -not $r.r7Nvda.pass -or
+                -not $r.r7Nvda.spokenRoles.command -or -not $r.r7Nvda.spokenRoles.comparison -or
+                -not $r.r7Nvda.spokenRoles.popupHeading -or -not $r.r7Nvda.spokenRoles.popupTimepoint -or
+                $r.r7Nvda.physicalSecondDisplay -or $r.r7Nvda.osDisplayDpi200 -or
+                $r.checks.Count -lt 83 -or $r.screenshots.Count -lt 17) {
+              throw 'REFUSED: incomplete Windows browser/native zoom evidence'
+            }
+            Write-Output "LOT07_R7B_WINDOWS_FUE_VERIFIED $($r.checks.Count) $($r.screenshots.Count) $env:SOURCE_HEAD"
+            'LOT07 B10: Windows FastAPI+React real CSP opaque presenter, denied auth storage, Chromium native zoom + Guidepup NVDA GREEN only if all checks pass. Physical monitors, OS DPI and human clinical review remain NOT CERTIFIED.' >> $env:GITHUB_STEP_SUMMARY
+          } finally {
+            if($frontend){Stop-Process -Id $frontend.Id -Force -ErrorAction SilentlyContinue}
+            if($backend){Stop-Process -Id $backend.Id -Force -ErrorAction SilentlyContinue}
+          }
+      - name: Preserve genuine Windows screenshots and SHA report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot07-b10-opaque-presenter-windows-NVDA-${{ env.SOURCE_HEAD }}
+          path: artifacts/lot07-r6-071d-fue-i
+          if-no-files-found: warn
+          retention-days: 14
