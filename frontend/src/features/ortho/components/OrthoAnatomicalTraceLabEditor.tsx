@@ -3,6 +3,7 @@ import {cephaloRepository} from '../cephaloRepository';
 import {G5BezierProfileLabCanvas, type G5BezierNode} from './G5BezierProfileLabCanvas';
 import {G5VisualReferenceOverlay} from './G5VisualReferenceOverlay';
 import {verifyG5ReferenceFilm} from '../utils/g5VisualReference';
+import {API_BASE} from '../../../services/api';
 import {useOrthoStore} from '../stores/useOrthoStore';
 
 /** Only mounted with VITE_ODF_G5_LAB=1; API separately refuses all non-LAB calls.
@@ -22,7 +23,7 @@ const STRUCTURES:{id:CurveId;label:string;min:number;color:string}[]=[
 ];
 const W=1935,H=2400;
 const fresh=():Curve[]=>STRUCTURES.map(item=>({id:item.id,points:[]}));
-const pairedImage='/api/static/uploads/radios/t2-cephalo-seeded.png';
+const sourceFilmUrl=`${API_BASE}/api/static/uploads/radios/t2-cephalo-seeded.png`;
 
 export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const patientId=useOrthoStore(s=>s.patientId);
@@ -31,6 +32,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   const drawing=useRef(false);
   const panStart=useRef<{clientX:number;clientY:number;center:Point}|null>(null);
   const requestId=useRef(0);
+  const verifiedFilmUrl=useRef<string|null>(null);
+  const [imageUrl,setImageUrl]=useState(sourceFilmUrl);
   const [curves,setCurves]=useState<Curve[]>(fresh);
   const [zoom,setZoom]=useState<1|2|4|8>(1);
   const [panMode,setPanMode]=useState(false);
@@ -61,6 +64,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     setCurves(fresh());setRevision(null);setDraftVersion(0);
     setDirty(false);setServerApproved(false);setError('');setNotice('');
     setReferenceMatched(false);setShowReference(false);
+    if(verifiedFilmUrl.current){URL.revokeObjectURL(verifiedFilmUrl.current);verifiedFilmUrl.current=null;}
+    setImageUrl(sourceFilmUrl);
     if(!patientId||!analysisId)return;
     setLoading(true);
     (async()=>{
@@ -86,13 +91,22 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
         setServerApproved(server.approved);
         // The guide remains hidden unless both study provenance AND the
         // displayed film's actual bytes match the fixed Aariz review target.
-        const matched=await verifyG5ReferenceFilm(study);
+        const matched=await verifyG5ReferenceFilm(study,undefined,bytes=>{
+          if(id!==requestId.current)return;
+          const objectUrl=URL.createObjectURL(new Blob([bytes],{type:'image/png'}));
+          if(verifiedFilmUrl.current)URL.revokeObjectURL(verifiedFilmUrl.current);
+          verifiedFilmUrl.current=objectUrl;
+          setImageUrl(objectUrl);
+        });
         if(id===requestId.current)setReferenceMatched(matched);
       }catch(e){
         if(id===requestId.current)setError(e instanceof Error?e.message:'Tracé non disponible');
       }finally{if(id===requestId.current)setLoading(false);}
     })();
-    return ()=>{requestId.current++;};
+    return ()=>{
+      requestId.current++;
+      if(verifiedFilmUrl.current){URL.revokeObjectURL(verifiedFilmUrl.current);verifiedFilmUrl.current=null;}
+    };
   },[patientId,analysisId]);
 
   const loc=(e:React.PointerEvent<SVGSVGElement>):Point|null=>{
@@ -247,7 +261,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     {bezierMode&&selected==='soft_tissue_profile'
       ?<G5BezierProfileLabCanvas
         key={`g5-bezier-${patientId}-${analysisId}-${revision}-${draftVersion}`}
-        imageUrl={pairedImage} imageWidth={W} imageHeight={H}
+        imageUrl={imageUrl} imageWidth={W} imageHeight={H}
         viewport={{left:viewLeft,top:viewTop,width:viewW,height:viewH}}
         otherContours={curves.filter(c=>c.id!=='soft_tissue_profile').map(c=>({
           id:c.id,points:c.points,
@@ -301,7 +315,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
       onPointerUp={e=>{drawing.current=false;panStart.current=null;
         if(e.currentTarget.hasPointerCapture(e.pointerId))e.currentTarget.releasePointerCapture(e.pointerId);}}
       onPointerCancel={()=>{drawing.current=false;panStart.current=null;}}>
-      <image href={pairedImage} x="0" y="0" width={W} height={H}/>
+      <image data-testid="g5-source-film-image" href={imageUrl} x="0" y="0" width={W} height={H}/>
       {showReference&&referenceMatched&&<G5VisualReferenceOverlay/>}
       {curves.map(curve=>{
         const color=STRUCTURES.find(s=>s.id===curve.id)?.color||'#111111';
