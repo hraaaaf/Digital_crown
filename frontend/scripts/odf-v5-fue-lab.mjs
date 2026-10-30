@@ -195,9 +195,30 @@ try{
     // non-clinical, pointer-transparent reference.
     const referenceToggle=ui.getByTestId('g5-reference-toggle');
     await referenceToggle.waitFor({state:'visible'});
+    const browserProbe=await page.evaluate(async()=>{
+      const url='/api/static/uploads/radios/t2-cephalo-seeded.png';
+      const response=await fetch(url,{credentials:'same-origin',cache:'no-store'});
+      const b=await response.arrayBuffer();
+      const hasCrypto=Boolean(globalThis.crypto?.subtle);
+      const digest=hasCrypto?await crypto.subtle.digest('SHA-256',b):null;
+      const sha=digest?Array.from(new Uint8Array(digest))
+        .map(i=>i.toString(16).padStart(2,'0')).join(''):null;
+      return {status:response.status,mime:response.headers.get('content-type'),
+        length:b.byteLength,hasCrypto,sha};
+    });
+    const referenceStudy=(await (await api.get('/api/ia/analyses/'+ids.older_id,
+      {headers})).json());
+    console.log('G5_REFERENCE_SOURCE_PROBE',JSON.stringify({
+      browser:browserProbe,backendFilmSha:createHash('sha256').update(media).digest('hex'),
+      studyPath:referenceStudy.image_original_path,
+      alignment:referenceStudy.angles_data?.odf_lab_image_landmark_alignment,
+      studySha:referenceStudy.angles_data?.odf_lab_display_png_sha256,
+      uiStatus:await ui.getByTestId('g5-reference-source-status').innerText(),
+      toggleDisabled:await referenceToggle.isDisabled(),
+    }));
     await page.waitForFunction(()=>{const el=document.querySelector(
       '[data-testid="g5-reference-toggle"]');return Boolean(el&&!el.hasAttribute('disabled'));},
-      {timeout:20000});
+      null,{timeout:8000});
     check(await referenceToggle.getAttribute('aria-pressed')==='false'
       &&await ui.getByTestId('g5-visual-reference-overlay').count()===0,
       'G5_VISUAL_REFERENCE_HIDDEN_BY_DEFAULT');
