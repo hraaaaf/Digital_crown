@@ -121,8 +121,24 @@ try {
   const people=await peopleResponse.json();
   const fixture=people.find(p=>p.numero_dossier==='T2-0001');
   assert.ok(Number.isSafeInteger(fixture?.id)&&fixture.id>0);
+  const patientMediaPath='/patients/'+fixture.id+'?tab=radiology&radioTab=media';
+  await a.page.setViewportSize({width:1440,height:900});
+  await a.page.goto(uiBase+patientMediaPath,{
+    waitUntil:'domcontentloaded',timeout:90000});
+  await a.page.locator('[data-testid="r5-multiview-prefs"]')
+    .waitFor({state:'visible',timeout:60000});
+  assert.equal(await a.page.locator('[data-lot07-polish02]').getAttribute('data-lot07-polish02'),
+    'clinical-first','POLISH-02 must remain gated to the DEV workstation lab');
+  const clinical1440 = await a.page.locator('[data-v15-071-viewslot="dossier"]')
+    .boundingBox();
+  assert.ok(clinical1440 && clinical1440.x >= -1 &&
+    clinical1440.x + clinical1440.width <= 1441,
+    'Real 1440px clinical dossier must stay in the viewport');
+  await screenshot(a.page,'R5-MultiView-desktop-before-1440');
+  checked('polish02-real-authenticated-clinical-first-1440', {
+    width:1440,clinicalTop:Math.round(clinical1440.y)});
   await a.page.setViewportSize({width:1920,height:1080});
-  await a.page.goto(uiBase+'/patients/'+fixture.id+'?tab=radiology&radioTab=media',{
+  await a.page.goto(uiBase+patientMediaPath,{
     waitUntil:'domcontentloaded',timeout:90000});
   const layoutPanel=a.page.locator('[data-testid="r5-multiview-prefs"]');
   await layoutPanel.waitFor({state:'visible',timeout:60000});
