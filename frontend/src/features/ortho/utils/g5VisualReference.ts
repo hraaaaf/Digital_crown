@@ -39,12 +39,24 @@ export async function verifyG5ReferenceFilm(
   onVerifiedFilm?: (bytes: ArrayBuffer) => void,
 ): Promise<boolean> {
   if (!isG5ReferenceStudy(study) || !globalThis.crypto?.subtle) return false;
-  try {
-    const bytes=await readAuthenticatedFilm();
-    if (!(bytes instanceof ArrayBuffer)) return false;
+  // Post-reload the cabinet may briefly lose a browser transport request.
+  // Retry ONLY failed transport reads, never a wrong image, hash or study.
+  // Keep attempts bounded; no background polling and no clinical promotion.
+  let bytes: ArrayBuffer | null = null;
+  for(let attempt=0;attempt<3;attempt++){
+    try{
+      bytes=await readAuthenticatedFilm();
+      break;
+    }catch{
+      if(attempt===2)return false;
+      await new Promise<void>(resolve=>setTimeout(resolve,350*(attempt+1)));
+    }
+  }
+  if(!(bytes instanceof ArrayBuffer))return false;
+  try{
     const png=new Uint8Array(bytes);
     const signature=[137,80,78,71,13,10,26,10];
-    if(png.length<100000||!signature.every((value,i)=>png[i]===value)) return false;
+    if(png.length<100000||!signature.every((value,i)=>png[i]===value))return false;
     const digest=await crypto.subtle.digest('SHA-256',bytes);
     const actual=Array.from(new Uint8Array(digest))
       .map(byte=>byte.toString(16).padStart(2,'0')).join('');
