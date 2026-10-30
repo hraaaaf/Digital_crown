@@ -47,7 +47,7 @@ jobs:
           assert valid_ip("100.64.0.2") and valid_ip("100.127.255.254")
           assert not valid_ip("127.0.0.1") and not valid_ip("8.8.8.8")
           assert not valid_ip("192.168.1.10")
-          assert payload(names("u22a","two")[0]).startswith(b"\\x89PNG")
+          assert payload(names("u22a","two")[0]).startswith(bytes((137, 80, 78, 71)))
           try:
               guard()
           except AssertionError:
