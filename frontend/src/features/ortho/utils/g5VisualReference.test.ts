@@ -68,7 +68,8 @@ describe('G5 reference — read-only source-verified visual target',()=>{
     const authorized=vi.fn().mockResolvedValue(png.buffer);
     const onVerifiedFilm=vi.fn();
     expect(await verifyG5ReferenceFilm(matched,authorized,onVerifiedFilm)).toBe(true);
-    expect(onVerifiedFilm).toHaveBeenCalledExactlyOnceWith(png.buffer);
+    expect(onVerifiedFilm).toHaveBeenCalledOnce();
+    expect(onVerifiedFilm).toHaveBeenCalledWith(png.buffer);
     expect(authorized).toHaveBeenCalledOnce();
     expect(digest).toHaveBeenCalledOnce();
     digest.mockResolvedValue(new Uint8Array(32).buffer);
