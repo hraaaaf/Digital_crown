@@ -82,7 +82,7 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
   if(!context.authenticated||!context.workstationVerified||!context.workstationId||
       !context.userId||!context.tenantId||!state)return null;
   return <section data-testid="r5-multiview-prefs" aria-label="R5 dispositions persistantes"
-    className="mb-2 rounded-xl border border-border-main bg-card px-3 py-3 text-text-main">
+    className="mb-2 rounded-xl border border-border-main bg-card px-3 py-3 text-text-main lg:mb-1 lg:py-1.5">
     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <strong className="text-sm">Disposition du cabinet · R5</strong>
