@@ -216,6 +216,26 @@ try{
       uiStatus:await ui.getByTestId('g5-reference-source-status').innerText(),
       toggleDisabled:await referenceToggle.isDisabled(),
     }));
+    const moduleProbe=await page.evaluate(async analysisId=>{
+      try{
+        const {api,API_BASE}=await import('/src/services/api.ts');
+        const ref=await import('/src/features/ortho/utils/g5VisualReference.ts');
+        const study=(await api.get('/ia/analyses/'+analysisId)).data;
+        const response=await api.get('/static/uploads/radios/t2-cephalo-seeded.png',
+          {responseType:'arraybuffer'});
+        const bytes=response.data;
+        const hash=bytes instanceof ArrayBuffer
+          ?Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256',bytes)))
+            .map(v=>v.toString(16).padStart(2,'0')).join(''):null;
+        return {apiBase:API_BASE,eligible:ref.isG5ReferenceStudy(study),
+          verified:await ref.verifyG5ReferenceFilm(study),
+          studyPath:study.image_original_path,
+          shaSource:study.angles_data?.odf_lab_display_png_sha256,
+          bytesType:Object.prototype.toString.call(bytes),
+          mime:response.headers['content-type'],size:bytes?.byteLength,hash};
+      }catch(e){return {error:String(e)};}
+    },ids.older_id);
+    console.log('G5_BROWSER_REFERENCE_MODULE_PROBE',JSON.stringify(moduleProbe));
     await page.waitForFunction(()=>{const el=document.querySelector(
       '[data-testid="g5-reference-toggle"]');return Boolean(el&&!el.hasAttribute('disabled'));},
       null,{timeout:8000});
