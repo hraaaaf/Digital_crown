@@ -14,6 +14,7 @@ vi.mock('../../../../services/zka/MobileStorage', () => ({
     enqueueAction: vi.fn(),
     removeActionFromQueue: vi.fn(),
   },
+  resolveMobileApiBaseUrl: vi.fn((base: string) => base),
   isReplayablePocketAction: vi.fn().mockReturnValue(true),
 }));
 vi.mock('../../../../services/zka/mobileFetch', () => ({ mobileFetch: vi.fn() }));
