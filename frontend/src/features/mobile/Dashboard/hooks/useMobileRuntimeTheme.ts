@@ -136,8 +136,8 @@ export function applyMobileRuntimeTheme(theme: MobileRuntimeTheme, cacheKey?: st
   const fontStack = FONT_STACKS[fontId] || FONT_STACKS.inter;
   setCssVariable('--app-font-family', fontStack);
 
-  localStorage.setItem('digitalcrown_theme', selectedTheme);
-  localStorage.setItem('digitalcrown_font_fr', fontId);
+  // Legacy global preferences are deliberately not written by Pocket.
+  // They cannot safely represent themes for multiple paired cabinets.
   if (cacheKey) localStorage.setItem(cacheKey, JSON.stringify(theme));
 
   let metaThemeColor = document.querySelector('meta[name="theme-color"]');
