@@ -5,7 +5,7 @@ const storage = vi.hoisted(() => ({
   clearAll: vi.fn(),
   resolveMobileApiBaseUrl: vi.fn((base: string) => base),
 }));
-vi.mock('./MobileStorage', () => ({ MobileStorage: storage }));
+vi.mock('./MobileStorage', () => ({ MobileStorage: storage, resolveMobileApiBaseUrl: storage.resolveMobileApiBaseUrl }));
 import { unlinkCurrentMobileDevice } from './unlinkMobileDevice';
 
 beforeEach(() => {
