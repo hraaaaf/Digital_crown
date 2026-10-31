@@ -10,10 +10,13 @@ on:
   workflow_dispatch:
     inputs:
       enable_private_five_vm_network:
-        description: 'Authorize 5 ephemeral Tailnet LAB VMs (synthetic data only)'
-        type: boolean
+        description: 'EXPLICIT YES authorizes 5 ephemeral Tailnet LAB VMs (synthetic data only)'
+        type: choice
         required: true
-        default: false
+        options:
+          - 'NO'
+          - 'YES'
+        default: 'NO'
 
 permissions:
   contents: read
@@ -75,7 +78,7 @@ jobs:
           python -m scripts.ci.lot06_p105_shared_backend_smoke
 
   authorize:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/test/lot06-p1-05-network-shared-20261031' && inputs.enable_private_five_vm_network == true }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/test/lot06-p1-05-network-shared-20261031' && inputs.enable_private_five_vm_network == 'YES' }}
     needs: [static]
     runs-on: ubuntu-24.04
     timeout-minutes: 5
@@ -88,19 +91,19 @@ jobs:
         run: |
           set -euo pipefail
           test -n "$TS_ID" && test -n "$TS_AUD"
-          test "$RUN_NETWORK_APPROVAL" = 'true'
+          test "$RUN_NETWORK_APPROVAL" = 'YES'
           test "$GITHUB_EVENT_NAME" = workflow_dispatch
           test "$GITHUB_REF" = 'refs/heads/test/lot06-p1-05-network-shared-20261031'
           test "$RUNNER_ENVIRONMENT" = github-hosted
           echo LOT06_P105_OIDC_PRESENT_NO_VALUES_LOGGED
 
   server:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/test/lot06-p1-05-network-shared-20261031' && inputs.enable_private_five_vm_network == true && needs.authorize.result == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/test/lot06-p1-05-network-shared-20261031' && inputs.enable_private_five_vm_network == 'YES' && needs.authorize.result == 'success' }}
     needs: [authorize]
     runs-on: ubuntu-24.04
     timeout-minutes: 31
     env:
-      C05B03H_NETWORK_POLICY_APPROVED: ${{ inputs.enable_private_five_vm_network && 'true' || 'false' }}
+      C05B03H_NETWORK_POLICY_APPROVED: ${{ inputs.enable_private_five_vm_network == 'YES' && 'true' || 'false' }}
     steps:
       - uses: actions/checkout@v4
         with: { persist-credentials: false }
@@ -190,7 +193,7 @@ jobs:
           rm -f p105-private-room.json
 
   peers:
-    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/test/lot06-p1-05-network-shared-20261031' && inputs.enable_private_five_vm_network == true && needs.authorize.result == 'success' }}
+    if: ${{ github.event_name == 'workflow_dispatch' && github.ref == 'refs/heads/test/lot06-p1-05-network-shared-20261031' && inputs.enable_private_five_vm_network == 'YES' && needs.authorize.result == 'success' }}
     needs: [authorize]
     name: Dedicated private VM ${{ matrix.label }}
     runs-on: ${{ matrix.os }}
@@ -205,7 +208,7 @@ jobs:
           - {label: staff, os: ubuntu-24.04}
           - {label: camera, os: ubuntu-24.04}
     env:
-      C05B03H_NETWORK_POLICY_APPROVED: ${{ inputs.enable_private_five_vm_network && 'true' || 'false' }}
+      C05B03H_NETWORK_POLICY_APPROVED: ${{ inputs.enable_private_five_vm_network == 'YES' && 'true' || 'false' }}
       GH_API_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
