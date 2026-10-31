@@ -1,0 +1,77 @@
+name: LOT06 C05B-03 branch reconciliation (AUDIT ONLY, NO DEPLOY)
+on:
+  push:
+    branches: [test/lot06-c05b03-integrated-reconcile-20261031]
+    paths:
+      - .github/workflows/lot06-c05b03-integration-readiness.yml
+      - scripts/ci/lot06_c05b03_integration_reconcile.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot06-c05b03-integration-audit-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  exact-sha-reconciliation:
+    name: Source/target evidence; clinical integration NOT certified
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      C05B03H_NETWORK_POLICY_APPROVED: 'false'
+    steps:
+      - name: Checkout isolated branch with complete history (read only)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact branch and no legacy network approval
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$GITHUB_REF_NAME" = "test/lot06-c05b03-integrated-reconcile-20261031"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test "$C05B03H_NETWORK_POLICY_APPROVED" = false
+          test -z "${DATABASE_URL:-}"
+          python -m py_compile scripts/ci/lot06_c05b03_integration_reconcile.py
+      - name: Parser fail-closed negative test
+        run: python scripts/ci/lot06_c05b03_integration_reconcile.py --self-test
+      - name: Compare exact immutable SHA histories without merge or database
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/ci/lot06_c05b03_integration_reconcile.py \
+            --output lot06-c05b03-evidence/branch-reconciliation.json
+          python - <<'PY'
+          import json
+          with open('lot06-c05b03-evidence/branch-reconciliation.json') as fh:
+              e = json.load(fh)
+          assert e['source_history_sha'] == '8f99cbd4fc5045c530d73270ae4dbecdb4ac8c24'
+          assert e['patient_network_history_sha'] == '90fd4a9543057d0af1f56d5d72845d8fa5738f5b'
+          assert e['source_unique_commits'] and e['target_unique_commits']
+          assert e['contracts']['source_contracts_present']
+          assert e['contracts']['target_contracts_present']
+          assert e['contracts']['shared_contracts_present']
+          assert e['db_backend_authority_choice_required']
+          assert e['separate_clinical_migration_approval_required']
+          for key in ('integrated_fue_executed','cabinet_migration_executed',
+                      'ready_to_merge','product_ready','clinical_go'):
+              assert e[key] is False, key
+          print('LOT06_C05B03_AUDIT_PROOF_VALID_NO_INTEGRATION_NO_MIGRATION')
+          PY
+      - name: Upload immutable evidence (not a product PASS)
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03-integration-readiness-blocked
+          path: lot06-c05b03-evidence/branch-reconciliation.json
+          if-no-files-found: error
+          retention-days: 14
