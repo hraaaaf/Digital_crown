@@ -84,6 +84,8 @@ export const MobileContext = () => {
   const [error, setError] = useState('');
   const photoInputRef = useRef<HTMLInputElement | null>(null);
   const photoPreviewUrlRef = useRef<string | null>(null);
+  // Stable for one selected photo across network/401 retries; rotate on new photo.
+  const photoCaptureIdRef = useRef<string | null>(null);
   const [photoFile, setPhotoFile] = useState<File | null>(null);
   const [photoPreviewUrl, setPhotoPreviewUrl] = useState<string | null>(null);
   const [photoPhase, setPhotoPhase] = useState<'idle' | 'preview' | 'uploading' | 'saved'>('idle');
@@ -107,6 +109,7 @@ export const MobileContext = () => {
   const clearClinicalPhoto = () => {
     if (photoPreviewUrlRef.current) URL.revokeObjectURL(photoPreviewUrlRef.current);
     photoPreviewUrlRef.current = null;
+    photoCaptureIdRef.current = null;
     setPhotoPreviewUrl(null);
     setPhotoFile(null);
     setPhotoPhase('idle');
@@ -306,6 +309,7 @@ export const MobileContext = () => {
     if (photoPreviewUrlRef.current) URL.revokeObjectURL(photoPreviewUrlRef.current);
     const nextUrl = URL.createObjectURL(file);
     photoPreviewUrlRef.current = nextUrl;
+    photoCaptureIdRef.current = crypto.randomUUID();
     setPhotoFile(file);
     setPhotoPreviewUrl(nextUrl);
     setPhotoError('');
@@ -323,6 +327,9 @@ export const MobileContext = () => {
       const request = async (accessToken: string) => {
         const form = new FormData();
         form.append('context_key', context.key);
+        // Device-generated request identity is reused when an ACK is lost.
+        if (!photoCaptureIdRef.current) photoCaptureIdRef.current = crypto.randomUUID();
+        form.append('capture_id', photoCaptureIdRef.current);
         form.append('file', photoFile, photoFile.name || 'photo-clinique.jpg');
         return fetch(`${creds!.api_base_url.replace(/\/$/, '')}/api/mobile/resource-context-photo`, {
           method: 'POST',

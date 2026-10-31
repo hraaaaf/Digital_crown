@@ -50,6 +50,8 @@ export function normalizeCabinetAppointments(
         : legacy?.id === patientId ? legacy : null;
     return {
       id: wire.id as number,
+      clinical_revision: Number.isSafeInteger(wire.clinical_revision)
+        ? wire.clinical_revision as number : undefined,
       datetime_start: start,
       start_time: start,
       status: wire.status as string,

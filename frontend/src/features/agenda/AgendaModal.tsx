@@ -347,7 +347,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       };
 
       if (editingAppointment) {
-          await api.put(`/appointments/${editingAppointment.id}`, payload);
+          await api.put(`/appointments/${editingAppointment.id}`, {
+            ...payload,
+            ...(Number.isInteger(editingAppointment.clinical_revision)
+              ? { expected_clinical_revision: editingAppointment.clinical_revision }
+              : {}),
+          });
       } else {
           await api.post('/appointments/', payload);
       }
@@ -369,6 +374,12 @@ export const AgendaModal: React.FC<AgendaModalProps> = ({ isOpen, onClose, onSav
       // The real appointment API returns 409.detail as {message, conflicts}.
       // Never pass that object directly into toast (React child/render error).
       const detail = err?.response?.data?.detail;
+      if (err?.response?.status === 409 && detail === 'APPOINTMENT_STALE_REVISION') {
+        toast.error('Ce rendez-vous a été modifié sur un autre poste. Rechargez-le avant de reprendre vos changements.');
+        onSaved(); // Fetch the new clinical revision, not the stale form snapshot.
+        onClose();
+        return;
+      }
       const errorText = typeof detail === 'string'
         ? detail
         : detail && typeof detail.message === 'string'
