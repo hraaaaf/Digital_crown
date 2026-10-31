@@ -1,0 +1,21 @@
+# Registration-only default-branch entry for LOT06 P1-05.
+# To execute the real five-VM LAB workflow, explicitly choose:
+# test/lot06-p1-05-network-shared-20261031 in the Run workflow branch selector.
+# This master copy has NO network jobs, NO secrets and NO OIDC permissions.
+name: LOT06 P1-05 five real Tailnet VMs with ONE shared clinical backend
+
+on:
+  workflow_dispatch:
+
+permissions: {}
+
+jobs:
+  registry-only:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Refuse master execution — select the LAB branch
+        shell: bash
+        run: |
+          echo "::error title=WRONG_BRANCH::This master file only registers the manual workflow. Select test/lot06-p1-05-network-shared-20261031 in Run workflow. No Tailscale or network jobs will run on master."
+          exit 1
