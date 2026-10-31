@@ -663,6 +663,12 @@ def run_client(label):
     check(join.status_code == 200 and join.json()["registered"], "PRIVATE_VM_REGISTER_FAILED")
     check_negative_http(room, label)
     wait_start(room, label)
+    # All four roles are now registered: valid credentials alone cannot
+    # impersonate another role from this VM's unique Tailnet source IP.
+    impersonated = "staff" if label != "staff" else "camera"
+    spoof = request(room, impersonated, "GET", "/lab/status")
+    check(spoof.status_code == 403, "REGISTERED_ROLE_IP_SPOOF_NOT_DENIED")
+    print("P105_NEGATIVE_REGISTERED_ROLE_IP_SPOOF_DENY_PASS", label, flush=True)
     samples = []
     if label in ("patient-a", "patient-b"):
         index = 0 if label == "patient-a" else 1
@@ -730,6 +736,7 @@ def run_client(label):
         "live_tcp_7079_denied": True, "live_udp_7077_denied": True,
         "missing_token_403": True, "bad_token_403": True,
         "unknown_role_403": True, "cross_role_403": True,
+        "registered_role_ip_spoof_403": True,
     }
     if label in ("patient-a", "patient-b"):
         negative["cross_patient_404"] = True
