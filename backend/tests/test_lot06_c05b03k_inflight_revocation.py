@@ -237,10 +237,11 @@ def test_p0_04d_identity_keyset_or_cabinet_key_revoked_after_auth_denies(
                             kid=keyset.cabinet_signing_kid,
                             key_use="sig",
                         ).one()
+                target_type, target_id = type(target), target.id
                 target.revoked_at = datetime.utcnow()
                 db.commit()
             with Session(engine) as db:
-                assert db.get(type(target), target.id).revoked_at is not None
+                assert db.get(target_type, target_id).revoked_at is not None
         finally:
             proceed.set()
         response = future.result(timeout=35)
