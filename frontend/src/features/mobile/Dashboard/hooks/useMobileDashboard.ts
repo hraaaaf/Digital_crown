@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
 import { MobileStorage, isReplayablePocketAction } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
+import { unlinkCurrentMobileDevice } from '../../../../services/zka/unlinkMobileDevice';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { mobileApiJson } from '../../../../services/zka/mobileApi';
 import type { LabJob } from '../../../../types/labJob';
@@ -444,8 +445,12 @@ export function useMobileDashboard() {
   };
 
   const handleLogout = async () => {
-    await MobileStorage.clearAll();
-    window.location.replace('/mobile/onboarding');
+    const remotelyRevoked = await unlinkCurrentMobileDevice();
+    // A LAN outage must never strand local patient data on a departing phone.
+    // A failed remote attempt is explicitly reported, not called "revoked".
+    window.location.replace(remotelyRevoked
+      ? '/mobile/onboarding'
+      : '/mobile/onboarding?revocation=pending');
   };
 
   return {
