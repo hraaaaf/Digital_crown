@@ -18,6 +18,7 @@ import warnings
 
 import fitz
 from PIL import Image, ImageOps, UnidentifiedImageError
+from sqlalchemy import text
 from sqlalchemy.orm import Session
 
 from backend.models_media_core import ClinicalAsset
@@ -298,6 +299,14 @@ def ingest_clinical_asset_bytes(
         base_provenance["height"] = validated.height
     if validated.page_count is not None:
         base_provenance["page_count"] = validated.page_count
+
+    # SQLite's legacy transaction mode may open this SAVEPOINT before a real
+    # BEGIN. Under concurrent agenda/message writes that can produce a
+    # SQLITE_BUSY_SNAPSHOT upgrade error (and can release a receipt prematurely).
+    # Obtain the physical writer fence before any clinical asset/thumbnail row
+    # or encrypted blob is staged, mirroring the P0 remote receipt fix.
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(text("UPDATE clinical_assets SET id = id WHERE 1 = 0"))
 
     with db.begin_nested():
         asset = create_clinical_asset(
