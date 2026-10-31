@@ -1,12 +1,4 @@
-import { MobileStorage } from './MobileStorage';
-
-function resolveCabinetBase(stored: string): string {
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return stored;
-  return stored.includes('localhost') || stored.includes('127.0.0.1')
-    ? `${window.location.protocol}//${hostname}:8005`
-    : stored;
-}
+import { MobileStorage, resolveMobileApiBaseUrl } from './MobileStorage';
 
 /**
  * Explicit unlink of ONE phone, never a cabinet-wide revocation.
@@ -18,7 +10,7 @@ export async function unlinkCurrentMobileDevice(): Promise<boolean> {
   try {
     const creds = await MobileStorage.getCredentials();
     if (creds && typeof navigator !== 'undefined' && navigator.onLine !== false) {
-      const response = await fetch(`${resolveCabinetBase(creds.api_base_url)}/api/mobile/revoke-device`, {
+      const response = await fetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/revoke-device`, {
         method: 'POST',
         headers: { Authorization: `Bearer ${creds.access_token}` },
         signal: AbortSignal.timeout(2500),
