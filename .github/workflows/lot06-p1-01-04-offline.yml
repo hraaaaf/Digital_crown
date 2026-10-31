@@ -9,6 +9,7 @@ on:
       - backend/schemas/appointments.py
       - backend/routers/mobile_resource_bridge.py
       - backend/routers/media_core.py
+      - backend/services/clinical_asset_ingestion.py
   workflow_dispatch:
 permissions:
   contents: read
