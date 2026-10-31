@@ -10,6 +10,8 @@ on:
       - backend/tests/test_lot06_c05b03j_http_clinic.py
       - backend/tests/test_lot06_c05b03j_p0_clinic.py
       - backend/services/patient_companion_remote_receipts.py
+      - backend/services/patient_companion_remote_worker.py
+      - scripts/ci/lot06_c05b03l_windows_sqlcipher.py
       - backend/tests/test_lot06_c05b03k_inflight_revocation.py
   workflow_dispatch:
 permissions:
@@ -101,3 +103,33 @@ jobs:
               "-q", "-s", "--maxfail=1",
           ]))
           PY
+
+  windows-sqlcipher-native:
+    name: Windows native SQLCipher + real DPAPI + receipt rollback
+    runs-on: windows-latest
+    timeout-minutes: 30
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      C05B03H_NETWORK_POLICY_APPROVED: 'false'
+      DATABASE_URL: 'sqlite:///:memory:'
+      SECRET_KEY: 'disposable-dc06l-windows-local-at-least-32-characters'
+      EXPECTED_HEAD: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install real SQLCipher Windows driver and focused domain dependencies
+        shell: pwsh
+        run: |
+          python -m pip install SQLAlchemy==2.0.28 pydantic==2.6.3 pydantic-settings==2.2.1 python-dotenv==1.2.1 sqlcipher3==0.6.2
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: sqlcipher3 Windows install' }
+      - name: SQLCipher encrypted persistent database and current-user DPAPI
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:EXPECTED_HEAD) { throw 'REFUSED: wrong SHA' }
+          python scripts/ci/lot06_c05b03l_windows_sqlcipher.py
+          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: Windows SQLCipher/DPAPI' }
