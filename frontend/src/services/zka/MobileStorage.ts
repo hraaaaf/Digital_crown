@@ -215,6 +215,14 @@ async function clearSessionData(): Promise<void> {
   try {
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');
+    // Themes contain cabinet-specific customization. Logout must forget them,
+    // not simply remove a token while leaving the old cabinet's UI behind.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key === 'digitalcrown_mobile_theme' || key?.startsWith('digitalcrown_mobile_theme:')) {
+        localStorage.removeItem(key);
+      }
+    }
   } catch { /* ignore */ }
 }
 
@@ -404,12 +412,9 @@ export const MobileStorage = {
   },
 
   async clearCredentials(): Promise<void> {
-    await mobileStore().removeItem(STORE_CREDENTIALS_ID);
-    await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
-    await mobileStore().removeItem(STORE_BIOMETRIC_VAULT_ID);
-    unlockedVault = null;
-    biometricAccessToken = null;
-    try { localStorage.removeItem('token'); localStorage.removeItem('refresh_token'); } catch { /* ignore */ }
+    // No partial unpair: credentials, clinical snapshots, pending actions,
+    // bridge, biometric vault and cabinet themes must be cleared together.
+    await clearSessionData();
   },
 
   async clearAll(): Promise<void> {
