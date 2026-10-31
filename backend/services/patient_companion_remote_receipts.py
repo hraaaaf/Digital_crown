@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from typing import Literal
 
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -54,6 +55,13 @@ def claim_remote_command(
         operation=message.operation,
         status="PROCESSING",
     )
+
+    # SQLite's legacy driver can RELEASE a SAVEPOINT before a physical BEGIN,
+    # making the receipt durable even if the later domain/ACK COMMIT fails.
+    # Acquire the real SQLite writer transaction first; this no-op changes no
+    # clinical row and keeps receipt + domain mutation in one rollback boundary.
+    if db.get_bind().dialect.name == "sqlite":
+        db.execute(text("UPDATE patient_companion_remote_receipts SET id = id WHERE 1 = 0"))
 
     try:
         with db.begin_nested():

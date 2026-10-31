@@ -9,6 +9,7 @@ on:
       - backend/tests/test_lot06_c05b03i_concurrent_services.py
       - backend/tests/test_lot06_c05b03j_http_clinic.py
       - backend/tests/test_lot06_c05b03j_p0_clinic.py
+      - backend/services/patient_companion_remote_receipts.py
   workflow_dispatch:
 permissions:
   contents: read
