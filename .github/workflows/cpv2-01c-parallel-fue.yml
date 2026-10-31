@@ -14,6 +14,7 @@ concurrency:
 
 jobs:
   offline-storage-vitest:
+    if: ${{ !contains(github.event.head_commit.message, '[browser-fue]') }}
     name: Targeted MobileStorage A-B-A origin regression
     runs-on: ubuntu-latest
     timeout-minutes: 15
@@ -38,6 +39,7 @@ jobs:
         run: npx vitest run src/services/zka/MobileStorage.snapshot.test.ts src/test/mobileM62Behavior.test.ts --reporter=verbose
 
   paired-tenants-http-fue:
+    if: ${{ !contains(github.event.head_commit.message, '[browser-fue]') }}
     name: Two disposable cabinets real FastAPI pairing A-B-A and RBAC
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -66,3 +68,40 @@ jobs:
         run: python -m pip install -r backend/requirements.txt
       - name: Run two real mobile pairing claims on synthetic tenants, cross-tenant 403/404 and revocation
         run: python -m pytest -q --maxfail=1 backend/tests/test_cpv2_01c_two_cabinet_pairing_fue.py backend/tests/test_mobile_pocket_security_boundary.py
+
+  browser-scope-fue:
+    if: ${{ contains(github.event.head_commit.message, '[browser-fue]') }}
+    name: Chromium browser A-B-A theme, offline and delayed response
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      EVALUATED_SHA: ${{ github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assert exact origin-fix parent and no production rollout
+        run: |
+          git merge-base --is-ancestor 1df95cd19d7499558afa13a6d65487b494e7f937 HEAD
+          printf 'BROWSER_FUE_HEAD=%s\nTYPE=synthetic browser harness\nNO_DEPLOY=true\n' "$(git rev-parse HEAD)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Install isolated Chromium
+        working-directory: frontend
+        run: npx playwright install --with-deps chromium
+      - name: Execute real React hook + IndexedDB browser probe, scope/caches/stale requests
+        working-directory: frontend
+        run: node scripts/certify-cpv2-01c-browser-probe.mjs
+      - name: Upload screenshots and report (probe, not physical certification)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpv2-01c-browser-probe
+          path: artifacts/cpv2-01c-browser-probe/
+          retention-days: 14
