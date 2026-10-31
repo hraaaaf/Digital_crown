@@ -53,6 +53,9 @@ jobs:
           python -m py_compile scripts/ci/lot06_p105_private_shared_clinic.py
           python -m scripts.ci.lot06_p105_private_shared_clinic preflight
           grep -q 'NETWORK_APPROVAL_NOT_GRANTED' scripts/ci/lot06_p105_private_shared_clinic.py
+          grep -q 'P105_NEGATIVE_LIVE_TCP_7079_DENY_PASS' scripts/ci/lot06_p105_private_shared_clinic.py
+          grep -q 'P105_NEGATIVE_LIVE_UDP_7077_DENY_PASS' scripts/ci/lot06_p105_private_shared_clinic.py
+          grep -q 'P105_NEGATIVE_HTTP_AUTH_AND_ROLE_DENY_PASS' scripts/ci/lot06_p105_private_shared_clinic.py
           grep -q 'LOT06_P1_05_TRUE_FIVE_VM_SHARED_REAL_BACKEND_PASS' scripts/ci/lot06_p105_private_shared_clinic.py
           echo LOT06_P105_STATIC_ONLY_PASS_NETWORK_NOT_YET_CERTIFIED
       - name: Install focused real backend for offline ASGI shared host smoke
@@ -168,6 +171,11 @@ jobs:
           assert p["distinct_github_vms"]==5 and p["shared_backend_real"]
           assert (p["appointments"],p["messages"],p["receipts"],p["encrypted_media"])==(1,16,18,8)
           assert p["tailnet_only"] and not p["patient_data_real"] and not p["product_ready"]
+          assert p["security_negative"] == {
+              "tcp_7079_canary_listening": True,
+              "udp_7077_canary_responding": True,
+              "remote_forbidden_hits": 0,
+          }
           print("LOT06_P105_ONE_REAL_SHARED_CLINICAL_BACKEND_PASS")
           PY
               exit 0
@@ -277,11 +285,25 @@ jobs:
           assert host["shared_backend_real"] and host["distinct_github_vms"]==5
           assert (host["appointments"],host["messages"],host["receipts"],host["encrypted_media"])==(1,16,18,8)
           assert host["tailnet_only"] and not host["patient_data_real"] and not host["product_ready"]
+          assert host["security_negative"] == {
+              "tcp_7079_canary_listening": True,
+              "udp_7077_canary_responding": True,
+              "remote_forbidden_hits": 0,
+          }
           ips={host["server_ip"]}; runners={host["server_runner"]}
           for label,n in counts.items():
             row=json.loads((root/("lot06-p105-proof-"+label)/"p105-client-proof.json").read_text())
             assert (row["label"],row["count"],row["sha"],row["run_id"])==(label,n,host["sha"],host["run_id"])
             assert row["real_network_http"] and row["synthetic_only"] and row["samples"]>0
+            neg=row["security_negative"]
+            required_neg=("live_tcp_7079_denied","live_udp_7077_denied",
+                          "missing_token_403","bad_token_403",
+                          "unknown_role_403","cross_role_403")
+            assert all(neg.get(k) is True for k in required_neg)
+            if label in ("patient-a","patient-b"):
+              assert neg.get("cross_patient_404") is True
+            else:
+              assert "cross_patient_404" not in neg
             assert row["runner_name"]==host["peers"][label]["runner"]
             assert row["tailnet_ip"]==host["peers"][label]["ip"]
             assert row["runner_name"] not in runners and row["tailnet_ip"] not in ips
@@ -290,6 +312,7 @@ jobs:
           assert len(ips)==len(runners)==5
           assert all(ipaddress.ip_address(ip) in ipaddress.ip_network("100.64.0.0/10") for ip in ips)
           print("LOT06_P1_05_FIVE_VM_SHARED_REAL_BACKEND_NETWORK_GREEN")
+          print("LOT06_P105_RUNTIME_NEGATIVE_TCP_7079_UDP_7077_AUTH_ROLES_GREEN")
           PY
       - uses: actions/upload-artifact@v4
         with:
