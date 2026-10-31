@@ -141,6 +141,11 @@ try{
   const modalities=page.locator('[aria-label="Modalités d’imagerie"]');
   await modalities.getByRole('button',{name:'Céphalométrie',exact:true}).click();
   await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible',timeout:35000});
+  // The contextual patient overview NBA must not obscure anatomy review.
+  // Deliberately outlast its 1500 ms scheduling window to catch late requests.
+  await page.waitForTimeout(1800);
+  check(await page.getByText(/Dossier à renseigner/).count()===0,
+    'G5_IMAGING_NO_UNRELATED_DOSSIER_NBA_TOAST');
   check(true,'REAL_IMAGING_AND_CEPHALOMETRY_NAVIGATION');
   await page.getByRole('button',{name:'Historique',exact:true}).click();
   await page.locator('[data-cephalo-history-analysis-id="'+ids.older_id+'"]').click();

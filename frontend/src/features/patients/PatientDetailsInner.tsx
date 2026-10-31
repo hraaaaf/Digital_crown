@@ -209,15 +209,25 @@ export const PatientDetails = () => {
   }, [patient?.motif_consultation]);
 
   useEffect(() => {
-    // The contextual next-best-action belongs to clinical navigation, not the Companion admin flow.
-    // Keeping it out of Companion also prevents a large mobile toast from obscuring the access controls.
-    if (!id || activeTab === 'companion') return;
+    // Next-best-action belongs to the overview, not the image-reading workspace.
+    // Only dismiss this patient's own NBA toast; medical alerts remain untouched.
+    const nbaToastId = `patient-nba-${id}`;
+    if (!id || activeTab !== 'tracking') {
+      toast.dismiss(nbaToastId);
+      return;
+    }
+    let active = true;
     const timer = setTimeout(() => {
       api.get(`/intelligence/patient/${id}/nba`).then(res => {
-        if (res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, { duration: 7000 });
+        // An in-flight overview response must not revive a toast over imaging.
+        if (active && res.data.nba) toast(`💡 ${res.data.nba.title} — ${res.data.nba.message}${res.data.nba.action ? ` · Action : ${res.data.nba.action}` : ''}`, { id: nbaToastId, duration: 7000 });
       }).catch(() => {});
     }, 1500);
-    return () => clearTimeout(timer);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+      toast.dismiss(nbaToastId);
+    };
   }, [id, activeTab]);
 
   useEffect(() => {
