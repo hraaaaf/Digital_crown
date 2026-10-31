@@ -21,6 +21,7 @@ vi.mock('../../../hooks/usePWAInstall', () => ({
 }));
 
 vi.mock('../../../services/zka/MobileStorage', () => ({
+  resolveMobileOnboardingApiBaseUrl: vi.fn(() => 'http://127.0.0.1:8005'),
   MobileStorage: {
     saveCredentials: vi.fn(),
     isPaired: vi.fn(),
