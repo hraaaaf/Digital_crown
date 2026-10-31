@@ -70,6 +70,9 @@ try {
     let releaseA = null;
     let offlineMode = false;
     let delayedASeen = false;
+    let holdB = false;
+    let releaseB = null;
+    let delayedBSeen = false;
     await page.route('**/api/clinics/mobile-theme', async route => {
       const method = route.request().method();
       const headers = { 'access-control-allow-origin': '*',
@@ -82,6 +85,11 @@ try {
         holdA = false;
         delayedASeen = true;
         await new Promise(resolve => { releaseA = resolve; });
+      }
+      if (holdB && auth.includes(B.token)) {
+        holdB = false;
+        delayedBSeen = true;
+        await new Promise(resolve => { releaseB = resolve; });
       }
       if (offlineMode) return route.abort('internetdisconnected');
       const clinic = auth.includes(A.token) ? A : auth.includes(B.token) ? B : null;
@@ -141,8 +149,22 @@ try {
     await call(page, 'refresh');
     await observe(page, B);
     assert.equal(await call(page, 'readSnapshot'), null);
+    // Reconnect with a deliberately held B response: assert the old
+    // offline palette cannot be mistaken for a completed network refresh.
     offlineMode = false;
+    holdB = true;
     await call(page, 'refresh');
+    for (let n = 0; n < 100 && !delayedBSeen; n++) {
+      await new Promise(resolve => setTimeout(resolve, 30));
+    }
+    assert.ok(delayedBSeen && releaseB, 'Reconnected B request was not held');
+    const beforeResponse = await page.evaluate(() => ({
+      theme: document.documentElement.dataset.theme,
+      primary: document.documentElement.style.getPropertyValue('--primary').trim(),
+    }));
+    assert.deepEqual(beforeResponse, { theme: '', primary: '' },
+      'A previous B palette must not mask an unfinished reconnect refresh');
+    releaseB();
     await observe(page, B);
 
     // Viewports and zoom verify this probe only, not the complete patient cockpit.
