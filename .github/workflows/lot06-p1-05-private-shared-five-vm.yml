@@ -1,0 +1,289 @@
+name: LOT06 P1-05 five real Tailnet VMs with ONE shared clinical backend
+
+on:
+  push:
+    branches: [test/lot06-p1-05-network-shared-20261031]
+    paths:
+      - .github/workflows/lot06-p1-05-private-shared-five-vm.yml
+      - scripts/ci/lot06_p105_private_shared_clinic.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+  id-token: write
+
+concurrency:
+  group: dc06-p105-five-vm-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  EXPECTED_SHA: ${{ github.sha }}
+  GITHUB_SHA_EXACT: ${{ github.sha }}
+  ENVIRONMENT: test
+  DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+  TELEMETRY_ENABLED: 'false'
+  SECRET_KEY: 'dc06-p105-synthetic-only-never-clinical-disposable-key'
+  CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+
+jobs:
+  static:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 6
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Exact SHA, Python syntax and private-only fail-closed guards
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          test "$GITHUB_REF_NAME" = 'test/lot06-p1-05-network-shared-20261031'
+          python -m py_compile scripts/ci/lot06_p105_private_shared_clinic.py
+          python -m scripts.ci.lot06_p105_private_shared_clinic preflight
+          grep -q 'NETWORK_APPROVAL_NOT_GRANTED' scripts/ci/lot06_p105_private_shared_clinic.py
+          grep -q 'LOT06_P1_05_TRUE_FIVE_VM_SHARED_REAL_BACKEND_PASS' scripts/ci/lot06_p105_private_shared_clinic.py
+          echo LOT06_P105_STATIC_ONLY_PASS_NETWORK_NOT_YET_CERTIFIED
+
+  authorize:
+    if: ${{ vars.C05B03H_NETWORK_POLICY_APPROVED == 'true' }}
+    needs: [static]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    env:
+      TS_ID: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+      TS_AUD: ${{ secrets.TS_AUDIENCE }}
+    steps:
+      - name: Fail closed without scoped OIDC and human-approved private ACL
+        run: |
+          set -euo pipefail
+          test -n "$TS_ID" && test -n "$TS_AUD"
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          echo LOT06_P105_OIDC_PRESENT_NO_VALUES_LOGGED
+
+  server:
+    if: ${{ needs.authorize.result == 'success' && vars.C05B03H_NETWORK_POLICY_APPROVED == 'true' }}
+    needs: [authorize]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 31
+    env:
+      C05B03H_NETWORK_POLICY_APPROVED: ${{ vars.C05B03H_NETWORK_POLICY_APPROVED }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install authentic Patient Companion, Media Core, SQLAlchemy dependencies
+        run: >-
+          python -m pip install
+          'pydantic[email]==2.6.3' fastapi==0.115.6 uvicorn==0.30.6
+          SQLAlchemy==2.0.28 python-dotenv==1.2.1 pydantic-settings==2.2.1
+          python-jose==3.5.0 python-multipart==0.0.31 jwcrypto==1.6.1
+          passlib==1.7.4 bcrypt==3.2.2 qrcode==8.2 pillow==12.2.0
+          arabic-reshaper==3.0.0 python-bidi==0.6.7 reportlab==4.4.10
+          opencv-python-headless==4.13.0.92 httpx==0.28.1
+          firebase-admin==7.5.0 'sentry-sdk[fastapi]==2.69.0'
+          alembic==1.20.0 python-magic==0.4.27 PyMuPDF==1.27.2.3
+          pyotp fido2 jinja2 requests pywebpush
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:dc06-lab
+      - name: Bind real shared server to private tailnet IP only
+        run: |
+          set -euo pipefail
+          ip="$(tailscale ip -4 | head -n 1)"
+          case "$ip" in 100.*) ;; *) exit 1 ;; esac
+          echo "DC06H_TAIL_IP=$ip" >> "$GITHUB_ENV"
+      - name: Start one real shared SQLite/FastAPI/Media Core backend
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          nohup python -u -m scripts.ci.lot06_p105_private_shared_clinic server > p105-host.log 2>&1 </dev/null &
+          echo "$!" > p105-host.pid
+          for i in $(seq 1 120); do
+            if test -s p105-private-room.json; then exit 0; fi
+            if ! kill -0 "$(cat p105-host.pid)" 2>/dev/null; then
+              tail -n 40 p105-host.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::P105_REAL_BACKEND_START_TIMEOUT"
+          tail -n 50 p105-host.log
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lot06-p105-private-room-${{ github.run_id }}
+          path: p105-private-room.json
+          if-no-files-found: error
+          retention-days: 1
+      - name: Verify four peers and shared real backend success
+        run: |
+          set -euo pipefail
+          for i in $(seq 1 1120); do
+            if test -s p105-server-proof.json; then
+              python - <<'PY'
+          import os,json
+          p=json.load(open('p105-server-proof.json'))
+          assert p["sha"]==os.environ["EXPECTED_SHA"]
+          assert p["run_id"]==os.environ["GITHUB_RUN_ID"]
+          assert p["distinct_github_vms"]==5 and p["shared_backend_real"]
+          assert (p["appointments"],p["messages"],p["receipts"],p["encrypted_media"])==(1,16,18,8)
+          assert p["tailnet_only"] and not p["patient_data_real"] and not p["product_ready"]
+          print("LOT06_P105_ONE_REAL_SHARED_CLINICAL_BACKEND_PASS")
+          PY
+              exit 0
+            fi
+            if ! kill -0 "$(cat p105-host.pid)" 2>/dev/null; then
+              tail -n 60 p105-host.log
+              exit 1
+            fi
+            sleep 1
+          done
+          echo "::error::P105_FIVE_VM_REMOTE_TIMEOUT"
+          exit 1
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lot06-p105-proof-server
+          path: p105-server-proof.json
+          if-no-files-found: error
+          retention-days: 14
+      - name: Clean ephemeral server and rendezvous secret
+        if: always()
+        run: |
+          if test -s p105-host.pid; then kill "$(cat p105-host.pid)" 2>/dev/null || true; fi
+          rm -f p105-private-room.json
+
+  peers:
+    if: ${{ needs.authorize.result == 'success' && vars.C05B03H_NETWORK_POLICY_APPROVED == 'true' }}
+    needs: [authorize]
+    name: Dedicated private VM ${{ matrix.label }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 28
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix:
+        include:
+          - {label: patient-a, os: ubuntu-22.04}
+          - {label: patient-b, os: ubuntu-22.04}
+          - {label: staff, os: ubuntu-24.04}
+          - {label: camera, os: ubuntu-24.04}
+    env:
+      C05B03H_NETWORK_POLICY_APPROVED: ${{ vars.C05B03H_NETWORK_POLICY_APPROVED }}
+      GH_API_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with: { persist-credentials: false }
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.12' }
+      - name: Install production JWS/JWE client and synthetic media dependencies
+        run: >-
+          python -m pip install
+          'pydantic[email]==2.6.3' fastapi==0.115.6 SQLAlchemy==2.0.28
+          python-dotenv==1.2.1 pydantic-settings==2.2.1 python-jose==3.5.0
+          python-multipart==0.0.31 jwcrypto==1.6.1
+          passlib==1.7.4 bcrypt==3.2.2 qrcode==8.2 pillow==12.2.0
+          arabic-reshaper==3.0.0 python-bidi==0.6.7 reportlab==4.4.10
+          opencv-python-headless==4.13.0.92 httpx==0.28.1
+          firebase-admin==7.5.0 'sentry-sdk[fastapi]==2.69.0'
+          alembic==1.20.0 python-magic==0.4.27 PyMuPDF==1.27.2.3
+          pyotp fido2 jinja2 requests pywebpush
+      - uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          audience: ${{ secrets.TS_AUDIENCE }}
+          tags: tag:dc06-lab
+      - name: Verify unique private WireGuard VM and exact SHA
+        run: |
+          set -euo pipefail
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          ip="$(tailscale ip -4 | head -n 1)"
+          case "$ip" in 100.*) ;; *) exit 1 ;; esac
+          echo "DC06H_TAIL_IP=$ip" >> "$GITHUB_ENV"
+      - name: Exercise remote production patient/messaging/agenda and media endpoints
+        run: |
+          set -euo pipefail
+          python -u -m scripts.ci.lot06_p105_private_shared_clinic client --label "${{ matrix.label }}"
+          test -s p105-client-proof.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lot06-p105-proof-${{ matrix.label }}
+          path: p105-client-proof.json
+          if-no-files-found: error
+          retention-days: 14
+
+  aggregate:
+    if: ${{ needs.server.result == 'success' && needs.peers.result == 'success' }}
+    needs: [server, peers]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 7
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: lot06-p105-proof-*
+          path: evidence
+      - name: Independently prove five unique VM identities/IPs + one shared DB
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          from pathlib import Path
+          import json,os,ipaddress
+          root=Path("evidence")
+          counts={"patient-a":9,"patient-b":9,"staff":16,"camera":8}
+          expected={"lot06-p105-proof-server"}|{"lot06-p105-proof-"+x for x in counts}
+          assert {p.name for p in root.iterdir() if p.is_dir()}==expected
+          host=json.loads((root/"lot06-p105-proof-server"/"p105-server-proof.json").read_text())
+          assert host["sha"]==os.environ["EXPECTED_SHA"] and host["run_id"]==os.environ["GITHUB_RUN_ID"]
+          assert host["shared_backend_real"] and host["distinct_github_vms"]==5
+          assert (host["appointments"],host["messages"],host["receipts"],host["encrypted_media"])==(1,16,18,8)
+          assert host["tailnet_only"] and not host["patient_data_real"] and not host["product_ready"]
+          ips={host["server_ip"]}; runners={host["server_runner"]}
+          for label,n in counts.items():
+            row=json.loads((root/("lot06-p105-proof-"+label)/"p105-client-proof.json").read_text())
+            assert (row["label"],row["count"],row["sha"],row["run_id"])==(label,n,host["sha"],host["run_id"])
+            assert row["real_network_http"] and row["synthetic_only"] and row["samples"]>0
+            assert row["runner_name"]==host["peers"][label]["runner"]
+            assert row["tailnet_ip"]==host["peers"][label]["ip"]
+            assert row["runner_name"] not in runners and row["tailnet_ip"] not in ips
+            ips.add(row["tailnet_ip"]); runners.add(row["runner_name"])
+            print("LOT06_P105_VERIFIED_FIVE_VM_ROLE",label,"p95_ms",row["p95_ms"])
+          assert len(ips)==len(runners)==5
+          assert all(ipaddress.ip_address(ip) in ipaddress.ip_network("100.64.0.0/10") for ip in ips)
+          print("LOT06_P1_05_FIVE_VM_SHARED_REAL_BACKEND_NETWORK_GREEN")
+          PY
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lot06-p105-aggregate-network-proof
+          path: evidence/
+          if-no-files-found: error
+          retention-days: 14
+
+  verdict:
+    if: always()
+    needs: [static, authorize, server, peers, aggregate]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 3
+    env:
+      STATIC: ${{ needs.static.result }}
+      AUTHORIZE: ${{ needs.authorize.result }}
+      SERVER: ${{ needs.server.result }}
+      PEERS: ${{ needs.peers.result }}
+      AGGREGATE: ${{ needs.aggregate.result }}
+    steps:
+      - name: Distinguish fail-closed static result from actual network certificate
+        run: |
+          set -euo pipefail
+          test "$STATIC" = success
+          if test "$SERVER" = success && test "$PEERS" = success && test "$AGGREGATE" = success; then
+            echo LOT06_P105_FIVE_REAL_PRIVATE_VMS_PRODUCT_NETWORK_CERTIFIED
+          elif test "$AUTHORIZE" = skipped && test "$SERVER" = skipped && test "$PEERS" = skipped; then
+            echo "::notice title=NETWORK PENDING::Policy false; only static preflight passed. NO 5VM NETWORK CERTIFICATION."
+          else
+            echo "::error title=NETWORK FUE RED::Attempted P1-05 network test did not satisfy all real VM proofs."
+            exit 1
+          fi
