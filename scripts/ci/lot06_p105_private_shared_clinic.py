@@ -18,6 +18,8 @@ import os
 from pathlib import Path
 import secrets
 import shutil
+import socket
+import subprocess
 import tempfile
 import threading
 import time
@@ -335,6 +337,9 @@ def run_server():
             check(thread.is_alive(), "PRIVATE_BACKEND_BOOT_FAILED")
             time.sleep(0.1)
         check(server.started, "PRIVATE_BACKEND_TIMEOUT")
+        # Local listener probe on the assigned Tailnet IP; no application token used.
+        with socket.create_connection((room["ip"], PORT), timeout=4):
+            print("P105_SERVER_PRIVATE_TCP_7079_SELF_PROBE_PASS", flush=True)
         room_path = Path("p105-private-room.json")
         room_path.write_text(json.dumps(room))
         os.chmod(room_path, 0o600)
@@ -486,10 +491,37 @@ def percentile(samples, p):
     return round(rows[max(0, (len(rows)*p + 99)//100 - 1)], 2)
 
 
+def diagnose_private_path(room):
+    """Bounded, secret-free peer diagnostics: Tailscale TSMP, ICMP and TCP."""
+    host = room["ip"]
+    check(valid_ip(host) and room["port"] == PORT, "UNEXPECTED_PRIVATE_BACKEND_TARGET")
+    for name, flags in (("TSMP", ("--c=1",)), ("ICMP", ("--icmp", "--c=1"))):
+        try:
+            result = subprocess.run(
+                ["tailscale", "ping", *flags, host],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+                timeout=12, check=False)
+            outcome = "PASS" if result.returncode == 0 else "FAIL"
+        except (OSError, subprocess.TimeoutExpired):
+            outcome = "UNAVAILABLE"
+        print(f"P105_PRIVATE_{name}_PROBE_{outcome}", flush=True)
+    for attempt in range(2):
+        try:
+            with socket.create_connection((host, PORT), timeout=4):
+                print("P105_PRIVATE_TCP_7079_REACHABLE", flush=True)
+                return
+        except OSError as error:
+            print(f"P105_PRIVATE_TCP_7079_PROBE_{type(error).__name__}", flush=True)
+            if attempt == 0:
+                time.sleep(1)
+    raise AssertionError("P105_PRIVATE_TCP_7079_UNREACHABLE_CHECK_ACL_OR_FIREWALL")
+
+
 def run_client(label):
     guard()
     check(label in LABELS, "UNSUPPORTED_FIVE_VM_ROLE")
     room = get_room()
+    diagnose_private_path(room)
     start = time.monotonic()
     join = request(room, label, "POST", "/lab/register",
                    data={"sha": room["sha"], "run_id": room["run_id"],
