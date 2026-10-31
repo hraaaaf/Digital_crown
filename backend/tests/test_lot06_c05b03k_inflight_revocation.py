@@ -10,6 +10,8 @@ from __future__ import annotations
 
 from concurrent.futures import ThreadPoolExecutor
 import uuid
+
+import pytest
 from datetime import datetime
 from threading import Event
 
@@ -17,7 +19,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from backend.models_patient_companion import (
-    PatientCompanionAccess, PatientCompanionMessage, PatientCompanionRemoteReceipt,
+    PatientCompanionAccess, PatientCompanionIdentity, PatientCompanionMessage,
+    PatientCompanionRemoteReceipt, PatientCompanionRemoteKeyset,
+    PatientCompanionCabinetRemoteKey,
 )
 from backend.routers import patient_companion_messages as message_routes
 from backend.services import patient_companion_remote_worker as remote_worker
@@ -175,3 +179,90 @@ def test_p0_04c_command_with_sqlite_writer_lock_commits_before_revocation(
         ).count() == 1
         assert db.get(PatientCompanionAccess, a["access_id"]).revoked_at is not None
     print("LOT06_P0_04C_LOCK_FIRST_COMMAND_COMMIT_BEFORE_REVOCATION_PASS")
+
+
+
+@pytest.mark.parametrize("revocation_kind", [
+    "identity", "keyset", "cabinet_signing_key",
+])
+def test_p0_04d_identity_keyset_or_cabinet_key_revoked_after_auth_denies(
+    synthetic_cabinet, monkeypatch, revocation_kind,
+):
+    """All three revocations COMMIT before the authenticated worker resumes."""
+    app, engine, employer_id, users, _ = _fixture(synthetic_cabinet, monkeypatch)
+    a, b = users
+    intent = uuid.uuid4()
+    blob = _command(a, "message.send", {
+        "client_message_id": str(uuid.uuid4()),
+        "body": "P0-04D pending command after " + revocation_kind,
+    }, key=intent)
+
+    arrived = Event()
+    proceed = Event()
+    original = message_routes.process_remote_envelope
+
+    def pause_after_http_auth(db, **kwargs):
+        if kwargs["access"].public_id == a["public_id"]:
+            arrived.set()
+            assert proceed.wait(timeout=15), "in-flight revocation timing"
+        return original(db, **kwargs)
+
+    monkeypatch.setattr(message_routes, "process_remote_envelope", pause_after_http_auth)
+
+    def command():
+        with TestClient(app, raise_server_exceptions=False) as client:
+            return client.post(
+                "/contexts/" + a["public_id"] + "/messages/remote-command",
+                headers={"Authorization": a["authorization"]},
+                json={"blob": blob},
+            )
+
+    with ThreadPoolExecutor(max_workers=1) as pool:
+        future = pool.submit(command)
+        try:
+            assert arrived.wait(timeout=20), "HTTP auth/keyset was not reached"
+            with Session(engine) as db:
+                access = db.get(PatientCompanionAccess, a["access_id"])
+                if revocation_kind == "identity":
+                    target = db.get(PatientCompanionIdentity, access.identity_id)
+                else:
+                    keyset = db.query(PatientCompanionRemoteKeyset).filter_by(
+                        access_id=access.id, status="ACTIVE",
+                    ).one()
+                    if revocation_kind == "keyset":
+                        target = keyset
+                    else:
+                        target = db.query(PatientCompanionCabinetRemoteKey).filter_by(
+                            employer_id=employer_id,
+                            kid=keyset.cabinet_signing_kid,
+                            key_use="sig",
+                        ).one()
+                target.revoked_at = datetime.utcnow()
+                db.commit()
+            with Session(engine) as db:
+                assert db.get(type(target), target.id).revoked_at is not None
+        finally:
+            proceed.set()
+        response = future.result(timeout=35)
+
+    assert response.status_code in {400, 401, 403, 404, 409}, (
+        revocation_kind, response.status_code, response.text[:240],
+    )
+    assert "blob" not in response.text, revocation_kind
+    with Session(engine) as db:
+        assert db.query(PatientCompanionMessage).filter_by(
+            access_id=a["access_id"],
+        ).count() == 0
+        assert db.query(PatientCompanionRemoteReceipt).filter_by(
+            access_id=a["access_id"], idempotency_key=str(intent),
+        ).count() == 0
+    # Other patient must remain authorized even when A's identity/keyset ends.
+    # Cabinet signing keys are tenant-scoped and shared: their revocation
+    # necessarily prevents signing ACKs for patient B as well until re-key.
+    if revocation_kind != "cabinet_signing_key":
+        other = _ack(b, _post(app, b, "messages", _command(b, "message.send", {
+            "client_message_id": str(uuid.uuid4()),
+            "body": "other patient continues despite A revocation",
+        })))
+        assert other["status"] == "ACCEPTED"
+    print("LOT06_P0_04D_REVOKED_INFLIGHT_DENIED_PASS", revocation_kind)

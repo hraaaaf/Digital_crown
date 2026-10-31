@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from backend import models
 from backend.models_patient_companion import (
     PatientCompanionAccess,
+    PatientCompanionIdentity,
     PatientCompanionCabinetRemoteKey,
     PatientCompanionRemoteKeyset,
 )
@@ -184,6 +185,32 @@ def process_remote_envelope(
     try:
         claim = claim_remote_command(db, access=access, message=message)
     except (RemoteReplayDetected, RemoteCommandBusy):
+        raise
+
+    # A remote JWT and keyset can be revoked after the route has authenticated
+    # them, but before this worker commits. claim_remote_command acquires the
+    # transaction's writer fence first. Re-read all patient authority *under*
+    # that fence; never trust cached ORM objects to authorize a late command.
+    # The check also applies to idempotent replays: revoked keys cannot fetch
+    # a previously successful encrypted ACK.
+    try:
+        identity_revoked = db.query(PatientCompanionIdentity.revoked_at).filter(
+            PatientCompanionIdentity.id == access.identity_id,
+        ).scalar()
+        # A missing identity is invalid too (FKs enforce identity for normal DBs).
+        if identity_revoked is not None or db.query(PatientCompanionIdentity.id).filter(
+            PatientCompanionIdentity.id == access.identity_id,
+        ).first() is None:
+            raise RemoteTransportRejected("patient identity unavailable or revoked")
+        db.refresh(keyset, attribute_names=["status", "revoked_at"])
+        if keyset.access_id != access.id or keyset.status != "ACTIVE" or keyset.revoked_at is not None:
+            raise RemoteTransportRejected("remote keyset no longer active")
+        for cabinet_key in (cabinet_encryption, cabinet_signing):
+            db.refresh(cabinet_key, attribute_names=["status", "revoked_at"])
+            if cabinet_key.revoked_at is not None or cabinet_key.status not in ("ACTIVE", "RETIRED"):
+                raise RemoteTransportRejected("cabinet remote key no longer permitted")
+    except Exception:
+        db.rollback()
         raise
 
     if claim.kind == "idempotent_result":
