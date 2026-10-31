@@ -6,6 +6,12 @@ name: LOT06 P1-05 five real Tailnet VMs with ONE shared clinical backend
 
 on:
   workflow_dispatch:
+    inputs:
+      enable_private_five_vm_network:
+        description: 'Authorize 5 ephemeral Tailnet LAB VMs (synthetic data only)'
+        type: boolean
+        required: true
+        default: false
 
 permissions: {}
 
