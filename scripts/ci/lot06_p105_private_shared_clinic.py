@@ -30,7 +30,7 @@ import zipfile
 
 NETWORK = ipaddress.ip_network("100.64.0.0/10")
 LABELS = ("patient-a", "patient-b", "staff", "camera")
-PORT = 7079
+PORT = 7077
 ROUNDS = 8
 TAG = "DC06_P105_5_VM_ONE_REAL_BACKEND_SYNTHETIC_V1"
 
@@ -339,7 +339,7 @@ def run_server():
         check(server.started, "PRIVATE_BACKEND_TIMEOUT")
         # Local listener probe on the assigned Tailnet IP; no application token used.
         with socket.create_connection((room["ip"], PORT), timeout=4):
-            print("P105_SERVER_PRIVATE_TCP_7079_SELF_PROBE_PASS", flush=True)
+            print("P105_SERVER_PRIVATE_TCP_7077_SELF_PROBE_PASS", flush=True)
         room_path = Path("p105-private-room.json")
         room_path.write_text(json.dumps(room))
         os.chmod(room_path, 0o600)
@@ -495,7 +495,7 @@ def diagnose_private_path(room):
     """Bounded, secret-free peer diagnostics: Tailscale TSMP, ICMP and TCP."""
     host = room["ip"]
     check(valid_ip(host) and room["port"] == PORT, "UNEXPECTED_PRIVATE_BACKEND_TARGET")
-    for name, flags in (("TSMP", ("--c=1",)), ("ICMP", ("--icmp", "--c=1"))):
+    for name, flags in (("TSMP", ("--tsmp", "--c=1")), ("ICMP", ("--icmp", "--c=1"))):
         try:
             result = subprocess.run(
                 ["tailscale", "ping", *flags, host],
@@ -508,13 +508,13 @@ def diagnose_private_path(room):
     for attempt in range(2):
         try:
             with socket.create_connection((host, PORT), timeout=4):
-                print("P105_PRIVATE_TCP_7079_REACHABLE", flush=True)
+                print("P105_PRIVATE_TCP_7077_REACHABLE", flush=True)
                 return
         except OSError as error:
-            print(f"P105_PRIVATE_TCP_7079_PROBE_{type(error).__name__}", flush=True)
+            print(f"P105_PRIVATE_TCP_7077_PROBE_{type(error).__name__}", flush=True)
             if attempt == 0:
                 time.sleep(1)
-    raise AssertionError("P105_PRIVATE_TCP_7079_UNREACHABLE_CHECK_ACL_OR_FIREWALL")
+    raise AssertionError("P105_PRIVATE_TCP_7077_UNREACHABLE_CHECK_ACL_OR_FIREWALL")
 
 
 def run_client(label):
