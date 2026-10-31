@@ -91,4 +91,32 @@ describe('MobileStorage snapshot scope', () => {
     expect(await MobileStorage.getActionQueue()).toEqual([]);
   });
 
+  it('must forget all clinical offline state on explicit unlink, including theme and queue', async () => {
+    const current = credentials({ api_base_url: 'http://127.0.0.1:8005' });
+    await MobileStorage.saveCredentials(current);
+    await MobileStorage.saveLastSnapshot({ patient: 'DISPOSABLE_PHI_MARKER' }, '2026-09-27');
+    await MobileStorage.enqueueAction(
+      'http://127.0.0.1:8005/api/mobile/appointments/7/status',
+      'PATCH', { status: 'EN_ATTENTE' }, 'action-before-unlink',
+    );
+    store.set('zka_bridge_context', { key: 'DISPOSABLE_CONTEXT' });
+    store.set('zka_biometric_vault_v1', { fake: 'DISPOSABLE_VAULT' });
+    localStorage.setItem('digitalcrown_mobile_theme:http%3A%2F%2F127.0.0.1%3A8005:a', '{"selected_theme":"rose"}');
+    localStorage.setItem('digitalcrown_mobile_theme:old', 'OLD_THEME');
+    localStorage.setItem('token', 'legacy');
+    localStorage.setItem('unrelated-setting', 'keep');
+
+    await MobileStorage.clearCredentials();
+    for (const key of ['zka_credentials', 'zka_last_snapshot', 'zka_action_queue_v2',
+      'zka_bridge_context', 'zka_biometric_vault_v1']) {
+      expect(store.has(key), key).toBe(false);
+    }
+    expect(await MobileStorage.getLastSnapshot('2026-09-27')).toBeNull();
+    expect(await MobileStorage.getActionQueue()).toEqual([]);
+    expect(await MobileStorage.isPaired()).toBe(false);
+    expect(localStorage.getItem('digitalcrown_mobile_theme:old')).toBeNull();
+    expect(localStorage.getItem('token')).toBeNull();
+    expect(localStorage.getItem('unrelated-setting')).toBe('keep');
+  });
+
 });
