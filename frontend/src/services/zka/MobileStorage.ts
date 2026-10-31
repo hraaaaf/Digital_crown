@@ -266,7 +266,10 @@ export const MobileStorage = {
     }
 
     const previous = await rawCredentials();
-    const scopeChanged = !previous || previous.publicId !== creds.publicId || previous.device_id !== creds.device_id;
+    const scopeChanged = !previous
+      || previous.publicId !== creds.publicId
+      || previous.device_id !== creds.device_id
+      || previous.api_base_url !== creds.api_base_url;
     if (scopeChanged) {
       await mobileStore().removeItem(STORE_SNAPSHOT_ID);
       await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);

@@ -60,4 +60,35 @@ describe('MobileStorage snapshot scope', () => {
 
     expect(await MobileStorage.getLastSnapshot('2026-09-27')).toBeNull();
   });
+  it('purges A offline snapshot and queued actions when API origin changes despite same tenant/device IDs', async () => {
+    const a = credentials({ api_base_url: 'http://127.0.0.1:8005' });
+    const b = credentials({ api_base_url: 'http://127.0.0.1:8105' });
+    const day = '2026-09-27';
+
+    await MobileStorage.saveCredentials(a);
+    await MobileStorage.saveLastSnapshot({ marker: 'synthetic-A' }, day);
+    await MobileStorage.enqueueAction(
+      'http://127.0.0.1:8005/api/mobile/appointments/7/status',
+      'PATCH',
+      { status: 'EN_ATTENTE' },
+      'synthetic-A-action',
+    );
+    expect((await MobileStorage.getLastSnapshot(day))?.data).toEqual({ marker: 'synthetic-A' });
+    expect(await MobileStorage.getActionQueue()).toHaveLength(1);
+
+    // A→B: same opaque cabinet/device IDs on another API origin must not leak A state.
+    await MobileStorage.saveCredentials(b);
+    expect(await MobileStorage.getLastSnapshot(day)).toBeNull();
+    expect(await MobileStorage.getActionQueue()).toEqual([]);
+    expect(store.has('zka_action_queue_v2')).toBe(false);
+
+    await MobileStorage.saveLastSnapshot({ marker: 'synthetic-B' }, day);
+    expect((await MobileStorage.getLastSnapshot(day))?.data).toEqual({ marker: 'synthetic-B' });
+
+    // B→A: returning to A must also remove B's offline snapshot.
+    await MobileStorage.saveCredentials(a);
+    expect(await MobileStorage.getLastSnapshot(day)).toBeNull();
+    expect(await MobileStorage.getActionQueue()).toEqual([]);
+  });
+
 });
