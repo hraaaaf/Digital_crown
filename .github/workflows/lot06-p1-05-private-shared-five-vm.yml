@@ -6,6 +6,7 @@ on:
     paths:
       - .github/workflows/lot06-p1-05-private-shared-five-vm.yml
       - scripts/ci/lot06_p105_private_shared_clinic.py
+      - scripts/ci/lot06_p105_shared_backend_smoke.py
   workflow_dispatch:
 
 permissions:
@@ -45,6 +46,27 @@ jobs:
           grep -q 'NETWORK_APPROVAL_NOT_GRANTED' scripts/ci/lot06_p105_private_shared_clinic.py
           grep -q 'LOT06_P1_05_TRUE_FIVE_VM_SHARED_REAL_BACKEND_PASS' scripts/ci/lot06_p105_private_shared_clinic.py
           echo LOT06_P105_STATIC_ONLY_PASS_NETWORK_NOT_YET_CERTIFIED
+      - name: Install focused real backend for offline ASGI shared host smoke
+        run: >-
+          python -m pip install
+          'pydantic[email]==2.6.3' fastapi==0.115.6
+          SQLAlchemy==2.0.28 python-dotenv==1.2.1 pydantic-settings==2.2.1
+          python-jose==3.5.0 python-multipart==0.0.31 jwcrypto==1.6.1
+          passlib==1.7.4 bcrypt==3.2.2 qrcode==8.2 pillow==12.2.0
+          arabic-reshaper==3.0.0 python-bidi==0.6.7 reportlab==4.4.10
+          opencv-python-headless==4.13.0.92 httpx==0.28.1
+          firebase-admin==7.5.0 'sentry-sdk[fastapi]==2.69.0'
+          alembic==1.20.0 python-magic==0.4.27 PyMuPDF==1.27.2.3
+          pyotp fido2 jinja2 requests pywebpush
+      - name: Start REAL shared app in-process and test JWE + Media Core over ASGI
+        env:
+          C05B03H_NETWORK_POLICY_APPROVED: 'false'
+          DC06H_TAIL_IP: '100.64.0.1'
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+          python -m py_compile scripts/ci/lot06_p105_shared_backend_smoke.py
+          python -m scripts.ci.lot06_p105_shared_backend_smoke
 
   authorize:
     if: ${{ vars.C05B03H_NETWORK_POLICY_APPROVED == 'true' }}
