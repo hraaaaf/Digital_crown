@@ -5,7 +5,6 @@ patient data, deploy a clinical backend, or issue a production certification.
 Five distinct github-hosted VMs and Tailscale IPs are required. Test-only JWK,
 JWT and shared lab token exist only in a one-day GitHub artifact for this run.
 """
-from __future__ import annotations
 
 import argparse
 from collections import Counter
