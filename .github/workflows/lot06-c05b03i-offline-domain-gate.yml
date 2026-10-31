@@ -8,6 +8,7 @@ on:
       - backend/tests/test_lot06_c05b03i_product_contract.py
       - backend/tests/test_lot06_c05b03i_concurrent_services.py
       - backend/tests/test_lot06_c05b03j_http_clinic.py
+      - backend/tests/test_lot06_c05b03j_p0_clinic.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -93,6 +94,7 @@ jobs:
               "backend/tests/test_lot06_c05b03i_product_contract.py",
               "backend/tests/test_lot06_c05b03i_concurrent_services.py",
               "backend/tests/test_lot06_c05b03j_http_clinic.py",
+              "backend/tests/test_lot06_c05b03j_p0_clinic.py",
               "-q", "-s", "--maxfail=1",
           ]))
           PY
