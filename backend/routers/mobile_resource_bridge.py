@@ -8,6 +8,8 @@ import logging
 import mimetypes
 import os
 import secrets
+import hashlib
+import uuid
 
 from fastapi import APIRouter, Depends, File, Form, Header, HTTPException, UploadFile
 from fastapi.responses import FileResponse
@@ -18,7 +20,7 @@ from backend.services.clinical_photo_normalization import (
     CLINICAL_PHOTO_MAX_BYTES,
     normalize_clinical_photo,
 )
-from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, delete, insert, or_, select
+from sqlalchemy import Column, DateTime, ForeignKey, Integer, String, Table, delete, insert, or_, select, text
 from sqlalchemy.orm import Session
 
 from backend import database, models
@@ -632,6 +634,7 @@ def get_resource_context(
 async def upload_resource_context_photo(
     context_key: str = Form(...),
     file: UploadFile = File(...),
+    capture_id: str | None = Form(None),
     authorization: str = Header(...),
     db: Session = Depends(database.get_db),
 ):
@@ -640,7 +643,8 @@ async def upload_resource_context_photo(
         ingest_clinical_asset_bytes,
     )
     from backend.services.clinical_asset_service import ClinicalAssetInvariantError
-    from backend.services.clinical_asset_storage import ClinicalAssetStorageError
+    from backend.services.clinical_asset_storage import ClinicalAssetStorageError, read_clinical_asset_bytes
+    from backend.models_media_core import ClinicalAsset
 
     mobile_user, context = _validated_mobile_context(db, authorization, context_key)
     if not has_permission(mobile_user, 'clinical'):
@@ -659,6 +663,67 @@ async def upload_resource_context_photo(
         await file.close()
     normalized = normalize_clinical_photo(raw)
 
+    # A device may retry after losing the HTTP ACK. A supplied capture_id
+    # represents exactly ONE patient-bound photo and must never be reassigned
+    # to a different patient or different bytes. Legacy callers remain valid
+    # but do not acquire replay protection until they supply this field.
+    source_ref = 'MOBILE_RESOURCE_BRIDGE'
+    if capture_id is not None:
+        try:
+            canonical_capture_id = str(uuid.UUID(capture_id))
+        except (ValueError, AttributeError, TypeError):
+            raise HTTPException(status_code=422, detail="capture_id doit être un UUID opaque.") from None
+        source_ref = 'MOBILE_RESOURCE_BRIDGE:' + canonical_capture_id
+        tenant = int(mobile_user.get_employer_id())
+        dialect = db.get_bind().dialect.name
+        if dialect == 'sqlite':
+            db.execute(text("UPDATE clinical_assets SET id = id WHERE 1 = 0"))
+        elif dialect == 'postgresql':
+            db.execute(text("SELECT pg_advisory_xact_lock(1420961, :tenant)"), {"tenant": tenant})
+        else:
+            raise HTTPException(status_code=503, detail="Protection transactionnelle indisponible.")
+        existing = db.query(ClinicalAsset).filter(
+            ClinicalAsset.employer_id == tenant,
+            ClinicalAsset.source_kind == 'DEVICE_CAPTURE',
+            ClinicalAsset.source_ref == source_ref,
+        ).first()
+        if existing is not None:
+            if existing.patient_id != patient.id:
+                db.rollback()
+                raise HTTPException(status_code=409, detail="capture_id déjà associé à un autre dossier.")
+            if existing.sha256 != hashlib.sha256(normalized).hexdigest():
+                db.rollback()
+                raise HTTPException(status_code=409, detail="capture_id déjà associé à un autre contenu.")
+            try:
+                read_clinical_asset_bytes(
+                    db, employer_id=tenant, patient_id=patient.id, asset_id=existing.id,
+                )
+            except ClinicalAssetStorageError as exc:
+                db.rollback()
+                raise HTTPException(status_code=503, detail="Photo précédente non vérifiable.") from exc
+            thumb = db.query(ClinicalAsset).filter(
+                ClinicalAsset.parent_asset_id == existing.id,
+                ClinicalAsset.employer_id == tenant,
+                ClinicalAsset.patient_id == patient.id,
+                ClinicalAsset.source_kind == 'DERIVED',
+            ).first()
+            created = existing.created_at.isoformat() if existing.created_at else None
+            asset_id, thumb_id = existing.id, thumb.id if thumb else None
+            db.rollback()  # Release writer fence before returning the stored ACK.
+            return {
+                'success': True,
+                'asset': {
+                    'id': asset_id, 'asset_type': 'PHOTO',
+                    'source_kind': 'DEVICE_CAPTURE', 'mime_type': 'image/jpeg',
+                    'thumbnail_asset_id': thumb_id, 'created_at': created,
+                },
+                'document': {
+                    'id': asset_id,
+                    'document_type': models.DocumentType.PHOTO_CLINIQUE.value,
+                    'title': 'Photo clinique', 'created_at': created,
+                },
+            }
+
     captured_at = datetime.utcnow()
     filename = f"device-capture-{captured_at.strftime('%Y%m%d-%H%M%S')}-{secrets.token_hex(4)}.jpg"
     try:
@@ -671,7 +736,7 @@ async def upload_resource_context_photo(
             content=normalized,
             original_filename=filename,
             claimed_mime_type='image/jpeg',
-            source_ref='MOBILE_RESOURCE_BRIDGE',
+            source_ref=source_ref,
             captured_at=captured_at,
             created_by=int(mobile_user.id),
             provenance_json={

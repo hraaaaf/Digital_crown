@@ -295,6 +295,9 @@ async def import_clinical_asset(
     try:
         if source_ref and source_ref.strip().upper().startswith(ORTHO_PHOTO_SOURCE_PREFIX):
             raise HTTPException(status_code=422, detail="Reserved orthodontic source_ref namespace")
+        # The mobile endpoint alone may mint replay-bound camera provenance.
+        if source_ref and source_ref.strip().upper().startswith("MOBILE_RESOURCE_BRIDGE:"):
+            raise HTTPException(status_code=422, detail="Reserved mobile capture source_ref namespace")
         content = await file.read(MAX_IMPORT_BYTES + 1)
         if len(content) > MAX_IMPORT_BYTES:
             raise HTTPException(status_code=413, detail="Clinical media exceeds the import size limit")
