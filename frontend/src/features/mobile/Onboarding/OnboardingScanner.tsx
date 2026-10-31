@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight, Share, Plus } from 'lucide-react';
-import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
+import { MobileStorage, resolveMobileOnboardingApiBaseUrl, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
 import { usePWAInstall } from '../../../hooks/usePWAInstall';
 import {
   deriveMasterKey,
@@ -16,15 +16,7 @@ const PREVIEW_DEMO_HOSTS = new Set([
   'digital-crown-p2-runtime-git-51e609-achraf-benmoussa-s-projects.vercel.app',
 ]);
 
-function resolveApiBase(): string {
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8005';
-  }
-  return `${window.location.protocol}//${hostname}:8005`;
-}
-
-const API_BASE = resolveApiBase();
+const API_BASE = resolveMobileOnboardingApiBaseUrl();
 
 const BRIDGE_ROUTES: Record<string, string> = {
   agenda: '/mobile/dashboard?tab=agenda',
