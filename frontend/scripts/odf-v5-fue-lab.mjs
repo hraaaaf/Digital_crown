@@ -40,14 +40,14 @@ const snap=async label=>{
 /**
  * Capture the REAL rendered G5 SVG at its entire 1935 x 2400 source extent
  * and the COMPLETE clinical editor. Ordinary 1280x900 page screenshots cut
- * off the film; this read-only DOM clone preserves the live image blob, all
- * 6 guide paths and every source-pixel coordinate. No screenshot mock-up.
+ * off the film; this read-only DOM clone preserves the live image blob, two
+ * historical visual-only guides and every source-pixel coordinate. No screenshot mock-up.
  */
 const snapG5Complete=async(label,surfaceTestId)=>{
   const section=page.getByTestId('odf-g5-manual-tracing');
   const svg=page.getByTestId(surfaceTestId);
-  check(await svg.getByTestId('g5-visual-reference-overlay').locator('path').count()===6,
-    'G5_CAPTURE_SIX_LIVE_REFERENCE_PATHS_'+label);
+  check(await svg.getByTestId('g5-visual-reference-overlay').locator('path').count()===2,
+    'G5_CAPTURE_TWO_LIVE_VISUAL_ONLY_PATHS_'+label);
   const before=page.viewportSize();
   await page.setViewportSize({width:2048,height:2560});
   const sectionName='G5-editor-integral-'+label+'.png';
@@ -61,8 +61,8 @@ const snapG5Complete=async(label,surfaceTestId)=>{
       const img=source.querySelector('image');
       const url=img?.getAttribute('href')||img?.getAttribute('xlink:href');
       if(!url?.startsWith('blob:'))throw Error('G5_CAPTURE_NOT_VERIFIED_BLOB');
-      if(source.querySelectorAll('[data-testid="g5-visual-reference-overlay"] path').length!==6)
-        throw Error('G5_CAPTURE_MISSING_REFERENCE_PATHS');
+      if(source.querySelectorAll('[data-testid="g5-visual-reference-overlay"] path').length!==2)
+        throw Error('G5_CAPTURE_BAD_ACCEPTED_VISUAL_PATH_COUNT');
       const clone=source.cloneNode(true);
       clone.setAttribute('viewBox','0 0 1935 2400');
       clone.setAttribute('width','1935');
@@ -283,53 +283,59 @@ try{
     await referenceToggle.click();
     const reference=ui.getByTestId('g5-visual-reference-overlay');
     await reference.waitFor({state:'visible'});
-    check(await reference.locator('path').count()===6
-      &&await reference.locator('path[stroke-dasharray="18 18"]').count()===4,
-      'G5_VISUAL_REFERENCE_SIX_LAYERS_FOUR_DASHED');
-    check((await ui.getByTestId('g5-reference-warning').innerText()).includes('jamais copiée'),
+    check(await reference.locator('path').count()===2
+      &&await reference.locator('path[stroke-dasharray]').count()===0
+      &&await ui.getByTestId('g5-reference-cranial_base').count()===0
+      &&await ui.getByTestId('g5-reference-maxilla').count()===0
+      &&await ui.getByTestId('g5-reference-upper_incisor').count()===0
+      &&await ui.getByTestId('g5-reference-lower_incisor').count()===0,
+      'G5_REJECTED_FOUR_GUIDES_NEVER_RENDERED');
+    check((await ui.getByTestId('g5-reference-warning').innerText()).includes('Quatre anciens guides REJETÉS'),
       'G5_VISUAL_REFERENCE_EXPLICIT_NONCLINICAL_WARNING');
     await snap('g5-00-source-verified-reference-readonly');
     await snapG5Complete('reference-readonly','odf-g5-drawing-surface');
-    // Four practitioner review stops: guide isolated (READ-ONLY), source
-    // pixel ×4 region, manually editable selected contour, no API mutation.
-    const uncertainGuides=[
-      ['cranial_base','Base du crâne'],
-      ['maxilla','Maxillaire'],
-      ['upper_incisor','Incisive supérieure'],
-      ['lower_incisor','Incisive inférieure'],
-    ];
-    for(const [id,label] of uncertainGuides){
+    // Four practitioner review stops on the source radio ALONE, without
+    // the previously rejected schematic guide coordinates.
+    // These unapproved coarse boxes ONLY navigate: never medical truth.
+    const navBoxes={
+      cranial_base:[476,663,1305,1092],
+      maxilla:[792,1235,1471,1542],
+      upper_incisor:[1295,1325,1476,1569],
+      lower_incisor:[1249,1505,1491,1751],
+    };
+    for(const [id,box] of Object.entries(navBoxes)){
       const focus=ui.getByTestId('g5-review-focus-'+id);
       await focus.click();
       const drawn=ui.getByTestId('odf-g5-drawing-surface');
-      const overlay=drawn.getByTestId('g5-visual-reference-overlay');
-      const guides=overlay.locator('path');
       const viewBox=(await drawn.getAttribute('viewBox')||'').split(/\s+/).map(Number);
+      const center=[viewBox[0]+viewBox[2]/2,viewBox[1]+viewBox[3]/2];
       check(await focus.getAttribute('aria-pressed')==='true'
         &&await ui.getByTestId('g5-zoom-4').getAttribute('aria-pressed')==='true'
-        &&await guides.count()===1
-        &&await overlay.getByTestId('g5-reference-'+id).count()===1
-        &&await guides.first().getAttribute('stroke-dasharray')==='18 18'
+        &&await drawn.getByTestId('g5-visual-reference-overlay').count()===0
+        &&await drawn.locator('image[data-testid="g5-source-film-image"]').count()===1
+        &&await ui.getByTestId('g5-structure-select-'+id).getAttribute('aria-pressed')==='true'
         &&Math.abs(viewBox[2]-1935/4)<0.01
-        &&Math.abs(viewBox[3]-2400/4)<0.01,
-        'G5_UNCERTAIN_REGION_SOURCE_PIXEL_FOCUS_'+id);
+        &&Math.abs(viewBox[3]-2400/4)<0.01
+        &&Math.abs(center[0]-(box[0]+box[2])/2)<0.01
+        &&Math.abs(center[1]-(box[1]+box[3])/2)<0.01,
+        'G5_REJECTED_REGION_RAW_FILM_ONLY_'+id);
       check((await ui.getByTestId('g5-review-focus-status').innerText())
-        .includes('jamais signé automatiquement'),
-        'G5_UNCERTAIN_REGION_NOT_AUTO_APPROVED_'+id);
-      await drawn.screenshot({path:path.join(out,'G5-review-zone-'+id+'-source-pixel-x4.png'),
+        .includes('AUCUN guide affiché'),
+        'G5_REJECTED_REGION_EXPLICIT_NO_ANATOMY_CLAIM_'+id);
+      await drawn.screenshot({path:path.join(out,'G5-source-brute-zone-'+id+'-no-guide-x4.png'),
         animations:'disabled'});
-      report.screenshots.push('G5-review-zone-'+id+'-source-pixel-x4.png');
+      report.screenshots.push('G5-source-brute-zone-'+id+'-no-guide-x4.png');
     }
     const stillEmpty=await api.get(g5Url,{headers,params:{expected_revision:revision}});
     const stillEmptyData=await stillEmpty.json();
     check(stillEmpty.status()===200 && stillEmptyData.draft_version===0
       &&!stillEmptyData.approved
       &&stillEmptyData.contours.every(c=>c.points.length===0),
-      'G5_FOUR_UNCERTAIN_GUIDE_FOCUS_NO_API_WRITE');
+      'G5_FOUR_RAW_FILM_VIEWS_NO_API_WRITE');
     await ui.getByTestId('g5-review-overview').click();
     check(await ui.getByTestId('g5-zoom-1').getAttribute('aria-pressed')==='true'
-      &&await surface.getByTestId('g5-visual-reference-overlay').locator('path').count()===6,
-      'G5_UNCERTAIN_REGION_OVERVIEW_RESTORE_SIX_GUIDES');
+      &&await surface.getByTestId('g5-visual-reference-overlay').locator('path').count()===2,
+      'G5_RAW_REGION_OVERVIEW_ONLY_TWO_HISTORICAL_VISUAL_GUIDES');
     // Separate real Bézier reference screenshot BEFORE synthetic QA strokes:
     // the saved browser demo curves below are deliberately NOT anatomy.
     await ui.getByRole('button',{name:/Profil cutané/}).click();
@@ -338,7 +344,7 @@ try{
     const pristineBezierSurface=ui.getByTestId('odf-g5-bezier-surface');
     await pristineBezierSurface.waitFor({state:'visible'});
     check(await pristineBezierSurface.getByTestId('g5-visual-reference-overlay')
-      .locator('path').count()===6 &&
+      .locator('path').count()===2 &&
       await ui.getByTestId('g5-bezier-anchor-0').count()===0,
       'G5_BEZIER_REFERENCE_BEFORE_ANY_SYNTHETIC_ANNOTATION');
     await snapG5Complete('bezier-pristine-reference','odf-g5-bezier-surface');
@@ -564,7 +570,7 @@ try{
     }
     await reopenedToggle.click();
     check(await reopenedCanvas.getByTestId('g5-visual-reference-overlay')
-      .locator('path').count()===6,
+      .locator('path').count()===2,
       'G5_REFERENCE_VISIBLE_IN_BEZIER_MODE');
     await snap('g5-v2-04b-signed-unsigned-reference-in-bezier-test-only');
     await snapG5Complete('bezier-test-only','odf-g5-bezier-surface');
