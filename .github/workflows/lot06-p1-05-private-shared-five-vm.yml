@@ -8,10 +8,13 @@ on:
   workflow_dispatch:
     inputs:
       enable_private_five_vm_network:
-        description: 'Authorize 5 ephemeral Tailnet LAB VMs (synthetic data only)'
-        type: boolean
+        description: 'EXPLICIT YES authorizes 5 ephemeral Tailnet LAB VMs (synthetic data only)'
+        type: choice
         required: true
-        default: false
+        options:
+          - 'NO'
+          - 'YES'
+        default: 'NO'
 
 permissions: {}
 
