@@ -668,7 +668,9 @@ async def upload_resource_context_photo(
     # to a different patient or different bytes. Legacy callers remain valid
     # but do not acquire replay protection until they supply this field.
     source_ref = 'MOBILE_RESOURCE_BRIDGE'
-    if capture_id is not None:
+    # FastAPI resolves Form(None) over HTTP; direct Python callers can still
+    # supply the default Form marker (legacy mobile unit contracts).
+    if isinstance(capture_id, str):
         try:
             canonical_capture_id = str(uuid.UUID(capture_id))
         except (ValueError, AttributeError, TypeError):
