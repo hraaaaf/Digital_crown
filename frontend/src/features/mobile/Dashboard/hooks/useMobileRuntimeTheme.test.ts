@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it } from 'vitest';
-import { applyMobileRuntimeTheme } from './useMobileRuntimeTheme';
+import { applyMobileRuntimeTheme, bootstrapMobileRuntimeTheme, mobileThemeCacheKey } from './useMobileRuntimeTheme';
 
 describe('mobile runtime theme contract', () => {
   beforeEach(() => {
@@ -27,8 +27,8 @@ describe('mobile runtime theme contract', () => {
     expect(document.documentElement.style.getPropertyValue('--accent')).toBe('#f472b6');
     expect(document.documentElement.style.getPropertyValue('--app-accent')).toBe('#be185d');
     expect(document.documentElement.style.getPropertyValue('--app-font-family')).toContain('Playfair Display');
-    expect(localStorage.getItem('digitalcrown_theme')).toBe('rose');
-    expect(localStorage.getItem('digitalcrown_font_fr')).toBe('playfair');
+    expect(localStorage.getItem('digitalcrown_theme')).toBeNull();
+    expect(localStorage.getItem('digitalcrown_font_fr')).toBeNull();
   });
 
   it('replaces stale theme overrides when the saved cabinet configuration changes', () => {
@@ -52,7 +52,27 @@ describe('mobile runtime theme contract', () => {
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('#003380');
     expect(document.documentElement.style.getPropertyValue('--app-accent')).toBe('');
     expect(document.documentElement.style.getPropertyValue('--app-font-family')).toContain('Inter');
-    expect(localStorage.getItem('digitalcrown_theme')).toBe('elite');
-    expect(localStorage.getItem('digitalcrown_font_fr')).toBe('inter');
+    expect(localStorage.getItem('digitalcrown_theme')).toBeNull();
+    expect(localStorage.getItem('digitalcrown_font_fr')).toBeNull();
+  });
+  it('partitions cached themes by cabinet, device and API origin', () => {
+    const a = mobileThemeCacheKey({ publicId: 'cabinet-A', device_id: 'phone-1', api_base_url: 'https://a.example' });
+    const b = mobileThemeCacheKey({ publicId: 'cabinet-B', device_id: 'phone-1', api_base_url: 'https://a.example' });
+    const otherDevice = mobileThemeCacheKey({ publicId: 'cabinet-A', device_id: 'phone-2', api_base_url: 'https://a.example' });
+    const otherServer = mobileThemeCacheKey({ publicId: 'cabinet-A', device_id: 'phone-1', api_base_url: 'https://b.example' });
+    expect(new Set([a, b, otherDevice, otherServer]).size).toBe(4);
+    applyMobileRuntimeTheme({ selected_theme: 'rose', primary_color: '#db2777' }, a);
+    expect(localStorage.getItem(a)).toContain('rose');
+    expect(localStorage.getItem(b)).toBeNull();
+  });
+
+  it('resets cabinet A overrides before cabinet B is loaded', () => {
+    applyMobileRuntimeTheme({ selected_theme: 'prestige', primary_color: '#123456', app_accent_color: '#654321', font_fr: 'playfair' });
+    bootstrapMobileRuntimeTheme();
+    expect(document.documentElement.dataset.theme).toBe('');
+    expect(document.body.dataset.theme).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--primary')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--app-accent')).toBe('');
+    expect(document.documentElement.style.getPropertyValue('--app-font-family')).toContain('Inter');
   });
 });
