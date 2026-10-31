@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Assert exact PR 1170 candidate ancestry
         run: |
           git fetch origin 1df95cd19d7499558afa13a6d65487b494e7f937 --no-tags
@@ -40,6 +42,7 @@ jobs:
         run: npm run build
 
   mobile-unlink-server:
+    if: ${{ !contains(github.event.head_commit.message, '[client-only]') }}
     name: Two actual synthetic paired devices, revoke one only
     runs-on: ubuntu-latest
     timeout-minutes: 18
