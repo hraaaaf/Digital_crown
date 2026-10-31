@@ -92,9 +92,11 @@ jobs:
       - name: Install frontend
         working-directory: frontend
         run: npm ci --no-audit --no-fund
-      - name: Install isolated Chromium
+      - name: Install pinned Playwright package and isolated Chromium
         working-directory: frontend
-        run: npx playwright install --with-deps chromium
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
       - name: Execute real React hook + IndexedDB browser probe, scope/caches/stale requests
         working-directory: frontend
         run: node scripts/certify-cpv2-01c-browser-probe.mjs
