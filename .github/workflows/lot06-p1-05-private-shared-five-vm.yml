@@ -300,6 +300,7 @@ jobs:
                           "missing_token_403","bad_token_403",
                           "unknown_role_403","cross_role_403")
             assert all(neg.get(k) is True for k in required_neg)
+            assert neg.get("registered_role_ip_spoof_403") is True
             if label in ("patient-a","patient-b"):
               assert neg.get("cross_patient_404") is True
             else:
