@@ -21,6 +21,11 @@ const FONT_STACKS: Record<string, string> = {
 
 const MOBILE_THEME_CACHE_KEY = 'digitalcrown_mobile_theme';
 
+// A theme must never be reused across paired cabinets, devices or API origins.
+export function mobileThemeCacheKey(identity: { publicId: string; device_id?: string; api_base_url: string }): string {
+  return [MOBILE_THEME_CACHE_KEY, encodeURIComponent(identity.api_base_url), encodeURIComponent(identity.publicId), encodeURIComponent(identity.device_id || '')].join(':');
+}
+
 function resolveApiBaseUrl(stored: string): string {
   const hostname = window.location.hostname;
   if (hostname === 'localhost' || hostname === '127.0.0.1') return stored;
@@ -107,7 +112,7 @@ function enableMobileRuntimeFontRouting() {
   document.documentElement.dataset.mobileThemeRuntime = 'true';
 }
 
-export function applyMobileRuntimeTheme(theme: MobileRuntimeTheme) {
+export function applyMobileRuntimeTheme(theme: MobileRuntimeTheme, cacheKey?: string) {
   enableMobileRuntimeFontRouting();
 
   const selectedTheme = theme.selected_theme || 'elite';
@@ -133,7 +138,7 @@ export function applyMobileRuntimeTheme(theme: MobileRuntimeTheme) {
 
   localStorage.setItem('digitalcrown_theme', selectedTheme);
   localStorage.setItem('digitalcrown_font_fr', fontId);
-  localStorage.setItem(MOBILE_THEME_CACHE_KEY, JSON.stringify(theme));
+  if (cacheKey) localStorage.setItem(cacheKey, JSON.stringify(theme));
 
   let metaThemeColor = document.querySelector('meta[name="theme-color"]');
   if (!metaThemeColor) {
@@ -147,20 +152,21 @@ export function applyMobileRuntimeTheme(theme: MobileRuntimeTheme) {
   if (background) metaThemeColor.setAttribute('content', background);
 }
 
-function applyCachedTheme() {
+function applyCachedTheme(cacheKey: string) {
   try {
-    const cached = localStorage.getItem(MOBILE_THEME_CACHE_KEY);
+    const cached = localStorage.getItem(cacheKey);
     if (cached) applyMobileRuntimeTheme(JSON.parse(cached) as MobileRuntimeTheme);
   } catch {
-    localStorage.removeItem(MOBILE_THEME_CACHE_KEY);
+    localStorage.removeItem(cacheKey);
   }
 }
 
 export function bootstrapMobileRuntimeTheme() {
   enableMobileRuntimeFontRouting();
   setCssVariable('--app-font-family', FONT_STACKS.inter);
-  applyCachedTheme();
+  // Do not apply an unscoped theme before paired identity is resolved.
 }
+
 
 export function useMobileRuntimeTheme(refreshKey?: string) {
   useEffect(() => {
@@ -170,6 +176,8 @@ export function useMobileRuntimeTheme(refreshKey?: string) {
     const sync = async () => {
       const creds = await MobileStorage.getCredentials();
       if (!creds || cancelled) return;
+      const cacheKey = mobileThemeCacheKey(creds);
+      applyCachedTheme(cacheKey);
 
       try {
         const response = await mobileFetch(
@@ -185,7 +193,7 @@ export function useMobileRuntimeTheme(refreshKey?: string) {
         const theme: MobileRuntimeTheme = raw.payload
           ? await CryptoService.decryptPayload(raw.payload, creds.masterKey)
           : raw;
-        if (!cancelled) applyMobileRuntimeTheme(theme);
+        if (!cancelled) applyMobileRuntimeTheme(theme, cacheKey);
       } catch {
         // Offline or unavailable: keep the last verified local theme.
       }
