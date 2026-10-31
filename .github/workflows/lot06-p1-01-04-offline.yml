@@ -10,6 +10,11 @@ on:
       - backend/routers/mobile_resource_bridge.py
       - backend/routers/media_core.py
       - backend/services/clinical_asset_ingestion.py
+      - frontend/src/features/agenda/AgendaModal.tsx
+      - frontend/src/features/mobile/Context/MobileContext.tsx
+      - frontend/src/features/dashboard/hooks/useTodayAppointments.ts
+      - frontend/src/features/dashboard/normalizeCabinetAppointments.ts
+      - frontend/src/features/dashboard/types.ts
   workflow_dispatch:
 permissions:
   contents: read
@@ -37,6 +42,18 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Check frontend real client TypeScript integration
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx tsc -b --pretty false
       - name: Install focused P1 appointment, mobile, media, Patient Companion dependencies
         run: >-
           python -m pip install
