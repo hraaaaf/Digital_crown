@@ -6,6 +6,7 @@ on:
       - .github/workflows/lot06-c05b03i-offline-domain-gate.yml
       - scripts/ci/lot06_c05b03i_booking_race.py
       - backend/tests/test_lot06_c05b03i_product_contract.py
+      - backend/tests/test_lot06_c05b03i_concurrent_services.py
   workflow_dispatch:
 permissions:
   contents: read
@@ -89,6 +90,7 @@ jobs:
           sys.modules["backend.routers"] = routers
           raise SystemExit(pytest.main([
               "backend/tests/test_lot06_c05b03i_product_contract.py",
-              "-q", "--maxfail=1",
+              "backend/tests/test_lot06_c05b03i_concurrent_services.py",
+              "-q", "-s", "--maxfail=1",
           ]))
           PY
