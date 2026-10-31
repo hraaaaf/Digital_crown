@@ -74,7 +74,7 @@ def get_stock_alerts(
 def create_stock_item(
     req: StockItemCreate,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("stock_write"))
 ):
     employer_id = current_user.get_employer_id()
     try:
@@ -103,7 +103,7 @@ def update_stock_item(
     item_id: int,
     req: Dict[str, Any],
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("stock_write"))
 ):
     employer_id = current_user.get_employer_id()
     item = (
@@ -132,7 +132,7 @@ def update_stock_item(
 def delete_stock_item(
     item_id: int,
     db: Session = Depends(database.get_db),
-    current_user: models.User = Depends(require_permission("patients"))
+    current_user: models.User = Depends(require_permission("stock_write"))
 ):
     employer_id = current_user.get_employer_id()
     item = (
