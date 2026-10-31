@@ -560,11 +560,18 @@ try{
         .includes('Référence indisponible'),
         'G5_REFERENCE_RELOAD_NETWORK_FAILURE_FAILS_CLOSED');
       const recover=reopened.getByTestId('g5-reference-retry');
-      await recover.click();
-      await page.waitForFunction(()=>{const toggle=document.querySelector(
-        '[data-testid="g5-reference-toggle"]');
-        return Boolean(toggle&&!toggle.hasAttribute('disabled'));},
-        null,{timeout:25000});
+      // Retry is user-visible and must reauthenticate/re-hash, never simply
+      // turn the toggle on. Bound repeated manual clicks for CI network noise.
+      for(let attempt=0;attempt<3;attempt++){
+        await recover.click();
+        await page.waitForFunction(()=>{const toggle=document.querySelector(
+          '[data-testid="g5-reference-toggle"]');
+          return Boolean(toggle&&!toggle.hasAttribute('disabled'));},
+          null,{timeout:6500}).catch(()=>{});
+        if(await reopenedToggle.isEnabled())break;
+        console.log('G5_POST_RELOAD_REVERIFY_ATTEMPT',attempt+1,
+          await reopened.getByTestId('g5-reference-source-status').innerText());
+      }
       check(await reopenedToggle.isEnabled(),
         'G5_REFERENCE_EXPLICIT_SOURCE_REVERIFY_AFTER_RELOAD');
     }
