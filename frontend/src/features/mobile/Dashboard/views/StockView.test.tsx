@@ -38,6 +38,7 @@ describe('StockView MOB-5D', () => {
   it('persists +1 and never exposes a decrement below zero', async () => {
     vi.mocked(mobileApiJson)
       .mockResolvedValueOnce(items as any)
+      .mockResolvedValueOnce({ can_write: true } as any)
       .mockResolvedValueOnce({ ...items[1], quantite: 3, alerte: true } as any);
     render(<StockView />);
 
@@ -55,6 +56,7 @@ describe('StockView MOB-5D', () => {
   it('creates a quick item through the Pocket API and exposes no delete action', async () => {
     vi.mocked(mobileApiJson)
       .mockResolvedValueOnce([] as any)
+      .mockResolvedValueOnce({ can_write: true } as any)
       .mockResolvedValueOnce({ id: 9, nom: 'Compresses', categorie: 'CONSOMMABLE', quantite: 10, seuil_alerte: 4, unite: 'paquets', alerte: false } as any);
     render(<StockView />);
 
@@ -75,5 +77,17 @@ describe('StockView MOB-5D', () => {
       }),
     }));
     expect(await screen.findByText('Compresses')).toBeTruthy();
+  });
+
+  it('fails closed when the server does not grant Stock mutation rights', async () => {
+    vi.mocked(mobileApiJson)
+      .mockResolvedValueOnce(items as any)
+      .mockResolvedValueOnce({ can_write: false } as any);
+    render(<StockView />);
+    expect(await screen.findByText('Composite universel')).toBeTruthy();
+    expect(await screen.findByText(/Consultation uniquement/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ajouter un article' }).hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('button', { name: 'Ajouter une seringues à Composite universel' }).hasAttribute('disabled')).toBe(true);
+    expect(vi.mocked(mobileApiJson).mock.calls).toHaveLength(2);
   });
 });
