@@ -2,7 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {cephaloRepository} from '../cephaloRepository';
 import {G5BezierProfileLabCanvas, type G5BezierNode} from './G5BezierProfileLabCanvas';
 import {G5VisualReferenceOverlay} from './G5VisualReferenceOverlay';
-import {G5_VISUAL_REFERENCE,verifyG5ReferenceFilm} from '../utils/g5VisualReference';
+import {verifyG5ReferenceFilm} from '../utils/g5VisualReference';
 import {API_BASE} from '../../../services/api';
 import {useOrthoStore} from '../stores/useOrthoStore';
 
@@ -23,6 +23,15 @@ const STRUCTURES:{id:CurveId;label:string;min:number;color:string}[]=[
 ];
 const W=1935,H=2400;
 const UNCERTAIN:CurveId[]=['cranial_base','maxilla','upper_incisor','lower_incisor'];
+// Only approximate NAVIGATION windows on the same 1935x2400 Aariz film.
+// Provenance: scripts/g5_medsam_boxes_research_only.json, unapproved ROI
+// proposals. These are NOT curves, segmentations or medical evidence.
+const REVIEW_NAVIGATION_BOXES:Partial<Record<CurveId,readonly [number,number,number,number]>>={
+  cranial_base:[476,663,1305,1092],
+  maxilla:[792,1235,1471,1542],
+  upper_incisor:[1295,1325,1476,1569],
+  lower_incisor:[1249,1505,1491,1751],
+};
 const fresh=():Curve[]=>STRUCTURES.map(item=>({id:item.id,points:[]}));
 const sourceFilmUrl=`${API_BASE}/api/static/uploads/radios/t2-cephalo-seeded.png`;
 
@@ -178,13 +187,12 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
   // own curve. No guide coordinates reach save/approval.
   const focusUncertainGuide=(id:CurveId)=>{
     if(!referenceMatched||!showReference||loading||busy||checkingReference)return;
-    const guide=G5_VISUAL_REFERENCE.curves.find(c=>c.id===id);
-    if(!guide||guide.style!=='dashed'||!UNCERTAIN.includes(id))return;
-    const xs=guide.points.map(p=>p[0]),ys=guide.points.map(p=>p[1]);
+    const window=REVIEW_NAVIGATION_BOXES[id];
+    if(!window||!UNCERTAIN.includes(id))return;
     setReviewFocus(id);setSelected(id);setBezierMode(false);
     setZoom(4);setPanMode(false);
-    setViewportCenter([(Math.min(...xs)+Math.max(...xs))/2,
-      (Math.min(...ys)+Math.max(...ys))/2]);
+    // NOT inferred from the rejected path points; pan manually to refine.
+    setViewportCenter([(window[0]+window[2])/2,(window[1]+window[3])/2]);
   };
   const exitGuideFocus=()=>{
     setReviewFocus(null);setZoom(1);setPanMode(false);
@@ -250,19 +258,20 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
       <span data-testid="g5-reference-source-status" className="text-xs"
         style={{color:P.textMuted}}>
         {referenceMatched
-          ?'Source Aariz vérifiée · 2 contours pleins, 4 incertains en pointillés · NON CLINIQUE'
+          ?'Source Aariz vérifiée · 2 repères visuels non cliniques · 4 guides rejetés MASQUÉS'
           :'Référence indisponible : image et étude source non confirmées'}
       </span>
     </div>
     {showReference&&referenceMatched&&<p data-testid="g5-reference-warning"
       className="text-xs font-semibold" style={{color:'#a55e37'}}>
-      Référence visuelle uniquement : jamais copiée dans le brouillon ou le PDF
-      clinique. Tracez et corrigez vous-même chaque structure avant approbation.
+      Deux repères visuels historiques seulement. Quatre anciens guides REJETÉS
+      et masqués ; tracez les contours anatomiques sur la radiographie brute.
+      Aucun point de référence ne sera copié dans le brouillon ou le PDF.
     </p>}
     {showReference&&referenceMatched&&<div data-testid="g5-uncertain-review"
       className="rounded-lg border p-3 space-y-2" style={{borderColor:P.border}}>
       <p className="text-xs font-semibold" style={{color:P.text}}>
-        Revue manuelle des quatre zones incertaines — non approuvées
+        Revue manuelle sur radio brute — quatre anciens guides anatomiques rejetés
       </p>
       <div className="flex flex-wrap gap-2">
         {UNCERTAIN.map(id=>{
@@ -274,7 +283,7 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
             onClick={()=>focusUncertainGuide(id)}
             className="rounded-lg border px-3 py-2 text-xs"
             style={{borderColor:reviewFocus===id?P.accent:P.border,color:P.text}}>
-            {spec.label} · zoom ×4
+            {spec.label} · radio brute ×4
           </button>;
         })}
         <button type="button" data-testid="g5-review-overview"
@@ -285,8 +294,8 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
       <p data-testid="g5-review-focus-status" className="text-xs"
         style={{color:P.textMuted}}>
         {reviewFocus
-          ?`Guide ${STRUCTURES.find(s=>s.id===reviewFocus)?.label} isolé en pointillés · à redessiner manuellement, jamais signé automatiquement`
-          :'Choisissez une région pour isoler le guide incertain, sans écrire dans le dossier.'}
+          ?`Zone ${STRUCTURES.find(s=>s.id===reviewFocus)?.label} · AUCUN guide affiché ; cadrage approximatif de navigation uniquement. Déplacez la radio si nécessaire ; tracé manuel et approbation clinique distincte.`
+          :'Choisissez une zone pour afficher la radio seule, sans aucun ancien guide anatomique.'}
       </p>
     </div>}
     <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
