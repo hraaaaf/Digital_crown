@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 const storage = vi.hoisted(() => ({
   getCredentials: vi.fn(),
   clearAll: vi.fn(),
+  resolveMobileApiBaseUrl: vi.fn((base: string) => base),
 }));
 vi.mock('./MobileStorage', () => ({ MobileStorage: storage }));
 import { unlinkCurrentMobileDevice } from './unlinkMobileDevice';
