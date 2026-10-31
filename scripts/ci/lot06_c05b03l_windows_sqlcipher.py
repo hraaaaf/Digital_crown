@@ -71,7 +71,18 @@ with tempfile.TemporaryDirectory(prefix="dc06l-real-sqlcipher-") as directory:
 
     assert connect().execute("PRAGMA cipher_version").fetchone()[0]
     engine = create_engine("sqlite://", creator=connect, poolclass=NullPool)
-    models.Base.metadata.create_all(bind=engine)
+    # Use actual ORM schema and FK constraints for the six Patient Companion
+    # entities exercised here, rather than unrelated orthodontics tables whose
+    # optional model modules are intentionally not imported in this isolated
+    # Windows/SQLCipher harness.
+    models.Base.metadata.create_all(
+        bind=engine,
+        tables=[
+            models.User.__table__, models.Patient.__table__,
+            PatientCompanionIdentity.__table__, PatientCompanionAccess.__table__,
+            PatientCompanionMessage.__table__, PatientCompanionRemoteReceipt.__table__,
+        ],
+    )
     assert filename.is_file()
     assert not filename.read_bytes().startswith(b"SQLite format 3"), "PLAINTEXT_DB"
 
