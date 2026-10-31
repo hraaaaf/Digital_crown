@@ -157,6 +157,11 @@ export const OnboardingScanner = () => {
       return;
     }
     try {
+      // Single-cabinet V1: never consume another cabinet's QR while this
+      // phone still has a paired session. Unlink explicitly in Security first.
+      if (await MobileStorage.isPaired()) {
+        throw new Error('Ce téléphone est déjà lié à un cabinet. Déliez-le depuis Sécurité avant un nouvel appairage.');
+      }
       const { privateKey, publicKeyHex } = await generateClientKeyPair();
 
       const res = await fetch(`${API_BASE}/api/mobile/claim-token`, {
@@ -311,6 +316,12 @@ export const OnboardingScanner = () => {
           </div>
 
           <h1 className="text-3xl font-black tracking-tight text-center mb-3">Compagnon Mobile</h1>
+          {searchParams.get('revocation') === 'pending' && (
+            <p role="alert" data-mobile-revocation-pending
+              className="mt-3 rounded-2xl border border-warning-border bg-warning-surface p-4 text-xs font-semibold text-warning">
+              Les données de ce téléphone ont été effacées. La révocation auprès de l’ancien cabinet n’a pas pu être confirmée. Demandez à l’administrateur du cabinet de révoquer cet appareil depuis Sécurité Mobile.
+            </p>
+          )}
           <p className="text-text-muted text-sm text-center leading-relaxed mb-2 font-medium">
             Synchronisez votre cabinet sur ce téléphone en scannant le pont QR affiché dans la section{' '}
             <span className="text-primary font-black">Sécurité Mobile</span> de votre PC.
