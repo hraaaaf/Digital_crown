@@ -35,6 +35,7 @@ from backend.services.patient_companion_remote_crypto import (
 from backend.services.patient_companion_remote_keys import enroll_remote_keyset
 from backend.services.patient_companion_remote_worker import process_remote_envelope
 from relay.contract import RelayInnerMessage
+from backend.tests.test_lot06_c05b03i_concurrent_services import synthetic_cabinet
 
 TEST_PREFIX = b"DC06J-LINUX-SYNTHETIC-KEY-NOT-DPAPI:"
 
