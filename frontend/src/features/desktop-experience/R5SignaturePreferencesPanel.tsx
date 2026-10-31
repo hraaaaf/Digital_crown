@@ -106,7 +106,7 @@ export function R5SignaturePreferencesPanel({user,mode,onChange,compactOnPatient
     R5 · Préférences verrouillées tant que le compte et le poste ne sont pas vérifiés.
   </p>;
   return <section data-testid="r5-signature-prefs" aria-label="R5 préférences Signature"
-    className="mb-2 rounded-xl border border-border-main bg-card px-3 py-2 text-text-main lg:mb-1 lg:py-1.5">
+    className={`mb-2 rounded-xl border border-border-main bg-card px-3 py-2 text-text-main lg:mb-1 lg:py-1.5 ${compactOnPatientRoute ? 'lg:border-transparent lg:bg-medical-pearl/40' : ''}`}>
     {compactOnPatientRoute && <div className="flex flex-wrap items-center justify-between gap-2">
       <div className="flex min-w-0 items-center gap-2 text-xs">
         <strong className="text-text-main">Signature du cabinet</strong>
@@ -115,7 +115,7 @@ export function R5SignaturePreferencesPanel({user,mode,onChange,compactOnPatient
       <button type="button" data-testid="r5-signature-toggle"
         aria-expanded={showDetails} aria-controls="r5-signature-settings"
         onClick={()=>setDetailsOpen(value=>!value)}
-        className="min-h-9 rounded-lg border border-border-main px-3 py-1.5 text-xs font-semibold text-text-main">
+        className="min-h-9 rounded-lg border border-border-main px-3 py-1.5 text-xs font-semibold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-text-main">
         {showDetails?'Replier':'Personnaliser'}
       </button>
     </div>}

@@ -121,8 +121,32 @@ try {
   const people=await peopleResponse.json();
   const fixture=people.find(p=>p.numero_dossier==='T2-0001');
   assert.ok(Number.isSafeInteger(fixture?.id)&&fixture.id>0);
+  const patientMediaPath='/patients/'+fixture.id+'?tab=radiology&radioTab=media';
+  await a.page.setViewportSize({width:1440,height:900});
+  await a.page.goto(uiBase+patientMediaPath,{
+    waitUntil:'domcontentloaded',timeout:90000});
+  await a.page.locator('[data-testid="r5-multiview-prefs"]')
+    .waitFor({state:'visible',timeout:60000});
+  assert.equal(await a.page.locator('[data-lot07-polish02]').getAttribute('data-lot07-polish02'),
+    'clinical-first','POLISH-02 must remain gated to the DEV workstation lab');
+  // At 1440 CSS px, the trusted inner workspace can be <1280 after the
+  // sidebar/patient shell. Accept ONLY the existing read-only safety fallback,
+  // never force an unreadable two-pane dossier just to pass a visual gate.
+  const dossier1440=a.page.locator('[data-v15-071-viewslot="dossier"]');
+  const safeFallback1440=a.page.locator('[data-testid="multiview-responsive-single-media-fallback"]');
+  const twoPanes1440=await dossier1440.count()===1;
+  assert.ok(twoPanes1440 || await safeFallback1440.isVisible(),
+    '1440px must show either the authorized clinical layout or its safe fallback');
+  const clinical1440 = await (twoPanes1440 ? dossier1440 : safeFallback1440).boundingBox();
+  assert.ok(clinical1440 && clinical1440.x >= -1 &&
+    clinical1440.x + clinical1440.width <= 1441,
+    'Real 1440px safe clinical content must stay in the viewport');
+  await screenshot(a.page,'R5-MultiView-desktop-before-1440');
+  checked('polish02-real-authenticated-clinical-first-1440', {
+    width:1440,clinicalTop:Math.round(clinical1440.y),
+    layout:twoPanes1440 ? 'verified-two-pane' : 'read-only-safe-fallback'});
   await a.page.setViewportSize({width:1920,height:1080});
-  await a.page.goto(uiBase+'/patients/'+fixture.id+'?tab=radiology&radioTab=media',{
+  await a.page.goto(uiBase+patientMediaPath,{
     waitUntil:'domcontentloaded',timeout:90000});
   const layoutPanel=a.page.locator('[data-testid="r5-multiview-prefs"]');
   await layoutPanel.waitFor({state:'visible',timeout:60000});
@@ -139,6 +163,46 @@ try {
   assert.equal(await a.page.getByRole('button',{name:'Échanger les vues'}).isVisible(),
     true,'R3 view-exchange must remain available');
   checked('single-visible-r5-disposition-retains-r3-view-tools');
+  // POLISH-02 theme contract: inspect computed styles on the actual authenticated
+  // patient rails, not just CSS source tokens or unrelated R3 frames.
+  const themeAudit=await a.page.evaluate(()=>{
+    const themes=['default','emerald','rose','ocean','graphite','prestige','dark','high-contrast'];
+    const root=document.documentElement;
+    const original=root.getAttribute('data-theme');
+    const signature=document.querySelector('[data-testid="r5-signature-prefs"]');
+    const multiview=document.querySelector('[data-testid="r5-multiview-prefs"]');
+    const button=document.querySelector('[data-testid="r5-multiview-toggle"]');
+    if(!signature||!multiview||!button)throw Error('Missing actual POLISH-02 rails');
+    const results=[];
+    try{
+      for(const theme of themes){
+        root.setAttribute('data-theme',theme);
+        const tokens=getComputedStyle(root);
+        const sig=getComputedStyle(signature);
+        const mv=getComputedStyle(multiview);
+        const focus=getComputedStyle(button);
+        const primary=tokens.getPropertyValue('--primary').trim();
+        const bg=tokens.getPropertyValue('--bg-medical-pearl').trim();
+        const text=tokens.getPropertyValue('--text-main').trim();
+        if(!primary||!bg||!text)throw Error('Missing semantic tokens: '+theme);
+        if(sig.backgroundColor!==mv.backgroundColor)
+          throw Error('Signature/MultiView rail theme mismatch: '+theme);
+        if(focus.color!==sig.color)
+          throw Error('Preference action text does not inherit theme: '+theme);
+        results.push({theme,bg:tokens.getPropertyValue('--bg-medical-pearl').trim(),
+          rail:sig.backgroundColor,text:sig.color,focus:focus.outlineColor});
+      }
+    }finally{
+      if(original===null)root.removeAttribute('data-theme');
+      else root.setAttribute('data-theme',original);
+    }
+    if(new Set(results.map(x=>x.rail)).size<4)
+      throw Error('Theme rails did not change computed background across themes');
+    return results;
+  });
+  assert.equal(themeAudit.length,8);
+  checked('polish02-eight-themes-real-rails-inherit-semantic-tokens',themeAudit);
+
   // Clinical-first: both preference panels start compact on a genuine patient
   // dossier, retain a keyboard-accessible, explicit way to reopen them, and
   // reclaim meaningful vertical room for the real read-only clinical slots.
@@ -165,12 +229,157 @@ try {
   checked('desktop-clinical-first-reclaimed-height-1920',
     {compactOffset,expandedOffset,reclaimedPx:expandedOffset-compactOffset});
   await screenshot(a.page,'R5-MultiView-desktop-expanded-1920');
-  // Return Signature to a compact summary; the MultiView editor remains open
-  // so the next existing preview/cancel and isolation assertions stay genuine.
-  await signatureToggle.click();
+  // POLISH-02 accessibility: measured computed-color ratios on REAL R5 controls.
+  // Includes alpha composition; no assumption that inherited tokens prove contrast.
+  await a.page.keyboard.press('Tab');
+  const wcagAudit=await a.page.evaluate(async()=>{
+    const themeNames=['default','emerald','rose','ocean','graphite','prestige','dark','high-contrast'];
+    const root=document.documentElement, original=root.getAttribute('data-theme');
+    const parse=s=>{
+      const m=String(s).match(/^rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s\/]+([\d.]+))?\s*\)$/);
+      if(m)return [Number(m[1]),Number(m[2]),Number(m[3]),m[4]===undefined?1:Number(m[4])];
+      const srgb=String(s).match(/^color\(srgb\s+([\d.]+)\s+([\d.]+)\s+([\d.]+)(?:\s*\/\s*([\d.]+))?\)$/);
+      return srgb?[255*Number(srgb[1]),255*Number(srgb[2]),255*Number(srgb[3]),srgb[4]===undefined?1:Number(srgb[4])]:null;
+    };
+    const composite=(front,back)=>front.slice(0,3).map((v,i)=>v*front[3]+back[i]*(1-front[3]));
+    const bgAt=node=>{
+      const chain=[];for(let n=node;n;n=n.parentElement)chain.unshift(n);
+      let bg=[255,255,255];
+      for(const el of chain){const c=parse(getComputedStyle(el).backgroundColor);if(c)bg=composite(c,bg);}
+      return bg;
+    };
+    const lum=c=>c.map(x=>x/255).map(x=>x<=0.04045?x/12.92:Math.pow((x+0.055)/1.055,2.4))
+      .reduce((sum,x,i)=>sum+x*[0.2126,0.7152,0.0722][i],0);
+    const ratio=(a,b)=>{const x=lum(a),y=lum(b);return (Math.max(x,y)+0.05)/(Math.min(x,y)+0.05);};
+    const signature=document.querySelector('[data-testid="r5-signature-prefs"]');
+    const multiview=document.querySelector('[data-testid="r5-multiview-prefs"]');
+    if(!signature||!multiview)throw Error('Missing real R5 rails for WCAG audit');
+    const samples=[],failures=[];
+    try{
+      for(const theme of themeNames){
+        root.setAttribute('data-theme',theme);
+        // body/bg-primary transition for 400 ms; measure fully settled pixels, not intermediates.
+        await new Promise(resolve=>setTimeout(resolve,500));
+        const targets=[
+          ['signature-heading',signature.querySelector('h2')],
+          ['signature-description',signature.querySelector('p.text-text-muted')],
+          ['signature-toggle',signature.querySelector('[data-testid="r5-signature-toggle"]')],
+          ['signature-primary',signature.querySelector('button.bg-primary')],
+          ['multiview-heading',multiview.querySelector('strong')],
+          ['multiview-description',multiview.querySelector('span.text-text-muted')],
+          ['multiview-toggle',multiview.querySelector('[data-testid="r5-multiview-toggle"]')],
+          ['multiview-primary',multiview.querySelector('button.bg-primary')]
+        ];
+        for(const [name,el] of targets){
+          if(!el||!el.getClientRects().length){
+            failures.push({theme,name,reason:'missing-or-hidden'});continue;
+          }
+          if(el.matches(':disabled'))continue; // WCAG inactive-control exception.
+          const s=getComputedStyle(el),fg=parse(s.color),bg=bgAt(el);
+          if(!fg){failures.push({theme,name,reason:'unparseable-computed-color',color:s.color});continue;}
+          const actual=ratio(composite(fg,bg),bg);
+          const large=parseFloat(s.fontSize)>=24||
+            (parseFloat(s.fontSize)>=18.66&&parseInt(s.fontWeight,10)>=700);
+          const minimum=large?3:4.5;
+          samples.push({theme,name,ratio:Number(actual.toFixed(2)),minimum});
+          if(actual+0.001<minimum)failures.push({theme,name,ratio:Number(actual.toFixed(2)),minimum});
+        }
+        for(const name of ['r5-signature-toggle','r5-multiview-toggle']){
+          const el=document.querySelector('[data-testid="'+name+'"]');
+          el.focus();const s=getComputedStyle(el),c=parse(s.outlineColor);
+          const bg=bgAt(el.parentElement);
+          const actual=c?ratio(composite(c,bg),bg):0;
+          const active=el.matches(':focus-visible')&&s.outlineStyle!=='none'&&parseFloat(s.outlineWidth)>=2;
+          samples.push({theme,name:name+'-keyboard-focus',ratio:Number(actual.toFixed(2)),
+            minimum:3,active,outlineColor:s.outlineColor,backdrop:bg,
+            primaryToken:getComputedStyle(root).getPropertyValue('--primary').trim()});
+          if(!active||actual+0.001<3)failures.push({theme,name:name+'-keyboard-focus',active,ratio:Number(actual.toFixed(2)),minimum:3});
+        }
+      }
+    }finally{
+      if(original===null)root.removeAttribute('data-theme');else root.setAttribute('data-theme',original);
+    }
+    return {samples,failures};
+  });
+  checked('polish02-wcag-actual-r5-eight-theme-contrast',
+    {pass:wcagAudit.failures.length===0,samples:wcagAudit.samples,failures:wcagAudit.failures});
+  // The keyboard tab establishes keyboard modality before :focus-visible checks;
+  // pass/fail is not inferred from CSS tokens or zero-width outlines.
+  const reflowResults=[];
+  const measureReflow=()=>a.page.evaluate(()=>{
+    const width=document.documentElement.clientWidth;
+    const probes=['r5-signature-prefs','r5-signature-toggle','r5-multiview-prefs','r5-multiview-toggle'];
+    const landmarks=probes.map(name=>{
+      const el=document.querySelector('[data-testid="'+name+'"]');
+      if(!el)return {name,present:false};
+      const r=el.getBoundingClientRect();
+      return {name,present:true,visible:r.width>0&&r.height>0,
+        left:Math.round(r.left),right:Math.round(r.right),
+        fits:r.left>=-2&&r.right<=width+2};
+    });
+    const safeMobile=document.querySelector('[data-testid="multiview-mobile-safe-view"]');
+    const safeMobileRect=safeMobile?.getBoundingClientRect();
+    const mobileSafeVisible=Boolean(safeMobileRect && safeMobileRect.width>0 && safeMobileRect.height>0);
+    const mobileSafeFits=Boolean(safeMobileRect && safeMobileRect.left>=-2 && safeMobileRect.right<=width+2);
+    const fallback=document.querySelector('[data-testid="multiview-responsive-single-media-fallback"]');
+    const fallbackRect=fallback?.getBoundingClientRect();
+    return {cssViewport:width,documentScrollWidth:document.documentElement.scrollWidth,landmarks,
+      mobileSafeVisible,mobileSafeFits,
+      fallbackVisible:Boolean(fallbackRect&&fallbackRect.width>0&&fallbackRect.height>0)};
+  });
+  try{
+    await a.page.keyboard.press('Tab');
+    await a.page.evaluate(()=>document.documentElement.style.setProperty('font-size','200%'));
+    const enlarged=await measureReflow();
+    reflowResults.push({mode:'200-percent-text-resize',...enlarged});
+    await screenshot(a.page,'POLISH02-text-resize-200-percent');
+    await a.page.evaluate(()=>document.documentElement.style.removeProperty('font-size'));
+    // A 720px CSS layout represents 1440px/2 at 200% browser zoom.
+    // This verifies responsive reflow, NOT a native browser-chrome zoom gesture.
+    for(const width of [720,640]){
+      await a.page.setViewportSize({width,height:900});
+      const result=await measureReflow();
+      reflowResults.push({mode:'half-width-200-percent-zoom-equivalent',referenceWidth:width*2,...result});
+      await screenshot(a.page,'POLISH02-reflow-200-percent-'+width);
+    }
+  }finally{
+    await a.page.evaluate(()=>document.documentElement.style.removeProperty('font-size'));
+    await a.page.setViewportSize({width:1920,height:1080});
+  }
+  const reflowFailures=reflowResults.flatMap(result=>{
+    const safeResponsive=result.mode==='half-width-200-percent-zoom-equivalent' &&
+      result.mobileSafeVisible && result.mobileSafeFits;
+    const bad=result.landmarks.filter(el=>
+      (!el.present||!el.visible||!el.fits) &&
+      !(safeResponsive && (el.name==='r5-multiview-prefs'||el.name==='r5-multiview-toggle')));
+    if(result.mobileSafeVisible&&!result.mobileSafeFits)bad.push({name:'mobile-safe-view-exceeds-viewport'});
+    if(result.documentScrollWidth>result.cssViewport+2)bad.push({name:'document-horizontal-overflow'});
+    return bad.map(el=>({mode:result.mode,viewport:result.cssViewport,...el}));
+  });
+  checked('polish02-text-resize-and-200-percent-layout-reflow',
+    {pass:reflowFailures.length===0,measurements:reflowResults,failures:reflowFailures});
+  report.accessibility={contrastFailures:wcagAudit.failures,reflowFailures,
+    caveat:'Half-width CSS layout is not native Chromium browser zoom; screenshots require human visual review.'};
+  if(wcagAudit.failures.length||reflowFailures.length){
+    throw Error('POLISH-02 ACCESSIBILITY BLOCKER: computed contrast / 200% reflow violations; see report.json');
+  }
+
+  // Returning from 720/640 mobile mode remounts the desktop R5 panel.
+  // Do not assume its expanded state survived the responsive fallback.
+  await layoutPanel.waitFor({state:'visible',timeout:30000});
+  if(await signatureToggle.getAttribute('aria-expanded')==='true')
+    await signatureToggle.click();
+  const multiToggleAfterReflow=layoutPanel.locator('[data-testid="r5-multiview-toggle"]');
+  await multiToggleAfterReflow.waitFor({state:'visible',timeout:30000});
+  if(await multiToggleAfterReflow.getAttribute('aria-expanded')==='false')
+    await multiToggleAfterReflow.click();
+  assert.equal(await signatureToggle.getAttribute('aria-expanded'),'false');
+  assert.equal(await multiToggleAfterReflow.getAttribute('aria-expanded'),'true');
+  const reflowRestoredSelect=layoutPanel.getByRole('combobox',{name:'Disposition R5'});
+  await reflowRestoredSelect.waitFor({state:'visible',timeout:15000});
+  checked('polish02-desktop-editor-restored-after-responsive-fallback');
   checked('real-authenticated-r5-multiview-1920-visual-evidence');
-  await layoutPanel.getByRole('combobox',{name:'Disposition R5'})
-    .selectOption('dossier-media-2rows');
+  await reflowRestoredSelect.selectOption('dossier-media-2rows');
   await layoutPanel.getByRole('button',{name:'Aperçu',exact:true}).click();
   await layoutPanel.locator('[data-testid="r5-multiview-preview"]')
     .waitFor({state:'visible',timeout:15000});

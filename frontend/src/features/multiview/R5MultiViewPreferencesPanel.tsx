@@ -82,7 +82,7 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
   if(!context.authenticated||!context.workstationVerified||!context.workstationId||
       !context.userId||!context.tenantId||!state)return null;
   return <section data-testid="r5-multiview-prefs" aria-label="R5 dispositions persistantes"
-    className="mb-2 rounded-xl border border-border-main bg-card px-3 py-3 text-text-main lg:mb-1 lg:py-1.5">
+    className="mb-2 rounded-xl border border-border-main bg-card px-3 py-3 text-text-main lg:mb-1 lg:py-1.5 lg:border-transparent lg:bg-medical-pearl/40">
     <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
       <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
         <strong className="text-sm">Disposition du cabinet · R5</strong>
@@ -91,7 +91,7 @@ export function R5MultiViewPreferencesPanel({context,layouts,onApply,ratio}:{
       <button type="button" data-testid="r5-multiview-toggle"
         aria-expanded={expanded} aria-controls="r5-multiview-settings"
         onClick={()=>{setExpanded(value=>!value);setPreview(false);}}
-        className="min-h-9 rounded-lg border border-border-main px-3 py-1.5 font-semibold text-text-main">
+        className="min-h-9 rounded-lg border border-border-main px-3 py-1.5 font-semibold text-text-main focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">
         {expanded?'Replier':'Configurer'}
       </button>
     </div>

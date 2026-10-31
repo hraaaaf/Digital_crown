@@ -156,6 +156,8 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
       || isCommandCabinetLab);
   const [r4SignatureMode, setR4SignatureMode] = useState<CabinetSignaturePreview>('core');
   const r5SignaturePrefsEnabled = r4SignaturePreviewEnabled && import.meta.env.DEV && import.meta.env.VITE_V15_07_R5_PREFS_LAB === 'true';
+  // POLISH-02 is isolated to the authenticated DEV patient lab; production layout is unchanged.
+  const r5PatientPolishEnabled = r5SignaturePrefsEnabled && isPatientRoute;
   const isDocumentStudio = /^\/patients\/\d+$/.test(location.pathname)
     && new URLSearchParams(location.search).get('tab') === 'admin';
   const showPractitionerContext = ['/dashboard', '/agenda', '/settings'].includes(location.pathname);
@@ -195,7 +197,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
         />
         <VoluntaryTutorialPanel />
 
-        <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : 'p-3 sm:p-4 lg:p-8'}`}>
+        <main className={`flex-1 min-h-0 overflow-y-auto overflow-x-hidden pt-0 flex flex-col custom-scrollbar ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-8' : r5PatientPolishEnabled ? 'p-3 sm:p-4 lg:px-5 lg:pt-3 lg:pb-5' : 'p-3 sm:p-4 lg:p-8'}`}>
           {r5SignaturePrefsEnabled ? (
             <R5SignaturePreferencesPanel user={user} mode={r4SignatureMode} onChange={setR4SignatureMode}
               compactOnPatientRoute={isPatientRoute} />
@@ -209,7 +211,7 @@ export const MainLayout: React.FC<LayoutProps> = ({ children }) => {
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -15 }}
               transition={{ duration: 0.4, ease: "easeOut" }}
-              className={`min-w-0 flex flex-1 flex-col rounded-elite border backdrop-blur-xl shadow-elite transition-elite ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-6' : 'p-3 sm:p-4 lg:p-6'}`}
+              className={`min-w-0 flex flex-1 flex-col rounded-elite border backdrop-blur-xl shadow-elite transition-elite ${isDocumentStudio ? 'p-2 sm:p-4 lg:p-6' : r5PatientPolishEnabled ? 'p-3 sm:p-4 lg:px-5 lg:py-3' : 'p-3 sm:p-4 lg:p-6'}`}
               style={{
                 backgroundColor: 'var(--glass-bg)',
                 borderColor: 'var(--glass-border)'

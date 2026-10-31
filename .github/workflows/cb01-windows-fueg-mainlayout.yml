@@ -8,6 +8,7 @@ on:
     branches: [master]
     paths:
       - frontend/scripts/certify-cb01-windows-fueg-combined.mjs
+      - frontend/scripts/certify-lot07-r5-native-zoom-windows.mjs
       - frontend/scripts/cb01-dashboard-startup-races.mjs
       - frontend/scripts/cb01-dashboard-cold-boundaries.mjs
       - frontend/scripts/t2-workstation-session.mjs
@@ -39,6 +40,7 @@ on:
       # FUE-G must retrigger when the real MainLayout, auth/preview contract,
       # synthetic backend or installed Windows runtime dependencies change.
       - frontend/scripts/certify-cb01-windows-fueg-combined.mjs
+      - frontend/scripts/certify-lot07-r5-native-zoom-windows.mjs
       - frontend/scripts/cb01-dashboard-startup-races.mjs
       - frontend/scripts/cb01-dashboard-cold-boundaries.mjs
       - frontend/scripts/t2-workstation-session.mjs
@@ -69,6 +71,10 @@ on:
 
 permissions:
   contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
 
 jobs:
   windows-fueg-full-stack:
@@ -225,6 +231,12 @@ jobs:
             try {
               node scripts/certify-cb01-windows-fueg-combined.mjs
               if ($LASTEXITCODE -ne 0) { throw 'FAIL: real Windows FUE-G NVDA/zoom/role browser' }
+              # Independent native-zoom R5 patient contract uses the same real
+              # disposable FastAPI and synthetic patient, restarting Vite with
+              # R5 DEV flags only AFTER CB-01 passed.
+              Start-Sleep -Seconds 2
+              node scripts/certify-lot07-r5-native-zoom-windows.mjs
+              if ($LASTEXITCODE -ne 0) { throw 'FAIL: genuine native 200% R5 patient workspace' }
             } finally {
               Pop-Location
             }
@@ -263,6 +275,31 @@ jobs:
           if (@($report.clinicalWritesAttempted).Count -ne 0 -or $db.status -ne 'PASS_CLINICAL_FINAL_STATE_UNCHANGED' -or @($db.clinicalTablesChanged).Count -ne 0 -or $db.tablesChecked -lt 20) { throw 'FAIL: clinical mutation detected or baseline unavailable' }
           "### CB-01 Windows FUE-G: PASS on exact HEAD $env:CB01_SOURCE_HEAD" >> $env:GITHUB_STEP_SUMMARY
           'Full MainLayout + real FastAPI + native 200% zoom + real NVDA speech: automated synthetic runner only, no human cabinet validation.' >> $env:GITHUB_STEP_SUMMARY
+      - name: Verify native 200 percent on the actual R5 patient route
+        shell: pwsh
+        run: |
+          $r = Get-Content 'artifacts/lot07-r5-native-zoom-windows/report.json' -Raw | ConvertFrom-Json
+          if ($r.sourceHead -ne $env:CB01_SOURCE_HEAD -or $r.error -or $r.pass -ne $true) {
+            throw 'NOT_CERTIFIED: missing exact-HEAD native R5 zoom report'
+          }
+          if ($r.reflow -ne 'PASS_TRUE_CHROME_EXTENSION_GETZOOM_2_R5_REAL_PATIENT_SAFE' -or
+              [math]::Abs($r.zoomAfter.observed - 2) -gt 0.01 -or
+              $r.zoomBefore.tabId -ne $r.zoomAfter.tabId -or
+              $r.at200.innerWidth -ge $r.at100.innerWidth -or
+              $r.at200.devicePixelRatio -le $r.at100.devicePixelRatio -or
+              $r.at200.scrollWidth -gt $r.at200.clientWidth + 2 -or
+              @($r.clinicalWritesAttempted).Count -ne 0) {
+            throw 'NOT_CERTIFIED: R5 native zoom 200% contract or patient isolation failed'
+          }
+          '### POLISH-02 R5 genuine Windows native 200% PASS on exact HEAD' >> $env:GITHUB_STEP_SUMMARY
+      - name: Upload POLISH-02 R5 native 200 percent evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: polish02-r5-windows-native-zoom-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/lot07-r5-native-zoom-windows
+          if-no-files-found: warn
+          retention-days: 14
       - name: Record failed runtime diagnostics without credentials
         if: failure()
         shell: pwsh
