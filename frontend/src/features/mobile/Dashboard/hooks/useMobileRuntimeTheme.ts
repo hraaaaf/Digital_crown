@@ -192,7 +192,11 @@ export function useMobileRuntimeTheme(refreshKey?: string) {
         const theme: MobileRuntimeTheme = raw.payload
           ? await CryptoService.decryptPayload(raw.payload, creds.masterKey)
           : raw;
-        if (!cancelled) applyMobileRuntimeTheme(theme, cacheKey);
+        // A pairing can change while the old tenant's theme response is in flight.
+        // Never repaint or recache cabinet A after the active identity becomes B.
+        const activeCredentials = await MobileStorage.getCredentials();
+        if (cancelled || !activeCredentials || mobileThemeCacheKey(activeCredentials) !== cacheKey) return;
+        applyMobileRuntimeTheme(theme, cacheKey);
       } catch {
         // Offline or unavailable: keep the last verified local theme.
       }
