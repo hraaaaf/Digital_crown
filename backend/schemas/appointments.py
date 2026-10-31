@@ -35,6 +35,8 @@ class AppointmentCreate(AppointmentBase):
 
 class AppointmentUpdate(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    # Optional optimistic precondition: existing API clients stay compatible.
+    expected_clinical_revision: Optional[int] = Field(default=None, ge=0)
     patient_id: Optional[int] = None
     patient_name: Optional[str] = None
     praticien_id: Optional[int] = None
@@ -57,6 +59,8 @@ class AppointmentUpdate(BaseModel):
 
 
 class AppointmentOut(AppointmentBase):
+    # DB trigger increments after every edit, including non-ORM writes.
+    clinical_revision: int = 0
     id: int
     created_at: datetime.datetime
     employer_id: int

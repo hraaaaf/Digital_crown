@@ -291,6 +291,9 @@ def update_appointment(
     current_user: models.User = Depends(require_permission("agenda")),
 ):
     employer_id = current_user.get_employer_id()
+    # Obtain the tenant-scoped booking writer fence before reading the row.
+    # Even a notes-only edit must serialize with a concurrent reschedule.
+    lock_cabinet_booking(db, employer_id)
     db_appt = db.query(models.Appointment).filter(
         models.Appointment.id == id,
         models.Appointment.employer_id == employer_id,
@@ -299,7 +302,12 @@ def update_appointment(
     if not db_appt:
         raise HTTPException(status_code=404, detail="Rendez-vous introuvable")
 
-    update_data = appt_update.model_dump(exclude_unset=True)
+    update_data = appt_update.model_dump(exclude_unset=True, exclude={"expected_clinical_revision"})
+    expected_revision = appt_update.expected_clinical_revision
+    if expected_revision is not None and db_appt.clinical_revision != expected_revision:
+        raise HTTPException(status_code=409, detail="APPOINTMENT_STALE_REVISION")
+    if expected_revision is not None and not update_data:
+        raise HTTPException(status_code=422, detail="Aucune modification fournie")
     if "patient_id" in update_data and update_data["patient_id"] is not None:
         assert_patient_access(update_data["patient_id"], current_user, db)
 
@@ -312,9 +320,7 @@ def update_appointment(
         validate_assignable_resource(db, employer_id, update_data["resource_id"])
 
     if any(key in update_data for key in ("datetime_start", "duration_minutes", "scheduling_type", "praticien_id", "resource_id")):
-        # Shared with single/bulk/bot/mobile/companion: lock before rechecking
-        # an alternate time/resource to avoid a cross-entry lost reservation.
-        lock_cabinet_booking(db, employer_id)
+        # The shared booking lock was acquired before the appointment read.
         effective_start = _naive_datetime(update_data.get("datetime_start", db_appt.datetime_start))
         effective_duration = update_data.get("duration_minutes", db_appt.duration_minutes)
         effective_type = update_data.get("scheduling_type", db_appt.scheduling_type)
