@@ -19,6 +19,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Assert FUE branch descends from PR 1170 and record exact SHA
         run: |
           git merge-base --is-ancestor 1df95cd19d7499558afa13a6d65487b494e7f937 HEAD
@@ -47,6 +49,8 @@ jobs:
       SECRET_KEY: "cpv2-01c-disposable-ci-secret-key-not-production"
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - name: Assert exact PR ancestry and no production backend
         run: |
           git merge-base --is-ancestor 1df95cd19d7499558afa13a6d65487b494e7f937 HEAD
