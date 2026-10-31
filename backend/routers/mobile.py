@@ -567,7 +567,7 @@ def mobile_stock_items(
 def mobile_create_stock_item(
     payload: dict,
     db: Session = Depends(database.get_db),
-    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("stock_write")),
 ):
     from backend.routers import stock as _stock
     return _stock.create_stock_item(_stock.StockItemCreate(**payload), db, mobile_user)
@@ -578,7 +578,7 @@ def mobile_update_stock_item(
     item_id: int,
     payload: dict,
     db: Session = Depends(database.get_db),
-    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("stock_write")),
 ):
     from backend.routers import stock as _stock
     return _stock.update_stock_item(item_id, payload, db, mobile_user)
