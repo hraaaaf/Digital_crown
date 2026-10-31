@@ -16,7 +16,6 @@ import uuid
 
 from fastapi import Response
 from fastapi.testclient import TestClient
-from sqlalchemy import event
 from sqlalchemy.orm import Session
 
 from backend import models
@@ -26,9 +25,11 @@ from backend.models_patient_companion import (
     PatientCompanionRemoteReceipt,
 )
 from backend.routers.patient_companion_messages import staff_message_thread
+from backend.routers import patient_companion_messages as message_routes
+from backend.services.patient_companion_remote_worker import process_remote_envelope
 from backend.services.patient_companion_agenda import issue_slots
 from backend.tests.test_lot06_c05b03j_http_clinic import (
-    _ack, _command, _fixture, _post,
+    _ack, _command, _fixture, _post, _test_unprotect,
 )
 from backend.tests.test_lot06_c05b03i_concurrent_services import synthetic_cabinet
 
@@ -264,22 +265,33 @@ def test_p0_05_injected_commit_failure_rolls_back_message_and_receipt_no_ack(
     }, key=key)
     state = {"raised": False}
 
-    def crash_before_commit(session):
-        if state["raised"] or session.get_bind() is not engine:
-            return
-        # Fault only when the exact remote receipt and domain message are
-        # staged; avoid failing unrelated setup/authorization transactions.
-        pending = session.query(PatientCompanionRemoteReceipt).filter_by(
-            access_id=a["access_id"], idempotency_key=str(key),
-        ).count()
-        if pending:
-            assert session.query(PatientCompanionMessage).filter_by(
+    # Fault injection at the ACTUAL remote worker's db.commit call. Use the
+    # genuine DB session, with real message+receipt already flushed, without
+    # replacing the production transaction or any security decision.
+    real_route_processor = message_routes.process_remote_envelope
+
+    def reject_commit_for_this_request(db, **kwargs):
+        real_commit = db.commit
+
+        def reject_before_real_commit():
+            assert db.query(PatientCompanionRemoteReceipt).filter_by(
+                access_id=a["access_id"], idempotency_key=str(key),
+            ).count() == 1, "receipt not staged before COMMIT"
+            assert db.query(PatientCompanionMessage).filter_by(
                 access_id=a["access_id"],
-            ).count() == 1
+            ).count() == 1, "domain message not staged before COMMIT"
             state["raised"] = True
             raise RuntimeError("P0 synthetic DB commit rejected before durable ACK")
 
-    event.listen(Session, "before_commit", crash_before_commit)
+        db.commit = reject_before_real_commit
+        try:
+            return process_remote_envelope(db, unprotect=_test_unprotect, **kwargs)
+        finally:
+            db.commit = real_commit
+
+    monkeypatch.setattr(
+        message_routes, "process_remote_envelope", reject_commit_for_this_request,
+    )
     try:
         with TestClient(app, raise_server_exceptions=False) as client:
             failed = client.post(
@@ -288,7 +300,9 @@ def test_p0_05_injected_commit_failure_rolls_back_message_and_receipt_no_ack(
                 json={"blob": blob},
             )
     finally:
-        event.remove(Session, "before_commit", crash_before_commit)
+        monkeypatch.setattr(
+            message_routes, "process_remote_envelope", real_route_processor,
+        )
     assert state["raised"], "fault injection did not reach real commit boundary"
     assert failed.status_code >= 500, (failed.status_code, failed.text[:200])
     assert "blob" not in failed.text
