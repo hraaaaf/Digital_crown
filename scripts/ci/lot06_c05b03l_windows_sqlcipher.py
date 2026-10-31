@@ -11,6 +11,10 @@ import tempfile
 import uuid
 from datetime import datetime, timedelta, timezone
 
+# GitHub Windows invokes this as "python scripts/ci/...", which otherwise
+# puts scripts/ci (not the repository root) on sys.path.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
