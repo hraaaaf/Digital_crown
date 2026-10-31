@@ -280,11 +280,7 @@ def test_cpv2_01a_stock_write_requires_existing_patient_permission(client, db, d
     assert response.status_code == 403
 
 
-@pytest.mark.xfail(
-    strict=True,
-    reason='CPV2-01A known P1: patient-record permission still permits Stock mutation; requires dedicated Stock capability in CPV2-01B',
-)
-def test_cpv2_01a_known_gap_patient_permission_must_not_authorize_stock_write(
+def test_cpv2_01b_patient_permission_does_not_authorize_stock_write(
     client, db, dentiste,
 ):
     secretary = _user(
@@ -298,6 +294,44 @@ def test_cpv2_01a_known_gap_patient_permission_must_not_authorize_stock_write(
         headers={'Authorization': f'Bearer {access}'},
         json={'nom': 'Synthetic stock known gap', 'categorie': 'CONSOMMABLE', 'quantite': 1},
     )
-    # Target policy: a dedicated Stock-write capability, independent of 'patients'.
-    # Baseline code returns 201. XFAIL is NOT a security PASS.
+    # CPV2-01B: dedicated Stock-write capability, independent of 'patients'.
     assert response.status_code == 403
+
+
+def test_cpv2_01b_stock_write_can_be_granted_and_revoked_independently(
+    client, db, dentiste,
+):
+    secretary = _user(
+        db, email='cpv2-01b-stock-grant@example.test',
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': True, 'stock_write': False},
+    )
+    access = _claim_mobile(client, db, dentiste, secretary)
+    headers = {'Authorization': f'Bearer {access}'}
+    assert client.get('/api/mobile/stock/access', headers=headers).json() == {'can_write': False}
+
+    secretary.permissions = {'agenda': True, 'patients': True, 'stock_write': True}
+    db.commit()
+    assert client.get('/api/mobile/stock/access', headers=headers).json() == {'can_write': True}
+
+    created = client.post(
+        '/api/mobile/stock/items', headers=headers,
+        json={'nom': 'Synthetic authorized stock', 'categorie': 'CONSOMMABLE', 'quantite': 2},
+    )
+    assert created.status_code in (200, 201), created.text
+    item_id = created.json()['id']
+    updated = client.patch(
+        f'/api/mobile/stock/items/{item_id}', headers=headers,
+        json={'quantite': 4},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()['quantite'] == 4
+
+    secretary.permissions = {'agenda': True, 'patients': True, 'stock_write': False}
+    db.commit()
+    assert client.get('/api/mobile/stock/access', headers=headers).json() == {'can_write': False}
+    assert client.patch(
+        f'/api/mobile/stock/items/{item_id}', headers=headers,
+        json={'quantite': 99},
+    ).status_code == 403
+    assert db.query(models.StockItem).filter(models.StockItem.id == item_id).one().quantite == 4
