@@ -204,7 +204,19 @@ export const OrthoAnatomicalTraceLabEditor:React.FC<{P:any}>=({P})=>{
     const id=requestId.current;
     setCheckingReference(true);setReferenceMatched(false);setShowReference(false);
     try{
-      const study=await cephaloRepository.getAnalysis(analysisId);
+      // A full SPA reload can transiently interrupt the authenticated read.
+      // Retry idempotent study GETs ONLY; study revision and pixel SHA still
+      // have to match exactly before any guide or source film is revealed.
+      let study:Awaited<ReturnType<typeof cephaloRepository.getAnalysis>>|null=null;
+      for(let attempt=0;attempt<3;attempt++){
+        if(id!==requestId.current)return;
+        try{study=await cephaloRepository.getAnalysis(analysisId);break;}
+        catch(e){
+          if(attempt===2)throw e;
+          await new Promise<void>(resolve=>setTimeout(resolve,350*(attempt+1)));
+        }
+      }
+      if(!study)throw Error('Étude introuvable après vérification');
       if(study.id!==analysisId ||
         study.angles_data?.scientific_read_path?.revision!==revision)
         throw Error('Source ou révision différente : rouvrez l’étude');
