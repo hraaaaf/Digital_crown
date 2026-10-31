@@ -23,6 +23,7 @@ vi.mock('../../../hooks/usePWAInstall', () => ({
 vi.mock('../../../services/zka/MobileStorage', () => ({
   MobileStorage: {
     saveCredentials: vi.fn(),
+    isPaired: vi.fn(),
     saveBridgeContext: vi.fn(),
     clearBridgeContext: vi.fn(),
     clearAll: vi.fn(),
@@ -70,6 +71,7 @@ beforeEach(() => {
   vi.mocked(deriveMasterKey).mockResolvedValue('a'.repeat(64));
   vi.mocked(hasPlaintextMasterKey).mockReturnValue(false);
   vi.mocked(MobileStorage.saveCredentials).mockResolvedValue(undefined);
+  vi.mocked(MobileStorage.isPaired).mockResolvedValue(false);
   vi.mocked(MobileStorage.saveBridgeContext).mockResolvedValue(undefined);
   vi.mocked(MobileStorage.clearBridgeContext).mockResolvedValue(undefined);
   vi.mocked(MobileStorage.clearAll).mockResolvedValue(undefined);
@@ -115,6 +117,20 @@ describe('OnboardingScanner G1 interactive matrix', () => {
     expect(await screen.findByText('Appairage réussi')).toBeTruthy();
     expect(MobileStorage.saveCredentials).toHaveBeenCalledOnce();
     expect(await screen.findByText('Mobile dashboard destination', {}, { timeout: 4000 })).toBeTruthy();
+  });
+
+  it('rejects a new QR claim when this phone is already paired to a cabinet', async () => {
+    vi.mocked(MobileStorage.isPaired).mockResolvedValue(true);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    renderScanner();
+    fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
+
+    expect(await screen.findByText(/déjà lié à un cabinet/i)).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(generateClientKeyPair).not.toHaveBeenCalled();
+    expect(MobileStorage.saveCredentials).not.toHaveBeenCalled();
   });
 
   it('keeps manual OK disabled until exactly six numeric digits and strips non-digits', () => {
