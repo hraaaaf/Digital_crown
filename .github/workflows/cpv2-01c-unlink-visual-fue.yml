@@ -1,0 +1,79 @@
+name: CPV2-01C exact Pocket mobile unlink visual evidence (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01c-unlink-visual-fue-20261031
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-01c-unlink-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pocket-unlink-visual:
+    name: Unlink CTA confirm and offline-pending real Pocket UI
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CPV2_SOURCE_HEAD: 54b8450a78ab4fe8c1fc5f939d98e0914bee8bed
+      MOBILE_RUNTIME_URL: http://127.0.0.1:5173
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assert exact product PR ancestry
+        run: |
+          git merge-base --is-ancestor 54b8450a78ab4fe8c1fc5f939d98e0914bee8bed HEAD
+          echo "PR_PRODUCT_HEAD=54b8450a78ab4fe8c1fc5f939d98e0914bee8bed"
+          echo "PROOF_BRANCH_HEAD=$(git rev-parse HEAD)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact frontend dependency tree
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Build the production Pocket application
+        working-directory: frontend
+        run: npm run build
+      - name: Install Playwright Chromium and WebKit
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Start production-built Pocket local server (not deployment)
+        working-directory: frontend
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 5173 --strictPort >/tmp/cpv2-unlink-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5173/landing' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/cpv2-unlink-vite.log
+          exit 1
+      - name: Capture real Pocket UI with Chromium (synthetic API)
+        working-directory: frontend
+        env:
+          MOBILE_RUNTIME_DIR: ../artifacts/cpv2-01c-unlink-chromium
+          MOBILE_RUNTIME_ENGINE: chromium
+        run: node scripts/capture-cpv2-01c-unlink-visual.mjs
+      - name: Capture real Pocket UI with WebKit (synthetic API)
+        working-directory: frontend
+        env:
+          MOBILE_RUNTIME_DIR: ../artifacts/cpv2-01c-unlink-webkit
+          MOBILE_RUNTIME_ENGINE: webkit
+        run: node scripts/capture-cpv2-01c-unlink-visual.mjs
+      - name: Upload exact screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpv2-01c-unlink-visual-proof
+          path: |
+            artifacts/cpv2-01c-unlink-chromium/
+            artifacts/cpv2-01c-unlink-webkit/
+          if-no-files-found: warn
+          retention-days: 21
