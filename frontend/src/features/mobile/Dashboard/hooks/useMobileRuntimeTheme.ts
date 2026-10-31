@@ -162,8 +162,7 @@ function applyCachedTheme(cacheKey: string) {
 }
 
 export function bootstrapMobileRuntimeTheme() {
-  enableMobileRuntimeFontRouting();
-  setCssVariable('--app-font-family', FONT_STACKS.inter);
+  applyMobileRuntimeTheme({ selected_theme: 'elite', font_fr: 'inter' });
   // Do not apply an unscoped theme before paired identity is resolved.
 }
 
