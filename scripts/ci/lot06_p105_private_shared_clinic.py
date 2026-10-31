@@ -31,6 +31,7 @@ import zipfile
 NETWORK = ipaddress.ip_network("100.64.0.0/10")
 LABELS = ("patient-a", "patient-b", "staff", "camera")
 PORT = 7077
+DENIED_TCP_PORT = 7079
 ROUNDS = 8
 TAG = "DC06_P105_5_VM_ONE_REAL_BACKEND_SYNTHETIC_V1"
 
@@ -251,7 +252,7 @@ def backend_and_room(root, tracker):
     return app, engine, room
 
 
-def assert_server_proof(engine, room, tracker):
+def assert_server_proof(engine, room, tracker, canaries):
     enable_backend()
     from sqlalchemy.orm import Session
     from backend import models
@@ -310,11 +311,87 @@ def assert_server_proof(engine, room, tracker):
             "receipts": receipts, "encrypted_media": len(media),
             "fail_closed": True, "product_ready": False,
         }
+    with canaries["lock"]:
+        check(not canaries["remote_hits"], "FORBIDDEN_NETWORK_REACHED_LIVE_CANARY")
+    proof["security_negative"] = {
+        "tcp_7079_canary_listening": True,
+        "udp_7077_canary_responding": True,
+        "remote_forbidden_hits": 0,
+    }
     Path("p105-server-proof.json").write_text(json.dumps(proof, sort_keys=True, indent=2) + "\n")
     print("LOT06_P1_05_TRUE_FIVE_VM_SHARED_REAL_BACKEND_PASS", {
         "appointments": proof["appointments"], "messages": proof["messages"],
         "receipts": proof["receipts"], "encrypted_media": proof["encrypted_media"],
         "distinct_vm": proof["distinct_github_vms"]}, flush=True)
+
+
+def start_denied_service_canaries(ip):
+    """Real, self-tested private listeners: never accept forbidden remote traffic."""
+    tcp = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    udp = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+    try:
+        tcp.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        tcp.bind((ip, DENIED_TCP_PORT))
+        tcp.listen(8)
+        tcp.settimeout(0.2)
+        udp.bind((ip, PORT))
+        udp.settimeout(0.2)
+    except BaseException:
+        tcp.close()
+        udp.close()
+        raise
+    state = {"stop": threading.Event(), "lock": threading.Lock(),
+             "remote_hits": [], "sockets": (tcp, udp), "threads": []}
+
+    def serve_tcp():
+        while not state["stop"].is_set():
+            try:
+                peer, address = tcp.accept()
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            with peer:
+                with state["lock"]:
+                    if address[0] != ip:
+                        state["remote_hits"].append("TCP_7079")
+                try:
+                    peer.sendall(b"P105_TCP_CANARY")
+                except OSError:
+                    pass
+
+    def serve_udp():
+        while not state["stop"].is_set():
+            try:
+                payload, address = udp.recvfrom(128)
+            except socket.timeout:
+                continue
+            except OSError:
+                break
+            with state["lock"]:
+                if address[0] != ip:
+                    state["remote_hits"].append("UDP_7077")
+            if payload == b"P105_UDP_NEGATIVE_PROBE":
+                try:
+                    udp.sendto(b"P105_UDP_CANARY", address)
+                except OSError:
+                    pass
+
+    for target in (serve_tcp, serve_udp):
+        worker = threading.Thread(target=target, daemon=True)
+        worker.start()
+        state["threads"].append(worker)
+
+    with socket.create_connection((ip, DENIED_TCP_PORT), timeout=3) as client:
+        check(client.recv(64) == b"P105_TCP_CANARY",
+              "TCP_NEGATIVE_LISTENER_NOT_LIVE")
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as client:
+        client.settimeout(3)
+        client.sendto(b"P105_UDP_NEGATIVE_PROBE", (ip, PORT))
+        check(client.recvfrom(64)[0] == b"P105_UDP_CANARY",
+              "UDP_NEGATIVE_LISTENER_NOT_LIVE")
+    print("P105_DENIED_TCP_7079_AND_UDP_7077_CANARIES_LIVE", flush=True)
+    return state
 
 
 def run_server():
@@ -340,6 +417,7 @@ def run_server():
         # Local listener probe on the assigned Tailnet IP; no application token used.
         with socket.create_connection((room["ip"], PORT), timeout=4):
             print("P105_SERVER_PRIVATE_TCP_7077_SELF_PROBE_PASS", flush=True)
+        canaries = start_denied_service_canaries(room["ip"])
         room_path = Path("p105-private-room.json")
         room_path.write_text(json.dumps(room))
         os.chmod(room_path, 0o600)
@@ -354,8 +432,14 @@ def run_server():
             time.sleep(0.4)
         else:
             raise AssertionError("FIVE_VM_NETWORK_CLIENTS_TIMED_OUT")
-        assert_server_proof(engine, room, tracker)
+        assert_server_proof(engine, room, tracker, canaries)
     finally:
+        if "canaries" in locals():
+            canaries["stop"].set()
+            for listener in canaries["sockets"]:
+                listener.close()
+            for worker in canaries["threads"]:
+                worker.join(timeout=2)
         if "server" in locals():
             server.should_exit = True
         if "thread" in locals():
@@ -517,16 +601,67 @@ def diagnose_private_path(room):
     raise AssertionError("P105_PRIVATE_TCP_7077_UNREACHABLE_CHECK_ACL_OR_FIREWALL")
 
 
+def check_negative_network(room):
+    """Assert denied TCP/UDP against locally proven-live responders."""
+    host = room["ip"]
+    try:
+        with socket.create_connection((host, DENIED_TCP_PORT), timeout=3):
+            raise AssertionError("TCP_7079_UNAUTHORIZED_CONNECTION_ACCEPTED")
+    except TimeoutError:
+        print("P105_NEGATIVE_LIVE_TCP_7079_DENY_PASS", flush=True)
+    except OSError as error:
+        raise AssertionError("TCP_7079_DENY_UNPROVEN_" + type(error).__name__) from error
+
+    with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as probe:
+        probe.settimeout(3)
+        probe.sendto(b"P105_UDP_NEGATIVE_PROBE", (host, PORT))
+        try:
+            probe.recvfrom(64)
+        except TimeoutError:
+            print("P105_NEGATIVE_LIVE_UDP_7077_DENY_PASS", flush=True)
+        except OSError as error:
+            raise AssertionError("UDP_7077_DENY_UNPROVEN_" + type(error).__name__) from error
+        else:
+            raise AssertionError("UDP_7077_UNAUTHORIZED_RESPONSE_RECEIVED")
+
+
+def check_negative_http(room, label):
+    """Exercise real private FastAPI middleware; must return HTTP 403."""
+    import requests
+    base = "http://" + room["ip"] + ":" + str(room["port"])
+    missing = requests.get(base + "/lab/status",
+                           headers={"X-Lab-Label": label},
+                           timeout=10, allow_redirects=False)
+    check(missing.status_code == 403, "MISSING_LAB_TOKEN_NOT_DENIED")
+    bad = request(room, label, "GET", "/lab/status",
+                  headers={"X-Lab-Token": "definitely-invalid"})
+    check(bad.status_code == 403, "BAD_LAB_TOKEN_NOT_DENIED")
+    role = request(room, label, "GET", "/lab/status",
+                   headers={"X-Lab-Label": "unknown-role"})
+    check(role.status_code == 403, "UNKNOWN_ROLE_NOT_DENIED")
+    if label in ("patient-a", "patient-b"):
+        other = "/media/" + str(room["users"][0]["patient_id"]) + "/assets"
+    elif label == "camera":
+        other = "/admin/patients/" + str(room["users"][0]["patient_id"]) + "/messages"
+    else:
+        other = "/contexts/" + room["users"][0]["public_id"] + "/agenda"
+    forbidden = request(room, label, "GET", other)
+    check(forbidden.status_code == 403, "CROSS_ROLE_PRODUCT_ACCESS_NOT_DENIED")
+    print("P105_NEGATIVE_HTTP_AUTH_AND_ROLE_DENY_PASS", label, flush=True)
+
+
 def run_client(label):
     guard()
     check(label in LABELS, "UNSUPPORTED_FIVE_VM_ROLE")
     room = get_room()
     diagnose_private_path(room)
+    check_negative_network(room)
     start = time.monotonic()
     join = request(room, label, "POST", "/lab/register",
                    data={"sha": room["sha"], "run_id": room["run_id"],
                          "runner": os.environ["RUNNER_NAME"]})
     check(join.status_code == 200 and join.json()["registered"], "PRIVATE_VM_REGISTER_FAILED")
+    check_negative_http(room, label)
     wait_start(room, label)
     samples = []
     if label in ("patient-a", "patient-b"):
@@ -591,12 +726,20 @@ def run_client(label):
             count += len(items)
             samples.append((time.monotonic()-t0)*1000)
         kind = "staff"
+    negative = {
+        "live_tcp_7079_denied": True, "live_udp_7077_denied": True,
+        "missing_token_403": True, "bad_token_403": True,
+        "unknown_role_403": True, "cross_role_403": True,
+    }
+    if label in ("patient-a", "patient-b"):
+        negative["cross_patient_404"] = True
     proof = {"label": label, "kind": kind, "count": count,
              "sha": room["sha"], "run_id": room["run_id"],
              "runner_name": os.environ["RUNNER_NAME"],
              "tailnet_ip": os.environ["DC06H_TAIL_IP"],
              "samples": len(samples), "p95_ms": percentile(samples, 95),
-             "real_network_http": True, "synthetic_only": True}
+             "real_network_http": True, "synthetic_only": True,
+             "security_negative": negative}
     sent = request(room, label, "POST", "/lab/done", data=proof)
     check(sent.status_code == 200 and sent.json()["ok"], "REMOTE_SHARED_SERVER_PROOF_DENIED")
     Path("p105-client-proof.json").write_text(json.dumps(proof, sort_keys=True, indent=2) + "\n")
