@@ -554,6 +554,14 @@ def _require_mobile_roles(user: models.User, allowed: set[str]) -> None:
         raise HTTPException(status_code=403, detail="Accès mobile refusé pour ce rôle.")
 
 
+@router.get('/stock/access', summary='Stock Pocket — autorisations de mutation')
+def mobile_stock_access(
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    # Server is authoritative; do not infer write grants from the patients module.
+    return {"can_write": has_permission(mobile_user, "stock_write")}
+
+
 @router.get('/stock/items', summary='Stock Pocket — liste')
 def mobile_stock_items(
     db: Session = Depends(database.get_db),
