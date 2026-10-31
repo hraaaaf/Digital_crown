@@ -78,4 +78,17 @@ jobs:
           test "$GITHUB_REF_NAME" = 'test/lot06-c05b03i-clinic-concurrency-lab-20261031'
           test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
           python -m py_compile backend/tests/test_lot06_c05b03i_product_contract.py
-          python -m pytest backend/tests/test_lot06_c05b03i_product_contract.py -q --maxfail=1
+          python - <<'PY'
+          import sys
+          import types
+          from pathlib import Path
+          import pytest
+          root = Path.cwd()
+          routers = types.ModuleType("backend.routers")
+          routers.__path__ = [str(root / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers
+          raise SystemExit(pytest.main([
+              "backend/tests/test_lot06_c05b03i_product_contract.py",
+              "-q", "--maxfail=1",
+          ]))
+          PY
