@@ -60,8 +60,19 @@ def claim_remote_command(
     # making the receipt durable even if the later domain/ACK COMMIT fails.
     # Acquire the real SQLite writer transaction first; this no-op changes no
     # clinical row and keeps receipt + domain mutation in one rollback boundary.
-    if db.get_bind().dialect.name == "sqlite":
+    dialect = db.get_bind().dialect.name
+    if dialect == "sqlite":
         db.execute(text("UPDATE patient_companion_remote_receipts SET id = id WHERE 1 = 0"))
+        # Authentication/route may have loaded this ORM instance BEFORE an
+        # independently committed revocation. Now that the SQLite writer
+        # fence serializes access revocations, reload authoritative state.
+        db.refresh(access, attribute_names=["revoked_at"])
+    elif dialect == "postgresql":
+        # Lock the access row: revocation and command are serialized under
+        # the same transaction, not just checked via a stale identity map.
+        db.refresh(access, attribute_names=["revoked_at"], with_for_update=True)
+    if access.revoked_at is not None:
+        raise ValueError("remote access is revoked")
 
     try:
         with db.begin_nested():
