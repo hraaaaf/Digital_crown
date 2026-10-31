@@ -82,6 +82,7 @@ def backend_and_room(root, tracker):
     enable_backend()
     from functools import partial
     from fastapi import FastAPI, Header, HTTPException, Request
+    from fastapi.responses import JSONResponse
     from sqlalchemy import create_engine, event
     from sqlalchemy.orm import Session
     from sqlalchemy.pool import NullPool
@@ -180,19 +181,25 @@ def backend_and_room(root, tracker):
 
     @app.middleware("http")
     async def lab_scope(request: Request, call_next):
+        # Middleware rejections must be 403, never an uncaught exception/500.
         if not valid_ip(request.client.host if request.client else ""):
-            raise HTTPException(status_code=403, detail="Private Tailnet peer required")
+            return JSONResponse({"detail": "Private Tailnet peer required"}, status_code=403)
         token = request.headers.get("X-Lab-Token", "")
         if not secrets.compare_digest(token, tracker["token"]):
-            raise HTTPException(status_code=403, detail="Invalid lab credential")
+            return JSONResponse({"detail": "Invalid lab credential"}, status_code=403)
         label = request.headers.get("X-Lab-Label", "")
         if label not in LABELS:
-            raise HTTPException(status_code=403, detail="Unknown remote lab role")
+            return JSONResponse({"detail": "Unknown remote lab role"}, status_code=403)
+        path = request.url.path
+        if (path.startswith("/media/") and label != "camera"
+            or path.startswith("/admin/") and label != "staff"
+            or path.startswith("/contexts/") and label not in ("patient-a", "patient-b")):
+            return JSONResponse({"detail": "Wrong lab role for real product API"}, status_code=403)
         ip = request.client.host
         with tracker["lock"]:
             known = tracker["peers"].get(label)
-            if request.url.path != "/lab/register" and (known is None or known["ip"] != ip):
-                raise HTTPException(status_code=403, detail="Unregistered network client")
+            if path != "/lab/register" and (known is None or known["ip"] != ip):
+                return JSONResponse({"detail": "Unregistered network client"}, status_code=403)
         return await call_next(request)
 
     @app.post("/lab/register")
