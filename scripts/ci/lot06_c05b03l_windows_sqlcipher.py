@@ -8,12 +8,24 @@ from pathlib import Path
 import secrets
 import sys
 import tempfile
+import types
 import uuid
 from datetime import datetime, timedelta, timezone
 
 # GitHub Windows invokes this as "python scripts/ci/...", which otherwise
 # puts scripts/ci (not the repository root) on sys.path.
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
+# Import real model/service modules without executing the cabinet's unrelated
+# application startup and UI/honoraires schema dependency graph.
+# Same technique as the existing Windows DPAPI transport certification.
+root = Path(__file__).resolve().parents[2]
+for package_name, location in (
+    ("backend", root / "backend"),
+    ("backend.core", root / "backend" / "core"),
+):
+    package = types.ModuleType(package_name)
+    package.__path__ = [str(location)]
+    sys.modules[package_name] = package
 
 from sqlalchemy import create_engine
 from sqlalchemy.orm import Session
