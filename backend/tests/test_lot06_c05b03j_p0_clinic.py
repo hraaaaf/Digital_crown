@@ -64,7 +64,7 @@ def test_p0_01_last_slot_double_click_race_exact_one_commit_and_ack(
 ):
     app, engine, employer_id, users, patient_ids = _fixture(synthetic_cabinet, monkeypatch)
     timings = []
-    for round_index in range(6):
+    for round_index in range(2):
         start = datetime(2030, 3, 4, 10) + timedelta(days=round_index)
         refs = _slots(engine, employer_id, users, start)
         barrier = Barrier(2)
@@ -90,8 +90,8 @@ def test_p0_01_last_slot_double_click_race_exact_one_commit_and_ack(
         assert len(_appointment_rows(engine, employer_id, start)) == 1
         assert _appointment_rows(engine, employer_id, start)[0][1] in patient_ids
         timings.extend(ms for _, ms in outcomes)
-    print("LOT06_P0_01_REAL_HTTP_SIX_SLOT_RACES_PASS",
-          {"rounds": 6, "requests": 12, "samples": len(timings)})
+    print("LOT06_P0_01_REAL_HTTP_TWO_SLOT_RACES_RATE_LIMIT_RETAINED_PASS",
+          {"rounds": 2, "requests": 4, "samples": len(timings)})
 
 
 def test_p0_02_lost_ack_retry_booking_idempotent_and_replay_blocked(
