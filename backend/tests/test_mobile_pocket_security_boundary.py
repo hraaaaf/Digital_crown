@@ -176,3 +176,162 @@ def test_pocket_v1_facades_preserve_mobile_scope_and_role_guards(client, db, den
     assert client.get('/api/stock/items', headers=headers).status_code == 401
     assert client.get('/api/lab-jobs/', headers=headers).status_code == 401
     assert client.get('/api/partner-catalog/meta', headers=headers).status_code == 401
+
+
+# CPV2-01A — real FastAPI negative contracts on synthetic SQLite fixtures.
+# This suite deliberately does not change production permissions or auth logic.
+
+
+def test_cpv2_01a_mobile_token_refused_by_superadmin_desktop_api(client, db, dentiste):
+    secretary = _user(
+        db, email='cpv2-01a-superadmin-boundary@example.test',
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': True},
+    )
+    access = _claim_mobile(client, db, dentiste, secretary)
+    headers = {'Authorization': f'Bearer {access}'}
+
+    assert client.get('/api/mobile/capabilities', headers=headers).status_code == 200
+    assert client.get('/api/superadmin/clients', headers=headers).status_code == 401
+
+
+def test_cpv2_01a_jwt_role_claim_cannot_promote_secretary_to_dentist(client, db, dentiste):
+    from jose import jwt
+
+    from backend.routers.mobile import _create_mobile_jwt
+    from backend.security import ALGORITHM, SECRET_KEY
+
+    secretary = _user(
+        db, email='cpv2-01a-role-spoof@example.test',
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': True},
+    )
+    original = _claim_mobile(client, db, dentiste, secretary)
+    device_id = jwt.decode(original, SECRET_KEY, algorithms=[ALGORITHM])['device_id']
+    forged_role = _create_mobile_jwt(
+        secretary.id, 'DENTISTE', dentiste.id, device_id,
+    )
+    headers = {'Authorization': f'Bearer {forged_role}'}
+
+    # The identity is resolved from the real DB user, never from a JWT role string.
+    assert client.get('/api/mobile/lab-jobs', headers=headers).status_code == 403
+    assert client.get('/api/mobile/partner-orders/meta', headers=headers).status_code == 403
+
+
+def test_cpv2_01a_patient_cockpit_does_not_cross_cabinet(client, db, dentiste):
+    other_owner = _user(
+        db, email='cpv2-01a-owner-b@example.test',
+        role=models.UserRole.DENTISTE,
+    )
+    foreign_patient = models.Patient(
+        nom='CROSS-TENANT', prenom='Synthetic', sexe='F',
+        date_naissance=datetime(1990, 1, 1),
+        employer_id=other_owner.id,
+    )
+    db.add(foreign_patient)
+    db.commit()
+    db.refresh(foreign_patient)
+
+    secretary = _user(
+        db, email='cpv2-01a-owner-a-secretary@example.test',
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': True},
+    )
+    access = _claim_mobile(client, db, dentiste, secretary)
+    headers = {'Authorization': f'Bearer {access}'}
+
+    response = client.get(
+        f'/api/mobile/patient-cockpit/{foreign_patient.id}', headers=headers,
+    )
+    assert response.status_code == 404
+
+
+def test_cpv2_01a_revoked_paired_device_rejected_on_next_request(client, db, dentiste):
+    secretary = _user(
+        db, email='cpv2-01a-revoked-device@example.test',
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': True},
+    )
+    access = _claim_mobile(client, db, dentiste, secretary)
+    headers = {'Authorization': f'Bearer {access}'}
+    assert client.get('/api/mobile/capabilities', headers=headers).status_code == 200
+
+    device = db.query(models.MobilePairedDevice).filter(
+        models.MobilePairedDevice.user_id == secretary.id,
+        models.MobilePairedDevice.employer_id == dentiste.id,
+    ).one()
+    device.revoked_at = datetime.utcnow()
+    db.commit()
+    assert client.get('/api/mobile/capabilities', headers=headers).status_code == 401
+
+
+def test_cpv2_01a_stock_write_requires_existing_patient_permission(client, db, dentiste):
+    secretary = _user(
+        db, email='cpv2-01a-stock-denied@example.test',
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': False},
+    )
+    access = _claim_mobile(client, db, dentiste, secretary)
+    response = client.post(
+        '/api/mobile/stock/items',
+        headers={'Authorization': f'Bearer {access}'},
+        json={'nom': 'Synthetic stock denied', 'categorie': 'CONSOMMABLE', 'quantite': 1},
+    )
+    assert response.status_code == 403
+
+
+def test_cpv2_01b_patient_permission_does_not_authorize_stock_write(
+    client, db, dentiste,
+):
+    secretary = _user(
+        db, email='cpv2-01a-stock-known-gap@example.test',
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': True, 'clinical': False},
+    )
+    access = _claim_mobile(client, db, dentiste, secretary)
+    response = client.post(
+        '/api/mobile/stock/items',
+        headers={'Authorization': f'Bearer {access}'},
+        json={'nom': 'Synthetic stock known gap', 'categorie': 'CONSOMMABLE', 'quantite': 1},
+    )
+    # CPV2-01B: dedicated Stock-write capability, independent of 'patients'.
+    assert response.status_code == 403
+
+
+def test_cpv2_01b_stock_write_can_be_granted_and_revoked_independently(
+    client, db, dentiste,
+):
+    secretary = _user(
+        db, email='cpv2-01b-stock-grant@example.test',
+        role=models.UserRole.SECRETAIRE, employer_id=dentiste.id,
+        permissions={'agenda': True, 'patients': True, 'stock_write': False},
+    )
+    access = _claim_mobile(client, db, dentiste, secretary)
+    headers = {'Authorization': f'Bearer {access}'}
+    assert client.get('/api/mobile/stock/access', headers=headers).json() == {'can_write': False}
+
+    secretary.permissions = {'agenda': True, 'patients': True, 'stock_write': True}
+    db.commit()
+    assert client.get('/api/mobile/stock/access', headers=headers).json() == {'can_write': True}
+
+    created = client.post(
+        '/api/mobile/stock/items', headers=headers,
+        json={'nom': 'Synthetic authorized stock', 'categorie': 'CONSOMMABLE', 'quantite': 2},
+    )
+    assert created.status_code in (200, 201), created.text
+    item_id = created.json()['id']
+    updated = client.patch(
+        f'/api/mobile/stock/items/{item_id}', headers=headers,
+        json={'quantite': 4},
+    )
+    assert updated.status_code == 200, updated.text
+    assert updated.json()['quantite'] == 4
+
+    secretary.permissions = {'agenda': True, 'patients': True, 'stock_write': False}
+    db.commit()
+    assert client.get('/api/mobile/stock/access', headers=headers).json() == {'can_write': False}
+    assert client.patch(
+        f'/api/mobile/stock/items/{item_id}', headers=headers,
+        json={'quantite': 99},
+    ).status_code == 403
+    assert db.query(models.StockItem).filter(models.StockItem.id == item_id).one().quantite == 4
