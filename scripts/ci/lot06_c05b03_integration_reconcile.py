@@ -17,6 +17,10 @@ import subprocess
 HISTORY_SQLCIPHER = "8f99cbd4fc5045c530d73270ae4dbecdb4ac8c24"
 HISTORY_PATIENT_NETWORK = "90fd4a9543057d0af1f56d5d72845d8fa5738f5b"
 SOURCE_ONLY = (
+    "backend/services/imaging_clinical_asset_verifier_v15.py",
+    "backend/services/imaging_lab_authorized_media_gate_v15.py",
+    "backend/tests/test_imaging_clinical_asset_verifier_v15.py",
+    "backend/tests/test_imaging_lab_authorized_media_gate_v15.py",
     "isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py",
     "isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py",
     "isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py",
