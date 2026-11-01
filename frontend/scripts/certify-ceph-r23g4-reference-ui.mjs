@@ -212,13 +212,19 @@ async function viewportRun(viewport) {
         const row=panel?.querySelector('tbody tr:last-child');
         if(!scroller||!row)return null;
         const r=row.getBoundingClientRect(),c=scroller.getBoundingClientRect();
+        const header=document.querySelector('[data-dc-patient-radiology="true"] > header');
+        const headerStyle=header ? getComputedStyle(header) : null;
+        const headerBackground=headerStyle?.backgroundColor ?? null;
+        // Opaque theme surface: a translucent sticky header leaks clinical rows during scroll.
+        const headerOpaque=Boolean(header && headerStyle?.opacity==='1'
+          && headerBackground && /^rgb\\(/.test(headerBackground));
         return {rowTop:r.top,rowBottom:r.bottom,scrollTop:c.top,scrollBottom:c.bottom,
           bottomPadding:parseFloat(getComputedStyle(scroller).paddingBottom)||0,
-          viewportHeight:innerHeight};
+          viewportHeight:innerHeight,headerBackground,headerOpaque};
       });
       if(!readable || readable.bottomPadding<120 || readable.rowBottom>readable.scrollBottom+1
-        || readable.rowTop<readable.scrollTop-1)
-        throw Error('Reference last factor is unreachable or unsafe toasts obstruct its scrolling: '+JSON.stringify(readable));
+        || readable.rowTop<readable.scrollTop-1 || !readable.headerOpaque)
+        throw Error('Reference last factor or patient header is not visually safe after scrolling: '+JSON.stringify(readable));
       await shot('after-com-last-factor-accessible');
       return readable;
     });
