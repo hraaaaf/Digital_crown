@@ -6,17 +6,21 @@ The session JWT is signed by the real backend helper from a synthetic fixture.
 from __future__ import annotations
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
+import secrets
+import uuid
 import json
 import os
 import sys
 from pathlib import Path
 from threading import Event
 
-from fastapi import Depends, FastAPI, HTTPException
+from fastapi import Depends, FastAPI, HTTPException, Request
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 from sqlalchemy import create_engine, update
+from jose import jwt
+from backend.security import SECRET_KEY, ALGORITHM
 from sqlalchemy.pool import NullPool
 from sqlcipher3 import dbapi2 as sqlcipher
 
@@ -74,7 +78,8 @@ def _make_fixture(bridge):
 
     @app.post("/isolated/lot06/receipt")
     def synthetic_receipt(
-        body: ClaimBody, current_user: models.User = Depends(auth.get_current_user),
+        body: ClaimBody, request: Request,
+        current_user: models.User = Depends(auth.get_current_user),
     ):
         if (os.getenv("ENVIRONMENT") != "test"
             or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "true"
@@ -86,7 +91,11 @@ def _make_fixture(bridge):
             or body.digest != claim.digest or body.version != claim.version):
             raise HTTPException(409, "CAPTURE_BINDING_CONFLICT")
         try:
-            receipt = _issue(engine,claim,body.device_token,station_token,media_root)
+            # Authenticate the station presented by THIS request, not a captured
+            # fixture secret: another valid tenant station must not authorize
+            # receipt issuance for claim.station.
+            station_presented = request.cookies.get("dc_workstation") or ""
+            receipt = _issue(engine,claim,body.device_token,station_presented,media_root)
         except BridgeRejected:
             raise HTTPException(409, "CAPTURE_AUTHORITY_DENIED")
         return {"receipt_id": receipt, "clinical_receipt_authorized": False}
@@ -212,3 +221,62 @@ def test_c05b03g_production_flag_denied(bridge, monkeypatch):
         assert _post(client,body,token).status_code==503
     assert _counts(engine)==(0,0,0)
     print("C05B03G_CABINET_HTTP_DISABLED_PASS")
+
+
+def test_c05b03g_other_valid_tenant_station_cannot_issue_bound_capture(bridge):
+    app, engine, claim, station_token, staff_email, _, body, _ = _make_fixture(bridge)
+    token = create_access_token({"sub": staff_email})
+    other_station_token = secrets.token_urlsafe(32)
+    with Session(engine) as db:
+        db.add(models.WorkstationMode(
+            id=str(uuid.uuid4()),
+            employer_id=claim.tenant,
+            token_hash=__import__("hashlib").sha256(other_station_token.encode()).hexdigest(),
+            mode_revision=0,
+            default_experience="cabinet",
+            display_name="Other synthetic station",
+        ))
+        db.commit()
+    with TestClient(app) as client:
+        client.cookies.set("dc_workstation", other_station_token)
+        # Genuine cabinet station auth passes, but receipt claim.station differs.
+        mismatched = _post(client, body, token)
+        assert mismatched.status_code == 409, (mismatched.status_code, mismatched.text[:250])
+        assert _counts(engine) == (0,0,0)
+        client.cookies.set("dc_workstation", station_token)
+        accepted = _post(client, body, token)
+        assert accepted.status_code == 200, (accepted.status_code, accepted.text[:250])
+        assert accepted.json()["clinical_receipt_authorized"] is False
+        assert _counts(engine) == (1,1,1)
+    print("C05B03G_TWO_VALID_WORKSTATIONS_CANNOT_CROSS_APPROVE_CAPTURE_PASS")
+
+
+def test_c05b03g_persisted_jwt_blacklist_and_station_lock(bridge):
+    app, engine, claim, station_token, staff_email, _, body, _ = _make_fixture(bridge)
+    token = create_access_token({"sub": staff_email})
+    with TestClient(app) as client:
+        client.cookies.set("dc_workstation", station_token)
+        # A physical Station with no bound escape token is locked.
+        with engine.begin() as conn:
+            conn.execute(update(models.WorkstationMode.__table__).where(
+                models.WorkstationMode.__table__.c.id == claim.station
+            ).values(default_experience="station"))
+        assert _post(client, body, token).status_code == 423
+        assert _counts(engine) == (0,0,0)
+        with engine.begin() as conn:
+            conn.execute(update(models.WorkstationMode.__table__).where(
+                models.WorkstationMode.__table__.c.id == claim.station
+            ).values(default_experience="cabinet"))
+        # Persistence-backed JTI revocation is enforced even with a valid station.
+        jti = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])["jti"]
+        with Session(engine) as db:
+            db.add(models.RevokedToken(jti=jti, expires_at=datetime.utcnow()+timedelta(hours=1)))
+            db.commit()
+        denied = _post(client, body, token)
+        assert denied.status_code == 401, (denied.status_code, denied.text[:250])
+        assert _counts(engine) == (0,0,0)
+        new_jwt = create_access_token({"sub": staff_email})
+        accepted = _post(client, body, new_jwt)
+        assert accepted.status_code == 200, (accepted.status_code, accepted.text[:250])
+        assert _counts(engine) == (1,1,1)
+    print("C05B03G_STATION_LOCK_AND_PERSISTENT_JWT_REVOCATION_PASS")
