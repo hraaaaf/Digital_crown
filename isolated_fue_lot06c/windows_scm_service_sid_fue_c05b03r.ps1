@@ -164,6 +164,16 @@ try {
         & icacls.exe $spool /inheritance:r /grant:r ('*S-1-5-19:(OI)(CI)M') ('*' + $serviceSid + ':(OI)(CI)M') '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTRICTED_SPOOL_ACL_REPAIR_FAILED' }
         Write-Output 'DC06B03_SPOOL_SID_DACL_EXPLICIT_ON_NEW_DIRECTORY'
+        # EN = native NtCreateFile relative read refused on the one seeded
+        # ciphertext leaf. Hard-pin the explicit leaf DACL too, not just
+        # parent inheritance. Only synthetic data on a disposable CI VM.
+        $cipherLeaves=@(Get-ChildItem -LiteralPath $spool -File -Filter '*.dc6')
+        if ($cipherLeaves.Count -ne 1) { throw 'DC06B03_NOT_EXACTLY_ONE_SYNTHETIC_CIPHER' }
+        foreach ($cipherLeaf in $cipherLeaves) {
+            & icacls.exe $cipherLeaf.FullName /inheritance:r /grant:r '*S-1-5-19:R' ('*' + $serviceSid + ':R') '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SYNTHETIC_CIPHER_LEAF_ACL_FAILED' }
+        }
+        Write-Output 'DC06B03_SYNTHETIC_CIPHER_LEAF_SID_DACL_EXPLICIT'
         $binPath += ' --b03-spool "' + $python + '" "' + $reader + '" "' +
             $watch + '" "' + $private + '" "' + $keyPath + '"'
     }
