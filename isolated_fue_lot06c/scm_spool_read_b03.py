@@ -60,9 +60,30 @@ def run(argv: list[str]) -> int:
         # Fixed two-byte ASCII response, no patient/filename/digest/media.
         os.write(1, b"S" + str(len(captures)).encode("ascii"))
         return 0
-    except OSError:
-        # Only a bounded non-PHI phase number; no errno, paths, stack or keys.
-        if mode == "read": os.write(1, b"E" + str(stage).encode("ascii"))
+    except OSError as error:
+        # B03 LAB only: encode fixed call-site families, never path/exception,
+        # OS errno, patient, ciphertext, key or traceback in IPC output.
+        category = str(stage)
+        if stage == 3:
+            trace = error.__traceback__
+            seen = set()
+            while trace is not None:
+                seen.add(trace.tb_frame.f_code.co_name)
+                trace = trace.tb_next
+            for name, code in (
+                ("_open_root", "R"),
+                ("open_relative_read", "L"),
+                ("_seal_continuity_marker", "M"),
+                ("directory_identity", "I"),
+                ("_directory_identity", "D"),
+                ("_decrypt", "C"),
+            ):
+                if name in seen:
+                    category = code
+                    break
+            else:
+                category = "Z"
+        if mode == "read": os.write(1, ("E" + category).encode("ascii"))
         return 5
     except Exception:
         if mode == "read": os.write(1, b"E2")
