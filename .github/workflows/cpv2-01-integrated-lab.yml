@@ -1,0 +1,169 @@
+name: CPV2-01 integrated tree & regression LAB (NO PR MERGE NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01-integration-proof-20261101
+    paths:
+      - .github/workflows/cpv2-01-integrated-lab.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-01-integration-proof
+  cancel-in-progress: true
+
+jobs:
+  integrate-and-test:
+    name: Reproducible two-parent tree reconciliation then security tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      MASTER_SHA: cd5eee730c977df7792cc4a1b9ff6e54aefe7eec
+      STOCK_SHA: fe0cdd1dcba2bb57e18a71fdbf33f8cf9f2bcd14
+      POCKET_SHA: cb02d81a65cfa06272e32dc05e5e7b016d2d089c
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      DATABASE_URL: "sqlite:///:memory:"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+      SECRET_KEY: "cpv2-integration-isolated-never-production"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: Checkout pinned master only (not this workflow's branch contents)
+        uses: actions/checkout@v4
+        with:
+          ref: cd5eee730c977df7792cc4a1b9ff6e54aefe7eec
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Compute integrated tree only in disposable runner; fail closed on conflicts
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts/cpv2-integration
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test "$(git rev-parse HEAD)" = "$MASTER_SHA"
+          git fetch --no-tags origin "$STOCK_SHA" "$POCKET_SHA"
+          git cat-file -e "$STOCK_SHA^{commit}"
+          git cat-file -e "$POCKET_SHA^{commit}"
+          git merge-base --is-ancestor 5e0ed1b6a21036e0213035d55a7f8c3fb771c21d "$POCKET_SHA"
+          git merge-base --is-ancestor 1df95cd19d7499558afa13a6d65487b494e7f937 "$POCKET_SHA"
+          git merge-base --is-ancestor 54b8450a78ab4fe8c1fc5f939d98e0914bee8bed "$POCKET_SHA"
+          git merge-base --is-ancestor 10de0a04a50b287164586004550c26995fb33510 "$POCKET_SHA"
+          git merge-base --is-ancestor a637ab74469d2bb4e0d7015b4b155703be986892 "$POCKET_SHA"
+          export GIT_AUTHOR_NAME="CPV2 Lab" GIT_AUTHOR_EMAIL="cpv2-lab@localhost.invalid"
+          export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          export GIT_AUTHOR_DATE="2026-11-01T00:00:00+00:00"
+          export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
+          printf 'master=%s\nstock=%s\npocket=%s\nno_remote_merge=true\n' "$MASTER_SHA" "$STOCK_SHA" "$POCKET_SHA" | tee artifacts/cpv2-integration/sources.txt
+
+          set +e
+          git merge-tree --write-tree --messages "$MASTER_SHA" "$STOCK_SHA" > artifacts/cpv2-integration/master-plus-stock.txt 2>&1
+          result=$?
+          set -e
+          printf 'master_plus_stock_exit=%s\n' "$result" | tee -a artifacts/cpv2-integration/sources.txt
+          if [ "$result" -ne 0 ]; then
+            echo "BLOCKED: master + Stock tree has conflicts; no final SHA, no arbitrary resolution" | tee -a artifacts/cpv2-integration/sources.txt
+            head -c 12000 artifacts/cpv2-integration/master-plus-stock.txt
+            exit 1
+          fi
+          tree1=$(head -n 1 artifacts/cpv2-integration/master-plus-stock.txt)
+          git cat-file -e "$tree1^{tree}"
+          c1=$(printf 'LAB synthetic tree: master + Pocket Stock (#1168)\n' | git commit-tree "$tree1" -p "$MASTER_SHA" -p "$STOCK_SHA")
+          echo "master_stock_synthetic_commit=$c1" | tee -a artifacts/cpv2-integration/sources.txt
+
+          set +e
+          git merge-tree --write-tree --messages "$c1" "$POCKET_SHA" > artifacts/cpv2-integration/stock-plus-pocket.txt 2>&1
+          result=$?
+          set -e
+          printf 'stock_plus_pocket_exit=%s\n' "$result" | tee -a artifacts/cpv2-integration/sources.txt
+          if [ "$result" -ne 0 ]; then
+            echo "BLOCKED: stock + Pocket trees conflict; no final SHA; preserve both variants for deliberate reconciliation" | tee -a artifacts/cpv2-integration/sources.txt
+            head -c 12000 artifacts/cpv2-integration/stock-plus-pocket.txt
+            exit 1
+          fi
+          tree2=$(head -n 1 artifacts/cpv2-integration/stock-plus-pocket.txt)
+          git cat-file -e "$tree2^{tree}"
+          final=$(printf 'LAB synthetic combined tree: master + #1168 + #1169..#1176\n' | git commit-tree "$tree2" -p "$c1" -p "$POCKET_SHA")
+          git switch --detach "$final"
+          test "$(git rev-parse HEAD)" = "$final"
+          git merge-base --is-ancestor "$MASTER_SHA" "$final"
+          git merge-base --is-ancestor "$STOCK_SHA" "$final"
+          git merge-base --is-ancestor "$POCKET_SHA" "$final"
+          echo "FINAL_INTEGRATED_SHA=$final" | tee -a artifacts/cpv2-integration/sources.txt
+          echo "FINAL_INTEGRATED_TREE=$tree2" | tee -a artifacts/cpv2-integration/sources.txt
+          git diff-tree --no-commit-id --name-only -r "$MASTER_SHA" "$final" > artifacts/cpv2-integration/integrated-changed-files.txt
+          git status --porcelain=v1 | tee artifacts/cpv2-integration/working-tree-status.txt
+          test ! -s artifacts/cpv2-integration/working-tree-status.txt
+          echo "LAB SHA: $final" >> "$GITHUB_STEP_SUMMARY"
+          echo "Only runner-local commit-tree. No GitHub PR merges/push/deployment." >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Setup Node 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install exact integrated frontend
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+
+      - name: Test Stock permissions, onboarding, local purge and revocation persistence
+        working-directory: frontend
+        run: >-
+          npx vitest run
+          src/features/mobile/Dashboard/views/StockView.test.tsx
+          src/services/zka/unlinkMobileDevice.test.ts
+          src/services/zka/MobileStorage.snapshot.test.ts
+          src/services/zka/MobileStorage.refreshFence.test.ts
+          src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx
+          src/test/mobileM62Behavior.test.ts
+          src/test/mobilePocketPwaLifecycle.contract.test.ts
+          src/features/mobile/Dashboard/hooks/useMobileDashboard.p0.test.tsx
+          --reporter=verbose
+
+      - name: Production frontend build on integrated SHA (NO DEPLOY)
+        working-directory: frontend
+        run: npm run build
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install backend dependencies in isolated runner
+        run: python -m pip install -r backend/requirements.txt
+
+      - name: Backend integrated stock, mobile revocation, JWT, tenant and admin isolation
+        run: >-
+          python -m pytest -q --maxfail=1
+          backend/tests/test_stock_access_control.py
+          backend/tests/test_mobile_single_device_unlink.py
+          backend/tests/test_mobile_admin_single_device_revoke.py
+          backend/tests/test_mobile_credential_hardening.py
+          backend/tests/test_mobile_pocket_security_boundary.py
+
+      - name: Final proof summary
+        if: success()
+        shell: bash
+        run: |
+          set -euo pipefail
+          sha=$(git rev-parse HEAD)
+          grep -qx "FINAL_INTEGRATED_SHA=$sha" artifacts/cpv2-integration/sources.txt
+          printf 'verified_combined_sha=%s\nfrontend_tests=PASS\nfrontend_build=PASS\nbackend_security=PASS\nreal_device_fue=NOT_RUN\nrepo_pr_merge=NO\nproduction_deployment=NO\n' "$sha" | tee artifacts/cpv2-integration/verdict.txt
+          echo "Integrated lab regressions PASS at $sha (not a certified deploy)" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload conflict diagnostics and/or full proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpv2-01-exact-combination-lab
+          path: artifacts/cpv2-integration/
+          if-no-files-found: warn
+          retention-days: 14
