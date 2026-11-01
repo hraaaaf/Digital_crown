@@ -1,0 +1,89 @@
+name: CPV2-01 publish tested integration candidate (NO PR MERGE NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01-integration-proof-20261101
+    paths:
+      - .github/workflows/cpv2-01-publish-candidate.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cpv2-01-publish-candidate-20261101
+  cancel-in-progress: false
+
+jobs:
+  publish-exact-tested-sha:
+    name: Pin sources, regenerate tested git tree and push isolated branch only
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      MASTER_SHA: cd5eee730c977df7792cc4a1b9ff6e54aefe7eec
+      STOCK_SHA: fe0cdd1dcba2bb57e18a71fdbf33f8cf9f2bcd14
+      POCKET_SHA: cb02d81a65cfa06272e32dc05e5e7b016d2d089c
+      EXPECTED_LAB_SHA: 137f84e9b4a51bce8a47e8ac722024bbb87fe20b
+      CANDIDATE_BRANCH: test/cpv2-01-integrated-candidate-20261101
+    steps:
+      - name: Checkout exact tested master only
+        uses: actions/checkout@v4
+        with:
+          ref: cd5eee730c977df7792cc4a1b9ff6e54aefe7eec
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Reconstruct the identical LAB merge tree and SHA, fail closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$MASTER_SHA"
+          git fetch --no-tags origin "$STOCK_SHA" "$POCKET_SHA"
+          for ancestor in \
+            5e0ed1b6a21036e0213035d55a7f8c3fb771c21d \
+            1df95cd19d7499558afa13a6d65487b494e7f937 \
+            54b8450a78ab4fe8c1fc5f939d98e0914bee8bed \
+            10de0a04a50b287164586004550c26995fb33510 \
+            a637ab74469d2bb4e0d7015b4b155703be986892; do
+            git merge-base --is-ancestor "$ancestor" "$POCKET_SHA"
+          done
+          export GIT_AUTHOR_NAME="CPV2 Lab" GIT_AUTHOR_EMAIL="cpv2-lab@localhost.invalid"
+          export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
+          export GIT_AUTHOR_DATE="2026-11-01T00:00:00+00:00"
+          export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
+          tree1=$(git merge-tree --write-tree --messages "$MASTER_SHA" "$STOCK_SHA")
+          git cat-file -e "$tree1^{tree}"
+          c1=$(printf 'LAB synthetic tree: master + Pocket Stock (#1168)\n' |
+            git commit-tree "$tree1" -p "$MASTER_SHA" -p "$STOCK_SHA")
+          test "$c1" = "3ce8072b5e9d8e99142773185749e2dd0ea625c0"
+          tree2=$(git merge-tree --write-tree --messages "$c1" "$POCKET_SHA")
+          git cat-file -e "$tree2^{tree}"
+          test "$tree2" = "4692942f9c01683928b5a032c42c88b0e9bc5f93"
+          final=$(printf 'LAB synthetic combined tree: master + #1168 + #1169..#1176\n' |
+            git commit-tree "$tree2" -p "$c1" -p "$POCKET_SHA")
+          test "$final" = "$EXPECTED_LAB_SHA"
+          git merge-base --is-ancestor "$MASTER_SHA" "$final"
+          git merge-base --is-ancestor "$STOCK_SHA" "$final"
+          git merge-base --is-ancestor "$POCKET_SHA" "$final"
+          git cat-file -e "$final^{commit}"
+          printf 'candidate_sha=%s\ncandidate_tree=%s\n' "$final" "$tree2" | tee "$GITHUB_STEP_SUMMARY"
+          printf '%s\n' "$final" > /tmp/cpv2-final-sha
+
+      - name: Publish only on isolated candidate branch (no PR merge, no deployment)
+        shell: bash
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          final=$(cat /tmp/cpv2-final-sha)
+          test "$final" = "$EXPECTED_LAB_SHA"
+          remote="https://x-access-token:$GH_TOKEN@github.com/$GITHUB_REPOSITORY.git"
+          actual_master=$(git ls-remote "$remote" refs/heads/master | cut -f1)
+          test "$actual_master" = "$MASTER_SHA"
+          actual_candidate=$(git ls-remote "$remote" "refs/heads/$CANDIDATE_BRANCH" | cut -f1)
+          test "$actual_candidate" = "$MASTER_SHA"
+          git push "$remote" "$final:refs/heads/$CANDIDATE_BRANCH"
+          new_head=$(git ls-remote "$remote" "refs/heads/$CANDIDATE_BRANCH" | cut -f1)
+          test "$new_head" = "$EXPECTED_LAB_SHA"
+          echo "Published candidate SHA exact-tested: $new_head" >> "$GITHUB_STEP_SUMMARY"
+          echo "master unchanged; PR source branches untouched; no deployment invoked." >> "$GITHUB_STEP_SUMMARY"
