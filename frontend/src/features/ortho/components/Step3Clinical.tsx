@@ -61,7 +61,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
 
       {!currentAnalysis && (
         <p role="alert" className="text-xs" style={{ color: P.accentWarning }}>
-          Analyse historique hors V1 : sélectionnez COM Digital Crown ou Steiner 1953.
+          Analyse historique hors V1 : sélectionnez COM Digital Crown ou Steiner complet.
         </p>
       )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">

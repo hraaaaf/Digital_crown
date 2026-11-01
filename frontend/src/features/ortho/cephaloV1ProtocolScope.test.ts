@@ -3,10 +3,10 @@ import { V1_CEPHALO_PROTOCOLS, asV1CephaloProtocol,
   v1ModeForProtocol, v1ProtocolForMode } from './cephaloV1ProtocolScope';
 
 describe('Céphalo V1 L1-a protocol scope', () => {
-  it('lists COM Digital Crown and Steiner 1953 only', () => {
+  it('lists COM Digital Crown and Steiner complet only', () => {
     expect(V1_CEPHALO_PROTOCOLS.map(p => p.id)).toEqual(['COM', 'STEINER']);
     expect(V1_CEPHALO_PROTOCOLS.map(p => p.label))
-      .toEqual(['COM Digital Crown', 'Steiner 1953']);
+      .toEqual(['COM Digital Crown', 'Steiner complet (1953 + 1959)']);
   });
   it('maps selection both ways without McNamara or Ricketts aliases', () => {
     expect(v1ModeForProtocol('COM')).toBe('com');

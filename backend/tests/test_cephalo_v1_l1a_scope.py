@@ -35,7 +35,7 @@ def test_com_canonical_8_not_silently_promoted_from_legacy_10():
     assert com_pack["membership_evidence_refs"] == []
 
 
-def test_steiner_1953_exact_11_not_1959_four():
+def test_steiner_full_1953_plus_1959_exact_fifteen():
     v1 = _read("docs/audits/schemas/cephalo_v1_phase1_protocol_scope_v1.json")
     steiner = v1["selected_protocols"][1]
     source = _read("backend/data/cephalometry/steiner_protocol_profile_v1.json")
@@ -43,9 +43,11 @@ def test_steiner_1953_exact_11_not_1959_four():
     core = source["layers"]["STEINER_1953_BASE"]["required_measurement_ids"]
     extension = source["layers"]["STEINER_1959_EXTENSION"]["required_measurement_ids"]
     assert len(core) == 11 and len(extension) == 4
-    assert steiner["measurement_ids"] == core
     assert not set(core) & set(extension)
-    assert set(core) <= set(pack["measurement_ids"])
-    assert steiner["excluded_extension"] == "STEINER_1959_EXTENSION"
+    assert steiner["measurement_ids"] == core + extension
+    assert steiner["measurement_ids"] == pack["measurement_ids"]
+    assert steiner["included_layers"] == ["STEINER_1953_BASE", "STEINER_1959_EXTENSION"]
+    assert len(steiner["measurement_ids"]) == 15
+    assert steiner["automatic_coverage"] == "NOT_YET_CERTIFIED"
     assert pack["composition_state"] == "PROVISIONAL_MEMBERSHIP"
     assert pack["membership_evidence_refs"] == []

@@ -28,9 +28,9 @@
     },
     {
       "id": "STEINER",
-      "display_name": "Steiner 1953",
+      "display_name": "Steiner complet (1953 + 1959)",
       "registry_pack_id": "STEINER_V1",
-      "scope": "STEINER_1953_BASE",
+      "scope": "STEINER_1953_BASE_PLUS_1959_EXTENSION",
       "measurement_ids": [
         "M_SNA_DEG_V1",
         "M_SNB_DEG_V1",
@@ -42,11 +42,18 @@
         "M_INTERINCISAL_DEG_V1",
         "M_OCCLUSAL_PLANE_SN_DEG_V1",
         "M_SN_GOGN_DEG_V1",
-        "M_L1_GOGN_DEG_V1"
+        "M_L1_GOGN_DEG_V1",
+        "M_SND_DEG_V1",
+        "M_POG_NB_MM_V1",
+        "M_L1_DLINE_MM_V1",
+        "M_L1_DLINE_DEG_V1"
       ],
-      "excluded_extension": "STEINER_1959_EXTENSION",
       "source_state": "PROVISIONAL_MEMBERSHIP",
-      "automatic_coverage": "NOT_YET_CERTIFIED"
+      "automatic_coverage": "NOT_YET_CERTIFIED",
+      "included_layers": [
+        "STEINER_1953_BASE",
+        "STEINER_1959_EXTENSION"
+      ]
     }
   ],
   "rules": {

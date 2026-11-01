@@ -1,7 +1,7 @@
 /** Display selection only; scientific measurement composition is source-versioned. */
 export const V1_CEPHALO_PROTOCOLS = [
   { id: 'COM', mode: 'com', label: 'COM Digital Crown' },
-  { id: 'STEINER', mode: 'steiner', label: 'Steiner 1953' },
+  { id: 'STEINER', mode: 'steiner', label: 'Steiner complet (1953 + 1959)' },
 ] as const;
 export type V1CephaloProtocol = (typeof V1_CEPHALO_PROTOCOLS)[number]['id'];
 export type V1CephaloMode = (typeof V1_CEPHALO_PROTOCOLS)[number]['mode'];
