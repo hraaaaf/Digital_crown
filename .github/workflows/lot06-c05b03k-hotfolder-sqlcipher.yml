@@ -1,0 +1,92 @@
+name: LOT06 C05B-03K HotFolder to SQLCipher synthetic exact-SHA FUE
+on:
+  push:
+    branches: [test/lot06-c05b03k-hotfolder-sqlcipher-20261101]
+    paths:
+      - .github/workflows/lot06-c05b03k-hotfolder-sqlcipher.yml
+      - tools/imaging_gateway/**
+      - isolated_fue_lot06c/test_c05b03k_hotfolder_to_sqlcipher_v15.py
+      - docs/lot06/C05B03K-HOTFOLDER-SQLCIPHER-20261101.md
+  pull_request:
+    paths:
+      - .github/workflows/lot06-c05b03k-hotfolder-sqlcipher.yml
+      - tools/imaging_gateway/**
+      - isolated_fue_lot06c/test_c05b03k_hotfolder_to_sqlcipher_v15.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot06-c05b03k-exact-sha-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  imaging-byte-handoff-sqlcipher-lab:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03B_TEST_ONLY: '1'
+      DC06C05B03C_TEST_ONLY: '1'
+      DC06C05B03E_TEST_ONLY: '1'
+      DC06C05B03G_TEST_ONLY: '1'
+      DC06C05B03K_TEST_ONLY: '1'
+      DC_V15_06_TRANSFER_LAB: '0'
+      DC_V15_06_BRIDGE_LAB: '0'
+      DATABASE_URL: 'sqlite:///:memory:'
+      SECRET_KEY: 'only-synthetic-lot06-k-lab-isolated-2026'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+      C05B03H_NETWORK_POLICY_APPROVED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Focused SQLCipher/HTTP/supervisor dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install pytest==9.0.3 pytest-asyncio==1.3.0 'pydantic[email]==2.6.3' fastapi==0.115.6 passlib==1.7.4 bcrypt==3.2.2 python-dotenv==1.2.1 pydantic-settings==2.2.1 python-jose==3.5.0 python-multipart==0.0.31 qrcode==8.2 pillow==12.2.0 arabic-reshaper==3.0.0 python-bidi==0.6.7 reportlab==4.4.10 opencv-python-headless==4.13.0.92 SQLAlchemy==2.0.28 httpx==0.28.1 jwcrypto==1.6.1 firebase-admin==7.5.0 'sentry-sdk[fastapi]==2.69.0' alembic==1.20.0 python-magic==0.4.27 PyMuPDF==1.27.2.3 'sqlcipher3>=0.5,<1' cryptography
+      - name: Compile, guard, and test actual byte-handoff + SQLCipher HTTP replay
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test "$DC_V15_06_BRIDGE_LAB" = 0
+          test "$C05B03H_NETWORK_POLICY_APPROVED" = false
+          python -m compileall -q tools/imaging_gateway isolated_fue_lot06c/test_c05b03k_hotfolder_to_sqlcipher_v15.py
+          python - <<'PY'
+          import sys
+          import types
+          from pathlib import Path
+          import pytest
+          routers = types.ModuleType("backend.routers")
+          routers.__path__ = [str(Path.cwd() / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers
+          raise SystemExit(pytest.main([
+              "-q", "-s", "--maxfail=1",
+              "isolated_fue_lot06c/test_c05b03k_hotfolder_to_sqlcipher_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_http_jwt_capture_bridge_v15.py",
+              "backend/tests/test_lot06_c05b03j_authority_integration_contract.py",
+          ]))
+          PY
+      - name: Hard STOP product readiness and clinical activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -q 'READY_TO_MERGE=false' docs/lot06/C05B03K-HOTFOLDER-SQLCIPHER-20261101.md
+          grep -q 'PRODUCT_READY=false' docs/lot06/C05B03K-HOTFOLDER-SQLCIPHER-20261101.md
+          grep -q 'CLINICAL_GO=false' docs/lot06/C05B03K-HOTFOLDER-SQLCIPHER-20261101.md
+          if grep -Eq 'tools.imaging_gateway.bridge_background_lab|imaging_acquisition_preflight_v15' backend/main.py; then
+            echo "unexpected product hook in backend/main.py"; exit 1
+          fi
+          echo C05B03K_SYNTHETIC_SQLCIPHER_MEDIA_LAB_ONLY_NO_CLINICAL_ACK
