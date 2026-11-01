@@ -114,7 +114,7 @@ jobs:
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw "SHA_MISMATCH" }
           python -m pytest -q -s isolated_fue_lot06c/test_c05b03n_onprem_policy_contract_v15.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      - name: Real Windows CurrentUserOnly named pipe (smoke only)
+      - name: Real Windows CurrentUserOnly named pipe creation (NO IPC exchange)
         shell: pwsh
         run: |
           ./isolated_fue_lot06c/windows_pipe_smoke_c05b03n.ps1
