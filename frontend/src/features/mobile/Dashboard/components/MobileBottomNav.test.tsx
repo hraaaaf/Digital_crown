@@ -80,7 +80,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(targets.map(target => target.dataset.mobileNavItem)).toEqual([
       'today', 'agenda', 'actions', 'patients', 'more',
     ]);
-    expect(targets.every(target => target.className.includes('min-h-[54px]'))).toBe(true);
+    expect(targets.every(target => target.className.includes('min-h-[calc(22px+2rem)]'))).toBe(true);
     expect(targets[2].className).not.toContain('absolute');
     expect(targets[2].className).not.toContain('-top-2.5');
     expect(targets[2].textContent).toContain('Actions');
