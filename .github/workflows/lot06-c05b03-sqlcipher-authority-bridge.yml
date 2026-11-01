@@ -7,6 +7,7 @@ on:
       - isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py
       - isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py
       - isolated_fue_lot06c/test_sqlcipher_authority_ledger_migration_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_http_jwt_capture_bridge_v15.py
       - isolated_fue_lot06c/migrations/c05b03f_authority_ledger_candidate.py
       - docs/lot06/C05B03F-authority-ledger-ADR.md
       - isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py
@@ -36,6 +37,7 @@ jobs:
       DC06C05B03M_TEST_ONLY: '1'
       DC06C05B03E_TEST_ONLY: '1'
       DC06C05B03F_TEST_ONLY: '1'
+      DC06C05B03G_TEST_ONLY: '1'
       C05B03H_NETWORK_POLICY_APPROVED: 'false'
       DATABASE_URL: 'sqlite:///:memory:'
       SECRET_KEY: 'only-synthetic-lot06-authority-bridge-isolated-2026'
@@ -47,6 +49,7 @@ jobs:
       DC06C05B03M_EVIDENCE_DIR: lot06-c05b03-authority-evidence
       DC06C05B03E_EVIDENCE_DIR: lot06-c05b03-authority-evidence
       DC06C05B03F_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03G_EVIDENCE_DIR: lot06-c05b03-authority-evidence
     steps:
       - uses: actions/checkout@v4
         with:
@@ -94,6 +97,7 @@ jobs:
               "isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py",
               "isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py",
               "isolated_fue_lot06c/test_sqlcipher_authority_ledger_migration_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_http_jwt_capture_bridge_v15.py",
           ]))
           PY
           python - <<'PY'
@@ -139,6 +143,20 @@ jobs:
                       'device_enrollment_production','clinical_receipt_authorized',
                       'product_ready','clinical_go'):
               assert candidate.get(key) is False, key
+          http = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03g-http-jwt.json').read_text())
+          for key in ('real_fastapi_dependency_get_current_user_executed',
+                      'actual_access_jwt_validation_executed',
+                      'refresh_expired_and_invalid_jwt_denied',
+                      'workstation_cookie_identity_and_revocation_denied',
+                      'wrong_staff_identity_denied','device_token_and_claim_binding_denied',
+                      'idempotent_receipt_readback_sqlcipher',
+                      'staff_revocation_denies_existing_receipt'):
+              assert http.get(key) is True, key
+          for key in ('real_password_login_executed',
+                      'product_device_enrollment_verified',
+                      'one_time_human_review_verified',
+                      'clinical_receipt_authorized','product_ready','clinical_go'):
+              assert http.get(key) is False, key
           print('C05B03_SQLCIPHER_LAB_AUTHORITY_REPRODUCED_NOT_PRODUCT_INTEGRATED')
           PY
       - name: Publish isolated evidence without patient data
