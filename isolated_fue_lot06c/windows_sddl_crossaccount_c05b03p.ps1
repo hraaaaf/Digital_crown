@@ -135,8 +135,9 @@ try {
     # No Everyone, BUILTIN Users, Anonymous, or alternate account ACE.
     $sddl = 'D:P(A;;GA;;;' + $serverSid + ')(A;;GA;;;SY)'
     $pipe = [DC06PSddlProbe]::OpenFirstServer($pipeName, $sddl)
-    if ([DC06PSddlProbe]::FirstInstanceDuplicateError($pipeName, $sddl) -ne 5) {
-        throw 'C05B03P_FIRST_INSTANCE_HIJACK_NOT_BLOCKED'
+    $duplicateCode = [DC06PSddlProbe]::FirstInstanceDuplicateError($pipeName, $sddl)
+    if ($duplicateCode -ne 5) {
+        throw ('C05B03P_FIRST_INSTANCE_HIJACK_NOT_BLOCKED_WIN32_' + $duplicateCode)
     }
     Write-Output 'C05B03P_WIN32_SDDL_FIRST_INSTANCE_REMOTE_REJECT_FLAG_PASS'
 
