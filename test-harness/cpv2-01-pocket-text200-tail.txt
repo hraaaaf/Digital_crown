@@ -56,6 +56,8 @@ async function check(page,meta,selector,file){
      row.navFocusChecks=[];
      for(const id of ids){
        const btn=page.locator('[data-mobile-nav-item="'+id+'"]');
+       // Disabled tabs reflect role permissions and cannot receive keyboard focus.
+       if(await btn.isDisabled()){row.navFocusChecks.push({id,disabledByRole:true});continue;}
        await btn.focus();
        const coordinates=await btn.evaluate(el=>{
          const nav=el.closest('[data-mobile-bottom-nav]'),a=el.getBoundingClientRect(),b=nav.getBoundingClientRect();
