@@ -17,7 +17,7 @@ async function oracle(page,meta){return page.evaluate(meta=>{
   .slice(0,20).map(e=>({text:e.textContent.trim().slice(0,55),scroll:e.scrollWidth,width:e.clientWidth}));
  return {...meta,rootPx:parseFloat(getComputedStyle(doc).fontSize),viewportWidth:w,scrollWidth:Math.max(doc.scrollWidth,document.body?.scrollWidth||0),
  overflow:Math.max(doc.scrollWidth,document.body?.scrollWidth||0)>w+1,clipped,
- nav:[...document.querySelectorAll('[data-mobile-nav-item]')].map(e=>({id:e.getAttribute('data-mobile-nav-item'),w:Math.round(e.getBoundingClientRect().width),h:Math.round(e.getBoundingClientRect().height)}))};},meta);}
+ nav:[...document.querySelectorAll('[data-mobile-nav-item]')].map(e=>({id:e.getAttribute('data-mobile-nav-item'),w:Math.round(e.getBoundingClientRect().width),h:Math.round(e.getBoundingClientRect().height)})),navClippedLabels:(()=>{const n=document.querySelector('[data-mobile-bottom-nav]');if(!n)return [];const nr=n.getBoundingClientRect();return [...n.querySelectorAll('[data-mobile-nav-item]')].flatMap(b=>{const label=b.querySelector('span:last-child');if(!label)return [];const r=label.getBoundingClientRect();return r.bottom>nr.bottom-2||r.top<nr.top+2||r.bottom>innerHeight-2?[{id:b.getAttribute('data-mobile-nav-item'),top:r.top,bottom:r.bottom,navBottom:nr.bottom}]:[]})})()};},meta);}
 async function check(page,meta,selector,file){
  await root(page,100);const before=await font(page,selector);
  const actualRoot=await root(page,200);const after=await font(page,selector);
@@ -29,6 +29,7 @@ async function check(page,meta,selector,file){
  if(!before||!after)row.failures.push('critical_text_missing');
  else if(row.ratio<1.9)row.failures.push('critical_text_not_doubled');
  if(row.clipped.length)row.failures.push('clipped_text');
+ if(row.navClippedLabels?.length)row.failures.push('nav_labels_cut_off');
  rows.push(row);
 }
 try{
