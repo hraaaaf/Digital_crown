@@ -19,8 +19,10 @@ from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from fastapi import Depends, FastAPI, HTTPException, Request
 import httpx
 import pytest
-from sqlalchemy import update
+from sqlalchemy import create_engine, update
 from sqlalchemy.orm import Session
+from sqlalchemy.pool import NullPool
+from sqlcipher3 import dbapi2 as sqlcipher
 import uvicorn
 
 from backend import models
@@ -47,6 +49,31 @@ from tools.imaging_gateway.media_validation import validated_mime
 
 def _server_app(engine, claim, media_root, signing_key):
     app = FastAPI(title="C05B03L isolated localhost media-only receipt lab")
+    # HTTP server and SQLAlchemy's sync worker dependencies can use different
+    # threads. The original isolated fixture engine is thread-bound. Reopen
+    # the SAME encrypted fixture DB using a per-request NullPool connection.
+    # This mirrors the already-green C05B03G real-JWT SQLCipher HTTP harness.
+    key = os.environ["DC06B_TEST_SQLCIPHER_KEY"]
+    file = media_root.parent / "clinical-asset-lab.db"
+    def connect():
+        con = sqlcipher.connect(str(file), timeout=30, check_same_thread=False)
+        try:
+            con.execute("PRAGMA key = '" + key + "'")
+            if not con.execute("PRAGMA cipher_version").fetchone():
+                raise RuntimeError("HTTP_LAB_REQUIRES_SQLCIPHER")
+            con.execute("PRAGMA journal_mode=WAL")
+            con.execute("PRAGMA synchronous=NORMAL")
+            con.execute("PRAGMA foreign_keys=ON")
+            con.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
+            return con
+        except BaseException:
+            con.close()
+            raise
+    http_engine = create_engine("sqlite://", creator=connect, poolclass=NullPool)
+    # Persisted JTI blacklist is part of the actual backend JWT dependency,
+    # not an optional test stub. No production schema or engine is altered.
+    models.RevokedToken.__table__.create(bind=http_engine, checkfirst=True)
+    app.state.lab_sqlcipher_engine = http_engine
     # Real auth's JTI blacklist is fail-closed. Mirror the prior C05B03G
     # SQLCipher fixture schema before accepting ANY JWT; no auth bypass.
     models.RevokedToken.__table__.create(bind=engine, checkfirst=True)
@@ -55,7 +82,7 @@ def _server_app(engine, claim, media_root, signing_key):
     # Uvicorn event-loop thread. Sync-yield dependencies use AnyIO worker threads,
     # which may differ between enter/exit and invalidate SQLCipher DBAPI objects.
     async def lab_db():
-        with Session(engine) as db:
+        with Session(http_engine) as db:
             yield db
     app.dependency_overrides[auth.get_db] = lab_db
 
@@ -90,7 +117,7 @@ def _server_app(engine, claim, media_root, signing_key):
                 or hashlib.sha256(raw).hexdigest() != claim.digest
                 or not validated_mime(raw, "image/png")):
             raise HTTPException(409, "CAPTURE_MEDIA_BINDING_DENIED")
-        with Session(engine) as db:
+        with Session(http_engine) as db:
             try:
                 db.connection().exec_driver_sql("BEGIN IMMEDIATE")
                 # Existing REAL User/Patient/WorkstationMode + LAB device/approval.
@@ -114,7 +141,7 @@ def _server_app(engine, claim, media_root, signing_key):
                 db.rollback()
                 raise
         try:
-            receipt = _issue(engine, claim, token, station_token, media_root)
+            receipt = _issue(http_engine, claim, token, station_token, media_root)
         except BridgeRejected:
             raise HTTPException(409, "RECEIPT_AUTHORITY_DENIED")
         body = {
@@ -160,6 +187,7 @@ def _localhost_server(app):
         thread.join(timeout=8)
         sock.close()
         assert not thread.is_alive(), "LAB TCP server not reaped"
+        app.state.lab_sqlcipher_engine.dispose()
 
 
 def _prepare_preapproved_capture(engine, claim, media_root, raw):
