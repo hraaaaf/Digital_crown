@@ -217,14 +217,10 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
   const setActivePointId = useOrthoStore(state => state.setActivePointId);
   const steinerProfile = React.useMemo(() => readSteinerProtocolProjection(anglesData), [anglesData]);
   const tweedMerrifieldProfile = React.useMemo(() => readTweedMerrifieldProtocolProjection(anglesData), [anglesData]);
-  // Display both Steiner layers from source-backed protocol rows, without inventing values.
-  const definitions = React.useMemo(() => {
-    const definitionsForAnalysis = ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]);
-    if (analysis !== 'steiner') return definitionsForAnalysis;
-    const sourceIds = new Set((steinerProfile?.rows ?? [])
-      .map(row => row.canonical_measurement_id));
-    return definitionsForAnalysis.filter(definition => sourceIds.has(definition.key));
-  }, [analysis, steinerProfile]);
+  // The complete versioned Steiner membership is displayed even without a
+  // verified study. Metric values remain unavailable until the evidence
+  // read-path authorizes an individual measurement.
+  const definitions = React.useMemo(() => ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]), [analysis]);
   const availableCount = definitions.filter(definition => readValue(metricFromResults(anglesData, definition)) !== null).length;
   const unavailableCount = definitions.length - availableCount;
   const [selectedKey, setSelectedKey] = React.useState(definitions[0]?.key ?? '');
