@@ -69,28 +69,34 @@ def _dpapi(data,entropy,*,protect):
         kernel32.LocalFree(ctypes.cast(out.pbData,ctypes.c_void_p))
 
 def _restrict_windows_acl(path, *, directory):
-    """LAB-only: restrict a dedicated keystore to owner SID and SYSTEM."""
+    """Replace DACL atomically; never preserve broad inherited/explicit ACEs."""
     _guard()
-    import csv
-    import io
-    import re
-    import subprocess
-    sid_result=subprocess.run(["whoami","/user","/fo","csv","/nh"],
-                              check=True,capture_output=True,text=True,timeout=10)
-    fields=next(csv.reader(io.StringIO(sid_result.stdout)))
-    sid=next((item for item in fields if re.fullmatch(r"S-1-[0-9-]+",item)),None)
-    if sid is None:
-        raise VaultRejected("WINDOWS_USER_SID_UNAVAILABLE")
-    item=str(Path(path))
-    if Path(path).is_symlink():
-        raise VaultRejected("ACL_TARGET_SYMLINK_DENIED")
-    perms="(OI)(CI)F" if directory else "F"
-    for args in (["/inheritance:r"],
-                 ["/grant:r",f"*{sid}:{perms}",f"*S-1-5-18:{perms}"]):
-        result=subprocess.run(["icacls",item,*args],capture_output=True,
-                              text=True,timeout=20)
-        if result.returncode:
-            raise VaultRejected("ACL_HARDENING_FAILED")
+    try:
+        import ntsecuritycon
+        import win32api
+        import win32con
+        import win32security
+        item=Path(path)
+        if item.is_symlink() or not item.exists() or item.is_dir()!=directory:
+            raise VaultRejected("ACL_TARGET_UNSAFE")
+        token=win32security.OpenProcessToken(win32api.GetCurrentProcess(),win32con.TOKEN_QUERY)
+        owner=win32security.GetTokenInformation(token,win32security.TokenUser)[0]
+        system=win32security.ConvertStringSidToSid("S-1-5-18")
+        acl=win32security.ACL()
+        flags=(win32security.OBJECT_INHERIT_ACE|win32security.CONTAINER_INHERIT_ACE) if directory else 0
+        for principal in (owner,system):
+            acl.AddAccessAllowedAceEx(win32security.ACL_REVISION,flags,
+                                       ntsecuritycon.FILE_ALL_ACCESS,principal)
+        win32security.SetNamedSecurityInfo(
+            str(item),win32security.SE_FILE_OBJECT,
+            win32security.DACL_SECURITY_INFORMATION|
+            win32security.PROTECTED_DACL_SECURITY_INFORMATION,
+            None,None,acl,None)
+        _verify_windows_acl(item)
+    except VaultRejected:
+        raise
+    except Exception as exc:
+        raise VaultRejected("ACL_HARDENING_FAILED") from exc
 
 def _verify_windows_acl(path):
     """Read the native Windows security descriptor; fail closed on widened rights."""
