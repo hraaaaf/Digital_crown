@@ -203,11 +203,27 @@ export function MobileBottomNav({
         </div>
       )}
 
+      {navScrollable && (
+        <span
+          data-pocket-nav-scroll-hint
+          role="note"
+          className="pointer-events-none fixed right-4 z-[66] whitespace-nowrap rounded-full border border-border-main bg-card px-2.5 py-1 text-[0.5rem] font-semibold leading-tight text-text-muted shadow-sm"
+          style={{ bottom: 'calc(20px + 4rem + max(12px, env(safe-area-inset-bottom)))' }}
+        >
+          ⇆ Balayer les onglets
+        </span>
+      )}
       <nav
         ref={navRef}
         data-mobile-bottom-nav
         data-pocket-glass-nav
         inert={moreOpen}
+        onFocusCapture={(event) => {
+          // At 200% text size the five tabs scroll horizontally; keyboard users
+          // must see the focused target, even in WebKit.
+          const target = (event.target as HTMLElement).closest('[data-mobile-nav-item]');
+          target?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'auto' });
+        }}
         aria-label="Navigation mobile principale"
         className="fixed left-3 right-3 z-[65] mx-auto h-[calc(12px+4rem)] max-w-[720px] overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-[30px] border shadow-elite isolate"
         style={{
@@ -218,11 +234,6 @@ export function MobileBottomNav({
           bottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
       >
-        {navScrollable && (
-          <span data-pocket-nav-scroll-hint aria-hidden="true" className="pointer-events-none absolute left-2 top-1 z-20 rounded-full bg-card/90 px-2 text-[0.625rem] font-semibold text-text-muted">
-            ⇆ Balayer pour voir les 5 onglets
-          </span>
-        )}
         <div className="relative grid h-full grid-flow-col items-center px-1.5"
           style={{ gridAutoColumns: 'max(4rem, calc((100% - 12px) / 5))' }}>
           <span
