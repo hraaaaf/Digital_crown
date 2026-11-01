@@ -9,6 +9,8 @@ on:
       - isolated_fue_lot06c/test_sqlcipher_authority_ledger_migration_v15.py
       - isolated_fue_lot06c/test_sqlcipher_http_jwt_capture_bridge_v15.py
       - isolated_fue_lot06c/test_sqlcipher_gateway_human_proof_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_gateway_races_v15.py
+      - docs/lot06/C05B03H02-windows-connector-gate.md
       - docs/lot06/C05B03H-gateway-human-proof-ADR.md
       - isolated_fue_lot06c/migrations/c05b03f_authority_ledger_candidate.py
       - docs/lot06/C05B03F-authority-ledger-ADR.md
@@ -54,6 +56,7 @@ jobs:
       DC06C05B03F_EVIDENCE_DIR: lot06-c05b03-authority-evidence
       DC06C05B03G_EVIDENCE_DIR: lot06-c05b03-authority-evidence
       DC06C05B03H_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03H02_EVIDENCE_DIR: lot06-c05b03-authority-evidence
     steps:
       - uses: actions/checkout@v4
         with:
@@ -103,6 +106,7 @@ jobs:
               "isolated_fue_lot06c/test_sqlcipher_authority_ledger_migration_v15.py",
               "isolated_fue_lot06c/test_sqlcipher_http_jwt_capture_bridge_v15.py",
               "isolated_fue_lot06c/test_sqlcipher_gateway_human_proof_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_gateway_races_v15.py",
           ]))
           PY
           python - <<'PY'
@@ -181,6 +185,18 @@ jobs:
                       'clinical_receipt_authorized',
                       'product_ready','clinical_go'):
               assert human.get(key) is False, key
+          race = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03h02-races.json').read_text())
+          for key in ('two_pending_enrollments_one_winner_verified_in_sibling_fue',
+                      'expired_enrollment_capture_grant_denied_in_sibling_fue',
+                      'revoked_or_generation_rotated_gateway_denied_in_sibling_fue',
+                      'six_concurrent_http_issuers_one_receipt',
+                      'five_replayed_authorizations_rejected',
+                      'single_sqlcipher_receipt_audit_outbox'):
+              assert race.get(key) is True, key
+          for key in ('real_sensor_attestation','hardware_windows_key_protected',
+                      'production_migration_applied','actual_clinical_ui_approval',
+                      'product_ready','clinical_go'):
+              assert race.get(key) is False, key
           print('C05B03_SQLCIPHER_LAB_AUTHORITY_REPRODUCED_NOT_PRODUCT_INTEGRATED')
           PY
       - name: Publish isolated evidence without patient data

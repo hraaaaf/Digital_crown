@@ -136,7 +136,9 @@ def _bind(app, engine, claim, media_root):
         _guard()
         with Session(engine) as db:
             _station(request, db, claim)
-            if current_user.id != claim.tenant:
+            if (current_user.id != claim.tenant or current_user.employer_id is not None
+                or not current_user.is_active or current_user.is_archived
+                or current_user.is_suspended):
                 raise HTTPException(403, "OWNER_REQUIRED")
             db.connection().exec_driver_sql("BEGIN IMMEDIATE")
             row=db.connection().exec_driver_sql(
@@ -150,6 +152,14 @@ def _bind(app, engine, claim, media_root):
             statement=dict(nonce=payload["nonce"],tenant=row["tenant"],device=row["device"],
                            station=row["station"],generation=row["generation"],public_hex=row["public_hex"])
             _verify(row["public_hex"],payload.get("signature",""),_msg("ENROLL",statement))
+            # BEGIN IMMEDIATE serializes competing pending enrollment claims.
+            # The registration existence check must occur INSIDE that lock:
+            # start_enroll may legitimately issue two pending nonces.
+            if db.connection().exec_driver_sql(
+                "SELECT 1 FROM c05b03h_devices WHERE tenant=? AND device=?",
+                (row["tenant"],row["device"]),
+            ).first():
+                raise HTTPException(409,"ALREADY_ENROLLED")
             db.connection().exec_driver_sql(
                 "INSERT INTO c05b03h_devices VALUES(?,?,?,?,?,1)",
                 (row["tenant"],row["device"],row["station"],row["generation"],row["public_hex"]))
