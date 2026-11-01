@@ -124,6 +124,12 @@ try {
     $found=[regex]::Match($sids,'S-1-5-80-(?:[0-9]+-){4}[0-9]+')
     if (-not $found.Success) { throw 'C05B03R_CANNOT_GET_WINDOWS_SERVICE_SID' }
     $serviceSid=$found.Value
+    if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+        # A RESTRICTED service token requires the service SID at every
+        # traversed lab-owned ancestor, not only inside private/spool.
+        & icacls.exe $root /grant ('*' + $serviceSid + ':(OI)(CI)RX') /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTRICTED_SID_ROOT_TRAVERSE_DENIED' }
+    }
     $binPath += ' "' + $pipeName + '" ' + $serviceSid + ' ' + $allowedSid
     if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
         $python=(Get-Command python -ErrorAction Stop).Source
