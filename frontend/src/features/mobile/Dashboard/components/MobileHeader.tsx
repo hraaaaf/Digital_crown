@@ -51,7 +51,7 @@ export function MobileHeader({
       <div className="flex items-center justify-between gap-2 sm:gap-3 mb-4">
         <div data-dc-pocket-brand className="flex min-w-0 items-center gap-2">
           <img src={Logo} alt="Digital Crown Pocket" className="w-[92px] min-[430px]:w-24 sm:w-28 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
-          <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[10px] font-bold uppercase tracking-[0.14em] text-primary">
+          <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[0.625rem] font-bold uppercase tracking-[0.14em] text-primary">
             Pocket
           </span>
         </div>
@@ -99,12 +99,12 @@ export function MobileHeader({
               : syncStatus === 'success' ? 'bg-success' : 'bg-text-muted'
             )} />
             <RefreshCw size={10} className={cn('text-text-muted', syncStatus === 'loading' ? 'animate-spin' : '')} />
-            <span className="hidden sm:flex text-[9px] font-black text-text-muted uppercase tracking-widest items-center gap-1">
+            <span className="hidden sm:flex text-[0.5625rem] font-black text-text-muted uppercase tracking-widest items-center gap-1">
               {syncStatus === 'loading' ? 'Mise à jour…' : syncStatus === 'error' ? 'Hors ligne' : 'À jour'}
               {queuedActionsCount > 0 && <span className="bg-danger-surface text-danger border border-danger-border px-1 rounded-full">{queuedActionsCount}</span>}
             </span>
             {queuedActionsCount > 0 && (
-              <span aria-label={`${queuedActionsCount} modification(s) en attente de synchronisation`} className="sm:hidden ml-1 rounded-full bg-warning-surface px-1.5 text-[11px] font-bold text-warning">
+              <span aria-label={`${queuedActionsCount} modification(s) en attente de synchronisation`} className="sm:hidden ml-1 rounded-full bg-warning-surface px-1.5 text-[0.6875rem] font-bold text-warning">
                 {queuedActionsCount}
               </span>
             )}
@@ -128,7 +128,7 @@ export function MobileHeader({
               aria-label="Choisir la date du planning"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="min-h-11 min-w-0 max-w-[148px] flex-1 bg-transparent border-none text-text-main font-semibold text-[16px] capitalize outline-none px-1 py-0 cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-primary/50 rounded-xl"
+              className="min-h-11 min-w-0 max-w-[148px] flex-1 bg-transparent border-none text-text-main font-semibold text-[1rem] capitalize outline-none px-1 py-0 cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-primary/50 rounded-xl"
             />
             <button
               aria-label="Jour suivant"
@@ -140,7 +140,7 @@ export function MobileHeader({
           </div>
         )}
 
-        {!(['stock', 'frontdesk', 'lab'] as Tab[]).includes(activeTab) && <h1 className="text-[28px] min-[430px]:text-[31px] font-bold tracking-tight text-text-main leading-tight">
+        {!(['stock', 'frontdesk', 'lab'] as Tab[]).includes(activeTab) && <h1 className="text-[1.75rem] min-[430px]:text-[1.9375rem] font-bold tracking-tight text-text-main leading-tight">
           {activeTab === 'today' ? `${greeting()},` :
            activeTab === 'agenda' ? 'Agenda' :
            activeTab === 'patients' ? 'Patients' :
@@ -160,7 +160,7 @@ export function MobileHeader({
         {(activeTab === 'today' || activeTab === 'agenda') && totalCount > 0 && (
           <div className="flex flex-wrap items-center gap-2 mt-2.5">
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-primary/5 border border-primary/10 rounded-full shadow-sm">
-              <span className="text-[12px] font-semibold text-primary">
+              <span className="text-[0.75rem] font-semibold text-primary">
                 {totalCount} RDV {selectedDate === localDateKey()
                   ? "aujourd'hui"
                   : `le ${new Date(`${selectedDate}T12:00:00`).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short' })}`}
@@ -168,7 +168,7 @@ export function MobileHeader({
             </div>
             {termineCount > 0 && (
               <div className="flex items-center gap-1.5 px-3 py-1.5 bg-success-surface border border-success-border rounded-full shadow-sm">
-                <span className="text-[12px] font-semibold text-success">{termineCount} terminé{termineCount > 1 ? 's' : ''}</span>
+                <span className="text-[0.75rem] font-semibold text-success">{termineCount} terminé{termineCount > 1 ? 's' : ''}</span>
               </div>
             )}
           </div>
