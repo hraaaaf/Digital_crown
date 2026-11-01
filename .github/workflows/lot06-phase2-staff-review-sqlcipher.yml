@@ -154,3 +154,22 @@ jobs:
         run: |
           if ((Select-String -Path docs/lot06/LOT06-PHASE2-STAFF-REVIEW-INTEGRATION-20261101.md -Pattern 'CLINICAL_GO=false').Count -ne 1) { throw "NO_GO_FLAG_MISSING" }
           Write-Output "LOT06_PHASE2_LAB_REVIEW_NOT_CLINICAL_GO"
+
+  phase2-review-ui-unit-fue:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Review panel 4 negative and a11y contract tests
+        working-directory: frontend
+        run: npx vitest run src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx --reporter=dot
