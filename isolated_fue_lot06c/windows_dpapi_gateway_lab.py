@@ -93,33 +93,34 @@ def _restrict_windows_acl(path, *, directory):
             raise VaultRejected("ACL_HARDENING_FAILED")
 
 def _verify_windows_acl(path):
-    """Refuse broadened permissions even after successful key enrollment."""
+    """Read the native Windows security descriptor; fail closed on widened rights."""
     _guard()
-    import subprocess
-    script=(
-        "$a=Get-Acl -LiteralPath $env:DC_H04_ACL_PATH -ErrorAction Stop; "
-        "$s=@($a.Access | ForEach-Object { "
-        "$_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value }); "
-        "[PSCustomObject]@{protected=$a.AreAccessRulesProtected;"
-        "sids=$s;count=$a.Access.Count} | ConvertTo-Json -Compress"
-    )
-    env=dict(os.environ,DC_H04_ACL_PATH=str(path))
-    proc=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive",
-                         "-Command",script],env=env,capture_output=True,text=True,timeout=20)
-    if proc.returncode:
-        raise VaultRejected("ACL_VERIFICATION_FAILED")
     try:
-        import csv
-        import io
-        import re
-        a=json.loads(proc.stdout)
-        result=subprocess.run(["whoami","/user","/fo","csv","/nh"],
-                              capture_output=True,text=True,timeout=10,check=True)
-        sid=next((x for x in next(csv.reader(io.StringIO(result.stdout)))
-                  if re.fullmatch(r"S-1-[0-9-]+",x)),None)
-        if not a["protected"] or a["count"]!=2 or set(a["sids"])!={sid,"S-1-5-18"}:
+        import win32api
+        import win32con
+        import win32security
+        handle=win32security.OpenProcessToken(win32api.GetCurrentProcess(),win32con.TOKEN_QUERY)
+        owner=win32security.GetTokenInformation(handle,win32security.TokenUser)[0]
+        expected={win32security.ConvertSidToStringSid(owner),"S-1-5-18"}
+        descriptor=win32security.GetNamedSecurityInfo(str(path),win32security.SE_FILE_OBJECT,
+                                                    win32security.DACL_SECURITY_INFORMATION)
+        dacl=descriptor.GetSecurityDescriptorDacl()
+        control,_=descriptor.GetSecurityDescriptorControl()
+        if dacl is None or not control & win32security.SE_DACL_PROTECTED:
             raise VaultRejected("ACL_BROADENED_OR_INHERITED_DENIED")
-    except (ValueError,KeyError,TypeError,StopIteration) as exc:
+        observed=[]
+        for index in range(dacl.GetAceCount()):
+            ace=dacl.GetAce(index)
+            if ace[0][0]!=win32security.ACCESS_ALLOWED_ACE_TYPE:
+                raise VaultRejected("ACL_BROADENED_OR_INHERITED_DENIED")
+            if ace[0][1]&win32security.INHERITED_ACE:
+                raise VaultRejected("ACL_BROADENED_OR_INHERITED_DENIED")
+            observed.append(win32security.ConvertSidToStringSid(ace[2]))
+        if len(observed)!=2 or set(observed)!=expected:
+            raise VaultRejected("ACL_BROADENED_OR_INHERITED_DENIED")
+    except VaultRejected:
+        raise
+    except Exception as exc:
         raise VaultRejected("ACL_VERIFICATION_FAILED") from exc
 
 def create_key(path,*,tenant,device,station,generation):
