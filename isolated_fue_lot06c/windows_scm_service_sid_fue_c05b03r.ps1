@@ -287,14 +287,21 @@ try {
     Write-Output 'C05B03R_REMOTE_SECOND_HOST_TPM_PHYSICAL_CABINET_NOT_TESTED'
 }
 catch {
+    # Fixed no-PHI error categories; never relay exception message or file paths.
     if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1') {
-        # Fixed enums only; no exception messages, paths or secret material.
-        $b05Class='OTHER'
-        if ($_.Exception.Message -match '^C05B03R_SC_FAIL_(config|start)_([0-9]{1,5})
-    # failure. Report only an allowlisted no-PHI error enum.
+        $category='OTHER'
+        if ($_.Exception.Message.StartsWith('C05B03R_SC_FAIL_config_')) {
+            $category='SCM_CONFIG_FAIL'
+        } elseif ($_.Exception.Message.StartsWith('C05B03R_SC_FAIL_start_')) {
+            $category='SCM_START_FAIL'
+        } elseif ($_.Exception.Message.StartsWith('C05B03R_SCM_STATE_NOT_')) {
+            $category='SCM_STATE_FAIL'
+        }
+        Write-Output ('DC06B05_PRIMARY_STAGE_' + $b05Phase + '_CODE_' + $category)
+    }
     $primary=$_.Exception.Message
-    if ($primary -match '(DC06B03_EXPECT_S1_GOT_E[A-Z0-9])') {
-        Write-Output ('DC06B03_SCM_PRIMARY_READ_DENIED_' + $Matches[1])
+    if ($primary.Contains('DC06B03_EXPECT_S1_GOT_E')) {
+        Write-Output 'DC06B03_SCM_PRIMARY_READ_DENIED'
     } else {
         Write-Output 'DC06B03_SCM_PRIMARY_TEST_FAILURE_OTHER'
     }
