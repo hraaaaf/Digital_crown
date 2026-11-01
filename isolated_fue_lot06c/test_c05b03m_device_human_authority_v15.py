@@ -18,6 +18,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.security import create_access_token
+from backend.services.clinical_asset_storage import store_clinical_asset_bytes
 from isolated_fue_lot06c.c05b03m_security_gate_lab import (
     BridgeRejected, TestOnlyMediaAuthority, identity, provision_test_device,
     record_staff_review_fixture, review, review_audit, sign_test_device_claim,
@@ -200,6 +201,14 @@ def test_c05b03m_expiry_revocation_and_consumption_rollback(
                     Encoding.Raw, PublicFormat.Raw,
                 ).hex(),
             ))
+        # Rehearse failure *after* cryptographically bound media exists:
+        # the true verifier must not be bypassed just to hit this failpoint.
+        with Session(engine) as db:
+            store_clinical_asset_bytes(
+                db, employer_id=claim.tenant, patient_id=claim.patient,
+                asset_id=claim.asset_id, content=raw, media_root=media_root,
+            )
+            db.commit()
         # Receipt failpoint must roll back one-time review consumption.
         gate = TestOnlyMediaAuthority()
         with pytest.raises(BridgeRejected, match="INJECTED_TRANSACTION_ROLLBACK"):
