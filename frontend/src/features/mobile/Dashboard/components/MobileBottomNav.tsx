@@ -63,8 +63,8 @@ export function MobileBottomNav({
     : moreOpen || isMoreActive ? 4
       : activeTab === 'patients' ? 3
         : activeTab === 'agenda' ? 1 : 0;
-  const navItemClass = 'relative z-10 flex min-h-[54px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[23px] text-[11px] font-semibold transition-[color,transform] duration-200 ease-out active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none motion-reduce:active:scale-100';
-  const navLabelClass = 'max-w-full truncate';
+  const navItemClass = 'relative z-10 flex min-h-[calc(22px+2rem)] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[23px] text-[0.6875rem] font-semibold transition-[color,transform] duration-200 ease-out active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none motion-reduce:active:scale-100';
+  const navLabelClass = 'max-w-full whitespace-normal break-words text-center leading-[1.1]';
 
 
   useEffect(() => {
@@ -134,13 +134,13 @@ export function MobileBottomNav({
             role="dialog"
             aria-modal="true"
             aria-labelledby="mobile-more-title"
-            className="absolute left-3 right-3 bottom-[calc(96px+env(safe-area-inset-bottom))] mx-auto max-w-[720px] rounded-[26px] border border-border-main bg-card p-4 shadow-elite"
+            className="absolute left-3 right-3 bottom-[calc(32px+4rem+env(safe-area-inset-bottom))] mx-auto max-w-[720px] rounded-[26px] border border-border-main bg-card p-4 shadow-elite"
             style={{ backgroundColor: 'var(--card-bg)', fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)' }}
           >
             <div className="mb-3 flex items-center justify-between gap-3">
               <div>
-                <h2 id="mobile-more-title" className="text-[20px] font-bold text-text-main">Plus</h2>
-                <p className="mt-0.5 text-[12px] font-medium text-text-muted">Accès secondaires</p>
+                <h2 id="mobile-more-title" className="text-[1.25rem] font-bold text-text-main">Plus</h2>
+                <p className="mt-0.5 text-[0.75rem] font-medium text-text-muted">Accès secondaires</p>
               </div>
               <button
                 type="button"
@@ -154,7 +154,7 @@ export function MobileBottomNav({
 
             <div className="grid gap-2 max-h-[min(62dvh,560px)] overflow-y-auto overscroll-contain pr-0.5">
               {secondaryTabs.some(tab => tab.id === 'waiting-room') && (
-                <p className="px-2 py-1 text-[11px] font-bold uppercase tracking-wider text-primary">Accueil &amp; attente</p>
+                <p className="px-2 py-1 text-[0.6875rem] font-bold uppercase tracking-wider text-primary">Accueil &amp; attente</p>
               )}
               {secondaryTabs.map(({ id, icon: Icon, label, badge }) => (
                 <button
@@ -168,16 +168,16 @@ export function MobileBottomNav({
                   <span className="relative grid h-10 w-10 shrink-0 place-items-center rounded-[13px] bg-primary/10 text-primary">
                     <Icon size={19} />
                   </span>
-                  <span className="flex-1 text-[14px] font-semibold leading-snug">{label}</span>
+                  <span className="flex-1 text-[0.875rem] font-semibold leading-snug">{label}</span>
                   {badge != null && (
-                    <span data-mob5i-waiting-badge className="grid min-h-7 min-w-7 place-items-center rounded-full bg-warning-surface border border-warning-border px-2 text-[11px] font-bold text-warning">
+                    <span data-mob5i-waiting-badge className="grid min-h-7 min-w-7 place-items-center rounded-full bg-warning-surface border border-warning-border px-2 text-[0.6875rem] font-bold text-warning">
                       {badge}
                     </span>
                   )}
                 </button>
               ))}
               {secondaryTabs.length === 0 && (
-                <div className="rounded-[18px] border border-glass-border bg-background px-4 py-4 text-[11px] font-medium text-text-muted">
+                <div className="rounded-[18px] border border-glass-border bg-background px-4 py-4 text-[0.6875rem] font-medium text-text-muted">
                   Aucun accès secondaire disponible pour ce rôle.
                 </div>
               )}
@@ -191,7 +191,7 @@ export function MobileBottomNav({
         data-pocket-glass-nav
         inert={moreOpen}
         aria-label="Navigation mobile principale"
-        className="fixed left-3 right-3 z-[65] mx-auto h-[76px] max-w-[720px] overflow-hidden rounded-[30px] border shadow-elite isolate"
+        className="fixed left-3 right-3 z-[65] mx-auto h-[calc(12px+4rem)] max-w-[720px] overflow-hidden rounded-[30px] border shadow-elite isolate"
         style={{
           backgroundColor: 'var(--card-bg)',
           borderColor: 'color-mix(in srgb, var(--primary) 14%, var(--glass-border) 86%)',
@@ -204,7 +204,7 @@ export function MobileBottomNav({
           <span
             data-mobile-nav-indicator
             aria-hidden="true"
-            className="pointer-events-none absolute z-0 h-[56px] rounded-[24px] border transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
+            className="pointer-events-none absolute z-0 h-[calc(24px+2rem)] rounded-[24px] border transition-transform duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] motion-reduce:transition-none"
             style={{
               left: '6px',
               top: '50%',
