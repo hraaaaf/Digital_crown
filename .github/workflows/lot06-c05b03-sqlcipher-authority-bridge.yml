@@ -1,0 +1,325 @@
+name: LOT06 C05B-03 SQLCipher authority bridge FUE (SYNTHETIC, NO DEPLOY)
+on:
+  push:
+    branches: [test/lot06-c05b03-integrated-reconcile-20261031]
+    paths:
+      - .github/workflows/lot06-c05b03-sqlcipher-authority-bridge.yml
+      - isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_authority_ledger_migration_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_http_jwt_capture_bridge_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_gateway_human_proof_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_gateway_races_v15.py
+      - isolated_fue_lot06c/windows_dpapi_gateway_lab.py
+      - isolated_fue_lot06c/test_windows_dpapi_gateway_lab_v15.py
+      - isolated_fue_lot06c/test_windows_localservice_sid_v15.py
+      - isolated_fue_lot06c/h05_localservice_probe.ps1
+      - docs/lot06/C05B03H05-localservice-ADR.md
+      - docs/lot06/C05B03H04-windows-ACL-ADR.md
+      - docs/lot06/C05B03H03-windows-DPAPI-ADR.md
+      - docs/lot06/C05B03H02-windows-connector-gate.md
+      - docs/lot06/C05B03H-gateway-human-proof-ADR.md
+      - isolated_fue_lot06c/migrations/c05b03f_authority_ledger_candidate.py
+      - docs/lot06/C05B03F-authority-ledger-ADR.md
+      - isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py
+      - backend/services/imaging_clinical_asset_verifier_v15.py
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot06-c05b03-authority-bridge-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  synthetic-sqlcipher-authority:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      EXPECTED_HEAD: ${{ github.sha }}
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03B_TEST_ONLY: '1'
+      DC06C05B03C_TEST_ONLY: '1'
+      DC06C05B03D_TEST_ONLY: '1'
+      DC06C05B03M_TEST_ONLY: '1'
+      DC06C05B03E_TEST_ONLY: '1'
+      DC06C05B03F_TEST_ONLY: '1'
+      DC06C05B03G_TEST_ONLY: '1'
+      DC06C05B03H_TEST_ONLY: '1'
+      C05B03H_NETWORK_POLICY_APPROVED: 'false'
+      DATABASE_URL: 'sqlite:///:memory:'
+      SECRET_KEY: 'only-synthetic-lot06-authority-bridge-isolated-2026'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+      DC06C05B03C_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03D_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03M_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03E_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03F_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03G_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03H_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03H02_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install focused offline SQLCipher suite dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install             pytest==9.0.3 pytest-asyncio==1.3.0 'pydantic[email]==2.6.3'             fastapi==0.115.6 passlib==1.7.4 bcrypt==3.2.2             python-dotenv==1.2.1 pydantic-settings==2.2.1             python-jose==3.5.0 python-multipart==0.0.31             qrcode==8.2 pillow==12.2.0             arabic-reshaper==3.0.0 python-bidi==0.6.7             reportlab==4.4.10 opencv-python-headless==4.13.0.92             SQLAlchemy==2.0.28 httpx==0.28.1 jwcrypto==1.6.1             firebase-admin==7.5.0 'sentry-sdk[fastapi]==2.69.0'             alembic==1.20.0 python-magic==0.4.27 PyMuPDF==1.27.2.3             'sqlcipher3>=0.5,<1' cryptography
+      - name: Refuse wrong SHA, host or missing SQLCipher
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$GITHUB_REF_NAME" = 'test/lot06-c05b03-integrated-reconcile-20261031'
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test "$C05B03H_NETWORK_POLICY_APPROVED" = false
+          python - <<'PY'
+          from sqlcipher3 import dbapi2
+          db = dbapi2.connect(':memory:')
+          assert db.execute('PRAGMA cipher_version').fetchone()
+          db.close()
+          print('SQLCIPHER_NATIVE_DRIVER_PRESENT')
+          PY
+          mkdir -p "$DC06C05B03C_EVIDENCE_DIR"
+      - name: Run C05B-03 B/C/D source tests together against same commit
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import sys, types
+          from pathlib import Path
+          import pytest
+          routers = types.ModuleType("backend.routers")
+          routers.__path__ = [str(Path.cwd() / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers
+          raise SystemExit(pytest.main([
+              "-q", "-s", "--maxfail=1",
+              "isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_authority_ledger_migration_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_http_jwt_capture_bridge_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_gateway_human_proof_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_gateway_races_v15.py",
+          ]))
+          PY
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          doc = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03c-persistent-approval-fue.json').read_text())
+          for key in ('persisted_tenant_staff_device_station_revision_checked',
+                      'cross_tenant_identity_version_and_role_refused',
+                      'revoked_requester_receipt_replay_denied',
+                      'receipt_immutable_test_trigger_enforced',
+                      'four_sql_failpoints_atomic_rollback',
+                      'real_aesgcm_media_bound_before_sql_commit'):
+              assert doc.get(key) is True, key
+          for key in ('actual_authenticated_device_or_staff', 'production_approval_schema_migrated',
+                      'powercut_durability_certified', 'production_clinical_receipt_enabled',
+                      'product_ready'):
+              assert doc.get(key) is False, key
+          bridge = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03e-real-backend-identity-bridge.json').read_text())
+          for key in ('actual_user_and_workstation_mode_models_used',
+                      'backend_has_permission_called_after_writer_lock',
+                      'synthetic_device_token_revocation_enforced',
+                      'same_sqlcipher_approval_version_aes_and_receipt_bound',
+                      'revoked_staff_station_device_receipt_replay_denied',
+                      'corrupt_media_receipt_replay_denied'):
+              assert bridge.get(key) is True, key
+          for key in ('production_device_issuer_integrated',
+                      'actual_http_identity_session_verified',
+                      'real_human_approval_ceremony_verified',
+                      'alembic_authority_migration_implemented',
+                      'clinical_receipt_authorized', 'product_ready', 'clinical_go'):
+              assert bridge.get(key) is False, key
+          candidate = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03f-ledger.json').read_text())
+          for key in ('native_sqlcipher_migration_executed','upgrade_empty_downgrade_executed',
+                      'real_backend_clinical_asset_preserved',
+                      'encrypted_preupgrade_snapshot_restored',
+                      'receipt_approval_version_conflict_refused',
+                      'immutable_receipt_audit_outbox_tested',
+                      'approval_frozen_after_receipt','nonempty_downgrade_refused',
+                      'restored_encrypted_media_verified'):
+              assert candidate.get(key) is True, key
+          for key in ('registered_in_production_alembic_chain',
+                      'clinical_api_http_jwt_tested','staff_human_approval_tested',
+                      'device_enrollment_production','clinical_receipt_authorized',
+                      'product_ready','clinical_go'):
+              assert candidate.get(key) is False, key
+          http = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03g-http-jwt.json').read_text())
+          for key in ('real_fastapi_dependency_get_current_user_executed',
+                      'actual_access_jwt_validation_executed',
+                      'refresh_expired_and_invalid_jwt_denied',
+                      'workstation_cookie_identity_and_revocation_denied',
+                      'wrong_staff_identity_denied','device_token_and_claim_binding_denied',
+                      'idempotent_receipt_readback_sqlcipher',
+                      'staff_revocation_denies_existing_receipt'):
+              assert http.get(key) is True, key
+          for key in ('real_password_login_executed',
+                      'product_device_enrollment_verified',
+                      'one_time_human_review_verified',
+                      'clinical_receipt_authorized','product_ready','clinical_go'):
+              assert http.get(key) is False, key
+          human = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03h-gateway-human-proof.json').read_text())
+          for key in ('real_ed25519_possession_enrollment',
+                      'enrollment_owner_and_station_bound',
+                      'wrong_signature_and_replayed_enrollment_refused',
+                      'real_backend_password_reauthentication',
+                      'jwt_session_bound_one_use_human_grant',
+                      'revoked_gateway_blocks_receipt',
+                      'different_staff_jwt_session_rejected',
+                      'atomic_rollback_preserves_one_shot_grant',
+                      'one_receipt_audit_outbox_and_replay_denial'):
+              assert human.get(key) is True, key
+          for key in ('private_key_exported_or_persisted',
+                      'real_imaging_sensor_attestation',
+                      'windows_key_protection_certified',
+                      'production_device_issuer_activated',
+                      'human_approval_production_enabled',
+                      'clinical_receipt_authorized',
+                      'product_ready','clinical_go'):
+              assert human.get(key) is False, key
+          race = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03h02-races.json').read_text())
+          for key in ('two_pending_enrollments_one_winner_verified_in_sibling_fue',
+                      'expired_enrollment_capture_grant_denied_in_sibling_fue',
+                      'revoked_or_generation_rotated_gateway_denied_in_sibling_fue',
+                      'six_concurrent_http_issuers_one_receipt',
+                      'five_replayed_authorizations_rejected',
+                      'single_sqlcipher_receipt_audit_outbox'):
+              assert race.get(key) is True, key
+          for key in ('real_sensor_attestation','hardware_windows_key_protected',
+                      'production_migration_applied','actual_clinical_ui_approval',
+                      'product_ready','clinical_go'):
+              assert race.get(key) is False, key
+          print('C05B03_SQLCIPHER_LAB_AUTHORITY_REPRODUCED_NOT_PRODUCT_INTEGRATED')
+          PY
+      - name: Publish isolated evidence without patient data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03-source-sqlcipher-authority-synthetic
+          path: lot06-c05b03-authority-evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-dpapi-user-vault:
+    needs: synthetic-sqlcipher-authority
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03H03_TEST_ONLY: '1'
+      DC06C05B03H03_EVIDENCE_DIR: lot06-c05b03-windows-evidence
+      DC06C05B03H04_EVIDENCE_DIR: lot06-c05b03-windows-evidence
+      DC06C05B03H05_EVIDENCE_DIR: lot06-c05b03-windows-evidence
+      DC06C05B03H05_TEST_ONLY: '1'
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify SHA and install native Windows crypto test dependencies
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw "C05B03H03_WRONG_HEAD" }
+          if ($env:ENVIRONMENT -ne 'test') { throw "C05B03H03_NOT_TEST" }
+          if ($env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true') { throw "C05B03H03_NOT_ISOLATED" }
+          python -m pip install "pytest==9.0.3" cryptography pywin32==311
+          if ($LASTEXITCODE -ne 0) { throw "C05B03H03_INSTALL_FAILED" }
+      - name: Test real Windows DPAPI user-scope vault + second Python process
+        shell: pwsh
+        run: |
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_windows_dpapi_gateway_lab_v15.py
+          if ($LASTEXITCODE -ne 0) { throw "C05B03H03_WINDOWS_FUE_FAILED" }
+          $p = Join-Path $env:DC06C05B03H03_EVIDENCE_DIR "lot06c05b03h03-windows-dpapi.json"
+          if (!(Test-Path $p)) { throw "C05B03H03_EVIDENCE_MISSING" }
+          $e = Get-Content -Raw $p | ConvertFrom-Json
+          foreach ($key in @('actual_win32_cryptprotectdata_unprotectdata_called',
+                    'current_windows_user_scope_without_local_machine_flag',
+                    'same_user_new_process_signing_test',
+                    'ed25519_signature_cross_process_verified',
+                    'scope_mismatch_public_key_corruption_and_blob_tampering_denied',
+                    'duplicate_enrollment_file_refused',
+                    'local_revoke_prevents_future_signing',
+                    'cabinet_environment_disabled')) {
+            if ($e.$key -ne $true) { throw "C05B03H03_MISSING_PROOF_$key" }
+          }
+          foreach ($key in @('private_seed_persisted_unencrypted',
+                    'full_key_memory_nonexportable_guarantee',
+                    'windows_acl_or_other_account_certified',
+                    'tpm_hsm_key_attestation',
+                    'sensor_hardware_attestation',
+                    'service_installation_user_switch_restart_verified',
+                    'physical_windows_clinic_machine_verified',
+                    'server_side_revocation_integration_windows',
+                    'product_ready','clinical_go')) {
+            if ($e.$key -ne $false) { throw "C05B03H03_FALSE_PRODUCT_ASSURANCE_$key" }
+          }
+          Write-Host "C05B03H03_WIN32_USER_DPAPI_EVIDENCE_VALIDATED_LAB_NOT_PRODUCT"
+          $h04 = Join-Path $env:DC06C05B03H04_EVIDENCE_DIR "lot06c05b03h04-acl-proof.json"
+          if (!(Test-Path $h04)) { throw "C05B03H04_MISSING_ACL_EVIDENCE" }
+          $h = Get-Content -Raw $h04 | ConvertFrom-Json
+          foreach ($key in @('real_windows_acl_owner_system_protected',
+                'file_acl_extra_principal_denied',
+                'parent_acl_extra_principal_denied',
+                'owner_still_can_sign_after_acl_restored')) {
+            if ($h.$key -ne $true) { throw "C05B03H04_PROOF_MISSING_$key" }
+          }
+          foreach ($key in @('actual_second_logon_user_verified',
+                'physical_windows_os_reboot_verified',
+                'windows_service_installer_verified','scanner_hardware_attestation',
+                'nonexportable_tpm_key','product_ready','clinical_go')) {
+            if ($h.$key -ne $false) { throw "C05B03H04_FALSE_ASSURANCE_$key" }
+          }
+          Write-Host "C05B03H04_WIN32_OWNER_SYSTEM_ACL_NEGATIVE_PROOF_LAB"
+
+      - name: H05 real Windows LocalService SID and current-user DPAPI isolation
+        shell: pwsh
+        run: |
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_windows_localservice_sid_v15.py
+          if ($LASTEXITCODE -ne 0) { throw "C05B03H05_WINDOWS_FUE_FAILED" }
+          $h05 = Join-Path $env:DC06C05B03H05_EVIDENCE_DIR "lot06c05b03h05-localservice.json"
+          if (!(Test-Path $h05)) { throw "C05B03H05_NO_PROOF" }
+          $e = Get-Content -LiteralPath $h05 -Raw | ConvertFrom-Json
+          if ($e.identity_sid -ne "S-1-5-19") { throw "C05B03H05_NOT_LOCALSERVICE" }
+          foreach ($k in @('native_localservice_separate_token_verified',
+              'owner_only_vault_access_rejected_by_second_sid',
+              'native_dpapi_currentuser_unseal_rejected_by_second_sid',
+              'owner_signing_after_second_identity_preserved',
+              'non_interactive_service_identity_only',
+              'scheduled_task_unregistered_and_absence_verified',
+              'synthetic_exchange_directory_absent_verified')) {
+            if ($e.$k -ne $true) { throw "C05B03H05_REQUIRED_$k" }
+          }
+          foreach ($k in @('independent_interactive_second_user_verified',
+              'full_os_reboot_verified','actual_device_or_dental_driver_verified',
+              'production_service_installer_verified','product_ready','clinical_go')) {
+            if ($e.$k -ne $false) { throw "C05B03H05_FALSE_ASSURANCE_$k" }
+          }
+          Write-Host "C05B03H05_REAL_SERVICE_SID_ACL_AND_DPAPI_DENIALS_SYNTHETIC_ONLY"
+
+      - name: Preserve non-PHI Windows evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03h03-windows-dpapi-lab
+          path: lot06-c05b03-windows-evidence/
+          if-no-files-found: warn
+          retention-days: 14
