@@ -15,6 +15,8 @@ on:
       - isolated_fue_lot06c/scm_fixture_c05b03r/**
       - isolated_fue_lot06c/phase2_staff_review_sqlcipher_lab.py
       - isolated_fue_lot06c/test_phase2_staff_review_media_sqlcipher_v15.py
+      - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.tsx
+      - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx
       - docs/lot06/LOT06-PHASE2-STAFF-REVIEW-INTEGRATION-20261101.md
   pull_request:
     paths:
