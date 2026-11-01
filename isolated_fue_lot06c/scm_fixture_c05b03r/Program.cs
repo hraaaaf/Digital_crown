@@ -148,7 +148,7 @@ internal static class Program
                 throw new InvalidOperationException("C05B03R_SERVICE_SID_NOT_IN_LIVE_PROCESS_TOKEN");
 
             var sddl = "D:P(A;;GA;;;" + s_serviceSid +
-                       ")(A;;0x00100003;;;" + s_clientSid + ")(A;;GA;;;SY)";
+                       ")(A;;0x00100183;;;" + s_clientSid + ")(A;;GA;;;SY)";
             IntPtr descriptor = IntPtr.Zero;
             if (!ConvertSddl(sddl, 1, out descriptor, out _))
                 throw new Win32Exception(Marshal.GetLastWin32Error(), "C05B03R_SDDL_FAILED");
