@@ -92,6 +92,36 @@ def _restrict_windows_acl(path, *, directory):
         if result.returncode:
             raise VaultRejected("ACL_HARDENING_FAILED")
 
+def _verify_windows_acl(path):
+    """Refuse broadened permissions even after successful key enrollment."""
+    _guard()
+    import subprocess
+    script=(
+        "$a=Get-Acl -LiteralPath $env:DC_H04_ACL_PATH -ErrorAction Stop; "
+        "$s=@($a.Access | ForEach-Object { "
+        "$_.IdentityReference.Translate([System.Security.Principal.SecurityIdentifier]).Value }); "
+        "[PSCustomObject]@{protected=$a.AreAccessRulesProtected;"
+        "sids=$s;count=$a.Access.Count} | ConvertTo-Json -Compress"
+    )
+    env=dict(os.environ,DC_H04_ACL_PATH=str(path))
+    proc=subprocess.run(["powershell.exe","-NoProfile","-NonInteractive",
+                         "-Command",script],env=env,capture_output=True,text=True,timeout=20)
+    if proc.returncode:
+        raise VaultRejected("ACL_VERIFICATION_FAILED")
+    try:
+        import csv
+        import io
+        import re
+        a=json.loads(proc.stdout)
+        result=subprocess.run(["whoami","/user","/fo","csv","/nh"],
+                              capture_output=True,text=True,timeout=10,check=True)
+        sid=next((x for x in next(csv.reader(io.StringIO(result.stdout)))
+                  if re.fullmatch(r"S-1-[0-9-]+",x)),None)
+        if not a["protected"] or a["count"]!=2 or set(a["sids"])!={sid,"S-1-5-18"}:
+            raise VaultRejected("ACL_BROADENED_OR_INHERITED_DENIED")
+    except (ValueError,KeyError,TypeError,StopIteration) as exc:
+        raise VaultRejected("ACL_VERIFICATION_FAILED") from exc
+
 def create_key(path,*,tenant,device,station,generation):
     """Exclusive create; returns public Ed25519 bytes as hex, not secret seed."""
     _guard()
@@ -131,6 +161,8 @@ def sign(path,message,*,tenant,device,station,generation):
     path=Path(path)
     if path.is_symlink() or not path.is_file():
         raise VaultRejected("KEY_UNAVAILABLE")
+    _verify_windows_acl(path.parent)
+    _verify_windows_acl(path)
     try:
         content=path.read_bytes()
         if len(content)>16384: raise ValueError("size")
