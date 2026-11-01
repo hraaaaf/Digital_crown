@@ -1,4 +1,5 @@
 name: CPV2-01 Pocket text200 FUE (LAB ONLY, NO DEPLOY)
+# Final visual capture pass: wait for ResizeObserver hint and screenshot nav end.
 
 on:
   push:
