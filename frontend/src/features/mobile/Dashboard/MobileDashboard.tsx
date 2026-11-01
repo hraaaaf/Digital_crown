@@ -99,7 +99,7 @@ export const MobileDashboard = () => {
       data-dc-mobile-shell
       data-pocket-read-status={readStatus}
       data-mob3-quick-action-shell
-      className="min-h-[100dvh] bg-background text-text-main flex flex-col pb-28 select-none relative"
+      className="min-h-[100dvh] bg-background text-text-main flex flex-col pb-[calc(48px+4rem)] select-none relative"
       style={{
         backgroundColor: 'var(--bg-medical-pearl)',
         fontFamily: 'var(--app-font-family, "Inter", system-ui, sans-serif)',
@@ -124,7 +124,7 @@ export const MobileDashboard = () => {
       {state.error && state.syncStatus === 'error' && (
         <div className="mx-6 mb-4 p-3 bg-warning-surface border border-warning-border rounded-[16px] flex items-center gap-3 relative z-10 shadow-sm">
           <WifiOff size={14} className="text-warning shrink-0" />
-          <p className="text-[10px] font-black text-warning uppercase tracking-widest">{state.error}</p>
+          <p className="text-[0.625rem] font-black text-warning uppercase tracking-widest">{state.error}</p>
         </div>
       )}
 
@@ -132,7 +132,7 @@ export const MobileDashboard = () => {
         <PWAInstallPrompt />
       </div>
 
-      <main ref={mainRef} className="min-w-0 flex-1 px-4 sm:px-6 overflow-x-hidden overflow-y-auto pb-[calc(132px+env(safe-area-inset-bottom))]">
+      <main ref={mainRef} className="min-w-0 flex-1 px-4 sm:px-6 overflow-x-hidden overflow-y-auto pb-[calc(68px+4rem+env(safe-area-inset-bottom))]">
         <AnimatePresence mode="wait">
           <motion.div
             key={state.activeTab}
@@ -260,9 +260,9 @@ function PocketRestrictedView({ label }: { label: string }) {
   return (
     <section data-mobile-restricted className="pb-8 pt-2">
       <div className="rounded-[24px] border border-glass-border bg-card p-5 shadow-sm">
-        <p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">{label}</p>
-        <h1 className="mt-2 text-[24px] font-black tracking-tight text-text-main">Accès réservé</h1>
-        <p className="mt-2 text-[12px] font-semibold leading-relaxed text-text-muted">
+        <p className="text-[0.625rem] font-black uppercase tracking-[0.16em] text-text-muted">{label}</p>
+        <h1 className="mt-2 text-[1.5rem] font-black tracking-tight text-text-main">Accès réservé</h1>
+        <p className="mt-2 text-[0.75rem] font-semibold leading-relaxed text-text-muted">
           Cette surface Pocket nécessite une autorisation dans les réglages du profil.
         </p>
       </div>
@@ -274,9 +274,9 @@ function PocketReadAccessState({ status, onRetry }: { status: 'loading' | 'ready
   if (status === 'ready') return <PocketRestrictedView label="Droits du profil" />;
   return <section data-pocket-read-pending className="pb-8 pt-2">
     <div className="rounded-[24px] border border-glass-border bg-card p-5 shadow-sm" role="status">
-      <h2 className="text-[20px] font-bold text-text-main">{status === 'loading' ? 'Vérification des accès…' : 'Accès à vérifier'}</h2>
-      <p className="mt-2 text-[12px] font-semibold leading-relaxed text-text-muted">{status === 'loading' ? 'Pocket vérifie les droits de votre profil auprès du cabinet.' : 'Reconnectez-vous au cabinet pour vérifier vos droits. Votre appairage est conservé.'}</p>
-      {status === 'unavailable' && <button type="button" onClick={onRetry} className="mt-4 min-h-11 rounded-[16px] bg-primary px-4 text-[14px] font-semibold text-on-primary">Réessayer</button>}
+      <h2 className="text-[1.25rem] font-bold text-text-main">{status === 'loading' ? 'Vérification des accès…' : 'Accès à vérifier'}</h2>
+      <p className="mt-2 text-[0.75rem] font-semibold leading-relaxed text-text-muted">{status === 'loading' ? 'Pocket vérifie les droits de votre profil auprès du cabinet.' : 'Reconnectez-vous au cabinet pour vérifier vos droits. Votre appairage est conservé.'}</p>
+      {status === 'unavailable' && <button type="button" onClick={onRetry} className="mt-4 min-h-11 rounded-[16px] bg-primary px-4 text-[0.875rem] font-semibold text-on-primary">Réessayer</button>}
     </div>
   </section>;
 }
