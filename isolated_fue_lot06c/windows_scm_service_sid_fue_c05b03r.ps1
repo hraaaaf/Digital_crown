@@ -197,6 +197,17 @@ try {
     Write-Output 'C05B03R_REAL_HOSTED_WINDOWS_SERVICE_LEAST_PRIVILEGE_PASS'
     Write-Output 'C05B03R_REMOTE_SECOND_HOST_TPM_PHYSICAL_CABINET_NOT_TESTED'
 }
+catch {
+    # Never let a later synthetic cleanup failure hide the first OS probe
+    # failure. Report only an allowlisted no-PHI error enum.
+    $primary=$_.Exception.Message
+    if ($primary -match '(DC06B03_EXPECT_S1_GOT_E[A-Z0-9])') {
+        Write-Output ('DC06B03_SCM_PRIMARY_READ_DENIED_' + $Matches[1])
+    } else {
+        Write-Output 'DC06B03_SCM_PRIMARY_TEST_FAILURE_OTHER'
+    }
+    throw
+}
 finally {
     if ($createdService) {
         $null=@(& sc.exe stop $serviceName)
@@ -214,6 +225,19 @@ finally {
         # cleanup authority. No synthetic key/files may survive the job.
         & icacls.exe $root /grant '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_TEST_CLEANUP_ACL_FAILED' }
+        if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+            # Synthetic fixture only: descendants from an existing encrypted
+            # collector may carry a protected file-level DACL. Admins regain
+            # delete rights here only after the ephemeral SCM service stops.
+            $spoolForCleanup=Join-Path $root 'private/spool'
+            if (Test-Path -LiteralPath $spoolForCleanup -PathType Container) {
+                $leaves=Get-ChildItem -LiteralPath $spoolForCleanup -File -Force -ErrorAction Stop
+                foreach ($leaf in $leaves) {
+                    & icacls.exe $leaf.FullName /grant '*S-1-5-32-544:F' | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_BLOB_CLEANUP_ACL_FAILED' }
+                }
+            }
+        }
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
     }
     $newPasswordA=$null
