@@ -21,7 +21,7 @@ import uuid
 
 import pytest
 from sqlalchemy import Column, Integer, MetaData, String, Table, event, insert, select, update
-from sqlalchemy.exc import IntegrityError, OperationalError
+from sqlcipher3.dbapi2 import IntegrityError
 from sqlalchemy.orm import Session
 
 from backend import models
