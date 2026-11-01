@@ -717,3 +717,56 @@ async def mobile_frontdesk_action(
     if handler is None:
         raise HTTPException(status_code=404, detail="Action Accueil inconnue.")
     return await handler(appointment_id=appointment_id, db=db, current_user=mobile_user)
+
+# CPV2-02C: real PDF preview under a paired Pocket session. The canonical
+# generator remains Desktop-only as an HTTP API; this facade explicitly checks
+# the mobile device/JWT, patient/tenant and per-document permissions first.
+# Archive/financial writes are NOT enabled by this preview endpoint.
+@router.post('/documents/preview', summary='Prévisualisation PDF Pocket sans archivage')
+async def preview_mobile_document(
+    req: schemas.DocumentRequest,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission('patients')),
+):
+    from pathlib import Path
+    from fastapi import Response
+    from backend.routers import documents as _documents
+
+    if req.type not in {'ordonnance', 'certificat', 'devis', 'note', 'libre'}:
+        raise HTTPException(status_code=403, detail='Type documentaire non disponible sur Pocket.')
+    if req.payment_status != 'EN_ATTENTE':
+        raise HTTPException(status_code=403, detail='Aucune mutation financière autorisée dans cet aperçu.')
+
+    _documents.require_document_permission(req.type, mobile_user)
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == req.patient_id,
+        models.Patient.employer_id == mobile_user.get_employer_id(),
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail='Patient indisponible dans ce cabinet.')
+
+    result = await _documents.generate_document(
+        req, archive=False, preview=True, force=False, db=db, current_user=mobile_user,
+    )
+    # Never hand a raw static path or a desktop-auth URL to a paired device.
+    # Return the PDF from an explicitly bounded media root, authenticated for
+    # THIS mobile request, with no browser/shared intermediary cache.
+    url = str(result.get('pdf_url') or '').split('?', 1)[0]
+    prefix = 'static/documents/'
+    if not url.startswith(prefix):
+        raise HTTPException(status_code=503, detail='Aperçu PDF indisponible.')
+    root = (Path(_documents.MEDIA_DIR) / 'documents').resolve()
+    pdf = (root / url[len(prefix):]).resolve()
+    if not pdf.is_relative_to(root) or not pdf.is_file():
+        raise HTTPException(status_code=503, detail='Aperçu PDF indisponible.')
+    if pdf.stat().st_size > 12 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail='Aperçu PDF trop volumineux.')
+    content = pdf.read_bytes()
+    if not content.startswith(b'%PDF-'):
+        raise HTTPException(status_code=503, detail='Fichier PDF invalide.')
+    return Response(
+        content=content,
+        media_type='application/pdf',
+        headers={'Cache-Control': 'no-store, private', 'X-Content-Type-Options': 'nosniff'},
+    )
