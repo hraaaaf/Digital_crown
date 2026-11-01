@@ -1,0 +1,129 @@
+name: CPV2-01C PR1171 exact-SHA onboarding visual (LAB NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01c-1171-onboarding-visual-20261101
+    paths:
+      - .github/workflows/cpv2-01c-pr1171-onboarding-visual.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-01c-pr1171-onboarding-visual
+  cancel-in-progress: true
+
+jobs:
+  capture:
+    name: Actual product onboarding UI at approved candidate SHA (synthetic LAB)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Checkout original PR1171 SHA, never lab-branch source
+        uses: actions/checkout@v4
+        with:
+          ref: 54b8450a78ab4fe8c1fc5f939d98e0914bee8bed
+          persist-credentials: false
+      - name: Assert exact read-only source SHA
+        run: |
+          test "$(git rev-parse HEAD)" = "54b8450a78ab4fe8c1fc5f939d98e0914bee8bed"
+          echo "SOURCE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_STEP_SUMMARY"
+          echo "SCOPE=synthetic-local-frontend-only; not real offline unlink; no cabinet/server/PHI" >> "$GITHUB_STEP_SUMMARY"
+      - name: Setup Node 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install and compile exact source frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+      - name: Install local Chromium (no external preview)
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Run compiled PWA on runner localhost only
+        working-directory: frontend
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 5173 --strictPort >/tmp/cpv2-1171-preview.log 2>&1 &
+          for n in $(seq 1 45); do
+            if curl -fsS http://127.0.0.1:5173/mobile/onboarding >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          cat /tmp/cpv2-1171-preview.log
+          exit 1
+      - name: Render BEFORE and pending-revocation AFTER through actual production React
+        working-directory: frontend
+        run: |
+          mkdir -p ../artifacts/cpv2-1171-onboarding
+          node --input-type=module <<'NODE'
+          import { chromium } from 'playwright';
+          import { writeFile } from 'node:fs/promises';
+          import { join } from 'node:path';
+          const origin = 'http://127.0.0.1:5173';
+          const out = '../artifacts/cpv2-1171-onboarding';
+          const sourceSha = '54b8450a78ab4fe8c1fc5f939d98e0914bee8bed';
+          const expected = "La révocation auprès de l’ancien cabinet n’a pas pu être confirmée.";
+          const viewports = [
+            {width:390,height:844},{width:430,height:932},
+            {width:768,height:1024},{width:1280,height:800}
+          ];
+          const browser = await chromium.launch({ headless: true });
+          const evidence = [];
+          try {
+            for (const vp of viewports) {
+              const context = await browser.newContext({
+                viewport: vp,
+                deviceScaleFactor: 1,
+                serviceWorkers: 'block',
+                locale: 'fr-FR'
+              });
+              const page = await context.newPage();
+              const errors = [];
+              page.on('pageerror', err => errors.push(String(err.message)));
+              const before = await page.goto(origin+'/mobile/onboarding',{waitUntil:'domcontentloaded',timeout:30000});
+              await page.getByText('Compagnon Mobile',{exact:true}).waitFor({timeout:25000});
+              if ((await page.locator('[data-mobile-revocation-pending]').count())!==0)
+                throw new Error('BEFORE unexpectedly has pending revocation banner');
+              await page.screenshot({path:join(out,'before-'+vp.width+'x'+vp.height+'.png'),fullPage:true,animations:'disabled'});
+              const after = await page.goto(origin+'/mobile/onboarding?revocation=pending',{waitUntil:'domcontentloaded',timeout:30000});
+              const banner=page.locator('[data-mobile-revocation-pending][role="alert"]');
+              await banner.waitFor({state:'visible',timeout:25000});
+              const actualText=await banner.innerText();
+              if (!actualText.includes(expected))
+                throw new Error('Exact source alert not rendered: '+actualText);
+              if ((await page.getByText('Compagnon Mobile',{exact:true}).count())!==1)
+                throw new Error('Expected onboarding heading missing');
+              await page.screenshot({path:join(out,'pending-'+vp.width+'x'+vp.height+'.png'),fullPage:true,animations:'disabled'});
+              const metrics=await page.evaluate(()=>({
+                bodyScrollWidth: document.body.scrollWidth,
+                viewportInnerWidth:window.innerWidth,
+                warningVisible: !!document.querySelector('[data-mobile-revocation-pending]'),
+                title: document.title
+              }));
+              const row={sourceSha,viewport:vp,beforeStatus:before?.status(),afterStatus:after?.status(),
+                bannerText:actualText,errors,...metrics};
+              evidence.push(row);
+              if (errors.length) throw new Error('Browser runtime errors '+JSON.stringify(errors));
+              if (metrics.bodyScrollWidth > metrics.viewportInnerWidth + 1)
+                throw new Error('Horizontal overflow at '+vp.width);
+              await context.close();
+            }
+            await writeFile(join(out,'evidence.json'),JSON.stringify({scope:'LAB direct render of URL state, not actual offline unlink or real cabinet',sourceSha,evidence},null,2));
+            console.log(JSON.stringify(evidence));
+          } finally {
+            await browser.close();
+          }
+          NODE
+      - name: Upload inspectable screenshot evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpv2-1171-onboarding-actual-react-exact-sha
+          path: artifacts/cpv2-1171-onboarding/
+          if-no-files-found: warn
+          retention-days: 7
