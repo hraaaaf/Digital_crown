@@ -4,6 +4,7 @@ on:
     branches: [test/lot06-c05b03-integrated-reconcile-20261031]
     paths:
       - .github/workflows/lot06-c05b03-sqlcipher-authority-bridge.yml
+      - isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py
       - isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py
       - isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py
       - isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py
@@ -28,6 +29,7 @@ jobs:
       DC06C05B03B_TEST_ONLY: '1'
       DC06C05B03C_TEST_ONLY: '1'
       DC06C05B03D_TEST_ONLY: '1'
+      DC06C05B03M_TEST_ONLY: '1'
       C05B03H_NETWORK_POLICY_APPROVED: 'false'
       DATABASE_URL: 'sqlite:///:memory:'
       SECRET_KEY: 'only-synthetic-lot06-authority-bridge-isolated-2026'
@@ -36,6 +38,7 @@ jobs:
       TELEMETRY_ENABLED: 'false'
       DC06C05B03C_EVIDENCE_DIR: lot06-c05b03-authority-evidence
       DC06C05B03D_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03M_EVIDENCE_DIR: lot06-c05b03-authority-evidence
     steps:
       - uses: actions/checkout@v4
         with:
@@ -68,7 +71,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pytest -q -s --maxfail=1             isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py             isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py             isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py
+          python -m pytest -q -s --maxfail=1             isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py             isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py             isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py \
+            isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py
           python - <<'PY'
           import json
           from pathlib import Path
