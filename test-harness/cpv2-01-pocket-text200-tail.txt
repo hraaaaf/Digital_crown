@@ -34,6 +34,41 @@ async function check(page,meta,selector,file){
  if(row.navClippedLabels?.length)row.failures.push('nav_labels_cut_off');
  if(row.navLabelOutsideButtons?.length)row.failures.push('nav_labels_overlap_neighbours');
  if(row.headerOverlap)row.failures.push('header_controls_overlap_brand');
+ if(meta.screen==='today'){
+   const date=await page.locator('[data-pocket-date-input]');
+   const rect=await date.boundingBox();
+   const calendar=await date.evaluate(el=>({value:el.value,fontSize:parseFloat(getComputedStyle(el).fontSize),width:el.getBoundingClientRect().width}));
+   row.date={...calendar,width:rect?.width??0};
+   // Native date subfields do not expose their own scrollWidth; require usable
+   // input geometry, then manually review actual screenshots of both engines.
+   if(!rect || rect.width<220 || calendar.value.length!==10)row.failures.push('native_date_insufficient_width_or_value');
+   for(const name of ['Jour précédent','Jour suivant']){
+     const b=await page.getByRole('button',{name}).boundingBox();
+     if(!b||b.width<44||b.height<44)row.failures.push('date_arrow_below_44px_'+name);
+   }
+   const nav=page.locator('[data-mobile-bottom-nav]');
+   const scroll=await nav.evaluate(el=>({client:el.clientWidth,scroll:el.scrollWidth}));
+   row.navScroll=scroll;
+   if(scroll.scroll>scroll.client+2){
+     const hint=page.locator('[data-pocket-nav-scroll-hint]');
+     await hint.waitFor({state:'visible',timeout:10000}).catch(()=>{row.failures.push('missing_scroll_affordance');});
+     const ids=['today','agenda','actions','patients','more'];
+     row.navFocusChecks=[];
+     for(const id of ids){
+       const btn=page.locator('[data-mobile-nav-item="'+id+'"]');
+       await btn.focus();
+       const coordinates=await btn.evaluate(el=>{
+         const nav=el.closest('[data-mobile-bottom-nav]'),a=el.getBoundingClientRect(),b=nav.getBoundingClientRect();
+         return {visible:a.left>=b.left-2&&a.right<=b.right+2,left:a.left,right:a.right,navLeft:b.left,navRight:b.right,scrollLeft:nav.scrollLeft};
+       });
+       row.navFocusChecks.push({id,...coordinates});
+       if(!coordinates.visible)row.failures.push('nav_focus_target_inaccessible_'+id);
+     }
+     // restore initial position for the next tab and subsequent screenshot;
+     // the screenshot was already taken before the keyboard focus test.
+     await nav.evaluate(el=>{el.scrollLeft=0;});
+   }
+ }
  rows.push(row);
 }
 try{
