@@ -446,7 +446,7 @@ class TestCPV202BMobileCreationContracts:
         device = db.query(models.MobilePairedDevice).filter(
             models.MobilePairedDevice.user_id == dentiste.id,
             models.MobilePairedDevice.employer_id == dentiste.id,
-        ).order_by(models.MobilePairedDevice.id.desc()).first()
+        ).first()
         assert device is not None
         device.revoked_at = datetime.utcnow()
         db.commit()
