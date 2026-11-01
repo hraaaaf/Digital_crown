@@ -42,7 +42,8 @@ function Wait-ServiceState([string]$Service, [string]$Expected, [int]$LimitSecon
 }
 function Invoke-Child([string]$Username, [string]$Password,
                        [string]$ExpectedSid, [int]$ExpectedOpen,
-                       [int]$ExpectedCreate, [switch]$ProbeQueueReadOnly) {
+                       [int]$ExpectedCreate, [switch]$ProbeQueueReadOnly,
+                       [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None') {
     $cred=[System.Management.Automation.PSCredential]::new(
         ('.' + [char]92 + $Username), (ConvertTo-SecureString $Password -AsPlainText -Force)
     )
@@ -52,6 +53,7 @@ function Invoke-Child([string]$Username, [string]$Password,
         '" -ParentPid ' + $PID + ' -ExpectedOpen ' + $ExpectedOpen +
         ' -ExpectedCreateInstance ' + $ExpectedCreate
     if ($ProbeQueueReadOnly) { $arguments += ' -ProbeQueueReadOnly' }
+    if ($B03Status -ne 'None') { $arguments += ' -B03Status ' + $B03Status }
     $child=$null
     try {
         $errFile=Join-Path $root ('child-' + $Username + '-stderr.txt')
@@ -123,6 +125,30 @@ try {
     if (-not $found.Success) { throw 'C05B03R_CANNOT_GET_WINDOWS_SERVICE_SID' }
     $serviceSid=$found.Value
     $binPath += ' "' + $pipeName + '" ' + $serviceSid + ' ' + $allowedSid
+    if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+        $python=(Get-Command python -ErrorAction Stop).Source
+        $reader=Join-Path $PSScriptRoot 'scm_spool_read_b03.py'
+        $watch=Join-Path $root 'incoming'
+        $private=Join-Path $root 'private'
+        $keyPath=Join-Path $root 'spool-key.lab'
+        New-Item -ItemType Directory -Path $watch,$private -Force | Out-Null
+        $keyBytes=New-Object byte[] 32
+        [System.Security.Cryptography.RandomNumberGenerator]::Fill($keyBytes)
+        [System.IO.File]::WriteAllBytes($keyPath,$keyBytes)
+        $env:PYTHONDONTWRITEBYTECODE='1'
+        & $python -I $reader seed $watch $private $keyPath DC06B03_SYNTHETIC_ONLY
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SYNTHETIC_REAL_SPOOL_SEED_FAILED' }
+        # A restricted service token needs both LocalService AND service SID
+        # permissions. Parent ephemeral CI account must not be given secrets.
+        foreach ($target in @($watch,$private)) {
+            & icacls.exe $target /inheritance:r /grant:r ('*S-1-5-19:(OI)(CI)M') ('*' + $serviceSid + ':(OI)(CI)M') '*S-1-5-18:(OI)(CI)F' /T | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SPOOL_DIRECTORY_ACL_FAILED' }
+        }
+        & icacls.exe $keyPath /inheritance:r /grant:r '*S-1-5-19:R' ('*' + $serviceSid + ':R') '*S-1-5-18:F' | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_KEY_FILE_ACL_FAILED' }
+        $binPath += ' --b03-spool "' + $python + '" "' + $reader + '" "' +
+            $watch + '" "' + $private + '" "' + $keyPath + '"'
+    }
     $null=Invoke-ScChecked -Params @('config',$serviceName,'binPath=',$binPath)
     $null=Invoke-ScChecked -Params @('start',$serviceName)
     Wait-ServiceState $serviceName 'RUNNING' 20
@@ -131,10 +157,22 @@ try {
     Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5
     Write-Output 'C05B03R_REAL_APPROVED_OTHER_USER_PROCESS_DATA_RW_ALLOWED_CREATE_INSTANCE_DENIED_PASS'
     if ($env:DC06B02_PROBE -eq '1') {
-        # Real extra process using a real different Windows logon SID,
-        # round-trip over the live LocalService SCM pipe; never product install.
         Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -ProbeQueueReadOnly
         Write-Output 'DC06B02_NATIVE_SCM_Q_U_PEER_PROBE_NOT_CLINICAL_AUTHORITY_PASS'
+    }
+    if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
+        Write-Output 'DC06B03_SCM_LOCAL_SERVICE_REALLY_READ_ENCRYPTED_SPOOL_PASS'
+        # ciphertext integrity must be checked fresh from disk under the service
+        $cipher=Get-ChildItem -LiteralPath (Join-Path $private 'spool') -Filter '*.dc6' |
+            Select-Object -First 1
+        if ($null -eq $cipher) { throw 'DC06B03_SPOOL_CIPHER_MISSING' }
+        $blob=[System.IO.File]::ReadAllBytes($cipher.FullName)
+        $blob[$blob.Length-1] = $blob[$blob.Length-1] -bxor 1
+        [System.IO.File]::WriteAllBytes($cipher.FullName,$blob)
+        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Tampered
+        # No silent count=0 or any valid queue when ciphertext is damaged.
+        Write-Output 'DC06B03_SCM_CORRUPTED_REAL_AES_SPOOL_FAIL_CLOSED_PASS'
     }
     Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5
     Write-Output 'C05B03R_REAL_UNAUTHORIZED_OTHER_USER_PROCESS_ALL_DENIED_PASS'

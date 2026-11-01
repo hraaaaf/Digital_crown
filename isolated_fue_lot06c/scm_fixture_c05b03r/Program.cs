@@ -2,6 +2,8 @@
 // Build/run ONLY on GitHub-hosted Windows runner. No patient data, network or keys.
 using Microsoft.Win32.SafeHandles;
 using System.ComponentModel;
+using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using System.Security.Principal;
 
@@ -90,11 +92,12 @@ internal static class Program
     static string s_pipeName = "";
     static string s_serviceSid = "";
     static string s_clientSid = "";
+    static string? s_b03Python, s_b03Script, s_b03Watch, s_b03Private, s_b03Key;
     static int s_state = SERVICE_START_PENDING;
 
     static int Main(string[] args)
     {
-        if (args.Length != 5 || args[0] != "--service" ||
+        if ((args.Length != 5 && args.Length != 11) || args[0] != "--service" ||
             !args[1].StartsWith("DC06R", StringComparison.Ordinal) ||
             !args[2].StartsWith(@"\\.\pipe\DigitalCrown-LAB-R-", StringComparison.Ordinal) ||
             !args[3].StartsWith("S-1-5-80-", StringComparison.Ordinal) ||
@@ -102,6 +105,17 @@ internal static class Program
             return 35;
         (s_name, s_pipeName, s_serviceSid, s_clientSid) =
             (args[1], args[2], args[3], args[4]);
+        if (args.Length == 11)
+        {
+            if (args[5] != "--b03-spool" || !Path.IsPathFullyQualified(args[6]) ||
+                !Path.IsPathFullyQualified(args[7]) || !Path.IsPathFullyQualified(args[8]) ||
+                !Path.IsPathFullyQualified(args[9]) || !Path.IsPathFullyQualified(args[10]) ||
+                !args[9].Contains("DC06R-LAB-", StringComparison.OrdinalIgnoreCase) ||
+                !File.Exists(args[7]) || !File.Exists(args[10]))
+                return 36;
+            (s_b03Python, s_b03Script, s_b03Watch, s_b03Private, s_b03Key) =
+                (args[6], args[7], args[8], args[9], args[10]);
+        }
         s_main = ServiceMain;
         var entries = new ServiceTableEntry[2];
         entries[0] = new ServiceTableEntry { Name = s_name, Main = s_main };
@@ -188,6 +202,41 @@ internal static class Program
         }
     }
 
+    static byte[] ReadVerifiedUnassignedCount()
+    {
+        // This is a disposable lab service under LocalService, reading the
+        // REAL AES-GCM/SQLite spool via a fixed Python helper as its own token.
+        // Never forward file bytes, patient identity, key or encrypted metadata.
+        if (s_b03Python is null || s_b03Script is null || s_b03Watch is null ||
+            s_b03Private is null || s_b03Key is null)
+            return new byte[] { (byte)'E', (byte)'?' };
+        try
+        {
+            var start = new ProcessStartInfo(s_b03Python) {
+                UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+            };
+            foreach (var arg in new[] {
+                "-I", s_b03Script, "read", s_b03Watch, s_b03Private, s_b03Key, "DC06B03_SYNTHETIC_ONLY"
+            }) start.ArgumentList.Add(arg);
+            start.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
+            using var child = Process.Start(start);
+            if (child is null) return new byte[] { (byte)'E', (byte)'?' };
+            if (!child.WaitForExit(8000))
+            {
+                child.Kill(entireProcessTree: true);
+                return new byte[] { (byte)'E', (byte)'?' };
+            }
+            var result = child.StandardOutput.ReadToEnd();
+            // Only 0..9 are allowed: no unbounded or PHI-bearing response.
+            if (child.ExitCode != 0 || result.Length != 2 ||
+                result[0] != 'S' || result[1] < '0' || result[1] > '9')
+                return new byte[] { (byte)'E', (byte)'?' };
+            return new byte[] { (byte)'S', (byte)result[1] };
+        }
+        catch { return new byte[] { (byte)'E', (byte)'?' }; }
+    }
+
     static void Serve()
     {
         var pipe = s_pipe;
@@ -204,9 +253,17 @@ internal static class Program
                 if (readOk && received == 1 && buffer[0] == (byte)'Q')
                 {
                     var response = new byte[] { (byte)'U' };
-                    // A bounded ONE-BYTE read-only response. No PHI, queue
-                    // details, media transfer or clinical capability is served.
                     _ = WriteFile(pipe, response, 1, out _, IntPtr.Zero);
+                }
+                else if (readOk && received == 1 && buffer[0] == (byte)'S')
+                {
+                    var response = ReadVerifiedUnassignedCount();
+                    _ = WriteFile(pipe, response, 2, out _, IntPtr.Zero);
+                }
+                else if (readOk && received == 1)
+                {
+                    var denied = new byte[] { (byte)'E', (byte)'?' };
+                    _ = WriteFile(pipe, denied, 2, out _, IntPtr.Zero);
                 }
                 _ = DisconnectNamedPipe(pipe);
             }
