@@ -1,22 +1,13 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { MobileStorage, isReplayablePocketAction } from '../../../../services/zka/MobileStorage';
+import { MobileStorage, isReplayablePocketAction, resolveMobileApiBaseUrl } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
+import { unlinkCurrentMobileDevice } from '../../../../services/zka/unlinkMobileDevice';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { mobileApiJson } from '../../../../services/zka/mobileApi';
 import type { LabJob } from '../../../../types/labJob';
 import { formatLabJobMessage } from '../../../../services/whatsappService';
 import type { Tab, SyncStatus, Snapshot, Appointment, ApptStatus } from '../types';
-
-function resolveApiBaseUrl(stored: string): string {
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') return stored;
-  if (stored.includes('localhost') || stored.includes('127.0.0.1')) {
-    return `${window.location.protocol}//${hostname}:8005`;
-  }
-  return stored;
-}
-
 
 function localDateKey(date = new Date()): string {
   const year = date.getFullYear();
@@ -72,7 +63,7 @@ export function useMobileDashboard() {
       if (!creds) throw new Error('Non appairé');
       credsRef.current = creds;
 
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/snapshot?target_date=${selectedDate}`, {
+      const res = await mobileFetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/snapshot?target_date=${selectedDate}`, {
         signal: AbortSignal.timeout(8000),
       });
       if (!res.ok) {
@@ -126,7 +117,7 @@ export function useMobileDashboard() {
     try {
       const creds = credsRef.current || await MobileStorage.getCredentials();
       if (!creds) return;
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/patients`, {
+      const res = await mobileFetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/patients`, {
         headers: { Authorization: `Bearer ${creds.access_token}` },
         signal: AbortSignal.timeout(5000),
       });
@@ -230,7 +221,7 @@ export function useMobileDashboard() {
     if (!creds) return;
     const actionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${id}-status`;
     try {
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}/status`, {
+      const res = await mobileFetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}/status`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json', 'X-Mobile-Action-Id': actionId },
         body: JSON.stringify({ status }),
@@ -250,7 +241,7 @@ export function useMobileDashboard() {
           : 'Erreur lors de la mise à jour');
         return;
       }
-      await MobileStorage.enqueueAction(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}/status`, 'PATCH', { status }, actionId);
+      await MobileStorage.enqueueAction(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}/status`, 'PATCH', { status }, actionId);
       setQueuedActionsCount((await MobileStorage.getActionQueue()).length);
       toast('Mise à jour mise en attente (hors ligne)', { icon: '🔄' });
       setSnapshot(prev => prev ? {
@@ -274,7 +265,7 @@ export function useMobileDashboard() {
     }
     const actionId = crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}-${id}-delete`;
     try {
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
+      const res = await mobileFetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
         method: 'DELETE',
         headers: { 'X-Mobile-Action-Id': actionId },
       });
@@ -295,7 +286,7 @@ export function useMobileDashboard() {
     const creds = credsRef.current || await MobileStorage.getCredentials();
     if (!creds) return;
     try {
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
+      const res = await mobileFetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/appointments/${id}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ datetime_start: `${newDate}T${newTime}:00` }),
@@ -362,7 +353,7 @@ export function useMobileDashboard() {
     try {
       const creds = credsRef.current || await MobileStorage.getCredentials();
       if (!creds) return;
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/patients/${patientId}/documents`, {
+      const res = await mobileFetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/patients/${patientId}/documents`, {
         headers: { Authorization: `Bearer ${creds.access_token}` },
       });
       if (res.ok) {
@@ -401,7 +392,7 @@ export function useMobileDashboard() {
     try {
       const creds = credsRef.current || await MobileStorage.getCredentials();
       if (!creds) return;
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/documents/${selectedDocId}/sign`, {
+      const res = await mobileFetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/documents/${selectedDocId}/sign`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -428,7 +419,7 @@ export function useMobileDashboard() {
     if (!creds) return;
     try {
       const date = new Date(selectedDate);
-      const res = await mobileFetch(`${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/accounting/export-pdf?year=${date.getFullYear()}&month=${date.getMonth() + 1}`);
+      const res = await mobileFetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/accounting/export-pdf?year=${date.getFullYear()}&month=${date.getMonth() + 1}`);
       if (!res.ok) throw new Error(`export ${res.status}`);
       const blob = await res.blob();
       const url = window.URL.createObjectURL(blob);
@@ -444,8 +435,12 @@ export function useMobileDashboard() {
   };
 
   const handleLogout = async () => {
-    await MobileStorage.clearAll();
-    window.location.replace('/mobile/onboarding');
+    const remotelyRevoked = await unlinkCurrentMobileDevice();
+    // A LAN outage must never strand local patient data on a departing phone.
+    // A failed remote attempt is explicitly reported, not called "revoked".
+    window.location.replace(remotelyRevoked
+      ? '/mobile/onboarding'
+      : '/mobile/onboarding?revocation=pending');
   };
 
   return {

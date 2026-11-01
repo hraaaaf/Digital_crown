@@ -99,6 +99,9 @@ export interface BiometricVaultEnvelope {
 }
 
 let refreshInFlight: Promise<ZKACredentials | null> | null = null;
+let refreshInFlightEpoch = -1;
+// Increment on unlink / new pairing: an old refresh can never act on a new session.
+let mobileSessionEpoch = 0;
 let biometricAccessToken: string | null = null;
 let unlockedVault: { key: CryptoKey; payload: BiometricVaultPayload; envelope: BiometricVaultEnvelope } | null = null;
 
@@ -117,18 +120,30 @@ function base64UrlToBytes(value: string): Uint8Array<ArrayBuffer> {
   return output;
 }
 
+/** All Pocket components use the same on-premise API origin and configurable port. */
+const mobileApiPort = import.meta.env.VITE_MOBILE_API_PORT || '8005';
+
 export function resolveMobileApiBaseUrl(stored: string): string {
-  const normalized = stored.endsWith('/') ? stored.slice(0, -1) : stored;
+  const normalized = stored.replace(/\/+$/, '');
   if (typeof window === 'undefined') return normalized;
   const hostname = window.location.hostname;
-  if (hostname === 'digitalcrown.local' || hostname.endsWith('.digitalcrown.local')) {
-    return `${window.location.protocol}//${hostname}:8005`;
-  }
   if (hostname === 'localhost' || hostname === '127.0.0.1') return normalized;
-  if (normalized.includes('localhost') || normalized.includes('127.0.0.1')) {
-    return `${window.location.protocol}//${hostname}:8005`;
-  }
+  // Only a genuine loopback URL is substituted. A host *containing* "localhost"
+  // must never be treated as loopback or routed to another cabinet.
+  try {
+    const target = new URL(normalized);
+    if (target.hostname === 'localhost' || target.hostname === '127.0.0.1') {
+      return `${window.location.protocol}//${hostname}:${mobileApiPort}`;
+    }
+  } catch { /* Existing URL validation remains at the pairing/network boundary. */ }
   return normalized;
+}
+
+export function resolveMobileOnboardingApiBaseUrl(configured = import.meta.env.VITE_API_URL): string {
+  if (configured) return resolveMobileApiBaseUrl(configured);
+  const hostname = typeof window === 'undefined' ? '127.0.0.1' : window.location.hostname;
+  const protocol = typeof window === 'undefined' ? 'http:' : window.location.protocol;
+  return `${protocol}//${hostname === 'localhost' ? '127.0.0.1' : hostname}:${mobileApiPort}`;
 }
 
 function accessTokenExpiryMs(token: string): number | null {
@@ -204,6 +219,7 @@ async function sanitizePlaintextCopies(creds: ZKACredentials): Promise<void> {
 }
 
 async function clearSessionData(): Promise<void> {
+  mobileSessionEpoch += 1; // invalidates every outstanding refresh before any IndexedDB await
   await mobileStore().removeItem(STORE_CREDENTIALS_ID);
   await mobileStore().removeItem(STORE_SNAPSHOT_ID);
   await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
@@ -215,6 +231,14 @@ async function clearSessionData(): Promise<void> {
   try {
     localStorage.removeItem('token');
     localStorage.removeItem('refresh_token');
+    // Themes contain cabinet-specific customization. Logout must forget them,
+    // not simply remove a token while leaving the old cabinet's UI behind.
+    for (let i = localStorage.length - 1; i >= 0; i--) {
+      const key = localStorage.key(i);
+      if (key === 'digitalcrown_mobile_theme' || key?.startsWith('digitalcrown_mobile_theme:')) {
+        localStorage.removeItem(key);
+      }
+    }
   } catch { /* ignore */ }
 }
 
@@ -228,34 +252,54 @@ async function invalidateMobileSession(): Promise<null> {
 
 async function refreshCredentialsInternal(creds: ZKACredentials): Promise<ZKACredentials | null> {
   if (!creds.refresh_token || !creds.device_id) return null;
-  if (refreshInFlight) return refreshInFlight;
+  const epoch = mobileSessionEpoch;
+  if (refreshInFlight && refreshInFlightEpoch === epoch) return refreshInFlight;
 
-  refreshInFlight = (async () => {
+  const stillCurrent = async () => {
+    if (epoch !== mobileSessionEpoch) return false;
+    const active = await rawCredentials();
+    return epoch === mobileSessionEpoch
+      && active?.publicId === creds.publicId
+      && active?.device_id === creds.device_id
+      && active?.api_base_url === creds.api_base_url
+      && active?.refresh_token === creds.refresh_token;
+  };
+
+  const request = (async (): Promise<ZKACredentials | null> => {
     try {
       const response = await fetch(`${resolveMobileApiBaseUrl(creds.api_base_url)}/api/mobile/refresh-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ refresh_token: creds.refresh_token }),
       });
+      if (!(await stillCurrent())) return null;
       if (!response.ok) {
         if (response.status === 401 || response.status === 403) return invalidateMobileSession();
         return creds;
       }
       const payload = await response.json();
+      if (!(await stillCurrent())) return null;
       if (!payload.access_token || !payload.refresh_token || payload.device_id !== creds.device_id) {
         return invalidateMobileSession();
       }
-      return MobileStorage.updateTokens(payload.access_token, payload.refresh_token, payload.device_id);
+      return MobileStorage.updateTokens(payload.access_token, payload.refresh_token, payload.device_id, creds.refresh_token, epoch);
     } catch {
-      return creds;
+      return (await stillCurrent()) ? creds : null;
     }
-  })().finally(() => { refreshInFlight = null; });
+  })();
 
-  return refreshInFlight;
+  const flight = request.finally(() => {
+    // A stale flight must not clear the NEW pairing's in-flight refresh.
+    if (refreshInFlight === flight) refreshInFlight = null;
+  });
+  refreshInFlight = flight;
+  refreshInFlightEpoch = epoch;
+  return flight;
 }
 
 export const MobileStorage = {
-  async saveCredentials(creds: ZKACredentials): Promise<void> {
+  async saveCredentials(creds: ZKACredentials, expectedEpoch?: number): Promise<void> {
+    if (expectedEpoch !== undefined && mobileSessionEpoch !== expectedEpoch) return;
     if (!/^[0-9a-fA-F]{16}$/.test(creds.publicId)) throw new Error('ID Cabinet invalide.');
     const existingVault = await rawVault();
     if (!/^[0-9a-fA-F]{64}$/.test(creds.masterKey) && !(existingVault && creds.masterKey === '')) {
@@ -266,8 +310,12 @@ export const MobileStorage = {
     }
 
     const previous = await rawCredentials();
-    const scopeChanged = !previous || previous.publicId !== creds.publicId || previous.device_id !== creds.device_id;
+    const scopeChanged = !previous
+      || previous.publicId !== creds.publicId
+      || previous.device_id !== creds.device_id
+      || previous.api_base_url !== creds.api_base_url;
     if (scopeChanged) {
+      mobileSessionEpoch += 1;
       await mobileStore().removeItem(STORE_SNAPSHOT_ID);
       await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
       await mobileStore().removeItem(STORE_ACTION_QUEUE_ID);
@@ -277,22 +325,27 @@ export const MobileStorage = {
     }
     await mobileStore().removeItem(LEGACY_ACTION_QUEUE_ID);
 
+    if (expectedEpoch !== undefined && mobileSessionEpoch !== expectedEpoch) return;
     await mobileStore().setItem(STORE_CREDENTIALS_ID, creds);
     // Never promote a Pocket JWT into the desktop auth storage surface.
     try { localStorage.removeItem('token'); localStorage.removeItem('refresh_token'); } catch { /* ignore */ }
     try { await navigator.storage?.persist?.(); } catch { /* ignore */ }
   },
 
-  async updateTokens(accessToken: string, refreshToken: string, deviceId: string): Promise<ZKACredentials | null> {
+  async updateTokens(accessToken: string, refreshToken: string, deviceId: string, expectedRefreshToken?: string, expectedEpoch?: number): Promise<ZKACredentials | null> {
     const current = await rawCredentials();
-    if (!current || current.device_id !== deviceId) return null;
+    if (!current || current.device_id !== deviceId
+      || (expectedRefreshToken !== undefined && current.refresh_token !== expectedRefreshToken)
+      || (expectedEpoch !== undefined && mobileSessionEpoch !== expectedEpoch)) return null;
     const next: ZKACredentials = {
       ...current,
       access_token: accessToken,
       refresh_token: refreshToken,
       device_id: deviceId,
     };
-    await this.saveCredentials(next);
+    if (expectedEpoch !== undefined && mobileSessionEpoch !== expectedEpoch) return null;
+    await this.saveCredentials(next, expectedEpoch);
+    if (expectedEpoch !== undefined && mobileSessionEpoch !== expectedEpoch) return null;
     return this.getCredentials();
   },
 
@@ -401,12 +454,9 @@ export const MobileStorage = {
   },
 
   async clearCredentials(): Promise<void> {
-    await mobileStore().removeItem(STORE_CREDENTIALS_ID);
-    await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
-    await mobileStore().removeItem(STORE_BIOMETRIC_VAULT_ID);
-    unlockedVault = null;
-    biometricAccessToken = null;
-    try { localStorage.removeItem('token'); localStorage.removeItem('refresh_token'); } catch { /* ignore */ }
+    // No partial unpair: credentials, clinical snapshots, pending actions,
+    // bridge, biometric vault and cabinet themes must be cleared together.
+    await clearSessionData();
   },
 
   async clearAll(): Promise<void> {

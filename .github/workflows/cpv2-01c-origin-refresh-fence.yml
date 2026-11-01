@@ -1,0 +1,81 @@
+name: CPV2-01C Pocket API origin and refresh fence (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01c-api-origin-refresh-fence-20261031
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-01c-origin-refresh-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend-origin-and-session:
+    name: Exact-SHA Pocket origin, offline unlink and refresh race
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify product SHA ancestry and no deployments
+        run: |
+          git merge-base --is-ancestor 54b8450a78ab4fe8c1fc5f939d98e0914bee8bed HEAD
+          echo "LAB_SHA=$(git rev-parse HEAD)"
+          echo "NO_DEPLOY=true"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Test stale refresh and Pocket regression scenarios
+        working-directory: frontend
+        run: >-
+          npx vitest run
+          src/services/zka/MobileStorage.refreshFence.test.ts
+          src/services/zka/MobileStorage.snapshot.test.ts
+          src/services/zka/unlinkMobileDevice.test.ts
+          src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx
+          src/test/mobileM62Behavior.test.ts
+          src/test/mobilePocketPwaLifecycle.contract.test.ts
+          --reporter=verbose
+      - name: Pocket complete interactive regression contracts
+        working-directory: frontend
+        run: >-
+          npx vitest run
+          src/features/mobile/bridge.m5a.test.ts
+          src/features/mobile/Dashboard/components/MobileBottomNav.test.tsx
+          src/features/mobile/Dashboard/components/PocketTodayOverview.test.tsx
+          src/features/mobile/Dashboard/hooks/usePocketReadCapabilities.test.tsx
+          src/features/mobile/Dashboard/MobileDashboard.readAccess.test.tsx
+          src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx
+          src/test/mobilePocketPwaLifecycle.contract.test.ts
+          src/features/mobile/Security/MobileBiometricGate.test.tsx
+          src/services/zka/mobileBiometricLock.test.ts
+          src/test/mobileM6IPasskey.test.ts
+          src/features/mobile/Dashboard/views/StockView.test.tsx
+          src/features/mobile/Dashboard/views/LibraryView.test.tsx
+          src/features/mobile/Dashboard/PocketRuntimeScope.contract.test.ts
+          src/features/partnerMarketplace/usePartnerMarketplace.test.tsx
+          src/test/mobileM62OfflineTruth.test.ts
+          src/test/mobileM62Behavior.test.ts
+          src/features/mobile/Dashboard/MobileP0UI.test.tsx
+          src/features/mobile/Dashboard/hooks/useMobileDashboard.p0.test.tsx
+          src/features/mobile/Dashboard/views/PocketAgendaDay.test.tsx
+          src/features/mobile/Dashboard/MobileP2Compact.test.tsx
+          src/features/mobile/Dashboard/PocketMicroPolishTheme.contract.test.ts
+          src/features/mobile/bridge.test.ts
+          src/test/mobileM64ContextualBridge.test.ts
+          src/features/mobile/Dashboard/components/MobileQuickActionHub.test.tsx
+          src/features/mobile/Dashboard/views/FrontdeskView.test.tsx
+          src/features/mobile/Dashboard/views/FrontdeskView.g3Interactive.test.tsx
+          --reporter=verbose
+      - name: Production frontend build (no deployment)
+        working-directory: frontend
+        run: npm run build

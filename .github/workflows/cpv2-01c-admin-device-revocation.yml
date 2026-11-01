@@ -1,0 +1,76 @@
+name: CPV2-01C admin single-phone revoke lab (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01c-admin-device-revocation-20261101
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-01c-admin-individual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  admin-web:
+    name: Pocket admin-device UI build and regression
+    runs-on: ubuntu-latest
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Verify exact ancestor product and no deployment
+        run: |
+          git merge-base --is-ancestor a637ab74469d2bb4e0d7015b4b155703be986892 HEAD
+          echo "LAB_HEAD=$(git rev-parse HEAD)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact frontend
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Retest mobile pairing/unlink, PWA and admin security contract
+        working-directory: frontend
+        run: >-
+          npx vitest run
+          src/services/zka/unlinkMobileDevice.test.ts
+          src/services/zka/MobileStorage.snapshot.test.ts
+          src/services/zka/MobileStorage.refreshFence.test.ts
+          src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx
+          --reporter=verbose
+      - name: Production frontend build without deploying
+        working-directory: frontend
+        run: npm run build
+
+  admin-revoke-api:
+    name: Real JWT endpoints + tenant-safe single-device revocation (SQLite disposable)
+    runs-on: ubuntu-latest
+    timeout-minutes: 22
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      DATABASE_URL: "sqlite:///:memory:"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+      SECRET_KEY: "cpv2-admin-revoke-disposable-never-production"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Require isolated test environment
+        run: |
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend
+        run: python -m pip install -r backend/requirements.txt
+      - name: Prove admin individual revoke, old JWT/refresh refusal and phone B survival
+        run: >-
+          python -m pytest -q --maxfail=1
+          backend/tests/test_mobile_admin_single_device_revoke.py
+          backend/tests/test_mobile_single_device_unlink.py
