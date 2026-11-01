@@ -688,6 +688,9 @@ from backend.routers import r5_preferences
 app.include_router(r5_preferences.router, prefix="/api/workstation/r5-preferences", tags=["LOT07 R5 DEV Preferences"])
 app.include_router(station_patient_session.router, prefix="/api/workstation", tags=["Station Patient Session"])
 app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
+# LOT06 B01: read-only clinical acquisition status, NOT device ingress.
+from backend.routers import imaging_acquisition_status_v15
+app.include_router(imaging_acquisition_status_v15.router, prefix="/api/patients")
 # LOT07 B10: public empty shell only; data enters via isolated MessagePort.
 from backend.routers import ortho_presenter_sandbox
 app.include_router(ortho_presenter_sandbox.router, prefix="/api/ortho", tags=["Opaque Patient Presenter"])
