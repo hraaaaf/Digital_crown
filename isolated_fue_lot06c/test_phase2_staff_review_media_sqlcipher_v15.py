@@ -13,7 +13,7 @@ from tools.imaging_gateway import HotFolder
 def _ctx(bridge, tmp_path, monkeypatch):
     monkeypatch.setenv("DC06_PHASE2_REVIEW_LAB", "1")
     values = _setup(bridge, tmp_path)
-    mount_lab_review(values[13], claim=values[1], validated_media=values[9])
+    mount_lab_review(values[12], claim=values[1], validated_media=values[8])
     return values
 
 
