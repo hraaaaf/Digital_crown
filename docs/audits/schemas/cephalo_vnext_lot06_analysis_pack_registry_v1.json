@@ -103,7 +103,9 @@
         "M_POG_NPERP_MM_V1",
         "M_CO_A_MM_V1",
         "M_CO_GN_ANATOMIC_MM_V1",
-        "M_ANS_ME_MM_V1"
+        "M_ANS_ME_MM_V1",
+        "M_SNA_DEG_V1",
+        "M_FH_GOME_DEG_V1"
       ],
       "blocked_measurement_ids": []
     },
@@ -142,7 +144,9 @@
         "M_MAXILLARY_CONVEXITY_A_NPOG_MM_V1",
         "M_LS_EPLANE_MM_V1",
         "M_LI_EPLANE_MM_V1",
-        "M_FACIAL_AXIS_RICKETTS_DEG_V1"
+        "M_FACIAL_AXIS_RICKETTS_DEG_V1",
+        "M_L1_EDGE_APOG_MM_V1",
+        "M_INTERINCISAL_DEG_V1"
       ],
       "blocked_measurement_ids": []
     },
