@@ -201,6 +201,12 @@
       "reason": "CANONICAL_V2_EXPLICIT_IDENTITIES"
     },
     {
+      "method_id": "MCNAMARA_CO_GN_MINUS_CO_A_CANONICAL_MM_V2",
+      "canonical_measurement_id": "M_CO_GN_MINUS_CO_A_MM_V1",
+      "state": "MAPPED",
+      "reason": "CANONICAL_V2_DERIVED_SAME_SOURCE_AND_CALIBRATION"
+    },
+    {
       "method_id": "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
       "canonical_measurement_id": "M_A_NPERP_MM_V1",
       "state": "MAPPED",

@@ -19,7 +19,7 @@ from backend.services.cephalo_canonical_constructions_v2 import (
 from backend.services.cephalo_canonical_method_bridge import canonical_measurement_id_for_method
 from backend.services.cephalo_constructions import frankfort_axis_v1, signed_axis_distance_px_v1
 from backend.services.cephalo_downs_geometry import downs_facial_angle_deg_v1, downs_y_axis_deg_v1
-from backend.services.cephalo_mcnamara_geometry import mcnamara_linear_distance_px_v1
+from backend.services.cephalo_mcnamara_geometry import mcnamara_linear_distance_px_v1, mcnamara_co_gn_minus_co_a_mm_v1
 from backend.services.cephalo_ricketts_geometry import (
     ricketts_constructed_gn_v1,
     ricketts_cranial_deflection_deg_v1,
@@ -77,6 +77,7 @@ CANONICAL_V2_METHOD_IDS = {
     "TWEED_FMIA_CANONICAL_DEG_V2",
     "MCNAMARA_CO_A_CANONICAL_MM_V2",
     "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+    "MCNAMARA_CO_GN_MINUS_CO_A_CANONICAL_MM_V2",
     "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
     "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
     "DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2",
@@ -142,6 +143,7 @@ def _measurement(*, namespace:str, name:str, analysis:str, method:str, canonical
                  unit:str, requires_calibration:bool=False, calibration_ref:Optional[str]=None,
                  orientation_ref:Optional[str]=None,
                  construction_refs:tuple[str,...]=(),
+                 evidence_refs_extra:tuple[str,...]=(),
                  availability:AvailabilityStatus=AvailabilityStatus.AVAILABLE):
     if canonical_measurement_id_for_method(method) != canonical_id:
         raise ValueError(f"{method}: canonical method bridge drift")
@@ -149,7 +151,7 @@ def _measurement(*, namespace:str, name:str, analysis:str, method:str, canonical
     if not refs and not construction_refs:
         raise ValueError(f"{method}: no direct landmark or construction evidence available")
     if availability!=AvailabilityStatus.AVAILABLE: value=None
-    evidence=[*refs,*construction_refs]
+    evidence=[*refs,*construction_refs,*evidence_refs_extra]
     if calibration_ref: evidence.append(calibration_ref)
     if orientation_ref: evidence.append(orientation_ref)
     return MeasurementEvidence(
@@ -259,6 +261,40 @@ def materialize_canonical_analysis_v2_measurements(*, measurement_namespace:str,
         ("Co_anatomic","A"),lambda:mcnamara_linear_distance_px_v1(_p(landmarks,"Co_anatomic"),_p(landmarks,"A")))
     linear("MCNAMARA_CO_GN","MCNAMARA","MCNAMARA_CO_GN_CANONICAL_MM_V2","M_CO_GN_ANATOMIC_MM_V1",
         ("Co_anatomic","Gn_anatomic"),lambda:mcnamara_linear_distance_px_v1(_p(landmarks,"Co_anatomic"),_p(landmarks,"Gn_anatomic")))
+
+    # Derived only from the two existing, fully available canonical length
+    # evidences; missing/mismatched source or calibration never yields a value.
+    co_a_evidence = next((m for m in out if m.method_id == "MCNAMARA_CO_A_CANONICAL_MM_V2"), None)
+    co_gn_evidence = next((m for m in out if m.method_id == "MCNAMARA_CO_GN_CANONICAL_MM_V2"), None)
+    if (
+        co_a_evidence is not None and co_gn_evidence is not None
+        and co_a_evidence.availability_status == AvailabilityStatus.AVAILABLE
+        and co_gn_evidence.availability_status == AvailabilityStatus.AVAILABLE
+    ):
+        diff_ids = ("Co_anatomic", "Gn_anatomic", "A")
+        _, diff_status = _deps(landmarks, diff_ids)
+        shared_calibration = (
+            co_a_evidence.calibration_ref
+            and co_gn_evidence.calibration_ref == co_a_evidence.calibration_ref
+            and co_a_evidence.calibration_ref == calibration_ref
+            and co_a_evidence.unit == co_gn_evidence.unit == "mm"
+            and co_a_evidence.requires_calibration and co_gn_evidence.requires_calibration
+        )
+        if diff_status == AvailabilityStatus.AVAILABLE and shared_calibration:
+            diff_value = mcnamara_co_gn_minus_co_a_mm_v1(
+                co_gn_evidence.value, co_a_evidence.value
+            )
+            if diff_value is not None:
+                out.append(_measurement(
+                    namespace=measurement_namespace, name="MCNAMARA_CO_GN_MINUS_CO_A",
+                    analysis="MCNAMARA", method="MCNAMARA_CO_GN_MINUS_CO_A_CANONICAL_MM_V2",
+                    canonical_id="M_CO_GN_MINUS_CO_A_MM_V1", ids=diff_ids,
+                    lm=landmarks, value=diff_value, unit="mm",
+                    requires_calibration=True, calibration_ref=calibration_ref,
+                    evidence_refs_extra=(
+                        co_gn_evidence.measurement_id, co_a_evidence.measurement_id,
+                    ),
+                ))
 
     def nperp(target):
         axis=frankfort_axis_v1(_p(landmarks,"Po_anatomic"),_p(landmarks,"Or"))

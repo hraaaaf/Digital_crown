@@ -152,6 +152,24 @@
       "availability_gate": "VERIFIED_CALIBRATION_AND_EXACT_ANATOMIC_GN"
     },
     {
+      "measurement_id": "M_CO_GN_MINUS_CO_A_MM_V1",
+      "unit": "mm",
+      "required_landmarks": [
+        "Co_anatomic",
+        "Gn_anatomic",
+        "A"
+      ],
+      "required_constructions": [],
+      "implementation": "backend.services.cephalo_mcnamara_geometry:mcnamara_co_gn_minus_co_a_mm_v1",
+      "requires_calibration": true,
+      "source_contracts": [
+        "docs/audits/CEPHALO_ANALYSIS_MEASUREMENT_PROFILES.md",
+        "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+        "docs/audits/CEPHALO_LOT08_MCNAMARA_FACAD_GAP_RESOLUTION.md"
+      ],
+      "availability_gate": "BOTH_CANONICAL_CO_LENGTHS_AVAILABLE_SAME_IMAGE_AND_CALIBRATION_REF_EXACT_CO_ANATOMIC_AND_GN_ANATOMIC"
+    },
+    {
       "measurement_id": "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1",
       "unit": "°",
       "required_landmarks": [
