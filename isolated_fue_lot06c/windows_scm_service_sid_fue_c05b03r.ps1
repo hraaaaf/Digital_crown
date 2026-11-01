@@ -14,6 +14,10 @@ if ($env:DC06B04_RESTART_KEY_TEST -eq '1' -and
     $env:DC06B03_SERVICE_SPOOL -ne '1') {
     throw 'DC06B04_REQUIRES_B03_REAL_SERVICE_SPOOL'
 }
+if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1' -and
+    ($env:DC06B03_SERVICE_SPOOL -ne '1' -or $env:DC06B04_RESTART_KEY_TEST -ne '1')) {
+    throw 'DC06B05_REQUIRES_B04_SCOPED_WINDOWS_LAB'
+}
 $guid=[Guid]::NewGuid().ToString('N')
 $serviceName='DC06R' + $guid.Substring(0,11)
 $allowedUser='dc06ra' + $guid.Substring(0,8)
@@ -26,6 +30,7 @@ $client=Join-Path $PSScriptRoot 'windows_scm_client_c05b03r.ps1'
 $createdService=$false
 $createdUsers=@()
 $createdDir=$false
+$b05Phase='PRE_CONFIG'
 function Invoke-ScChecked([string[]]$Params) {
     $result=@(& sc.exe @Params)
     if ($LASTEXITCODE -ne 0) {
@@ -47,7 +52,8 @@ function Wait-ServiceState([string]$Service, [string]$Expected, [int]$LimitSecon
 function Invoke-Child([string]$Username, [string]$Password,
                        [string]$ExpectedSid, [int]$ExpectedOpen,
                        [int]$ExpectedCreate, [switch]$ProbeQueueReadOnly,
-                       [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None') {
+                       [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
+                       [switch]$ProbeB05Package) {
     $cred=[System.Management.Automation.PSCredential]::new(
         ('.' + [char]92 + $Username), (ConvertTo-SecureString $Password -AsPlainText -Force)
     )
@@ -58,6 +64,10 @@ function Invoke-Child([string]$Username, [string]$Password,
         ' -ExpectedCreateInstance ' + $ExpectedCreate
     if ($ProbeQueueReadOnly) { $arguments += ' -ProbeQueueReadOnly' }
     if ($B03Status -ne 'None') { $arguments += ' -B03Status ' + $B03Status }
+    if ($ProbeB05Package) {
+        $arguments += ' -ProbeB05Package -B05KeyFile "' + $keyPath +
+            '" -B05ServiceDll "' + $dll + '" -B05BinDirectory "' + $bin + '"'
+    }
     $child=$null
     try {
         $errFile=Join-Path $root ('child-' + $Username + '-stderr.txt')
@@ -134,6 +144,27 @@ try {
         & icacls.exe $root /grant ('*' + $serviceSid + ':(OI)(CI)RX') /T | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTRICTED_SID_ROOT_TRAVERSE_DENIED' }
     }
+    if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1') {
+        # A restricted service token needs both LocalService and its service
+        # SID for RX. The DLL and every published package child deny write
+        # access to both pipe-authorized and unapproved user accounts.
+        # GitHub-hosted synthetic binary ONLY. Not a production installer.
+        & icacls.exe $bin /inheritance:r /grant:r '*S-1-5-19:(OI)(CI)RX' ('*' + $serviceSid + ':(OI)(CI)RX') '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B05_SERVICE_PACKAGE_DACL_FAILED' }
+        # File ACEs must be effective on leaf assemblies and deps, not only
+        # inheritable ACEs on the directory. Keep the same minimal SIDs.
+        $packageFiles=@(Get-ChildItem -LiteralPath $bin -Recurse -File -Force)
+        if ($packageFiles.Count -lt 3) { throw 'DC06B05_INCOMPLETE_SYNTHETIC_PACKAGE' }
+        foreach ($file in $packageFiles) {
+            & icacls.exe $file.FullName /inheritance:r /grant:r '*S-1-5-19:RX' ('*' + $serviceSid + ':RX') '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'DC06B05_PACKAGE_LEAF_DACL_FAILED' }
+        }
+        Write-Output 'DC06B05_EXPLICIT_SCOPED_PACKAGE_LEAF_ACL_PASS'
+        if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) {
+            throw 'DC06B05_PROTECTED_SERVICE_DLL_MISSING'
+        }
+        Write-Output 'DC06B05_PACKAGE_DACL_SERVICE_SID_RX_SYSTEM_ADMIN_F_PASS'
+    }
     $binPath += ' "' + $pipeName + '" ' + $serviceSid + ' ' + $allowedSid
     if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
         $python=(Get-Command python -ErrorAction Stop).Source
@@ -181,8 +212,11 @@ try {
         $binPath += ' --b03-spool "' + $python + '" "' + $reader + '" "' +
             $watch + '" "' + $private + '" "' + $keyPath + '"'
     }
+    $b05Phase='CONFIG'
     $null=Invoke-ScChecked -Params @('config',$serviceName,'binPath=',$binPath)
+    $b05Phase='START'
     $null=Invoke-ScChecked -Params @('start',$serviceName)
+    $b05Phase='RUNNING_WAIT'
     Wait-ServiceState $serviceName 'RUNNING' 20
     Write-Output 'C05B03R_REAL_SCM_LOCAL_SERVICE_RESTRICTED_SERVICE_SID_AND_PIPE_RUNNING_PASS'
 
@@ -195,6 +229,20 @@ try {
     if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
         Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
         Write-Output 'DC06B03_SCM_LOCAL_SERVICE_REALLY_READ_ENCRYPTED_SPOOL_PASS'
+        if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1') {
+            # The same approved Windows user that can query the pipe
+            # must NOT be able to read fixture key, overwrite DLL or drop
+            # an executable into the SCM binary directory.
+            $dllHashBefore=(Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -ProbeB05Package
+            $dllHashAfter=(Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+            if ($dllHashBefore -ne $dllHashAfter) {
+                throw 'DC06B05_SERVICE_DLL_HASH_CHANGED_DURING_PROBE'
+            }
+            Write-Output 'DC06B05_SERVICE_DLL_SHA256_PIN_UNCHANGED_PASS'
+            Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
+            Write-Output 'DC06B05_RESTRICTED_LOCAL_SERVICE_S1_AFTER_PACKAGE_LOCK_PASS'
+        }
         if ($env:DC06B04_RESTART_KEY_TEST -eq '1') {
             # B04 synthetic-only: restart the real SCM service without reseed,
             # database reset, ciphertext rewrite or new service identity.
@@ -247,14 +295,14 @@ try {
     Write-Output 'C05B03R_REMOTE_SECOND_HOST_TPM_PHYSICAL_CABINET_NOT_TESTED'
 }
 catch {
-    # Never let a later synthetic cleanup failure hide the first OS probe
-    # failure. Report only an allowlisted no-PHI error enum.
-    $primary=$_.Exception.Message
-    if ($primary -match '(DC06B03_EXPECT_S1_GOT_E[A-Z0-9])') {
-        Write-Output ('DC06B03_SCM_PRIMARY_READ_DENIED_' + $Matches[1])
-    } else {
-        Write-Output 'DC06B03_SCM_PRIMARY_TEST_FAILURE_OTHER'
+    if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1') {
+        $class='OTHER'
+        if ($_.Exception.Message.StartsWith('C05B03R_SC_FAIL_config_')) { $class='CONFIG_FAIL' }
+        if ($_.Exception.Message.StartsWith('C05B03R_SC_FAIL_start_')) { $class='START_FAIL' }
+        if ($_.Exception.Message.StartsWith('C05B03R_SCM_STATE_NOT_')) { $class='STATE_FAIL' }
+        Write-Output ('DC06B05_PRIMARY_' + $b05Phase + '_' + $class)
     }
+    Write-Output 'DC06B05_FAIL_CLOSED'
     throw
 }
 finally {

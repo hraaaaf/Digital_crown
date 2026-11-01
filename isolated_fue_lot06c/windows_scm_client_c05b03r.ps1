@@ -7,7 +7,11 @@ param(
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedOpen,
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedCreateInstance,
   [switch]$ProbeQueueReadOnly,
-  [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None'
+  [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
+  [switch]$ProbeB05Package,
+  [string]$B05KeyFile='',
+  [string]$B05ServiceDll='',
+  [string]$B05BinDirectory=''
 )
 $ErrorActionPreference = 'Stop'
 try {
@@ -103,6 +107,43 @@ public static class DC06RClient {
   if ($created -ne $ExpectedCreateInstance) {
     throw ('C05B03R_CHILD_CREATE_INSTANCE_EXPECT_' + $ExpectedCreateInstance +
         '_GOT_' + $created)
+  }
+  if ($ProbeB05Package) {
+    if ($ExpectedOpen -ne 0 -or -not $B05KeyFile -or
+        -not $B05ServiceDll -or -not $B05BinDirectory -or
+        $B05KeyFile -notmatch 'DC06R-LAB-' -or
+        $B05BinDirectory -notmatch 'DC06R-LAB-') {
+      throw 'DC06B05_PACKAGE_PROBE_BOUNDARY'
+    }
+    # This executes under the real distinct approved Windows account SID,
+    # not as administrator and not as LocalService. Only actual Win32
+    # ACCESS_DENIED satisfies the contract; missing/locked files do not.
+    function Assert-B05AccessDenied([scriptblock]$Attempt,[string]$Code) {
+      $wasDenied=$false
+      try {
+        $stream=& $Attempt
+        if ($null -ne $stream) { $stream.Dispose() }
+      } catch [System.UnauthorizedAccessException] {
+        $wasDenied=$true
+      } catch [System.IO.IOException] {
+        if ($_.Exception.HResult -eq -2147024891) {
+          $wasDenied=$true
+        } else {
+          throw ('DC06B05_IO_NOT_ACCESS_DENIED_' + $Code)
+        }
+      }
+      if (-not $wasDenied) { throw ('DC06B05_ACCESS_ALLOWED_' + $Code) }
+    }
+    Assert-B05AccessDenied {
+      [System.IO.File]::Open($B05KeyFile,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Read,[System.IO.FileShare]::ReadWrite)
+    } 'KEY_READ'
+    Assert-B05AccessDenied {
+      [System.IO.File]::Open($B05ServiceDll,[System.IO.FileMode]::Open,[System.IO.FileAccess]::Write,[System.IO.FileShare]::ReadWrite)
+    } 'DLL_WRITE'
+    Assert-B05AccessDenied {
+      [System.IO.File]::Open((Join-Path $B05BinDirectory 'b05-untrusted-drop.tmp'),[System.IO.FileMode]::CreateNew,[System.IO.FileAccess]::Write,[System.IO.FileShare]::None)
+    } 'BIN_CREATE'
+    Write-Output 'DC06B05_DISTINCT_PIPE_AUTHORIZED_USER_KEY_READ_DLL_WRITE_BIN_CREATE_ALL_DENIED_PASS'
   }
   if ($ProbeQueueReadOnly) {
     if ($ExpectedOpen -ne 0) { throw 'DC06B02_PROBE_NOT_ALLOWED_FOR_DENIED_SID' }
