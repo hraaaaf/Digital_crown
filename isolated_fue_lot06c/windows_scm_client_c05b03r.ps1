@@ -36,9 +36,9 @@ public static class DC06RClient {
         out uint written, IntPtr overlapped);
 
     public static int ClientOpen(string path) {
-        // FILE_READ_DATA | FILE_WRITE_DATA | SYNCHRONIZE; no FILE_APPEND_DATA
+        // FILE_READ_DATA | FILE_WRITE_DATA | FILE_READ_ATTRIBUTES |\n        // FILE_WRITE_ATTRIBUTES | SYNCHRONIZE; NEVER FILE_APPEND_DATA
         // since that bit equals FILE_CREATE_PIPE_INSTANCE for named pipes.
-        using (var handle = CreateFile(path, 0x00100003u, 0u, IntPtr.Zero,
+        using (var handle = CreateFile(path, 0x00100183u, 0u, IntPtr.Zero,
                                        3u, 0u, IntPtr.Zero)) {
             if (handle.IsInvalid) return Marshal.GetLastWin32Error();
             byte[] one = new byte[] { 82 };
