@@ -51,6 +51,11 @@ def run(argv: list[str]) -> int:
             return 0
         # Reopen the real SQLite DB, then decrypt and validate the actual
         # spool ciphertext and media. Full validation fails closed on tamper.
+        # TEST ONLY: classify Native Win32 root preflight by coarse phase,
+        # before opening the actual SQLite and cipher files. Never emit paths.
+        from tools.imaging_gateway.windows_scoped_read_lab import directory_identity
+        for stage, root in (("W", incoming), ("P", private), ("S", private / "spool")):
+            directory_identity(root)
         stage = 3
         collector = HotFolder(cfg)
         stage = 4
@@ -61,29 +66,20 @@ def run(argv: list[str]) -> int:
         os.write(1, b"S" + str(len(captures)).encode("ascii"))
         return 0
     except OSError as error:
-        # B03 LAB only: encode fixed call-site families, never path/exception,
-        # OS errno, patient, ciphertext, key or traceback in IPC output.
-        category = str(stage)
-        if stage == 3:
-            trace = error.__traceback__
-            seen = set()
-            while trace is not None:
-                seen.add(trace.tb_frame.f_code.co_name)
-                trace = trace.tb_next
-            for name, code in (
-                ("_open_root", "R"),
-                ("open_relative_read", "L"),
-                ("_seal_continuity_marker", "M"),
-                ("directory_identity", "I"),
-                ("_directory_identity", "D"),
-                ("_decrypt", "C"),
-            ):
-                if name in seen:
-                    category = code
-                    break
-            else:
-                category = "Z"
-        if mode == "read": os.write(1, ("E" + category).encode("ascii"))
+        # LAB-only two-byte allowlisted code: A-D = Win32 ERROR_ACCESS_DENIED(5),
+        # E-H = ERROR_SHARING_VIOLATION(32), I-L = PATH_NOT_FOUND(3),
+        # M-P = FILE_NOT_FOUND(2), Z = other. Each group is
+        # watch/private/spool/inside HotFolder respectively. No native error
+        # string, path, key, filename or captured data is returned.
+        phases = {"W": 0, "P": 1, "S": 2, 3: 3}
+        errno = error.args[0] if error.args and type(error.args[0]) is int else None
+        group = {5: 0, 32: 1, 3: 2, 2: 3}.get(errno)
+        if group is not None and stage in phases:
+            category = chr(ord("A") + group * 4 + phases[stage])
+        else:
+            category = "Z"
+        if mode == "read":
+            os.write(1, ("E" + category).encode("ascii"))
         return 5
     except Exception:
         if mode == "read": os.write(1, b"E2")
