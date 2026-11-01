@@ -1,0 +1,92 @@
+name: CPV2-01 Pocket text200 FUE (LAB ONLY, NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01-integration-proof-20261101
+    paths:
+      - .github/workflows/cpv2-01-pocket-text200-fue.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-01-pocket-text200
+  cancel-in-progress: true
+
+jobs:
+  text200-fue:
+    name: Pocket 200 percent / ${{ matrix.engine }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 38
+    strategy:
+      fail-fast: false
+      matrix:
+        engine: [chromium, webkit]
+    env:
+      PR_HEAD_SHA: 137f84e9b4a51bce8a47e8ac722024bbb87fe20b
+      MOBILE_RUNTIME_URL: http://127.0.0.1:5173
+      MOBILE_RUNTIME_DIR: ../artifacts/pocket-text200
+      MOBILE_RUNTIME_ENGINE: ${{ matrix.engine }}
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: Checkout harness branch to acquire lab-only script
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Checkout immutable approved product and append lab oracle (not committed)
+        shell: bash
+        run: |
+          set -euo pipefail
+          cp test-harness/cpv2-01-pocket-text200-tail.txt /tmp/cpv2-text200-tail.txt
+          git checkout --detach "$PR_HEAD_SHA"
+          test "$(git rev-parse HEAD)" = "$PR_HEAD_SHA"
+          python - <<'PY'
+          from pathlib import Path
+          source=Path('frontend/scripts/capture-mobile-pocket-runtime-after.mjs')
+          content=source.read_text()
+          marker='const browser = await engine.launch({ headless: true });'
+          assert content.count(marker)==1, 'Canonical runtime harness changed: fail closed'
+          tail=Path('/tmp/cpv2-text200-tail.txt').read_text()
+          Path('frontend/scripts/cpv2-text200-lab.mjs').write_text(content.split(marker)[0]+tail)
+          PY
+          echo "Running only original approved product SHA $PR_HEAD_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install exact product frontend
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Build production frontend (NO DEPLOY)
+        working-directory: frontend
+        run: npm run build
+      - name: Install real browser
+        working-directory: frontend
+        run: |
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps "$MOBILE_RUNTIME_ENGINE"
+      - name: Start built web application on localhost only
+        working-directory: frontend
+        run: |
+          npm run preview -- --host 127.0.0.1 --port 5173 --strictPort > /tmp/cpv2-text200.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS http://127.0.0.1:5173/mobile/onboarding >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/cpv2-text200.log
+          exit 1
+      - name: Genuine mobile 200 percent root text accessibility FUE (fail closed)
+        working-directory: frontend
+        run: node scripts/cpv2-text200-lab.mjs
+      - name: Upload screenshots and metrics even if failed
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-text200-${{ matrix.engine }}-137f84e9
+          path: artifacts/pocket-text200/
+          if-no-files-found: warn
+          retention-days: 30
