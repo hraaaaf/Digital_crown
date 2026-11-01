@@ -10,6 +10,7 @@ import {
 } from '../cephaloAnalysisBridge';
 import { ORTHO_LAYER_REGISTRY, type OrthoLayerId } from '../orthoLayerRegistry';
 import { landmarkSnapshotsEqual } from '../orthoLandmarkEditHistory';
+import { V1_CEPHALO_PROTOCOLS, v1ModeForProtocol, v1ProtocolForMode } from '../cephaloV1ProtocolScope';
 
 interface ThemePalette {
   bg: string;
@@ -34,15 +35,6 @@ interface Step1CephaloProps {
   fileRef: React.RefObject<HTMLInputElement | null>;
   step1ContainerRef: React.RefObject<HTMLDivElement | null>;
 }
-
-const ANALYSIS_LABELS: Record<CephaloAnalysisMode, string> = {
-  all: 'Toutes analyses',
-  steiner: 'Steiner',
-  tweed: 'Tweed',
-  mcnamara: 'McNamara',
-  com: 'COM',
-  ricketts: 'Ricketts',
-};
 
 
 /**
@@ -74,16 +66,23 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const undoLandmarkEdit = useOrthoStore(state => state.undoLandmarkEdit);
   const redoLandmarkEdit = useOrthoStore(state => state.redoLandmarkEdit);
   const resetLandmarkEdits = useOrthoStore(state => state.resetLandmarkEdits);
-  const [analysis, setAnalysis] = React.useState<CephaloAnalysisMode>('all');
+  const selectedProtocol = useOrthoStore(state => state.etape3Data.selectedAnalysis);
+  const setEtape3Data = useOrthoStore(state => state.setEtape3Data);
+  const analysis: CephaloAnalysisMode = v1ModeForProtocol(selectedProtocol) ?? 'all';
+
+  React.useEffect(() => {
+    if (analysis !== 'all') publishCephaloAnalysis(analysis);
+  }, [analysis]);
 
   React.useEffect(() => {
     const onAnalysis = (event: Event) => {
-      const value = (event as CustomEvent<CephaloAnalysisMode>).detail;
-      if (value) setAnalysis(value);
+      const protocol = v1ProtocolForMode((event as CustomEvent<CephaloAnalysisMode>).detail);
+      if (protocol) setEtape3Data(previous =>
+        previous.selectedAnalysis === protocol ? previous : { ...previous, selectedAnalysis: protocol });
     };
     window.addEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysis as EventListener);
     return () => window.removeEventListener(CEPHALO_ANALYSIS_CHANGE_EVENT, onAnalysis as EventListener);
-  }, []);
+  }, [setEtape3Data]);
 
   if (!hasImage) return <Step1CephaloBase {...props} />;
 
@@ -133,12 +132,16 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           <select
             id="cephalo-ready-analysis"
             value={analysis}
-            onChange={(event) => publishCephaloAnalysis(event.target.value as CephaloAnalysisMode)}
+            onChange={(event) => {
+              const protocol = v1ProtocolForMode(event.target.value);
+              if (protocol) setEtape3Data(previous => ({ ...previous, selectedAnalysis: protocol }));
+            }}
             className="min-h-11 w-full rounded-lg border px-2 text-sm font-semibold focus-visible:outline-2 focus-visible:outline-offset-2"
             style={{ borderColor: props.P.borderFocus, background: props.P.bgCard, color: props.P.text }}
           >
-            {(Object.keys(ANALYSIS_LABELS) as CephaloAnalysisMode[]).map((mode) => (
-              <option key={mode} value={mode}>{ANALYSIS_LABELS[mode]}</option>
+            {analysis === 'all' && <option value="all" disabled>Analyse historique hors V1</option>}
+            {V1_CEPHALO_PROTOCOLS.map(item => (
+              <option key={item.id} value={item.mode}>{item.label}</option>
             ))}
           </select>
           <p className="mt-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>
