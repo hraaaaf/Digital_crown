@@ -15,7 +15,9 @@ from fastapi import Depends, FastAPI, HTTPException
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
-from sqlalchemy import update
+from sqlalchemy import create_engine, update
+from sqlalchemy.pool import NullPool
+from sqlcipher3 import dbapi2 as sqlcipher
 
 from backend import models
 from backend.routers import auth
@@ -33,7 +35,27 @@ class ClaimBody(BaseModel):
 
 
 def _make_fixture(bridge):
-    engine, claim, device_token, station_token, media_root, tmp = bridge
+    _fixture_engine, claim, device_token, station_token, media_root, tmp = bridge
+    # FastAPI sync Depends and async JWT may execute on different worker threads.
+    # A dedicated SQLCipher NullPool engine for this SYNTHETIC TestClient only;
+    # no changes to cabinet database engine or global SQLCipher policy.
+    key = os.environ["DC06B_TEST_SQLCIPHER_KEY"]
+    file = media_root.parent / "clinical-asset-lab.db"
+    def connect():
+        con = sqlcipher.connect(str(file), timeout=30, check_same_thread=False)
+        try:
+            con.execute("PRAGMA key = '" + key + "'")
+            if not con.execute("PRAGMA cipher_version").fetchone():
+                raise RuntimeError("HTTP_LAB_REQUIRES_SQLCIPHER")
+            con.execute("PRAGMA journal_mode=WAL")
+            con.execute("PRAGMA synchronous=NORMAL")
+            con.execute("PRAGMA foreign_keys=ON")
+            con.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
+            return con
+        except BaseException:
+            con.close()
+            raise
+    engine = create_engine("sqlite://", creator=connect, poolclass=NullPool)
     models.RevokedToken.__table__.create(bind=engine, checkfirst=True)
     with Session(engine) as db:
         staff = db.get(models.User, claim.staff)
