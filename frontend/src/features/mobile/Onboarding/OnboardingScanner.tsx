@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight, Share, Plus } from 'lucide-react';
 import { MobileStorage, resolveMobileOnboardingApiBaseUrl, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
+import { acknowledgeMobileRevocationFollowUp, hasUnconfirmedMobileRevocation } from '../../../services/zka/mobileRevocationFollowUp';
 import { usePWAInstall } from '../../../hooks/usePWAInstall';
 import {
   deriveMasterKey,
@@ -53,6 +54,7 @@ export const OnboardingScanner = () => {
   const [phase, setPhase] = useState<'welcome' | 'scanning' | 'claiming' | 'success' | 'cert-setup' | 'error' | 'denied'>('welcome');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [manualToken, setManualToken] = useState('');
+  const [pendingRevokeNotice, setPendingRevokeNotice] = useState(() => searchParams.get('revocation') === 'pending' || hasUnconfirmedMobileRevocation());
   const [showIOSInstallHint, setShowIOSInstallHint] = useState(false);
   // Pairing enrolls the device once; Pocket launches at its Today dashboard.
   // A contextual bridge may still be saved securely and opened from Pocket later.
@@ -308,11 +310,16 @@ export const OnboardingScanner = () => {
           </div>
 
           <h1 className="text-3xl font-black tracking-tight text-center mb-3">Compagnon Mobile</h1>
-          {searchParams.get('revocation') === 'pending' && (
-            <p role="alert" data-mobile-revocation-pending
+          {pendingRevokeNotice && (
+            <div role="alert" data-mobile-revocation-pending
               className="mt-3 rounded-2xl border border-warning-border bg-warning-surface p-4 text-xs font-semibold text-warning">
-              Les données de ce téléphone ont été effacées. La révocation auprès de l’ancien cabinet n’a pas pu être confirmée. Demandez à l’administrateur du cabinet de révoquer cet appareil depuis Sécurité Mobile.
-            </p>
+              <p>Les données de ce téléphone ont été effacées. La révocation auprès de l’ancien cabinet n’a pas pu être confirmée. Demandez à l’administrateur du cabinet de révoquer cet appareil depuis Sécurité Mobile.</p>
+              <button type="button"
+                onClick={() => { acknowledgeMobileRevocationFollowUp(); setPendingRevokeNotice(false); }}
+                className="mt-3 min-h-[44px] rounded-xl border border-warning-border px-3 py-2 font-bold underline underline-offset-2">
+                J’ai obtenu la confirmation de révocation du cabinet
+              </button>
+            </div>
           )}
           <p className="text-text-muted text-sm text-center leading-relaxed mb-2 font-medium">
             Synchronisez votre cabinet sur ce téléphone en scannant le pont QR affiché dans la section{' '}
