@@ -76,6 +76,20 @@ def run(argv: list[str]) -> int:
         group = {5: 0, 32: 1, 3: 2, 2: 3}.get(errno)
         if group is not None and stage in phases:
             category = chr(ord("A") + group * 4 + phases[stage])
+        elif stage == 3:
+            # OSError("static code") from the native handle-relative boundary
+            # has no numeric errno. Match ONLY exact audited constant strings.
+            # Never relay exception text, NTSTATUS, path or filename to IPC.
+            constants = {
+                "IMAGING_WINDOWS_RELATIVE_OPEN_DENIED": "N",
+                "IMAGING_WINDOWS_FILE_ID_FAILED": "I",
+                "IMAGING_WINDOWS_REPARSE_ROOT_REJECTED": "R",
+                "IMAGING_WINDOWS_WATCH_ID_CHANGED": "Q",
+                "IMAGING_WINDOWS_ROOT_OPEN_FAILED": "O",
+                "IMAGING_INVALID_RELATIVE_LEAF": "L",
+            }
+            marker = error.args[0] if error.args and type(error.args[0]) is str else None
+            category = constants.get(marker, "Z")
         else:
             category = "Z"
         if mode == "read":
