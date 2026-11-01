@@ -30,6 +30,7 @@ $client=Join-Path $PSScriptRoot 'windows_scm_client_c05b03r.ps1'
 $createdService=$false
 $createdUsers=@()
 $createdDir=$false
+$b05Phase='BEFORE_SERVICE_CONFIG'
 function Invoke-ScChecked([string[]]$Params) {
     $result=@(& sc.exe @Params)
     if ($LASTEXITCODE -ne 0) {
@@ -202,9 +203,13 @@ try {
         $binPath += ' --b03-spool "' + $python + '" "' + $reader + '" "' +
             $watch + '" "' + $private + '" "' + $keyPath + '"'
     }
+    $b05Phase='SCM_CONFIG'
     $null=Invoke-ScChecked -Params @('config',$serviceName,'binPath=',$binPath)
+    $b05Phase='SCM_START'
     $null=Invoke-ScChecked -Params @('start',$serviceName)
+    $b05Phase='SCM_WAIT_RUNNING'
     Wait-ServiceState $serviceName 'RUNNING' 20
+    $b05Phase='SCM_RUNNING'
     Write-Output 'C05B03R_REAL_SCM_LOCAL_SERVICE_RESTRICTED_SERVICE_SID_AND_PIPE_RUNNING_PASS'
 
     Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5
@@ -282,6 +287,106 @@ try {
     Write-Output 'C05B03R_REMOTE_SECOND_HOST_TPM_PHYSICAL_CABINET_NOT_TESTED'
 }
 catch {
+    if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1') {
+        # Fixed enums only; no exception messages, paths or secret material.
+        $b05Class='OTHER'
+        if ($_.Exception.Message -match '^C05B03R_SC_FAIL_(config|start)_([0-9]{1,5})
+    # failure. Report only an allowlisted no-PHI error enum.
+    $primary=$_.Exception.Message
+    if ($primary -match '(DC06B03_EXPECT_S1_GOT_E[A-Z0-9])') {
+        Write-Output ('DC06B03_SCM_PRIMARY_READ_DENIED_' + $Matches[1])
+    } else {
+        Write-Output 'DC06B03_SCM_PRIMARY_TEST_FAILURE_OTHER'
+    }
+    throw
+}
+finally {
+    if ($createdService) {
+        $null=@(& sc.exe stop $serviceName)
+        try { Wait-ServiceState $serviceName 'STOPPED' 12 }
+        catch { Write-Output 'C05B03R_SCM_STOP_NOT_CONFIRMED' }
+        $null=@(& sc.exe delete $serviceName)
+        if ($LASTEXITCODE -ne 0) { throw 'C05B03R_SERVICE_DELETE_FAILED' }
+        Write-Output 'C05B03R_DISPOSABLE_SCM_SERVICE_DELETE_REQUESTED'
+    }
+    foreach ($user in $createdUsers) {
+        Remove-LocalUser -Name $user -ErrorAction Stop
+    }
+    if ($createdDir) {
+        # After stopping the disposable service, CI administrator is the
+        # cleanup authority. No synthetic key/files may survive the job.
+        & icacls.exe $root /grant '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_TEST_CLEANUP_ACL_FAILED' }
+        if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+            # Synthetic fixture only: descendants from an existing encrypted
+            # collector may carry a protected file-level DACL. Admins regain
+            # delete rights here only after the ephemeral SCM service stops.
+            $spoolForCleanup=Join-Path $root 'private/spool'
+            if (Test-Path -LiteralPath $spoolForCleanup -PathType Container) {
+                $leaves=Get-ChildItem -LiteralPath $spoolForCleanup -File -Force -ErrorAction Stop
+                foreach ($leaf in $leaves) {
+                    & icacls.exe $leaf.FullName /grant '*S-1-5-32-544:F' | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_BLOB_CLEANUP_ACL_FAILED' }
+                }
+            }
+        }
+        Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
+    }
+    $newPasswordA=$null
+    $newPasswordB=$null
+}
+) {
+            $b05Class=$Matches[1].ToUpperInvariant() + '_' + $Matches[2]
+        } elseif ($_.Exception.Message -match '^C05B03R_SCM_STATE_NOT_([A-Z]+)
+    # failure. Report only an allowlisted no-PHI error enum.
+    $primary=$_.Exception.Message
+    if ($primary -match '(DC06B03_EXPECT_S1_GOT_E[A-Z0-9])') {
+        Write-Output ('DC06B03_SCM_PRIMARY_READ_DENIED_' + $Matches[1])
+    } else {
+        Write-Output 'DC06B03_SCM_PRIMARY_TEST_FAILURE_OTHER'
+    }
+    throw
+}
+finally {
+    if ($createdService) {
+        $null=@(& sc.exe stop $serviceName)
+        try { Wait-ServiceState $serviceName 'STOPPED' 12 }
+        catch { Write-Output 'C05B03R_SCM_STOP_NOT_CONFIRMED' }
+        $null=@(& sc.exe delete $serviceName)
+        if ($LASTEXITCODE -ne 0) { throw 'C05B03R_SERVICE_DELETE_FAILED' }
+        Write-Output 'C05B03R_DISPOSABLE_SCM_SERVICE_DELETE_REQUESTED'
+    }
+    foreach ($user in $createdUsers) {
+        Remove-LocalUser -Name $user -ErrorAction Stop
+    }
+    if ($createdDir) {
+        # After stopping the disposable service, CI administrator is the
+        # cleanup authority. No synthetic key/files may survive the job.
+        & icacls.exe $root /grant '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_TEST_CLEANUP_ACL_FAILED' }
+        if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+            # Synthetic fixture only: descendants from an existing encrypted
+            # collector may carry a protected file-level DACL. Admins regain
+            # delete rights here only after the ephemeral SCM service stops.
+            $spoolForCleanup=Join-Path $root 'private/spool'
+            if (Test-Path -LiteralPath $spoolForCleanup -PathType Container) {
+                $leaves=Get-ChildItem -LiteralPath $spoolForCleanup -File -Force -ErrorAction Stop
+                foreach ($leaf in $leaves) {
+                    & icacls.exe $leaf.FullName /grant '*S-1-5-32-544:F' | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_BLOB_CLEANUP_ACL_FAILED' }
+                }
+            }
+        }
+        Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
+    }
+    $newPasswordA=$null
+    $newPasswordB=$null
+}
+) {
+            $b05Class='STATE_' + $Matches[1]
+        }
+        Write-Output ('DC06B05_PRIMARY_' + $b05Phase + '_' + $b05Class)
+    }
     # Never let a later synthetic cleanup failure hide the first OS probe
     # failure. Report only an allowlisted no-PHI error enum.
     $primary=$_.Exception.Message
