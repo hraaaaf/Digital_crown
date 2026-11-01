@@ -114,8 +114,7 @@ export function MobileHeader({
 
       <div>
         {(activeTab === 'today' || activeTab === 'agenda' || activeTab === 'finance') && (
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <Calendar size={16} className="text-primary shrink-0" />
+          <div data-pocket-date-navigation className="flex w-full items-center justify-start gap-1.5 mb-1.5">
             <button
               aria-label="Jour précédent"
               onClick={() => setSelectedDate(moveLocalDate(selectedDate, -1))}
@@ -125,10 +124,11 @@ export function MobileHeader({
             </button>
             <input
               type="date"
+              data-pocket-date-input
               aria-label="Choisir la date du planning"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="min-h-[44px] min-w-0 max-w-[148px] flex-1 bg-transparent border-none text-text-main font-semibold text-[1rem] capitalize outline-none px-1 py-0 cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-primary/50 rounded-xl"
+              className="min-h-[44px] min-w-0 w-full max-w-[14rem] flex-1 bg-transparent border-none text-text-main font-semibold text-[1rem] capitalize outline-none px-1 py-0 cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-primary/50 rounded-xl"
             />
             <button
               aria-label="Jour suivant"
