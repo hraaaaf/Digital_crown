@@ -57,7 +57,17 @@ def test_phase2_authentic_review_and_encrypted_signed_ack_replay(
         assert preview.headers["cache-control"] == "no-store"
 
         confirm = endpoint + "/confirm"
+        # Existing signed-media fixture sends application/octet-stream. That is
+        # correct for binary media, wrong for JSON review (FastAPI 422 before
+        # server confirmation logic). Preserve all auth headers, strip ONLY
+        # media Content-Type so httpx sets application/json.
+        review_headers = {k: v for k, v in headers.items() if k.lower() != "content-type"}
         valid = _input(view)
+        malformed_media_header = http.post(confirm, json=valid, headers=review_headers)
+        assert malformed_media_header.status_code == 422
+        with Session(engine) as db:
+            assert db.execute(select(device_review.c.approved_at)).scalar_one() is None
+            assert db.execute(select(reviews.c.consumed)).scalar_one() == 0
         for bad in (
             {"explicit_confirmation": False},
             {"selected_patient_id": view["patient_id"] + 1},
@@ -66,7 +76,7 @@ def test_phase2_authentic_review_and_encrypted_signed_ack_replay(
             {"capture_digest": "0" * 64},
             {"challenge": "wrong-one-use-challenge-000000000000000"},
         ):
-            result = http.post(confirm, json={**valid, **bad}, headers=headers)
+            result = http.post(confirm, json={**valid, **bad}, headers=review_headers)
             assert result.status_code == 409, (bad, result.status_code, result.text[:400])
         with Session(engine) as db:
             assert db.execute(select(device_review.c.approved_at)).scalar_one() is None
@@ -75,11 +85,11 @@ def test_phase2_authentic_review_and_encrypted_signed_ack_replay(
 
         newer = http.get(endpoint, headers=headers).json()
         assert newer["challenge"] != view["challenge"]
-        assert http.post(confirm, json=valid, headers=headers).status_code == 409
-        accepted = http.post(confirm, json=_input(newer), headers=headers)
+        assert http.post(confirm, json=valid, headers=review_headers).status_code == 409
+        accepted = http.post(confirm, json=_input(newer), headers=review_headers)
         assert accepted.status_code == 200, accepted.text[:300]
         assert accepted.json()["clinical_receipt_authorized"] is False
-        assert http.post(confirm, json=_input(newer), headers=headers).status_code == 409
+        assert http.post(confirm, json=_input(newer), headers=review_headers).status_code == 409
         with Session(engine) as db:
             assert db.execute(select(reviews.c.consumed)).scalar_one() == 1
             assert db.execute(select(audit.c.event)).scalar_one() == "LAB_HTTP_EXPLICIT_STAFF_CONFIRM"
@@ -112,10 +122,11 @@ def test_phase2_expiry_revocation_and_cabinet_kill_switch(
     ) as http:
         http.cookies.set("dc_workstation", station)
         view = http.get(endpoint, headers=headers).json()
+        review_headers = {k: v for k, v in headers.items() if k.lower() != "content-type"}
         with engine.begin() as conn:
             conn.execute(update(reviews).values(expires_at=1))
         assert http.post(endpoint + "/confirm", json=_input(view),
-                         headers=headers).status_code == 409
+                         headers=review_headers).status_code == 409
         assert _counts(engine) == (0, 0, 0)
 
         monkeypatch.setenv("ENVIRONMENT", "cabinet")
