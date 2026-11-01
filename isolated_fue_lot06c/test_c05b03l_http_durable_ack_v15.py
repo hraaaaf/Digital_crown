@@ -47,7 +47,7 @@ from tools.imaging_gateway.http_ack_lab_v15 import (
 from tools.imaging_gateway.media_validation import validated_mime
 
 
-def _server_app(engine, claim, media_root, signing_key):
+def _server_app(engine, claim, media_root, signing_key, *, security_gate=None):
     app = FastAPI(title="C05B03L isolated localhost media-only receipt lab")
     # HTTP server and SQLAlchemy's sync worker dependencies can use different
     # threads. The original isolated fixture engine is thread-bound. Reopen
@@ -105,6 +105,7 @@ def _server_app(engine, claim, media_root, signing_key):
         if request.headers.get("x-dc-lab-patient") != str(claim.patient):
             raise HTTPException(409, "EXPLICIT_PATIENT_APPROVAL_SCOPE_DENIED")
         station_token = request.cookies.get("dc_workstation", "")
+        device_proof = request.headers.get("x-dc-lab-device-proof", "")
         size = 0
         content = bytearray()
         async for chunk in request.stream():
@@ -123,6 +124,8 @@ def _server_app(engine, claim, media_root, signing_key):
                 # Existing REAL User/Patient/WorkstationMode + LAB device/approval.
                 # Human/device approval is pre-staged by TEST, not this endpoint.
                 _authority(db, claim, token, station_token)
+                if security_gate is not None:
+                    security_gate.check(db, claim, device_proof)
                 preflight = resolve_acquisition_preflight(
                     db, employer_id=claim.tenant, patient_id=claim.patient,
                 )
@@ -141,7 +144,13 @@ def _server_app(engine, claim, media_root, signing_key):
                 db.rollback()
                 raise
         try:
-            receipt = _issue(http_engine, claim, token, station_token, media_root)
+            receipt = _issue(
+                http_engine, claim, token, station_token, media_root,
+                locked_authorize=(
+                    (lambda db, bound_claim: security_gate.consume(db, bound_claim, device_proof))
+                    if security_gate is not None else None
+                ),
+            )
         except BridgeRejected:
             raise HTTPException(409, "RECEIPT_AUTHORITY_DENIED")
         body = {
