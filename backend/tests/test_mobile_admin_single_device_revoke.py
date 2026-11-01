@@ -7,6 +7,7 @@ import uuid
 
 from backend import models
 from backend.tests.test_mobile_single_device_unlink import _claim
+from backend.tests.conftest import make_user
 
 
 def test_admin_can_revoke_only_phone_a_without_disconnecting_phone_b(client, db, dentiste, auth_headers):
@@ -55,9 +56,10 @@ def test_admin_list_and_revoke_require_desktop_admin_auth(client, db, dentiste):
 
 def test_admin_must_not_revoke_or_disclose_other_cabinet_device(client, db, dentiste, auth_headers):
     # A legitimate but unrelated record must behave like an absent device.
+    other_owner = make_user(db, email='unrelated-mobile-owner@synthetic.local')
     other_id = str(uuid.uuid4())
     foreign = models.MobilePairedDevice(
-        device_id=other_id, user_id=dentiste.id, employer_id=dentiste.id + 999,
+        device_id=other_id, user_id=other_owner.id, employer_id=other_owner.id,
         client_public_key_hex='04' + '1' * 128, refresh_jti='disposable-foreign',
         created_at=datetime.utcnow(), last_seen_at=datetime.utcnow(),
     )
