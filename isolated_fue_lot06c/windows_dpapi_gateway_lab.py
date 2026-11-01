@@ -68,6 +68,30 @@ def _dpapi(data,entropy,*,protect):
     finally:
         kernel32.LocalFree(ctypes.cast(out.pbData,ctypes.c_void_p))
 
+def _restrict_windows_acl(path, *, directory):
+    """LAB-only: restrict a dedicated keystore to owner SID and SYSTEM."""
+    _guard()
+    import csv
+    import io
+    import re
+    import subprocess
+    sid_result=subprocess.run(["whoami","/user","/fo","csv","/nh"],
+                              check=True,capture_output=True,text=True,timeout=10)
+    fields=next(csv.reader(io.StringIO(sid_result.stdout)))
+    sid=next((item for item in fields if re.fullmatch(r"S-1-[0-9-]+",item)),None)
+    if sid is None:
+        raise VaultRejected("WINDOWS_USER_SID_UNAVAILABLE")
+    item=str(Path(path))
+    if Path(path).is_symlink():
+        raise VaultRejected("ACL_TARGET_SYMLINK_DENIED")
+    perms="(OI)(CI)F" if directory else "F"
+    for args in (["/inheritance:r"],
+                 ["/grant:r",f"*{sid}:{perms}",f"*S-1-5-18:{perms}"]):
+        result=subprocess.run(["icacls",item,*args],capture_output=True,
+                              text=True,timeout=20)
+        if result.returncode:
+            raise VaultRejected("ACL_HARDENING_FAILED")
+
 def create_key(path,*,tenant,device,station,generation):
     """Exclusive create; returns public Ed25519 bytes as hex, not secret seed."""
     _guard()
@@ -77,6 +101,7 @@ def create_key(path,*,tenant,device,station,generation):
         raise VaultRejected("UNSAFE_GATEWAY_KEY_PATH")
     if path.exists():
         raise VaultRejected("KEY_ALREADY_EXISTS")
+    _restrict_windows_acl(path.parent, directory=True)
     private=Ed25519PrivateKey.generate()
     seed=private.private_bytes(Encoding.Raw,PrivateFormat.Raw,NoEncryption())
     public=private.public_key().public_bytes(Encoding.Raw,PublicFormat.Raw).hex()
@@ -88,6 +113,7 @@ def create_key(path,*,tenant,device,station,generation):
     except FileExistsError as exc:
         raise VaultRejected("KEY_ALREADY_EXISTS") from exc
     try:
+        _restrict_windows_acl(path, directory=False)
         with os.fdopen(fd,"wb") as f:
             f.write(_canonical(record)+b"\n")
             f.flush()
