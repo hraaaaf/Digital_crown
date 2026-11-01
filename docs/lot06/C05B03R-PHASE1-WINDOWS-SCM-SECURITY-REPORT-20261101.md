@@ -8,7 +8,7 @@ This PR extends prior N/O/P/Q test-only security artifacts, without importing te
 
 **Explicit access policy (test fixture, not product installer)**:
 - Service SID: `GA` on pipe — sole own-service permission to create server instances and read/write.
-- A specific separate ordinary Windows client SID: **only `0x00100003`** (`SYNCHRONIZE | FILE_READ_DATA | FILE_WRITE_DATA`), **no `FILE_CREATE_PIPE_INSTANCE` (0x4)**.
+- A specific separate ordinary Windows client SID: **only `0x00100183`** (`SYNCHRONIZE | FILE_READ_DATA | FILE_WRITE_DATA | FILE_READ_ATTRIBUTES | FILE_WRITE_ATTRIBUTES`), **no `FILE_CREATE_PIPE_INSTANCE` (0x4)**.
 - SYSTEM: `GA`; all other accounts, Everyone and Anonymous excluded from explicit DACL.
 - Two disposable local user accounts, authorized and unauthorized, each starts an independent real child PowerShell process under its respective real OS Windows user. Each child validates its own SID, independently calls Win32 `CreateFileW` and `CreateNamedPipeW` and confirms the expected real kernel outcomes. **Allowed:** read/write possible but server-instance creation gets `ACCESS_DENIED=5`; **unauthorized:** both connection and instance creation get 5. Parent demands child exit code 0 and bounded completion; all artifacts removed in finally.
 - Installed test service is demand-start, **never** auto-start, runs only inside disposable hosted Windows CI machine with `GITHUB_ACTIONS`, `RUNNER_OS=Windows`, `ENVIRONMENT=test`, `DIGITALCROWN_ISOLATED_RUNTIME=true`, `DC06C05B03R_TEST_ONLY=1`. **No service installed on a clinic or ordinary workstation.**
