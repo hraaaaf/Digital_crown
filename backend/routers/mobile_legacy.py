@@ -781,7 +781,10 @@ def get_mobile_patients(
     _mobile_user: models.User = Depends(require_mobile_permission("patients")),
     db: Session = Depends(database.get_db),
 ):
-    pts = db.query(models.Patient).filter(models.Patient.employer_id == employer_id).all()
+    pts = db.query(models.Patient).filter(
+        models.Patient.employer_id == employer_id,
+        models.Patient.deleted_at.is_(None),
+    ).all()
     data = [{
         'id': p.id,
         'name': f'{p.prenom} {p.nom}'.strip(),

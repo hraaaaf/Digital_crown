@@ -280,3 +280,184 @@ class TestMobilePatients:
         assert created is not None
         assert created.sexe == "F"
         assert created.nom == "CANONICAL"
+# CPV2-02B — paired Pocket creation contracts (isolated, real FastAPI routes).
+# Keep all business validations in the canonical desktop services; Pocket JWT
+# must remain scoped to /api/mobile/* and must never become a desktop session.
+class TestCPV202BMobileCreationContracts:
+    @staticmethod
+    def _patient_payload(nom="POCKETCONTRACT"):
+        return {
+            "nom": nom,
+            "prenom": "Essai",
+            "date_naissance": "1991-05-12",
+            "sexe": "F",
+            "telephone": "0600000042",
+        }
+
+    @staticmethod
+    def _appointment_payload(patient_id):
+        return {
+            "patient_id": patient_id,
+            "patient_name": "Essai POCKETCONTRACT",
+            "datetime_start": "2026-09-07T10:00:00",
+            "duration_minutes": 30,
+            "motif": "Contrôle clinique",
+            "scheduling_type": "EXACT_TIME",
+        }
+
+    def test_patient_creation_refused_without_patient_permission(self, client, db, dentiste):
+        secretary = _make_secretary(db, dentiste)
+        secretary.permissions = {"agenda": True, "patients": False}
+        db.commit()
+        token = _make_mobile_jwt(db, secretary)
+        before = db.query(models.Patient).count()
+
+        response = client.post(
+            "/api/mobile/patients",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._patient_payload("PERMISSIONDENIED"),
+        )
+
+        assert response.status_code == 403, response.text
+        assert db.query(models.Patient).count() == before
+
+    def test_appointment_creation_refused_without_agenda_permission(self, client, db, dentiste):
+        secretary = _make_secretary(db, dentiste)
+        secretary.permissions = {"patients": True, "agenda": False}
+        db.commit()
+        token = _make_mobile_jwt(db, secretary)
+        before = db.query(models.Appointment).count()
+
+        response = client.post(
+            "/api/mobile/appointments",
+            headers={"Authorization": f"Bearer {token}"},
+            json={
+                "patient_name": "External control",
+                "datetime_start": "2026-09-07T10:00:00",
+                "duration_minutes": 30,
+                "motif": "Contrôle",
+            },
+        )
+
+        assert response.status_code == 403, response.text
+        assert db.query(models.Appointment).count() == before
+
+    def test_patient_duplicate_is_409_with_no_second_dossier(self, client, db, dentiste):
+        token = _make_mobile_jwt(db, dentiste)
+        headers = {"Authorization": f"Bearer {token}"}
+        payload = self._patient_payload("DUPLICATEPOCKET")
+        first = client.post("/api/mobile/patients", headers=headers, json=payload)
+        assert first.status_code == 200, first.text
+        count = db.query(models.Patient).count()
+
+        second = client.post("/api/mobile/patients", headers=headers, json=payload)
+
+        assert second.status_code == 409, second.text
+        assert second.json()["detail"]["existing_patient"]["id"] == first.json()["id"]
+        assert db.query(models.Patient).count() == count
+
+    def test_soft_deleted_patient_absent_from_pocket_appointment_picker(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        # Read the actual Pocket GET facade, not a synthetic frontend mock.
+        from backend.routers import mobile_legacy
+
+        monkeypatch.setattr(mobile_legacy, "encrypt_payload", lambda value: value)
+        active = models.Patient(
+            nom="ACTIVEPOCKET", prenom="Visible",
+            date_naissance=datetime(1990, 1, 1), sexe="F",
+            employer_id=dentiste.id,
+        )
+        deleted = models.Patient(
+            nom="DELETEDPOCKET", prenom="Hidden",
+            date_naissance=datetime(1990, 1, 2), sexe="M",
+            employer_id=dentiste.id, deleted_at=datetime.utcnow(),
+        )
+        db.add_all([active, deleted])
+        db.commit()
+        token = _make_mobile_jwt(db, dentiste)
+
+        response = client.get(
+            "/api/mobile/patients",
+            headers={"Authorization": f"Bearer {token}"},
+        )
+
+        assert response.status_code == 200, response.text
+        names = [row["name"] for row in response.json()["data"]]
+        assert "Visible ACTIVEPOCKET" in names
+        assert "Hidden DELETEDPOCKET" not in names
+
+    def test_foreign_cabinet_patient_cannot_be_booked(self, client, db, dentiste):
+        other_owner = models.User(
+            email=f"cpv2-02b-other-{uuid.uuid4().hex[:8]}@test.local",
+            hashed_password=get_password_hash("Pass123!"),
+            role=models.UserRole.DENTISTE,
+            is_active=True,
+            is_licensed=True,
+            approval_status="approved",
+        )
+        db.add(other_owner)
+        db.flush()
+        foreign_patient = models.Patient(
+            nom="FOREIGNPOCKET", prenom="Wrong",
+            date_naissance=datetime(1990, 1, 1), sexe="M",
+            employer_id=other_owner.id,
+        )
+        db.add(foreign_patient)
+        db.commit()
+        token = _make_mobile_jwt(db, dentiste)
+        before = db.query(models.Appointment).count()
+
+        response = client.post(
+            "/api/mobile/appointments",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._appointment_payload(foreign_patient.id),
+        )
+
+        assert response.status_code in (403, 404), response.text
+        assert db.query(models.Appointment).count() == before
+
+    def test_overlap_returns_409_without_double_booking(self, client, db, dentiste):
+        token = _make_mobile_jwt(db, dentiste)
+        headers = {"Authorization": f"Bearer {token}"}
+        patient = client.post(
+            "/api/mobile/patients", headers=headers,
+            json=self._patient_payload("OVERLAPPOCKET"),
+        )
+        assert patient.status_code == 200, patient.text
+        payload = self._appointment_payload(patient.json()["id"])
+
+        # Keep the real tenant, practitioner and conflict validator. Only
+        # disable opening-hour configuration for this synthetic isolated fixture.
+        with patch("backend.routers.appointments.validate_appointment_availability", return_value=None):
+            first = client.post("/api/mobile/appointments", headers=headers, json=payload)
+            assert first.status_code == 200, first.text
+            before = db.query(models.Appointment).count()
+            overlap = client.post(
+                "/api/mobile/appointments", headers=headers,
+                json={**payload, "datetime_start": "2026-09-07T10:15:00"},
+            )
+
+        assert overlap.status_code == 409, overlap.text
+        assert db.query(models.Appointment).count() == before
+
+    def test_revoked_pocket_device_cannot_create_patient(self, client, db, dentiste):
+        token = _make_mobile_jwt(db, dentiste)
+        device = db.query(models.MobilePairedDevice).filter(
+            models.MobilePairedDevice.user_id == dentiste.id,
+            models.MobilePairedDevice.employer_id == dentiste.id,
+        ).first()
+        assert device is not None
+        device.revoked_at = datetime.utcnow()
+        db.commit()
+        before = db.query(models.Patient).count()
+
+        response = client.post(
+            "/api/mobile/patients",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._patient_payload("REVOKEDPOCKET"),
+        )
+
+        assert response.status_code == 401, response.text
+        assert db.query(models.Patient).count() == before
+
