@@ -125,8 +125,7 @@ def _guarded_capture(db: Session, claim):
 
 def begin(db: Session, *, claim, staff_id: int) -> dict:
     _isolation(db)
-    # Create the isolated ledger before taking the SQLite writer lock.
-    metadata.create_all(bind=db.get_bind(), checkfirst=True)
+    # Table is installed by mount_lab_review before opening any request session.
     db.connection().exec_driver_sql("BEGIN IMMEDIATE")
     try:
         patient = _authority(db, claim=claim, staff_id=staff_id)
@@ -234,9 +233,18 @@ def confirm(db: Session, *, claim, staff_id: int, data: ReviewInput) -> dict:
 
 def mount_lab_review(app, *, claim, validated_media: bytes):
     """Mounted ONLY on an isolated fixture server; never in backend.main."""
+    if (os.getenv("ENVIRONMENT") != "test"
+            or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "true"
+            or os.getenv("DC06_PHASE2_REVIEW_LAB") != "1"):
+        raise ReviewDenied("ISOLATED_REVIEW_MOUNT_DISABLED")
     if (len(validated_media) != claim.byte_size or
             hashlib.sha256(validated_media).hexdigest() != claim.digest):
         raise ReviewDenied("CAPTURE_PREVIEW_BYTES_MISMATCH")
+
+    # Explicit LAB-only schema, created before any review DB transaction.
+    with Session(app.state.lab_sqlcipher_engine) as setup:
+        _isolation(setup)
+    metadata.create_all(bind=app.state.lab_sqlcipher_engine, checkfirst=True)
 
     async def _review_db():
         with Session(app.state.lab_sqlcipher_engine) as session:
