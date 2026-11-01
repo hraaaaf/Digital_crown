@@ -59,7 +59,22 @@ jobs:
           test "$DIGITALCROWN_ISOLATED_RUNTIME" = "true"
           test "$DC_V15_06_TRANSFER_LAB" = "0"
           python -m py_compile backend/services/imaging_acquisition_preflight_v15.py backend/services/imaging_acquisition_transfer_lab_v15.py backend/services/imaging_lab_authorized_media_gate_v15.py
-          python -m pytest -q --maxfail=1 backend/tests/test_lot06_c05b03j_authority_integration_contract.py backend/tests/test_imaging_clinical_asset_verifier_v15.py
+          # Service-only FUE: do not eagerly import every unrelated clinic API router.
+          # Reuses the tested isolated-router harness from #1172; NOT a product app startup FUE.
+          python - <<'PY'
+          import sys
+          import types
+          from pathlib import Path
+          import pytest
+          routers = types.ModuleType("backend.routers")
+          routers.__path__ = [str(Path.cwd() / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers
+          raise SystemExit(pytest.main([
+              "-q", "--maxfail=1",
+              "backend/tests/test_lot06_c05b03j_authority_integration_contract.py",
+              "backend/tests/test_imaging_clinical_asset_verifier_v15.py",
+          ]))
+          PY
       - name: No product readiness claim
         shell: bash
         run: |
