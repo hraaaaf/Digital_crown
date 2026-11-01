@@ -23,6 +23,12 @@ async function oracle(page,meta){return page.evaluate(meta=>{
 async function check(page,meta,selector,file){
  await root(page,100);const before=await font(page,selector);
  const actualRoot=await root(page,200);const after=await font(page,selector);
+ // ResizeObserver exposes the swipe affordance on the next layout frame.
+ // Do not take a first-frame screenshot before it has appeared.
+ if(meta.screen==='today'){
+   const overflow=await page.locator('[data-mobile-bottom-nav]').evaluate(el=>el.scrollWidth>el.clientWidth+2);
+   if(overflow)await page.locator('[data-pocket-nav-scroll-hint]').waitFor({state:'visible',timeout:10000});
+ }
  const row=await oracle(page,{...meta,before,after,ratio:before&&after&&before.px>0?after.px/before.px:null});
  await page.screenshot({path:path.join(outputDir,file),animations:'disabled'});row.screenshot=file;
  row.failures=[];
@@ -68,6 +74,11 @@ async function check(page,meta,selector,file){
      }
      // restore initial position for the next tab and subsequent screenshot;
      // the screenshot was already taken before the keyboard focus test.
+     if(row.navFocusChecks.every(x=>x.disabledByRole||x.visible)){
+       const endShot=['text200-nav-end',engine.name(),meta.role.toLowerCase(),meta.viewport.width+'x'+meta.viewport.height].join('-')+'.png';
+       await page.screenshot({path:path.join(outputDir,endShot),animations:'disabled'});
+       row.navEndScreenshot=endShot;
+     }
      await nav.evaluate(el=>{el.scrollLeft=0;});
    }
  }
