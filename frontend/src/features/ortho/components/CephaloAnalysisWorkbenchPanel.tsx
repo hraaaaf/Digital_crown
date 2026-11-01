@@ -217,7 +217,15 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
   const setActivePointId = useOrthoStore(state => state.setActivePointId);
   const steinerProfile = React.useMemo(() => readSteinerProtocolProjection(anglesData), [anglesData]);
   const tweedMerrifieldProfile = React.useMemo(() => readTweedMerrifieldProtocolProjection(anglesData), [anglesData]);
-  const definitions = React.useMemo(() => ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]), [analysis]);
+  // Preserve exactly the scientific 1953 core; the backend owns membership.
+  const definitions = React.useMemo(() => {
+    const definitionsForAnalysis = ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]);
+    if (analysis !== 'steiner') return definitionsForAnalysis;
+    const coreIds = new Set((steinerProfile?.rows ?? [])
+      .filter(row => row.layer === 'STEINER_1953_BASE')
+      .map(row => row.canonical_measurement_id));
+    return definitionsForAnalysis.filter(definition => coreIds.has(definition.key));
+  }, [analysis, steinerProfile]);
   const availableCount = definitions.filter(definition => readValue(metricFromResults(anglesData, definition)) !== null).length;
   const unavailableCount = definitions.length - availableCount;
   const [selectedKey, setSelectedKey] = React.useState(definitions[0]?.key ?? '');
@@ -280,7 +288,7 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
           </div>
           <div className="min-w-0">
             <h3 className="break-words text-base font-extrabold leading-tight" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
-            <p className="mt-0.5 text-xs leading-snug" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : analysis === 'tweed' ? 'Triangle DC Po_anatomic-Or / Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
+            <p className="mt-0.5 text-xs leading-snug" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Steiner 1953 — aucune validation clinique automatique' : analysis === 'tweed' ? 'Triangle DC Po_anatomic-Or / Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" role="status" aria-live="polite">
