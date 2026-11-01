@@ -63,7 +63,7 @@ def test_phase2_authentic_review_and_encrypted_signed_ack_replay(
         # media Content-Type so httpx sets application/json.
         review_headers = {k: v for k, v in headers.items() if k.lower() != "content-type"}
         valid = _input(view)
-        malformed_media_header = http.post(confirm, json=valid, headers=review_headers)
+        malformed_media_header = http.post(confirm, json=valid, headers=headers)
         assert malformed_media_header.status_code == 422
         with Session(engine) as db:
             assert db.execute(select(device_review.c.approved_at)).scalar_one() is None
