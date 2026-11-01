@@ -48,12 +48,12 @@ def _ricketts1981_ids():
     text = (ROOT / "docs" / "audits" / "CEPHALO_ANALYSIS_MEASUREMENT_PROFILES.md").read_text(
         encoding="utf-8"
     )
-    heading = "## \`RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1\` — Profil : 11 facteurs"
-    pa_heading = "## \`RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1\` — PA/frontale : 12 facteurs"
+    heading = "## `RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1` — Profil : 11 facteurs"
+    pa_heading = "## `RICKETTS_1981_SUMMARY_DESCRIPTIVE_V1` — PA/frontale : 12 facteurs"
     # Avoid treating the optional upper E-line as a core 1981 factor.
     lateral = text.split(heading, 1)[1].split(pa_heading, 1)[0]
     frontal = text.split(pa_heading, 1)[1].split("\n# COM", 1)[0]
-    pattern = r"^\|\s*\d+\s*\|\s*\`(M_[A-Z0-9_]+)\`\s*\|"
+    pattern = r"^\|\s*\d+\s*\|\s*`(M_[A-Z0-9_]+)`\s*\|"
     return re.findall(pattern, lateral, re.M), re.findall(pattern, frontal, re.M)
 
 
