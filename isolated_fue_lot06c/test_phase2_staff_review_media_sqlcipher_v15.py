@@ -67,7 +67,7 @@ def test_phase2_authentic_review_and_encrypted_signed_ack_replay(
             {"challenge": "wrong-one-use-challenge-000000000000000"},
         ):
             result = http.post(confirm, json={**valid, **bad}, headers=headers)
-            assert result.status_code == 409, (bad, result.status_code)
+            assert result.status_code == 409, (bad, result.status_code, result.text[:400])
         with Session(engine) as db:
             assert db.execute(select(device_review.c.approved_at)).scalar_one() is None
             assert db.execute(select(reviews.c.consumed)).scalar_one() == 0
