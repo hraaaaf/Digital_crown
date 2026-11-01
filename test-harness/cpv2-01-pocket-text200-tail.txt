@@ -1,0 +1,74 @@
+
+const browser=await engine.launch({headless:true});
+const rows=[],errors=[];
+const checks=[
+ {tab:null,name:'today',selector:'[data-mobile-bottom-nav] [data-mobile-nav-item="agenda"] span',marker:'[data-dc-pocket-today]'},
+ {tab:'stock',name:'stock',selector:'[data-mobile-stock] h1',marker:'[data-mobile-stock]'},
+ {tab:'securite',name:'securite',selector:'[data-dc-mobile-shell] h1, [data-dc-mobile-shell] h2',marker:'[data-dc-mobile-shell]'}
+];
+async function root(page,pct){await page.evaluate(pct=>document.documentElement.style.setProperty('font-size',pct+'%','important'),pct);
+ return page.evaluate(()=>Number.parseFloat(getComputedStyle(document.documentElement).fontSize));}
+async function font(page,selector){return page.evaluate(sel=>{const el=[...document.querySelectorAll(sel)].find(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&s.visibility!=='hidden';});
+ return el?{text:(el.textContent||'').trim().slice(0,70),px:Number.parseFloat(getComputedStyle(el).fontSize)}:null;},selector);}
+async function oracle(page,meta){return page.evaluate(meta=>{
+ const doc=document.documentElement,w=innerWidth;
+ const clipped=[...document.querySelectorAll('h1,h2,h3,p,label,span,button,a')].filter(e=>e.childElementCount===0&&(e.textContent||'').trim().length>=5)
+  .filter(e=>{const r=e.getBoundingClientRect(),s=getComputedStyle(e);return r.width>0&&r.height>0&&r.top<innerHeight&&r.bottom>0&&e.scrollWidth>e.clientWidth+2&&['hidden','clip'].includes(s.overflowX);})
+  .slice(0,20).map(e=>({text:e.textContent.trim().slice(0,55),scroll:e.scrollWidth,width:e.clientWidth}));
+ return {...meta,rootPx:parseFloat(getComputedStyle(doc).fontSize),viewportWidth:w,scrollWidth:Math.max(doc.scrollWidth,document.body?.scrollWidth||0),
+ overflow:Math.max(doc.scrollWidth,document.body?.scrollWidth||0)>w+1,clipped,
+ nav:[...document.querySelectorAll('[data-mobile-nav-item]')].map(e=>({id:e.getAttribute('data-mobile-nav-item'),w:Math.round(e.getBoundingClientRect().width),h:Math.round(e.getBoundingClientRect().height)}))};},meta);}
+async function check(page,meta,selector,file){
+ await root(page,100);const before=await font(page,selector);
+ const actualRoot=await root(page,200);const after=await font(page,selector);
+ const row=await oracle(page,{...meta,before,after,ratio:before&&after&&before.px>0?after.px/before.px:null});
+ await page.screenshot({path:path.join(outputDir,file),animations:'disabled'});row.screenshot=file;
+ row.failures=[];
+ if(actualRoot<31.5)row.failures.push('root_not_200');
+ if(row.overflow)row.failures.push('horizontal_overflow');
+ if(!before||!after)row.failures.push('critical_text_missing');
+ else if(row.ratio<1.9)row.failures.push('critical_text_not_doubled');
+ if(row.clipped.length)row.failures.push('clipped_text');
+ rows.push(row);
+}
+try{
+ for(const role of roles)for(const viewport of viewports){
+  const context=await browser.newContext({viewport,serviceWorkers:'block'});
+  const page=await context.newPage(),runtimeErrors=[];
+  page.on('pageerror',e=>runtimeErrors.push(e.message));
+  try{
+   const api=await installRoutes(page,role.value);await seedPocketSession(page);await navigatePocketDeepLink(page);
+   await page.locator('[data-dc-pocket-today]').waitFor({state:'visible',timeout:30000});
+   for(const c of checks){
+    if(c.tab)await navigatePocketDeepLink(page,c.tab);
+    await page.locator(c.marker).waitFor({state:'visible',timeout:20000});
+    if(c.name==='stock')await page.getByText('Gants nitrile',{exact:true}).waitFor({state:'visible'});
+    if(c.name==='securite')await page.getByText('Téléphone connecté',{exact:true}).waitFor({state:'visible'});
+    const name=['text200',engine.name(),role.slug,c.name,viewport.width+'x'+viewport.height].join('-')+'.png';
+    await check(page,{engine:engine.name(),role:role.value,screen:c.name,viewport},c.selector,name);
+   }
+   if(runtimeErrors.length)errors.push({engine:engine.name(),role:role.value,viewport,jsErrors:runtimeErrors});
+   if(api.readCapabilityHits<1)errors.push({engine:engine.name(),role:role.value,viewport,message:'no_read_capability_fixture'});
+  }catch(e){errors.push({engine:engine.name(),role:role.value,viewport,message:String(e)});
+   try{await page.screenshot({path:path.join(outputDir,'error-'+role.slug+'-'+viewport.width+'.png')});}catch{}
+  }finally{await context.close();}
+ }
+ for(const viewport of viewports){
+  const context=await browser.newContext({viewport,serviceWorkers:'block'}),page=await context.newPage();
+  try{
+   const response=await page.goto(baseUrl+'/mobile/onboarding?revocation=pending',{waitUntil:'networkidle',timeout:30000});
+   if(!response?.ok())throw Error('onboarding HTTP not 200');
+   await page.locator('[data-mobile-revocation-pending]').waitFor({state:'visible',timeout:18000});
+   await check(page,{engine:engine.name(),role:'UNPAIRED',screen:'onboarding-pending',viewport},
+     '[data-mobile-revocation-pending] p','text200-'+engine.name()+'-onboarding-'+viewport.width+'x'+viewport.height+'.png');
+  }catch(e){errors.push({engine:engine.name(),role:'UNPAIRED',viewport,message:String(e)});
+   try{await page.screenshot({path:path.join(outputDir,'error-onboarding-'+viewport.width+'.png')});}catch{}
+  }finally{await context.close();}
+ }
+}finally{await browser.close();}
+const report={engine:engine.name(),sha:process.env.PR_HEAD_SHA,method:'root font-size 100% and 200%, production-built Pocket on mocked synthetic API; NOT native OS text resize',
+ expected:roles.length*viewports.length*checks.length+viewports.length,actual:rows.length,
+ failures:rows.filter(x=>x.failures.length>0).length,errors,rows,realDevice:'NOT_RUN'};
+await fs.writeFile(path.join(outputDir,'text200-report.json'),JSON.stringify(report,null,2));
+console.log('TEXT200_VERDICT',JSON.stringify({expected:report.expected,actual:report.actual,failures:report.failures,errors:errors.length}));
+if(report.expected!==report.actual||report.failures>0||errors.length>0)process.exitCode=1;
