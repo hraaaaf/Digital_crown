@@ -656,8 +656,13 @@ class TestCPV202CMobileDocumentPreview:
         mocked.assert_not_awaited()
 
     def test_preview_rejects_desktop_jwt_on_mobile_facade(
-        self, client, db, dentiste,
+        self, client, db, dentiste, monkeypatch,
     ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, "generate_document", mocked)
         mobile_token = _make_mobile_jwt(db, dentiste)
         payload = jwt.decode(mobile_token, SECRET_KEY, algorithms=[ALGORITHM])
         payload["type"] = "access"
@@ -670,7 +675,11 @@ class TestCPV202CMobileDocumentPreview:
             json=self._payload(patient.id),
         )
 
-        assert response.status_code == 401, response.text
+        # Desktop authentication middleware can reject a malformed "access"
+        # token with 403; the paired-device boundary can reject it with 401.
+        # Both must deny the request before any PDF generation occurs.
+        assert response.status_code in (401, 403), response.text
+        mocked.assert_not_awaited()
 
     def test_preview_rejects_revoked_mobile_device(self, client, db, dentiste):
         token = _make_mobile_jwt(db, dentiste)
