@@ -8,6 +8,7 @@ from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta
 import json
 import os
+import sys
 from pathlib import Path
 from threading import Event
 
@@ -178,10 +179,9 @@ def test_c05b03g_inflight_staff_revocation_after_http_auth_blocks_receipt(bridge
         assert proceed.wait(timeout=15), "POST_AUTH_PAUSE_TIMEOUT"
         return original(*args,**kwargs)
 
-    monkeypatch.setattr(
-      "isolated_fue_lot06c.test_sqlcipher_http_jwt_capture_bridge_v15._issue",
-      paused_issue,
-    )
+    # Patch the exact module instance pytest collected, not a second imported
+    # copy under another package name (the latter never intercepts the handler).
+    monkeypatch.setattr(sys.modules[__name__], "_issue", paused_issue)
     def submit():
         with TestClient(app,raise_server_exceptions=False) as client:
             client.cookies.set("dc_workstation",station_token)
