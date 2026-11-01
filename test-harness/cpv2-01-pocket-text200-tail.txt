@@ -17,6 +17,8 @@ async function oracle(page,meta){return page.evaluate(meta=>{
   .slice(0,20).map(e=>({text:e.textContent.trim().slice(0,55),scroll:e.scrollWidth,width:e.clientWidth}));
  return {...meta,rootPx:parseFloat(getComputedStyle(doc).fontSize),viewportWidth:w,scrollWidth:Math.max(doc.scrollWidth,document.body?.scrollWidth||0),
  overflow:Math.max(doc.scrollWidth,document.body?.scrollWidth||0)>w+1,clipped,
+ headerOverlap:(()=>{const brand=document.querySelector('[data-dc-pocket-brand]'),peer=brand?.parentElement?.lastElementChild;if(!brand||!peer||brand===peer)return false;return brand.getBoundingClientRect().right>peer.getBoundingClientRect().left-1})(),
+ navLabelOutsideButtons:(()=>{return [...document.querySelectorAll('[data-mobile-nav-item]')].flatMap(b=>{const label=b.querySelector('span:last-child');if(!label)return [];const br=b.getBoundingClientRect(),lr=label.getBoundingClientRect();return lr.left<br.left-2||lr.right>br.right+2?[{id:b.getAttribute('data-mobile-nav-item'),button:[br.left,br.right],label:[lr.left,lr.right]}]:[]})})(),
  nav:[...document.querySelectorAll('[data-mobile-nav-item]')].map(e=>({id:e.getAttribute('data-mobile-nav-item'),w:Math.round(e.getBoundingClientRect().width),h:Math.round(e.getBoundingClientRect().height)})),navClippedLabels:(()=>{const n=document.querySelector('[data-mobile-bottom-nav]');if(!n)return [];const nr=n.getBoundingClientRect();return [...n.querySelectorAll('[data-mobile-nav-item]')].flatMap(b=>{const label=b.querySelector('span:last-child');if(!label)return [];const r=label.getBoundingClientRect();return r.bottom>nr.bottom-2||r.top<nr.top+2||r.bottom>innerHeight-2?[{id:b.getAttribute('data-mobile-nav-item'),top:r.top,bottom:r.bottom,navBottom:nr.bottom}]:[]})})()};},meta);}
 async function check(page,meta,selector,file){
  await root(page,100);const before=await font(page,selector);
@@ -30,6 +32,8 @@ async function check(page,meta,selector,file){
  else if(row.ratio<1.9)row.failures.push('critical_text_not_doubled');
  if(row.clipped.length)row.failures.push('clipped_text');
  if(row.navClippedLabels?.length)row.failures.push('nav_labels_cut_off');
+ if(row.navLabelOutsideButtons?.length)row.failures.push('nav_labels_overlap_neighbours');
+ if(row.headerOverlap)row.failures.push('header_controls_overlap_brand');
  rows.push(row);
 }
 try{
