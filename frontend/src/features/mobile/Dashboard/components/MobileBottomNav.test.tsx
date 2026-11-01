@@ -75,7 +75,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
 
     expect(nav.hasAttribute('data-pocket-glass-nav')).toBe(true);
     expect(nav.className).toContain('overflow-x-auto');
-    expect(nav.querySelector('[data-mobile-nav-item="agenda"] span:last-child')?.className).toContain('whitespace-normal');
+    expect(nav.querySelector('[data-mobile-nav-item="agenda"] span:last-child')?.className).toContain('whitespace-nowrap');
     expect(nav.getAttribute('style')).toContain('var(--card-bg)');
     expect(targets.map(target => target.dataset.mobileNavItem)).toEqual([
       'today', 'agenda', 'actions', 'patients', 'more',
