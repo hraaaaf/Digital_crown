@@ -26,6 +26,14 @@ type BridgeOptions = {
   expires_in: number;
 };
 
+type PairedMobileDevice = {
+  device_id: string;
+  user_name: string;
+  created_at: string | null;
+  last_seen_at: string | null;
+  revoked: boolean;
+};
+
 type BridgePairing = {
   qr_code: string;
   token_code: string;
@@ -54,6 +62,9 @@ export const MobileSecurity = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [optionsError, setOptionsError] = useState<string | null>(null);
   const [isRevoking, setIsRevoking] = useState(false);
+  const [pairedDevices, setPairedDevices] = useState<PairedMobileDevice[]>([]);
+  const [devicesError, setDevicesError] = useState('');
+  const [revokingDeviceId, setRevokingDeviceId] = useState<string | null>(null);
   const [status, setStatus] = useState<{ type: 'success' | 'error'; msg: string } | null>(null);
 
   const selectedTarget = useMemo(
@@ -83,8 +94,34 @@ export const MobileSecurity = () => {
     }
   };
 
+  const loadPairedDevices = async () => {
+    try {
+      const response = await api.get<{ devices: PairedMobileDevice[] }>('/admin/mobile-devices');
+      setPairedDevices(response.data.devices || []);
+      setDevicesError('');
+    } catch {
+      setDevicesError('Impossible de vérifier les appareils associés au cabinet.');
+    }
+  };
+
+  const revokeSingleDevice = async (device: PairedMobileDevice) => {
+    if (device.revoked || revokingDeviceId) return;
+    if (!window.confirm(`Révoquer UNIQUEMENT l’appareil ${device.device_id.slice(-8)} de ${device.user_name} ? Les autres téléphones resteront connectés.`)) return;
+    setRevokingDeviceId(device.device_id);
+    try {
+      await api.post(`/admin/mobile-devices/${encodeURIComponent(device.device_id)}/revoke`);
+      await loadPairedDevices();
+      toast.success('Cet appareil uniquement a été révoqué.');
+    } catch {
+      toast.error('Révocation individuelle non confirmée. Réessayez.');
+    } finally {
+      setRevokingDeviceId(null);
+    }
+  };
+
   useEffect(() => {
     void loadBridgeOptions();
+    void loadPairedDevices();
   }, []);
 
   useEffect(() => {
@@ -258,6 +295,37 @@ export const MobileSecurity = () => {
         </div>
 
         <div className="flex flex-col gap-6">
+          <section aria-label="Téléphones appairés au cabinet" className="rounded-3xl border border-border-main/60 bg-card p-5 sm:p-8">
+            <h3 className="text-lg font-semibold text-text-main">Téléphones du cabinet</h3>
+            <p className="mt-2 text-xs text-text-muted">
+              Après une déliaison hors ligne, révoquez seulement le téléphone concerné.
+              Identifiez-le par son code court et son dernier accès.
+            </p>
+            <button type="button" onClick={() => void loadPairedDevices()}
+              className="mt-3 min-h-11 rounded-xl border border-border-main px-4 text-xs font-bold text-text-main">
+              Actualiser les appareils
+            </button>
+            {devicesError && <p role="alert" className="mt-3 text-xs font-bold text-danger">{devicesError}</p>}
+            <div className="mt-4 space-y-3">
+              {pairedDevices.length === 0 && !devicesError && <p className="text-sm text-text-muted">Aucun téléphone appairé.</p>}
+              {pairedDevices.map(device => (
+                <div key={device.device_id} className="rounded-2xl border border-border-main/60 p-4">
+                  <p className="text-sm font-bold text-text-main">{device.user_name}</p>
+                  <p className="mt-1 text-xs text-text-muted">Appareil ···{device.device_id.slice(-8)}</p>
+                  <p className="mt-1 text-xs text-text-muted">Dernier accès : {device.last_seen_at ? new Date(device.last_seen_at).toLocaleString('fr-FR') : 'inconnu'}</p>
+                  {device.revoked ? (
+                    <p className="mt-2 text-xs font-bold text-success">Révoqué côté serveur</p>
+                  ) : (
+                    <button type="button" onClick={() => void revokeSingleDevice(device)}
+                      disabled={!!revokingDeviceId}
+                      className="mt-3 min-h-11 rounded-xl border border-danger-border bg-danger-surface px-4 text-xs font-bold text-danger disabled:opacity-50">
+                      {revokingDeviceId === device.device_id ? 'Révocation…' : 'Révoquer cet appareil uniquement'}
+                    </button>
+                  )}
+                </div>
+              ))}
+            </div>
+          </section>
           <div className="bg-rose-500/5 dark:bg-rose-500/10 rounded-3xl border border-rose-500/20 p-5 sm:p-8">
             <h3 className="text-lg font-semibold text-rose-600 dark:text-rose-400 mb-2 flex items-center gap-2">
               <AlertTriangle size={18} />
