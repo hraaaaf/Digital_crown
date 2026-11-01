@@ -202,7 +202,12 @@ describe('CB-03 G3 synthetic explicit-confirmation UX', () => {
       ...reconciliation('executed', { appointment_id: 81, status: 'CREATED' }),
       safe_to_retry_automatically: true,
     } } as never);
+    // The uncertain phase renders before the confirm POST releases its busy guard.
+    // Wait for the read-only control to be actionable; never bypass that guard.
+    await waitFor(() => expect(checkButton()).toBeEnabled());
     fireEvent.click(checkButton());
+    await waitFor(() => expect(checkButton()).toBeEnabled());
+    expect(get).toHaveBeenCalledWith('/bot/guided/actions/' + ID);
     expect(await screen.findByRole('alert')).toHaveTextContent(/incertaine/i);
     expect(screen.queryByText(/Action exécutée et vérifiée/i)).not.toBeInTheDocument();
     expect(post).toHaveBeenCalledTimes(2);
