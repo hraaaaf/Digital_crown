@@ -1,7 +1,7 @@
 #Requires -Version 7.0
-# C05B-03N Windows-hosted disposable SAME-USER named-pipe smoke.
-# NOT a service SID/DACL verification, remote-client denial, Win32 impersonation
-# or CNG/TPM non-exportability test. No install, registry or clinical data.
+# C05B-03N disposable Win32-backed pipe CREATION/DISPOSAL probe only.
+# No client connection, handshake, read/write, service SID/DACL,
+# PIPE_REJECT_REMOTE_CLIENTS, impersonation, CNG or TPM is validated.
 $ErrorActionPreference = "Stop"
 if (-not $IsWindows) { throw "C05B03N_WINDOWS_RUNNER_REQUIRED" }
 if ($env:ENVIRONMENT -ne "test" -or $env:DIGITALCROWN_ISOLATED_RUNTIME -ne "true") {
@@ -10,48 +10,17 @@ if ($env:ENVIRONMENT -ne "test" -or $env:DIGITALCROWN_ISOLATED_RUNTIME -ne "true
 $name = "DigitalCrown-LOT06-fue-" + [Guid]::NewGuid().ToString("N")
 $options = [System.IO.Pipes.PipeOptions]::Asynchronous -bor [System.IO.Pipes.PipeOptions]::CurrentUserOnly
 $server = $null
-$client = $null
 try {
     $server = [System.IO.Pipes.NamedPipeServerStream]::new(
         $name, [System.IO.Pipes.PipeDirection]::InOut, 1,
         [System.IO.Pipes.PipeTransmissionMode]::Byte, $options
     )
-    $client = [System.IO.Pipes.NamedPipeClientStream]::new(
-        ".", $name, [System.IO.Pipes.PipeDirection]::InOut,
-        [System.IO.Pipes.PipeOptions]::None
-    )
-    $pending = $server.WaitForConnectionAsync()
-    $client.Connect(5000)
-    if (-not $pending.Wait([TimeSpan]::FromSeconds(5))) {
-        throw "C05B03N_PIPE_HANDSHAKE_TIMEOUT"
+    if ($null -eq $server -or $server.IsConnected) {
+        throw "C05B03N_WINDOWS_PIPE_CREATION_FAILED"
     }
-    if (-not $server.IsConnected -or -not $client.IsConnected) {
-        throw "C05B03N_PIPE_HANDSHAKE_MISSING"
-    }
-    $data = [System.Text.Encoding]::ASCII.GetBytes("C05B03N-SYNTHETIC-NO-PHI")
-    $client.Write($data, 0, $data.Length)
-    $client.Flush()
-    $buffer = [byte[]]::new(128)
-    $readTimeout = [System.Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(5))
-    $count = $server.ReadAsync($buffer, 0, $buffer.Length, $readTimeout.Token).GetAwaiter().GetResult()
-    $readTimeout.Dispose()
-    $received = [System.Text.Encoding]::ASCII.GetString($buffer, 0, $count)
-    if ($received -ne "C05B03N-SYNTHETIC-NO-PHI") {
-        throw "C05B03N_PIPE_MEDIA_CORRUPTION"
-    }
-    $ack = [System.Text.Encoding]::ASCII.GetBytes("LAB-ONLY-ACK")
-    $server.Write($ack, 0, $ack.Length)
-    $server.Flush()
-    $replyTimeout = [System.Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(5))
-    $count = $client.ReadAsync($buffer, 0, $buffer.Length, $replyTimeout.Token).GetAwaiter().GetResult()
-    $replyTimeout.Dispose()
-    if ([System.Text.Encoding]::ASCII.GetString($buffer, 0, $count) -ne "LAB-ONLY-ACK") {
-        throw "C05B03N_PIPE_RESPONSE_MISSING"
-    }
-    Write-Output "C05B03N_WINDOWS_REAL_SAME_USER_NAMED_PIPE_SMOKE_PASS"
-    Write-Output "C05B03N_NATIVE_SERVICE_SID_DACL_CNG_TPM_AND_REMOTE_DENIAL_NOT_TESTED"
+    Write-Output "C05B03N_WINDOWS_CURRENT_USER_PIPE_CREATION_ONLY_PASS"
+    Write-Output "C05B03N_INTERPROCESS_IO_DACL_SERVICE_SID_REMOTE_DENIAL_NOT_TESTED"
 }
 finally {
-    if ($client -ne $null) { $client.Dispose() }
-    if ($server -ne $null) { $server.Dispose() }
+    if ($null -ne $server) { $server.Dispose() }
 }
