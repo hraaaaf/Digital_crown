@@ -87,7 +87,7 @@ def _authority(db: Session, *, claim, staff_id: int):
     try:
         preflight = resolve_acquisition_preflight(
             db, employer_id=claim.tenant, patient_id=claim.patient,
-            appointment_id=claim.appointment,
+            appointment_id=None,
         )
     except PreflightRejected as exc:
         raise ReviewDenied("PATIENT_LINK_DENIED") from exc
@@ -125,12 +125,12 @@ def _guarded_capture(db: Session, claim):
 
 def begin(db: Session, *, claim, staff_id: int) -> dict:
     _isolation(db)
-    # A write lock covers the staff identity, patient markers and device state.
+    # Create the isolated ledger before taking the SQLite writer lock.
+    metadata.create_all(bind=db.get_bind(), checkfirst=True)
     db.connection().exec_driver_sql("BEGIN IMMEDIATE")
     try:
         patient = _authority(db, claim=claim, staff_id=staff_id)
         _guarded_capture(db, claim)
-        metadata.create_all(bind=db.get_bind(), checkfirst=True)
         challenge = secrets.token_urlsafe(32)
         now = int(time.time())
         expiry = min(now + 120, now + 119)
@@ -143,7 +143,7 @@ def begin(db: Session, *, claim, staff_id: int) -> dict:
         db.execute(insert(reviews).values(
             tenant=claim.tenant, device=claim.device, capture=claim.capture,
             staff=staff_id, station=claim.station, patient=claim.patient,
-            appointment=claim.appointment, digest=claim.digest,
+            appointment=None, digest=claim.digest,
             byte_size=claim.byte_size,
             challenge_sha=hashlib.sha256(challenge.encode()).hexdigest(),
             expires_at=expiry, consumed=0,
@@ -184,7 +184,7 @@ def confirm(db: Session, *, claim, staff_id: int, data: ReviewInput) -> dict:
         if (data.explicit_confirmation is not True
                 or row["staff"] != staff_id or row["station"] != claim.station
                 or row["patient"] != claim.patient
-                or row["appointment"] != claim.appointment
+                or row["appointment"] != None
                 or row["digest"] != claim.digest or row["byte_size"] != claim.byte_size
                 or data.selected_patient_id != patient.id
                 or data.dossier != patient.numero_dossier
