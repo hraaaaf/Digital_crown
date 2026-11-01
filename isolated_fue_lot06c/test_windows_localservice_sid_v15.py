@@ -71,12 +71,25 @@ def test_h05_localservice_real_other_sid_denies_acl_and_dpapi(tmp_path):
         run=_pwsh(launch,env)
         assert run.returncode==0,"H05_WINDOWS_SERVICE_TASK_NOT_AVAILABLE"
         proof=None
-        for _ in range(80):
+        for _ in range(50):
             if results.is_file():
                 proof=json.loads(results.read_text(encoding="ascii"))
                 break
+            if (shared/"probe-error.json").is_file():
+                fail=json.loads((shared/"probe-error.json").read_text(encoding="ascii"))
+                pytest.fail("H05_SERVICE_PROBE_ERROR_STAGE_"+str(fail.get("stage"))+
+                            "_TYPE_"+str(fail.get("type")))
             time.sleep(0.5)
-        assert proof is not None,"H05_SERVICE_TASK_NO_RESULT"
+        if proof is None:
+            status=_pwsh("$a=Get-ScheduledTask -TaskName $env:DC_H05_TASK -ErrorAction Stop;"
+                         "$i=Get-ScheduledTaskInfo -TaskName $env:DC_H05_TASK;"
+                         "[PSCustomObject]@{state=[string]$a.State;code=[int64]$i.LastTaskResult} "
+                         "| ConvertTo-Json -Compress",env)
+            if status.returncode==0:
+                value=json.loads(status.stdout)
+                pytest.fail("H05_NO_OUTPUT_TASK_"+str(value.get("state"))+
+                            "_LAST_RESULT_"+str(value.get("code")))
+            pytest.fail("H05_NO_OUTPUT_AND_NO_TASK_STATUS")
         assert proof=={"identity_sid":"S-1-5-19","distinct":True,
                        "file_denied":True,"dpapi_denied":True},proof
         pub.verify(sign(key_file,MESSAGE,**SCOPE),MESSAGE)
