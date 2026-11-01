@@ -461,3 +461,253 @@ class TestCPV202BMobileCreationContracts:
         assert response.status_code == 401, response.text
         assert db.query(models.Patient).count() == before
 
+# CPV2-02C — JWT Pocket document PREVIEW only. Never authorize archive
+# or a raw Desktop /api/documents/generate call via a paired-device token.
+class TestCPV202CMobileDocumentPreview:
+    @staticmethod
+    def _patient(db, dentiste, *, employer_id=None, deleted_at=None):
+        patient = models.Patient(
+            nom="PDFPOCKET", prenom="Essai",
+            date_naissance=datetime(1990, 1, 1), sexe="F",
+            employer_id=employer_id if employer_id is not None else dentiste.id,
+            deleted_at=deleted_at,
+        )
+        db.add(patient)
+        db.commit()
+        return patient
+
+    @staticmethod
+    def _payload(patient_id, document_type="certificat"):
+        return {
+            "patient_id": patient_id,
+            "type": document_type,
+            "data": {"reason": "Certificat de Présence", "doc_date": "2026-11-01"},
+        }
+
+    def test_paired_preview_is_pdf_no_store_without_archive_or_static_url(
+        self, client, db, dentiste, tmp_path, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        patient = self._patient(db, dentiste)
+        pdf = tmp_path / "documents" / "isolated" / "preview.pdf"
+        pdf.parent.mkdir(parents=True)
+        pdf.write_bytes(b"%PDF-1.4\nsynthetic-isolated-preview")
+        monkeypatch.setattr(documents, "MEDIA_DIR", tmp_path)
+        mocked = AsyncMock(return_value={
+            "pdf_url": "static/documents/isolated/preview.pdf?preview_token=never_exposed",
+        })
+        monkeypatch.setattr(documents, "generate_document", mocked)
+        token = _make_mobile_jwt(db, dentiste)
+
+        response = client.post(
+            "/api/mobile/documents/preview?archive=true",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._payload(patient.id),
+        )
+
+        assert response.status_code == 200, response.text
+        assert response.headers["content-type"] == "application/pdf"
+        assert response.headers["cache-control"] == "no-store, private"
+        assert response.headers["x-content-type-options"] == "nosniff"
+        assert response.content == pdf.read_bytes()
+        assert b"static/documents/" not in response.content
+        assert mocked.await_count == 1
+        assert mocked.await_args.kwargs["archive"] is False
+        assert mocked.await_args.kwargs["preview"] is True
+        assert mocked.await_args.kwargs["force"] is False
+        assert mocked.await_args.kwargs["current_user"].id == dentiste.id
+
+    def test_preview_rejects_wrong_document_type_before_generator(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        patient = self._patient(db, dentiste)
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, "generate_document", mocked)
+        token = _make_mobile_jwt(db, dentiste)
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._payload(patient.id, "lettre"),
+        )
+
+        assert response.status_code == 403, response.text
+        mocked.assert_not_awaited()
+
+    def test_preview_rejects_payment_mutation_before_generator(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        patient = self._patient(db, dentiste)
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, "generate_document", mocked)
+        token = _make_mobile_jwt(db, dentiste)
+        payload = self._payload(patient.id)
+        payload["payment_status"] = "PAYE"
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {token}"},
+            json=payload,
+        )
+
+        assert response.status_code == 403, response.text
+        mocked.assert_not_awaited()
+
+    def test_preview_denied_without_document_permission(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        secretary = _make_secretary(db, dentiste)
+        secretary.permissions = {"patients": True, "agenda": True, "prescriptions": False}
+        db.commit()
+        patient = self._patient(db, dentiste)
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, "generate_document", mocked)
+        token = _make_mobile_jwt(db, secretary)
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._payload(patient.id, "ordonnance"),
+        )
+
+        assert response.status_code == 403, response.text
+        mocked.assert_not_awaited()
+
+    def test_preview_denied_without_patients_permission(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        secretary = _make_secretary(db, dentiste)
+        secretary.permissions = {"patients": False, "agenda": True}
+        db.commit()
+        patient = self._patient(db, dentiste)
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, "generate_document", mocked)
+        token = _make_mobile_jwt(db, secretary)
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._payload(patient.id),
+        )
+
+        assert response.status_code == 403, response.text
+        mocked.assert_not_awaited()
+
+    def test_preview_rejects_deleted_patient_without_generating(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        patient = self._patient(db, dentiste, deleted_at=datetime.utcnow())
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, "generate_document", mocked)
+        token = _make_mobile_jwt(db, dentiste)
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._payload(patient.id),
+        )
+
+        assert response.status_code == 404, response.text
+        mocked.assert_not_awaited()
+
+    def test_preview_rejects_other_cabinet_without_generating(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        other_owner = models.User(
+            email=f"doc-other-{uuid.uuid4().hex[:8]}@test.local",
+            hashed_password=get_password_hash("Pass123!"),
+            role=models.UserRole.DENTISTE,
+            is_active=True, is_licensed=True, approval_status="approved",
+        )
+        db.add(other_owner)
+        db.flush()
+        patient = self._patient(db, dentiste, employer_id=other_owner.id)
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, "generate_document", mocked)
+        token = _make_mobile_jwt(db, dentiste)
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._payload(patient.id),
+        )
+
+        assert response.status_code == 404, response.text
+        mocked.assert_not_awaited()
+
+    def test_preview_rejects_desktop_jwt_on_mobile_facade(
+        self, client, db, dentiste,
+    ):
+        mobile_token = _make_mobile_jwt(db, dentiste)
+        payload = jwt.decode(mobile_token, SECRET_KEY, algorithms=[ALGORITHM])
+        payload["type"] = "access"
+        forged_desktop = jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+        patient = self._patient(db, dentiste)
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {forged_desktop}"},
+            json=self._payload(patient.id),
+        )
+
+        assert response.status_code == 401, response.text
+
+    def test_preview_rejects_revoked_mobile_device(self, client, db, dentiste):
+        token = _make_mobile_jwt(db, dentiste)
+        device = db.query(models.MobilePairedDevice).filter(
+            models.MobilePairedDevice.user_id == dentiste.id,
+            models.MobilePairedDevice.revoked_at.is_(None),
+        ).first()
+        assert device is not None
+        device.revoked_at = datetime.utcnow()
+        db.commit()
+        patient = self._patient(db, dentiste)
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._payload(patient.id),
+        )
+
+        assert response.status_code == 401, response.text
+
+    def test_preview_rejects_path_traversal_from_generator(
+        self, client, db, dentiste, tmp_path, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        patient = self._patient(db, dentiste)
+        (tmp_path / "other.pdf").write_bytes(b"%PDF-1.4\nshould-not-expose")
+        monkeypatch.setattr(documents, "MEDIA_DIR", tmp_path)
+        mocked = AsyncMock(return_value={"pdf_url": "static/documents/../../other.pdf"})
+        monkeypatch.setattr(documents, "generate_document", mocked)
+        token = _make_mobile_jwt(db, dentiste)
+
+        response = client.post(
+            "/api/mobile/documents/preview",
+            headers={"Authorization": f"Bearer {token}"},
+            json=self._payload(patient.id),
+        )
+
+        assert response.status_code == 503, response.text
