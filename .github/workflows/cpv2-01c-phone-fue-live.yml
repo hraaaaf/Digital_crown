@@ -72,6 +72,8 @@ jobs:
         run: |
           VITE_API_URL="$FUE_HTTPS_URL" npm run build
           test -f dist/index.html
+      - name: Exercise real ECDH + encrypted rights + revoke and renew code
+        run: node frontend/scripts/cpv2-01c-phone-fue-contract-check.mjs
       - name: Prove public HTTPS host and claim flow endpoints reachable
         run: |
           for i in {1..30}; do
