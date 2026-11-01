@@ -27,6 +27,15 @@ CONTRACT_VERSION = "CEPHALO_PROTOCOL_REQUIREDNESS_V1"
 _BLOCK_UNAVAILABLE = "protocol_requiredness_contract_unavailable"
 
 
+def _finite_typed_number(value: Any) -> bool:
+    if isinstance(value, bool) or not isinstance(value, (float, int)):
+        return False
+    try:
+        return math.isfinite(value)
+    except OverflowError:
+        return False
+
+
 def read_required_measurement_contract(
     protocol_profile_id: str | None,
     section_id: str | None,
@@ -118,9 +127,10 @@ def evaluate_required_measurements(
             row.get("availability_status") != "AVAILABLE"
             or not isinstance(value, (float, int))
             or isinstance(value, bool)
-            or not math.isfinite(value)
+            or not _finite_typed_number(value)
             or not isinstance(row.get("measurement_refs"), (list, tuple))
             or not row.get("measurement_refs")
+            or not all(isinstance(ref, str) and bool(ref) for ref in row["measurement_refs"])
             or not isinstance(row.get("value_authority_method_id"), str)
             or not row.get("value_authority_method_id")
         ):
