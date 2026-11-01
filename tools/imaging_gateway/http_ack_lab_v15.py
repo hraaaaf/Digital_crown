@@ -1,18 +1,23 @@
 """LOT06 C05B-03L: TEST-only durable signed synthetic HTTP receipt acknowledgement.
 
-An HMAC with the synthetic device token authenticates the isolated LAB reply.
-This is NOT independent server trust, PKI, TLS validation, or clinical clearance.
+A server-only Ed25519 signing key authenticates the isolated LAB reply.
+The agent pins a separately provisioned LAB public key, not response-supplied key.
+This is NOT production PKI, TLS validation or clinical clearance.
 No product API imports or service activation; never infer patient identity here.
 """
 from __future__ import annotations
 
 import hashlib
-import hmac
 import json
 import os
 from pathlib import Path
 import re
 import tempfile
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives.asymmetric.ed25519 import (
+    Ed25519PrivateKey, Ed25519PublicKey,
+)
 
 from tools.imaging_gateway.gateway import GatewayError
 
@@ -63,15 +68,15 @@ def _message(reply: dict) -> bytes:
     return json.dumps(reply, sort_keys=True, separators=(",", ":")).encode("ascii")
 
 
-def sign_lab_receipt(reply: dict, device_token: str) -> str:
-    """Only the isolated TEST server fixture calls this signature helper."""
-    if not isinstance(device_token, str) or not 16 <= len(device_token) <= 256:
-        raise GatewayError("LAB_HTTP_ACK_INVALID_DEVICE_TOKEN")
-    return hmac.new(device_token.encode("utf-8"), _message(reply), hashlib.sha256).hexdigest()
+def sign_lab_receipt(reply: dict, signing_key: Ed25519PrivateKey) -> str:
+    """Only a server-held isolated TEST key can sign a receipt."""
+    if not isinstance(signing_key, Ed25519PrivateKey):
+        raise GatewayError("LAB_HTTP_ACK_SIGNING_KEY_REQUIRED")
+    return signing_key.sign(_message(reply)).hex()
 
 
 def record_lab_http_ack(
-    collector, *, item_id: int, reply: dict, device_token: str,
+    collector, *, item_id: int, reply: dict, server_public_key: bytes,
     expected_capture: str, expected_device: str, expected_tenant: int,
     expected_patient: int,
 ) -> str:
@@ -82,12 +87,17 @@ def record_lab_http_ack(
     if not isinstance(reply, dict) or "receipt_mac" not in reply:
         raise GatewayError("LAB_HTTP_ACK_SIGNATURE_REQUIRED")
     body = {key: value for key, value in reply.items() if key != "receipt_mac"}
-    mac = reply["receipt_mac"]
-    if not isinstance(mac, str) or re.fullmatch(r"[0-9a-f]{64}", mac) is None:
+    signature = reply["receipt_mac"]
+    if not isinstance(signature, str) or re.fullmatch(r"[0-9a-f]{128}", signature) is None:
         raise GatewayError("LAB_HTTP_ACK_SIGNATURE_REQUIRED")
-    expected_mac = sign_lab_receipt(body, device_token)
-    if not hmac.compare_digest(mac, expected_mac):
-        raise GatewayError("LAB_HTTP_ACK_SIGNATURE_MISMATCH")
+    if not isinstance(server_public_key, bytes) or len(server_public_key) != 32:
+        raise GatewayError("LAB_HTTP_ACK_SERVER_KEY_NOT_PINNED")
+    try:
+        Ed25519PublicKey.from_public_bytes(server_public_key).verify(
+            bytes.fromhex(signature), _message(body),
+        )
+    except (InvalidSignature, ValueError):
+        raise GatewayError("LAB_HTTP_ACK_SIGNATURE_MISMATCH") from None
     if (body["capture"] != expected_capture or body["device"] != expected_device
             or body["tenant"] != expected_tenant
             or body["patient"] != expected_patient):
