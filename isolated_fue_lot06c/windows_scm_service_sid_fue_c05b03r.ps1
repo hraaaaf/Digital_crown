@@ -151,6 +151,15 @@ try {
         # GitHub-hosted synthetic binary ONLY. Not a production installer.
         & icacls.exe $bin /inheritance:r /grant:r '*S-1-5-19:(OI)(CI)RX' ('*' + $serviceSid + ':(OI)(CI)RX') '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'DC06B05_SERVICE_PACKAGE_DACL_FAILED' }
+        # File ACEs must be effective on leaf assemblies and deps, not only
+        # inheritable ACEs on the directory. Keep the same minimal SIDs.
+        $packageFiles=@(Get-ChildItem -LiteralPath $bin -Recurse -File -Force)
+        if ($packageFiles.Count -lt 3) { throw 'DC06B05_INCOMPLETE_SYNTHETIC_PACKAGE' }
+        foreach ($file in $packageFiles) {
+            & icacls.exe $file.FullName /inheritance:r /grant:r '*S-1-5-19:RX' ('*' + $serviceSid + ':RX') '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'DC06B05_PACKAGE_LEAF_DACL_FAILED' }
+        }
+        Write-Output 'DC06B05_EXPLICIT_SCOPED_PACKAGE_LEAF_ACL_PASS'
         if (-not (Test-Path -LiteralPath $dll -PathType Leaf)) {
             throw 'DC06B05_PROTECTED_SERVICE_DLL_MISSING'
         }
