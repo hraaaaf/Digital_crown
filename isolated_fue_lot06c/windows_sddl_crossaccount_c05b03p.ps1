@@ -64,7 +64,7 @@ public static class DC06PSddlProbe {
             SafeFileHandle pipe = CreateNamedPipe(
                 path, PIPE_ACCESS_DUPLEX | FILE_FLAG_FIRST_PIPE_INSTANCE |
                     FILE_FLAG_OVERLAPPED,
-                PIPE_REJECT_REMOTE_CLIENTS, 1, 4096, 4096, 5000, ref attrs);
+                PIPE_REJECT_REMOTE_CLIENTS, 2, 4096, 4096, 5000, ref attrs);
             if (pipe.IsInvalid) {
                 int error = Marshal.GetLastWin32Error();
                 pipe.Dispose();
