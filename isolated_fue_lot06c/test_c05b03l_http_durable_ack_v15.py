@@ -48,7 +48,10 @@ from tools.imaging_gateway.media_validation import validated_mime
 def _server_app(engine, claim, media_root, signing_key):
     app = FastAPI(title="C05B03L isolated localhost media-only receipt lab")
 
-    def lab_db():
+    # Async FastAPI dependency: construction and disposal occur on the same
+    # Uvicorn event-loop thread. Sync-yield dependencies use AnyIO worker threads,
+    # which may differ between enter/exit and invalidate SQLCipher DBAPI objects.
+    async def lab_db():
         with Session(engine) as db:
             yield db
     app.dependency_overrides[auth.get_db] = lab_db
