@@ -153,6 +153,17 @@ try {
         $env:PYTHONDONTWRITEBYTECODE='1'
         & $python -I $reader seed $watch $private $keyPath DC06B03_SYNTHETIC_ONLY
         if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SYNTHETIC_REAL_SPOOL_SEED_FAILED' }
+        # EC diagnostic (native Win32 ERROR_ACCESS_DENIED=5): the spool
+        # directory is created by HotFolder AFTER the parent ACL is set.
+        # Pin its own exact DACL, including children. This does not grant
+        # access to Users, Everyone, any patient or any remote account.
+        $spool=Join-Path $private 'spool'
+        if (-not (Test-Path -LiteralPath $spool -PathType Container)) {
+            throw 'DC06B03_SPOOL_ROOT_MISSING_AFTER_SYNTHETIC_SEED'
+        }
+        & icacls.exe $spool /inheritance:r /grant:r ('*S-1-5-19:(OI)(CI)M') ('*' + $serviceSid + ':(OI)(CI)M') '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTRICTED_SPOOL_ACL_REPAIR_FAILED' }
+        Write-Output 'DC06B03_SPOOL_SID_DACL_EXPLICIT_ON_NEW_DIRECTORY'
         $binPath += ' --b03-spool "' + $python + '" "' + $reader + '" "' +
             $watch + '" "' + $private + '" "' + $keyPath + '"'
     }
