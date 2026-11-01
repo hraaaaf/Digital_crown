@@ -125,9 +125,9 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       >
         <p className="hidden text-[10px] font-bold uppercase tracking-[0.10em] xl:block" style={{ color: props.P.textMuted }}>Contrôles</p>
 
-        <section aria-label="Analyses céphalométriques prêtes à l’emploi" className="mt-3 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
+        <section aria-label="Périmètre Céphalo V1" className="mt-3 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
           <label htmlFor="cephalo-ready-analysis" className="mb-2 block text-xs font-bold" style={{ color: props.P.text }}>
-            Analyse clé en main
+            Protocole V1
           </label>
           <select
             id="cephalo-ready-analysis"
@@ -145,7 +145,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             ))}
           </select>
           <p className="mt-2 text-xs leading-snug" style={{ color: props.P.textMuted }}>
-            Tracés et mesures synchronisés. Données manquantes non estimées.
+            COM / Steiner 1953 · calculs non certifiés affichés comme indisponibles.
           </p>
         </section>
 
