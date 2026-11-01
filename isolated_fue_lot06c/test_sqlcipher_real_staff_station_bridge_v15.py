@@ -20,7 +20,7 @@ from typing import Optional
 import uuid
 
 import pytest
-from sqlalchemy import Column, Integer, MetaData, String, Table, insert, select, update
+from sqlalchemy import Column, Integer, MetaData, String, Table, event, insert, select, update
 from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import Session
 
@@ -300,12 +300,34 @@ def bridge(tmp_path, monkeypatch):
     root.mkdir()
     engine = _root_engine(root)
     _guard(engine)
+    @event.listens_for(engine, 'connect')
+    def _enforce_fks(dbapi, _record):
+        dbapi.execute('PRAGMA foreign_keys=ON')
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql('PRAGMA foreign_keys').scalar_one() == 1
     for table in (
         models.User.__table__, models.Patient.__table__,
         models.WorkstationMode.__table__, ClinicalAsset.__table__,
     ):
         table.create(bind=engine)
     metadata.create_all(engine)
+    with engine.begin() as conn:
+        for table in (receipts, audit, outbox):
+            for operation in ("UPDATE", "DELETE"):
+                trigger = f"{table.name}_{operation.lower()}_lock"
+                conn.exec_driver_sql(
+                    f'CREATE TRIGGER "{trigger}" BEFORE {operation} '
+                    f'ON "{table.name}" FOR EACH ROW '
+                    "BEGIN SELECT RAISE(ABORT,'C05B03E_LEDGER_IMMUTABLE'); END"
+                )
+        conn.exec_driver_sql(
+            "CREATE TRIGGER c05b03e_approval_binding_lock "
+            "BEFORE UPDATE ON c05b03e_synthetic_approvals "
+            "WHEN EXISTS (SELECT 1 FROM c05b03e_synthetic_receipts r "
+            "WHERE r.tenant=OLD.tenant AND r.device=OLD.device "
+            "AND r.capture=OLD.capture) "
+            "BEGIN SELECT RAISE(ABORT,'C05B03E_APPROVAL_FROZEN'); END"
+        )
     station_token, device_token = secrets.token_urlsafe(32), secrets.token_urlsafe(32)
     capture = "synthetic-" + uuid.uuid4().hex
     device = "device-" + uuid.uuid4().hex[:16]
@@ -407,6 +429,15 @@ def test_c05b03e_real_backend_principals_bridge_and_negatives(bridge, monkeypatc
     assert rid.startswith("LAB-ONLY-")
     assert all(_issue(*args) == rid for _ in range(3))
     assert _counts(engine) == (1, 1, 1)
+    for table in (receipts, audit, outbox):
+        with pytest.raises(IntegrityError, match="C05B03E_LEDGER_IMMUTABLE"):
+            with engine.begin() as conn:
+                changes = {"version": 99} if table is receipts else {"event": "TAMPERED"}
+                conn.execute(update(table).values(**changes))
+    with pytest.raises(IntegrityError, match="C05B03E_APPROVAL_FROZEN"):
+        with engine.begin() as conn:
+            conn.execute(update(approvals).values(version=999))
+    assert _issue(*args) == rid
 
     _change(engine, models.User.__table__,
             models.User.__table__.c.id == claim.staff,
@@ -432,6 +463,22 @@ def test_c05b03e_real_backend_principals_bridge_and_negatives(bridge, monkeypatc
     with pytest.raises(BridgeRejected, match="DEVICE_TOKEN_OR_REVOKED"):
         _issue(*args)
     _change(engine, devices, devices.c.device == claim.device, active=1)
+    _change(engine, models.WorkstationMode.__table__,
+            models.WorkstationMode.__table__.c.id == claim.station, mode_revision=1)
+    with pytest.raises(BridgeRejected, match="STATION_TOKEN_OR_REVOKED"):
+        _issue(*args)
+    _change(engine, models.WorkstationMode.__table__,
+            models.WorkstationMode.__table__.c.id == claim.station, mode_revision=0)
+    _change(engine, devices, devices.c.device == claim.device, generation=2)
+    with pytest.raises(BridgeRejected, match="DEVICE_TOKEN_OR_REVOKED"):
+        _issue(*args)
+    _change(engine, devices, devices.c.device == claim.device, generation=1)
+    _change(engine, models.Patient.__table__,
+            models.Patient.__table__.c.id == claim.patient, deleted_at=datetime.utcnow())
+    with pytest.raises(BridgeRejected, match="PATIENT_SCOPE_REJECTED"):
+        _issue(*args)
+    _change(engine, models.Patient.__table__,
+            models.Patient.__table__.c.id == claim.patient, deleted_at=None)
     assert _issue(*args) == rid
     blob = next(media_root.rglob("*.dcm"))
     original = blob.read_bytes()
@@ -455,6 +502,10 @@ def test_c05b03e_real_backend_principals_bridge_and_negatives(bridge, monkeypatc
             "revoked_staff_station_device_receipt_replay_denied": True,
             "negative_sql_failure_atomic_rollback": True,
             "corrupt_media_receipt_replay_denied": True,
+            "sqlite_foreign_keys_enabled": True,
+            "receipt_audit_outbox_sql_mutation_triggers_tested": True,
+            "approval_binding_frozen_after_receipt": True,
+            "station_revision_device_generation_and_softdeleted_patient_denied": True,
             "production_device_issuer_integrated": False,
             "actual_http_identity_session_verified": False,
             "real_human_approval_ceremony_verified": False,
