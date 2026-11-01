@@ -1,0 +1,47 @@
+name: CPV2-01C pending offline revoke survives iPhone PWA restart (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01c-pending-revoke-pwa-persistence-20261101
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-pending-revoke-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  persistent-notice:
+    name: Real Pocket onboarding and unlink contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assert exact approved PR product ancestry (no deployment)
+        run: |
+          git merge-base --is-ancestor 10de0a04a50b287164586004550c26995fb33510 HEAD
+          echo "LAB_HEAD=$(git rev-parse HEAD)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Certify warning persistence, unlink and old snapshot purge
+        working-directory: frontend
+        run: >-
+          npx vitest run
+          src/services/zka/unlinkMobileDevice.test.ts
+          src/services/zka/MobileStorage.snapshot.test.ts
+          src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx
+          src/services/zka/MobileStorage.refreshFence.test.ts
+          --reporter=verbose
+      - name: Compile production Pocket without deploying
+        working-directory: frontend
+        run: npm run build
