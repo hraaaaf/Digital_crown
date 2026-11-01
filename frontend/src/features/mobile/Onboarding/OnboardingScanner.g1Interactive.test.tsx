@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { OnboardingScanner, resolveBridgeRoute } from './OnboardingScanner';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
+import { markUnconfirmedMobileRevocation, hasUnconfirmedMobileRevocation } from '../../../services/zka/mobileRevocationFollowUp';
 import { deriveMasterKey, generateClientKeyPair, hasPlaintextMasterKey } from '../../../services/zka/ecdhPairing';
 
 vi.mock('html5-qrcode', () => ({
@@ -84,6 +85,19 @@ afterEach(() => {
 });
 
 describe('OnboardingScanner G1 interactive matrix', () => {
+  it('keeps the unconfirmed remote-revocation alert across PWA reload until cabinet confirmation', () => {
+    markUnconfirmedMobileRevocation();
+    const page = renderScanner('/mobile/onboarding');
+    expect(screen.getByRole('alert').textContent).toContain('La révocation auprès de l’ancien cabinet n’a pas pu être confirmée');
+    page.unmount(); // installed PWA closes and later reopens with no URL query parameter
+    renderScanner('/mobile/onboarding');
+    expect(screen.getByRole('alert').textContent).toContain('La révocation auprès de l’ancien cabinet n’a pas pu être confirmée');
+    expect(hasUnconfirmedMobileRevocation()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'J’ai obtenu la confirmation de révocation du cabinet' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(hasUnconfirmedMobileRevocation()).toBe(false);
+  });
+
   it('blocks iOS Safari pairing before Home Screen install without consuming the one-time QR', async () => {
     pwaRuntime.isIOS = true;
     pwaRuntime.isInstalled = false;
