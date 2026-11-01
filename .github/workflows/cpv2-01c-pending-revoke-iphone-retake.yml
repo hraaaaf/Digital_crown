@@ -1,0 +1,115 @@
+name: CPV2-01C pending-revocation iPhone retest (EPHEMERAL NO CABINET)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01c-pending-revoke-iphone-retake-20261101
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-pending-notice-retake-lab
+  cancel-in-progress: true
+
+jobs:
+  phone-fue:
+    name: 27-minute disposable mobile test link and six-digit code
+    runs-on: ubuntu-latest
+    timeout-minutes: 36
+    env:
+      NODE_ENV: development
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Confirm exact approved Pocket source and synthetic-only files
+        run: |
+          git merge-base --is-ancestor a637ab74469d2bb4e0d7015b4b155703be986892 HEAD
+          echo "PRODUCT_SHA=a637ab74469d2bb4e0d7015b4b155703be986892"
+          echo "NO_PRODUCTION_CABINET_OR_DB=true"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Boot synthetic HTTPS gateway (no real patient or cabinet)
+        run: |
+          node frontend/scripts/cpv2-01c-phone-fue-lab-server.mjs >/tmp/cpv2-phone-lab.log 2>&1 &
+          for i in {1..30}; do
+            curl -fsS http://127.0.0.1:5173/health && break
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5173/health
+          curl -fsSL --retry 3 https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-amd64 -o /tmp/cloudflared
+          chmod +x /tmp/cloudflared
+          /tmp/cloudflared --version
+          /tmp/cloudflared tunnel --no-autoupdate --url http://127.0.0.1:5173 >/tmp/cpv2-tunnel.log 2>&1 &
+          for i in {1..100}; do
+            grep -Eo 'https://[a-zA-Z0-9-]+\.trycloudflare\.com' /tmp/cpv2-tunnel.log | head -n1 >/tmp/cpv2-public-url.txt || true
+            if test -s /tmp/cpv2-public-url.txt; then break; fi
+            sleep 2
+          done
+          if ! test -s /tmp/cpv2-public-url.txt; then cat /tmp/cpv2-tunnel.log; exit 1; fi
+          export FUE_PUBLIC_URL="$(cat /tmp/cpv2-public-url.txt)"
+          echo "FUE_HTTPS_URL=$FUE_PUBLIC_URL"
+          echo "FUE_HTTPS_URL=$FUE_PUBLIC_URL" >> "$GITHUB_ENV"
+          echo "FUE_MANUAL_CODE=$(cat /tmp/cpv2-fue-code.txt)"
+          {
+            echo "### Pocket phone FUE — synthetic-only lab"
+            echo ""
+            echo "LINK: ${FUE_PUBLIC_URL}/mobile/onboarding"
+            echo ""
+            echo "CURRENT CODE / REGENERATE: ${FUE_PUBLIC_URL}/lab/pair"
+            echo ""
+            echo "This is NOT cabinet or real on-premise certification. Fake patients only. Expires in ~27 minutes."
+          } >> "$GITHUB_STEP_SUMMARY"
+      - name: Build actual approved Pocket frontend for the public HTTPS origin
+        working-directory: frontend
+        run: |
+          VITE_API_URL="$FUE_HTTPS_URL" npm run build
+          test -f dist/index.html
+      - name: Exercise real ECDH + encrypted rights + revoke and renew code
+        run: node frontend/scripts/cpv2-01c-phone-fue-contract-check.mjs
+      - name: Prove public HTTPS host and claim flow endpoints reachable
+        run: |
+          for i in {1..30}; do
+            if curl -fsS "$FUE_HTTPS_URL/health" | grep -q '"ok":true'; then break; fi
+            sleep 2
+          done
+          curl -fsS "$FUE_HTTPS_URL/health"
+          curl -fsS "$FUE_HTTPS_URL/mobile/onboarding" | grep -q 'html'
+          curl -fsS "$FUE_HTTPS_URL/lab/pair" | grep -q 'Code à 6 chiffres'
+          echo "CPV2_PHONE_FUE_READY=$FUE_HTTPS_URL/mobile/onboarding"
+          echo "CPV2_PHONE_FUE_CODE=$(cat /tmp/cpv2-fue-code.txt)"
+      - name: Publish the live synthetic link and pairing code for FUE
+        run: |
+          mkdir -p artifacts/cpv2-phone-fue-live
+          {
+            echo "URL=$FUE_HTTPS_URL/mobile/onboarding"
+            echo "CODE=$(cat /tmp/cpv2-fue-code.txt)"
+            echo "CODE_RENEWAL=$FUE_HTTPS_URL/lab/pair"
+            echo "SCOPE=synthetic-only-not-real-cabinet"
+            echo "PRODUCT_SHA=a637ab74469d2bb4e0d7015b4b155703be986892"
+          } > artifacts/cpv2-phone-fue-live/session.txt
+      - name: Upload live URL and code (synthetic only)
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpv2-phone-fue-live-session
+          path: artifacts/cpv2-phone-fue-live/session.txt
+          retention-days: 1
+      - name: Keep ephemeral synthetic server reachable for phone testing
+        run: |
+          echo "READY_TO_TEST: $FUE_HTTPS_URL/mobile/onboarding"
+          echo "CODE_PAGE: $FUE_HTTPS_URL/lab/pair"
+          for i in {1..75}; do
+            if ! curl -fsS http://127.0.0.1:5173/health >/dev/null; then
+              echo "Synthetic lab ended early"
+              exit 1
+            fi
+            sleep 20
+          done
+          echo "Phone test session completed. Runner ends now."
