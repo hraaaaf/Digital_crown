@@ -260,8 +260,10 @@ internal static class Program
                     var response = ReadVerifiedUnassignedCount();
                     _ = WriteFile(pipe, response, 2, out _, IntPtr.Zero);
                 }
-                else if (readOk && received == 1)
+                else if (readOk && received == 1 && buffer[0] != (byte)'R')
                 {
+                    // Preserve the pre-B03 one-way 'R' probe: it closes its
+                    // handle after sending and MUST NOT receive a reply.
                     var denied = new byte[] { (byte)'E', (byte)'?' };
                     _ = WriteFile(pipe, denied, 2, out _, IntPtr.Zero);
                 }
