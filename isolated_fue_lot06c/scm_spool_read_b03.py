@@ -56,10 +56,13 @@ def run(argv: list[str]) -> int:
         # Fixed two-byte ASCII response, no patient/filename/digest/media.
         os.write(1, b"S" + str(len(captures)).encode("ascii"))
         return 0
-    except BaseException:
-        # Never print or leak paths, keys, source bytes or stack traces to IPC.
-        if mode == "read":
-            os.write(1, b"E?")
+    except OSError:
+        # B03 disposable LAB: only error CLASS on authorized local pipe,
+        # never paths, exception text, ciphertext or PHI.
+        if mode == "read": os.write(1, b"E1")
+        return 5
+    except Exception:
+        if mode == "read": os.write(1, b"E2")
         return 5
 
 if __name__ == "__main__":

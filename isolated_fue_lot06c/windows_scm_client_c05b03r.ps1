@@ -113,7 +113,22 @@ public static class DC06RClient {
     if ($ExpectedOpen -ne 0) { throw 'DC06B03_UNAUTHORIZED_STATUS_PROBE' }
     $actual=[DC06RClient]::B03Status($PipeName)
     $expected=if ($B03Status -eq 'Valid') { 'S1' } else { 'E?' }
-    if ($actual -ne $expected) { throw ('DC06B03_EXPECT_' + $expected + '_GOT_' + $actual) }
+    if ($actual -ne $expected -and -not ($B03Status -ne 'Valid' -and $actual -match '^E[1-5]
+    Write-Output ('DC06B03_NATIVE_REAL_AES_SPOOL_' + $B03Status.ToUpperInvariant() + '_RETURN_' + $expected + '_PASS')
+  }
+  if ($ExpectedOpen -eq 0) {
+    Write-Output 'C05B03R_ALLOWED_USER_READ_WRITE_ALLOWED_INSTANCE_CREATION_DENIED'
+  } else {
+    Write-Output 'C05B03R_UNAUTHORIZED_SECOND_USER_OPEN_AND_INSTANCE_DENIED'
+  }
+  exit 0
+} catch {
+  Write-Error ('C05B03R_CHILD_FAIL: ' + $_.Exception.Message)
+  exit 44
+}
+)) {
+        throw ('DC06B03_EXPECT_' + $expected + '_GOT_' + $actual)
+    }
     Write-Output ('DC06B03_NATIVE_REAL_AES_SPOOL_' + $B03Status.ToUpperInvariant() + '_RETURN_' + $expected + '_PASS')
   }
   if ($ExpectedOpen -eq 0) {

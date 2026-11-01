@@ -221,20 +221,27 @@ internal static class Program
             }) start.ArgumentList.Add(arg);
             start.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
             using var child = Process.Start(start);
-            if (child is null) return new byte[] { (byte)'E', (byte)'?' };
+            if (child is null) return new byte[] { (byte)'E', (byte)'5' };
             if (!child.WaitForExit(8000))
             {
                 child.Kill(entireProcessTree: true);
-                return new byte[] { (byte)'E', (byte)'?' };
+                return new byte[] { (byte)'E', (byte)'4' };
             }
             var result = child.StandardOutput.ReadToEnd();
-            // Only 0..9 are allowed: no unbounded or PHI-bearing response.
-            if (child.ExitCode != 0 || result.Length != 2 ||
-                result[0] != 'S' || result[1] < '0' || result[1] > '9')
-                return new byte[] { (byte)'E', (byte)'?' };
+            // LAB-only no-PHI classification of access/integrity/launch failures.
+            if (child.ExitCode != 0)
+            {
+                if (result.Length == 2 && result[0] == 'E' &&
+                    (result[1] == '1' || result[1] == '2'))
+                    return new byte[] { (byte)'E', (byte)result[1] };
+                return new byte[] { (byte)'E', (byte)'3' };
+            }
+            if (result.Length != 2 || result[0] != 'S' ||
+                result[1] < '0' || result[1] > '9')
+                return new byte[] { (byte)'E', (byte)'3' };
             return new byte[] { (byte)'S', (byte)result[1] };
         }
-        catch { return new byte[] { (byte)'E', (byte)'?' }; }
+        catch { return new byte[] { (byte)'E', (byte)'5' }; }
     }
 
     static void Serve()
