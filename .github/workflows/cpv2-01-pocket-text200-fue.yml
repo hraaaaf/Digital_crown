@@ -24,7 +24,7 @@ jobs:
       matrix:
         engine: [chromium, webkit]
     env:
-      PR_HEAD_SHA: 3c64ec45e986838e2246f1366700d3c82658e3c4
+      PR_HEAD_SHA: 7e8eea34b15c9c33f58994d955c7ee8de6030b73
       MOBILE_RUNTIME_URL: http://127.0.0.1:5173
       MOBILE_RUNTIME_DIR: ../artifacts/pocket-text200
       MOBILE_RUNTIME_ENGINE: ${{ matrix.engine }}
@@ -86,7 +86,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: pocket-text200-${{ matrix.engine }}-3c64ec45
+          name: pocket-text200-${{ matrix.engine }}-7e8eea34
           path: artifacts/pocket-text200/
           if-no-files-found: warn
           retention-days: 30
