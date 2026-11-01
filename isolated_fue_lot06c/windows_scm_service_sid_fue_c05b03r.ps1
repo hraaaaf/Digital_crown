@@ -53,8 +53,11 @@ function Invoke-Child([string]$Username, [string]$Password,
         ' -ExpectedCreateInstance ' + $ExpectedCreate
     $child=$null
     try {
+        $errFile=Join-Path $root ('child-' + $Username + '-stderr.txt')
+        $outFile=Join-Path $root ('child-' + $Username + '-stdout.txt')
         $launch=@{ FilePath=$exe; ArgumentList=$arguments; Credential=$cred;
-                   PassThru=$true; ErrorAction='Stop' }
+                   PassThru=$true; ErrorAction='Stop';
+                   RedirectStandardError=$errFile; RedirectStandardOutput=$outFile }
         $child=Start-Process @launch
         if ($null -eq $child -or $child.Id -eq $PID) {
             throw 'C05B03R_CHILD_NOT_REAL_PROCESS'
@@ -64,7 +67,13 @@ function Invoke-Child([string]$Username, [string]$Password,
             throw 'C05B03R_CHILD_15S_TIMEOUT'
         }
         if ($child.ExitCode -ne 0) {
-            throw ('C05B03R_CHILD_OS_PROBE_FAILED_' + $child.ExitCode)
+            $diagnostic=''
+            if (Test-Path -LiteralPath $errFile) {
+                $diagnostic=((Get-Content -LiteralPath $errFile -Raw) -replace '[\r\n]+',' ')
+            }
+            if ($diagnostic.Length -gt 600) { $diagnostic=$diagnostic.Substring(0,600) }
+            throw ('C05B03R_CHILD_OS_PROBE_FAILED_' + $child.ExitCode +
+                '_CHILD_STDERR_' + $diagnostic)
         }
     }
     finally {
