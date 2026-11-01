@@ -27,6 +27,8 @@ export function MobileBottomNav({
 }) {
   const [moreOpen, setMoreOpen] = useState(false);
   const moreDialogRef = useRef<HTMLElement | null>(null);
+  const navRef = useRef<HTMLElement | null>(null);
+  const [navScrollable, setNavScrollable] = useState(false);
   const moreTriggerRef = useRef<HTMLButtonElement | null>(null);
   const role = snapshot?.role ?? '';
   const waitingCount = snapshot?.appointments.filter(appointment => appointment.status === 'EN_ATTENTE').length ?? 0;
@@ -111,6 +113,19 @@ export function MobileBottomNav({
     };
   }, [moreOpen]);
 
+  // The five targets become wider at text 200%; keep swipe/keyboard navigation
+  // and expose a visible affordance only when a real horizontal scroll exists.
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return;
+    const update = () => setNavScrollable(nav.scrollWidth > nav.clientWidth + 2);
+    update();
+    const observer = new ResizeObserver(update);
+    observer.observe(nav);
+    if (nav.firstElementChild) observer.observe(nav.firstElementChild);
+    return () => observer.disconnect();
+  }, []);
+
   const selectTab = (tab: Tab) => {
     if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(35);
     setMoreOpen(false);
@@ -187,6 +202,7 @@ export function MobileBottomNav({
       )}
 
       <nav
+        ref={navRef}
         data-mobile-bottom-nav
         data-pocket-glass-nav
         inert={moreOpen}
@@ -200,6 +216,11 @@ export function MobileBottomNav({
           bottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
       >
+        {navScrollable && (
+          <span data-pocket-nav-scroll-hint aria-hidden="true" className="pointer-events-none absolute left-2 top-1 z-20 rounded-full bg-card/90 px-2 text-[0.625rem] font-semibold text-text-muted">
+            ⇆ Balayer pour voir les 5 onglets
+          </span>
+        )}
         <div className="relative grid h-full grid-flow-col items-center px-1.5"
           style={{ gridAutoColumns: 'max(4rem, calc((100% - 12px) / 5))' }}>
           <span
