@@ -101,6 +101,27 @@ function encryptPairing(clientPubHex) {
     encrypted_master_key_hex: Buffer.concat([iv,enc]).toString('hex'),
   };
 }
+/**
+ * Mirror the REAL Pocket read-capabilities wire contract:
+ * base64(IV 12 bytes + AES-256-GCM ciphertext + tag 16 bytes).
+ * This is synthetic data encrypted with the synthetic pairing master key.
+ */
+function encryptReadCapabilities() {
+  const rights = {
+    version: 1,
+    principal_kind: 'staff',
+    capabilities: {
+      'agenda.read': { allowed:true, scope:'cabinet', reason:null },
+      'cabinet.patients.read': { allowed:true, scope:'cabinet', reason:null },
+      'cabinet.clinical.read': { allowed:true, scope:'cabinet', reason:null },
+      'cabinet.finance.read': { allowed:true, scope:'cabinet', reason:null },
+    },
+  };
+  const iv = randomBytes(12);
+  const cipher = createCipheriv('aes-256-gcm',Buffer.from(masterKey,'hex'),iv);
+  const encrypted = Buffer.concat([cipher.update(JSON.stringify(rights),'utf8'),cipher.final()]);
+  return Buffer.concat([iv,encrypted,cipher.getAuthTag()]).toString('base64');
+}
 function snapshot(url) {
   const day = url.searchParams.get('target_date') || new Date().toISOString().slice(0,10);
   return {
@@ -180,12 +201,7 @@ const s=http.createServer(async(req,res)=>{
         {id:11,name:'Patient TEST 01',phone:null},{id:12,name:'Patient TEST 02',phone:null}]});
       if(url.pathname==='/api/mobile/passkey/status')return send(res,200,{
         state:'disabled',credential_id:null,rp_id:'lab.invalid',expected_origin:'',origin_ready:false,user_verification:'required',server_gate:false});
-      if(url.pathname==='/api/mobile/capabilities')return send(res,200,{
-        version:1,principal_kind:'staff',capabilities:{
-          'agenda.read':{allowed:true,scope:'cabinet',reason:null},
-          'cabinet.patients.read':{allowed:true,scope:'cabinet',reason:null},
-          'cabinet.clinical.read':{allowed:true,scope:'cabinet',reason:null},
-          'cabinet.finance.read':{allowed:true,scope:'cabinet',reason:null}}});
+      if(url.pathname==='/api/mobile/capabilities')return send(res,200,{payload:encryptReadCapabilities()});
       if(url.pathname==='/api/mobile/quick-actions/capabilities')return send(res,200,{
         can_create_appointment:false,can_create_patient:false,can_open_clinical_context:false,can_pay:false});
       if(url.pathname==='/api/clinics/mobile-theme')return send(res,200,{
