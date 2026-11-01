@@ -102,19 +102,19 @@ try {
     if (-not (Test-Path -LiteralPath $dll)) { throw 'C05B03R_NO_SERVICE_DLL' }
     $binPath='"' + $dotnet + '" "' + $dll + '" --service ' + $serviceName
     # Service SID is derived by SCM from the service name; query before binding.
-    $create=Invoke-ScChecked @('create',$serviceName,'type=','own','start=','demand',
+    $create=Invoke-ScChecked -Params @('create',$serviceName,'type=','own','start=','demand',
                                 'obj=','NT AUTHORITY\LocalService','binPath=',$binPath)
     $createdService=$true
-    $null=Invoke-ScChecked @('sidtype',$serviceName,'restricted')
-    $configuredSid=Invoke-ScChecked @('qsidtype',$serviceName)
+    $null=Invoke-ScChecked -Params @('sidtype',$serviceName,'restricted')
+    $configuredSid=Invoke-ScChecked -Params @('qsidtype',$serviceName)
     if ($configuredSid -notmatch 'RESTRICTED') { throw 'C05B03R_NOT_RESTRICTED_SID_TYPE' }
-    $sids=Invoke-ScChecked @('showsid',$serviceName)
+    $sids=Invoke-ScChecked -Params @('showsid',$serviceName)
     $found=[regex]::Match($sids,'S-1-5-80-(?:[0-9]+-){4}[0-9]+')
     if (-not $found.Success) { throw 'C05B03R_CANNOT_GET_WINDOWS_SERVICE_SID' }
     $serviceSid=$found.Value
     $binPath += ' "' + $pipeName + '" ' + $serviceSid + ' ' + $allowedSid
-    $null=Invoke-ScChecked @('config',$serviceName,'binPath=',$binPath)
-    $null=Invoke-ScChecked @('start',$serviceName)
+    $null=Invoke-ScChecked -Params @('config',$serviceName,'binPath=',$binPath)
+    $null=Invoke-ScChecked -Params @('start',$serviceName)
     Wait-ServiceState $serviceName 'RUNNING' 20
     Write-Output 'C05B03R_REAL_SCM_LOCAL_SERVICE_RESTRICTED_SERVICE_SID_AND_PIPE_RUNNING_PASS'
 
