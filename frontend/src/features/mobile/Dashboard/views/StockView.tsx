@@ -45,6 +45,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
   const [mutatingId, setMutatingId] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [canWrite, setCanWrite] = useState(false);
   const [form, setForm] = useState({
     nom: '',
     categorie: 'CONSOMMABLE',
@@ -60,10 +61,17 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
       return;
     }
     setLoading(true);
+    setCanWrite(false);
     setError(null);
     try {
       const data = await mobileApiJson<MobileStockItem[]>('/stock/items');
       setItems(Array.isArray(data) ? data : []);
+      try {
+        const access = await mobileApiJson<{ can_write: boolean }>('/stock/access');
+        setCanWrite(access?.can_write === true);
+      } catch {
+        setCanWrite(false);
+      }
     } catch (err: any) {
       setError(err?.message || 'Impossible de charger le stock.');
     } finally {
@@ -90,7 +98,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
   }, [items, filter, search]);
 
   const adjust = async (item: MobileStockItem, delta: number) => {
-    if (previewData || !isOnline) return;
+    if (previewData || !isOnline || !canWrite) return;
     const next = Math.max(0, Number(item.quantite) + delta);
     if (next === item.quantite) return;
     setMutatingId(item.id);
@@ -111,7 +119,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
 
   const addItem = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (previewData || !form.nom.trim()) return;
+    if (previewData || !canWrite || !form.nom.trim()) return;
     setSaving(true);
     setError(null);
     try {
@@ -158,7 +166,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
             type="button"
             aria-label="Ajouter un article"
             onClick={() => setAddOpen(true)}
-            disabled={Boolean(previewData)}
+            disabled={Boolean(previewData) || !canWrite || !isOnline}
             className="grid min-h-11 min-w-11 place-items-center rounded-full bg-primary text-on-primary disabled:opacity-50"
           >
             <Plus size={20} />
@@ -167,6 +175,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
       </div>
 
       {quickMode && <p className="mb-3 rounded-[16px] border border-glass-border bg-card px-4 py-3 text-[11px] font-semibold text-text-muted">Mouvements rapides uniquement. La création et la configuration des articles restent sur le poste de travail.</p>}
+      {!previewData && !canWrite && <p role="status" className="mb-3 rounded-[16px] border border-border-main bg-card px-4 py-3 text-[11px] font-semibold text-text-muted">Consultation uniquement : les mouvements de stock nécessitent l'autorisation dédiée du cabinet.</p>}
       {!isOnline && <p role="status" className="mb-3 rounded-[16px] border border-warning-border bg-warning-surface px-4 py-3 text-[11px] font-bold text-warning">Stock en consultation hors ligne ; ajustements désactivés.</p>}
       <div className="mb-4 grid grid-cols-3 gap-2" aria-label="Résumé du stock">
         {[
@@ -241,7 +250,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
                 <button
                   type="button"
                   aria-label={`Retirer une ${item.unite} de ${item.nom}`}
-                  disabled={busy || Boolean(previewData) || !isOnline || item.quantite <= 0}
+                  disabled={busy || Boolean(previewData) || !canWrite || !isOnline || item.quantite <= 0}
                   onClick={() => void adjust(item, -1)}
                   className="grid min-h-11 place-items-center rounded-[16px] border border-glass-border bg-background text-text-main disabled:opacity-35"
                 >
@@ -254,7 +263,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
                 <button
                   type="button"
                   aria-label={`Ajouter une ${item.unite} à ${item.nom}`}
-                  disabled={busy || Boolean(previewData) || !isOnline}
+                  disabled={busy || Boolean(previewData) || !canWrite || !isOnline}
                   onClick={() => void adjust(item, 1)}
                   className="grid min-h-11 place-items-center rounded-[16px] bg-primary text-on-primary disabled:opacity-35"
                 >
@@ -287,7 +296,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
                 <input aria-label="Seuil d'alerte" type="number" min="0" step="0.5" value={form.seuil_alerte} onChange={event => setForm(current => ({ ...current, seuil_alerte: event.target.value }))} placeholder="Seuil" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[12px] font-bold text-text-main outline-none" />
                 <input aria-label="Unité" value={form.unite} onChange={event => setForm(current => ({ ...current, unite: event.target.value }))} placeholder="Unité" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[12px] font-bold text-text-main outline-none" />
               </div>
-              <button type="submit" disabled={saving || !form.nom.trim()} className="min-h-11 rounded-[16px] bg-primary px-4 text-[12px] font-semibold text-on-primary disabled:opacity-50">{saving ? 'Ajout…' : 'Ajouter'}</button>
+              <button type="submit" disabled={saving || !canWrite || !form.nom.trim()} className="min-h-11 rounded-[16px] bg-primary px-4 text-[12px] font-semibold text-on-primary disabled:opacity-50">{saving ? 'Ajout…' : 'Ajouter'}</button>
             </form>
           </section>
         </div>

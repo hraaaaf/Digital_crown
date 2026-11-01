@@ -554,6 +554,14 @@ def _require_mobile_roles(user: models.User, allowed: set[str]) -> None:
         raise HTTPException(status_code=403, detail="Accès mobile refusé pour ce rôle.")
 
 
+@router.get('/stock/access', summary='Stock Pocket — autorisations de mutation')
+def mobile_stock_access(
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    # Server is authoritative; do not infer write grants from the patients module.
+    return {"can_write": has_permission(mobile_user, "stock_write")}
+
+
 @router.get('/stock/items', summary='Stock Pocket — liste')
 def mobile_stock_items(
     db: Session = Depends(database.get_db),
@@ -567,7 +575,7 @@ def mobile_stock_items(
 def mobile_create_stock_item(
     payload: dict,
     db: Session = Depends(database.get_db),
-    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("stock_write")),
 ):
     from backend.routers import stock as _stock
     return _stock.create_stock_item(_stock.StockItemCreate(**payload), db, mobile_user)
@@ -578,7 +586,7 @@ def mobile_update_stock_item(
     item_id: int,
     payload: dict,
     db: Session = Depends(database.get_db),
-    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("stock_write")),
 ):
     from backend.routers import stock as _stock
     return _stock.update_stock_item(item_id, payload, db, mobile_user)

@@ -52,7 +52,7 @@ def test_stock_is_tenant_scoped_and_subaccount_uses_employer_cabinet(client, db)
         db,
         "stock-assistant-a@test.ma",
         role="SECRETAIRE",
-        permissions={"patients": True},
+        permissions={"patients": True, "stock_write": True},
         employer_id=owner_a.id,
     )
 
@@ -92,3 +92,20 @@ def test_stock_respects_explicit_patients_permission_denial(client, db):
 
     response = client.get("/api/stock/items", headers=_headers(client, denied))
     assert response.status_code == 403
+
+
+def test_stock_write_refuses_patients_only_and_accepts_dedicated_grant(client, db):
+    owner = _make_user(db, "stock-cpv2-owner@example.test")
+    assistant = _make_user(
+        db, "stock-cpv2-assistant@example.test",
+        role="SECRETAIRE", employer_id=owner.id,
+        permissions={"patients": True},
+    )
+    headers = _headers(client, assistant)
+    payload = {"nom": "Synthetic", "categorie": "CONSOMMABLE", "quantite": 1}
+    assert client.get("/api/stock/items", headers=headers).status_code == 200
+    assert client.post("/api/stock/items", headers=headers, json=payload).status_code == 403
+
+    assistant.permissions = {"patients": True, "stock_write": True}
+    db.commit()
+    assert client.post("/api/stock/items", headers=headers, json=payload).status_code == 201
