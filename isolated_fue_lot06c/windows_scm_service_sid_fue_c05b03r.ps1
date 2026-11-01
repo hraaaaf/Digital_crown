@@ -135,18 +135,18 @@ try {
         $keyBytes=New-Object byte[] 32
         [System.Security.Cryptography.RandomNumberGenerator]::Fill($keyBytes)
         [System.IO.File]::WriteAllBytes($keyPath,$keyBytes)
-        $env:PYTHONDONTWRITEBYTECODE='1'
-        & $python -I $reader seed $watch $private $keyPath DC06B03_SYNTHETIC_ONLY
-        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SYNTHETIC_REAL_SPOOL_SEED_FAILED' }
-        # A restricted service token needs both LocalService AND service SID
-        # plus BUILTIN Administrators solely for fixture cleanup/tamper FUE.
-        # permissions. Parent ephemeral CI account must not be given secrets.
+        # Apply ACL BEFORE staging any ciphertext or SQLite file; every
+        # created child inherits the service and CI-admin DACL atomically.
+        # Only synthetic fixture; CABINET secrets must use hardware TPM.
         foreach ($target in @($watch,$private)) {
-            & icacls.exe $target /inheritance:r /grant:r ('*S-1-5-19:(OI)(CI)M') ('*' + $serviceSid + ':(OI)(CI)M') '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
+            & icacls.exe $target /inheritance:r /grant:r ('*S-1-5-19:(OI)(CI)M') ('*' + $serviceSid + ':(OI)(CI)M') '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null
             if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SPOOL_DIRECTORY_ACL_FAILED' }
         }
         & icacls.exe $keyPath /inheritance:r /grant:r '*S-1-5-19:R' ('*' + $serviceSid + ':R') '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
         if ($LASTEXITCODE -ne 0) { throw 'DC06B03_KEY_FILE_ACL_FAILED' }
+        $env:PYTHONDONTWRITEBYTECODE='1'
+        & $python -I $reader seed $watch $private $keyPath DC06B03_SYNTHETIC_ONLY
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SYNTHETIC_REAL_SPOOL_SEED_FAILED' }
         $binPath += ' --b03-spool "' + $python + '" "' + $reader + '" "' +
             $watch + '" "' + $private + '" "' + $keyPath + '"'
     }
@@ -193,6 +193,10 @@ finally {
         Remove-LocalUser -Name $user -ErrorAction Stop
     }
     if ($createdDir) {
+        # After stopping the disposable service, CI administrator is the
+        # cleanup authority. No synthetic key/files may survive the job.
+        & icacls.exe $root /grant '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_TEST_CLEANUP_ACL_FAILED' }
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
     }
     $newPasswordA=$null
