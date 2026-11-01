@@ -10,6 +10,10 @@ if (-not $IsWindows -or $env:ENVIRONMENT -ne 'test' -or
     $env:RUNNER_OS -ne 'Windows') {
     throw 'C05B03R_HOSTED_WINDOWS_LAB_ONLY'
 }
+if ($env:DC06B04_RESTART_KEY_TEST -eq '1' -and
+    $env:DC06B03_SERVICE_SPOOL -ne '1') {
+    throw 'DC06B04_REQUIRES_B03_REAL_SERVICE_SPOOL'
+}
 $guid=[Guid]::NewGuid().ToString('N')
 $serviceName='DC06R' + $guid.Substring(0,11)
 $allowedUser='dc06ra' + $guid.Substring(0,8)
@@ -191,6 +195,41 @@ try {
     if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
         Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
         Write-Output 'DC06B03_SCM_LOCAL_SERVICE_REALLY_READ_ENCRYPTED_SPOOL_PASS'
+        if ($env:DC06B04_RESTART_KEY_TEST -eq '1') {
+            # B04 synthetic-only: restart the real SCM service without reseed,
+            # database reset, ciphertext rewrite or new service identity.
+            $originalCipher=@(Get-ChildItem -LiteralPath (Join-Path $private 'spool') -File -Filter '*.dc6')
+            if ($originalCipher.Count -ne 1) { throw 'DC06B04_EXPECT_ONE_CIPHER_BEFORE_RESTART' }
+            $cipherHashBefore=(Get-FileHash -LiteralPath $originalCipher[0].FullName -Algorithm SHA256).Hash
+            $null=Invoke-ScChecked -Params @('stop',$serviceName)
+            Wait-ServiceState $serviceName 'STOPPED' 15
+            Write-Output 'DC06B04_REAL_SCM_STOP_CONFIRMED_PASS'
+            $null=Invoke-ScChecked -Params @('start',$serviceName)
+            Wait-ServiceState $serviceName 'RUNNING' 20
+            Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
+            $cipherHashAfter=(Get-FileHash -LiteralPath $originalCipher[0].FullName -Algorithm SHA256).Hash
+            if ($cipherHashBefore -ne $cipherHashAfter) {
+                throw 'DC06B04_CIPHERTEXT_CHANGED_DURING_SCM_RESTART'
+            }
+            Write-Output 'DC06B04_RESTART_SAME_CIPHERTEXT_S1_PASS'
+
+            # A different 256-bit synthetic key must be rejected at the AES-GCM
+            # authentication stage, not confused with S0 (empty queue).
+            # Original key is held in memory for this one-shot CI fixture.
+            $badKey=[byte[]]$keyBytes.Clone()
+            $badKey[0] = $badKey[0] -bxor 1
+            try {
+                [System.IO.File]::WriteAllBytes($keyPath,$badKey)
+                Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status WrongKey
+                Write-Output 'DC06B04_WRONG_KEY_AES_AUTH_FAIL_CLOSED_PASS'
+            }
+            finally {
+                [System.IO.File]::WriteAllBytes($keyPath,$keyBytes)
+                [Array]::Clear($badKey,0,$badKey.Length)
+            }
+            Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
+            Write-Output 'DC06B04_KEY_RESTORE_SAME_SPOOL_S1_PASS'
+        }
         # ciphertext integrity must be checked fresh from disk under the service
         $cipher=Get-ChildItem -LiteralPath (Join-Path $private 'spool') -Filter '*.dc6' |
             Select-Object -First 1

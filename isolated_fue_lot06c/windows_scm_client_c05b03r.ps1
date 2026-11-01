@@ -113,9 +113,10 @@ public static class DC06RClient {
   if ($B03Status -ne 'None') {
     if ($ExpectedOpen -ne 0) { throw 'DC06B03_UNAUTHORIZED_STATUS_PROBE' }
     $actual = [DC06RClient]::B03Status($PipeName)
-    $expected = if ($B03Status -eq 'Valid') { 'S1' } else { 'E?' }
-    $validError = ($B03Status -ne 'Valid' -and
-                   $actual.Length -eq 2 -and $actual.StartsWith('E'))
+    # Wrong-key and tampered ciphertext MUST reach the authentication
+    # failure E2, not an unrelated ACL/transport fault (E1/E3/E4/E5).
+    $expected = if ($B03Status -eq 'Valid') { 'S1' } else { 'E2' }
+    $validError = $false
     if ($actual -ne $expected -and -not $validError) {
         throw ('DC06B03_EXPECT_' + $expected + '_GOT_' + $actual)
     }

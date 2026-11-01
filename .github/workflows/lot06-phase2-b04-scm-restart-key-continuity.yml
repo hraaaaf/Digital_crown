@@ -1,0 +1,50 @@
+name: LOT06 B04 Windows SCM restart and AES wrong-key continuity LAB FUE
+on:
+  push:
+    branches: [test/lot06-phase2-b04-scm-restart-key-continuity-20261101]
+    paths:
+      - .github/workflows/lot06-phase2-b04-scm-restart-key-continuity.yml
+      - isolated_fue_lot06c/windows_scm_service_sid_fue_c05b03r.ps1
+      - isolated_fue_lot06c/windows_scm_client_c05b03r.ps1
+      - docs/lot06/LOT06-PHASE2-B04-SCM-RESTART-KEY-CONTINUITY-20261101.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+concurrency:
+  group: lot06-b04-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-scm-restart-wrong-key-synthetic-only:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03R_TEST_ONLY: '1'
+      DC06B02_PROBE: '1'
+      DC06B03_SERVICE_SPOOL: '1'
+      DC06B04_RESTART_KEY_TEST: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install synthetic AES-GCM verification only
+        shell: pwsh
+        run: python -m pip install cryptography==46.0.3
+      - name: Exact SHA real SCM stop restart S1 wrong key E2 restore S1 tamper E2 and cross account denial
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06B04_EXACT_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_scm_service_sid_fue_c05b03r.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Explicit non-clinical boundary
+        shell: pwsh
+        run: |
+          if (-not (Select-String -Path docs/lot06/LOT06-PHASE2-B04-SCM-RESTART-KEY-CONTINUITY-20261101.md -Pattern 'CLINICAL_GO=false' -Quiet)) { throw 'DC06B04_CLINICAL_GATE_MISSING' }
+          if ($env:ENVIRONMENT -ne 'test' -or $env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true') { throw 'DC06B04_NOT_ISOLATED' }
+          Write-Output 'DC06B04_HOSTED_WINDOWS_SYNTHETIC_ONLY_NO_PRODUCT_INSTALL_PASS'
