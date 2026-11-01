@@ -78,6 +78,67 @@ def revoke_mobile_access(
     }
 
 
+@router.get("/mobile-devices")
+def list_cabinet_mobile_devices(
+    db=Depends(_legacy.database.get_db),
+    current_user=Depends(_legacy.require_permission("admin")),
+):
+    """Only this cabinet's paired phones; no token, public key, patient or PHI."""
+    tenant_id = current_user.get_employer_id()
+    records = db.query(_legacy.models.MobilePairedDevice).filter(
+        _legacy.models.MobilePairedDevice.employer_id == tenant_id,
+    ).order_by(_legacy.models.MobilePairedDevice.created_at.desc()).limit(200).all()
+    users = {
+        user.id: user.nom_complet or "Utilisateur"
+        for user in db.query(_legacy.models.User).filter(
+            _legacy.models.User.id.in_([item.user_id for item in records]),
+        ).all()
+    } if records else {}
+    return {"devices": [{
+        "device_id": device.device_id,
+        "user_name": users.get(device.user_id, "Utilisateur"),
+        "created_at": device.created_at.isoformat() if device.created_at else None,
+        "last_seen_at": device.last_seen_at.isoformat() if device.last_seen_at else None,
+        "revoked": device.revoked_at is not None,
+    } for device in records]}
+
+
+@router.post("/mobile-devices/{device_id}/revoke")
+def revoke_one_cabinet_mobile_device(
+    device_id: str,
+    db=Depends(_legacy.database.get_db),
+    current_user=Depends(_legacy.require_permission("admin")),
+):
+    """Recover an offline-unlinked phone without disconnecting other devices."""
+    tenant_id = current_user.get_employer_id()
+    device = db.query(_legacy.models.MobilePairedDevice).filter(
+        _legacy.models.MobilePairedDevice.employer_id == tenant_id,
+        _legacy.models.MobilePairedDevice.device_id == device_id,
+    ).first()
+    if device is None:
+        # Same response for nonexistent and other-tenant IDs.
+        raise HTTPException(status_code=404, detail="Appareil introuvable.")
+    if device.revoked_at is None:
+        from datetime import datetime
+        device.revoked_at = datetime.utcnow()
+        db.commit()  # invalidates access AND refresh through existing DB guards
+        try:
+            _legacy.audit_service.log(
+                db=db,
+                user_id=current_user.id,
+                employer_id=tenant_id,
+                action="MOBILE_DEVICE_REVOKED",
+                resource_type="MobilePairedDevice",
+                resource_id=None,
+                severity="WARNING",
+                details="Révocation administrative individuelle d'un appareil mobile.",
+            )
+        except Exception as exc:
+            db.rollback()
+            _legacy.logger.warning("Device revoked but audit failed: %s", type(exc).__name__)
+    return {"revoked": True}
+
+
 @router.get("/export-db")
 def export_database(
     db=Depends(_legacy.database.get_db),
