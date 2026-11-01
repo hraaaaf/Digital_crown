@@ -7,9 +7,11 @@ const storage = vi.hoisted(() => ({
 }));
 vi.mock('./MobileStorage', () => ({ MobileStorage: storage, resolveMobileApiBaseUrl: storage.resolveMobileApiBaseUrl }));
 import { unlinkCurrentMobileDevice } from './unlinkMobileDevice';
+import { hasUnconfirmedMobileRevocation, acknowledgeMobileRevocationFollowUp } from './mobileRevocationFollowUp';
 
 beforeEach(() => {
   vi.clearAllMocks();
+  localStorage.clear();
   storage.getCredentials.mockResolvedValue({
     publicId: '0123456789abcdef',
     access_token: 'disposable-token',
@@ -54,4 +56,32 @@ describe('explicit single-device unlink', () => {
     expect(await unlinkCurrentMobileDevice()).toBe(false);
     expect(storage.clearAll).toHaveBeenCalledOnce();
   });
+  it('persists an offline remote-revocation warning without storing clinical identifiers', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    vi.stubGlobal('fetch', vi.fn());
+    expect(await unlinkCurrentMobileDevice()).toBe(false);
+    expect(hasUnconfirmedMobileRevocation()).toBe(true);
+    expect(localStorage.length).toBe(1);
+    expect(localStorage.key(0)).toBe('dc_mobile_remote_revocation_unconfirmed_v1');
+    expect(localStorage.getItem('dc_mobile_remote_revocation_unconfirmed_v1')).toBe('1');
+  });
+
+  it('does not erase an older pending revoke after success revoking another pairing', async () => {
+    vi.stubGlobal('navigator', { onLine: false });
+    vi.stubGlobal('fetch', vi.fn());
+    expect(await unlinkCurrentMobileDevice()).toBe(false);
+    vi.stubGlobal('navigator', { onLine: true });
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }));
+    expect(await unlinkCurrentMobileDevice()).toBe(true);
+    expect(hasUnconfirmedMobileRevocation()).toBe(true);
+    acknowledgeMobileRevocationFollowUp();
+    expect(hasUnconfirmedMobileRevocation()).toBe(false);
+  });
+
+  it('does not invent a pending reminder for a confirmed first-time revoke', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, status: 200 }));
+    expect(await unlinkCurrentMobileDevice()).toBe(true);
+    expect(hasUnconfirmedMobileRevocation()).toBe(false);
+  });
+
 });
