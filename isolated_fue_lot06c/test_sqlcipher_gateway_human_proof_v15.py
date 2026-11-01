@@ -211,6 +211,10 @@ def _bind(app, engine, claim, media_root):
                 or dev["generation"]!=claim.generation):
                 raise HTTPException(409,"CAPTURE_CHALLENGE_DENIED")
             _verify(dev["public_hex"],payload.get("signature",""),_msg("CAPTURE",expected))
+            if db.connection().exec_driver_sql(
+                "SELECT 1 FROM c05b03h_grants WHERE nonce=?", (payload["nonce"],)
+            ).first():
+                raise HTTPException(409, "ALREADY_HUMAN_CONFIRMED")
             db.connection().exec_driver_sql(
                 "INSERT INTO c05b03h_grants VALUES(?,?,?,?,0)",
                 (payload["nonce"],current_user.id,sid,int(time.time())+EXPIRY))
