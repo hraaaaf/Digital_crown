@@ -74,9 +74,22 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pytest -q -s --maxfail=1             isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py             isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py             isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py \
-            isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py \
-            isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py
+          python - <<'PY'
+          import sys, types
+          from pathlib import Path
+          import pytest
+          routers = types.ModuleType("backend.routers")
+          routers.__path__ = [str(Path.cwd() / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers
+          raise SystemExit(pytest.main([
+              "-q", "-s", "--maxfail=1",
+              "isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py",
+          ]))
+          PY
           python - <<'PY'
           import json
           from pathlib import Path
