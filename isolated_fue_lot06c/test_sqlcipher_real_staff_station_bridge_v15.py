@@ -206,7 +206,7 @@ def _authority(db: Session, claim: Claim, device_token: str, station_token: str)
 
 
 def _issue(engine, claim: Claim, device_token: str, station_token: str,
-           media_root: Path, fail_at: Optional[str] = None):
+           media_root: Path, fail_at: Optional[str] = None, locked_authorize=None):
     _guard(engine)
     _assert_claim(claim)
     if fail_at not in (None, "after_receipt", "after_audit", "after_outbox"):
@@ -215,6 +215,12 @@ def _issue(engine, claim: Claim, device_token: str, station_token: str,
         try:
             db.connection().exec_driver_sql("BEGIN IMMEDIATE")
             _authority(db, claim, device_token, station_token)
+            # Optional laboratory-only extension: independent gateway and
+            # one-shot human proofs are checked and consumed under the SAME
+            # SQLCipher BEGIN IMMEDIATE transaction as receipt/audit/outbox.
+            # Default is unchanged for previous B-G synthetic tests.
+            if locked_authorize is not None:
+                locked_authorize(db, claim)
             asset = db.get(ClinicalAsset, claim.asset_id)
             provenance = asset.provenance_json if asset is not None else None
             if (
