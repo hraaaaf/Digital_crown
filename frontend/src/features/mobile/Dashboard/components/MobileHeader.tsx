@@ -47,22 +47,22 @@ export function MobileHeader({
   notificationsEnabled?: boolean;
 }) {
   return (
-    <div className="px-4 sm:px-6 pt-[max(18px,env(safe-area-inset-top))] pb-3 relative z-10">
-      <div className="flex items-center justify-between gap-2 sm:gap-3 mb-4">
-        <div data-dc-pocket-brand className="flex min-w-0 items-center gap-2">
+    <div className="px-[16px] sm:px-[24px] pt-[max(18px,env(safe-area-inset-top))] pb-3 relative z-10">
+      <div className="flex items-center justify-between gap-[8px] sm:gap-[12px] mb-4">
+        <div data-dc-pocket-brand className="flex min-w-0 items-center gap-[8px]">
           <img src={Logo} alt="Digital Crown Pocket" className="w-[92px] min-[430px]:w-24 sm:w-28 h-auto object-contain drop-shadow-sm origin-left min-w-0" />
           <span className="shrink-0 rounded-full border border-primary/15 bg-primary/10 px-2 py-1 text-[0.625rem] font-bold uppercase tracking-[0.14em] text-primary">
             Pocket
           </span>
         </div>
 
-        <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+        <div className="flex items-center gap-[6px] sm:gap-[8px] shrink-0">
           {!previewMode && activeTab !== 'patients' && onOpenPatients && (
             <button
               type="button"
               aria-label="Ouvrir la recherche patients"
               onClick={onOpenPatients}
-              className="relative h-11 w-11 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary active:scale-95 transition-transform"
+              className="relative h-[44px] w-[44px] shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary active:scale-95 transition-transform"
               style={{ backgroundColor: 'var(--glass-bg)' }}
             >
               <Search size={18} aria-hidden="true" />
@@ -73,7 +73,7 @@ export function MobileHeader({
               type="button"
               disabled
               aria-label={previewMode ? 'Notifications désactivées dans la démonstration' : 'Notifications non autorisées ou droits à vérifier'}
-              className="relative h-11 w-11 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary"
+              className="relative h-[44px] w-[44px] shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary"
               style={{ backgroundColor: 'var(--glass-bg)' }}
             >
               <Bell size={18} aria-hidden="true" />
@@ -89,7 +89,7 @@ export function MobileHeader({
               fetchSnapshot();
             }}
             disabled={syncStatus === 'loading'}
-            className="h-11 w-11 sm:w-auto sm:min-w-11 flex items-center justify-center gap-1.5 px-0 sm:px-3 bg-card border border-glass-border rounded-[16px] shadow-elite disabled:opacity-40 active:scale-95 transition-all hover:bg-primary/5 backdrop-blur-md"
+            className="h-[44px] w-[44px] sm:w-auto sm:min-w-[44px] flex items-center justify-center gap-1.5 px-0 sm:px-3 bg-card border border-glass-border rounded-[16px] shadow-elite disabled:opacity-40 active:scale-95 transition-all hover:bg-primary/5 backdrop-blur-md"
             style={{ backgroundColor: 'var(--glass-bg)' }}
           >
             <div className={cn(
@@ -119,7 +119,7 @@ export function MobileHeader({
             <button
               aria-label="Jour précédent"
               onClick={() => setSelectedDate(moveLocalDate(selectedDate, -1))}
-              className="min-h-11 min-w-11 inline-flex items-center justify-center text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
             >
               <ChevronLeft size={17} />
             </button>
@@ -128,12 +128,12 @@ export function MobileHeader({
               aria-label="Choisir la date du planning"
               value={selectedDate}
               onChange={(e) => setSelectedDate(e.target.value)}
-              className="min-h-11 min-w-0 max-w-[148px] flex-1 bg-transparent border-none text-text-main font-semibold text-[1rem] capitalize outline-none px-1 py-0 cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-primary/50 rounded-xl"
+              className="min-h-[44px] min-w-0 max-w-[148px] flex-1 bg-transparent border-none text-text-main font-semibold text-[1rem] capitalize outline-none px-1 py-0 cursor-pointer text-center focus-visible:ring-2 focus-visible:ring-primary/50 rounded-xl"
             />
             <button
               aria-label="Jour suivant"
               onClick={() => setSelectedDate(moveLocalDate(selectedDate, 1))}
-              className="min-h-11 min-w-11 inline-flex items-center justify-center text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
+              className="min-h-[44px] min-w-[44px] inline-flex items-center justify-center text-primary bg-primary/10 rounded-full active:scale-90 transition-transform"
             >
               <ChevronRight size={17} />
             </button>

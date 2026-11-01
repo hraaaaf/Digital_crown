@@ -64,7 +64,7 @@ export function MobileBottomNav({
       : activeTab === 'patients' ? 3
         : activeTab === 'agenda' ? 1 : 0;
   const navItemClass = 'relative z-10 flex min-h-[calc(22px+2rem)] min-w-0 flex-col items-center justify-center gap-0.5 rounded-[23px] text-[0.6875rem] font-semibold transition-[color,transform] duration-200 ease-out active:scale-[0.94] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 motion-reduce:transition-none motion-reduce:active:scale-100';
-  const navLabelClass = 'max-w-full whitespace-normal break-words text-center leading-[1.1]';
+  const navLabelClass = 'block max-w-full whitespace-nowrap text-center leading-[1.1]';
 
 
   useEffect(() => {
@@ -191,7 +191,7 @@ export function MobileBottomNav({
         data-pocket-glass-nav
         inert={moreOpen}
         aria-label="Navigation mobile principale"
-        className="fixed left-3 right-3 z-[65] mx-auto h-[calc(12px+4rem)] max-w-[720px] overflow-hidden rounded-[30px] border shadow-elite isolate"
+        className="fixed left-3 right-3 z-[65] mx-auto h-[calc(12px+4rem)] max-w-[720px] overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-[30px] border shadow-elite isolate"
         style={{
           backgroundColor: 'var(--card-bg)',
           borderColor: 'color-mix(in srgb, var(--primary) 14%, var(--glass-border) 86%)',
@@ -200,7 +200,8 @@ export function MobileBottomNav({
           bottom: 'max(12px, env(safe-area-inset-bottom))',
         }}
       >
-        <div className="relative grid h-full grid-cols-5 items-center px-1.5">
+        <div className="relative grid h-full grid-flow-col items-center px-1.5"
+          style={{ gridAutoColumns: 'max(4rem, calc((100% - 12px) / 5))' }}>
           <span
             data-mobile-nav-indicator
             aria-hidden="true"
@@ -208,7 +209,7 @@ export function MobileBottomNav({
             style={{
               left: '6px',
               top: '50%',
-              width: 'calc((100% - 12px) / 5)',
+              width: 'max(4rem, calc((100% - 12px) / 5))',
               transform: `translate(${selectedNavIndex * 100}%, -50%)`,
               backgroundColor: 'color-mix(in srgb, var(--primary) 11%, transparent)',
               borderColor: 'color-mix(in srgb, var(--primary) 14%, transparent)',
