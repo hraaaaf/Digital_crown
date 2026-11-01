@@ -22,7 +22,9 @@ try {
     )
     $pending = $server.WaitForConnectionAsync()
     $client.Connect(5000)
-    $pending.GetAwaiter().GetResult()
+    if (-not $pending.Wait([TimeSpan]::FromSeconds(5))) {
+        throw "C05B03N_PIPE_HANDSHAKE_TIMEOUT"
+    }
     if (-not $server.IsConnected -or -not $client.IsConnected) {
         throw "C05B03N_PIPE_HANDSHAKE_MISSING"
     }
@@ -30,7 +32,9 @@ try {
     $client.Write($data, 0, $data.Length)
     $client.Flush()
     $buffer = [byte[]]::new(128)
-    $count = $server.Read($buffer, 0, $buffer.Length)
+    $readTimeout = [System.Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(5))
+    $count = $server.ReadAsync($buffer, 0, $buffer.Length, $readTimeout.Token).GetAwaiter().GetResult()
+    $readTimeout.Dispose()
     $received = [System.Text.Encoding]::ASCII.GetString($buffer, 0, $count)
     if ($received -ne "C05B03N-SYNTHETIC-NO-PHI") {
         throw "C05B03N_PIPE_MEDIA_CORRUPTION"
@@ -38,7 +42,9 @@ try {
     $ack = [System.Text.Encoding]::ASCII.GetBytes("LAB-ONLY-ACK")
     $server.Write($ack, 0, $ack.Length)
     $server.Flush()
-    $count = $client.Read($buffer, 0, $buffer.Length)
+    $replyTimeout = [System.Threading.CancellationTokenSource]::new([TimeSpan]::FromSeconds(5))
+    $count = $client.ReadAsync($buffer, 0, $buffer.Length, $replyTimeout.Token).GetAwaiter().GetResult()
+    $replyTimeout.Dispose()
     if ([System.Text.Encoding]::ASCII.GetString($buffer, 0, $count) -ne "LAB-ONLY-ACK") {
         throw "C05B03N_PIPE_RESPONSE_MISSING"
     }
