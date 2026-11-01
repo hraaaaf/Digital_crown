@@ -1,0 +1,58 @@
+{
+  "schema_version": "CEPHALO_V1_PHASE1_PROTOCOL_SCOPE_V1",
+  "status": "V1_SCOPE_PROVISIONAL_SOURCE_ONLY",
+  "clinical_authority": false,
+  "normative_classification_authority": false,
+  "diagnosis_authority": false,
+  "selected_protocol_count": 2,
+  "selected_protocols": [
+    {
+      "id": "COM",
+      "display_name": "COM Digital Crown",
+      "registry_pack_id": "COM_V1",
+      "measurement_ids": [
+        "M_A_NPERP_MM_V1",
+        "M_B_NPERP_MM_V1",
+        "M_AB_PRIME_FH_MM_V1",
+        "M_COM_S_NPERP_DEPTH_MM_V1",
+        "M_FH_GOME_DEG_V1",
+        "M_IMPA_GOME_DEG_V1",
+        "M_U1_FH_DEG_V1",
+        "M_INTERINCISAL_DEG_V1"
+      ],
+      "historical_profile": "COM_DC_LEGACY_V1",
+      "historical_row_count": 10,
+      "historical_rows_interchangeable": false,
+      "source_state": "PROVISIONAL_MEMBERSHIP",
+      "automatic_coverage": "NOT_YET_CERTIFIED"
+    },
+    {
+      "id": "STEINER",
+      "display_name": "Steiner 1953",
+      "registry_pack_id": "STEINER_V1",
+      "scope": "STEINER_1953_BASE",
+      "measurement_ids": [
+        "M_SNA_DEG_V1",
+        "M_SNB_DEG_V1",
+        "M_ANB_DEG_V1",
+        "M_U1_NA_DEG_V1",
+        "M_U1_NA_MM_V1",
+        "M_L1_NB_DEG_V1",
+        "M_L1_NB_MM_V1",
+        "M_INTERINCISAL_DEG_V1",
+        "M_OCCLUSAL_PLANE_SN_DEG_V1",
+        "M_SN_GOGN_DEG_V1",
+        "M_L1_GOGN_DEG_V1"
+      ],
+      "excluded_extension": "STEINER_1959_EXTENSION",
+      "source_state": "PROVISIONAL_MEMBERSHIP",
+      "automatic_coverage": "NOT_YET_CERTIFIED"
+    }
+  ],
+  "rules": {
+    "missing_identity": "NOT_COMPUTABLE",
+    "legacy_profile_selectable": false,
+    "v1_pdf_final": "CLINICIAN_VALIDATION_REQUIRED",
+    "facad_alias_forbidden": true
+  }
+}
