@@ -31,10 +31,12 @@ def run(argv: list[str]) -> int:
         return 4
     if "DC06R-LAB-" not in str(private):
         return 4
+    stage = 1  # 1 key-open, 2 Config, 3 HotFolder, 4 verify queue
     try:
         key = keyfile.read_bytes()
         if len(key) != 32 or not incoming.is_dir() or not private.is_dir():
             raise ValueError("BAD_LAB_KEY_OR_PATH")
+        stage = 2
         cfg = Config(
             cabinet="DC06B03CAB", workstation="DC06B03WS",
             watch=incoming, private=private, key=key, category="PHOTO",
@@ -49,7 +51,9 @@ def run(argv: list[str]) -> int:
             return 0
         # Reopen the real SQLite DB, then decrypt and validate the actual
         # spool ciphertext and media. Full validation fails closed on tamper.
+        stage = 3
         collector = HotFolder(cfg)
+        stage = 4
         captures = read_unassigned(collector, limit=9)
         if len(captures) > 9:
             return 5
@@ -57,9 +61,8 @@ def run(argv: list[str]) -> int:
         os.write(1, b"S" + str(len(captures)).encode("ascii"))
         return 0
     except OSError:
-        # B03 disposable LAB: only error CLASS on authorized local pipe,
-        # never paths, exception text, ciphertext or PHI.
-        if mode == "read": os.write(1, b"E1")
+        # Only a bounded non-PHI phase number; no errno, paths, stack or keys.
+        if mode == "read": os.write(1, b"E" + str(stage).encode("ascii"))
         return 5
     except Exception:
         if mode == "read": os.write(1, b"E2")

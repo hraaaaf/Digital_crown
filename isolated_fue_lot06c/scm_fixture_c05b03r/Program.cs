@@ -232,7 +232,7 @@ internal static class Program
             if (child.ExitCode != 0)
             {
                 if (result.Length == 2 && result[0] == 'E' &&
-                    (result[1] == '1' || result[1] == '2'))
+                    (result[1] >= '1' && result[1] <= '4'))
                     return new byte[] { (byte)'E', (byte)result[1] };
                 return new byte[] { (byte)'E', (byte)'3' };
             }
