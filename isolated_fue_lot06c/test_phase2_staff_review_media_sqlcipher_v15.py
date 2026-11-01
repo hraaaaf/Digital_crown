@@ -14,6 +14,8 @@ from tools.imaging_gateway import HotFolder
 def _ctx(bridge, tmp_path, monkeypatch):
     monkeypatch.setenv("DC06_PHASE2_REVIEW_LAB", "1")
     values = _setup(bridge, tmp_path)
+    with values[0].begin() as conn:
+        conn.execute(update(models.Patient.__table__).where(models.Patient.id == values[1].patient).values(numero_dossier='LAB-42'))
     mount_lab_review(values[12], claim=values[1], validated_media=values[8])
     return values
 
