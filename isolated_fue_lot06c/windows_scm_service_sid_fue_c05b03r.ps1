@@ -42,7 +42,7 @@ function Wait-ServiceState([string]$Service, [string]$Expected, [int]$LimitSecon
 }
 function Invoke-Child([string]$Username, [string]$Password,
                        [string]$ExpectedSid, [int]$ExpectedOpen,
-                       [int]$ExpectedCreate) {
+                       [int]$ExpectedCreate, [switch]$ProbeQueueReadOnly) {
     $cred=[System.Management.Automation.PSCredential]::new(
         ('.' + [char]92 + $Username), (ConvertTo-SecureString $Password -AsPlainText -Force)
     )
@@ -51,6 +51,7 @@ function Invoke-Child([string]$Username, [string]$Password,
         '" -PipeName "' + $pipeName + '" -ExpectedSid "' + $ExpectedSid +
         '" -ParentPid ' + $PID + ' -ExpectedOpen ' + $ExpectedOpen +
         ' -ExpectedCreateInstance ' + $ExpectedCreate
+    if ($ProbeQueueReadOnly) { $arguments += ' -ProbeQueueReadOnly' }
     $child=$null
     try {
         $errFile=Join-Path $root ('child-' + $Username + '-stderr.txt')
@@ -129,6 +130,12 @@ try {
 
     Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5
     Write-Output 'C05B03R_REAL_APPROVED_OTHER_USER_PROCESS_DATA_RW_ALLOWED_CREATE_INSTANCE_DENIED_PASS'
+    if ($env:DC06B02_PROBE -eq '1') {
+        # Real extra process using a real different Windows logon SID,
+        # round-trip over the live LocalService SCM pipe; never product install.
+        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -ProbeQueueReadOnly
+        Write-Output 'DC06B02_NATIVE_SCM_Q_U_PEER_PROBE_NOT_CLINICAL_AUTHORITY_PASS'
+    }
     Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5
     Write-Output 'C05B03R_REAL_UNAUTHORIZED_OTHER_USER_PROCESS_ALL_DENIED_PASS'
     Write-Output 'C05B03R_REAL_HOSTED_WINDOWS_SERVICE_LEAST_PRIVILEGE_PASS'

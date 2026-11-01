@@ -5,7 +5,8 @@ param(
   [Parameter(Mandatory)][string]$ExpectedSid,
   [Parameter(Mandatory)][int]$ParentPid,
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedOpen,
-  [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedCreateInstance
+  [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedCreateInstance,
+  [switch]$ProbeQueueReadOnly
 )
 $ErrorActionPreference = 'Stop'
 try {
@@ -49,6 +50,25 @@ public static class DC06RClient {
         }
     }
 
+    [DllImport("kernel32.dll", SetLastError=true)]
+    public static extern bool ReadFile(SafeFileHandle file,
+        [Out] byte[] buffer, uint count, out uint read, IntPtr overlapped);
+
+    public static int ReadOnlyStatus(string path) {
+        using (var handle = CreateFile(path, 0x00100183u, 0u, IntPtr.Zero,
+                                       3u, 0u, IntPtr.Zero)) {
+            if (handle.IsInvalid) return -1000 - Marshal.GetLastWin32Error();
+            uint wrote;
+            if (!WriteFile(handle, new byte[]{(byte)'Q'}, 1u, out wrote, IntPtr.Zero)
+                    || wrote != 1u) return -2000;
+            byte[] answer = new byte[1];
+            uint read;
+            if (!ReadFile(handle, answer, 1u, out read, IntPtr.Zero)
+                    || read != 1u) return -3000;
+            return (int)answer[0];
+        }
+    }
+
     public static int InstanceAttempt(string path) {
         // Without FIRST_PIPE_INSTANCE: this is a direct check of DACL rights,
         // NOT the earlier Q first-instance guard.
@@ -67,6 +87,12 @@ public static class DC06RClient {
   if ($created -ne $ExpectedCreateInstance) {
     throw ('C05B03R_CHILD_CREATE_INSTANCE_EXPECT_' + $ExpectedCreateInstance +
         '_GOT_' + $created)
+  }
+  if ($ProbeQueueReadOnly) {
+    if ($ExpectedOpen -ne 0) { throw 'DC06B02_PROBE_NOT_ALLOWED_FOR_DENIED_SID' }
+    $reply=[DC06RClient]::ReadOnlyStatus($PipeName)
+    if ($reply -ne 85) { throw ('DC06B02_NATIVE_READ_ONLY_STATUS_EXPECT_U_GOT_' + $reply) }
+    Write-Output 'DC06B02_NATIVE_SCM_RESTRICTED_SID_READ_ONLY_Q_U_RESPONSE_PASS'
   }
   if ($ExpectedOpen -eq 0) {
     Write-Output 'C05B03R_ALLOWED_USER_READ_WRITE_ALLOWED_INSTANCE_CREATION_DENIED'

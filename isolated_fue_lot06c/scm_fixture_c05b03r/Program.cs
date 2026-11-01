@@ -74,6 +74,13 @@ internal static class Program
     static extern bool ReadFile(SafeFileHandle pipe,
         [Out] byte[] buffer, uint nBytes, out uint bytes, IntPtr overlapped);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool WriteFile(SafeFileHandle pipe,
+        byte[] buffer, uint nBytes, out uint written, IntPtr overlapped);
+
+    // B02 Q->U is only a native IPC liveness/refusal probe.
+    // U = unassigned queue NOT exposed over this pipe, clinical NO-GO.
+    // It grants no patient identity, media access, signing key or receipt.
     static readonly ManualResetEventSlim StopRequested = new(false);
     static ServiceMainDelegate? s_main;
     static HandlerDelegate? s_handler;
@@ -193,7 +200,14 @@ internal static class Program
                     Marshal.GetLastWin32Error() != ERROR_PIPE_CONNECTED)
                     break;
                 var buffer = new byte[1];
-                _ = ReadFile(pipe, buffer, 1, out _, IntPtr.Zero);
+                var readOk = ReadFile(pipe, buffer, 1, out uint received, IntPtr.Zero);
+                if (readOk && received == 1 && buffer[0] == (byte)'Q')
+                {
+                    var response = new byte[] { (byte)'U' };
+                    // A bounded ONE-BYTE read-only response. No PHI, queue
+                    // details, media transfer or clinical capability is served.
+                    _ = WriteFile(pipe, response, 1, out _, IntPtr.Zero);
+                }
                 _ = DisconnectNamedPipe(pipe);
             }
             catch (ObjectDisposedException) { break; }
