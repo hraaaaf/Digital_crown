@@ -5,6 +5,7 @@ on:
     paths:
       - .github/workflows/lot06-c05b03-integration-readiness.yml
       - scripts/ci/lot06_c05b03_integration_reconcile.py
+      - docs/lot06/LOT06-FINAL-ACCEPTANCE-20261101.md
   workflow_dispatch:
 
 permissions:

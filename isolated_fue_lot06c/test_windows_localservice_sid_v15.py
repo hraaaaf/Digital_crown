@@ -43,6 +43,7 @@ def test_h05_localservice_real_other_sid_denies_acl_and_dpapi(tmp_path):
     results=shared/"result.json"
     env=dict(os.environ,DC_H05_TASK=name,DC_H05_SCRIPT=str(script),DC_H05_INPUT=str(inputs))
     scheduled=False
+    successful_proof=None
     try:
         # The shared exchange contains only public scope, encrypted blob and entropy.
         grant=subprocess.run(["icacls",str(shared),"/grant","*S-1-5-19:(OI)(CI)M"],
@@ -93,9 +94,7 @@ def test_h05_localservice_real_other_sid_denies_acl_and_dpapi(tmp_path):
         assert proof=={"identity_sid":"S-1-5-19","distinct":True,
                        "file_denied":True,"dpapi_denied":True},proof
         pub.verify(sign(key_file,MESSAGE,**SCOPE),MESSAGE)
-        out=Path(os.environ["DC06C05B03H05_EVIDENCE_DIR"])
-        out.mkdir(parents=True,exist_ok=True)
-        (out/"lot06c05b03h05-localservice.json").write_text(json.dumps({
+        successful_proof={
             "identity_sid":"S-1-5-19",
             "native_localservice_separate_token_verified":True,
             "owner_only_vault_access_rejected_by_second_sid":True,
@@ -108,10 +107,37 @@ def test_h05_localservice_real_other_sid_denies_acl_and_dpapi(tmp_path):
             "production_service_installer_verified":False,
             "product_ready":False,
             "clinical_go":False
-        },sort_keys=True,indent=2)+"\n",encoding="utf8")
-        print("C05B03H05_ACTUAL_LOCALSERVICE_SID_ACL_AND_DPAPI_REFUSALS_PASS")
+        }
     finally:
+        # Verify cleanup with an independent Task Scheduler lookup.
+        task_removed=True
         if scheduled:
-            _pwsh("Unregister-ScheduledTask -TaskName $env:DC_H05_TASK "
-                  "-Confirm:$false -ErrorAction SilentlyContinue",env)
-        shutil.rmtree(shared,ignore_errors=True)
+            cleanup=_pwsh(
+                "$ErrorActionPreference='Stop';"
+                "Unregister-ScheduledTask -TaskName $env:DC_H05_TASK "
+                "-Confirm:$false -ErrorAction Stop;"
+                "if (Get-ScheduledTask -TaskName $env:DC_H05_TASK "
+                "-ErrorAction SilentlyContinue) { exit 44 }; exit 0",env)
+            task_removed=cleanup.returncode==0
+        # Windows may briefly hold a file handle until LocalService exits.
+        for _ in range(12):
+            try:
+                shutil.rmtree(shared)
+            except OSError:
+                time.sleep(0.25)
+            if not shared.exists():
+                break
+        exchange_removed=not shared.exists()
+        # Never write a PASS artifact unless both cleanup checks are real.
+        if successful_proof is not None:
+            assert task_removed,"H05_TASK_CLEANUP_NOT_VERIFIED"
+            assert exchange_removed,"H05_EXCHANGE_CLEANUP_NOT_VERIFIED"
+    if successful_proof is not None:
+        successful_proof["scheduled_task_unregistered_and_absence_verified"]=True
+        successful_proof["synthetic_exchange_directory_absent_verified"]=True
+        out=Path(os.environ["DC06C05B03H05_EVIDENCE_DIR"])
+        out.mkdir(parents=True,exist_ok=True)
+        (out/"lot06c05b03h05-localservice.json").write_text(
+            json.dumps(successful_proof,sort_keys=True,indent=2)+"\n",encoding="utf8")
+        print("C05B03H05_ACTUAL_LOCALSERVICE_SID_ACL_AND_DPAPI_REFUSALS_PASS")
+        print("C05B03H05_TASK_AND_SYNTHETIC_EXCHANGE_CLEANUP_VERIFIED")

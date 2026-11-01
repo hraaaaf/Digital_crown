@@ -303,7 +303,9 @@ jobs:
               'owner_only_vault_access_rejected_by_second_sid',
               'native_dpapi_currentuser_unseal_rejected_by_second_sid',
               'owner_signing_after_second_identity_preserved',
-              'non_interactive_service_identity_only')) {
+              'non_interactive_service_identity_only',
+              'scheduled_task_unregistered_and_absence_verified',
+              'synthetic_exchange_directory_absent_verified')) {
             if ($e.$k -ne $true) { throw "C05B03H05_REQUIRED_$k" }
           }
           foreach ($k in @('independent_interactive_second_user_verified',
