@@ -51,12 +51,14 @@ jobs:
           export GIT_COMMITTER_NAME="$GIT_AUTHOR_NAME" GIT_COMMITTER_EMAIL="$GIT_AUTHOR_EMAIL"
           export GIT_AUTHOR_DATE="2026-11-01T00:00:00+00:00"
           export GIT_COMMITTER_DATE="$GIT_AUTHOR_DATE"
-          tree1=$(git merge-tree --write-tree --messages "$MASTER_SHA" "$STOCK_SHA")
+          git merge-tree --write-tree --messages "$MASTER_SHA" "$STOCK_SHA" > /tmp/cpv2-merge1.txt
+          tree1=$(head -n 1 /tmp/cpv2-merge1.txt)
           git cat-file -e "$tree1^{tree}"
           c1=$(printf 'LAB synthetic tree: master + Pocket Stock (#1168)\n' |
             git commit-tree "$tree1" -p "$MASTER_SHA" -p "$STOCK_SHA")
           test "$c1" = "3ce8072b5e9d8e99142773185749e2dd0ea625c0"
-          tree2=$(git merge-tree --write-tree --messages "$c1" "$POCKET_SHA")
+          git merge-tree --write-tree --messages "$c1" "$POCKET_SHA" > /tmp/cpv2-merge2.txt
+          tree2=$(head -n 1 /tmp/cpv2-merge2.txt)
           git cat-file -e "$tree2^{tree}"
           test "$tree2" = "4692942f9c01683928b5a032c42c88b0e9bc5f93"
           final=$(printf 'LAB synthetic combined tree: master + #1168 + #1169..#1176\n' |
