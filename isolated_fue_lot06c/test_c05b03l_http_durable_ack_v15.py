@@ -47,6 +47,9 @@ from tools.imaging_gateway.media_validation import validated_mime
 
 def _server_app(engine, claim, media_root, signing_key):
     app = FastAPI(title="C05B03L isolated localhost media-only receipt lab")
+    # Real auth's JTI blacklist is fail-closed. Mirror the prior C05B03G
+    # SQLCipher fixture schema before accepting ANY JWT; no auth bypass.
+    models.RevokedToken.__table__.create(bind=engine, checkfirst=True)
 
     # Async FastAPI dependency: construction and disposal occur on the same
     # Uvicorn event-loop thread. Sync-yield dependencies use AnyIO worker threads,
