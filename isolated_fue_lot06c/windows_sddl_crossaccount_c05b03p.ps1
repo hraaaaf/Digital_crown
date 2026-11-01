@@ -150,6 +150,47 @@ try {
     }
     Write-Output 'C05B03P_REAL_DIFFERENT_LOCAL_USER_TOKEN_ACCESS_DENIED_5_PASS'
 
+    # C05B-03Q: stronger negative. The SAME unprivileged account is used to
+    # launch an entirely separate pwsh.exe process, with a real Windows logon.
+    # The child itself obtains its OS SID and independently invokes CreateFileW.
+    # Nothing about its exit is synthesized in this parent process.
+    if ($env:DC06C05B03Q_TEST_ONLY -eq '1') {
+        $childScript = Join-Path $PSScriptRoot 'windows_other_process_child_c05b03q.ps1'
+        if (-not (Test-Path -LiteralPath $childScript)) {
+            throw 'C05B03Q_CHILD_SCRIPT_NOT_FOUND'
+        }
+        $userCredential = [System.Management.Automation.PSCredential]::new(
+            ('.\\' + $name), $securePassword
+        )
+        $cmd = (Get-Command pwsh -ErrorAction Stop).Source
+        $argLine = '-NoProfile -NonInteractive -File "' + $childScript +
+            '" -PipeName "' + $pipeName + '" -ExpectedSid "' + $otherSid +
+            '" -ParentPid ' + $PID
+        $childProcess = $null
+        try {
+            $childProcess = Start-Process -FilePath $cmd -ArgumentList $argLine
+                -Credential $userCredential -PassThru -ErrorAction Stop
+            if ($null -eq $childProcess -or $childProcess.Id -eq $PID) {
+                throw 'C05B03Q_CHILD_NOT_SEPARATE_PROCESS'
+            }
+            if (-not $childProcess.WaitForExit(12000)) {
+                $childProcess.Kill($true)
+                throw 'C05B03Q_REAL_OTHER_ACCOUNT_PROCESS_TIMEOUT'
+            }
+            if ($childProcess.ExitCode -ne 0) {
+                throw ('C05B03Q_UNPRIVILEGED_PROCESS_FAILED_' + $childProcess.ExitCode)
+            }
+            Write-Output 'C05B03Q_DIFFERENT_PROCESS_DIFFERENT_ACCOUNT_NATIVE_ACCESS_DENIED_5_PASS'
+        }
+        finally {
+            if ($null -ne $childProcess) {
+                if (-not $childProcess.HasExited) { $childProcess.Kill($true) }
+                $childProcess.Dispose()
+            }
+            $userCredential = $null
+        }
+    }
+
     # Attempt the allowed caller only after denied caller: no busy-pipe false denial.
     $allowed = [DC06PSddlProbe]::OpenLocalClient($pipeName)
     if ($allowed -ne 0) {
