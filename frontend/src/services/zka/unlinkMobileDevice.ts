@@ -1,4 +1,5 @@
 import { MobileStorage, resolveMobileApiBaseUrl } from './MobileStorage';
+import { markUnconfirmedMobileRevocation } from './mobileRevocationFollowUp';
 
 /**
  * Explicit unlink of ONE phone, never a cabinet-wide revocation.
@@ -21,6 +22,9 @@ export async function unlinkCurrentMobileDevice(): Promise<boolean> {
     // Local unlink remains mandatory if the on-premise server is unreachable.
   } finally {
     await MobileStorage.clearAll();
+    // Only a confirmed revoke of THIS device succeeds. A previous pending
+    // revocation remains pending even if a later/new device is revoked.
+    if (!remoteRevoked) markUnconfirmedMobileRevocation();
   }
   return remoteRevoked;
 }
