@@ -12,6 +12,9 @@ on:
       - isolated_fue_lot06c/test_sqlcipher_gateway_races_v15.py
       - isolated_fue_lot06c/windows_dpapi_gateway_lab.py
       - isolated_fue_lot06c/test_windows_dpapi_gateway_lab_v15.py
+      - isolated_fue_lot06c/test_windows_localservice_sid_v15.py
+      - isolated_fue_lot06c/h05_localservice_probe.ps1
+      - docs/lot06/C05B03H05-localservice-ADR.md
       - docs/lot06/C05B03H04-windows-ACL-ADR.md
       - docs/lot06/C05B03H03-windows-DPAPI-ADR.md
       - docs/lot06/C05B03H02-windows-connector-gate.md
@@ -222,6 +225,8 @@ jobs:
       DC06C05B03H03_TEST_ONLY: '1'
       DC06C05B03H03_EVIDENCE_DIR: lot06-c05b03-windows-evidence
       DC06C05B03H04_EVIDENCE_DIR: lot06-c05b03-windows-evidence
+      DC06C05B03H05_EVIDENCE_DIR: lot06-c05b03-windows-evidence
+      DC06C05B03H05_TEST_ONLY: '1'
       PYTHONUTF8: '1'
     steps:
       - uses: actions/checkout@v4
@@ -284,6 +289,29 @@ jobs:
             if ($h.$key -ne $false) { throw "C05B03H04_FALSE_ASSURANCE_$key" }
           }
           Write-Host "C05B03H04_WIN32_OWNER_SYSTEM_ACL_NEGATIVE_PROOF_LAB"
+
+      - name: H05 real Windows LocalService SID and current-user DPAPI isolation
+        shell: pwsh
+        run: |
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_windows_localservice_sid_v15.py
+          if ($LASTEXITCODE -ne 0) { throw "C05B03H05_WINDOWS_FUE_FAILED" }
+          $h05 = Join-Path $env:DC06C05B03H05_EVIDENCE_DIR "lot06c05b03h05-localservice.json"
+          if (!(Test-Path $h05)) { throw "C05B03H05_NO_PROOF" }
+          $e = Get-Content -LiteralPath $h05 -Raw | ConvertFrom-Json
+          if ($e.identity_sid -ne "S-1-5-19") { throw "C05B03H05_NOT_LOCALSERVICE" }
+          foreach ($k in @('native_localservice_separate_token_verified',
+              'owner_only_vault_access_rejected_by_second_sid',
+              'native_dpapi_currentuser_unseal_rejected_by_second_sid',
+              'owner_signing_after_second_identity_preserved',
+              'non_interactive_service_identity_only')) {
+            if ($e.$k -ne $true) { throw "C05B03H05_REQUIRED_$k" }
+          }
+          foreach ($k in @('independent_interactive_second_user_verified',
+              'full_os_reboot_verified','actual_device_or_dental_driver_verified',
+              'production_service_installer_verified','product_ready','clinical_go')) {
+            if ($e.$k -ne $false) { throw "C05B03H05_FALSE_ASSURANCE_$k" }
+          }
+          Write-Host "C05B03H05_REAL_SERVICE_SID_ACL_AND_DPAPI_DENIALS_SYNTHETIC_ONLY"
 
       - name: Preserve non-PHI Windows evidence
         if: always()
