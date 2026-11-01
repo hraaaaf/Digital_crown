@@ -10,6 +10,9 @@ on:
       - isolated_fue_lot06c/test_sqlcipher_http_jwt_capture_bridge_v15.py
       - isolated_fue_lot06c/test_sqlcipher_gateway_human_proof_v15.py
       - isolated_fue_lot06c/test_sqlcipher_gateway_races_v15.py
+      - isolated_fue_lot06c/windows_dpapi_gateway_lab.py
+      - isolated_fue_lot06c/test_windows_dpapi_gateway_lab_v15.py
+      - docs/lot06/C05B03H03-windows-DPAPI-ADR.md
       - docs/lot06/C05B03H02-windows-connector-gate.md
       - docs/lot06/C05B03H-gateway-human-proof-ADR.md
       - isolated_fue_lot06c/migrations/c05b03f_authority_ledger_candidate.py
@@ -205,5 +208,69 @@ jobs:
         with:
           name: lot06-c05b03-source-sqlcipher-authority-synthetic
           path: lot06-c05b03-authority-evidence/
+          if-no-files-found: warn
+          retention-days: 14
+
+  windows-dpapi-user-vault:
+    needs: synthetic-sqlcipher-authority
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06C05B03H03_TEST_ONLY: '1'
+      DC06C05B03H03_EVIDENCE_DIR: lot06-c05b03-windows-evidence
+      PYTHONUTF8: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify SHA and install native Windows crypto test dependencies
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw "C05B03H03_WRONG_HEAD" }
+          if ($env:ENVIRONMENT -ne 'test') { throw "C05B03H03_NOT_TEST" }
+          if ($env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true') { throw "C05B03H03_NOT_ISOLATED" }
+          python -m pip install "pytest==9.0.3" cryptography
+          if ($LASTEXITCODE -ne 0) { throw "C05B03H03_INSTALL_FAILED" }
+      - name: Test real Windows DPAPI user-scope vault + second Python process
+        shell: pwsh
+        run: |
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_windows_dpapi_gateway_lab_v15.py
+          if ($LASTEXITCODE -ne 0) { throw "C05B03H03_WINDOWS_FUE_FAILED" }
+          $p = Join-Path $env:DC06C05B03H03_EVIDENCE_DIR "lot06c05b03h03-windows-dpapi.json"
+          if (!(Test-Path $p)) { throw "C05B03H03_EVIDENCE_MISSING" }
+          $e = Get-Content -Raw $p | ConvertFrom-Json
+          foreach ($key in @('actual_win32_cryptprotectdata_unprotectdata_called',
+                    'current_windows_user_scope_without_local_machine_flag',
+                    'same_user_new_process_signing_test',
+                    'ed25519_signature_cross_process_verified',
+                    'scope_mismatch_public_key_corruption_and_blob_tampering_denied',
+                    'duplicate_enrollment_file_refused',
+                    'local_revoke_prevents_future_signing',
+                    'cabinet_environment_disabled')) {
+            if ($e.$key -ne $true) { throw "C05B03H03_MISSING_PROOF_$key" }
+          }
+          foreach ($key in @('private_seed_persisted_unencrypted',
+                    'full_key_memory_nonexportable_guarantee',
+                    'windows_acl_or_other_account_certified',
+                    'tpm_hsm_key_attestation',
+                    'sensor_hardware_attestation',
+                    'service_installation_user_switch_restart_verified',
+                    'physical_windows_clinic_machine_verified',
+                    'server_side_revocation_integration_windows',
+                    'product_ready','clinical_go')) {
+            if ($e.$key -ne $false) { throw "C05B03H03_FALSE_PRODUCT_ASSURANCE_$key" }
+          }
+          Write-Host "C05B03H03_WIN32_USER_DPAPI_EVIDENCE_VALIDATED_LAB_NOT_PRODUCT"
+      - name: Preserve non-PHI Windows evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-c05b03h03-windows-dpapi-lab
+          path: lot06-c05b03-windows-evidence/
           if-no-files-found: warn
           retention-days: 14
