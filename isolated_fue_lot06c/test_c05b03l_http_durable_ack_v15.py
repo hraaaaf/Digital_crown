@@ -14,6 +14,8 @@ import time
 from datetime import datetime
 from contextlib import contextmanager
 
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from fastapi import Depends, FastAPI, HTTPException, Request
 import httpx
 import pytest
@@ -43,7 +45,7 @@ from tools.imaging_gateway.http_ack_lab_v15 import (
 from tools.imaging_gateway.media_validation import validated_mime
 
 
-def _server_app(engine, claim, media_root):
+def _server_app(engine, claim, media_root, signing_key):
     app = FastAPI(title="C05B03L isolated localhost media-only receipt lab")
 
     def lab_db():
@@ -115,7 +117,7 @@ def _server_app(engine, claim, media_root):
             "digest": claim.digest, "size": claim.byte_size, "lab_only": True,
             "clinical_receipt_authorized": False,
         }
-        return {**body, "receipt_mac": sign_lab_receipt(body, token)}
+        return {**body, "receipt_mac": sign_lab_receipt(body, signing_key)}
 
     return app
 
@@ -201,7 +203,9 @@ def test_c05b03l_real_localhost_http_bytes_sqlcipher_lost_ack_and_reboot(
         "X-DC-Lab-Patient": str(approved.patient),
         "Content-Type": "application/octet-stream",
     }
-    app = _server_app(engine, approved, media_root)
+    signing_key = Ed25519PrivateKey.generate()
+    pinned_public_key = signing_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
+    app = _server_app(engine, approved, media_root, signing_key)
     assert _counts(engine) == (0, 0, 0)
     with _localhost_server(app) as url, httpx.Client(
         base_url=url, timeout=15.0, trust_env=False,
@@ -240,22 +244,22 @@ def test_c05b03l_real_localhost_http_bytes_sqlcipher_lost_ack_and_reboot(
         with pytest.raises(GatewayError, match="SIGNATURE_MISMATCH"):
             record_lab_http_ack(
                 restarted, item_id=item["id"],
-                reply={**reply, "receipt_mac": "0" * 64},
-                device_token=device_token, expected_capture=approved.capture,
+                reply={**reply, "receipt_mac": "0" * 128},
+                server_public_key=pinned_public_key, expected_capture=approved.capture,
                 expected_device=approved.device, expected_tenant=approved.tenant,
                 expected_patient=approved.patient,
             )
         with pytest.raises(GatewayError, match="SCOPE_CONFLICT"):
             record_lab_http_ack(
                 restarted, item_id=item["id"], reply=reply,
-                device_token=device_token, expected_capture=approved.capture,
+                server_public_key=pinned_public_key, expected_capture=approved.capture,
                 expected_device=approved.device, expected_tenant=approved.tenant,
                 expected_patient=approved.patient + 1,
             )
         assert restarted.items()[0]["state"] == "PENDING_CONFIRMATION"
         rid = record_lab_http_ack(
             restarted, item_id=item["id"], reply=reply,
-            device_token=device_token, expected_capture=approved.capture,
+            server_public_key=pinned_public_key, expected_capture=approved.capture,
             expected_device=approved.device, expected_tenant=approved.tenant,
             expected_patient=approved.patient,
         )
@@ -266,7 +270,7 @@ def test_c05b03l_real_localhost_http_bytes_sqlcipher_lost_ack_and_reboot(
         assert confirmed_restart.read_verified(item["id"]) == raw
         assert record_lab_http_ack(
             confirmed_restart, item_id=item["id"], reply=reply,
-            device_token=device_token, expected_capture=approved.capture,
+            server_public_key=pinned_public_key, expected_capture=approved.capture,
             expected_device=approved.device, expected_tenant=approved.tenant,
             expected_patient=approved.patient,
         ) == rid
@@ -302,9 +306,10 @@ def test_c05b03l_lab_ack_requires_test_isolation_and_signature(
         "size": approved.byte_size, "lab_only": True,
         "clinical_receipt_authorized": False,
     }
-    signed = {**fake, "receipt_mac": sign_lab_receipt(fake, token)}
+    signed = {**fake, "receipt_mac": sign_lab_receipt(fake, Ed25519PrivateKey.generate())}
     call = dict(
-        item_id=item["id"], reply=signed, device_token=token,
+        item_id=item["id"], reply=signed,
+        server_public_key=Ed25519PrivateKey.generate().public_key().public_bytes(Encoding.Raw, PublicFormat.Raw),
         expected_capture=approved.capture, expected_device=approved.device,
         expected_tenant=approved.tenant, expected_patient=approved.patient,
     )
