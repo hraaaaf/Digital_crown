@@ -1,0 +1,70 @@
+name: CPV2-01C single cabinet unlink security certification (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - test/cpv2-01c-single-cabinet-unlink-20261031
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-01c-unlink-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mobile-unlink-client:
+    name: Local patient purge and remote revocation contract
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Assert exact PR 1170 candidate ancestry
+        run: |
+          git fetch origin 1df95cd19d7499558afa13a6d65487b494e7f937 --no-tags
+          git merge-base --is-ancestor 1df95cd19d7499558afa13a6d65487b494e7f937 HEAD
+          echo "FUE_SHA=$(git rev-parse HEAD)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Targeted fail-closed unlink Vitest and existing Pocket suite
+        working-directory: frontend
+        run: npx vitest run src/services/zka/unlinkMobileDevice.test.ts src/services/zka/MobileStorage.snapshot.test.ts src/test/mobileM62Behavior.test.ts src/test/mobilePocketPwaLifecycle.contract.test.ts --reporter=verbose
+      - name: Frontend production build
+        working-directory: frontend
+        run: npm run build
+
+  mobile-unlink-server:
+    if: ${{ !contains(github.event.head_commit.message, '[client-only]') }}
+    name: Two actual synthetic paired devices, revoke one only
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      DATABASE_URL: "sqlite:///:memory:"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+      SECRET_KEY: "cpv2-unlink-disposable-secret-not-production"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Assert test-only runtime
+        run: |
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          echo "FUE_SHA=$(git rev-parse HEAD)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install backend dependencies for real FastAPI TestClient
+        run: python -m pip install -r backend/requirements.txt
+      - name: Test per-device revocation with actual JWT/SQLAlchemy on ephemeral database
+        run: python -m pytest -q --maxfail=1 backend/tests/test_mobile_single_device_unlink.py backend/tests/test_mobile_credential_hardening.py backend/tests/test_mobile_pocket_security_boundary.py

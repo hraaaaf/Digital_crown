@@ -3,6 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import { OnboardingScanner, resolveBridgeRoute } from './OnboardingScanner';
 import { MobileStorage } from '../../../services/zka/MobileStorage';
+import { markUnconfirmedMobileRevocation, hasUnconfirmedMobileRevocation } from '../../../services/zka/mobileRevocationFollowUp';
 import { deriveMasterKey, generateClientKeyPair, hasPlaintextMasterKey } from '../../../services/zka/ecdhPairing';
 
 vi.mock('html5-qrcode', () => ({
@@ -21,8 +22,10 @@ vi.mock('../../../hooks/usePWAInstall', () => ({
 }));
 
 vi.mock('../../../services/zka/MobileStorage', () => ({
+  resolveMobileOnboardingApiBaseUrl: vi.fn(() => 'http://127.0.0.1:8005'),
   MobileStorage: {
     saveCredentials: vi.fn(),
+    isPaired: vi.fn(),
     saveBridgeContext: vi.fn(),
     clearBridgeContext: vi.fn(),
     clearAll: vi.fn(),
@@ -70,6 +73,7 @@ beforeEach(() => {
   vi.mocked(deriveMasterKey).mockResolvedValue('a'.repeat(64));
   vi.mocked(hasPlaintextMasterKey).mockReturnValue(false);
   vi.mocked(MobileStorage.saveCredentials).mockResolvedValue(undefined);
+  vi.mocked(MobileStorage.isPaired).mockResolvedValue(false);
   vi.mocked(MobileStorage.saveBridgeContext).mockResolvedValue(undefined);
   vi.mocked(MobileStorage.clearBridgeContext).mockResolvedValue(undefined);
   vi.mocked(MobileStorage.clearAll).mockResolvedValue(undefined);
@@ -81,6 +85,19 @@ afterEach(() => {
 });
 
 describe('OnboardingScanner G1 interactive matrix', () => {
+  it('keeps the unconfirmed remote-revocation alert across PWA reload until cabinet confirmation', () => {
+    markUnconfirmedMobileRevocation();
+    const page = renderScanner('/mobile/onboarding');
+    expect(screen.getByRole('alert').textContent).toContain('La révocation auprès de l’ancien cabinet n’a pas pu être confirmée');
+    page.unmount(); // installed PWA closes and later reopens with no URL query parameter
+    renderScanner('/mobile/onboarding');
+    expect(screen.getByRole('alert').textContent).toContain('La révocation auprès de l’ancien cabinet n’a pas pu être confirmée');
+    expect(hasUnconfirmedMobileRevocation()).toBe(true);
+    fireEvent.click(screen.getByRole('button', { name: 'J’ai obtenu la confirmation de révocation du cabinet' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(hasUnconfirmedMobileRevocation()).toBe(false);
+  });
+
   it('blocks iOS Safari pairing before Home Screen install without consuming the one-time QR', async () => {
     pwaRuntime.isIOS = true;
     pwaRuntime.isInstalled = false;
@@ -115,6 +132,20 @@ describe('OnboardingScanner G1 interactive matrix', () => {
     expect(await screen.findByText('Appairage réussi')).toBeTruthy();
     expect(MobileStorage.saveCredentials).toHaveBeenCalledOnce();
     expect(await screen.findByText('Mobile dashboard destination', {}, { timeout: 4000 })).toBeTruthy();
+  });
+
+  it('rejects a new QR claim when this phone is already paired to a cabinet', async () => {
+    vi.mocked(MobileStorage.isPaired).mockResolvedValue(true);
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    renderScanner();
+    fireEvent.change(screen.getByLabelText("Code d'appairage à 6 chiffres"), { target: { value: '123456' } });
+    fireEvent.click(screen.getByRole('button', { name: "Valider le code d'appairage" }));
+
+    expect(await screen.findByText(/déjà lié à un cabinet/i)).toBeTruthy();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(generateClientKeyPair).not.toHaveBeenCalled();
+    expect(MobileStorage.saveCredentials).not.toHaveBeenCalled();
   });
 
   it('keeps manual OK disabled until exactly six numeric digits and strips non-digits', () => {

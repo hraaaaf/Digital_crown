@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Html5QrcodeScanner, Html5QrcodeSupportedFormats } from 'html5-qrcode';
 import { Shield, Camera, AlertCircle, CheckCircle2, Loader2, Smartphone, Lock, ShieldCheck, ArrowRight, Share, Plus } from 'lucide-react';
-import { MobileStorage, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
+import { MobileStorage, resolveMobileOnboardingApiBaseUrl, type MobileBridgeContext } from '../../../services/zka/MobileStorage';
+import { acknowledgeMobileRevocationFollowUp, hasUnconfirmedMobileRevocation } from '../../../services/zka/mobileRevocationFollowUp';
 import { usePWAInstall } from '../../../hooks/usePWAInstall';
 import {
   deriveMasterKey,
@@ -16,15 +17,7 @@ const PREVIEW_DEMO_HOSTS = new Set([
   'digital-crown-p2-runtime-git-51e609-achraf-benmoussa-s-projects.vercel.app',
 ]);
 
-function resolveApiBase(): string {
-  const hostname = window.location.hostname;
-  if (hostname === 'localhost' || hostname === '127.0.0.1') {
-    return import.meta.env.VITE_API_URL ?? 'http://127.0.0.1:8005';
-  }
-  return `${window.location.protocol}//${hostname}:8005`;
-}
-
-const API_BASE = resolveApiBase();
+const API_BASE = resolveMobileOnboardingApiBaseUrl();
 
 const BRIDGE_ROUTES: Record<string, string> = {
   agenda: '/mobile/dashboard?tab=agenda',
@@ -61,6 +54,7 @@ export const OnboardingScanner = () => {
   const [phase, setPhase] = useState<'welcome' | 'scanning' | 'claiming' | 'success' | 'cert-setup' | 'error' | 'denied'>('welcome');
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [manualToken, setManualToken] = useState('');
+  const [pendingRevokeNotice, setPendingRevokeNotice] = useState(() => searchParams.get('revocation') === 'pending' || hasUnconfirmedMobileRevocation());
   const [showIOSInstallHint, setShowIOSInstallHint] = useState(false);
   // Pairing enrolls the device once; Pocket launches at its Today dashboard.
   // A contextual bridge may still be saved securely and opened from Pocket later.
@@ -157,6 +151,11 @@ export const OnboardingScanner = () => {
       return;
     }
     try {
+      // Single-cabinet V1: never consume another cabinet's QR while this
+      // phone still has a paired session. Unlink explicitly in Security first.
+      if (await MobileStorage.isPaired()) {
+        throw new Error('Ce téléphone est déjà lié à un cabinet. Déliez-le depuis Sécurité avant un nouvel appairage.');
+      }
       const { privateKey, publicKeyHex } = await generateClientKeyPair();
 
       const res = await fetch(`${API_BASE}/api/mobile/claim-token`, {
@@ -311,6 +310,17 @@ export const OnboardingScanner = () => {
           </div>
 
           <h1 className="text-3xl font-black tracking-tight text-center mb-3">Compagnon Mobile</h1>
+          {pendingRevokeNotice && (
+            <div role="alert" data-mobile-revocation-pending
+              className="mt-3 rounded-2xl border border-warning-border bg-warning-surface p-4 text-xs font-semibold text-warning">
+              <p>Les données de ce téléphone ont été effacées. La révocation auprès de l’ancien cabinet n’a pas pu être confirmée. Demandez à l’administrateur du cabinet de révoquer cet appareil depuis Sécurité Mobile.</p>
+              <button type="button"
+                onClick={() => { acknowledgeMobileRevocationFollowUp(); setPendingRevokeNotice(false); }}
+                className="mt-3 min-h-[44px] rounded-xl border border-warning-border px-3 py-2 font-bold underline underline-offset-2">
+                J’ai obtenu la confirmation de révocation du cabinet
+              </button>
+            </div>
+          )}
           <p className="text-text-muted text-sm text-center leading-relaxed mb-2 font-medium">
             Synchronisez votre cabinet sur ce téléphone en scannant le pont QR affiché dans la section{' '}
             <span className="text-primary font-black">Sécurité Mobile</span> de votre PC.

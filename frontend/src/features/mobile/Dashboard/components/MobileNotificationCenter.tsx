@@ -306,7 +306,7 @@ export function MobileNotificationCenter() {
         aria-label={alerts.length ? `Notifications, ${alerts.length} non lues` : 'Notifications'}
         aria-haspopup="dialog"
         aria-expanded={open}
-        className="relative h-12 w-12 shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary-ink active:scale-95 transition-transform"
+        className="relative h-[48px] w-[48px] shrink-0 rounded-[16px] border border-glass-border bg-card shadow-elite backdrop-blur-md flex items-center justify-center text-primary-ink active:scale-95 transition-transform"
         style={{ backgroundColor: 'var(--glass-bg)' }}
       >
         <Bell size={18} aria-hidden="true" />

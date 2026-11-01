@@ -92,13 +92,13 @@ export function SecuriteView({
         </div>
         <div className="z-10">
           <p className="font-bold text-on-primary text-xl ">Téléphone connecté</p>
-          <p className="text-[11px] text-on-primary/80 mt-2 leading-relaxed max-w-xs">
+          <p className="text-[0.6875rem] text-on-primary/80 mt-2 leading-relaxed max-w-xs">
             Connexion directe et sécurisée au cabinet.
           </p>
         </div>
         <div className="w-full flex items-center justify-center gap-2 py-2.5 bg-on-primary/10 backdrop-blur-xl border border-on-primary/20 rounded-[16px] shadow-sm z-10">
           <div className="w-1.5 h-1.5 rounded-full bg-card animate-pulse" />
-          <span className="text-[10px] font-bold text-on-primary uppercase tracking-widest">Connexion chiffrée</span>
+          <span className="text-[0.625rem] font-bold text-on-primary uppercase tracking-widest">Connexion chiffrée</span>
         </div>
       </div>
 
@@ -108,10 +108,10 @@ export function SecuriteView({
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-3">
               {isOnline ? <Wifi size={14} className="text-success" /> : <WifiOff size={14} className="text-danger" />}
-              <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">Réseau</span>
+              <span className="text-[0.6875rem] font-bold text-text-muted uppercase tracking-widest">Réseau</span>
             </div>
             <p className={cn('text-xs font-bold', isOnline ? 'text-success' : 'text-danger')}>{isOnline ? 'En ligne' : 'Hors ligne'}</p>
-            <p className="text-[11px] text-text-muted mt-0.5 font-bold">{isOnline ? 'Temps réel' : 'Accès hors connexion'}</p>
+            <p className="text-[0.6875rem] text-text-muted mt-0.5 font-bold">{isOnline ? 'Temps réel' : 'Accès hors connexion'}</p>
           </div>
         </div>
         <div className={cn(premiumGlass, 'rounded-[20px] p-4')}>
@@ -119,10 +119,10 @@ export function SecuriteView({
           <div className="relative z-10">
             <div className="flex items-center gap-2 mb-3">
               <RefreshCw size={14} className="text-primary" />
-              <span className="text-[11px] font-bold text-text-muted uppercase tracking-widest">Mise à jour</span>
+              <span className="text-[0.6875rem] font-bold text-text-muted uppercase tracking-widest">Mise à jour</span>
             </div>
             <p className="text-xs font-bold text-text-main">{syncStatus === 'success' ? 'À jour' : syncStatus === 'loading' ? 'En cours…' : 'En attente'}</p>
-            <p className="text-[11px] text-text-muted mt-0.5 font-bold">{snapshot ? new Date(snapshot.generated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
+            <p className="text-[0.6875rem] text-text-muted mt-0.5 font-bold">{snapshot ? new Date(snapshot.generated_at).toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }) : '—'}</p>
           </div>
         </div>
       </div>
@@ -131,7 +131,7 @@ export function SecuriteView({
         <GlassReflection />
         <div className={cn("relative z-10 h-2 w-2 rounded-full", cabinetConnected ? "bg-success animate-pulse" : "bg-warning")} />
         <div className="relative z-10">
-          <p className="text-[10px] font-bold text-text-muted uppercase tracking-widest">État de la connexion</p>
+          <p className="text-[0.625rem] font-bold text-text-muted uppercase tracking-widest">État de la connexion</p>
           <p className="text-sm font-bold text-text-main">{cabinetConnected ? "Cabinet accessible" : "Connexion cabinet à vérifier"}</p>
         </div>
         <FileText size={16} className="relative z-10 ml-auto text-text-muted" />
@@ -147,10 +147,10 @@ export function SecuriteView({
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <p className="text-sm font-bold text-text-main">Verrouillage biométrique</p>
-                {passkeyEnabled && <span className="px-2 py-1 rounded-full bg-success-surface text-success text-[10px] font-bold uppercase tracking-widest">Activé</span>}
-                {passkeyPending && <span className="px-2 py-1 rounded-full bg-warning-surface text-warning text-[10px] font-bold uppercase tracking-widest">À terminer</span>}
+                {passkeyEnabled && <span className="px-2 py-1 rounded-full bg-success-surface text-success text-[0.625rem] font-bold uppercase tracking-widest">Activé</span>}
+                {passkeyPending && <span className="px-2 py-1 rounded-full bg-warning-surface text-warning text-[0.625rem] font-bold uppercase tracking-widest">À terminer</span>}
               </div>
-              <p className="mt-1 text-[10px] leading-relaxed text-text-muted font-semibold">
+              <p className="mt-1 text-[0.625rem] leading-relaxed text-text-muted font-semibold">
                 {passkeyEnabled
                   ? 'Face ID, empreinte ou verrou sécurisé requis. L’accès reste temporaire et lié à ce téléphone.'
                   : passkeyPending
@@ -163,8 +163,8 @@ export function SecuriteView({
 
           {!passkeyOriginReady && passkey && (
             <div className="mt-4 rounded-[16px] bg-warning-surface border border-warning-border backdrop-blur-md px-4 py-3 shadow-sm">
-              <p className="text-[10px] font-bold text-warning">Adresse sécurisée requise</p>
-              <p className="text-[11px] text-warning mt-1 font-semibold break-all">{passkey.expected_origin}</p>
+              <p className="text-[0.625rem] font-bold text-warning">Adresse sécurisée requise</p>
+              <p className="text-[0.6875rem] text-warning mt-1 font-semibold break-all">{passkey.expected_origin}</p>
             </div>
           )}
 
@@ -176,23 +176,23 @@ export function SecuriteView({
           )}
 
           {passkeyEnabled && !confirmingPasskeyDisable && (
-            <button type="button" onClick={() => setConfirmingPasskeyDisable(true)} className="mt-4 min-h-[48px] w-full rounded-[18px] border border-border-main bg-card backdrop-blur-xl text-text-muted text-[10px] font-bold uppercase tracking-widest shadow-sm">
+            <button type="button" onClick={() => setConfirmingPasskeyDisable(true)} className="mt-4 min-h-[48px] w-full rounded-[18px] border border-border-main bg-card backdrop-blur-xl text-text-muted text-[0.625rem] font-bold uppercase tracking-widest shadow-sm">
               Désactiver le verrou biométrique
             </button>
           )}
 
           {passkeyEnabled && confirmingPasskeyDisable && (
             <div className="mt-4 rounded-[18px] border border-danger-border bg-danger-surface backdrop-blur-xl p-4 shadow-sm">
-              <p className="text-[10px] font-bold text-danger leading-relaxed">Après vérification biométrique, l’accès biométrique sera retiré de cet appareil.</p>
+              <p className="text-[0.625rem] font-bold text-danger leading-relaxed">Après vérification biométrique, l’accès biométrique sera retiré de cet appareil.</p>
               <div className="grid grid-cols-2 gap-2 mt-3">
-                <button type="button" onClick={() => setConfirmingPasskeyDisable(false)} className="min-h-[48px] rounded-[14px] bg-card border border-border-main text-[10px] font-bold text-text-muted">Annuler</button>
-                <button type="button" disabled={passkeyBusy} onClick={disablePasskey} className="min-h-[48px] rounded-[14px] bg-danger-surface text-danger text-[10px] font-bold disabled:opacity-50">Confirmer</button>
+                <button type="button" onClick={() => setConfirmingPasskeyDisable(false)} className="min-h-[48px] rounded-[14px] bg-card border border-border-main text-[0.625rem] font-bold text-text-muted">Annuler</button>
+                <button type="button" disabled={passkeyBusy} onClick={disablePasskey} className="min-h-[48px] rounded-[14px] bg-danger-surface text-danger text-[0.625rem] font-bold disabled:opacity-50">Confirmer</button>
               </div>
             </div>
           )}
 
-          {passkeyError && <p role="alert" className="mt-3 text-[10px] font-bold text-danger">{passkeyError}</p>}
-          <p className="mt-3 text-[11px] text-text-muted leading-relaxed font-semibold">La biométrie reste gérée par votre téléphone. Digital Crown ne reçoit ni empreinte ni donnée Face ID.</p>
+          {passkeyError && <p role="alert" className="mt-3 text-[0.625rem] font-bold text-danger">{passkeyError}</p>}
+          <p className="mt-3 text-[0.6875rem] text-text-muted leading-relaxed font-semibold">La biométrie reste gérée par votre téléphone. Digital Crown ne reçoit ni empreinte ni donnée Face ID.</p>
         </div>
       </section>
 

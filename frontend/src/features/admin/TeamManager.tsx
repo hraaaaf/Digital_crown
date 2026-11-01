@@ -36,6 +36,7 @@ interface TeamMember {
   permissions?: {
     agenda?: boolean;
     patients?: boolean;
+    stock_write?: boolean;
     prescriptions?: boolean;
     accounting?: boolean;
     payments?: boolean;
@@ -66,6 +67,7 @@ interface CreateForm {
   permissions: {
     agenda: boolean;
     patients: boolean;
+    stock_write: boolean;
     prescriptions: boolean;
     accounting: boolean;
     payments: boolean;
@@ -101,6 +103,7 @@ export const TeamManager: React.FC = () => {
     permissions: {
       agenda: true,
       patients: true,
+      stock_write: false,
       prescriptions: false,
       accounting: false,
       payments: false,
@@ -187,6 +190,7 @@ export const TeamManager: React.FC = () => {
         permissions: {
           agenda: true,
           patients: true,
+          stock_write: false,
           prescriptions: false,
           accounting: false,
           payments: false,
@@ -390,8 +394,8 @@ export const TeamManager: React.FC = () => {
                     ...f,
                     role,
                     permissions: role === 'DENTISTE' 
-                      ? { agenda: true, patients: true, prescriptions: true, accounting: true, payments: true, clinical: true, panoramic: true, cephalo: true, settings: false }
-                      : { agenda: true, patients: true, prescriptions: false, accounting: false, payments: false, clinical: false, panoramic: false, cephalo: false, settings: false }
+                      ? { agenda: true, patients: true, stock_write: true, prescriptions: true, accounting: true, payments: true, clinical: true, panoramic: true, cephalo: true, settings: false }
+                      : { agenda: true, patients: true, stock_write: false, prescriptions: false, accounting: false, payments: false, clinical: false, panoramic: false, cephalo: false, settings: false }
                   }));
                 }}
                 className="min-w-0 w-full px-5 py-4 bg-card border border-border-main rounded-xl text-sm outline-none focus:ring-4 transition-all font-bold text-text-main"
@@ -474,6 +478,7 @@ export const TeamManager: React.FC = () => {
                 {[
                   { key: 'agenda', label: 'Agenda', desc: 'Gestion des rendez-vous et plannings' },
                   { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
+                  { key: 'stock_write', label: 'Mouvements de stock', desc: 'Ajout et modification du stock, indépendant des patients' },
                   { key: 'prescriptions', label: 'Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                   { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                   { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },
@@ -743,6 +748,7 @@ export const TeamManager: React.FC = () => {
               {[
                 { key: 'agenda', label: 'Agenda', desc: 'Gestion des rendez-vous et plannings' },
                 { key: 'patients', label: 'Dossiers Patients', desc: 'Création, modification et fiches patients' },
+                  { key: 'stock_write', label: 'Mouvements de stock', desc: 'Ajout et modification du stock, indépendant des patients' },
                 { key: 'prescriptions', label: 'Prescriptions', desc: 'Rédaction d\'ordonnances cliniques' },
                 { key: 'accounting', label: 'Comptabilité & Chiffres', desc: 'Statistiques financières et paiements' },
                 { key: 'payments', label: 'Encaissements', desc: 'Valider et enregistrer les paiements' },

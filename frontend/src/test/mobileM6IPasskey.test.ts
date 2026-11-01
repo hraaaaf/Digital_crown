@@ -1,6 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { resolveMobileApiBaseUrl } from '../services/zka/MobileStorage';
 import { base64UrlToArrayBuffer } from '../services/zka/mobilePasskey';
 
 function source(path: string): string {
@@ -25,10 +26,14 @@ describe('M6-I passkey / biometric hardening', () => {
     expect(storage).toContain('removeItem(STORE_ACTION_QUEUE_ID)');
   });
 
-  it('forces the stable local hostname instead of a stale DHCP API address', () => {
-    const storage = source('src/services/zka/MobileStorage.ts');
-    expect(storage).toContain("hostname === 'digitalcrown.local'");
-    expect(storage).toContain("return `${window.location.protocol}//${hostname}:8005`");
+  it('maps actual loopback to the stable cabinet host without overwriting explicit origins', () => {
+    vi.stubGlobal('window', { location: { hostname: 'digitalcrown.local', protocol: 'https:' } });
+    try {
+      expect(resolveMobileApiBaseUrl('http://127.0.0.1:8005')).toBe('https://digitalcrown.local:8005');
+      expect(resolveMobileApiBaseUrl('https://cabinet.example:9443')).toBe('https://cabinet.example:9443');
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 
   it('fails closed on canonical mobile biometric lock responses', () => {

@@ -7,7 +7,7 @@ import os
 import secrets
 import uuid
 
-from fastapi import Depends, HTTPException
+from fastapi import Depends, HTTPException, Header
 from jose import JWTError, jwt
 from pydantic import BaseModel, Field
 from sqlalchemy import or_
@@ -549,9 +549,38 @@ def refresh_mobile_credentials(
         'role': role,
     }
 
+@router.post('/revoke-device', summary='Délier uniquement cet appareil mobile')
+def revoke_current_mobile_device(
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db),
+):
+    # Authenticate the paired mobile JWT directly, not desktop auth and not
+    # a caller-supplied device ID. Never revoke the other phones of this cabinet.
+    user, tenant_id, payload = _legacy._decode_mobile_identity(authorization, db)
+    device = db.query(models.MobilePairedDevice).filter(
+        models.MobilePairedDevice.device_id == payload['device_id'],
+        models.MobilePairedDevice.user_id == user.id,
+        models.MobilePairedDevice.employer_id == tenant_id,
+        models.MobilePairedDevice.revoked_at.is_(None),
+    ).first()
+    if not device:
+        raise HTTPException(status_code=401, detail='Appareil déjà révoqué.')
+    device.revoked_at = datetime.utcnow()
+    db.commit()
+    return {'revoked': True}
+
+
 def _require_mobile_roles(user: models.User, allowed: set[str]) -> None:
     if _role_name(user) not in allowed:
         raise HTTPException(status_code=403, detail="Accès mobile refusé pour ce rôle.")
+
+
+@router.get('/stock/access', summary='Stock Pocket — autorisations de mutation')
+def mobile_stock_access(
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    # Server is authoritative; do not infer write grants from the patients module.
+    return {"can_write": has_permission(mobile_user, "stock_write")}
 
 
 @router.get('/stock/items', summary='Stock Pocket — liste')
@@ -567,7 +596,7 @@ def mobile_stock_items(
 def mobile_create_stock_item(
     payload: dict,
     db: Session = Depends(database.get_db),
-    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("stock_write")),
 ):
     from backend.routers import stock as _stock
     return _stock.create_stock_item(_stock.StockItemCreate(**payload), db, mobile_user)
@@ -578,7 +607,7 @@ def mobile_update_stock_item(
     item_id: int,
     payload: dict,
     db: Session = Depends(database.get_db),
-    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("stock_write")),
 ):
     from backend.routers import stock as _stock
     return _stock.update_stock_item(item_id, payload, db, mobile_user)

@@ -74,11 +74,13 @@ describe('Digital Crown Pocket canonical navigation', () => {
     const indicator = nav.querySelector<HTMLElement>('[data-mobile-nav-indicator]');
 
     expect(nav.hasAttribute('data-pocket-glass-nav')).toBe(true);
+    expect(nav.className).toContain('overflow-x-auto');
+    expect(nav.querySelector('[data-mobile-nav-item="agenda"] span:last-child')?.className).toContain('whitespace-nowrap');
     expect(nav.getAttribute('style')).toContain('var(--card-bg)');
     expect(targets.map(target => target.dataset.mobileNavItem)).toEqual([
       'today', 'agenda', 'actions', 'patients', 'more',
     ]);
-    expect(targets.every(target => target.className.includes('min-h-[54px]'))).toBe(true);
+    expect(targets.every(target => target.className.includes('min-h-[calc(22px+2rem)]'))).toBe(true);
     expect(targets[2].className).not.toContain('absolute');
     expect(targets[2].className).not.toContain('-top-2.5');
     expect(targets[2].textContent).toContain('Actions');
@@ -117,7 +119,7 @@ describe('Digital Crown Pocket canonical navigation', () => {
     expect(dialog.className).toContain('bg-card');
     const stockItem = screen.getByRole('button', { name: 'Stock' });
     expect(stockItem.className).toContain('min-h-[54px]');
-    expect(stockItem.querySelector('span.flex-1')?.className).toContain('text-[14px]');
+    expect(stockItem.querySelector('span.flex-1')?.className).toContain('text-[0.875rem]');
     const nav = document.querySelector('[data-mobile-bottom-nav]') as HTMLElement;
     expect(nav.getAttribute('style')).toContain('var(--card-bg)');
 

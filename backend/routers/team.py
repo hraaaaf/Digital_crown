@@ -35,6 +35,7 @@ router = APIRouter(tags=["Team Management"])
 ALLOWED_TEAM_PERMISSIONS = {
     "agenda",
     "patients",
+    "stock_write",
     "prescriptions",
     "accounting",
     "payments",
@@ -198,13 +199,13 @@ def create_team_member(
         )
 
     default_permissions = {
-        "agenda": True, "patients": True, "prescriptions": False,
+        "agenda": True, "patients": True, "stock_write": False, "prescriptions": False,
         "accounting": False, "payments": False, "clinical": False,
         "panoramic": False, "cephalo": False, "settings": False,
     }
     if member.role == "DENTISTE":
         default_permissions = {
-            "agenda": True, "patients": True, "prescriptions": True,
+            "agenda": True, "patients": True, "stock_write": True, "prescriptions": True,
             "accounting": True, "payments": True, "clinical": True,
             "panoramic": True, "cephalo": True, "settings": False,
         }

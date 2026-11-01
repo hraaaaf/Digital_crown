@@ -45,6 +45,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
   const [mutatingId, setMutatingId] = useState<number | null>(null);
   const [addOpen, setAddOpen] = useState(false);
   const [saving, setSaving] = useState(false);
+  const [canWrite, setCanWrite] = useState(false);
   const [form, setForm] = useState({
     nom: '',
     categorie: 'CONSOMMABLE',
@@ -60,10 +61,17 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
       return;
     }
     setLoading(true);
+    setCanWrite(false);
     setError(null);
     try {
       const data = await mobileApiJson<MobileStockItem[]>('/stock/items');
       setItems(Array.isArray(data) ? data : []);
+      try {
+        const access = await mobileApiJson<{ can_write: boolean }>('/stock/access');
+        setCanWrite(access?.can_write === true);
+      } catch {
+        setCanWrite(false);
+      }
     } catch (err: any) {
       setError(err?.message || 'Impossible de charger le stock.');
     } finally {
@@ -90,7 +98,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
   }, [items, filter, search]);
 
   const adjust = async (item: MobileStockItem, delta: number) => {
-    if (previewData || !isOnline) return;
+    if (previewData || !isOnline || !canWrite) return;
     const next = Math.max(0, Number(item.quantite) + delta);
     if (next === item.quantite) return;
     setMutatingId(item.id);
@@ -111,7 +119,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
 
   const addItem = async (event: React.FormEvent) => {
     event.preventDefault();
-    if (previewData || !form.nom.trim()) return;
+    if (previewData || !canWrite || !form.nom.trim()) return;
     setSaving(true);
     setError(null);
     try {
@@ -140,9 +148,9 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
     <section className="pb-6" data-mobile-stock>
       <div className="mb-4 flex items-start justify-between gap-3">
         <div>
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-primary">Cabinet</p>
-          <h1 className="mt-1 text-[22px] font-bold text-text-main">Stock</h1>
-          <p className="mt-1 text-[12px] font-medium text-text-muted">{items.length} article{items.length > 1 ? 's' : ''}</p>
+          <p className="text-[0.6875rem] font-semibold uppercase tracking-[0.18em] text-primary">Cabinet</p>
+          <h1 className="mt-1 text-[1.375rem] font-bold text-text-main">Stock</h1>
+          <p className="mt-1 text-[0.75rem] font-medium text-text-muted">{items.length} article{items.length > 1 ? 's' : ''}</p>
         </div>
         <div className="flex gap-2">
           <button
@@ -158,7 +166,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
             type="button"
             aria-label="Ajouter un article"
             onClick={() => setAddOpen(true)}
-            disabled={Boolean(previewData)}
+            disabled={Boolean(previewData) || !canWrite || !isOnline}
             className="grid min-h-11 min-w-11 place-items-center rounded-full bg-primary text-on-primary disabled:opacity-50"
           >
             <Plus size={20} />
@@ -166,8 +174,9 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
         </div>
       </div>
 
-      {quickMode && <p className="mb-3 rounded-[16px] border border-glass-border bg-card px-4 py-3 text-[11px] font-semibold text-text-muted">Mouvements rapides uniquement. La création et la configuration des articles restent sur le poste de travail.</p>}
-      {!isOnline && <p role="status" className="mb-3 rounded-[16px] border border-warning-border bg-warning-surface px-4 py-3 text-[11px] font-bold text-warning">Stock en consultation hors ligne ; ajustements désactivés.</p>}
+      {quickMode && <p className="mb-3 rounded-[16px] border border-glass-border bg-card px-4 py-3 text-[0.6875rem] font-semibold text-text-muted">Mouvements rapides uniquement. La création et la configuration des articles restent sur le poste de travail.</p>}
+      {!previewData && !canWrite && <p role="status" className="mb-3 rounded-[16px] border border-border-main bg-card px-4 py-3 text-[0.6875rem] font-semibold text-text-muted">Consultation uniquement : les mouvements de stock nécessitent l'autorisation dédiée du cabinet.</p>}
+      {!isOnline && <p role="status" className="mb-3 rounded-[16px] border border-warning-border bg-warning-surface px-4 py-3 text-[0.6875rem] font-bold text-warning">Stock en consultation hors ligne ; ajustements désactivés.</p>}
       <div className="mb-4 grid grid-cols-3 gap-2" aria-label="Résumé du stock">
         {[
           ['Rupture', counts.rupture, 'text-danger'],
@@ -175,8 +184,8 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
           ['OK', counts.ok, 'text-success'],
         ].map(([label, count, color]) => (
           <div key={String(label)} className="rounded-[18px] border border-glass-border bg-card px-3 py-3 text-center shadow-sm">
-            <p className={`text-[18px] font-black ${color}`}>{count}</p>
-            <p className="mt-0.5 text-[11px] font-black uppercase tracking-wider text-text-muted">{label}</p>
+            <p className={`text-[1.125rem] font-black ${color}`}>{count}</p>
+            <p className="mt-0.5 text-[0.6875rem] font-black uppercase tracking-wider text-text-muted">{label}</p>
           </div>
         ))}
       </div>
@@ -187,7 +196,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
           value={search}
           onChange={event => setSearch(event.target.value)}
           placeholder="Rechercher un article…"
-          className="min-h-11 w-full rounded-[16px] border border-glass-border bg-card pl-10 pr-4 text-[16px] font-medium text-text-main outline-none focus:ring-2 focus:ring-primary/20"
+          className="min-h-11 w-full rounded-[16px] border border-glass-border bg-card pl-10 pr-4 text-[1rem] font-medium text-text-main outline-none focus:ring-2 focus:ring-primary/20"
         />
       </div>
 
@@ -198,7 +207,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
             type="button"
             aria-pressed={filter === id}
             onClick={() => setFilter(id)}
-            className={`min-h-11 rounded-[14px] px-3 text-[11px] font-black ${filter === id ? 'bg-primary text-on-primary' : 'text-text-muted'}`}
+            className={`min-h-11 rounded-[14px] px-3 text-[0.6875rem] font-black ${filter === id ? 'bg-primary text-on-primary' : 'text-text-muted'}`}
           >
             {label}
           </button>
@@ -206,7 +215,7 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
       </div>
 
       {error && (
-        <div className="mb-3 rounded-[18px] border border-danger-border bg-danger-surface px-4 py-3 text-[11px] font-bold text-danger">
+        <div className="mb-3 rounded-[18px] border border-danger-border bg-danger-surface px-4 py-3 text-[0.6875rem] font-bold text-danger">
           {error}
         </div>
       )}
@@ -214,8 +223,8 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
       {!loading && visible.length === 0 && (
         <div className="rounded-[24px] border border-glass-border bg-card px-5 py-8 text-center shadow-sm">
           <Package size={28} className="mx-auto text-primary" />
-          <h2 className="mt-3 text-[15px] font-semibold text-text-main">Aucun article</h2>
-          <p className="mt-1 text-[12px] font-medium text-text-muted">Aucun résultat pour ce filtre.</p>
+          <h2 className="mt-3 text-[0.9375rem] font-semibold text-text-main">Aucun article</h2>
+          <p className="mt-1 text-[0.75rem] font-medium text-text-muted">Aucun résultat pour ce filtre.</p>
         </div>
       )}
 
@@ -227,12 +236,12 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
             <article key={item.id} className="rounded-[22px] border border-border-main bg-card p-4 shadow-sm">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
-                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-[11px] font-black ${meta.className}`}>{meta.label}</span>
-                  <h2 className="mt-2 truncate text-[16px] font-semibold text-text-main">{item.nom}</h2>
-                  <p className="mt-1 text-[12px] font-medium text-text-muted">
+                  <span className={`inline-flex rounded-full border px-2.5 py-1 text-[0.6875rem] font-black ${meta.className}`}>{meta.label}</span>
+                  <h2 className="mt-2 break-words text-[1rem] font-semibold text-text-main">{item.nom}</h2>
+                  <p className="mt-1 text-[0.75rem] font-medium text-text-muted">
                     {CATEGORY_LABELS[item.categorie] ?? item.categorie} · seuil {item.seuil_alerte} {item.unite}
                   </p>
-                  {item.fournisseur && <p className="mt-1 truncate text-[12px] font-medium text-text-muted">{item.fournisseur}</p>}
+                  {item.fournisseur && <p className="mt-1 break-words text-[0.75rem] font-medium text-text-muted">{item.fournisseur}</p>}
                 </div>
                 {item.alerte && <AlertTriangle size={18} className={item.quantite <= 0 ? 'text-danger' : 'text-warning'} />}
               </div>
@@ -241,20 +250,20 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
                 <button
                   type="button"
                   aria-label={`Retirer une ${item.unite} de ${item.nom}`}
-                  disabled={busy || Boolean(previewData) || !isOnline || item.quantite <= 0}
+                  disabled={busy || Boolean(previewData) || !canWrite || !isOnline || item.quantite <= 0}
                   onClick={() => void adjust(item, -1)}
                   className="grid min-h-11 place-items-center rounded-[16px] border border-glass-border bg-background text-text-main disabled:opacity-35"
                 >
                   <Minus size={17} />
                 </button>
                 <div className="text-center">
-                  <p className="text-[24px] font-bold text-text-main">{item.quantite}</p>
-                  <p className="text-[11px] font-black uppercase tracking-wider text-text-muted">{item.unite}</p>
+                  <p className="text-[1.5rem] font-bold text-text-main">{item.quantite}</p>
+                  <p className="text-[0.6875rem] font-black uppercase tracking-wider text-text-muted">{item.unite}</p>
                 </div>
                 <button
                   type="button"
                   aria-label={`Ajouter une ${item.unite} à ${item.nom}`}
-                  disabled={busy || Boolean(previewData) || !isOnline}
+                  disabled={busy || Boolean(previewData) || !canWrite || !isOnline}
                   onClick={() => void adjust(item, 1)}
                   className="grid min-h-11 place-items-center rounded-[16px] bg-primary text-on-primary disabled:opacity-35"
                 >
@@ -271,23 +280,23 @@ export function StockView({ previewData, quickMode = false, isOnline = true }: {
           <section role="dialog" aria-modal="true" aria-labelledby="mobile-stock-add-title" className="mx-auto w-full max-w-[720px] rounded-[28px] border border-glass-border bg-card p-5 shadow-elite-hover">
             <div className="mb-4 flex items-center justify-between gap-3">
               <div>
-                <p className="text-[11px] font-black uppercase tracking-[0.16em] text-primary">Mouvement rapide</p>
-                <h2 id="mobile-stock-add-title" className="mt-1 text-[18px] font-black text-text-main">Ajouter un article</h2>
+                <p className="text-[0.6875rem] font-black uppercase tracking-[0.16em] text-primary">Mouvement rapide</p>
+                <h2 id="mobile-stock-add-title" className="mt-1 text-[1.125rem] font-black text-text-main">Ajouter un article</h2>
               </div>
               <button type="button" aria-label="Fermer" onClick={() => setAddOpen(false)} className="grid min-h-11 min-w-11 place-items-center rounded-full border border-glass-border bg-background text-text-muted"><X size={18} /></button>
             </div>
 
             <form onSubmit={addItem} className="grid gap-3">
-              <input required value={form.nom} onChange={event => setForm(current => ({ ...current, nom: event.target.value }))} placeholder="Nom de l’article" className="min-h-11 rounded-[16px] border border-glass-border bg-background px-4 text-[12px] font-bold text-text-main outline-none focus:ring-2 focus:ring-primary/20" />
-              <select value={form.categorie} onChange={event => setForm(current => ({ ...current, categorie: event.target.value }))} className="min-h-11 rounded-[16px] border border-glass-border bg-background px-4 text-[12px] font-bold text-text-main outline-none">
+              <input required value={form.nom} onChange={event => setForm(current => ({ ...current, nom: event.target.value }))} placeholder="Nom de l’article" className="min-h-11 rounded-[16px] border border-glass-border bg-background px-4 text-[0.75rem] font-bold text-text-main outline-none focus:ring-2 focus:ring-primary/20" />
+              <select value={form.categorie} onChange={event => setForm(current => ({ ...current, categorie: event.target.value }))} className="min-h-11 rounded-[16px] border border-glass-border bg-background px-4 text-[0.75rem] font-bold text-text-main outline-none">
                 {CATEGORIES.map(([value, label]) => <option key={value} value={value}>{label}</option>)}
               </select>
               <div className="grid grid-cols-3 gap-2">
-                <input aria-label="Quantité" type="number" min="0" step="0.5" value={form.quantite} onChange={event => setForm(current => ({ ...current, quantite: event.target.value }))} placeholder="Qté" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[12px] font-bold text-text-main outline-none" />
-                <input aria-label="Seuil d'alerte" type="number" min="0" step="0.5" value={form.seuil_alerte} onChange={event => setForm(current => ({ ...current, seuil_alerte: event.target.value }))} placeholder="Seuil" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[12px] font-bold text-text-main outline-none" />
-                <input aria-label="Unité" value={form.unite} onChange={event => setForm(current => ({ ...current, unite: event.target.value }))} placeholder="Unité" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[12px] font-bold text-text-main outline-none" />
+                <input aria-label="Quantité" type="number" min="0" step="0.5" value={form.quantite} onChange={event => setForm(current => ({ ...current, quantite: event.target.value }))} placeholder="Qté" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[0.75rem] font-bold text-text-main outline-none" />
+                <input aria-label="Seuil d'alerte" type="number" min="0" step="0.5" value={form.seuil_alerte} onChange={event => setForm(current => ({ ...current, seuil_alerte: event.target.value }))} placeholder="Seuil" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[0.75rem] font-bold text-text-main outline-none" />
+                <input aria-label="Unité" value={form.unite} onChange={event => setForm(current => ({ ...current, unite: event.target.value }))} placeholder="Unité" className="min-h-11 min-w-0 rounded-[16px] border border-glass-border bg-background px-3 text-[0.75rem] font-bold text-text-main outline-none" />
               </div>
-              <button type="submit" disabled={saving || !form.nom.trim()} className="min-h-11 rounded-[16px] bg-primary px-4 text-[12px] font-semibold text-on-primary disabled:opacity-50">{saving ? 'Ajout…' : 'Ajouter'}</button>
+              <button type="submit" disabled={saving || !canWrite || !form.nom.trim()} className="min-h-11 rounded-[16px] bg-primary px-4 text-[0.75rem] font-semibold text-on-primary disabled:opacity-50">{saving ? 'Ajout…' : 'Ajouter'}</button>
             </form>
           </section>
         </div>
