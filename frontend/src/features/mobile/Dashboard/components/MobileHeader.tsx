@@ -1,4 +1,4 @@
-import { Bell, Calendar, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
+import { Bell, ChevronLeft, ChevronRight, RefreshCw, Search } from 'lucide-react';
 import { cn } from '../../../../utils/cn';
 import Logo from '../../../../assets/logo.png';
 import type { Tab, SyncStatus, Snapshot } from '../types';
