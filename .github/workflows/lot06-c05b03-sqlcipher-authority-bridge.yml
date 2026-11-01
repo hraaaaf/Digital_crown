@@ -12,6 +12,7 @@ on:
       - isolated_fue_lot06c/test_sqlcipher_gateway_races_v15.py
       - isolated_fue_lot06c/windows_dpapi_gateway_lab.py
       - isolated_fue_lot06c/test_windows_dpapi_gateway_lab_v15.py
+      - docs/lot06/C05B03H04-windows-ACL-ADR.md
       - docs/lot06/C05B03H03-windows-DPAPI-ADR.md
       - docs/lot06/C05B03H02-windows-connector-gate.md
       - docs/lot06/C05B03H-gateway-human-proof-ADR.md
@@ -220,6 +221,7 @@ jobs:
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
       DC06C05B03H03_TEST_ONLY: '1'
       DC06C05B03H03_EVIDENCE_DIR: lot06-c05b03-windows-evidence
+      DC06C05B03H04_EVIDENCE_DIR: lot06-c05b03-windows-evidence
       PYTHONUTF8: '1'
     steps:
       - uses: actions/checkout@v4
@@ -266,6 +268,23 @@ jobs:
             if ($e.$key -ne $false) { throw "C05B03H03_FALSE_PRODUCT_ASSURANCE_$key" }
           }
           Write-Host "C05B03H03_WIN32_USER_DPAPI_EVIDENCE_VALIDATED_LAB_NOT_PRODUCT"
+          $h04 = Join-Path $env:DC06C05B03H04_EVIDENCE_DIR "lot06c05b03h04-acl-proof.json"
+          if (!(Test-Path $h04)) { throw "C05B03H04_MISSING_ACL_EVIDENCE" }
+          $h = Get-Content -Raw $h04 | ConvertFrom-Json
+          foreach ($key in @('real_windows_acl_owner_system_protected',
+                'file_acl_extra_principal_denied',
+                'parent_acl_extra_principal_denied',
+                'owner_still_can_sign_after_acl_restored')) {
+            if ($h.$key -ne $true) { throw "C05B03H04_PROOF_MISSING_$key" }
+          }
+          foreach ($key in @('actual_second_logon_user_verified',
+                'physical_windows_os_reboot_verified',
+                'windows_service_installer_verified','scanner_hardware_attestation',
+                'nonexportable_tpm_key','product_ready','clinical_go')) {
+            if ($h.$key -ne $false) { throw "C05B03H04_FALSE_ASSURANCE_$key" }
+          }
+          Write-Host "C05B03H04_WIN32_OWNER_SYSTEM_ACL_NEGATIVE_PROOF_LAB"
+
       - name: Preserve non-PHI Windows evidence
         if: always()
         uses: actions/upload-artifact@v4
