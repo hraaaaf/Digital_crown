@@ -160,7 +160,7 @@ try {
             throw 'C05B03Q_CHILD_SCRIPT_NOT_FOUND'
         }
         $userCredential = [System.Management.Automation.PSCredential]::new(
-            ('.\\' + $name), $securePassword
+            ('.' + [char]92 + $name), $securePassword
         )
         $cmd = (Get-Command pwsh -ErrorAction Stop).Source
         $argLine = '-NoProfile -NonInteractive -File "' + $childScript +
