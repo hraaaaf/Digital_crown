@@ -46,7 +46,7 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [approved, setApproved] = useState(false);
-  const [now] = useState(() => Math.floor(Date.now() / 1000));
+  const now = Math.floor(Date.now() / 1000);
 
   useEffect(() => {
     // A new capture or patient invalidates every former local UI confirmation.
@@ -70,7 +70,7 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
     review.expires_at > now;
 
   const confirm = async () => {
-    if (!canConfirm) return;
+    if (!canConfirm || review.expires_at <= Math.floor(Date.now() / 1000)) return;
     setPending(true);
     setError('');
     try {
