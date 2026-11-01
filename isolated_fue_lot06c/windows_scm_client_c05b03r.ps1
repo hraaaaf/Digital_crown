@@ -70,10 +70,6 @@ public static class DC06RClient {
         }
     }
 
-    [DllImport("kernel32.dll", SetLastError = true)]
-    public static extern bool ReadFile(SafeFileHandle file,
-        [Out] byte[] buffer, uint count, out uint read, IntPtr overlapped);
-
     public static string B03Status(string path) {
         using (var handle = CreateFile(path, 0x00100183u, 0u, IntPtr.Zero,
                                        3u, 0u, IntPtr.Zero)) {
