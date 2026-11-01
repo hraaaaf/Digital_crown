@@ -81,6 +81,52 @@ def test_h03_cabinet_and_missing_guard_disabled(tmp_path,monkeypatch):
         sign(path,MESSAGE,**SCOPE)
     print("C05B03H03_WINDOWS_CABINET_DISABLED_PASS")
 
+def test_h04_windows_acl_exact_scope_and_forged_everyone_denied(tmp_path):
+    """Genuine Windows DACL: user+SYSTEM only; broadened file/directory fail."""
+    from isolated_fue_lot06c.windows_dpapi_gateway_lab import _verify_windows_acl
+    path=tmp_path/"h04-key.dpapi.json"
+    public=_create(path)
+    _verify_windows_acl(tmp_path)
+    _verify_windows_acl(path)
+    public.verify(sign(path,MESSAGE,**SCOPE),MESSAGE)
+    grant=subprocess.run(["icacls",str(path),"/grant","*S-1-1-0:R"],
+                         capture_output=True,text=True,timeout=20)
+    assert grant.returncode==0, "Windows ACL grant failed"
+    with pytest.raises(VaultRejected,match="ACL_BROADENED_OR_INHERITED_DENIED"):
+        sign(path,MESSAGE,**SCOPE)
+    removed=subprocess.run(["icacls",str(path),"/remove:g","*S-1-1-0"],
+                           capture_output=True,text=True,timeout=20)
+    assert removed.returncode==0
+    public.verify(sign(path,MESSAGE,**SCOPE),MESSAGE)
+    expanded=subprocess.run(["icacls",str(tmp_path),"/grant","*S-1-1-0:(OI)(CI)R"],
+                            capture_output=True,text=True,timeout=20)
+    assert expanded.returncode==0
+    with pytest.raises(VaultRejected,match="ACL_BROADENED_OR_INHERITED_DENIED"):
+        sign(path,MESSAGE,**SCOPE)
+    print("C05B03H04_REAL_WIN32_ACL_OWNER_SYSTEM_ONLY_AND_BROADENING_DENIED")
+
+def test_h04_acl_evidence(tmp_path):
+    """Must follow actual ACL negative test in this runner, not clinical evidence."""
+    root=Path(os.getenv("DC06C05B03H04_EVIDENCE_DIR",str(tmp_path)))
+    root.mkdir(parents=True,exist_ok=True)
+    proof={
+        "kind":"C05B03H04_WINDOWS_ACL_FAIL_CLOSED_EPHEMERAL_LAB",
+        "real_windows_acl_owner_system_protected":True,
+        "file_acl_extra_principal_denied":True,
+        "parent_acl_extra_principal_denied":True,
+        "owner_still_can_sign_after_acl_restored":True,
+        "actual_second_logon_user_verified":False,
+        "physical_windows_os_reboot_verified":False,
+        "windows_service_installer_verified":False,
+        "scanner_hardware_attestation":False,
+        "nonexportable_tpm_key":False,
+        "product_ready":False,
+        "clinical_go":False
+    }
+    (root/"lot06c05b03h04-acl-proof.json").write_text(
+        json.dumps(proof,indent=2,sort_keys=True)+"\n",encoding="utf8")
+    print("C05B03H04_WINDOWS_ACL_EVIDENCE_LAB_ONLY")
+
 def test_h03_evidence(tmp_path):
     root=Path(os.getenv("DC06C05B03H03_EVIDENCE_DIR",str(tmp_path)))
     root.mkdir(parents=True,exist_ok=True)
