@@ -120,6 +120,8 @@ export function MobileBottomNav({
     if (!nav) return;
     const update = () => setNavScrollable(nav.scrollWidth > nav.clientWidth + 2);
     update();
+    // The test DOM may not implement ResizeObserver; production browsers do.
+    if (typeof ResizeObserver === 'undefined') return;
     const observer = new ResizeObserver(update);
     observer.observe(nav);
     if (nav.firstElementChild) observer.observe(nav.firstElementChild);
