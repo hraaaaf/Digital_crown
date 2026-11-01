@@ -6,6 +6,9 @@ on:
       - .github/workflows/lot06-c05b03-sqlcipher-authority-bridge.yml
       - isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py
       - isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py
+      - isolated_fue_lot06c/test_sqlcipher_authority_ledger_migration_v15.py
+      - isolated_fue_lot06c/migrations/c05b03f_authority_ledger_candidate.py
+      - docs/lot06/C05B03F-authority-ledger-ADR.md
       - isolated_fue_lot06c/test_sqlcipher_clinical_asset_receipt_v15.py
       - isolated_fue_lot06c/test_sqlcipher_persistent_approval_v15.py
       - isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py
@@ -32,6 +35,7 @@ jobs:
       DC06C05B03D_TEST_ONLY: '1'
       DC06C05B03M_TEST_ONLY: '1'
       DC06C05B03E_TEST_ONLY: '1'
+      DC06C05B03F_TEST_ONLY: '1'
       C05B03H_NETWORK_POLICY_APPROVED: 'false'
       DATABASE_URL: 'sqlite:///:memory:'
       SECRET_KEY: 'only-synthetic-lot06-authority-bridge-isolated-2026'
@@ -42,6 +46,7 @@ jobs:
       DC06C05B03D_EVIDENCE_DIR: lot06-c05b03-authority-evidence
       DC06C05B03M_EVIDENCE_DIR: lot06-c05b03-authority-evidence
       DC06C05B03E_EVIDENCE_DIR: lot06-c05b03-authority-evidence
+      DC06C05B03F_EVIDENCE_DIR: lot06-c05b03-authority-evidence
     steps:
       - uses: actions/checkout@v4
         with:
@@ -88,6 +93,7 @@ jobs:
               "isolated_fue_lot06c/test_sqlcipher_wal_durability_contract_v15.py",
               "isolated_fue_lot06c/test_sqlcipher_c2_upgrade_rollback_v15.py",
               "isolated_fue_lot06c/test_sqlcipher_real_staff_station_bridge_v15.py",
+              "isolated_fue_lot06c/test_sqlcipher_authority_ledger_migration_v15.py",
           ]))
           PY
           python - <<'PY'
@@ -119,6 +125,20 @@ jobs:
                       'alembic_authority_migration_implemented',
                       'clinical_receipt_authorized', 'product_ready', 'clinical_go'):
               assert bridge.get(key) is False, key
+          candidate = json.loads(Path('lot06-c05b03-authority-evidence/lot06c05b03f-ledger.json').read_text())
+          for key in ('native_sqlcipher_migration_executed','upgrade_empty_downgrade_executed',
+                      'real_backend_clinical_asset_preserved',
+                      'encrypted_preupgrade_snapshot_restored',
+                      'receipt_approval_version_conflict_refused',
+                      'immutable_receipt_audit_outbox_tested',
+                      'approval_frozen_after_receipt','nonempty_downgrade_refused',
+                      'restored_encrypted_media_verified'):
+              assert candidate.get(key) is True, key
+          for key in ('registered_in_production_alembic_chain',
+                      'clinical_api_http_jwt_tested','staff_human_approval_tested',
+                      'device_enrollment_production','clinical_receipt_authorized',
+                      'product_ready','clinical_go'):
+              assert candidate.get(key) is False, key
           print('C05B03_SQLCIPHER_LAB_AUTHORITY_REPRODUCED_NOT_PRODUCT_INTEGRATED')
           PY
       - name: Publish isolated evidence without patient data
