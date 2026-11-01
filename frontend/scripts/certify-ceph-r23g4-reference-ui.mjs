@@ -217,7 +217,7 @@ async function viewportRun(viewport) {
         const headerBackground=headerStyle?.backgroundColor ?? null;
         // Opaque theme surface: a translucent sticky header leaks clinical rows during scroll.
         const headerOpaque=Boolean(header && headerStyle?.opacity==='1'
-          && headerBackground && /^rgb\\(/.test(headerBackground));
+          && headerBackground && headerBackground.startsWith('rgb('));
         return {rowTop:r.top,rowBottom:r.bottom,scrollTop:c.top,scrollBottom:c.bottom,
           bottomPadding:parseFloat(getComputedStyle(scroller).paddingBottom)||0,
           viewportHeight:innerHeight,headerBackground,headerOpaque};
