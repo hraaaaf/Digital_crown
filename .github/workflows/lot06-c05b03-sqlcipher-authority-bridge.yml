@@ -236,7 +236,7 @@ jobs:
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw "C05B03H03_WRONG_HEAD" }
           if ($env:ENVIRONMENT -ne 'test') { throw "C05B03H03_NOT_TEST" }
           if ($env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true') { throw "C05B03H03_NOT_ISOLATED" }
-          python -m pip install "pytest==9.0.3" cryptography
+          python -m pip install "pytest==9.0.3" cryptography pywin32==311
           if ($LASTEXITCODE -ne 0) { throw "C05B03H03_INSTALL_FAILED" }
       - name: Test real Windows DPAPI user-scope vault + second Python process
         shell: pwsh
