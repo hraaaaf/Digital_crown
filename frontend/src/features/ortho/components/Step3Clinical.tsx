@@ -24,11 +24,6 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
     onChange(prev => ({ ...prev, osseuse: { ...prev.osseuse, [key]: num } }));
   };
 
-  const updateEsthetique = (key: keyof typeof data.esthetique, val: string) => {
-    const num = val === '' ? '' : parseFloat(val);
-    onChange(prev => ({ ...prev, esthetique: { ...prev.esthetique, [key]: num } }));
-  };
-
   const handleDiagChange = (key: keyof DiagnosticTexts, value: string) => {
     onDiagChange(prev => ({ ...prev, [key]: value }));
   };
@@ -110,10 +105,10 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
                 <MetricInput label="Inter Incisif (1/1)" value={data.dentaire.inter_incisif} unit="°" P={P} readOnly />
               </>}
               {currentAnalysis === 'STEINER' && <>
-                <MetricInput label="1 / NA (°)" value={data.dentaire.i_na_angle || ''} onChange={v => updateDentaire('i_na_angle', v)} unit="°" P={P} />
-                <MetricInput label="1 / NA (mm)" value={data.dentaire.i_na_mm || ''} onChange={v => updateDentaire('i_na_mm', v)} unit="mm" P={P} />
-                <MetricInput label="1 / NB (°)" value={data.dentaire.i_nb_angle || ''} onChange={v => updateDentaire('i_nb_angle', v)} unit="°" P={P} />
-                <MetricInput label="1 / NB (mm)" value={data.dentaire.i_nb_mm || ''} onChange={v => updateDentaire('i_nb_mm', v)} unit="mm" P={P} />
+                <MetricInput label="1 / NA (°)" value={data.dentaire.i_na_angle ?? ''} onChange={v => updateDentaire('i_na_angle', v)} unit="°" P={P} />
+                <MetricInput label="1 / NA (mm)" value={data.dentaire.i_na_mm ?? ''} onChange={v => updateDentaire('i_na_mm', v)} unit="mm" P={P} />
+                <MetricInput label="1 / NB (°)" value={data.dentaire.i_nb_angle ?? ''} onChange={v => updateDentaire('i_nb_angle', v)} unit="°" P={P} />
+                <MetricInput label="1 / NB (mm)" value={data.dentaire.i_nb_mm ?? ''} onChange={v => updateDentaire('i_nb_mm', v)} unit="mm" P={P} />
                 <MetricInput label="Inter-Incisif" value={data.dentaire.inter_incisif} onChange={v => updateDentaire('inter_incisif', v)} unit="°" P={P} />
               </>}
             </div>
