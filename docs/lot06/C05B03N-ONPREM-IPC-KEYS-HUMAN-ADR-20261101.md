@@ -58,7 +58,7 @@ The existing 03L flow commits ClinicalAsset encrypted storage **before** the rec
 
 - `isolated_fue_lot06c/c05b03n_onprem_policy_contract.py`: pure Python **SIMULATION** accepting synthetic `LocalIpcEvidence`, `KeyPolicyEvidence`, `StaffReviewEvidence`, `ReceiptReconciliation`. It rejects HTTP, open/default DACL, remote enabled, anonymous client, weak/software keys, implied patient selection, expired review, unsigned receipt and media reupload on ACK loss. Does NOT verify Windows OS calls, secure UI or cryptographic signatures.
 - `isolated_fue_lot06c/test_c05b03n_onprem_policy_contract_v15.py`: negative matrix on Linux + Windows at same HEAD.
-- `isolated_fue_lot06c/windows_pipe_smoke_c05b03n.ps1`: disposable Windows OS named-pipe **same-user** smoke only, `PipeOptions.CurrentUserOnly`; is NOT proof of restricted service SID/DACL, `PIPE_REJECT_REMOTE_CLIENTS`, different-account denial, impersonation, SCM or TPM. No installed service or policy mutation.
+- `isolated_fue_lot06c/windows_pipe_smoke_c05b03n.ps1`: disposable Windows OS named-pipe **creation/disposal only** using `PipeOptions.CurrentUserOnly` (no client connected); is NOT proof of data exchange, restricted service SID/DACL, `PIPE_REJECT_REMOTE_CLIENTS`, different-account denial, impersonation, SCM or TPM. A previous same-user round-trip smoke deadlocked on the hosted Windows runner and was **withdrawn** rather than mislabelled green; an independently supervised IPC handshake FUE remains OPEN in C05B-03O. No installed service or policy mutation.
 - 03M 22/22 and 03L 16/16 remain regression targets; 03N doesn't activate any new production path.
 
 ## Independent review packet / acceptance gates before any later product implementation
