@@ -168,8 +168,14 @@ try {
             '" -ParentPid ' + $PID
         $childProcess = $null
         try {
-            $childProcess = Start-Process -FilePath $cmd -ArgumentList $argLine
-                -Credential $userCredential -PassThru -ErrorAction Stop
+            $launch = @{
+                FilePath = $cmd
+                ArgumentList = $argLine
+                Credential = $userCredential
+                PassThru = $true
+                ErrorAction = 'Stop'
+            }
+            $childProcess = Start-Process @launch
             if ($null -eq $childProcess -or $childProcess.Id -eq $PID) {
                 throw 'C05B03Q_CHILD_NOT_SEPARATE_PROCESS'
             }
