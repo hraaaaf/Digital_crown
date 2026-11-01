@@ -222,7 +222,10 @@ export function MobileBottomNav({
           // At 200% text size the five tabs scroll horizontally; keyboard users
           // must see the focused target, even in WebKit.
           const target = (event.target as HTMLElement).closest('[data-mobile-nav-item]');
-          target?.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'auto' });
+          // jsdom has no scrollIntoView; real browsers scroll the focused tab.
+          if (target && typeof target.scrollIntoView === 'function') {
+            target.scrollIntoView({ block: 'nearest', inline: 'center', behavior: 'auto' });
+          }
         }}
         aria-label="Navigation mobile principale"
         className="fixed left-3 right-3 z-[65] mx-auto h-[calc(12px+4rem)] max-w-[720px] overflow-x-auto overflow-y-hidden overscroll-x-contain rounded-[30px] border shadow-elite isolate"
