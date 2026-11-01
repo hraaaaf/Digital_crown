@@ -147,7 +147,7 @@ def test_c05b03m_real_c1_c2_sqlcipher_upgrade_rollback_restore(tmp_path, monkeyp
             conn.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)")
         engine.dispose()
         original = root / "c05b03-migration.db"
-        assert original.read_bytes()[:16] != b"SQLite format 3\\x00"
+        assert original.read_bytes()[:16] != bytes.fromhex("53514c69746520666f726d6174203300")
         snapshot = tmp_path / "preupgrade-sqlcipher-snapshot.db"
         shutil.copy2(original, snapshot)
 
@@ -212,7 +212,7 @@ def test_c05b03m_real_c1_c2_sqlcipher_upgrade_rollback_restore(tmp_path, monkeyp
                 "real_cabinet_upgrade_executed": False,
                 "product_ready": False,
                 "clinical_go": False,
-            }, sort_keys=True, indent=2) + "\\n", encoding="utf-8",
+            }, sort_keys=True, indent=2) + "\n", encoding="utf-8",
         )
         print("C05B03M_SQLCIPHER_REAL_ALEMBIC_C1_C2_REHEARSAL_PASS_NO_PRODUCT_MIGRATION")
     finally:
