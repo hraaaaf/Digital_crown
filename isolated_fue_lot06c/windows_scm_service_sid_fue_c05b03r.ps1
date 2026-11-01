@@ -42,7 +42,8 @@ function Wait-ServiceState([string]$Service, [string]$Expected, [int]$LimitSecon
 }
 function Invoke-Child([string]$Username, [string]$Password,
                        [string]$ExpectedSid, [int]$ExpectedOpen,
-                       [int]$ExpectedCreate, [switch]$ProbeQueueReadOnly) {
+                       [int]$ExpectedCreate, [switch]$ProbeQueueReadOnly,
+                       [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None') {
     $cred=[System.Management.Automation.PSCredential]::new(
         ('.' + [char]92 + $Username), (ConvertTo-SecureString $Password -AsPlainText -Force)
     )
@@ -52,6 +53,7 @@ function Invoke-Child([string]$Username, [string]$Password,
         '" -ParentPid ' + $PID + ' -ExpectedOpen ' + $ExpectedOpen +
         ' -ExpectedCreateInstance ' + $ExpectedCreate
     if ($ProbeQueueReadOnly) { $arguments += ' -ProbeQueueReadOnly' }
+    if ($B03Status -ne 'None') { $arguments += ' -B03Status ' + $B03Status }
     $child=$null
     try {
         $errFile=Join-Path $root ('child-' + $Username + '-stderr.txt')
@@ -122,7 +124,59 @@ try {
     $found=[regex]::Match($sids,'S-1-5-80-(?:[0-9]+-){4}[0-9]+')
     if (-not $found.Success) { throw 'C05B03R_CANNOT_GET_WINDOWS_SERVICE_SID' }
     $serviceSid=$found.Value
+    if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+        # A RESTRICTED service token requires the service SID at every
+        # traversed lab-owned ancestor, not only inside private/spool.
+        & icacls.exe $root /grant ('*' + $serviceSid + ':(OI)(CI)RX') /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTRICTED_SID_ROOT_TRAVERSE_DENIED' }
+    }
     $binPath += ' "' + $pipeName + '" ' + $serviceSid + ' ' + $allowedSid
+    if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+        $python=(Get-Command python -ErrorAction Stop).Source
+        $reader=Join-Path $PSScriptRoot 'scm_spool_read_b03.py'
+        $watch=Join-Path $root 'incoming'
+        $private=Join-Path $root 'private'
+        $keyPath=Join-Path $root 'spool-key.lab'
+        New-Item -ItemType Directory -Path $watch,$private -Force | Out-Null
+        $keyBytes=New-Object byte[] 32
+        [System.Security.Cryptography.RandomNumberGenerator]::Fill($keyBytes)
+        [System.IO.File]::WriteAllBytes($keyPath,$keyBytes)
+        # Apply ACL BEFORE staging any ciphertext or SQLite file; every
+        # created child inherits the service and CI-admin DACL atomically.
+        # Only synthetic fixture; CABINET secrets must use hardware TPM.
+        foreach ($target in @($watch,$private)) {
+            & icacls.exe $target /inheritance:r /grant:r ('*S-1-5-19:(OI)(CI)M') ('*' + $serviceSid + ':(OI)(CI)M') '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SPOOL_DIRECTORY_ACL_FAILED' }
+        }
+        & icacls.exe $keyPath /inheritance:r /grant:r '*S-1-5-19:R' ('*' + $serviceSid + ':R') '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_KEY_FILE_ACL_FAILED' }
+        $env:PYTHONDONTWRITEBYTECODE='1'
+        & $python -I $reader seed $watch $private $keyPath DC06B03_SYNTHETIC_ONLY
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SYNTHETIC_REAL_SPOOL_SEED_FAILED' }
+        # EC diagnostic (native Win32 ERROR_ACCESS_DENIED=5): the spool
+        # directory is created by HotFolder AFTER the parent ACL is set.
+        # Pin its own exact DACL, including children. This does not grant
+        # access to Users, Everyone, any patient or any remote account.
+        $spool=Join-Path $private 'spool'
+        if (-not (Test-Path -LiteralPath $spool -PathType Container)) {
+            throw 'DC06B03_SPOOL_ROOT_MISSING_AFTER_SYNTHETIC_SEED'
+        }
+        & icacls.exe $spool /inheritance:r /grant:r ('*S-1-5-19:(OI)(CI)M') ('*' + $serviceSid + ':(OI)(CI)M') '*S-1-5-18:(OI)(CI)F' '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTRICTED_SPOOL_ACL_REPAIR_FAILED' }
+        Write-Output 'DC06B03_SPOOL_SID_DACL_EXPLICIT_ON_NEW_DIRECTORY'
+        # EN = native NtCreateFile relative read refused on the one seeded
+        # ciphertext leaf. Hard-pin the explicit leaf DACL too, not just
+        # parent inheritance. Only synthetic data on a disposable CI VM.
+        $cipherLeaves=@(Get-ChildItem -LiteralPath $spool -File -Filter '*.dc6')
+        if ($cipherLeaves.Count -ne 1) { throw 'DC06B03_NOT_EXACTLY_ONE_SYNTHETIC_CIPHER' }
+        foreach ($cipherLeaf in $cipherLeaves) {
+            & icacls.exe $cipherLeaf.FullName /inheritance:r /grant:r '*S-1-5-19:R' ('*' + $serviceSid + ':R') '*S-1-5-18:F' '*S-1-5-32-544:F' | Out-Null
+            if ($LASTEXITCODE -ne 0) { throw 'DC06B03_SYNTHETIC_CIPHER_LEAF_ACL_FAILED' }
+        }
+        Write-Output 'DC06B03_SYNTHETIC_CIPHER_LEAF_SID_DACL_EXPLICIT'
+        $binPath += ' --b03-spool "' + $python + '" "' + $reader + '" "' +
+            $watch + '" "' + $private + '" "' + $keyPath + '"'
+    }
     $null=Invoke-ScChecked -Params @('config',$serviceName,'binPath=',$binPath)
     $null=Invoke-ScChecked -Params @('start',$serviceName)
     Wait-ServiceState $serviceName 'RUNNING' 20
@@ -131,15 +185,38 @@ try {
     Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5
     Write-Output 'C05B03R_REAL_APPROVED_OTHER_USER_PROCESS_DATA_RW_ALLOWED_CREATE_INSTANCE_DENIED_PASS'
     if ($env:DC06B02_PROBE -eq '1') {
-        # Real extra process using a real different Windows logon SID,
-        # round-trip over the live LocalService SCM pipe; never product install.
         Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -ProbeQueueReadOnly
         Write-Output 'DC06B02_NATIVE_SCM_Q_U_PEER_PROBE_NOT_CLINICAL_AUTHORITY_PASS'
+    }
+    if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
+        Write-Output 'DC06B03_SCM_LOCAL_SERVICE_REALLY_READ_ENCRYPTED_SPOOL_PASS'
+        # ciphertext integrity must be checked fresh from disk under the service
+        $cipher=Get-ChildItem -LiteralPath (Join-Path $private 'spool') -Filter '*.dc6' |
+            Select-Object -First 1
+        if ($null -eq $cipher) { throw 'DC06B03_SPOOL_CIPHER_MISSING' }
+        $blob=[System.IO.File]::ReadAllBytes($cipher.FullName)
+        $blob[$blob.Length-1] = $blob[$blob.Length-1] -bxor 1
+        [System.IO.File]::WriteAllBytes($cipher.FullName,$blob)
+        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Tampered
+        # No silent count=0 or any valid queue when ciphertext is damaged.
+        Write-Output 'DC06B03_SCM_CORRUPTED_REAL_AES_SPOOL_FAIL_CLOSED_PASS'
     }
     Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5
     Write-Output 'C05B03R_REAL_UNAUTHORIZED_OTHER_USER_PROCESS_ALL_DENIED_PASS'
     Write-Output 'C05B03R_REAL_HOSTED_WINDOWS_SERVICE_LEAST_PRIVILEGE_PASS'
     Write-Output 'C05B03R_REMOTE_SECOND_HOST_TPM_PHYSICAL_CABINET_NOT_TESTED'
+}
+catch {
+    # Never let a later synthetic cleanup failure hide the first OS probe
+    # failure. Report only an allowlisted no-PHI error enum.
+    $primary=$_.Exception.Message
+    if ($primary -match '(DC06B03_EXPECT_S1_GOT_E[A-Z0-9])') {
+        Write-Output ('DC06B03_SCM_PRIMARY_READ_DENIED_' + $Matches[1])
+    } else {
+        Write-Output 'DC06B03_SCM_PRIMARY_TEST_FAILURE_OTHER'
+    }
+    throw
 }
 finally {
     if ($createdService) {
@@ -154,6 +231,23 @@ finally {
         Remove-LocalUser -Name $user -ErrorAction Stop
     }
     if ($createdDir) {
+        # After stopping the disposable service, CI administrator is the
+        # cleanup authority. No synthetic key/files may survive the job.
+        & icacls.exe $root /grant '*S-1-5-32-544:(OI)(CI)F' /T | Out-Null
+        if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_TEST_CLEANUP_ACL_FAILED' }
+        if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
+            # Synthetic fixture only: descendants from an existing encrypted
+            # collector may carry a protected file-level DACL. Admins regain
+            # delete rights here only after the ephemeral SCM service stops.
+            $spoolForCleanup=Join-Path $root 'private/spool'
+            if (Test-Path -LiteralPath $spoolForCleanup -PathType Container) {
+                $leaves=Get-ChildItem -LiteralPath $spoolForCleanup -File -Force -ErrorAction Stop
+                foreach ($leaf in $leaves) {
+                    & icacls.exe $leaf.FullName /grant '*S-1-5-32-544:F' | Out-Null
+                    if ($LASTEXITCODE -ne 0) { throw 'DC06B03_RESTORE_BLOB_CLEANUP_ACL_FAILED' }
+                }
+            }
+        }
         Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction Stop
     }
     $newPasswordA=$null

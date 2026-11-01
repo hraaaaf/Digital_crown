@@ -6,7 +6,8 @@ param(
   [Parameter(Mandatory)][int]$ParentPid,
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedOpen,
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedCreateInstance,
-  [switch]$ProbeQueueReadOnly
+  [switch]$ProbeQueueReadOnly,
+  [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None'
 )
 $ErrorActionPreference = 'Stop'
 try {
@@ -69,6 +70,21 @@ public static class DC06RClient {
         }
     }
 
+    public static string B03Status(string path) {
+        using (var handle = CreateFile(path, 0x00100183u, 0u, IntPtr.Zero,
+                                       3u, 0u, IntPtr.Zero)) {
+            if (handle.IsInvalid) return "OPEN_ERROR";
+            uint written;
+            if (!WriteFile(handle, new byte[] {(byte)'S'}, 1u,
+                           out written, IntPtr.Zero) || written != 1u)
+                return "WRITE_ERROR";
+            byte[] reply = new byte[2]; uint read;
+            if (!ReadFile(handle, reply, 2u, out read, IntPtr.Zero) || read != 2u)
+                return "READ_ERROR";
+            return System.Text.Encoding.ASCII.GetString(reply);
+        }
+    }
+
     public static int InstanceAttempt(string path) {
         // Without FIRST_PIPE_INSTANCE: this is a direct check of DACL rights,
         // NOT the earlier Q first-instance guard.
@@ -93,6 +109,18 @@ public static class DC06RClient {
     $reply=[DC06RClient]::ReadOnlyStatus($PipeName)
     if ($reply -ne 85) { throw ('DC06B02_NATIVE_READ_ONLY_STATUS_EXPECT_U_GOT_' + $reply) }
     Write-Output 'DC06B02_NATIVE_SCM_RESTRICTED_SID_READ_ONLY_Q_U_RESPONSE_PASS'
+  }
+  if ($B03Status -ne 'None') {
+    if ($ExpectedOpen -ne 0) { throw 'DC06B03_UNAUTHORIZED_STATUS_PROBE' }
+    $actual = [DC06RClient]::B03Status($PipeName)
+    $expected = if ($B03Status -eq 'Valid') { 'S1' } else { 'E?' }
+    $validError = ($B03Status -ne 'Valid' -and
+                   $actual.Length -eq 2 -and $actual.StartsWith('E'))
+    if ($actual -ne $expected -and -not $validError) {
+        throw ('DC06B03_EXPECT_' + $expected + '_GOT_' + $actual)
+    }
+    Write-Output ('DC06B03_NATIVE_REAL_AES_SPOOL_' +
+        $B03Status.ToUpperInvariant() + '_RETURN_' + $actual + '_PASS')
   }
   if ($ExpectedOpen -eq 0) {
     Write-Output 'C05B03R_ALLOWED_USER_READ_WRITE_ALLOWED_INSTANCE_CREATION_DENIED'
