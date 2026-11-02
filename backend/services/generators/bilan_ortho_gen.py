@@ -89,6 +89,25 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         }
 
     @staticmethod
+    def _pdf_method_label(method: Any) -> str:
+        method_id = str(method or "").split(" v", 1)[0].strip().upper()
+        return {
+            "STEINER": "Steiner",
+            "COM": "COM",
+            "CRANIOM": "Craniométrie",
+            "TWEED": "Tweed",
+            "TWEED_MERRIFIELD": "Tweed–Merrifield",
+            "MCNAMARA": "McNamara",
+        }.get(method_id, "Méthode non précisée")
+
+    @staticmethod
+    def _pdf_measurement_value(value: Any) -> str:
+        display = str(value)
+        if display in {"NOT_COMPUTABLE", "MISSING", "UNAVAILABLE", "CALIBRATION_REQUIRED"}:
+            return "Non calculable"
+        return display
+
+    @staticmethod
     def _protocol_row_display(row: dict[str, Any]) -> dict[str, str]:
         status=str(row.get("availability_status") or "NOT_COMPUTABLE")
         value=row.get("value") if status=="AVAILABLE" else None
