@@ -108,6 +108,38 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         return display
 
     @staticmethod
+    def _pdf_stage_state(state: Any, *, complete: bool) -> str:
+        status = str(state or "").upper()
+        if not complete and status in {"VALIDATED", "APPROVED", "SIGNED", "COMPLETE"}:
+            return "Non validé"
+        return {
+            "BLOCKED": "Non validé",
+            "AWAITING_CLINICIAN": "En attente du praticien",
+            "PENDING": "En attente",
+            "EVALUABLE": "À examiner",
+            "READY": "À examiner",
+            "AVAILABLE": "Disponible, non validé",
+            "VALIDATED": "Validé",
+            "APPROVED": "Validé",
+            "SIGNED": "Validé",
+            "COMPLETE": "Validé",
+        }.get(status, "Non validé")
+
+    @staticmethod
+    def _pdf_stage_summary(summary: Any) -> str:
+        value = str(summary or "").strip()
+        if not value:
+            return ""
+        technical_terms = (
+            "R11", "R12", "R13", "R14", "SNAPSHOT",
+            "SOURCE_LOCK", "SOURCE NON PERSIST", "AUTHORITATIVE",
+            "NOT PERSISTED", "AUTHORITY UNAVAILABLE",
+        )
+        if any(term in value.upper() for term in technical_terms):
+            return "Éléments en attente de validation clinique."
+        return value
+
+    @staticmethod
     def _protocol_row_display(row: dict[str, Any]) -> dict[str, str]:
         status=str(row.get("availability_status") or "NOT_COMPUTABLE")
         value=row.get("value") if status=="AVAILABLE" else None
