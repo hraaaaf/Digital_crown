@@ -83,9 +83,10 @@ class LandmarkItem(BaseModel):
 
 
 class DDMComponent(BaseModel):
-    espace_disponible: float
-    espace_necessaire: float
-    calcul_ddm: float
+    # Partial direct cast measurements are not zero; keep them for study reopen.
+    espace_disponible: Optional[float] = None
+    espace_necessaire: Optional[float] = None
+    calcul_ddm: Optional[float] = None
     calcul_ddm_reelle: Optional[float] = None
 
 

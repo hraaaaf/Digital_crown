@@ -268,7 +268,8 @@ class CephaloService:
             if component is None:
                 continue
             component.calcul_ddm_reelle = None
-            components.append(component.calcul_ddm)
+            if component.calcul_ddm is not None:
+                components.append(component.calcul_ddm)
 
         data.ddm_reelle = round(sum(components), 2) if components else None
         return data

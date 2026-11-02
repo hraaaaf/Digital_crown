@@ -133,3 +133,15 @@ def test_service_contains_no_impa_space_conversion_formula():
     source = SERVICE.read_text(encoding="utf-8")
     assert "(impa - 90) / 2.5" not in source
     assert "2.5°" not in source
+
+
+def test_partial_direct_model_measurement_stays_unknown_not_zero():
+    clinical = schemas.ClinicalData(
+        ddm_maxillaire=schemas.DDMComponent(espace_disponible=24.0, espace_necessaire=None, calcul_ddm=None),
+        ddm_mandibulaire=None,
+    )
+    result = CephaloService._calculate_complex_ddm(None, None, clinical)
+    assert result.ddm_maxillaire.espace_disponible == 24.0
+    assert result.ddm_maxillaire.espace_necessaire is None
+    assert result.ddm_maxillaire.calcul_ddm is None
+    assert result.ddm_reelle is None
