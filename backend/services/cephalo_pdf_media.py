@@ -18,7 +18,7 @@ from backend.services.clinical_asset_storage import read_clinical_asset_bytes
 from backend.services.ortho_media_record import build_ortho_media_record
 
 _RADIO_PREFIX = "api/static/uploads/radios/"
-_SAFE_FILENAME = re.compile(r"^[a-zA-Z0-9_-]{1,120}\\.(?:png|jpe?g|webp)$", re.I)
+_SAFE_FILENAME = re.compile(r"^[a-zA-Z0-9_-]{1,120}\.(?:png|jpe?g|webp)$", re.I)
 _MAX_IMAGE_BYTES = 10 * 1024 * 1024
 _MAX_PIXELS = 25_000_000
 _THUMBNAIL_EDGE = 1400
