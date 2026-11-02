@@ -17,7 +17,30 @@ $other=$null
 $rootStore=[System.Security.Cryptography.X509Certificates.X509Store]::new('Root','CurrentUser')
 $rootOpen=$false
 function Make-TestCert([string]$role) {
-    New-SelfSignedCertificate -Type CodeSigningCert -Subject ('CN=DC06B05D-LAB-'+$role+'-'+$id) -CertStoreLocation 'Cert:\CurrentUser\My' -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy NonExportable -NotAfter (Get-Date).AddDays(1) -ErrorAction Stop
+    # Isolate Windows PKI work in a bounded background process so CI cannot
+    # silently hang the entire 30-minute job on hosted certificate generation.
+    $label='CN=DC06B05D-LAB-'+$role+'-'+$id
+    Write-Host ('DC06B05D1_CERT_' + $role.ToUpperInvariant() + '_BEGIN')
+    $job=Start-Job -ArgumentList $label -ScriptBlock {
+        param([string]$subject)
+        $cert=New-SelfSignedCertificate -Type CodeSigningCert -Subject $subject -CertStoreLocation 'Cert:\CurrentUser\My' -KeyAlgorithm RSA -KeyLength 2048 -HashAlgorithm SHA256 -KeyExportPolicy NonExportable -NotAfter (Get-Date).AddDays(1) -ErrorAction Stop
+        $cert.Thumbprint
+    } -ErrorAction Stop
+    try {
+        if ($null -eq (Wait-Job -Job $job -Timeout 75 -ErrorAction Stop)) {
+            throw 'DC06B05D1_TEST_CERT_GENERATION_TIMEOUT'
+        }
+        if ($job.State -ne 'Completed') { throw 'DC06B05D1_TEST_CERT_GENERATION_FAILED' }
+        $thumb=[string](Receive-Job -Job $job -ErrorAction Stop | Select-Object -Last 1)
+        if ($thumb -notmatch '^[A-Fa-f0-9]{40}$') { throw 'DC06B05D1_TEST_CERT_THUMBPRINT_INVALID' }
+        $saved=Get-Item -LiteralPath ('Cert:\CurrentUser\My\'+$thumb) -ErrorAction Stop
+        if (-not $saved.HasPrivateKey) { throw 'DC06B05D1_TEST_CERT_PRIVATE_KEY_MISSING' }
+        Write-Host ('DC06B05D1_CERT_' + $role.ToUpperInvariant() + '_CREATED_PASS')
+        return $saved
+    } finally {
+        if ($job.State -eq 'Running') { Stop-Job -Job $job -ErrorAction SilentlyContinue }
+        Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
+    }
 }
 function Trust-TestCert($c) { $rootStore.Add($c) }
 function Sign-Exe([string]$path,$c) {
@@ -48,9 +71,12 @@ try {
     $original=Join-Path $source 'ScmPipeFixture.exe'
     if (-not (Test-Path -LiteralPath $original -PathType Leaf)) { throw 'DC06B05D1_NATIVE_EXE_MISSING' }
     Copy-Item -LiteralPath $original -Destination $unsigned
+    Write-Output 'DC06B05D1_PUBLISHER_CERT_ENTER'
     $pub=Make-TestCert 'publisher'
+    Write-Output 'DC06B05D1_PUBLISHER_TRUST_ENTER'
     Trust-TestCert $pub
     [IO.File]::WriteAllText($publisherPin,$pub.Thumbprint)
+    Write-Output 'DC06B05D1_PUBLISHER_SIGN_ENTER'
     Sign-Exe $original $pub
     Write-Output 'DC06B05D1_EPHEMERAL_AUTHENTICODE_VALID_PASS'
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot 'scm_spool_read_b03.py') -Destination (Join-Path $source 'scm_spool_read_b03.py')
