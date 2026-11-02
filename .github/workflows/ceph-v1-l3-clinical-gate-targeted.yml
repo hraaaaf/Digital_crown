@@ -6,6 +6,7 @@ on:
       - feat/cephalo-v1-l1a-20261101
     paths:
       - 'backend/**'
+      - 'scripts/capture_cephalo_pdf_l3_human_approval.py'
       - '.github/workflows/ceph-v1-l3-clinical-gate-targeted.yml'
   workflow_dispatch:
 
