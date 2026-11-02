@@ -51,3 +51,12 @@ def test_explicit_landmark_key_must_match_anatomical_identity(required_id, wrong
             landmarks=points, construction_namespace="c", measurement_namespace="m",
             mm_per_pixel=0.5, calibration_ref="cal:1",
         )
+
+def test_unrelated_legacy_point_is_not_promoted_or_blocking():
+    landmarks = _landmarks()
+    landmarks["legacy_unused"] = _lm("legacy_different_label", 9, 9)
+    _, measurements = materialize_steiner_protocol_evidence(
+        landmarks=landmarks, construction_namespace="c", measurement_namespace="m",
+        mm_per_pixel=0.5, calibration_ref="cal:1",
+    )
+    assert measurements and all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
