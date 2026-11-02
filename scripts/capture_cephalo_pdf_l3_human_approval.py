@@ -116,15 +116,24 @@ def capture(name: str, *, with_images: bool) -> dict:
     with fitz.open(output) as doc:
         assert doc.page_count == (2 if with_images else 1), "Orphan or overflow A4 page"
         if with_images:
-            assert "Occlusal mandibulaire" in doc[0].get_text(), (
-                "Intraoral image group split across pages"
+            intra_labels = (
+                "Intra frontal", "Intra droit", "Intra gauche",
+                "Occlusal maxillaire", "Occlusal mandibulaire",
             )
+            intra_pages = [
+                page.number for page in doc
+                if all(label in page.get_text() for label in intra_labels)
+            ]
+            assert len(intra_pages) == 1, "Intraoral photo group split across pages"
         for i, page in enumerate(doc):
             assert 590 <= page.rect.width <= 600 and 840 <= page.rect.height <= 850, "Not A4"
             shot = OUTPUT / f"{name}-page-{i + 1:02d}.png"
             page.get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False).save(shot)
             captures.append(shot.name)
         text = "\n".join(page.get_text() for page in doc)
+        assert "TRAÇABILITÉ SCIENTIFIQUE" not in text
+        assert "EVIDENCE_GRAPH_V1" not in text
+        assert "SYNTHETIC_NON_CLINICAL" not in text
         for required in ("BILAN ORTHODONTIQUE", "ANALYSE", "MOULAGES", "DIAGNOSTIQUE", "PLAN DE TRAITEMENT", "INCOMPLETE"):
             assert required in text.upper(), f"Missing {required}"
     return {
