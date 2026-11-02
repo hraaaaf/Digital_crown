@@ -77,6 +77,22 @@ def _assert_semantics(text: str) -> None:
         assert token not in text, f"legacy/non-authoritative semantic leaked: {token}"
 
 
+def _assert_pdf_semantics(text: str) -> None:
+    for token in (
+        "SNA", "81.5", "Non calculable", "Non validé",
+        "synthetic contradiction", "synthetic contraindication",
+        "En attente du praticien",
+    ):
+        assert token in text, f"PDF expected content missing: {token}"
+    for token in (
+        "R11", "R13", "R14", "BLOCKED", "NOT_COMPUTABLE",
+        "EVIDENCE_GRAPH_V1", "CRANIOM v1", "STEINER v1",
+    ):
+        assert token not in text, f"PDF internal identifier leaked: {token}"
+    for token in _forbidden_tokens():
+        assert token not in text, f"legacy client text leaked: {token}"
+
+
 def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
     generator = BilanOrthoPDFGenerator(str(tmp_path))
     pdf_path = tmp_path / "r17-reportlab-after.pdf"
