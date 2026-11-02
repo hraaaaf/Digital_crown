@@ -313,7 +313,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         if radio or photos:
             elements.append(Paragraph("DOSSIER ICONOGRAPHIQUE", h2))
             if radio:
-                elements.append(Paragraph("Téléradiographie de profil — image source", h3))
+                elements.append(Paragraph("Téléradiographie de profil", h3))
                 elements.append(Image(
                     BytesIO(radio),
                     width=min(available_width, 13.5 * cm),
@@ -321,14 +321,13 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 ))
                 elements.append(Spacer(1, 0.2 * cm))
                 elements.append(Paragraph(
-                    "Tracé anatomique : non inclus tant qu'un rendu source-locké, "
-                    "persisté et concordant avec cette révision n'est pas disponible.", small,
+                    "Tracé céphalométrique non disponible pour cette étude.", small,
                 ))
             for group in ("Extra-buccales", "Intra-buccales"):
                 selected = [p for p in photos if p.get("group") == group]
                 if not selected:
                     continue
-                elements.append(Paragraph("Photographies " + group.lower(), h3))
+                photo_group = [Paragraph("Photographies " + group.lower(), h3)]
                 # Four compact columns preserve full photo aspect ratios and
                 # prevent an iconography-only continuation page.
                 photo_columns = 4
@@ -350,7 +349,11 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                     cells.extend([""] * (photo_columns - len(cells)))
                     table = Table([cells], colWidths=[cell_width] * photo_columns)
                     table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
-                    elements.extend([table, Spacer(1, 0.10 * cm)])
+                    photo_group.extend([table, Spacer(1, 0.10 * cm)])
+                # Do not leave a single intraoral view stranded on the next page.
+                # Keep the full coherent group together; ReportLab moves it
+                # intact to the following A4 page if necessary.
+                elements.append(KeepTogether(photo_group))
         for missing in verified_media.get("media_unavailable") or []:
             elements.append(Paragraph(
                 "Pièce image indisponible ou non vérifiable : " + escape(str(missing)), small,
@@ -358,13 +361,11 @@ class BilanOrthoPDFGenerator(BaseTemplate):
 
         elements.append(Paragraph("I — ANALYSE CÉPHALOMÉTRIQUE", h2))
         elements.append(Paragraph(
-            "Mesures et disponibilités issues du graphe scientifique de l'étude "
-            "sélectionnée. Les résultats non calculables sont explicitement signalés.", body,
+            "Mesures de l'étude sélectionnée. Les valeurs non calculables sont signalées.", body,
         ))
         elements.append(Paragraph("Analyse dento-alvéolaire et analyse osseuse", h3))
         elements.append(Paragraph(
-            "La séparation dento-alvéolaire / osseuse dépend du classement scientifique "
-            "de la méthode retenue ; aucune mesure n'est reclassée arbitrairement.", small,
+            "Le classement dento-alvéolaire et osseux reste à confirmer selon la méthode retenue.", small,
         ))
         # Paragraph cells wrap opaque authority identifiers inside the table:
         # ReportLab raw strings never wrap and can overlap the next column.
@@ -376,15 +377,15 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "CephA4TableHeader", parent=table_body_style, fontName=self.premium_bold,
             textColor=colors.white,
         )
-        rows = [["Mesure", "Valeur / disponibilité", "Méthode", "Source"]]
+        rows = [["Mesure", "Valeur / disponibilité", "Méthode"]]
         for item in context["measurements"]:
             rows.append([
-                item["measurement_id"], item["value"], item["method"], item["source"],
+                item["measurement_id"], item["value"], item["method"],
             ])
         if len(rows) == 1:
-            rows.append(["Aucune mesure typée autoritaire disponible", "NOT_COMPUTABLE", "—", "—"])
-        widths = [0.20 * available_width, 0.18 * available_width,
-                  0.34 * available_width, 0.28 * available_width]
+            rows.append(["Aucune mesure disponible", "NOT_COMPUTABLE", "—"])
+        widths = [0.34 * available_width, 0.26 * available_width,
+                  0.40 * available_width]
         wrapped_rows = [
             [Paragraph(escape(str(value)), table_header_style if row_number == 0
                        else table_body_style) for value in row]
@@ -409,7 +410,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             elements.append(Paragraph(
                 "Références historiques affichées à titre comparatif uniquement; "
                 "aucune classification clinique universelle n'est produite. "
-                "Source-lock non vérifié tant que la preuve finale manque.", small,
+                "Ce protocole demeure non vérifié sans validation clinique.", small,
             ))
             protocol_rows = [["Mesure", "Valeur", "Réf. hist.", "Écart réf.", "Statut"]]
             for item in profile["rows"]:
@@ -512,36 +513,6 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 "Aucune option thérapeutique ni signature praticien n'est promue en "
                 "l'absence de validation R14 persistée.", body,
             ))
-
-        if (projection or {}).get("include_technical_appendix") is True:
-            elements.append(Paragraph("ANNEXE — TRAÇABILITÉ SCIENTIFIQUE", h2))
-            for stage in context["stages"]:
-                elements.append(Paragraph(
-                    "<b>" + escape(str(stage.get("stage_id") or ""))
-                    + " — " + escape(str(stage.get("title") or "")) + "</b> : "
-                    + escape(str(stage.get("presentation_state") or "BLOCKED")), small,
-                ))
-                for heading, key in (
-                    ("Blocages", "blocking_gates"),
-                    ("Données manquantes", "missing_data_refs"),
-                    ("Contradictions", "contradictions"),
-                    ("Contre-indications", "contraindications"),
-                ):
-                    if stage.get(key):
-                        elements.append(Paragraph(
-                            heading + " : " + escape("; ".join(str(x) for x in stage[key])), small,
-                        ))
-                if stage.get("provenance"):
-                    elements.append(Paragraph(
-                        "Provenance : " + escape("; ".join(
-                            str(p.get("label")) + " : " + str(p.get("value"))
-                            for p in stage["provenance"]
-                        )), small,
-                    ))
-            if context["blocking_gates"]:
-                elements.append(Paragraph(
-                    "Blocages globaux : " + escape("; ".join(str(x) for x in context["blocking_gates"])), small,
-                ))
 
         draw = lambda canvas, page: self.draw_static_elements(
             canvas, page, config=config, user=user,
