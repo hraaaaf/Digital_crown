@@ -66,6 +66,8 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         # Official A4 and its preview must share the same ReportLab BaseTemplate
         # letterhead, branding, footer and QR renderer as every cabinet document.
         # The HTML renderer remains for contract tests, never a divergent output.
+        if user is None and media is None:
+            return self._generate_reportlab(vm, file_path, projection=document)
         return self._generate_reportlab(vm, file_path, projection=document, user=user, media=media)
 
     @staticmethod
@@ -382,30 +384,58 @@ class BilanOrthoPDFGenerator(BaseTemplate):
 
         if context["steiner_protocol"]:
             profile = context["steiner_protocol"]
-            elements.append(Paragraph("Analyse Steiner — registre source", h3))
+            elements.append(Paragraph("Analyse protocolaire Steiner", h3))
             elements.append(Paragraph(
-                "Références historiques contextuelles, sans classification patient universelle.", small,
+                "Références historiques affichées à titre comparatif uniquement; "
+                "aucune classification clinique universelle n'est produite. "
+                "Source-lock non vérifié tant que la preuve finale manque.", small,
             ))
-            protocol_rows = [["Mesure", "Valeur", "Réf. hist.", "Écart", "Statut"]]
+            protocol_rows = [["Mesure", "Valeur", "Réf. hist.", "Écart réf.", "Statut"]]
             for item in profile["rows"]:
                 protocol_rows.append([
                     item["label"], item["value"], item["reference"],
                     item["delta"], item["interpretation_status"],
                 ])
-            t = Table(protocol_rows, repeatRows=1, colWidths=[
+            protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[
                 0.22 * available_width, 0.15 * available_width, 0.15 * available_width,
                 0.15 * available_width, 0.33 * available_width,
             ])
-            t.setStyle(TableStyle([
+            protocol_table.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), p_color),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("GRID", (0, 0), (-1, -1), 0.25, s_color),
                 ("FONTSIZE", (0, 0), (-1, -1), 6.5),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
-            elements.append(t)
-        # Do not insert unrelated comparison protocols into a V1 COM/Steiner PDF
-        # without a persisted authoritative protocol selection.
+            elements.append(protocol_table)
+        # Legacy Tweed remains renderable only with an explicit, backend-persisted
+        # protocol selection; V1 COM/Steiner cannot silently include it.
+        if context["tweed_merrifield_protocol"] and (projection or {}).get("selected_protocol") == "TWEED":
+            tweed = context["tweed_merrifield_protocol"]
+            elements.append(Paragraph("Analyse protocolaire Tweed–Merrifield", h3))
+            elements.append(Paragraph(
+                "Variante Digital Crown Po_anatomic-Or / Go-Me; "
+                "aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée. "
+                "Références historiques à titre comparatif; aucune classification automatique.", small,
+            ))
+            protocol_rows = [["Mesure", "Valeur", "Profil", "Autorité", "Statut"]]
+            for row in tweed["rows"]:
+                protocol_rows.append([
+                    row["label"], row["value"], row["profile_section"],
+                    row["reference_authority"], row["interpretation_status"],
+                ])
+            protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[
+                0.20 * available_width, 0.14 * available_width, 0.20 * available_width,
+                0.20 * available_width, 0.26 * available_width,
+            ])
+            protocol_table.setStyle(TableStyle([
+                ("BACKGROUND", (0, 0), (-1, 0), p_color),
+                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                ("GRID", (0, 0), (-1, -1), 0.25, s_color),
+                ("FONTSIZE", (0, 0), (-1, -1), 6.5),
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ]))
+            elements.append(protocol_table)
 
         elements.append(Paragraph("II — EXAMEN DES MOULAGES", h2))
         elements.append(Paragraph(
