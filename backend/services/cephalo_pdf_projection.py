@@ -107,6 +107,10 @@ def build_cephalo_pdf_projection(
             }
         )
 
+    source_revision = graph_payload.get("revision") if typed_projection_verified else None
+    if typed_projection_verified and (type(source_revision) is not int or source_revision <= 0):
+        projection_blockers.append("analysis_revision_unverified")
+
     blockers = sorted(
         set(studio.get("blocking_gates") or []) | set(projection_blockers)
     )
@@ -114,6 +118,8 @@ def build_cephalo_pdf_projection(
         bool(studio.get("clinical_validation_available"))
         and bool(studio.get("active_runtime_chain_verified"))
         and typed_projection_verified
+        and type(source_revision) is int and source_revision > 0
+        and type(analysis_id) is int and analysis_id > 0
         and not blockers
     )
     active_runtime_chain_verified = (
@@ -124,7 +130,7 @@ def build_cephalo_pdf_projection(
         "contract_version": CEPHALO_PDF_PROJECTION_VERSION,
         "patient_id": patient_id,
         "analysis_id": analysis_id,
-        "analysis_revision": graph_payload.get("revision") if typed_projection_verified else None,
+        "analysis_revision": source_revision if type(source_revision) is int and source_revision > 0 else None,
         "document_state": "COMPLETE" if is_complete else "INCOMPLETE",
         "authority": "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO",
         "active_runtime_chain_verified": active_runtime_chain_verified,
