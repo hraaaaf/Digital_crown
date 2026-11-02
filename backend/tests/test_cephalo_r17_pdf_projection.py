@@ -323,13 +323,14 @@ def test_pdf_projection_complete_gate_requires_validation_and_zero_blockers(monk
     result = projection.build_cephalo_pdf_projection(
         patient_id=7,
         analysis_id=9,
-        angles_data={EVIDENCE_GRAPH_KEY: {"contract": "typed"}},
+        angles_data={EVIDENCE_GRAPH_KEY: {"contract": "typed", "revision": 2}},
     )
 
     assert result["active_runtime_chain_verified"] is True
     assert result["clinical_validation_available"] is True
     assert result["blocking_gates"] == []
     assert result["document_state"] == "COMPLETE"
+    assert result["analysis_revision"] == 2
 
 
 def test_pdf_projection_carries_canonical_measurement_authority_from_runtime_read(monkeypatch):
@@ -434,3 +435,19 @@ def test_final_pdf_rejects_incoherent_typed_chain_despite_favorable_flag(monkeyp
     assert result["document_state"] == "INCOMPLETE"
     assert result["active_runtime_chain_verified"] is False
     assert "typed_measurement_projection_incoherent" in result["blocking_gates"]
+
+
+def test_pdf_final_requires_positive_bound_study_revision(monkeypatch):
+    _allow_empty_typed_chain(monkeypatch)
+    monkeypatch.setattr(projection, "build_r15_clinical_studio_snapshot",
+                        lambda **kwargs: _studio(blockers=[], active=True, clinical_validation_available=True))
+    for source_revision in (None, 0, -1, True, "2"):
+        payload = {"contract": "typed"}
+        if source_revision is not None:
+            payload["revision"] = source_revision
+        result = projection.build_cephalo_pdf_projection(
+            patient_id=7, analysis_id=9, angles_data={EVIDENCE_GRAPH_KEY: payload},
+        )
+        assert result["document_state"] == "INCOMPLETE"
+        assert result["analysis_revision"] is None
+        assert "analysis_revision_unverified" in result["blocking_gates"]
