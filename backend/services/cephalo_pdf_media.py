@@ -27,16 +27,19 @@ _THUMBNAIL_EDGE = 1400
 def _verified_jpeg(content: bytes) -> bytes:
     if not isinstance(content, bytes) or not content or len(content) > _MAX_IMAGE_BYTES:
         raise ValueError("Clinical image missing or oversize")
-    with Image.open(BytesIO(content)) as original:
-        if original.width * original.height > _MAX_PIXELS:
-            raise ValueError("Clinical image too large")
-        if original.format not in {"JPEG", "PNG", "WEBP"}:
-            raise ValueError("Unsupported clinical image")
-        normalized = ImageOps.exif_transpose(original)
-        normalized.thumbnail((_THUMBNAIL_EDGE, _THUMBNAIL_EDGE))
-        output = BytesIO()
-        normalized.convert("RGB").save(output, format="JPEG", quality=83)
-        return output.getvalue()
+    try:
+        with Image.open(BytesIO(content)) as original:
+            if original.width * original.height > _MAX_PIXELS:
+                raise ValueError("Clinical image too large")
+            if original.format not in {"JPEG", "PNG", "WEBP"}:
+                raise ValueError("Unsupported clinical image")
+            normalized = ImageOps.exif_transpose(original)
+            normalized.thumbnail((_THUMBNAIL_EDGE, _THUMBNAIL_EDGE))
+            output = BytesIO()
+            normalized.convert("RGB").save(output, format="JPEG", quality=83)
+            return output.getvalue()
+    except OSError as exc:
+        raise ValueError("Clinical image decoding failed") from exc
 
 
 def _authorized_study_radio(image_original_path: str | None) -> bytes | None:
