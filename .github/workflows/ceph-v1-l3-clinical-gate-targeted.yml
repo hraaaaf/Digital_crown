@@ -41,4 +41,4 @@ jobs:
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-targeted-requirements.txt
           pip install -r /tmp/ceph-targeted-requirements.txt
       - name: Run source-locked negative and clinical authority tests
-        run: python -m pytest backend/tests/test_cephalo_r15_clinical_studio.py backend/tests/test_cephalo_r17_pdf_projection.py -q
+        run: python -m pytest backend/tests/test_cephalo_r15_clinical_studio.py backend/tests/test_cephalo_r17_pdf_projection.py backend/tests/test_cephalo_v1_l3_a4_document.py backend/tests/test_cephalo_r17_pdf_certification.py backend/tests/test_cephalo_r17_pdf_renderer_contract.py -q
