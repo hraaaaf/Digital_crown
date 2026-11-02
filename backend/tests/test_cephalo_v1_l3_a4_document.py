@@ -23,6 +23,7 @@ def _test_vm():
             analysis_metadata=schemas.AnalysisMetadata(cohort="test"),
             metrics=schemas.AnalysisMetrics(),
             visual_debug={}, t1_projection={}, t2_projection={},
+            clinical_data=schemas.ClinicalData(),
         ),
         doctor_name="Dr Test",
         cabinet_config={
