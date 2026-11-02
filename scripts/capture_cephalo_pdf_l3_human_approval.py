@@ -54,6 +54,7 @@ def visual_fixture(name: str, *, with_images: bool):
     vm.patient_nom = "DEMONSTRATION"
     vm.patient_prenom = "Synthetique"
     vm.cabinet_config.update({
+        "logo_path": "visual-demo-logo.png",
         "nom_cabinet": "CABINET DEMO DIGITAL CROWN",
         "header_lines_fr": ["Cabinet DEMO", "Chirurgie dentaire et orthodontie"],
         "footer_address": "Adresse de demonstration — non reelle",
@@ -135,6 +136,16 @@ def capture(name: str, *, with_images: bool) -> dict:
 
 
 def main():
+    # Prove that the normal document header resolves a configurable local logo
+    # from the isolated media root rather than a hardcoded template image.
+    media_root = (OUTPUT / "synthetic-media-root").resolve()
+    media_root.mkdir(parents=True, exist_ok=True)
+    os.environ["MEDIA_ROOT"] = str(media_root)
+    demo_logo = Image.new("RGB", (240, 240), "#ffffff")
+    pen = ImageDraw.Draw(demo_logo)
+    pen.ellipse((12, 12, 228, 228), fill="#12406B")
+    pen.text((72, 100), "DC", fill="#ffffff")
+    demo_logo.save(media_root / "visual-demo-logo.png")
     items = [
         capture("a4-swiss-with-synthetic-photos", with_images=True),
         capture("a4-modern-no-images", with_images=False),
