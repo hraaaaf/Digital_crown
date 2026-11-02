@@ -264,6 +264,11 @@ class CephaloService:
         data = cd.model_copy(deep=True)
         for component in (data.ddm_maxillaire, data.ddm_mandibulaire):
             if component is not None:
+                component.calcul_ddm = (
+                    round(component.espace_disponible - component.espace_necessaire, 2)
+                    if component.espace_disponible is not None and component.espace_necessaire is not None
+                    else None
+                )
                 component.calcul_ddm_reelle = None
 
         max_ddm = data.ddm_maxillaire.calcul_ddm if data.ddm_maxillaire is not None else None
