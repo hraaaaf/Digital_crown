@@ -11,7 +11,11 @@ from io import BytesIO
 import json
 import os
 import subprocess
+import sys
 from pathlib import Path
+
+# GitHub Actions invokes this script by path, not as a package.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 import fitz
 from PIL import Image, ImageDraw, ImageFont
