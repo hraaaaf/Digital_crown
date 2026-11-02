@@ -110,7 +110,12 @@ def build_cephalo_pdf_projection(
     blockers = sorted(
         set(studio.get("blocking_gates") or []) | set(projection_blockers)
     )
-    is_complete = bool(studio.get("clinical_validation_available")) and not blockers
+    is_complete = (
+        bool(studio.get("clinical_validation_available"))
+        and bool(studio.get("active_runtime_chain_verified"))
+        and typed_projection_verified
+        and not blockers
+    )
     active_runtime_chain_verified = (
         bool(studio.get("active_runtime_chain_verified")) and typed_projection_verified
     )
