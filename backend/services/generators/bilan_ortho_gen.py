@@ -335,7 +335,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                             Paragraph(escape(str(photo["label"])), small),
                         ])
                     # ReportLab tables wrap each cell as a vertical Flowable stack.
-                    cells.extend([["", ""]] * (3 - len(cells)))
+                    cells.extend([""] * (3 - len(cells)))
                     table = Table([cells], colWidths=[cell_width] * 3)
                     table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
                     elements.extend([table, Spacer(1, 0.15 * cm)])
