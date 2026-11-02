@@ -770,3 +770,68 @@ async def preview_mobile_document(
         media_type='application/pdf',
         headers={'Cache-Control': 'no-store, private', 'X-Content-Type-Options': 'nosniff'},
     )
+
+# The archive facade is intentionally narrower than the Desktop document
+# generator. Honoraires can create accounting acts: keep that write disabled
+# until a verified idempotent billing contract exists.
+@router.post('/documents/archive', summary='Archivage Pocket PDF, session appairée')
+async def archive_mobile_document(
+    req: schemas.DocumentRequest,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission('patients')),
+):
+    from pathlib import Path
+    from fastapi import Response
+    from backend.routers import documents as _documents
+
+    if req.type not in {'ordonnance', 'certificat', 'devis', 'libre'}:
+        raise HTTPException(status_code=403, detail='Archivage de ce type indisponible sur Pocket.')
+    if req.payment_status != 'EN_ATTENTE':
+        raise HTTPException(status_code=403, detail='Encaissement interdit sur Pocket.')
+    if any(str(key).startswith('_') for key in req.data):
+        raise HTTPException(status_code=403, detail='Modification d’archive existante interdite sur Pocket.')
+
+    _documents.require_document_permission(req.type, mobile_user)
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == req.patient_id,
+        models.Patient.employer_id == mobile_user.get_employer_id(),
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail='Patient indisponible dans ce cabinet.')
+
+    result = await _documents.generate_document(
+        req, archive=True, preview=False, force=False, db=db, current_user=mobile_user,
+    )
+    archived_path = str(result.get('pdf_url') or '').split('?', 1)[0]
+    if not archived_path.startswith('static/archives/'):
+        raise HTTPException(status_code=503, detail='Archive PDF non confirmée.')
+
+    # The canonical generator may write more than a file. Never claim an
+    # archive without confirming the active row for this patient and actor.
+    document = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.file_path == archived_path,
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.uploaded_by_id == mobile_user.id,
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+    ).first()
+    if document is None:
+        raise HTTPException(status_code=503, detail='Archive PDF non confirmée.')
+
+    root = (Path(_documents.MEDIA_DIR) / 'archives').resolve()
+    pdf = (root / archived_path[len('static/archives/'):]).resolve()
+    if not pdf.is_relative_to(root) or not pdf.is_file():
+        raise HTTPException(status_code=503, detail='PDF archivé indisponible.')
+    if pdf.stat().st_size > 12 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail='PDF archivé trop volumineux.')
+    content = pdf.read_bytes()
+    if not content.startswith(b'%PDF-'):
+        raise HTTPException(status_code=503, detail='PDF archivé invalide.')
+    return Response(
+        content=content, media_type='application/pdf',
+        headers={
+            'Cache-Control': 'no-store, private',
+            'X-Content-Type-Options': 'nosniff',
+            'X-Document-Id': str(document.id),
+        },
+    )

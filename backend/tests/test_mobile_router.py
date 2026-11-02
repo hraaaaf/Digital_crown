@@ -720,3 +720,111 @@ class TestCPV202CMobileDocumentPreview:
         )
 
         assert response.status_code == 503, response.text
+
+def test_archive_returns_pdf_only_with_matching_active_archive_row(
+        self, client, db, dentiste, tmp_path, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        patient = self._patient(db, dentiste)
+        path = 'static/archives/isolated/safe.pdf'
+        pdf = tmp_path / 'archives' / 'isolated' / 'safe.pdf'
+        pdf.parent.mkdir(parents=True)
+        pdf.write_bytes(b'%PDF-1.4\nsynthetic-archive')
+        monkeypatch.setattr(documents, 'MEDIA_DIR', tmp_path)
+        doc = models.DocumentArchive(
+            patient_id=patient.id, uploaded_by_id=dentiste.id,
+            document_type=models.DocumentType.CERTIFICAT,
+            filename='safe.pdf', original_filename='safe.pdf',
+            file_path=path, file_hash='abc', file_size=pdf.stat().st_size,
+        )
+        db.add(doc)
+        db.commit()
+        mocked = AsyncMock(return_value={'pdf_url': path})
+        monkeypatch.setattr(documents, 'generate_document', mocked)
+        token = _make_mobile_jwt(db, dentiste)
+        response = client.post(
+            '/api/mobile/documents/archive',
+            headers={'Authorization': f'Bearer {token}'},
+            json=self._payload(patient.id),
+        )
+        assert response.status_code == 200, response.text
+        assert response.content == pdf.read_bytes()
+        assert response.headers['cache-control'] == 'no-store, private'
+        assert response.headers['x-document-id'] == str(doc.id)
+        assert mocked.await_args.kwargs['archive'] is True
+        assert mocked.await_args.kwargs['preview'] is False
+        assert mocked.await_args.kwargs['force'] is False
+        assert mocked.await_args.kwargs['current_user'].id == dentiste.id
+
+    def test_archive_refuses_ghost_without_claiming_success(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        patient = self._patient(db, dentiste)
+        mocked = AsyncMock(return_value={'pdf_url': 'static/archives/ghost.pdf'})
+        monkeypatch.setattr(documents, 'generate_document', mocked)
+        token = _make_mobile_jwt(db, dentiste)
+        response = client.post(
+            '/api/mobile/documents/archive',
+            headers={'Authorization': f'Bearer {token}'},
+            json=self._payload(patient.id),
+        )
+        assert response.status_code == 503, response.text
+
+    def test_archive_blocks_billing_and_foreign_patient_before_generator(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, 'generate_document', mocked)
+        patient = self._patient(db, dentiste)
+        token = _make_mobile_jwt(db, dentiste)
+        headers = {'Authorization': f'Bearer {token}'}
+        note = client.post(
+            '/api/mobile/documents/archive', headers=headers,
+            json=self._payload(patient.id, 'note'),
+        )
+        assert note.status_code == 403, note.text
+        payment = client.post(
+            '/api/mobile/documents/archive', headers=headers,
+            json={**self._payload(patient.id), 'payment_status': 'PAYE'},
+        )
+        assert payment.status_code == 403, payment.text
+        foreign = self._patient(db, dentiste, employer_id=dentiste.id + 999)
+        denied = client.post(
+            '/api/mobile/documents/archive', headers=headers,
+            json=self._payload(foreign.id),
+        )
+        assert denied.status_code == 404, denied.text
+        mocked.assert_not_awaited()
+
+    def test_archive_denies_revoked_paired_device_before_generator(
+        self, client, db, dentiste, monkeypatch,
+    ):
+        from unittest.mock import AsyncMock
+        from backend.routers import documents
+
+        mocked = AsyncMock()
+        monkeypatch.setattr(documents, 'generate_document', mocked)
+        patient = self._patient(db, dentiste)
+        token = _make_mobile_jwt(db, dentiste)
+        device = db.query(models.MobilePairedDevice).filter(
+            models.MobilePairedDevice.user_id == dentiste.id,
+            models.MobilePairedDevice.revoked_at.is_(None),
+        ).first()
+        assert device is not None
+        device.revoked_at = datetime.utcnow()
+        db.commit()
+        denied = client.post(
+            '/api/mobile/documents/archive',
+            headers={'Authorization': f'Bearer {token}'},
+            json=self._payload(patient.id),
+        )
+        assert denied.status_code == 401, denied.text
+        mocked.assert_not_awaited()

@@ -21,6 +21,7 @@ import { MobileStorage } from '../../../../services/zka/MobileStorage';
 import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { CryptoService } from '../../../../services/zka/CryptoService';
 import { buildTelHref, buildWhatsAppHref } from '../../Context/mobilePatientContact';
+import { MobileQuickDocumentSheet } from './MobileQuickDocumentSheet';
 
 export interface PatientSearchResult {
   id: number;
@@ -158,6 +159,7 @@ export function MobilePatientsView({
   const [loadingPatient, setLoadingPatient] = useState(false);
   const [loadingResources, setLoadingResources] = useState(false);
   const [openingContext, setOpeningContext] = useState<string | null>(null);
+  const [creatingDocument, setCreatingDocument] = useState(false);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -237,6 +239,7 @@ export function MobilePatientsView({
     setCockpit(null);
     setResources({ documents: [], panoramics: [] });
     setOpeningContext(null);
+    setCreatingDocument(false);
     setError('');
 
     let cancelled = false;
@@ -469,6 +472,12 @@ export function MobilePatientsView({
                   >
                     <ScanLine size={16} /> Scanner
                   </button>
+                  {!previewData && (
+                    <button type="button" onClick={() => setCreatingDocument(true)}
+                      className="min-h-12 rounded-[16px] border border-primary/20 bg-primary/10 text-primary flex items-center justify-center gap-2 text-xs font-black">
+                      <FileText size={16} /> Créer un document
+                    </button>
+                  )}
                   <button
                     type="button"
                     onClick={() => latestDocument && void openSecureContext('document', latestDocument.id)}
@@ -534,6 +543,13 @@ export function MobilePatientsView({
             )}
 
           </>
+        )}
+        {creatingDocument && patient && cockpit?.clinical_context && !previewData && (
+          <MobileQuickDocumentSheet
+            key={patient.id}
+            patient={{ id: patient.id, name: patient.name, medicalAlert: cockpit.patient.medical_alert_summary }}
+            onClose={() => setCreatingDocument(false)}
+          />
         )}
       </section>
     );

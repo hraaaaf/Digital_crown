@@ -68,6 +68,38 @@ describe('MobileQuickDocumentSheet', () => {
     expect(screen.queryByRole('button', { name: /Honoraires/i })).toBeNull();
   });
 
+  it('routes live preview and archive through authenticated Pocket PDF endpoints', async () => {
+    mockedCredentials.mockResolvedValue({
+      publicId: '0123456789abcdef', masterKey: 'a'.repeat(64),
+      access_token: 'mobile-token', api_base_url: 'http://127.0.0.1:8005',
+    });
+    const createObjectURL = vi.fn(() => 'blob:test-pdf');
+    vi.stubGlobal('URL', Object.assign(URL, { createObjectURL, revokeObjectURL: vi.fn() }));
+    mockedFetch.mockImplementation(async (input) => {
+      if (String(input).includes('/quick-actions/capabilities')) {
+        return new Response(JSON.stringify({
+          can_create_prescription: false, can_create_certificate: true,
+          can_create_devis: false, can_create_honoraires: false, can_create_free_document: false,
+        }), { headers: { 'Content-Type': 'application/json' } });
+      }
+      return new Response(new Blob(['%PDF-1.4'], { type: 'application/pdf' }), {
+        headers: { 'Content-Type': 'application/pdf' },
+      });
+    });
+    render(<MobileQuickDocumentSheet patient={{ id: 101, name: 'Patient Démo' }} onClose={() => undefined} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Certificat/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Prévisualiser/i }));
+    await waitFor(() => expect(screen.getByText(/Aperçu validé/i)).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: /Archiver le document/i }));
+    await waitFor(() => expect(screen.getByText(/Document généré et archivé/i)).toBeTruthy());
+    const urls = mockedFetch.mock.calls.map(([input]) => String(input));
+    expect(urls.some((url) => url.endsWith('/api/mobile/documents/preview'))).toBe(true);
+    expect(urls.some((url) => url.endsWith('/api/mobile/documents/archive'))).toBe(true);
+    expect(urls.some((url) => url.includes('/api/documents/generate'))).toBe(false);
+    expect((screen.getByRole('button', { name: /Déjà archivé/i }) as HTMLButtonElement).disabled).toBe(true);
+    vi.unstubAllGlobals();
+  });
+
   it('rejects a zero-value honoraires line before preview', () => {
     render(<MobileQuickDocumentSheet patient={{ id: 101, name: 'Patient Démo' }} preview onClose={() => undefined} />);
     fireEvent.click(screen.getByRole('button', { name: /Honoraires/i }));

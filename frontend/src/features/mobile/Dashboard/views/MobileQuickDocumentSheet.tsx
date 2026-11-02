@@ -50,14 +50,6 @@ function resolveApiBaseUrl(stored: string): string {
   return stored.replace(/\/$/, '');
 }
 
-function resolvePdfUrl(baseUrl: string, value: string): string {
-  const raw = value.trim();
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith('/')) return `${baseUrl}${raw}`;
-  if (raw.startsWith('api/')) return `${baseUrl}/${raw}`;
-  return `${baseUrl}/api/${raw}`;
-}
-
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -92,6 +84,10 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
   const [success, setSuccess] = useState('');
   const [previewPayload, setPreviewPayload] = useState<Record<string, unknown> | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [archived, setArchived] = useState(false);
+  useEffect(() => () => {
+    if (previewPdfUrl?.startsWith('blob:') && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(previewPdfUrl);
+  }, [previewPdfUrl]);
 
   useEffect(() => {
     if (preview) return;
@@ -191,18 +187,23 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     const creds = await MobileStorage.getCredentials();
     if (!creds) throw new Error('Session mobile indisponible.');
     const baseUrl = resolveApiBaseUrl(creds.api_base_url);
-    const response = await mobileFetch(`${baseUrl}/api/documents/generate?archive=${archive ? 'true' : 'false'}&preview=${archive ? 'false' : 'true'}&force=false`, {
+    const response = await mobileFetch(`${baseUrl}/api/mobile/documents/${archive ? 'archive' : 'preview'}`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${creds.access_token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(20000),
     });
-    const body = await response.json().catch(() => ({}));
     if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
       const detail = body?.detail;
       throw new Error((typeof detail === 'string' ? detail : detail?.message) || `Génération indisponible (${response.status}).`);
     }
-    return { body, baseUrl };
+    if (!(response.headers.get('content-type') || '').includes('application/pdf')) {
+      throw new Error('Réponse PDF invalide.');
+    }
+    const pdf = await response.blob();
+    if (!pdf.size) throw new Error('PDF vide.');
+    return URL.createObjectURL(pdf);
   };
 
   const previewDocument = async () => {
@@ -217,32 +218,38 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     }
     setBusy(true);
     try {
-      const { body, baseUrl } = await requestDocument(payload, false);
+      const url = await requestDocument(payload, false);
       setPreviewPayload(payload);
-      setPreviewPdfUrl(body?.pdf_url ? resolvePdfUrl(baseUrl, String(body.pdf_url)) : null);
+      setArchived(false);
+      setPreviewPdfUrl(url);
       setSuccess('Aperçu validé. Vérifiez puis archivez.');
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Impossible de prévisualiser le document.'); } finally { setBusy(false); }
   };
 
   const archiveDocument = async () => {
-    if (!previewPayload) return;
+    if (!previewPayload || archived || busy) return;
     setError(''); setSuccess('');
     if (preview) {
       setSuccess('Aperçu isolé : archivage simulé sans réseau.');
       return;
     }
+    if (type === 'honoraires') {
+      setError('Archivage des notes d’honoraires indisponible sur Pocket : validation comptable requise.');
+      return;
+    }
     setBusy(true);
     try {
-      const { body, baseUrl } = await requestDocument(previewPayload, true);
+      const url = await requestDocument(previewPayload, true);
+      setPreviewPdfUrl(url);
+      setArchived(true);
       setSuccess('Document généré et archivé dans le dossier patient.');
-      if (body?.pdf_url) window.open(resolvePdfUrl(baseUrl, String(body.pdf_url)), '_blank', 'noopener,noreferrer');
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Impossible d’archiver le document.'); } finally { setBusy(false); }
   };
 
   return <div data-mobile-quick-document className="fixed inset-0 z-[80] bg-black/35 backdrop-blur-sm flex items-end sm:items-center justify-center">
     <section className="w-full max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-[30px] sm:rounded-[30px] border border-glass-border bg-card p-4 sm:p-5 shadow-2xl" style={{ backgroundColor: 'var(--glass-bg)' }}>
       <div className="sticky top-0 z-10 -mx-1 mb-4 flex items-center gap-3 rounded-[20px] bg-card/95 px-1 py-2 backdrop-blur" style={{ backgroundColor: 'var(--glass-bg)' }}>
-        {type ? <button type="button" onClick={() => { setType(null); setPreviewPayload(null); setPreviewPdfUrl(null); setError(''); setSuccess(''); }} className="h-11 w-11 rounded-[14px] border border-glass-border flex items-center justify-center text-primary" aria-label="Retour aux types"><ArrowLeft size={18} /></button> : <div className="h-11 w-11 rounded-[14px] bg-primary/10 text-primary flex items-center justify-center"><FileText size={19} /></div>}
+        {type ? <button type="button" onClick={() => { setType(null); setPreviewPayload(null); setPreviewPdfUrl(null); setArchived(false); setError(''); setSuccess(''); }} className="h-11 w-11 rounded-[14px] border border-glass-border flex items-center justify-center text-primary" aria-label="Retour aux types"><ArrowLeft size={18} /></button> : <div className="h-11 w-11 rounded-[14px] bg-primary/10 text-primary flex items-center justify-center"><FileText size={19} /></div>}
         <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Document rapide</p><h2 className="truncate text-lg font-black text-text-main">{selected?.label || patient.name}</h2></div>
         <button type="button" onClick={onClose} className="h-11 w-11 rounded-[14px] border border-glass-border flex items-center justify-center text-text-muted" aria-label="Fermer"><X size={18} /></button>
       </div>
@@ -253,11 +260,12 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
         {availableTypes.map((entry) => <button key={entry.value} type="button" onClick={() => { setType(entry.value); setError(''); setSuccess(''); }} className="w-full min-h-16 rounded-[20px] border border-glass-border bg-background px-4 py-3 text-left active:scale-[0.99] transition-transform"><p className="text-sm font-black text-text-main">{entry.label}</p><p className="mt-1 text-[11px] font-bold text-text-muted">{entry.hint}</p></button>)}
         {error && <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-bold text-rose-700">{error}</div>}
       </div> : previewPayload ? <div className="space-y-4">
-        <div className="rounded-[20px] border border-primary/20 bg-primary/5 p-4"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Aperçu prêt</p><p className="mt-1 text-base font-black text-text-main">{selected?.label} · {patient.name}</p><p className="mt-1 text-xs font-bold text-text-muted">Contenu verrouillé pour cette confirmation. Modifiez pour régénérer un aperçu.</p></div>
-        {previewPdfUrl && <a href={previewPdfUrl} target="_blank" rel="noreferrer" className="w-full min-h-12 rounded-[16px] border border-glass-border bg-background text-primary flex items-center justify-center gap-2 text-xs font-black"><ExternalLink size={16} /> Ouvrir l’aperçu PDF</a>}
+        <div className="rounded-[20px] border border-primary/20 bg-primary/5 p-4"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">{archived ? 'Archive confirmée' : 'Aperçu prêt'}</p><p className="mt-1 text-base font-black text-text-main">{selected?.label} · {patient.name}</p><p className="mt-1 text-xs font-bold text-text-muted">Contenu verrouillé pour cette confirmation. Modifiez pour régénérer un aperçu.</p></div>
+        {previewPdfUrl && <a href={previewPdfUrl} target="_blank" rel="noreferrer" className="w-full min-h-12 rounded-[16px] border border-glass-border bg-background text-primary flex items-center justify-center gap-2 text-xs font-black"><ExternalLink size={16} /> {archived ? 'Ouvrir le PDF archivé' : 'Ouvrir l’aperçu PDF'}</a>}
         {success && <div className="rounded-[16px] border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs font-bold text-emerald-700 flex items-center gap-2"><CheckCircle2 size={16} /> {success}</div>}
         {error && <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-bold text-rose-700">{error}</div>}
-        <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setPreviewPayload(null); setPreviewPdfUrl(null); setSuccess(''); setError(''); }} className="min-h-14 rounded-[18px] border border-glass-border bg-background text-xs font-black text-text-main">Modifier</button><button type="button" onClick={() => void archiveDocument()} disabled={busy} className="min-h-14 rounded-[18px] bg-primary text-primary-foreground text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Archiver le document</button></div>
+        {type === 'honoraires' && !preview && <p className="text-xs text-text-muted">Archivage des honoraires non disponible sur Pocket avant certification du contrat comptable.</p>}
+        <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setPreviewPayload(null); setPreviewPdfUrl(null); setArchived(false); setSuccess(''); setError(''); }} className="min-h-14 rounded-[18px] border border-glass-border bg-background text-xs font-black text-text-main">Modifier</button><button type="button" onClick={() => void archiveDocument()} disabled={busy || archived || (type === 'honoraires' && !preview)} className="min-h-14 rounded-[18px] bg-primary text-primary-foreground text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} {archived ? 'Déjà archivé' : type === 'honoraires' && !preview ? 'Archivage indisponible' : 'Archiver le document'}</button></div>
       </div> : <div className="space-y-4">
         {type === 'ordonnance' && medicalAlert && <div className="rounded-[18px] border border-rose-500/20 bg-rose-500/5 p-3 flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-600" /><div><p className="text-[10px] font-black uppercase tracking-[0.12em] text-rose-600">Alerte médicale</p><p className="mt-1 text-xs font-bold leading-relaxed text-text-main">{medicalAlert}</p></div></div>}
         {type === 'certificat' && <><label className="block"><span className="text-[11px] font-black text-text-muted">Nature</span><select value={certificateType} onChange={(event) => setCertificateType(event.target.value)} className="mt-1 w-full min-h-12 rounded-[16px] border border-glass-border bg-background px-3 text-sm font-bold text-text-main"><option>Certificat de Présence</option><option>Arrêt de travail</option><option>Certificat médical</option></select></label>{certificateType === 'Arrêt de travail' && <label className="block"><span className="text-[11px] font-black text-text-muted">Durée (jours)</span><input inputMode="numeric" value={certificateDays} onChange={(event) => setCertificateDays(event.target.value)} className="mt-1 w-full min-h-12 rounded-[16px] border border-glass-border bg-background px-3 text-sm font-bold text-text-main" /></label>}</>}
