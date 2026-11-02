@@ -10,6 +10,7 @@ import hashlib
 from io import BytesIO
 import json
 import os
+import subprocess
 from pathlib import Path
 
 import fitz
@@ -152,8 +153,12 @@ def main():
         montage.paste(thumb, (x, y + label_height))
         pen.text((x + 4, y), name[:65], fill="#1e293b")
     montage.save(OUTPUT / "contact-sheet.png")
+    exact_checkout_sha = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
+    expected_sha = os.environ.get("EXPECTED_SHA")
+    if expected_sha and exact_checkout_sha != expected_sha:
+        raise RuntimeError("Wrong checkout SHA for screenshots")
     manifest = {
-        "commit": os.environ.get("GITHUB_SHA", "UNKNOWN"),
+        "commit": exact_checkout_sha,
         "source_branch": os.environ.get("GITHUB_HEAD_REF") or os.environ.get("GITHUB_REF_NAME") or "UNKNOWN",
         "review_status": "VISUAL_HUMAN_APPROVAL_REQUIRED",
         "scope": "A4 PDF actual renderer; UI modal/browser preview NOT captured",
