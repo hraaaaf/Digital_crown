@@ -64,6 +64,10 @@ def materialize_steiner_protocol_evidence(*, landmarks:Mapping[str,LandmarkEvide
         construction_namespace:str, measurement_namespace:str,
         mm_per_pixel:Optional[float], calibration_ref:Optional[str]):
     constructions:dict[str,ConstructionEvidence]={}; measurements:list[MeasurementEvidence]=[]
+    # The dictionary key is not anatomical authority; reject a re-keyed alias.
+    for identity, landmark in landmarks.items():
+        if landmark.landmark_id != identity:
+            raise ValueError(f"Steiner landmark identity mismatch for {identity}: {landmark.landmark_id}")
     for spec in _SPECS:
         if canonical_measurement_id_for_method(spec.method_id)!=spec.canonical_id:
             raise ValueError(f"{spec.method_id}: canonical bridge drift")

@@ -1,4 +1,5 @@
 import datetime as dt
+import pytest
 from backend.schemas.cephalo_evidence import EvidenceStatus, LandmarkEvidence, LandmarkOrigin, AvailabilityStatus
 from backend.services.cephalo_steiner_protocol_evidence import materialize_steiner_protocol_evidence
 from backend.services.cephalo_canonical_method_bridge import canonical_measurement_id_for_method
@@ -35,3 +36,18 @@ def test_linear_measurements_fail_closed_without_calibration():
     _,m=materialize_steiner_protocol_evidence(landmarks=_landmarks(),construction_namespace="c",measurement_namespace="m",mm_per_pixel=None,calibration_ref=None)
     linear=[x for x in m if x.requires_calibration]
     assert linear and all(x.availability_status==AvailabilityStatus.NOT_COMPUTABLE and x.value is None for x in linear)
+
+@pytest.mark.parametrize(("required_id", "wrong_id"), [
+    ("D_Steiner_1959", "D_point"),
+    ("Gn_anatomic", "Gn"),
+    ("U1_facial_surface", "U1_incisal"),
+])
+def test_explicit_landmark_key_must_match_anatomical_identity(required_id, wrong_id):
+    points = _landmarks()
+    original = points[required_id]
+    points[required_id] = _lm(wrong_id, original.x, original.y)
+    with pytest.raises(ValueError, match="Steiner landmark identity mismatch"):
+        materialize_steiner_protocol_evidence(
+            landmarks=points, construction_namespace="c", measurement_namespace="m",
+            mm_per_pixel=0.5, calibration_ref="cal:1",
+        )
