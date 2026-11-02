@@ -65,7 +65,9 @@ def materialize_steiner_protocol_evidence(*, landmarks:Mapping[str,LandmarkEvide
         mm_per_pixel:Optional[float], calibration_ref:Optional[str]):
     constructions:dict[str,ConstructionEvidence]={}; measurements:list[MeasurementEvidence]=[]
     # The dictionary key is not anatomical authority; reject a re-keyed alias.
-    for identity, landmark in landmarks.items():
+    required_ids = {identity for spec in _SPECS for identity in spec.ids}
+    for identity in required_ids.intersection(landmarks):
+        landmark = landmarks[identity]
         if landmark.landmark_id != identity:
             raise ValueError(f"Steiner landmark identity mismatch for {identity}: {landmark.landmark_id}")
     for spec in _SPECS:
