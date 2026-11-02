@@ -226,30 +226,15 @@ export const useCephaloPersistence = (
     const bound = await prepareBoundCephaloDocumentSource(
       patientId, analysisId, stillSelected, () => silentSave(analysisId, true),
     );
-    const max = ddm.maxillaire === '' ? null : Number(ddm.maxillaire);
-    const mand = ddm.mandibulaire === '' ? null : Number(ddm.mandibulaire);
-    const real = (max !== null && mand !== null) ? (max + mand) : null;
-
+    // The legacy path uses the same typed clinical projection as the active Cabinet store.
+    const clinicalSnapshot = buildPayload(local.landmarks,null,null,null,diag,{},mmPerPixel,etape2Data,etape3Data);
     return await cephaloRepository.generatePDF(patientId, {
       ...bound,
-      ai_diagnostic: {
-        analyse_dentaire: diag.analyse_dentaire || '',
-        diagnostic_squelettique: diag.diagnostic_squelettique || '',
-        analyse_moulages: diag.analyse_moulages || '',
-        synthese_diagnostique: diag.synthese_diagnostique || '',
-        strategie_therapeutique: diag.strategie_therapeutique || '',
-      },
-      clinical_data: {
-        ddm_maxillaire: { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: max ?? 0 },
-        ddm_mandibulaire: { espace_disponible: 0, espace_necessaire: 0, calcul_ddm: mand ?? 0 },
-        ddm_reelle: real ?? 0,
-        plan_traitement: diag.strategie_therapeutique || '',
-        denture_type: etape3Data.denture_type,
-        preference_technique: etape3Data.preference_technique,
-      },
+      ai_diagnostic: clinicalSnapshot.ai_diagnostic,
+      clinical_data: clinicalSnapshot.clinical_data,
       archive: !preview,
     });
-  }, [patientId, analysisId, ddm, diag, etape3Data, silentSave]);
+  }, [patientId, analysisId, local.landmarks, mmPerPixel, diag, etape2Data, etape3Data, silentSave]);
 
   const handlePreview = useCallback(async () => {
     if (!analysisId || !allLandmarksPlaced) return;

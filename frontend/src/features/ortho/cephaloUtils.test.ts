@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { computeSignedELineDistance, computeSignedOverbite, computeStep3Data, generateTreatmentPlan } from './cephaloUtils';
+import { computeClinicalDdmMm, computeSignedELineDistance, computeSignedOverbite, computeStep3Data, generateTreatmentPlan } from './cephaloUtils';
 import type { DonneesEtape3 } from './cephaloTypes';
 
 const landmarks = [
@@ -258,5 +258,25 @@ describe('Tweed pattern_vertical classification removed from frontend (CEPHALOME
       expect(plan).toContain('GESTION VERTICALE');
       expect(plan).toContain('Typologie verticale non disponible');
     }
+  });
+});
+
+describe('L2 clinical DDM ED−EN: signed direct model measurements only', () => {
+  it('preserves crowding, excess, true zero and a measured zero', () => {
+    expect(computeClinicalDdmMm(20, 25)).toBe(-5);
+    expect(computeClinicalDdmMm(25, 20)).toBe(5);
+    expect(computeClinicalDdmMm(20, 20)).toBe(0);
+    expect(computeClinicalDdmMm(0, 0)).toBe(0);
+  });
+
+  it('never substitutes zero for missing, nonfinite or invalid measures', () => {
+    expect(computeClinicalDdmMm('', 20)).toBeNull();
+    expect(computeClinicalDdmMm(20, '')).toBeNull();
+    expect(computeClinicalDdmMm(null, 20)).toBeNull();
+    expect(computeClinicalDdmMm(undefined, 20)).toBeNull();
+    expect(computeClinicalDdmMm(NaN, 20)).toBeNull();
+    expect(computeClinicalDdmMm(Infinity, 20)).toBeNull();
+    expect(computeClinicalDdmMm(20, -1)).toBeNull();
+    expect(computeClinicalDdmMm(-1, 20)).toBeNull();
   });
 });

@@ -91,9 +91,11 @@ def test_missing_ddm_is_never_serialized_as_zero():
     assert "calcul_ddm:max??0" not in compact
     assert "calcul_ddm:mand??0" not in compact
     assert "ddm_reelle:real??0" not in compact
-    assert "ddm_maxillaire:max!==null?" in compact
-    assert "ddm_mandibulaire:mand!==null?" in compact
-    assert "ddm_reelle:real" in compact
+    assert "ddm_maxillaire:maxillary" in compact
+    assert "ddm_mandibulaire:mandibular" in compact
+    assert "ddm_reelle:total" in compact
+    assert "espace_disponible:0" not in compact
+    assert "espace_necessaire:0" not in compact
 
 
 def test_patient_sex_remains_unknown_until_explicitly_documented():
