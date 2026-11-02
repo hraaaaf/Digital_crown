@@ -42,3 +42,13 @@ jobs:
           pip install -r /tmp/ceph-targeted-requirements.txt
       - name: Run source-locked negative and clinical authority tests
         run: python -m pytest backend/tests/test_cephalo_r15_clinical_studio.py backend/tests/test_cephalo_r17_pdf_projection.py backend/tests/test_cephalo_v1_l3_a4_document.py backend/tests/test_cephalo_r17_pdf_certification.py backend/tests/test_cephalo_r17_pdf_renderer_contract.py -q
+      - name: Capture exact-SHA A4 PDF pages for human visual approval
+        run: python scripts/capture_cephalo_pdf_l3_human_approval.py
+      - name: Publish screenshot evidence — NOT human approval
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-l3-a4-visual-review-${{ github.sha }}
+          path: artifacts/cephalo-pdf-l3-human-review/
+          if-no-files-found: error
+          retention-days: 30
