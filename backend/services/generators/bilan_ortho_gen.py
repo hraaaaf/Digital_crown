@@ -523,11 +523,16 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             stage = stages.get(key)
             if stage:
                 elements.append(Paragraph(
-                    "<b>" + escape(key) + " — " + escape(str(stage.get("title") or key)) + "</b> — "
-                    + escape(str(stage.get("presentation_state") or "BLOCKED")), body,
+                    "<b>" + escape(str(stage.get("title") or "Diagnostic")) + "</b> — "
+                    + escape(self._pdf_stage_state(
+                        stage.get("presentation_state"),
+                        complete=context["document_state"] == "COMPLETE",
+                    )), body,
                 ))
                 if stage.get("summary"):
-                    elements.append(Paragraph(escape(str(stage["summary"])), body))
+                    summary = self._pdf_stage_summary(stage["summary"])
+                    if summary:
+                        elements.append(Paragraph(escape(summary), body))
                 for evidence_key, evidence_label in (
                     ("contradictions", "Contradictions"),
                     ("contraindications", "Contre-indications"),
@@ -546,11 +551,16 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             stage = stages.get(key)
             if stage:
                 elements.append(Paragraph(
-                    "<b>" + escape(key) + " — " + escape(str(stage.get("title") or key)) + "</b> — "
-                    + escape(str(stage.get("presentation_state") or "BLOCKED")), body,
+                    "<b>" + escape(str(stage.get("title") or "Traitement")) + "</b> — "
+                    + escape(self._pdf_stage_state(
+                        stage.get("presentation_state"),
+                        complete=context["document_state"] == "COMPLETE",
+                    )), body,
                 ))
                 if stage.get("summary"):
-                    elements.append(Paragraph(escape(str(stage["summary"])), body))
+                    summary = self._pdf_stage_summary(stage["summary"])
+                    if summary:
+                        elements.append(Paragraph(escape(summary), body))
                 for evidence_key, evidence_label in (
                     ("contradictions", "Contradictions"),
                     ("contraindications", "Contre-indications"),
@@ -564,7 +574,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         if not context.get("clinical_validation_available"):
             elements.append(Paragraph(
                 "Aucune option thérapeutique ni signature praticien n'est promue en "
-                "l'absence de validation R14 persistée.", body,
+                "l'absence de validation finale du praticien.", body,
             ))
 
         draw = lambda canvas, page: self.draw_static_elements(
