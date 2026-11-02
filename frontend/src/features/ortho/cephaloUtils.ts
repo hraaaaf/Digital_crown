@@ -22,6 +22,21 @@ export function calcDDMCephalo(_impa: number | null): number | null {
   return null;
 }
 
+/**
+ * L2: clinical arch-space discrepancy (mm) based ONLY on direct model/cast
+ * measurements. Negative = crowding; positive = space excess. Missing input
+ * is not zero. Never infer arch-space correction from cephalometric angles.
+ */
+export function computeClinicalDdmMm(
+  spaceAvailableMm: number | '' | null | undefined,
+  spaceRequiredMm: number | '' | null | undefined,
+): number | null {
+  if (typeof spaceAvailableMm !== 'number' || typeof spaceRequiredMm !== 'number') return null;
+  if (!Number.isFinite(spaceAvailableMm) || !Number.isFinite(spaceRequiredMm)) return null;
+  if (spaceAvailableMm < 0 || spaceRequiredMm < 0) return null;
+  return spaceAvailableMm - spaceRequiredMm;
+}
+
 /** CVM is morphology-based and is never inferred from chronological age/sex alone. */
 export function estimateCVM(_age: number | '', _sexe: 'M' | 'F'): CVMStage | '' {
   return '';
