@@ -118,8 +118,8 @@ def test_practitioner_payload_is_not_sanitized():
 
 def test_clinical_ddm_is_not_modified_by_impa():
     clinical = schemas.ClinicalData(
-        ddm_maxillaire=schemas.DDMComponent(espace_disponible=0, espace_necessaire=0, calcul_ddm=-2.5),
-        ddm_mandibulaire=schemas.DDMComponent(espace_disponible=0, espace_necessaire=0, calcul_ddm=-3.0),
+        ddm_maxillaire=schemas.DDMComponent(espace_disponible=20, espace_necessaire=22.5, calcul_ddm=999),
+        ddm_mandibulaire=schemas.DDMComponent(espace_disponible=20, espace_necessaire=23, calcul_ddm=999),
     )
     result = CephaloService._calculate_complex_ddm(None, None, clinical)
     assert result.ddm_maxillaire.calcul_ddm == -2.5
@@ -166,3 +166,27 @@ def test_total_ddm_requires_both_arches_but_preserves_a_measured_zero():
         None, None, schemas.ClinicalData(ddm_maxillaire=upper, ddm_mandibulaire=lower_zero),
     )
     assert complete.ddm_reelle == -5.0
+
+
+def test_backend_ddm_does_not_trust_client_reported_results():
+    clinical = schemas.ClinicalData(
+        ddm_maxillaire=schemas.DDMComponent(espace_disponible=25, espace_necessaire=30, calcul_ddm=100),
+        ddm_mandibulaire=schemas.DDMComponent(espace_disponible=20, espace_necessaire=18, calcul_ddm=-900),
+        ddm_reelle=999,
+    )
+    result = CephaloService._calculate_complex_ddm(None, None, clinical)
+    assert result.ddm_maxillaire.calcul_ddm == -5
+    assert result.ddm_mandibulaire.calcul_ddm == 2
+    assert result.ddm_reelle == -3
+
+
+def test_partial_cast_inputs_cannot_retain_a_client_calculated_ddm():
+    clinical = schemas.ClinicalData(
+        ddm_maxillaire=schemas.DDMComponent(espace_disponible=25, espace_necessaire=None, calcul_ddm=999),
+        ddm_mandibulaire=schemas.DDMComponent(espace_disponible=20, espace_necessaire=20, calcul_ddm=-900),
+        ddm_reelle=999,
+    )
+    result = CephaloService._calculate_complex_ddm(None, None, clinical)
+    assert result.ddm_maxillaire.calcul_ddm is None
+    assert result.ddm_mandibulaire.calcul_ddm == 0
+    assert result.ddm_reelle is None
