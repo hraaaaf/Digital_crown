@@ -38,6 +38,8 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         filename: Optional[str] = None,
         *,
         projection: Optional[dict[str, Any]] = None,
+        user: Any = None,
+        media: Optional[dict[str, Any]] = None,
     ):
         if not filename:
             date_str = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -61,12 +63,10 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "clinical_validation_reason": "Projection clinique autoritaire indisponible.",
         }
 
-        if WEASYPRINT_AVAILABLE:
-            try:
-                return self._generate_weasyprint(vm, file_path, projection=document)
-            except Exception as exc:
-                logger.error("Échec WeasyPrint Bilan Ortho, repli sur ReportLab: %s", exc)
-        return self._generate_reportlab(vm, file_path, projection=document)
+        # Official A4 and its preview must share the same ReportLab BaseTemplate
+        # letterhead, branding, footer and QR renderer as every cabinet document.
+        # The HTML renderer remains for contract tests, never a divergent output.
+        return self._generate_reportlab(vm, file_path, projection=document, user=user, media=media)
 
     @staticmethod
     def _measurement_display(row: dict[str, Any]) -> dict[str, str]:
@@ -214,156 +214,258 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         file_path: str,
         *,
         projection: Optional[dict[str, Any]] = None,
+        user: Any = None,
+        media: Optional[dict[str, Any]] = None,
     ):
+        """Official A4 report. Source-locked content, shared cabinet letterhead."""
+        from io import BytesIO
         from reportlab.lib import colors
         from reportlab.lib.enums import TA_CENTER
         from reportlab.lib.pagesizes import A4
         from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
         from reportlab.lib.units import cm
-        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+        from reportlab.platypus import (
+            Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle,
+        )
         from backend.services.generators.document_typography import short_label
 
         context = self._shared_context(vm, projection or {})
         context["measurements"] = [
-            {
-                **measurement,
-                "measurement_id": short_label(measurement["measurement_id"].rsplit(":", 1)[-1]),
-            }
-            for measurement in context["measurements"]
+            {**item, "measurement_id": short_label(item["measurement_id"].rsplit(":", 1)[-1])}
+            for item in context["measurements"]
         ]
-        config = vm.cabinet_config or {}
-        p_color = colors.HexColor(config.get("primary_color", "#003380"))
+        config = dict(vm.cabinet_config or {})
+        # A validation/payment QR without an issued document ID would link to
+        # DOC-TEMP, falsely suggesting an official verified document. Never do so.
+        if config.get("qr_code_type") in {"VALIDATION", "PAYMENT"}:
+            config["qr_code_enabled"] = False
+        p_color = colors.HexColor(config.get("primary_color") or "#003380")
+        s_color = colors.HexColor(config.get("secondary_color") or "#64748B")
         styles = getSampleStyleSheet()
-        title = ParagraphStyle("R17Title", parent=styles["Heading1"], fontSize=17, textColor=p_color, alignment=TA_CENTER, spaceAfter=12)
-        h2 = ParagraphStyle("R17Section", parent=styles["Heading2"], fontSize=12, textColor=p_color, spaceBefore=10, spaceAfter=6)
-        body = ParagraphStyle("R17Body", parent=styles["Normal"], fontSize=9, leading=13, spaceAfter=5)
-
-        p_width = A4[0]
-        m_top, m_bottom, m_left, m_right = self.get_document_margins(config, p_width)
-        doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left, topMargin=m_top, bottomMargin=m_bottom)
+        title = ParagraphStyle(
+            "CephA4Title", parent=styles["Heading1"], fontSize=17,
+            textColor=p_color, alignment=TA_CENTER, spaceAfter=10,
+        )
+        h2 = ParagraphStyle(
+            "CephA4Section", parent=styles["Heading2"], fontSize=12,
+            textColor=p_color, spaceBefore=12, spaceAfter=7,
+            keepWithNext=True,
+        )
+        h3 = ParagraphStyle(
+            "CephA4Sub", parent=styles["Heading3"], fontSize=10,
+            textColor=p_color, spaceBefore=8, spaceAfter=5,
+            keepWithNext=True,
+        )
+        body = ParagraphStyle(
+            "CephA4Body", parent=styles["Normal"], fontSize=9,
+            leading=13, textColor=colors.HexColor("#1f2937"), spaceAfter=5,
+        )
+        small = ParagraphStyle(
+            "CephA4Small", parent=body, fontSize=7.5,
+            leading=10.5, textColor=s_color,
+        )
+        page_width = A4[0]
+        m_top, m_bottom, m_left, m_right = self.get_document_margins(config, page_width)
+        doc = SimpleDocTemplate(
+            file_path, pagesize=A4, rightMargin=m_right, leftMargin=m_left,
+            topMargin=m_top, bottomMargin=m_bottom,
+        )
+        available_width = page_width - m_left - m_right
         elements = [
-            Paragraph("BILAN ORTHODONTIQUE - RESTITUTION AUTORITAIRE", title),
-            Paragraph(f"ÉTUDE CÉPHALO ID : {escape(str(context.get('cephalo_source_analysis_id') or 'NON VÉRIFIÉ'))} | RÉVISION : {escape(str(context.get('cephalo_source_analysis_revision') or 'NON VÉRIFIÉE'))}", body),
+            Paragraph("BILAN ORTHODONTIQUE", title),
             Paragraph(
-                f"Patient : {escape(str(vm.patient_nom).upper())} {escape(str(vm.patient_prenom).capitalize())} - Âge : {escape(str(vm.patient_age))} ans",
-                body,
+                "Patient : <b>" + escape(str(vm.patient_nom).upper()) + " "
+                + escape(str(vm.patient_prenom).capitalize()) + "</b> — "
+                + "Âge : " + escape(str(vm.patient_age)) + " ans — "
+                + "Date : " + escape(str(context["date_analyse"])), body,
             ),
-            Paragraph(f"État documentaire : <b>{escape(str(context['document_state']))}</b>", body),
-            Paragraph(f"Contrat : {escape(str(context['contract_version'] or 'non disponible'))}", body),
+            Paragraph(
+                "Étude céphalo : " + escape(str(context.get("cephalo_source_analysis_id") or "NON VÉRIFIÉ"))
+                + " — Révision : " + escape(str(context.get("cephalo_source_analysis_revision") or "NON VÉRIFIÉE"))
+                + " — État : <b>" + escape(str(context["document_state"])) + "</b>", small,
+            ),
         ]
-
         if context["document_state"] != "COMPLETE":
-            elements.append(Paragraph("Document clinique explicitement incomplet. Aucune conclusion manquante n'est reconstruite.", body))
+            elements.append(Paragraph(
+                "<b>DOCUMENT CLINIQUE INCOMPLET — NON SIGNÉ.</b> "
+                "Les observations et mesures non validées ne constituent ni un diagnostic "
+                "ni un plan thérapeutique définitif.", body,
+            ))
+        if vm.is_pre_bilan:
+            elements.append(Paragraph("PRÉ-BILAN — aperçu/document de travail non archivé.", small))
         if context["clinical_validation_reason"]:
-            elements.append(Paragraph(escape(str(context["clinical_validation_reason"])), body))
+            elements.append(Paragraph(escape(str(context["clinical_validation_reason"])), small))
 
-        elements.append(Paragraph("Mesures scientifiques", h2))
+        # Patient media: only byte streams previously resolved by the authenticated
+        # backend, never a client-supplied URL or arbitrary filesystem path.
+        verified_media = media or {}
+        radio = verified_media.get("radio_jpeg")
+        photos = verified_media.get("photos") or []
+        if radio or photos:
+            elements.append(Paragraph("DOSSIER ICONOGRAPHIQUE", h2))
+            if radio:
+                elements.append(Paragraph("Téléradiographie de profil — image source", h3))
+                elements.append(Image(
+                    BytesIO(radio),
+                    width=min(available_width, 13.5 * cm),
+                    height=9 * cm, kind="proportional",
+                ))
+                elements.append(Spacer(1, 0.2 * cm))
+                elements.append(Paragraph(
+                    "Tracé anatomique : non inclus tant qu'un rendu source-locké, "
+                    "persisté et concordant avec cette révision n'est pas disponible.", small,
+                ))
+            for group in ("Extra-buccales", "Intra-buccales"):
+                selected = [p for p in photos if p.get("group") == group]
+                if not selected:
+                    continue
+                elements.append(Paragraph("Photographies " + group.lower(), h3))
+                for index in range(0, len(selected), 3):
+                    trio = selected[index:index + 3]
+                    cell_width = available_width / 3
+                    cells = []
+                    for photo in trio:
+                        picture = Image(
+                            BytesIO(photo["jpeg"]),
+                            width=cell_width - 0.35 * cm, height=4.3 * cm,
+                            kind="proportional",
+                        )
+                        cells.append([
+                            picture,
+                            Paragraph(escape(str(photo["label"])), small),
+                        ])
+                    # ReportLab tables wrap each cell as a vertical Flowable stack.
+                    cells.extend([["", ""]] * (3 - len(cells)))
+                    table = Table([cells], colWidths=[cell_width] * 3)
+                    table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
+                    elements.extend([table, Spacer(1, 0.15 * cm)])
+        for missing in verified_media.get("media_unavailable") or []:
+            elements.append(Paragraph(
+                "Pièce image indisponible ou non vérifiable : " + escape(str(missing)), small,
+            ))
+
+        elements.append(Paragraph("I — ANALYSE CÉPHALOMÉTRIQUE", h2))
+        elements.append(Paragraph(
+            "Mesures et disponibilités issues du graphe scientifique de l'étude "
+            "sélectionnée. Les résultats non calculables sont explicitement signalés.", body,
+        ))
+        elements.append(Paragraph("Analyse dento-alvéolaire et analyse osseuse", h3))
+        elements.append(Paragraph(
+            "La séparation dento-alvéolaire / osseuse dépend du classement scientifique "
+            "de la méthode retenue ; aucune mesure n'est reclassée arbitrairement.", small,
+        ))
         rows = [["Mesure", "Valeur / disponibilité", "Méthode", "Source"]]
-        for measurement in context["measurements"]:
+        for item in context["measurements"]:
             rows.append([
-                measurement["measurement_id"],
-                measurement["value"],
-                measurement["method"],
-                measurement["source"],
+                item["measurement_id"], item["value"], item["method"], item["source"],
             ])
         if len(rows) == 1:
-            rows.append(["Aucune mesure typée autoritaire disponible", "NOT_COMPUTABLE", "-", "-"])
-        table = Table(rows, repeatRows=1, colWidths=[6.0*cm, 4.0*cm, 3.5*cm, 3.2*cm])
+            rows.append(["Aucune mesure typée autoritaire disponible", "NOT_COMPUTABLE", "—", "—"])
+        widths = [0.35 * available_width, 0.26 * available_width,
+                  0.20 * available_width, 0.19 * available_width]
+        table = Table(rows, repeatRows=1, colWidths=widths)
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), p_color),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
             ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
-            ("FONTSIZE", (0, 0), (-1, -1), 7.5),
+            ("FONTSIZE", (0, 0), (-1, -1), 7.2),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
-        elements.extend([table, Spacer(1, 0.4*cm)])
+        elements.extend([table, Spacer(1, 0.25 * cm)])
 
         if context["steiner_protocol"]:
-            steiner = context["steiner_protocol"]
-            elements.append(Paragraph("Analyse protocolaire Steiner", h2))
+            profile = context["steiner_protocol"]
+            elements.append(Paragraph("Analyse Steiner — registre source", h3))
             elements.append(Paragraph(
-                f"{escape(str(steiner.get('protocol_profile_id') or 'Steiner'))} — "
-                f"source-lock {escape(str(steiner.get('source_lock_status') or 'non vérifié'))}. "
-                "Références historiques affichées à titre comparatif uniquement; aucune classification clinique universelle n'est produite.",
-                body,
+                "Références historiques contextuelles, sans classification patient universelle.", small,
             ))
-            protocol_rows = [["Mesure", "Valeur", "Réf. hist.", "Écart réf.", "Statut"]]
-            for row in steiner.get("rows", []):
+            protocol_rows = [["Mesure", "Valeur", "Réf. hist.", "Écart", "Statut"]]
+            for item in profile["rows"]:
                 protocol_rows.append([
-                    row["label"], row["value"], row["reference"], row["delta"], row["interpretation_status"]
+                    item["label"], item["value"], item["reference"],
+                    item["delta"], item["interpretation_status"],
                 ])
-            protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[4.2*cm, 2.8*cm, 2.8*cm, 2.8*cm, 4.0*cm])
-            protocol_table.setStyle(TableStyle([
+            t = Table(protocol_rows, repeatRows=1, colWidths=[
+                0.22 * available_width, 0.15 * available_width, 0.15 * available_width,
+                0.15 * available_width, 0.33 * available_width,
+            ])
+            t.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), p_color),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
                 ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
-                ("FONTSIZE", (0, 0), (-1, -1), 7.0),
+                ("FONTSIZE", (0, 0), (-1, -1), 6.5),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
-            elements.extend([protocol_table, Spacer(1, 0.4*cm)])
+            elements.append(t)
+        # Do not insert unrelated comparison protocols into a V1 COM/Steiner PDF
+        # without a persisted authoritative protocol selection.
 
-        if context["tweed_merrifield_protocol"]:
-            tweed = context["tweed_merrifield_protocol"]
-            elements.append(Paragraph("Analyse protocolaire Tweed–Merrifield", h2))
+        elements.append(Paragraph("II — EXAMEN DES MOULAGES", h2))
+        elements.append(Paragraph(
+            "ED, EN et DDM par arcade : en attente de projection serveur autoritaire "
+            "liée à cette étude et à sa révision. Une donnée absente n'est jamais 0 mm.", body,
+        ))
+        elements.append(Paragraph("III — BILAN DIAGNOSTIQUE", h2))
+        stages = {stage.get("stage_id"): stage for stage in context["stages"]}
+        for key in ("R11", "R12"):
+            stage = stages.get(key)
+            if stage:
+                elements.append(Paragraph(
+                    "<b>" + escape(str(stage.get("title") or key)) + "</b> — "
+                    + escape(str(stage.get("presentation_state") or "BLOCKED")), body,
+                ))
+                if stage.get("summary"):
+                    elements.append(Paragraph(escape(str(stage["summary"])), body))
+        if not stages.get("R11"):
+            elements.append(Paragraph("Bilan diagnostique autoritaire indisponible.", body))
+
+        elements.append(Paragraph("IV — PLAN DE TRAITEMENT", h2))
+        for key in ("R13", "R14"):
+            stage = stages.get(key)
+            if stage:
+                elements.append(Paragraph(
+                    "<b>" + escape(str(stage.get("title") or key)) + "</b> — "
+                    + escape(str(stage.get("presentation_state") or "BLOCKED")), body,
+                ))
+                if stage.get("summary"):
+                    elements.append(Paragraph(escape(str(stage["summary"])), body))
+        if not context.get("clinical_validation_available"):
             elements.append(Paragraph(
-                f"{escape(str(tweed.get('protocol_profile_id') or 'Tweed-Merrifield'))} — "
-                f"source-lock {escape(str(tweed.get('source_lock_status') or 'non vérifié'))}. "
-                "Variante Digital Crown Po_anatomic-Or / Go-Me; aucune équivalence géométrique stricte avec Tweed 1954 n'est revendiquée. "
-                "Références historiques affichées comme contexte uniquement; aucune classification automatique.",
-                body,
+                "Aucune option thérapeutique ni signature praticien n'est promue en "
+                "l'absence de validation R14 persistée.", body,
             ))
-            protocol_rows = [["Mesure", "Valeur", "Profil", "Autorité", "Statut"]]
-            for row in tweed.get("rows", []):
-                protocol_rows.append([
-                    row["label"], row["value"], row["profile_section"],
-                    row["reference_authority"], row["interpretation_status"],
-                ])
-            protocol_table = Table(protocol_rows, repeatRows=1, colWidths=[4.0*cm, 2.4*cm, 4.2*cm, 3.2*cm, 3.4*cm])
-            protocol_table.setStyle(TableStyle([
-                ("BACKGROUND", (0, 0), (-1, 0), p_color),
-                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
-                ("FONTSIZE", (0, 0), (-1, -1), 6.6),
-                ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ]))
-            elements.extend([protocol_table, Spacer(1, 0.4*cm)])
 
-        elements.append(Paragraph("Chaîne clinique R11 -&gt; R14", h2))
+        elements.append(Paragraph("ANNEXE — TRAÇABILITÉ SCIENTIFIQUE", h2))
         for stage in context["stages"]:
-            label = (
-                f"{stage.get('stage_id') or ''} - {stage.get('title') or ''}: "
-                f"{stage.get('presentation_state') or 'INCONNU'}"
-            )
-            elements.append(Paragraph(f"<b>{escape(label)}</b>", body))
-            if stage.get("summary"):
-                elements.append(Paragraph(escape(str(stage["summary"])), body))
+            elements.append(Paragraph(
+                "<b>" + escape(str(stage.get("stage_id") or ""))
+                + " — " + escape(str(stage.get("title") or "")) + "</b> : "
+                + escape(str(stage.get("presentation_state") or "BLOCKED")), small,
+            ))
             for heading, key in (
-                ("Blockers", "blocking_gates"),
+                ("Blocages", "blocking_gates"),
                 ("Données manquantes", "missing_data_refs"),
                 ("Contradictions", "contradictions"),
                 ("Contre-indications", "contraindications"),
             ):
-                values = stage.get(key) or []
-                if values:
-                    rendered_values = "; ".join(escape(str(value)) for value in values)
-                    elements.append(Paragraph(f"{heading}: {rendered_values}", body))
-            provenance = stage.get("provenance") or []
-            if provenance:
-                text = "; ".join(
-                    f"{escape(str(item.get('label')))}: {escape(str(item.get('value')))}"
-                    for item in provenance
-                )
-                elements.append(Paragraph("Provenance: " + text, body))
-
+                if stage.get(key):
+                    elements.append(Paragraph(
+                        heading + " : " + escape("; ".join(str(x) for x in stage[key])), small,
+                    ))
+            if stage.get("provenance"):
+                elements.append(Paragraph(
+                    "Provenance : " + escape("; ".join(
+                        str(p.get("label")) + " : " + str(p.get("value"))
+                        for p in stage["provenance"]
+                    )), small,
+                ))
         if context["blocking_gates"]:
-            elements.append(Paragraph("Blockers globaux", h2))
-            elements.append(
-                Paragraph(
-                    "; ".join(escape(str(value)) for value in context["blocking_gates"]),
-                    body,
-                )
-            )
+            elements.append(Paragraph(
+                "Blocages globaux : " + escape("; ".join(str(x) for x in context["blocking_gates"])), small,
+            ))
 
-        draw_method = lambda canv, d: self.draw_static_elements(canv, d, config=config)
-        doc.build(elements, onFirstPage=draw_method, onLaterPages=draw_method)
+        draw = lambda canvas, page: self.draw_static_elements(
+            canvas, page, config=config, user=user,
+        )
+        doc.build(elements, onFirstPage=draw, onLaterPages=draw)
         return file_path
