@@ -7,6 +7,10 @@ on:
     paths:
       - 'backend/**'
       - 'scripts/capture_cephalo_pdf_l3_human_approval.py'
+      - 'frontend/scripts/certify-ceph-l3-live-preview.mjs'
+      - 'frontend/tests/visual/ceph-l3-live-preview.html'
+      - 'frontend/tests/visual/ceph-l3-live-preview.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/LivePreview.tsx'
       - '.github/workflows/ceph-v1-l3-clinical-gate-targeted.yml'
   workflow_dispatch:
 
@@ -47,6 +51,20 @@ jobs:
         env:
           EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: python scripts/capture_cephalo_pdf_l3_human_approval.py
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated frontend and Chromium for exact PDF preview screenshots
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Capture actual LivePreview component — desktop and mobile Chromium (NO DEPLOY)
+        working-directory: frontend
+        run: node scripts/certify-ceph-l3-live-preview.mjs
       - name: Publish screenshot evidence — NOT human approval
         if: always()
         uses: actions/upload-artifact@v4
