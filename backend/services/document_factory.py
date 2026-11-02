@@ -150,28 +150,40 @@ class DocumentFactory:
             display_results = dict(results_dict)
             display_results.pop("ai_diagnostic", None)
             display_results.pop("ai_narrative", None)
+            # Reuse the exact, current document-studio branding profile.
+            # The A4 report is not a separate theme with a frozen list of keys.
+            cabinet_theme = (
+                {column.key: getattr(cabinet, column.key)
+                 for column in models.CabinetConfig.__table__.columns}
+                if cabinet is not None else {}
+            )
+            media = None
+            if db is not None and user is not None and patient_id is not None:
+                from backend.utils.access_control import assert_patient_access
+                from backend.services.cephalo_pdf_media import load_cephalo_pdf_media
+                assert_patient_access(patient_id, user, db)
+                try:
+                    media = load_cephalo_pdf_media(
+                        db, employer_id=int(user.get_employer_id()),
+                        patient_id=int(patient_id), image_original_path=radio_image_path,
+                    )
+                except Exception as exc:
+                    # Media is optional; do not substitute unverified URLs or client bytes.
+                    logger.warning("Céphalo PDF media indisponibles pour l'étude %s: %s", analysis_id, exc)
+                    media = {"photos": [], "radio_jpeg": None, "media_unavailable": ["media_storage_unavailable"]}
             vm = schemas.CephaloViewModel(
                 patient_nom=patient.nom,
                 patient_prenom=patient.prenom,
                 patient_age=str(self._calculate_age(patient.date_naissance)),
                 patient_id=patient_id,
                 analysis=schemas.CephaloAnalysisResult.model_validate(display_results),
-                cabinet_config={
-                    "primary_color": cabinet.primary_color if cabinet else "#1A365D",
-                    "secondary_color": cabinet.secondary_color if cabinet else "#64748B",
-                    "logo_path": cabinet.logo_path if cabinet else None,
-                    "margin_top": cabinet.margin_top if cabinet else 4.5,
-                    "margin_bottom": cabinet.margin_bottom if cabinet else 3.5,
-                    "qr_code_style": cabinet.qr_code_style if cabinet else "dots",
-                    "qr_code_color": cabinet.qr_code_color if cabinet else None,
-                    "qr_code_enabled": cabinet.qr_code_enabled if cabinet else False
-                },
+                cabinet_config=cabinet_theme,
                 doctor_name=user.nom_complet if user and user.nom_complet.startswith("Dr") else (f"Dr. {user.nom_complet}" if user and user.nom_complet else "Dr. Saninova"),
                 radio_image_path=radio_image_path,
                 is_pre_bilan=is_pre_bilan,
                 validation_warnings=validation_warnings
             )
-            return self.ceph_gen.generate(vm, projection=projection)
+            return self.ceph_gen.generate(vm, projection=projection, user=user, media=media)
         except Exception as e:
             logger.error(f"Erreur rapport céphalo: {e}")
             raise
