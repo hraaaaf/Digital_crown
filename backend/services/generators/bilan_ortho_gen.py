@@ -342,7 +342,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             Paragraph(
                 "Étude céphalo : " + escape(str(context.get("cephalo_source_analysis_id") or "NON VÉRIFIÉ"))
                 + " — Révision : " + escape(str(context.get("cephalo_source_analysis_revision") or "NON VÉRIFIÉE"))
-                + " — État : <b>" + escape(str(context["document_state"])) + "</b>", small,
+                + " — État : <b>" + ("Validé" if context["document_state"] == "COMPLETE" else "Non validé") + "</b>", small,
             ),
         ]
         if context["document_state"] != "COMPLETE":
@@ -353,8 +353,8 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             ))
         if vm.is_pre_bilan:
             elements.append(Paragraph("PRÉ-BILAN — aperçu/document de travail non archivé.", small))
-        if context["clinical_validation_reason"]:
-            elements.append(Paragraph(escape(str(context["clinical_validation_reason"])), small))
+        # A non-validated document is marked above; internal gate details
+        # remain in the server projection rather than in the print layout.
 
         # Patient media: only byte streams previously resolved by the authenticated
         # backend, never a client-supplied URL or arbitrary filesystem path.
@@ -431,10 +431,12 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         rows = [["Mesure", "Valeur / disponibilité", "Méthode"]]
         for item in context["measurements"]:
             rows.append([
-                item["measurement_id"], item["value"], item["method"],
+                item["measurement_id"],
+                self._pdf_measurement_value(item["value"]),
+                self._pdf_method_label(item["method"]),
             ])
         if len(rows) == 1:
-            rows.append(["Aucune mesure disponible", "NOT_COMPUTABLE", "—"])
+            rows.append(["Aucune mesure disponible", "Non calculable", "—"])
         widths = [0.34 * available_width, 0.26 * available_width,
                   0.40 * available_width]
         wrapped_rows = [
