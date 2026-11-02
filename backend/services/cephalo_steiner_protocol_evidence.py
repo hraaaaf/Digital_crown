@@ -10,7 +10,7 @@ from dataclasses import dataclass
 from typing import Callable, Mapping, Optional
 
 from backend.schemas.cephalo_evidence import (
-    AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, MeasurementEvidence,
+    AvailabilityStatus, ConstructionEvidence, LandmarkEvidence, LandmarkOrigin, MeasurementEvidence,
 )
 from backend.services.cephalo_canonical_method_bridge import canonical_measurement_id_for_method
 from backend.services.cephalo_steiner_geometry import (
@@ -18,6 +18,12 @@ from backend.services.cephalo_steiner_geometry import (
     steiner_l1_nb_mm_v1, steiner_occlusal_sn_deg_v1, steiner_pog_nb_mm_v1,
     steiner_snd_deg_v1, steiner_u1_na_mm_v1,
 )
+
+# Exact identities are manual/constructed by source-lock: SRPose38 has no direct channel.
+STEINER_EXPLICIT_ANCHOR_IDS = frozenset({
+    "Gn_anatomic", "U1_facial_surface", "L1_facial_surface",
+    "Occ_Steiner_Ant", "Occ_Steiner_Post", "D_Steiner_1959",
+})
 
 STEINER_PROTOCOL_SOURCE_REFERENCES=(
     "doi:10.1016/0002-9416(53)90082-7",
@@ -64,6 +70,14 @@ def materialize_steiner_protocol_evidence(*, landmarks:Mapping[str,LandmarkEvide
         construction_namespace:str, measurement_namespace:str,
         mm_per_pixel:Optional[float], calibration_ref:Optional[str]):
     constructions:dict[str,ConstructionEvidence]={}; measurements:list[MeasurementEvidence]=[]
+    # The dictionary key is not anatomical authority; reject a re-keyed alias.
+    required_ids = {identity for spec in _SPECS for identity in spec.ids}
+    for identity in required_ids.intersection(landmarks):
+        landmark = landmarks[identity]
+        if landmark.landmark_id != identity:
+            raise ValueError(f"Steiner landmark identity mismatch for {identity}: {landmark.landmark_id}")
+        if identity in STEINER_EXPLICIT_ANCHOR_IDS and landmark.origin == LandmarkOrigin.SRPOSE38_AUTO:
+            raise ValueError(f"Steiner identity requires a manual or constructed anchor: {identity}")
     for spec in _SPECS:
         if canonical_measurement_id_for_method(spec.method_id)!=spec.canonical_id:
             raise ValueError(f"{spec.method_id}: canonical bridge drift")
