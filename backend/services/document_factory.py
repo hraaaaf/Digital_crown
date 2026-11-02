@@ -166,7 +166,7 @@ class DocumentFactory:
                 if not has_permission(user, "patients"):
                     media = {"photos": [], "radio_jpeg": None, "media_unavailable": ["patient_media_permission_missing"]}
                 else:
-                        try:
+                    try:
                         media = load_cephalo_pdf_media(
                             db, employer_id=int(user.get_employer_id()),
                             patient_id=int(patient_id), image_original_path=radio_image_path,
