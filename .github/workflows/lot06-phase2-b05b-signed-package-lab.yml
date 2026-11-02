@@ -1,0 +1,59 @@
+name: LOT06 B05B Signed package candidate adversarial FUE LAB
+on:
+  push:
+    branches: [test/lot06-phase2-b05b-signed-package-lab-20261102]
+    paths:
+      - .github/workflows/lot06-phase2-b05b-signed-package-lab.yml
+      - isolated_fue_lot06c/b05b_signed_package_lab.py
+      - docs/lot06/LOT06-PHASE2-B05B-SIGNED-PACKAGE-LAB-20261102.md
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot06-b05b-lab
+  cancel-in-progress: true
+jobs:
+  windows-candidate-package:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06B05B_SIGNED_PACKAGE_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic Ed25519 verifier
+        shell: pwsh
+        run: python -m pip install cryptography==46.0.3
+      - name: Build real self-contained .NET service candidate and verify file signatures
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06B05B_SHA_MISMATCH' }
+          $stage=Join-Path $env:RUNNER_TEMP ('DC06B05B-LAB-' + [guid]::NewGuid().ToString('N'))
+          try {
+            & dotnet publish isolated_fue_lot06c/scm_fixture_c05b03r/ScmPipeFixture.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:DebugType=None -p:DebugSymbols=false -o $stage
+            if ($LASTEXITCODE -ne 0) { throw 'DC06B05B_PUBLISH_FAILED' }
+            if (-not (Test-Path -LiteralPath (Join-Path $stage 'ScmPipeFixture.exe') -PathType Leaf)) { throw 'DC06B05B_NO_NATIVE_EXE' }
+            Copy-Item -LiteralPath isolated_fue_lot06c/scm_spool_read_b03.py -Destination (Join-Path $stage 'scm_spool_read_b03.py')
+            New-Item -ItemType Directory -Path (Join-Path $stage 'tools') -Force | Out-Null
+            Copy-Item -LiteralPath tools/imaging_gateway -Destination (Join-Path $stage 'tools/imaging_gateway') -Recurse
+            & python -I isolated_fue_lot06c/b05b_signed_package_lab.py exercise $stage
+            if ($LASTEXITCODE -ne 0) { throw 'DC06B05B_FUE_RED' }
+            Write-Output 'DC06B05B_WINDOWS_SIGNED_PACKAGE_FUE_PASS'
+          }
+          finally {
+            if (Test-Path -LiteralPath $stage) {
+              Remove-Item -LiteralPath $stage -Recurse -Force -ErrorAction Stop
+            }
+          }
+      - name: Non-clinical boundary
+        shell: pwsh
+        run: |
+          if (-not (Select-String -Path docs/lot06/LOT06-PHASE2-B05B-SIGNED-PACKAGE-LAB-20261102.md -Pattern 'CLINICAL_GO=false' -Quiet)) { throw 'DC06B05B_GATE_MISSING' }
+          Write-Output 'DC06B05B_NO_INSTALL_NO_TPM_NO_PATIENT_PASS'
