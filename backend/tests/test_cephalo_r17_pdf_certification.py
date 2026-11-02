@@ -85,8 +85,8 @@ def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
     doc = fitz.open(pdf_path)
     assert len(doc) >= 1
     full_text = "\n".join(page.get_text("text") for page in doc)
-    _assert_semantics(full_text)
-    assert "INCOMPLETE" in full_text
+    _assert_pdf_semantics(full_text)
+    assert "DOCUMENT CLINIQUE INCOMPLET" in full_text
     assert "TRAÇABILITÉ SCIENTIFIQUE" not in full_text
     assert "EVIDENCE_GRAPH_V1" not in full_text
     assert "Source" not in full_text
