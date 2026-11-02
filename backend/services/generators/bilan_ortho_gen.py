@@ -239,26 +239,33 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         # DOC-TEMP, falsely suggesting an official verified document. Never do so.
         if config.get("qr_code_type") in {"VALIDATION", "PAYMENT"}:
             config["qr_code_enabled"] = False
+        self.update_active_fonts(config)
+        from reportlab.pdfbase.pdfmetrics import registerFontFamily
+        registerFontFamily(
+            self.premium_font,
+            normal=self.premium_font, bold=self.premium_bold,
+            italic=self.premium_font, boldItalic=self.premium_bold,
+        )
         p_color = colors.HexColor(config.get("primary_color") or "#003380")
         s_color = colors.HexColor(config.get("secondary_color") or "#64748B")
         styles = getSampleStyleSheet()
         title = ParagraphStyle(
-            "CephA4Title", parent=styles["Heading1"], fontSize=17,
+            "CephA4Title", parent=styles["Heading1"], fontName=self.premium_bold, fontSize=17,
             textColor=p_color, alignment=TA_CENTER, spaceAfter=10,
         )
         h2 = ParagraphStyle(
-            "CephA4Section", parent=styles["Heading2"], fontSize=12,
+            "CephA4Section", parent=styles["Heading2"], fontName=self.premium_bold, fontSize=12,
             textColor=p_color, spaceBefore=12, spaceAfter=7,
             keepWithNext=True,
         )
         h3 = ParagraphStyle(
-            "CephA4Sub", parent=styles["Heading3"], fontSize=10,
+            "CephA4Sub", parent=styles["Heading3"], fontName=self.premium_bold, fontSize=10,
             textColor=p_color, spaceBefore=8, spaceAfter=5,
             keepWithNext=True,
         )
         body = ParagraphStyle(
-            "CephA4Body", parent=styles["Normal"], fontSize=9,
-            leading=13, textColor=colors.HexColor("#1f2937"), spaceAfter=5,
+            "CephA4Body", parent=styles["Normal"], fontName=self.premium_font, fontSize=9,
+            leading=13, textColor=colors.black, spaceAfter=5,
         )
         small = ParagraphStyle(
             "CephA4Small", parent=body, fontSize=7.5,
@@ -367,7 +374,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         table.setStyle(TableStyle([
             ("BACKGROUND", (0, 0), (-1, 0), p_color),
             ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-            ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+            ("GRID", (0, 0), (-1, -1), 0.25, s_color),
             ("FONTSIZE", (0, 0), (-1, -1), 7.2),
             ("VALIGN", (0, 0), (-1, -1), "TOP"),
         ]))
@@ -392,7 +399,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             t.setStyle(TableStyle([
                 ("BACKGROUND", (0, 0), (-1, 0), p_color),
                 ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                ("GRID", (0, 0), (-1, -1), 0.25, colors.HexColor("#cbd5e1")),
+                ("GRID", (0, 0), (-1, -1), 0.25, s_color),
                 ("FONTSIZE", (0, 0), (-1, -1), 6.5),
                 ("VALIGN", (0, 0), (-1, -1), "TOP"),
             ]))
