@@ -63,7 +63,7 @@ def _projection() -> dict:
 
 
 def _required_tokens() -> tuple[str, ...]:
-    return ("SNA", "81.5", "NOT_COMPUTABLE", "R11", "R13", "R14", "BLOCKED", "synthetic contradiction", "synthetic contraindication", "EVIDENCE_GRAPH_V1")
+    return ("SNA", "81.5", "NOT_COMPUTABLE", "R11", "R13", "R14", "BLOCKED", "synthetic contradiction", "synthetic contraindication")
 
 
 def _forbidden_tokens() -> tuple[str, ...]:
@@ -87,6 +87,9 @@ def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
     full_text = "\n".join(page.get_text("text") for page in doc)
     _assert_semantics(full_text)
     assert "INCOMPLETE" in full_text
+    assert "TRAÇABILITÉ SCIENTIFIQUE" not in full_text
+    assert "EVIDENCE_GRAPH_V1" not in full_text
+    assert "Source" not in full_text
     for page in doc:
         rect = page.rect
         assert 590 <= rect.width <= 600
@@ -105,6 +108,7 @@ def test_html_and_reportlab_share_the_same_authoritative_semantics(tmp_path: Pat
     context = generator._shared_context(_vm(), _projection())
     html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
     _assert_semantics(html)
+    assert "EVIDENCE_GRAPH_V1" in html  # Internal authority remains intact.
     assert "DOCUMENT CLINIQUE INCOMPLET" in html
     assert "AWAITING_CLINICIAN" in html
     assert "EVALUABLE n'est jamais une prescription" in unescape(html)
