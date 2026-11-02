@@ -361,7 +361,7 @@ export const PatientDetails = () => {
     <div data-dc-patient-radiology={isRadiology ? 'true' : undefined}
       className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
       <header data-r3-1-patient-header={r3ReviewActive ? 'nonsticky' : undefined}
-        className={cn(isRadiology ? 'bg-card-bg' : 'bg-card-bg/90 backdrop-blur-xl',
+        className={cn(isRadiology ? 'bg-card' : 'bg-card-bg/90 backdrop-blur-xl',
           'border-b border-border-main shadow-elite',
           r3ReviewActive ? 'relative z-0' : 'lg:sticky lg:top-0 z-[300]')}>
         <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>
