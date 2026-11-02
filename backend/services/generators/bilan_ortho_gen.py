@@ -317,7 +317,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 elements.append(Image(
                     BytesIO(radio),
                     width=min(available_width, 13.5 * cm),
-                    height=6.3 * cm, kind="proportional",
+                    height=6.0 * cm, kind="proportional",
                 ))
                 elements.append(Spacer(1, 0.2 * cm))
                 elements.append(Paragraph(
@@ -350,7 +350,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                     cells.extend([""] * (photo_columns - len(cells)))
                     table = Table([cells], colWidths=[cell_width] * photo_columns)
                     table.setStyle(TableStyle([("VALIGN", (0, 0), (-1, -1), "TOP")]))
-                    elements.extend([table, Spacer(1, 0.15 * cm)])
+                    elements.extend([table, Spacer(1, 0.10 * cm)])
         for missing in verified_media.get("media_unavailable") or []:
             elements.append(Paragraph(
                 "Pièce image indisponible ou non vérifiable : " + escape(str(missing)), small,
