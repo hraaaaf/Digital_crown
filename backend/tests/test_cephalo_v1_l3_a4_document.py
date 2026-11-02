@@ -97,13 +97,13 @@ def test_cephalo_pdf_renders_real_a4_with_cabinet_skin_and_optional_photos(tmp_p
         words = "\n".join(page.get_text() for page in doc)
         for label in ("BILAN ORTHODONTIQUE", "SNA", "Face repos",
                       "Intra frontal", "Moulages", "Diagnostic", "Traitement",
-                      "R14", "INCOMPLETE"):
+                      "Non validé", "DOCUMENT CLINIQUE INCOMPLET", "Steiner"):
             assert label.lower() in words.lower()
-        assert "R14 cannot sign" in words
+        for token in ("R11", "R13", "R14", "BLOCKED",
+                      "R14 cannot sign", "R11 source non persistée",
+                      "R13 no clinician option", "R14 not persisted"):
+            assert token not in words
         assert "Dr Test" in words
-        assert "R11 source non persistée" in words
-        assert "R13 no clinician option" in words
-        assert "R14 not persisted" in words
     assert observed
     assert all(config["primary_color"] == "#12406B" for _, config, _ in observed)
     assert all(user is current_user for _, _, user in observed)
