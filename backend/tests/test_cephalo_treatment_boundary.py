@@ -145,3 +145,24 @@ def test_partial_direct_model_measurement_stays_unknown_not_zero():
     assert result.ddm_maxillaire.espace_necessaire is None
     assert result.ddm_maxillaire.calcul_ddm is None
     assert result.ddm_reelle is None
+
+
+def test_total_ddm_requires_both_arches_but_preserves_a_measured_zero():
+    upper = schemas.DDMComponent(espace_disponible=20, espace_necessaire=25, calcul_ddm=-5.0)
+    upper_only = CephaloService._calculate_complex_ddm(
+        None, None, schemas.ClinicalData(ddm_maxillaire=upper, ddm_mandibulaire=None),
+    )
+    assert upper_only.ddm_maxillaire.calcul_ddm == -5.0
+    assert upper_only.ddm_reelle is None
+
+    lower_partial = schemas.DDMComponent(espace_disponible=20, espace_necessaire=None, calcul_ddm=None)
+    incomplete = CephaloService._calculate_complex_ddm(
+        None, None, schemas.ClinicalData(ddm_maxillaire=upper, ddm_mandibulaire=lower_partial),
+    )
+    assert incomplete.ddm_reelle is None
+
+    lower_zero = schemas.DDMComponent(espace_disponible=20, espace_necessaire=20, calcul_ddm=0.0)
+    complete = CephaloService._calculate_complex_ddm(
+        None, None, schemas.ClinicalData(ddm_maxillaire=upper, ddm_mandibulaire=lower_zero),
+    )
+    assert complete.ddm_reelle == -5.0

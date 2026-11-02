@@ -262,14 +262,12 @@ class CephaloService:
     ) -> schemas.ClinicalData:
         """Preserve practitioner-supplied clinical space discrepancy fail-closed."""
         data = cd.model_copy(deep=True)
-        components = []
-
         for component in (data.ddm_maxillaire, data.ddm_mandibulaire):
-            if component is None:
-                continue
-            component.calcul_ddm_reelle = None
-            if component.calcul_ddm is not None:
-                components.append(component.calcul_ddm)
+            if component is not None:
+                component.calcul_ddm_reelle = None
 
-        data.ddm_reelle = round(sum(components), 2) if components else None
+        max_ddm = data.ddm_maxillaire.calcul_ddm if data.ddm_maxillaire is not None else None
+        mand_ddm = data.ddm_mandibulaire.calcul_ddm if data.ddm_mandibulaire is not None else None
+        # One measured arcade is not a two-arcade clinical total.
+        data.ddm_reelle = round(max_ddm + mand_ddm, 2) if max_ddm is not None and mand_ddm is not None else None
         return data
