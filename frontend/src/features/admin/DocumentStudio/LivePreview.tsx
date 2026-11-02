@@ -21,6 +21,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
 }) => {
   const [iframeReady, setIframeReady] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const pdfFrameRef = useRef<HTMLIFrameElement | null>(null);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -114,6 +115,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
 
         {pdfUrl ? (
           <iframe
+            ref={pdfFrameRef}
             src={pdfUrl}
             className="h-full w-full border-none"
             title={`Aperçu PDF — ${title}`}
@@ -133,6 +135,26 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
       <div className="flex flex-wrap justify-center gap-3 border-t border-slate-200 bg-white/80 p-4 backdrop-blur-md sm:p-5">
         {pdfUrl && (
           <>
+            <button
+              type="button"
+              disabled={loading || !iframeReady}
+              onClick={() => {
+                // Print the exact PDF being previewed, never regenerate a second copy.
+                try {
+                  const frame = pdfFrameRef.current?.contentWindow;
+                  if (!frame) throw new Error('PDF frame unavailable');
+                  frame.focus();
+                  frame.print();
+                } catch {
+                  // Some mobile embedded PDF viewers disallow iframe printing.
+                  // Opening the same local blob keeps the browser's native Print available.
+                  window.open(pdfUrl.split('#')[0], '_blank', 'noopener,noreferrer');
+                }
+              }}
+              className="flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-primary hover:text-primary disabled:opacity-50 sm:text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <Printer size={17} /> Imprimer
+            </button>
             <a
               href={pdfUrl.split('#')[0]}
               download={`${title}.pdf`}
