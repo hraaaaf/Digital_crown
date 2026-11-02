@@ -257,7 +257,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         )
         h2 = ParagraphStyle(
             "CephA4Section", parent=styles["Heading2"], fontName=self.premium_bold, fontSize=12,
-            textColor=p_color, spaceBefore=12, spaceAfter=7,
+            textColor=p_color, spaceBefore=9, spaceAfter=6,
             keepWithNext=True,
         )
         h3 = ParagraphStyle(
@@ -469,11 +469,21 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             stage = stages.get(key)
             if stage:
                 elements.append(Paragraph(
-                    "<b>" + escape(str(stage.get("title") or key)) + "</b> — "
+                    "<b>" + escape(key) + " — " + escape(str(stage.get("title") or key)) + "</b> — "
                     + escape(str(stage.get("presentation_state") or "BLOCKED")), body,
                 ))
                 if stage.get("summary"):
                     elements.append(Paragraph(escape(str(stage["summary"])), body))
+                for evidence_key, evidence_label in (
+                    ("contradictions", "Contradictions"),
+                    ("contraindications", "Contre-indications"),
+                ):
+                    if stage.get(evidence_key):
+                        elements.append(Paragraph(
+                            evidence_label + " : " + escape("; ".join(
+                                str(value) for value in stage[evidence_key]
+                            )), small,
+                        ))
         if not stages.get("R11"):
             elements.append(Paragraph("Bilan diagnostique autoritaire indisponible.", body))
 
@@ -482,11 +492,21 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             stage = stages.get(key)
             if stage:
                 elements.append(Paragraph(
-                    "<b>" + escape(str(stage.get("title") or key)) + "</b> — "
+                    "<b>" + escape(key) + " — " + escape(str(stage.get("title") or key)) + "</b> — "
                     + escape(str(stage.get("presentation_state") or "BLOCKED")), body,
                 ))
                 if stage.get("summary"):
                     elements.append(Paragraph(escape(str(stage["summary"])), body))
+                for evidence_key, evidence_label in (
+                    ("contradictions", "Contradictions"),
+                    ("contraindications", "Contre-indications"),
+                ):
+                    if stage.get(evidence_key):
+                        elements.append(Paragraph(
+                            evidence_label + " : " + escape("; ".join(
+                                str(value) for value in stage[evidence_key]
+                            )), small,
+                        ))
         if not context.get("clinical_validation_available"):
             elements.append(Paragraph(
                 "Aucune option thérapeutique ni signature praticien n'est promue en "
