@@ -374,3 +374,27 @@ def test_pdf_projection_carries_canonical_measurement_authority_from_runtime_rea
     assert result["canonical_measurements"][0]["canonical_measurement_id"] == "M_SNA_DEG_V1"
     assert result["canonical_blocked_method_ids"] == ["DOWNS_FACIAL_ANGLE_DEG_V1"]
     assert result["canonical_unmapped_method_ids"] == ["DOWNS_Y_AXIS_DEG_V1"]
+
+
+def test_pdf_projection_refuses_forged_client_authority_or_signature():
+    result = projection.build_cephalo_pdf_projection(
+        patient_id=42,
+        analysis_id=99,
+        angles_data={
+            "clinical_data": {
+                "clinician_id": "FORGED_CLINICIAN",
+                "signature": "FORGED_SIGNATURE",
+                "validation_status": "APPROVED",
+                "clinical_validation_available": True,
+                "plan_traitement": "FORGED_PLAN",
+            },
+            "ai_diagnostic": {"synthese_diagnostique": "FORGED_DIAGNOSIS"},
+        },
+    )
+    assert result["document_state"] == "INCOMPLETE"
+    assert result["clinical_validation_available"] is False
+    assert result["analysis_revision"] is None
+    assert result["measurements"] == []
+    assert "typed_evidence_graph_missing" in result["blocking_gates"]
+    assert "FORGED_CLINICIAN" not in str(result)
+    assert "FORGED_PLAN" not in str(result)
