@@ -225,3 +225,30 @@ describe('P2ter++ clinical isolation A -> B (synthetic sentinel)', () => {
   });
 
 });
+
+
+describe('L2 direct cast ED/EN study persistence', () => {
+  it('round-trips measured positive/negative discrepancy without a synthetic zero', () => {
+    const fresh = emptyStudyClinicalContext();
+    fresh.etape2Data.espaces_moulages={
+      maxillaire:{disponible:22,necessaire:27},
+      mandibulaire:{disponible:30,necessaire:27},
+    };
+    const payload = buildPayload([],null,null,null,fresh.diag,{},null,fresh.etape2Data,fresh.etape3Data);
+    expect(payload.clinical_data.ddm_maxillaire).toEqual({espace_disponible:22,espace_necessaire:27,calcul_ddm:-5});
+    expect(payload.clinical_data.ddm_mandibulaire).toEqual({espace_disponible:30,espace_necessaire:27,calcul_ddm:3});
+    expect(payload.clinical_data.ddm_reelle).toBe(-2);
+    const reopened = hydrateStudyClinicalContext({ clinical_data:payload.clinical_data });
+    expect(reopened.etape2Data.espaces_moulages).toEqual(fresh.etape2Data.espaces_moulages);
+  });
+  it('preserves partial ED without claiming zero or computed DDM, and isolates study B', () => {
+    const a = emptyStudyClinicalContext();
+    a.etape2Data.espaces_moulages={maxillaire:{disponible:24,necessaire:''},mandibulaire:{disponible:'',necessaire:''}};
+    const payload = buildPayload([],null,null,null,a.diag,{},null,a.etape2Data,a.etape3Data);
+    expect(payload.clinical_data.ddm_maxillaire).toEqual({espace_disponible:24,espace_necessaire:null,calcul_ddm:null});
+    expect(payload.clinical_data.ddm_mandibulaire).toBeNull();
+    expect(payload.clinical_data.ddm_reelle).toBeNull();
+    expect(hydrateStudyClinicalContext({clinical_data:payload.clinical_data}).etape2Data.espaces_moulages?.maxillaire).toEqual({disponible:24,necessaire:''});
+    expect(hydrateStudyClinicalContext({clinical_data:{}}).etape2Data.espaces_moulages?.maxillaire.disponible).toBe('');
+  });
+});

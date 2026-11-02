@@ -154,4 +154,36 @@ export function generateTreatmentPlan(_data:DonneesEtape3):string{
   return 'Classification squelettique non disponible.\nGESTION VERTICALE : Typologie verticale non disponible.\nAucune stratégie thérapeutique n’est générée automatiquement.';
 }
 
-export const buildPayload=(lms:Landmark[],max:number|null,mand:number|null,real:number|null,diag:DiagnosticTexts,projections:Record<string,any>,ratio:number|null=null,etape2:DonneesEtape2|null=null,etape3:DonneesEtape3|null=null)=>({landmarks:lms,mm_per_pixel:ratio,clinical_data:{ddm_maxillaire:max!==null?{espace_disponible:0,espace_necessaire:0,calcul_ddm:max}:null,ddm_mandibulaire:mand!==null?{espace_disponible:0,espace_necessaire:0,calcul_ddm:mand}:null,ddm_reelle:real,plan_traitement:diag.strategie_therapeutique||'',classe_molaire_droite:etape2?.occlusal.molaire_droite||null,classe_molaire_gauche:etape2?.occlusal.molaire_gauche||null,classe_canine_droite:etape2?.occlusal.canine_droite||null,classe_canine_gauche:etape2?.occlusal.canine_gauche||null,subdivision:etape2?Boolean(etape2.occlusal.molaire_droite&&etape2.occlusal.molaire_gauche&&etape2.occlusal.molaire_droite!==etape2.occlusal.molaire_gauche)||Boolean(etape2.occlusal.canine_droite&&etape2.occlusal.canine_gauche&&etape2.occlusal.canine_droite!==etape2.occlusal.canine_gauche):null,forme_arcade:etape2?.type_arcade||null,age:etape3?.age!==undefined&&etape3.age!==''?Number(etape3.age):null,cvm:etape3?.cvm||null,denture_type:etape3?.denture_type||null,preference_technique:etape3?.preference_technique||null},ai_diagnostic:{analyse_dentaire:diag.analyse_dentaire,diagnostic_squelettique:diag.diagnostic_squelettique,analyse_moulages:diag.analyse_moulages,synthese_diagnostique:diag.synthese_diagnostique,strategie_therapeutique:diag.strategie_therapeutique},mcnmara_projections:projections});
+type CastDdmComponent = { espace_disponible: number | null; espace_necessaire: number | null; calcul_ddm: number | null };
+
+/** Source-bound cast inputs; preserve partial entries across study save/reload. */
+function castDdmComponent(space?: { disponible: number | ''; necessaire: number | '' }): CastDdmComponent | null {
+  if (!space) return null;
+  const ed = typeof space.disponible === 'number' && Number.isFinite(space.disponible) && space.disponible >= 0 ? space.disponible : null;
+  const en = typeof space.necessaire === 'number' && Number.isFinite(space.necessaire) && space.necessaire >= 0 ? space.necessaire : null;
+  if (ed === null && en === null) return null;
+  return { espace_disponible: ed, espace_necessaire: en, calcul_ddm: computeClinicalDdmMm(ed, en) };
+}
+
+export const buildPayload=(lms:Landmark[],_max:number|null,_mand:number|null,_real:number|null,diag:DiagnosticTexts,
+  projections:Record<string,any>,ratio:number|null=null,etape2:DonneesEtape2|null=null,etape3:DonneesEtape3|null=null)=>{
+  const maxillary = castDdmComponent(etape2?.espaces_moulages?.maxillaire);
+  const mandibular = castDdmComponent(etape2?.espaces_moulages?.mandibulaire);
+  const total = maxillary?.calcul_ddm != null && mandibular?.calcul_ddm != null
+    ? maxillary.calcul_ddm + mandibular.calcul_ddm : null;
+  return {landmarks:lms,mm_per_pixel:ratio,clinical_data:{
+    ddm_maxillaire:maxillary,ddm_mandibulaire:mandibular,ddm_reelle:total,
+    plan_traitement:diag.strategie_therapeutique||'',
+    classe_molaire_droite:etape2?.occlusal.molaire_droite||null,
+    classe_molaire_gauche:etape2?.occlusal.molaire_gauche||null,
+    classe_canine_droite:etape2?.occlusal.canine_droite||null,
+    classe_canine_gauche:etape2?.occlusal.canine_gauche||null,
+    subdivision:etape2?Boolean(etape2.occlusal.molaire_droite&&etape2.occlusal.molaire_gauche&&etape2.occlusal.molaire_droite!==etape2.occlusal.molaire_gauche)||Boolean(etape2.occlusal.canine_droite&&etape2.occlusal.canine_gauche&&etape2.occlusal.canine_droite!==etape2.occlusal.canine_gauche):null,
+    forme_arcade:etape2?.type_arcade||null,
+    age:etape3?.age!==undefined&&etape3.age!==''?Number(etape3.age):null,
+    cvm:etape3?.cvm||null,denture_type:etape3?.denture_type||null,
+    preference_technique:etape3?.preference_technique||null,
+  },ai_diagnostic:{analyse_dentaire:diag.analyse_dentaire,diagnostic_squelettique:diag.diagnostic_squelettique,
+    analyse_moulages:diag.analyse_moulages,synthese_diagnostique:diag.synthese_diagnostique,
+    strategie_therapeutique:diag.strategie_therapeutique},mcnmara_projections:projections};
+};

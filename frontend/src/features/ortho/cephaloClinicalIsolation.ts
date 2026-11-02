@@ -18,6 +18,8 @@ export function emptyStudyClinicalContext(): StudyClinicalContext {
     etape2Data: {
       occlusal: { molaire_gauche: '', molaire_droite: '', canine_gauche: '', canine_droite: '' },
       type_arcade: null,
+      espaces_moulages: { maxillaire: { disponible: '', necessaire: '' },
+        mandibulaire: { disponible: '', necessaire: '' } },
     },
     etape3Data: {
       age: '', cvm: '', date_teles: new Date().toISOString().split('T')[0],
@@ -58,7 +60,17 @@ export function hydrateStudyClinicalContext(angles: unknown): StudyClinicalConte
     return raw && typeof raw === 'object' ? num((raw as Record<string, unknown>).calcul_ddm) : '';
   };
   fresh.ddm = { maxillaire: ddmOf('ddm_maxillaire'), mandibulaire: ddmOf('ddm_mandibulaire') };
+  const castSpaces = (key: string) => {
+    const obj = clinical[key];
+    const component = obj && typeof obj === 'object' ? obj as Record<string, unknown> : {};
+    const mm = (value: unknown): number | '' => {
+      const v = num(value);
+      return v !== '' && v >= 0 ? v : '';
+    };
+    return { disponible: mm(component.espace_disponible), necessaire: mm(component.espace_necessaire) };
+  };
   fresh.etape2Data = {
+    espaces_moulages: { maxillaire: castSpaces('ddm_maxillaire'), mandibulaire: castSpaces('ddm_mandibulaire') },
     occlusal: {
       molaire_gauche: angle(clinical.classe_molaire_gauche),
       molaire_droite: angle(clinical.classe_molaire_droite),

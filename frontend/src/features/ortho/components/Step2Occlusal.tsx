@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import type { ClasseAngle, TypeArcade } from '../cephaloTypes';
-import { fmtNum, calcDDMReelle, computeLocalImpa } from '../cephaloUtils';
+import { fmtNum, computeClinicalDdmMm } from '../cephaloUtils';
 import { cn } from '../../../utils/cn';
 
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -14,20 +14,17 @@ interface Step2OcclusalProps {
 
 export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P, patientId }) => {
   const store = useOrthoStore();
-  const { etape2Data: data, ddm, setDdm: onDdmChange, setEtape2Data: onChange, local, anglesData, etape3Data } = store;
-
-  // Re-calcul des dépendances locales si nécessaire (IMPA, I-Francfort)
-  const localImpa = useMemo(() => computeLocalImpa(local.landmarks), [local.landmarks]);
-  const serverImpa = useMemo(() => {
-    const v1 = anglesData?.metrics?.analyse_dentaire?.IMPA?.value;
-    if (v1 !== undefined && v1 !== null) return v1 as number;
-    const v2 = anglesData?.IMPA?.valeur;
-    if (v2 !== undefined && v2 !== null) return v2 as number;
-    return null;
-  }, [anglesData]);
-
-  const impa = serverImpa ?? localImpa;
-  const iFrancfort = etape3Data.dentaire.i_francfort === '' ? null : Number(etape3Data.dentaire.i_francfort);
+  const { etape2Data: data, setEtape2Data: onChange } = store;
+  const spaces = data.espaces_moulages ?? {
+    maxillaire: { disponible: '' as const, necessaire: '' as const },
+    mandibulaire: { disponible: '' as const, necessaire: '' as const },
+  };
+  const updateSpace = (jaw: 'maxillaire' | 'mandibulaire', field: 'disponible' | 'necessaire', raw: string) => {
+    const value = raw === '' ? '' : Number(raw);
+    onChange({ ...data, espaces_moulages: {
+      ...spaces, [jaw]: { ...spaces[jaw], [field]: value },
+    } });
+  };
   const updateOcclusal = (key: string, val: ClasseAngle) => {
     onChange({ ...data, occlusal: { ...data.occlusal, [key]: val } });
   };
@@ -37,12 +34,10 @@ export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P, patientId }) =>
     return molaire_gauche !== molaire_droite || canine_gauche !== canine_droite;
   }, [data.occlusal]);
 
-  // Calculs DDM en temps réel avec les utilitaires centraux
-  const ddmMaxReelle = useMemo(() => calcDDMReelle(ddm.maxillaire, iFrancfort, 107), [ddm.maxillaire, iFrancfort]);
-  const ddmMandReelle = useMemo(() => calcDDMReelle(ddm.mandibulaire, impa, 90), [ddm.mandibulaire, impa]);
-  const ddmReelleTotale = useMemo(() => 
-    (ddmMaxReelle !== null && ddmMandReelle !== null) ? ddmMaxReelle + ddmMandReelle : null
-  , [ddmMaxReelle, ddmMandReelle]);
+  const ddmMaxReelle = computeClinicalDdmMm(spaces.maxillaire.disponible, spaces.maxillaire.necessaire);
+  const ddmMandReelle = computeClinicalDdmMm(spaces.mandibulaire.disponible, spaces.mandibulaire.necessaire);
+  const ddmReelleTotale = ddmMaxReelle !== null && ddmMandReelle !== null
+    ? ddmMaxReelle + ddmMandReelle : null;
 
   return (
     <>
@@ -53,75 +48,36 @@ export const Step2Occlusal: React.FC<Step2OcclusalProps> = ({ P, patientId }) =>
       <div className="space-y-6">
         <div className="flex flex-col gap-2">
           <h3 className="text-xs font-black uppercase tracking-[0.2em]" style={{ color: P.accent }}>01. Analyse des Moulages</h3>
-          <p className="text-sm opacity-60" style={{ color: P.text }}>Mesurez les encombrements sur plâtre pour calculer la DDM Réelle.</p>
+          <p className="text-sm opacity-60" style={{ color: P.text }}>Mesurez ED et EN directement sur les moulages (mm). DDM = ED − EN ; aucune correction céphalométrique.</p>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          {/* Maxillaire */}
-          <div className="p-6 rounded-3xl space-y-4" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black" style={{ background: `${P.accent}20`, color: P.accent }}>M</div>
-              <span className="font-bold" style={{ color: P.text }}>DDM Maxillaire</span>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-black opacity-40" style={{ color: P.text }}>Déficit Clinique (mm)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={ddm.maxillaire}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onDdmChange({ ...ddm, maxillaire: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                className="w-full px-4 py-3 rounded-2xl text-lg font-bold outline-none transition-all focus:ring-2"
-                style={{ background: P.bgInput, border: `1px solid ${P.border}`, color: P.text }}
-                placeholder="0.0"
-              />
-            </div>
-            {ddmMaxReelle !== null && (
-              <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: P.bgPanel }}>
-                <span className="text-xs opacity-50" style={{ color: P.text }}>Céphalo-corrigé :</span>
-                <span className="font-black" style={{ color: P.accent }}>{fmtNum(ddmMaxReelle)} mm</span>
+          {(['maxillaire', 'mandibulaire'] as const).map(jaw => {
+            const ddmValue = jaw === 'maxillaire' ? ddmMaxReelle : ddmMandReelle;
+            return <div key={jaw} className="p-6 rounded-3xl space-y-4" style={{background:P.bgCard,border:`1px solid ${P.border}`}}>
+              <h4 className="font-bold capitalize" style={{color:P.text}}>Arcade {jaw}</h4>
+              {([['disponible','Espace disponible (ED)'],['necessaire','Espace nécessaire (EN)']] as const).map(([field,label]) => (
+                <label key={field} className="block space-y-2">
+                  <span className="text-xs font-bold" style={{color:P.text}}>{label} · mm</span>
+                  <input type="number" inputMode="decimal" min="0" step="0.1"
+                    value={spaces[jaw][field]}
+                    onChange={e=>updateSpace(jaw,field,e.target.value)}
+                    className="w-full px-4 py-3 rounded-xl text-base font-bold focus:ring-2"
+                    style={{background:P.bgInput,border:`1px solid ${P.border}`,color:P.text}}
+                    aria-label={`${label} — arcade ${jaw}`} placeholder="Non mesuré" />
+                </label>
+              ))}
+              <div className="rounded-xl p-3" style={{background:P.bgPanel,color:P.text}}>
+                <span className="text-xs">DDM = ED − EN : </span>
+                <strong>{ddmValue === null ? 'Non calculable' : `${fmtNum(ddmValue)} mm`}</strong>
               </div>
-            )}
-          </div>
-
-          {/* Mandibulaire */}
-          <div className="p-6 rounded-3xl space-y-4" style={{ background: P.bgCard, border: `1px solid ${P.border}` }}>
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-2xl flex items-center justify-center font-black" style={{ background: `${P.accentSuccess}20`, color: P.accentSuccess }}>m</div>
-              <span className="font-bold" style={{ color: P.text }}>DDM Mandibulaire</span>
-            </div>
-            <div className="space-y-2">
-              <label className="text-[10px] uppercase font-black opacity-40" style={{ color: P.text }}>Déficit Clinique (mm)</label>
-              <input
-                type="number"
-                step="0.1"
-                value={ddm.mandibulaire}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) => onDdmChange({ ...ddm, mandibulaire: e.target.value === '' ? '' : parseFloat(e.target.value) })}
-                className="w-full px-4 py-3 rounded-2xl text-lg font-bold outline-none transition-all focus:ring-2"
-                style={{ background: P.bgInput, border: `1px solid ${P.border}`, color: P.text }}
-                placeholder="0.0"
-              />
-            </div>
-            {ddmMandReelle !== null && (
-              <div className="flex items-center justify-between p-3 rounded-xl" style={{ background: P.bgPanel }}>
-                <span className="text-xs opacity-50" style={{ color: P.text }}>Céphalo-corrigé :</span>
-                <span className="font-black" style={{ color: P.accentSuccess }}>{fmtNum(ddmMandReelle)} mm</span>
-              </div>
-            )}
-          </div>
+            </div>;
+          })}
         </div>
-
-        {ddmReelleTotale !== null && (
-          <div className="p-8 rounded-[2rem] flex items-center justify-between shadow-2xl transition-all" 
-               style={{ background: `linear-gradient(135deg, ${P.accent}10, ${P.accentSuccess}10)`, border: `2px solid ${P.accent}30` }}>
-            <div className="space-y-1">
-              <h4 className="text-sm font-black uppercase tracking-widest" style={{ color: P.text }}>DDM Réelle Totale</h4>
-              <p className="text-xs opacity-60" style={{ color: P.text }}>Somme des déficits corrigés par l'inclinaison incisive.</p>
-            </div>
-            <div className="text-5xl font-black italic tracking-tighter" style={{ color: P.accent }}>
-              {fmtNum(ddmReelleTotale)}<span className="text-xl ml-1 not-italic">mm</span>
-            </div>
-          </div>
-        )}
+        <div className="rounded-2xl p-4" style={{background:P.bgPanel,color:P.text}}>
+          <strong>DDM totale : {ddmReelleTotale === null ? 'Non calculable' : `${fmtNum(ddmReelleTotale)} mm`}</strong>
+          <p className="text-xs mt-2 opacity-70">Les valeurs absentes restent non mesurées, jamais 0 par défaut. Aucune conversion angle incisif→mm.</p>
+        </div>
       </div>
 
       <div className="space-y-6">

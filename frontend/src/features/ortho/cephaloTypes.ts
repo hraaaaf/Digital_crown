@@ -106,6 +106,11 @@ export interface DonneesEtape3 {
 export interface DonneesEtape2 {
   occlusal: ExamenOcclusal;
   type_arcade: TypeArcade;
+  /** Direct cast/model measurements in mm; missing is distinct from zero. */
+  espaces_moulages?: {
+    maxillaire: { disponible: number | ''; necessaire: number | '' };
+    mandibulaire: { disponible: number | ''; necessaire: number | '' };
+  };
 }
 
 export interface PhotoUpload {
