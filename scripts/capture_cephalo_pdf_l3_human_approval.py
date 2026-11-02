@@ -114,7 +114,11 @@ def capture(name: str, *, with_images: bool) -> dict:
     assert data.startswith(b"%PDF")
     captures = []
     with fitz.open(output) as doc:
-        assert doc.page_count >= 1
+        assert doc.page_count == (2 if with_images else 1), "Orphan or overflow A4 page"
+        if with_images:
+            assert "Occlusal mandibulaire" in doc[0].get_text(), (
+                "Intraoral image group split across pages"
+            )
         for i, page in enumerate(doc):
             assert 590 <= page.rect.width <= 600 and 840 <= page.rect.height <= 850, "Not A4"
             shot = OUTPUT / f"{name}-page-{i + 1:02d}.png"
