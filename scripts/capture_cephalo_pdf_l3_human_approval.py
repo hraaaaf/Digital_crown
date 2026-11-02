@@ -134,6 +134,8 @@ def capture(name: str, *, with_images: bool) -> dict:
         assert "TRAÇABILITÉ SCIENTIFIQUE" not in text
         assert "EVIDENCE_GRAPH_V1" not in text
         assert "SYNTHETIC_NON_CLINICAL" not in text
+        for label in ("SOURCE_SYNTHETIQUE", "fixture-v1", "BLOCKED", "NOT_COMPUTABLE"):
+            assert label not in text, f"Unexpected internal PDF label: {label}"
         for required in ("BILAN ORTHODONTIQUE", "ANALYSE", "MOULAGES", "DIAGNOSTIQUE", "PLAN DE TRAITEMENT", "DOCUMENT CLINIQUE INCOMPLET", "NON VALIDÉ"):
             assert required in text.upper(), f"Missing {required}"
     return {
