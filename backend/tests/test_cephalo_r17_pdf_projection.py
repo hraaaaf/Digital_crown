@@ -398,3 +398,39 @@ def test_pdf_projection_refuses_forged_client_authority_or_signature():
     assert "typed_evidence_graph_missing" in result["blocking_gates"]
     assert "FORGED_CLINICIAN" not in str(result)
     assert "FORGED_PLAN" not in str(result)
+
+def test_final_pdf_requires_verified_runtime_even_if_clinician_flag_true(monkeypatch):
+    # This simulates a favorable upstream validation flag with absent scientific data.
+    monkeypatch.setattr(
+        projection,
+        "build_r15_clinical_studio_snapshot",
+        lambda **kwargs: _studio(blockers=[], active=True, clinical_validation_available=True),
+    )
+    result = projection.build_cephalo_pdf_projection(
+        patient_id=42,
+        analysis_id=88,
+        angles_data={"clinical_data": {"validation_status": "APPROVED"}},
+    )
+    assert result["clinical_validation_available"] is True
+    assert result["active_runtime_chain_verified"] is False
+    assert result["document_state"] == "INCOMPLETE"
+    assert "typed_evidence_graph_missing" in result["blocking_gates"]
+
+
+def test_final_pdf_rejects_incoherent_typed_chain_despite_favorable_flag(monkeypatch):
+    monkeypatch.setattr(
+        projection,
+        "build_r15_clinical_studio_snapshot",
+        lambda **kwargs: _studio(blockers=[], active=True, clinical_validation_available=True),
+    )
+    def reject_runtime_read(payload, patient_id):
+        raise ValueError("incorrect scientific case binding")
+    monkeypatch.setattr(projection, "project_runtime_chain_read_path", reject_runtime_read)
+    result = projection.build_cephalo_pdf_projection(
+        patient_id=42,
+        analysis_id=88,
+        angles_data={EVIDENCE_GRAPH_KEY: {"contract": "typed"}},
+    )
+    assert result["document_state"] == "INCOMPLETE"
+    assert result["active_runtime_chain_verified"] is False
+    assert "typed_measurement_projection_incoherent" in result["blocking_gates"]
