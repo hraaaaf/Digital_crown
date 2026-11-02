@@ -1,0 +1,44 @@
+name: LOT06 B05-C1 Signed candidate SCM admission LAB FUE
+on:
+  push:
+    branches: [test/lot06-phase2-b05c1-scm-signed-activation-20261102]
+    paths:
+      - .github/workflows/lot06-phase2-b05c1-scm-signed-activation-lab.yml
+      - isolated_fue_lot06c/b05c1_admission_lab.py
+      - isolated_fue_lot06c/windows_scm_b05c1_signed_activation_lab.ps1
+      - docs/lot06/LOT06-PHASE2-B05C1-SCM-SIGNED-ACTIVATION-20261102.md
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot06-b05c1-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-real-scm-exec-from-verified-stage:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06B05C1_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic crypto verifier only
+        shell: pwsh
+        run: python -m pip install cryptography==46.0.3
+      - name: Exact SHA package admission before real native SCM start
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06B05C1_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_scm_b05c1_signed_activation_lab.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Clinical boundaries remain closed
+        shell: pwsh
+        run: |
+          if (-not (Select-String -Path docs/lot06/LOT06-PHASE2-B05C1-SCM-SIGNED-ACTIVATION-20261102.md -Pattern 'CLINICAL_GO=false' -Quiet)) { throw 'DC06B05C1_GATE_DOC_MISSING' }
+          Write-Output 'DC06B05C1_NO_REAL_INSTALL_NO_PATIENT_NO_TPM_PASS'
