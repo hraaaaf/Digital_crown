@@ -133,7 +133,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
         technical_terms = (
             "R11", "R12", "R13", "R14", "SNAPSHOT",
             "SOURCE_LOCK", "SOURCE NON PERSIST", "AUTHORITATIVE",
-            "NOT PERSISTED", "AUTHORITY UNAVAILABLE",
+            "NOT PERSISTED", "AUTHORITY UNAVAILABLE", "EVALUABLE",
         )
         if any(term in value.upper() for term in technical_terms):
             return "Éléments en attente de validation clinique."
