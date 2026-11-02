@@ -1,0 +1,156 @@
+# A3: real, synthetic-only FUE. PR code never receives repository write tokens or real data.
+name: "V1.5-03 A3 | Real Station / Reception / Wall negative FUE"
+
+on:
+  pull_request:
+    branches:
+      - test/v15-fue-g03-a2-execution-fresh-pr-20261024
+    paths:
+      - ".github/workflows/v15-fue-g03-a3-rdv-wall.yml"
+      - "docs/quality/V15_FUE_G03_A3_RDV_WALL_PRE_MATRIX.md"
+      - "frontend/scripts/certify-v15-03-a3-real-risks.mjs"
+      - "scripts/seed_v15_station_a3_risks.py"
+      - "frontend/src/features/hub/StationAppointmentArrival.tsx"
+      - "frontend/src/features/hub/StationAppointmentArrival.test.tsx"
+      - "frontend/src/features/hub/StationWallDisplay.tsx"
+      - "frontend/src/features/hub/StationWallDisplay.test.tsx"
+      - "backend/routers/station_patient_session.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-fue-g03-a3-${{ github.event.pull_request.head.sha || github.sha }}
+  cancel-in-progress: false
+
+jobs:
+  exact-sha-station-reception-wall:
+    name: "A3 / Chromium ↔ real FastAPI ↔ independent synthetic SQL + SHA PNG"
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'test/v15-fue-g03-a3-execution-20261025'
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: v15-fue-g03-a3-disposable-only-secret
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      T2_STATION_FUE: "1"
+      T2_STAFF_AUDIT: "1"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: "http://127.0.0.1:5173,http://localhost:5173"
+      STATION_HANDOFF_PUBLIC_ORIGIN: "http://127.0.0.1:5173"
+      EVALUATED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Guard exact HEAD and disposable isolation
+        run: |
+          test "$(git rev-parse HEAD)" = "$EVALUATED_SHA"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$T2_STATION_FUE" = 1
+          test "$DATABASE_URL" = "sqlite:///./t2-runtime-cert.db"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generated synthetic-only credentials
+        run: |
+          echo "T2_USER=t2-browser@cabinet.ma" >> "$GITHUB_ENV"
+          echo "T2_PASSWORD=$(python -c 'import secrets; print(secrets.token_urlsafe(32))')" >> "$GITHUB_ENV"
+      - name: Python deps and A3 fixture syntax
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)==' requirements.txt >/tmp/v15-g03-a3-requirements.txt
+          pip install -r /tmp/v15-g03-a3-requirements.txt
+          python -m py_compile scripts/seed_v15_station_fue_lab.py scripts/seed_v15_station_a3_risks.py
+          sudo apt-get update -qq
+          sudo DEBIAN_FRONTEND=noninteractive apt-get install -y -qq libxcb1 libgl1 libglib2.0-0 libsm6 libxext6 libxrender1
+      - name: Exact-HEAD backend appointment, tenancy, RBAC and revocation regressions
+        run: |
+          python -m pytest backend/tests/test_station_patient_session_v15.py -q --disable-warnings
+      - name: Install real React, Playwright and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.64.1
+          npx playwright install --with-deps chromium
+          node --check scripts/certify-v15-03-real-station-wall-integrated.mjs
+          node --check scripts/certify-v15-03-a3-real-risks.mjs
+      - name: Exact-HEAD 0/1/N, stale response, Wall TTL and confidentiality regressions
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/hub/StationAppointmentArrival.test.tsx src/features/hub/StationWallDisplay.test.tsx --maxWorkers=1 --fileParallelism=false
+          npm run build
+          node -e "const m=require('./dist/build-manifest.json'); if(m.commit!==process.env.EVALUATED_SHA || m.environment!=='safe') process.exit(1);"
+      - name: Boot isolated FastAPI and save process identifier for genuine outage
+        run: |
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py >/tmp/a3-backend.log 2>&1 &
+          echo "A3_LOCAL_BACKEND_PID=$!" >> "$GITHUB_ENV"
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/a3-backend.log
+          exit 1
+      - name: Fixture strictly fictitious 0/1/N plus separate cabinet and no-agenda staff
+        run: |
+          python scripts/seed_v15_station_fue_lab.py
+          python scripts/seed_v15_station_a3_risks.py
+      - name: Boot actual Vite frontend
+        working-directory: frontend
+        env:
+          VITE_DC_PREVIEW_DEMO: "1"
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/a3-frontend.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null 2>&1; then exit 0; fi
+            sleep 1
+          done
+          tail -100 /tmp/a3-frontend.log
+          exit 1
+      - name: Real Chromium 0/1/N arrivals, alert ACK, receptionist calls and public Wall
+        working-directory: frontend
+        run: node scripts/certify-v15-03-real-station-wall-integrated.mjs
+      - name: Real negative actor matrix, TTL, workstation revoke and backend SIGTERM
+        working-directory: frontend
+        run: node scripts/certify-v15-03-a3-real-risks.mjs
+      - name: Independent disposable SQL oracle after real browser and server shutdown
+        run: |
+          python scripts/seed_v15_station_fue_lab.py --verify
+          python scripts/seed_v15_station_a3_risks.py --verify
+      - name: Verify SHA-specific PNG and SQL manifest exists
+        run: |
+          python - <<'PY'
+          import json, os
+          a=json.load(open('frontend/artifacts/v15-03-a3-real/sql-after.json'))
+          assert a['head']==os.environ['EVALUATED_SHA'] and a['status']=='PASS', a
+          assert len(a['screenshots'])>=16, len(a['screenshots'])
+          assert a['revokedStationCount']==1 and a['foreignAppointmentUnchanged']
+          assert all(a['cases'].values()), a['cases']
+          print('A3_OFFICIAL_SHA_BOUND_SQL_PNG_ORACLE_PASS',a['head'],len(a['screenshots']))
+          PY
+      - name: Upload synthetic-only evidence, screenshots, SQL and SHA manifest
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-fue-g03-a3-e2e-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            frontend/artifacts/v15-03-real-integration
+            frontend/artifacts/v15-03-a3-real
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { CalendarCheck2, CheckCircle2, Clock3, RefreshCw, Users } from 'lucide-react';
 import {
   stationPatientSessionService,
@@ -104,19 +104,26 @@ export const StationAppointmentArrival = ({
   const [state, setState] = useState<'loading' | 'ready' | 'arriving' | 'arrived' | 'error'>('loading');
   const [error, setError] = useState('');
   const [staffSignal, setStaffSignal] = useState<'idle' | 'sending' | 'sent' | 'failed'>('idle');
+  // A patient switch or unmount invalidates all outstanding HTTP replies.
+  const requestEpoch = useRef(0);
 
   const load = useCallback(async () => {
+    const epoch = ++requestEpoch.current;
     setState('loading'); setError('');
+    setResult(null); setSelectedId(null); setStaffSignal('idle');
     try {
       const next = await stationPatientSessionService.todayAppointments(sessionId);
+      if (epoch !== requestEpoch.current) return;
       setResult(next);
       setSelectedId(next.status === 'single' ? next.appointments[0]?.appointmentId ?? null : null);
       if (next.status === 'none' && next.staffActionRequired) {
         setStaffSignal('sending');
         try {
           const signal = await stationPatientSessionService.requestStaffAssistance(sessionId);
+          if (epoch !== requestEpoch.current) return;
           setStaffSignal(signal.status === 'STAFF_NOTIFIED' ? 'sent' : 'failed');
         } catch {
+          if (epoch !== requestEpoch.current) return;
           setStaffSignal('failed');
         }
       } else {
@@ -124,6 +131,7 @@ export const StationAppointmentArrival = ({
       }
       setState('ready');
     } catch {
+      if (epoch !== requestEpoch.current) return;
       setResult(null); setSelectedId(null);
       setError(copy.loadError);
       setStaffSignal('failed');
@@ -131,7 +139,10 @@ export const StationAppointmentArrival = ({
     }
   }, [copy.loadError, sessionId]);
 
-  useEffect(() => { void load(); }, [load]);
+  useEffect(() => {
+    void load();
+    return () => { requestEpoch.current += 1; };
+  }, [load]);
 
   const selected = useMemo(
     () => result?.appointments.find((item) => item.appointmentId === selectedId) ?? null,
@@ -139,13 +150,16 @@ export const StationAppointmentArrival = ({
   );
 
   const confirmArrival = async () => {
-    if (!selectedId) return;
+    if (!selectedId || state !== 'ready') return;
+    const epoch = requestEpoch.current;
     setState('arriving'); setError('');
     try {
       const response = await stationPatientSessionService.arrive(sessionId, selectedId);
+      if (epoch !== requestEpoch.current) return;
       if (response.status !== 'ARRIVED' || response.appointmentId !== selectedId) throw new Error('Unexpected arrival response');
       setState('arrived');
     } catch {
+      if (epoch !== requestEpoch.current) return;
       setState('ready');
       setError(copy.arrivalError);
     }
