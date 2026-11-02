@@ -60,3 +60,24 @@ def test_unrelated_legacy_point_is_not_promoted_or_blocking():
         mm_per_pixel=0.5, calibration_ref="cal:1",
     )
     assert measurements and all(m.availability_status == AvailabilityStatus.AVAILABLE for m in measurements)
+
+
+@pytest.mark.parametrize("identity", [
+    "Gn_anatomic", "U1_facial_surface", "L1_facial_surface",
+    "Occ_Steiner_Ant", "Occ_Steiner_Post", "D_Steiner_1959",
+])
+def test_auto_origin_is_forbidden_for_explicit_manual_steiner_anchor(identity):
+    points = _landmarks()
+    # Even convincing model metadata must not invent a channel the model lacks.
+    original = points[identity]
+    points[identity] = original.model_copy(update={
+        "origin": LandmarkOrigin.SRPOSE38_AUTO,
+        "model_id": "srpose38-tta-1024.onnx",
+        "model_sha256": "a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb",
+        "pipeline_version": "SRPOSE38_TTA_1024_V1",
+    })
+    with pytest.raises(ValueError, match="manual or constructed anchor"):
+        materialize_steiner_protocol_evidence(
+            landmarks=points, construction_namespace="c", measurement_namespace="m",
+            mm_per_pixel=0.5, calibration_ref="cal:1",
+        )
