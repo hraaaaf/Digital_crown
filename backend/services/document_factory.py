@@ -160,17 +160,21 @@ class DocumentFactory:
             media = None
             if db is not None and user is not None and patient_id is not None:
                 from backend.utils.access_control import assert_patient_access
+                from backend.routers.auth import has_permission
                 from backend.services.cephalo_pdf_media import load_cephalo_pdf_media
                 assert_patient_access(patient_id, user, db)
-                try:
-                    media = load_cephalo_pdf_media(
-                        db, employer_id=int(user.get_employer_id()),
-                        patient_id=int(patient_id), image_original_path=radio_image_path,
-                    )
-                except Exception as exc:
-                    # Media is optional; do not substitute unverified URLs or client bytes.
-                    logger.warning("Céphalo PDF media indisponibles pour l'étude %s: %s", analysis_id, exc)
-                    media = {"photos": [], "radio_jpeg": None, "media_unavailable": ["media_storage_unavailable"]}
+                if not has_permission(user, "patients"):
+                    media = {"photos": [], "radio_jpeg": None, "media_unavailable": ["patient_media_permission_missing"]}
+                else:
+                        try:
+                        media = load_cephalo_pdf_media(
+                            db, employer_id=int(user.get_employer_id()),
+                            patient_id=int(patient_id), image_original_path=radio_image_path,
+                        )
+                    except Exception as exc:
+                        # Media is optional; never substitute unverified paths or bytes.
+                        logger.warning("Céphalo PDF media indisponibles pour l'étude %s: %s", analysis_id, exc)
+                        media = {"photos": [], "radio_jpeg": None, "media_unavailable": ["media_storage_unavailable"]}
             vm = schemas.CephaloViewModel(
                 patient_nom=patient.nom,
                 patient_prenom=patient.prenom,
