@@ -93,6 +93,20 @@ def _assert_pdf_semantics(text: str) -> None:
         assert token not in text, f"legacy client text leaked: {token}"
 
 
+def test_clinician_facing_labels_fail_closed_without_changing_source_evidence():
+    generator = BilanOrthoPDFGenerator()
+    assert generator._pdf_method_label("STEINER v1") == "Steiner"
+    assert generator._pdf_method_label("SOURCE_SYNTHETIQUE vfixture-v1") == "Méthode non précisée"
+    assert generator._pdf_measurement_value("NOT_COMPUTABLE") == "Non calculable"
+    assert generator._pdf_stage_state("APPROVED", complete=False) == "Non validé"
+    assert generator._pdf_stage_state("BLOCKED", complete=False) == "Non validé"
+    assert generator._pdf_stage_state("AWAITING_CLINICIAN", complete=False) == "En attente du praticien"
+    assert generator._pdf_stage_summary("R14 cannot sign") == "Éléments en attente de validation clinique."
+    context = generator._shared_context(_vm(), _projection())
+    assert context["measurements"][1]["value"] == "NOT_COMPUTABLE"
+    assert context["stages"][2]["presentation_state"] == "AWAITING_CLINICIAN"
+
+
 def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
     generator = BilanOrthoPDFGenerator(str(tmp_path))
     pdf_path = tmp_path / "r17-reportlab-after.pdf"
