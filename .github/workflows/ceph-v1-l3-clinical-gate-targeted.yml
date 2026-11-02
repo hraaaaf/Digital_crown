@@ -1,0 +1,44 @@
+name: CEPH V1 L3 clinical gate and PDF targeted QA (NO DEPLOY)
+
+on:
+  pull_request:
+    branches:
+      - feat/cephalo-v1-l1a-20261101
+    paths:
+      - 'backend/**'
+      - '.github/workflows/ceph-v1-l3-clinical-gate-targeted.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-targeted:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SECRET_KEY: 'ceph-targeted-test-isolated-key-32-chars'
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact candidate SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-targeted-requirements.txt
+          pip install -r /tmp/ceph-targeted-requirements.txt
+      - name: Run source-locked negative and clinical authority tests
+        run: python -m pytest backend/tests/test_cephalo_r15_clinical_studio.py backend/tests/test_cephalo_r17_pdf_projection.py -q
