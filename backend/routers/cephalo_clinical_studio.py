@@ -9,6 +9,8 @@ from backend.services.cephalo_r11_r12_attestation import (
     attest_r11r12,
     read_r11r12_attestation,
 )
+from backend.services.cephalo_r14_final_decision import R14FinalDecisionRequest, decide_r14_final
+from backend.services.cephalo_r14_final_read import read_r14_final
 from backend.services.cephalo_r13_option_decision import R13DecisionRequest, decide_r13_option
 from backend.services.cephalo_r13_option_read import read_r13_decision
 from backend.services.cephalo_r11_r13_staging import (
@@ -178,6 +180,36 @@ def get_r11_r12_clinician_attestation(
 ):
     analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
     return read_r11r12_attestation(
+        patient_id=patient_id, analysis=analysis,
+        tenant_id=current_user.get_employer_id(), db=db,
+    )
+
+
+@router.post("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r14-final-decision", status_code=201)
+def post_r14_final_clinician_decision(
+    patient_id: int,
+    analysis_id: int,
+    body: R14FinalDecisionRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Dentist-owned R14 decision, source-locked and not PDF-release authority."""
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db, lock=True)
+    return decide_r14_final(
+        patient_id=patient_id, analysis=analysis, actor=current_user,
+        request=body, db=db,
+    )
+
+
+@router.get("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r14-final-decision")
+def get_r14_final_clinician_decision(
+    patient_id: int,
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
+    return read_r14_final(
         patient_id=patient_id, analysis=analysis,
         tenant_id=current_user.get_employer_id(), db=db,
     )
