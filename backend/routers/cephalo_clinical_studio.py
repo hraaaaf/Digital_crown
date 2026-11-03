@@ -5,6 +5,7 @@ from backend import database, models
 from backend.routers.auth import require_permission
 from backend.services.cephalo_r15_clinical_studio import build_r15_clinical_studio_snapshot
 from backend.services.cephalo_r13_option_decision import R13DecisionRequest, decide_r13_option
+from backend.services.cephalo_r13_option_read import read_r13_decision
 from backend.services.cephalo_r11_r13_staging import (
     R11R13StagingRequest,
     read_staged_clinical_evidence,
@@ -129,4 +130,19 @@ def post_r13_clinician_option_decision(
     analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db, lock=True)
     return decide_r13_option(
         patient_id=patient_id, analysis=analysis, actor=current_user, request=body, db=db,
+    )
+
+
+@router.get("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r13-option-decision")
+def get_r13_clinician_option_decision(
+    patient_id: int,
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Reopen the audited R13 choice, always non-final and never an R14 signoff."""
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
+    return read_r13_decision(
+        patient_id=patient_id, analysis=analysis,
+        tenant_id=current_user.get_employer_id(), db=db,
     )
