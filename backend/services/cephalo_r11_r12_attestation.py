@@ -13,7 +13,6 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from backend import models
 from backend.schemas.cephalo_evidence import ReviewState, ValidationAction
-from backend.services.cephalo_r11_r13_staging import _json_hash
 from backend.services.cephalo_r14_review_receipt import _current_graph, _graph_digest, _require_clinician
 from backend.services.cephalo_r13_decision_authority import resolve_r13_staging, require_committed_staging_audit
 
@@ -181,6 +180,37 @@ def read_r11r12_attestation(*, patient_id, analysis, tenant_id, db):
             graph_sha256=sha, revision=revision,
             staging_sha256=staged["content_sha256"], db=db,
         )
+        # R13 decision creates a new staging hash, but the prior R11/R12
+        # attestation remains verifiable through the server-issued decision audit.
+        if not current and _r13.option_validations:
+            audit = (
+                db.query(models.AuditLog)
+                .filter(
+                    models.AuditLog.action == "CEPH_R13_OPTION_DECIDED",
+                    models.AuditLog.resource_type == "CephaloAnalysis",
+                    models.AuditLog.resource_id == str(analysis.id),
+                    models.AuditLog.employer_id == tenant_id,
+                )
+                .order_by(models.AuditLog.id.desc()).first()
+            )
+            try:
+                claim = json.loads(audit.details) if audit else {}
+                if (
+                    claim.get("patient_id") == patient_id
+                    and claim.get("analysis_id") == analysis.id
+                    and claim.get("revision") == revision
+                    and claim.get("graph_sha256") == sha
+                    and claim.get("staging_after") == staged["content_sha256"]
+                    and claim.get("validation_id") == _r13.option_validations[0].validation_id
+                    and claim.get("actor_user_id") == audit.user_id
+                ):
+                    current = verified_r11r12_attestation(
+                        patient_id=patient_id, analysis=analysis, tenant_id=tenant_id,
+                        graph_sha256=sha, revision=revision,
+                        staging_sha256=claim["staging_before"], db=db,
+                    )
+            except (AttributeError, KeyError, TypeError, ValueError):
+                current = False
         return {
             "state": "CURRENT_NON_FINAL_ATTESTED" if current else "NOT_ATTESTED",
             "analysis_revision": revision,
