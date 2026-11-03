@@ -11,6 +11,7 @@ from backend.schemas.cephalo_r13_therapeutic_options import R13TreatmentOptionEv
 from backend.services.cephalo_r14_review_receipt import _current_graph, _graph_digest, _require_clinician
 from backend.services.cephalo_r11_r13_staging import STAGING_KEY, _json_hash
 from backend.services.cephalo_r13_decision_authority import resolve_r13_staging, require_committed_staging_audit
+from backend.services.cephalo_r11_r12_attestation import verified_r11r12_attestation
 from backend.services.cephalo_r13_therapeutic_safety import R13TherapeuticSnapshot, validate_r13_therapeutic_options
 
 DECISION_ACTION = "CEPH_R13_OPTION_DECIDED"
@@ -35,6 +36,14 @@ def decide_r13_option(*, patient_id, analysis, actor, request: R13DecisionReques
         raise HTTPException(status_code=409, detail="Staging R13 modifié.")
     # A selection or rejection has to originate from a previous committed stage.
     require_committed_staging_audit(db=db, analysis=analysis, staged=staged, actor=actor)
+    if not verified_r11r12_attestation(
+        patient_id=patient_id, analysis=analysis,
+        tenant_id=actor.get_employer_id(), graph_sha256=_graph_digest(graph),
+        revision=revision, staging_sha256=staged["content_sha256"], db=db,
+    ):
+        raise HTTPException(
+            status_code=409, detail="Attestation praticien R11/R12 requise avant R13."
+        )
     if r13.option_validations or any(
         item.status in {R13TreatmentOptionStatus.CLINICIAN_SELECTED,
                         R13TreatmentOptionStatus.CLINICIAN_REJECTED}
