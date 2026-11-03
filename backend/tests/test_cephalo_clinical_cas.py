@@ -9,6 +9,7 @@ from backend import models
 from backend.services.cephalo_clinical_cas import cas_replace_clinical_json
 from backend.services import cephalo_r13_option_decision as r13
 from backend.services import cephalo_r14_final_decision as r14
+from backend.services import cephalo_r11_r13_staging as staging
 from backend.tests.test_cephalo_r13_option_decision import _prepared
 from backend.tests.test_cephalo_r14_final_decision import _selected_study
 
@@ -113,3 +114,27 @@ def test_cas_rejects_changed_stage_digest_without_study_revision_bump(monkeypatc
         assert err.value.status_code == 409
     with Session(engine) as db:
         assert db.get(models.CephaloAnalysis, 101).angles_data["_cephalo_clinical_staging_v1"]["content_sha256"] == "f" * 64
+
+
+def test_stale_staging_cannot_erase_selected_option(monkeypatch):
+    engine, body, actor, request = _prepared(monkeypatch)
+    with Session(engine) as stale:
+        analysis = stale.get(models.CephaloAnalysis, 101)
+        with Session(engine) as winner:
+            selected = r13.decide_r13_option(
+                patient_id=1, analysis=winner.get(models.CephaloAnalysis, 101),
+                actor=actor, request=request, db=winner,
+            )
+        with pytest.raises(HTTPException) as err:
+            staging.stage_clinical_evidence(
+                patient_id=1, analysis=analysis, actor=actor,
+                body=body, db=stale,
+            )
+        assert err.value.status_code == 409
+    with Session(engine) as db:
+        current = db.get(models.CephaloAnalysis, 101).angles_data
+        assert current[staging.STAGING_KEY]["content_sha256"] == selected["staging_sha256"]
+        assert current[staging.STAGING_KEY]["r13"]["options"][0]["status"] == "CLINICIAN_SELECTED"
+        assert db.query(models.AuditLog).filter(
+            models.AuditLog.action == staging.STAGING_AUDIT_ACTION
+        ).count() == 1
