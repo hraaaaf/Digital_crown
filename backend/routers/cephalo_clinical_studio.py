@@ -4,6 +4,11 @@ from sqlalchemy.orm import Session
 from backend import database, models
 from backend.routers.auth import require_permission
 from backend.services.cephalo_r15_clinical_studio import build_r15_clinical_studio_snapshot
+from backend.services.cephalo_r11_r12_attestation import (
+    R11R12AttestationRequest,
+    attest_r11r12,
+    read_r11r12_attestation,
+)
 from backend.services.cephalo_r13_option_decision import R13DecisionRequest, decide_r13_option
 from backend.services.cephalo_r13_option_read import read_r13_decision
 from backend.services.cephalo_r11_r13_staging import (
@@ -143,6 +148,36 @@ def get_r13_clinician_option_decision(
     """Reopen the audited R13 choice, always non-final and never an R14 signoff."""
     analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
     return read_r13_decision(
+        patient_id=patient_id, analysis=analysis,
+        tenant_id=current_user.get_employer_id(), db=db,
+    )
+
+
+@router.post("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r11-r12-attestation", status_code=201)
+def post_r11_r12_clinician_attestation(
+    patient_id: int,
+    analysis_id: int,
+    body: R11R12AttestationRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Explicit dentist review of source-validated R11/R12. Never R14."""
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db, lock=True)
+    return attest_r11r12(
+        patient_id=patient_id, analysis=analysis, actor=current_user,
+        request=body, db=db,
+    )
+
+
+@router.get("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r11-r12-attestation")
+def get_r11_r12_clinician_attestation(
+    patient_id: int,
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
+    return read_r11r12_attestation(
         patient_id=patient_id, analysis=analysis,
         tenant_id=current_user.get_employer_id(), db=db,
     )
