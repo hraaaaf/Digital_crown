@@ -17,6 +17,7 @@ from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from sqlalchemy.orm import Session
 
 from backend import models
+from backend.services.cephalo_clinical_cas import STAGING_KEY, cas_replace_clinical_json
 from backend.schemas.cephalo_evidence import ReviewState
 from backend.schemas.cephalo_r12_problem_objectives import R12ObjectiveEvidence, R12ProblemListItem
 from backend.schemas.cephalo_r13_therapeutic_options import (
@@ -28,7 +29,6 @@ from backend.services.cephalo_r13_therapeutic_safety import R13TherapeuticSnapsh
 from backend.services.cephalo_runtime_chain import project_runtime_chain_read_path
 from backend.services.cephalo_typed_read import deserialize_evidence_snapshot
 
-STAGING_KEY = "_cephalo_clinical_staging_v1"
 STAGING_CONTRACT = "CEPH_R11_R13_STAGING_V1"
 STAGING_AUDIT_ACTION = "CEPH_R11_R13_STAGING_SAVED"
 STAGING_STATE = "SOURCE_VALIDATED_NON_FINAL"
@@ -163,8 +163,13 @@ def stage_clinical_evidence(
     if current_revision != revision or _graph_digest(current_graph) != graph_sha256:
         raise HTTPException(status_code=409, detail="Graphe scientifique modifié pendant la revue.")
 
-    analysis.angles_data = {**analysis.angles_data, STAGING_KEY: persisted}
-    db.add(analysis)
+    # Compare directly against the current DB row, not a cached study.
+    cas_replace_clinical_json(
+        db=db, analysis=analysis, patient_id=patient_id,
+        expected_revision=revision,
+        expected_stage_sha=existing.get("content_sha256") if isinstance(existing, dict) else None,
+        replacement={**analysis.angles_data, STAGING_KEY: persisted},
+    )
     db.add(models.AuditLog(
         user_id=actor_id,
         employer_id=actor.get_employer_id(),
