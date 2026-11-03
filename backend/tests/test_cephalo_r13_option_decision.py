@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from backend import models
 from backend.routers import cephalo_clinical_studio as router
 from backend.services import cephalo_r13_option_decision as decisions
+from backend.services import cephalo_r11_r12_attestation as attestation
 from backend.services import cephalo_r13_decision_authority as authority
 from backend.services import cephalo_r11_r13_staging as staging
 from backend.services import cephalo_r15_clinical_studio as studio
@@ -45,6 +46,15 @@ def _prepared(monkeypatch):
         analysis = db.get(models.CephaloAnalysis, 101)
         stage = staging.stage_clinical_evidence(
             patient_id=1, analysis=analysis, actor=actor, body=body, db=db,
+        )
+    with Session(engine) as db:
+        attestation.attest_r11r12(
+            patient_id=1, analysis=db.get(models.CephaloAnalysis, 101),
+            actor=actor, request=attestation.R11R12AttestationRequest(
+                expected_revision=2,
+                expected_staging_sha256=stage["content_sha256"],
+                action="ATTEST_R11_R12",
+            ), db=db,
         )
     request = decisions.R13DecisionRequest(
         expected_revision=2, expected_staging_sha256=stage["content_sha256"],
@@ -98,7 +108,7 @@ def test_selected_option_persisted_and_audit_record_is_not_R14(monkeypatch):
         assert claim["target_id"] == body.options[0].option_id
         assert claim["clinician_id"] == "clinician:1"
         assert claim["action"] == "ACCEPT"
-        assert db.query(models.AuditLog).count() == 2
+        assert db.query(models.AuditLog).count() == 3
         assert db.query(models.AuditLog).order_by(models.AuditLog.id.desc()).first().action == decisions.DECISION_ACTION
         view = studio.build_r15_clinical_studio_snapshot(
             patient_id=1, analysis_id=101, angles_data=analysis.angles_data,
@@ -124,7 +134,7 @@ def test_replay_and_restaging_same_revision_are_forbidden(monkeypatch):
                 patient_id=1, analysis=analysis, actor=actor, body=body, db=db,
             )
         assert err.value.status_code == 409
-        assert db.query(models.AuditLog).count() == 2
+        assert db.query(models.AuditLog).count() == 3
 
 
 def test_unreviewed_production_registries_block_decision(monkeypatch):
@@ -137,7 +147,7 @@ def test_unreviewed_production_registries_block_decision(monkeypatch):
                 actor=actor, request=req, db=db,
             )
         assert err.value.status_code == 409
-        assert db.query(models.AuditLog).count() == 1
+        assert db.query(models.AuditLog).count() == 2
 
 
 def test_reject_option_is_a_server_audited_action(monkeypatch):
