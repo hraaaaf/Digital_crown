@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from backend import models
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
-from backend.services.cephalo_r11_r13_staging import STAGING_KEY
+STAGING_KEY = "_cephalo_clinical_staging_v1"
 
 R14_KEY = "_cephalo_r14_final_decision_v1"
 
