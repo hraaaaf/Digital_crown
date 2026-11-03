@@ -23,6 +23,8 @@ on:
       - 'backend/tests/test_cephalo_r14_final_decision.py'
       - 'backend/services/cephalo_r11_r13_staging.py'
       - 'backend/services/cephalo_r11_r12_attestation.py'
+      - 'backend/services/cephalo_r11_target_reviews.py'
+      - 'backend/tests/test_cephalo_r11_target_reviews.py'
       - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
       - 'backend/services/cephalo_r13_option_read.py'
@@ -55,6 +57,8 @@ on:
       - 'backend/tests/test_cephalo_r14_final_decision.py'
       - 'backend/services/cephalo_r11_r13_staging.py'
       - 'backend/services/cephalo_r11_r12_attestation.py'
+      - 'backend/services/cephalo_r11_target_reviews.py'
+      - 'backend/tests/test_cephalo_r11_target_reviews.py'
       - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
       - 'backend/services/cephalo_r13_option_read.py'
@@ -119,6 +123,7 @@ jobs:
             backend/tests/test_cephalo_r14_review_receipt.py \
             backend/tests/test_cephalo_r11_r13_staging.py \
             backend/tests/test_cephalo_r11_r12_attestation.py \
+            backend/tests/test_cephalo_r11_target_reviews.py \
             backend/tests/test_cephalo_r13_option_decision.py \
             backend/tests/test_cephalo_r13_option_read.py \
             backend/tests/test_cephalo_r14_final_decision.py \
