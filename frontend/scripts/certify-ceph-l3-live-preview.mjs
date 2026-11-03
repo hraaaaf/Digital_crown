@@ -53,7 +53,7 @@ try {
     await page.waitForFunction(() => {
       const button = [...document.querySelectorAll('button')].find(x => x.textContent?.includes('Imprimer'));
       return !!button && !button.disabled;
-    }, { timeout: 20000 });
+    }, null, { timeout: 15000 });
     const download = page.getByRole('link', { name: 'Télécharger PDF' });
     await download.waitFor({ state: 'visible' });
     await page.getByRole('button', { name: 'Plein écran' }).waitFor({ state: 'visible' });
