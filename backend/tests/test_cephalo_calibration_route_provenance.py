@@ -1,12 +1,23 @@
 """Contract tests for the canonical provenance-aware calibration route."""
 from types import SimpleNamespace
 from unittest.mock import MagicMock
+import pytest
+from backend.routers import cephalo_calibration_provenance as manual_router
 
 from backend import schemas
 from backend.routers.cephalo_calibration_provenance import calibrate_analysis_with_provenance
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY, build_cephalo_runtime_evidence_payload
 from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
+
+
+@pytest.fixture(autouse=True)
+def fake_sql_store_for_mock_route(monkeypatch):
+    def save(*, db, analysis, updated_angles, other_values=None):
+        analysis.angles_data = updated_angles
+        for k, v in (other_values or {}).items():
+            setattr(analysis, k, v)
+    monkeypatch.setattr(manual_router, "save_scientific_transition", save)
 
 
 def _raw():
