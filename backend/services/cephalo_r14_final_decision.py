@@ -15,6 +15,7 @@ from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 
 from backend import models
+from backend.services.cephalo_clinical_cas import cas_replace_clinical_json
 from backend.schemas.cephalo_evidence import ClinicianValidationEvidence, ValidationAction
 from backend.schemas.cephalo_r13_therapeutic_options import R13TreatmentOptionStatus
 from backend.schemas.cephalo_r14_final_validation import (
@@ -170,10 +171,14 @@ def decide_r14_final(*, patient_id, analysis, actor, request: R14FinalDecisionRe
         "clinical_validation_available": False,
     }
     digest = _json_hash(payload)
-    analysis.angles_data = {
-        **analysis.angles_data, R14_KEY: {**payload, "content_sha256": digest},
-    }
-    db.add(analysis)
+    cas_replace_clinical_json(
+        db=db, analysis=analysis, patient_id=patient_id,
+        expected_revision=revision,
+        expected_stage_sha=staged["content_sha256"],
+        replacement={
+            **analysis.angles_data, R14_KEY: {**payload, "content_sha256": digest},
+        },
+    )
     db.add(models.AuditLog(
         user_id=actor_id, employer_id=actor.get_employer_id(),
         action=R14_AUDIT_ACTION, resource_type="CephaloAnalysis",
