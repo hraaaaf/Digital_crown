@@ -82,6 +82,15 @@ def stage_clinical_evidence(
     if not _clinician_claims_bound(body, actor_id):
         raise HTTPException(status_code=403, detail="Auteurs ou décisions R11-R13 non autorisés.")
 
+    # The review timestamp is server-issued, not supplied by the browser.
+    server_time = dt.datetime.now(dt.timezone.utc)
+    server_problems = tuple(
+        item.model_copy(update={"clinician_validated_at": server_time}) for item in body.problems
+    )
+    server_objectives = tuple(
+        item.model_copy(update={"clinician_validated_at": server_time}) for item in body.objectives
+    )
+
     # R11 graph MUST be backend-persisted, never taken from a client request.
     try:
         read = project_runtime_chain_read_path(analysis.angles_data, patient_id=patient_id)
@@ -95,8 +104,8 @@ def stage_clinical_evidence(
 
         r12 = R12ProblemObjectiveSnapshot(
             diagnostic_graph=graph,
-            problems=body.problems,
-            objectives=body.objectives,
+            problems=server_problems,
+            objectives=server_objectives,
         )
         r13 = R13TherapeuticSnapshot(
             r12_snapshot=r12,
@@ -113,7 +122,7 @@ def stage_clinical_evidence(
             status_code=409, detail="Lignée R11→R13 source-lockée non vérifiée."
         ) from exc
 
-    now = dt.datetime.now(dt.timezone.utc).isoformat()
+    now = server_time.isoformat()
     content = {
         "contract": STAGING_CONTRACT,
         "state": STAGING_STATE,
@@ -125,8 +134,8 @@ def stage_clinical_evidence(
         "actor_user_id": actor_id,
         "recorded_at": now,
         "r12": {
-            "problems": [v.model_dump(mode="json") for v in body.problems],
-            "objectives": [v.model_dump(mode="json") for v in body.objectives],
+            "problems": [v.model_dump(mode="json") for v in server_problems],
+            "objectives": [v.model_dump(mode="json") for v in server_objectives],
         },
         "r13": {
             "criteria": [v.model_dump(mode="json") for v in body.criteria],
