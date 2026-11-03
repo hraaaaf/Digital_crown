@@ -15,6 +15,7 @@ from backend import models
 from backend.schemas.cephalo_evidence import ReviewState, ValidationAction
 from backend.services.cephalo_r14_review_receipt import _current_graph, _graph_digest, _require_clinician
 from backend.services.cephalo_r13_decision_authority import resolve_r13_staging, require_committed_staging_audit
+from backend.services.cephalo_r11_target_reviews import verified_target_review_receipts
 
 ATTEST_ACTION = "CEPH_R11_R12_CLINICIAN_ATTESTED"
 ATTEST_CONTRACT = "CEPH_R11_R12_REVIEW_ATTESTATION_V1"
@@ -105,7 +106,24 @@ def verified_r11r12_attestation(
             and isinstance(claim.get("reviewed_at"), str)
             and claim["reviewed_at"]
         ):
-            return True
+            # A legacy JSON clinician_id is not proof of a server-authored
+            # R11 review. Each finding and diagnosis must have an independent
+            # authenticated, patient/tenant/stage-bound audit, and the EXACT
+            # audit identities must be tied to the attestation.
+            try:
+                _staged, r13 = resolve_r13_staging(
+                    patient_id=patient_id, analysis=analysis,
+                )
+                receipts = verified_target_review_receipts(
+                    patient_id=patient_id, analysis=analysis,
+                    tenant_id=tenant_id, revision=revision,
+                    graph_sha256=graph_sha256, staging_sha256=staging_sha256,
+                    actor_id=_row.user_id, r13=r13, db=db,
+                )
+                if receipts and claim.get("r11_target_reviews") == receipts:
+                    return True
+            except (HTTPException, ValueError, KeyError, TypeError):
+                continue
     return False
 
 
@@ -126,6 +144,17 @@ def attest_r11r12(*, patient_id, analysis, actor, request: R11R12AttestationRequ
         raise HTTPException(status_code=403, detail="Revue clinique R11/R12 non attribuable au praticien.")
     sha = _graph_digest(graph)
     tenant = actor.get_employer_id()
+    receipts = verified_target_review_receipts(
+        patient_id=patient_id, analysis=analysis, tenant_id=tenant,
+        graph_sha256=sha, revision=revision,
+        staging_sha256=staged["content_sha256"],
+        actor_id=actor_id, r13=r13, db=db,
+    )
+    if not receipts:
+        raise HTTPException(
+            status_code=409,
+            detail="Revue R11 individuelle authentifiée requise pour chaque constat et diagnostic.",
+        )
     if verified_r11r12_attestation(
         patient_id=patient_id, analysis=analysis, tenant_id=tenant,
         graph_sha256=sha, revision=revision,
@@ -145,6 +174,7 @@ def attest_r11r12(*, patient_id, analysis, actor, request: R11R12AttestationRequ
         "graph_sha256": sha,
         "staging_sha256": staged["content_sha256"],
         "reviewed_at": now,
+        "r11_target_reviews": receipts,
         "clinical_validation_available": False,
         "r14_status": "NOT_VALIDATED",
     }
