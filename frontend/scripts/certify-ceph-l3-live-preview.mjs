@@ -49,8 +49,10 @@ try {
     await dialog.waitFor({ timeout: 20000 });
     const isMobile = viewport.width < 500;
     if (!isMobile) {
-      // Assert the native PDF path is preserved on desktop, then switch to
-      // the user-visible compatible mode for a deterministic visual capture.
+      // Canvas is the reliable desktop default. Verify the user can opt into
+      // the native plugin and then restore the compatible viewer explicitly.
+      await page.getByRole('button', { name: 'Lecteur natif' }).waitFor();
+      await page.getByRole('button', { name: 'Lecteur natif' }).click();
       await page.locator('iframe[title^="Aperçu PDF"]').waitFor({ timeout: 15000 });
       await page.getByRole('button', { name: 'Aperçu compatible' }).click();
       await page.getByRole('button', { name: 'Lecteur natif' }).waitFor();
@@ -96,10 +98,18 @@ try {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2);
     if (overflow) throw new Error('Horizontal page overflow');
     const screenshot = `ceph-l3-preview-${viewport.name}-${viewport.width}x${viewport.height}.png`;
-    // Give Chromium's native PDF plugin a chance to paint after the modal
-    // controls become enabled. Pixel-level verification runs in the workflow.
-    await page.waitForTimeout(1500);
+    // Vite may optimize a lazy dependency and reload the harness in dev mode.
+    // The compatible renderer is the desktop default, so enforce that the
+    // rendered canvas is still present at capture time (no false-green DOM
+    // check from a page that reloaded between asserting and screenshot).
+    await page.waitForLoadState('networkidle');
+    await pageCanvas.first().waitFor({ state: 'visible', timeout: 30000 });
+    if (!isMobile) await page.getByRole('button', { name: 'Lecteur natif' }).waitFor();
     await page.screenshot({ path: path.join(output, screenshot), animations: 'disabled' });
+    if (await pageCanvas.count() !== 1) throw new Error('PDF canvas disappeared during capture');
+    if (!isMobile && !(await page.getByRole('button', { name: 'Lecteur natif' }).isVisible())) {
+      throw new Error('Desktop preview reverted to native plugin during capture');
+    }
     results.push({
       viewport, screenshot, pdf_sha256: actual,
       preview_download_blob_parity: true,
