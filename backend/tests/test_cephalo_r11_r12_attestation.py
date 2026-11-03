@@ -169,3 +169,54 @@ def test_router_checks_patient_boundary_before_study_query(monkeypatch):
             db=ForbidQuery(), current_user=object(),
         )
     assert err.value.status_code == 403
+
+
+def test_r11_validation_legacy_actor_cannot_impersonate_authenticated_doctor(monkeypatch):
+    _source_locked_test_validators(monkeypatch)
+    engine, body, actor = fixture()
+    with Session(engine) as db:
+        analysis = db.get(models.CephaloAnalysis, 101)
+        angles = dict(analysis.angles_data)
+        graph = dict(angles["_evidence_graph_v1"])
+        validations = list(graph["validations"])
+        validations[0] = {**validations[0], "clinician_id": "clinician:999"}
+        graph["validations"] = validations
+        analysis.angles_data = {**angles, "_evidence_graph_v1": graph}
+        db.commit()
+        result = staging.stage_clinical_evidence(
+            patient_id=1, analysis=analysis, actor=actor, body=body, db=db,
+        )
+        forged = attest.R11R12AttestationRequest(
+            expected_revision=2,
+            expected_staging_sha256=result["content_sha256"],
+            action="ATTEST_R11_R12",
+        )
+        with pytest.raises(HTTPException) as err:
+            attest.attest_r11r12(
+                patient_id=1, analysis=analysis, actor=actor, request=forged, db=db,
+            )
+        assert err.value.status_code == 403
+        assert db.query(models.AuditLog).count() == 1
+
+
+def test_deleted_attestation_audit_cannot_authorize_r13(monkeypatch):
+    engine, actor, body, req = prepared(monkeypatch)
+    with Session(engine) as db:
+        analysis = db.get(models.CephaloAnalysis, 101)
+        attest.attest_r11r12(
+            patient_id=1, analysis=analysis, actor=actor, request=req, db=db,
+        )
+        db.query(models.AuditLog).filter(
+            models.AuditLog.action == attest.ATTEST_ACTION
+        ).delete()
+        db.commit()
+        requested = decision.R13DecisionRequest(
+            expected_revision=2, expected_staging_sha256=req.expected_staging_sha256,
+            option_id=body.options[0].option_id, action="SELECT_OPTION",
+        )
+        with pytest.raises(HTTPException) as err:
+            decision.decide_r13_option(
+                patient_id=1, analysis=analysis, actor=actor, request=requested, db=db,
+            )
+        assert err.value.status_code == 409
+        assert db.query(models.AuditLog).count() == 1
