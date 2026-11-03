@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Maximize, Printer, Download, RefreshCcw } from 'lucide-react';
 
@@ -19,14 +19,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   title,
   inline = false,
 }) => {
-  const [iframeReady, setIframeReady] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const pdfFrameRef = useRef<HTMLIFrameElement | null>(null);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIframeReady(false);
-  }, [pdfUrl]);
 
   useEffect(() => {
     if (inline) return;
@@ -46,7 +40,10 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     };
   }, [inline, onClose]);
 
-  const showSkeleton = loading || Boolean(pdfUrl && !iframeReady);
+  // Native PDF viewers can omit iframe load events (notably headless Chromium
+  // and some embedded/mobile readers). Never keep the preview covered forever.
+  // The PDF blob URL is already ready when loading becomes false.
+  const showSkeleton = loading;
 
   const containerContent = (
     <div className="relative flex h-full w-full flex-col bg-white">
@@ -119,7 +116,6 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
             src={pdfUrl}
             className="h-full w-full border-none"
             title={`Aperçu PDF — ${title}`}
-            onLoad={() => setIframeReady(true)}
           />
         ) : !loading ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center sm:p-16">
@@ -137,7 +133,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
           <>
             <button
               type="button"
-              disabled={loading || !iframeReady}
+              disabled={loading}
               onClick={() => {
                 // Print the exact PDF being previewed, never regenerate a second copy.
                 try {
