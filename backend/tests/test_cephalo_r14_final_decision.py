@@ -89,7 +89,7 @@ def test_server_final_decision_roundtrip_still_pdf_hold(monkeypatch):
         assert saved["validation"]["clinician_id"] == "clinician:1"
         assert saved["validation"]["target_type"] == "final_clinical_strategy"
         assert saved["clinical_validation_available"] is False
-        assert db.query(models.AuditLog).count() == 4
+        assert db.query(models.AuditLog).count() == 6
         row = db.query(models.AuditLog).order_by(models.AuditLog.id.desc()).first()
         assert row.action == final.R14_AUDIT_ACTION
         audit_details = json.loads(row.details)
@@ -119,7 +119,7 @@ def test_production_empty_rule_registries_deny_final(monkeypatch):
             )
         assert error.value.status_code == 409
         assert final.R14_KEY not in analysis.angles_data
-        assert db.query(models.AuditLog).count() == 3
+        assert db.query(models.AuditLog).count() == 5
 
 
 def test_r14_duplicate_decision_is_denied(monkeypatch):
@@ -134,7 +134,7 @@ def test_r14_duplicate_decision_is_denied(monkeypatch):
                 patient_id=1, analysis=analysis, actor=actor, request=req, db=db,
             )
         assert error.value.status_code == 409
-        assert db.query(models.AuditLog).count() == 4
+        assert db.query(models.AuditLog).count() == 6
 
 
 def test_rejected_R14_is_tracked_not_released(monkeypatch):
@@ -175,7 +175,7 @@ def test_r14_wrong_patient_doctor_and_option_refused(monkeypatch):
                 patient_id=1, analysis=analysis, actor=actor, request=req, db=db,
             )
         assert err.value.status_code == 403
-        assert db.query(models.AuditLog).count() == 3
+        assert db.query(models.AuditLog).count() == 5
 
 
 def test_r14_stale_expected_sha_and_revision_are_rejected(monkeypatch):
