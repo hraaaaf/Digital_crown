@@ -91,19 +91,19 @@ export function MobilePdfCanvas({ pdfUrl }: MobilePdfCanvasProps) {
   }, [pdfUrl]);
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-slate-200 p-3" aria-label="Aperçu des pages PDF sur mobile">
+    <div className="h-full w-full overflow-y-auto bg-background p-3" aria-label="Aperçu des pages PDF sur mobile">
       {status === 'loading' && (
-        <div role="status" className="flex items-center justify-center gap-3 py-8 text-sm text-slate-600">
+        <div role="status" className="flex items-center justify-center gap-3 py-8 text-sm text-text-muted">
           <Loader2 className="animate-spin" size={20} />
           Affichage du PDF…
         </div>
       )}
       {status === 'error' && (
-        <div role="alert" className="flex flex-col items-center gap-3 rounded-lg bg-white p-6 text-center text-slate-700">
+        <div role="alert" className="flex flex-col items-center gap-3 rounded-lg bg-card p-6 text-center text-text-main">
           <FileText size={28} />
           <p>Aperçu indisponible dans ce navigateur.</p>
           <a href={pdfUrl.split('#')[0]} target="_blank" rel="noopener noreferrer"
-            className="rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-white">
+            className="rounded-lg bg-primary px-4 py-3 text-sm font-semibold text-on-primary">
             Ouvrir le PDF original
           </a>
         </div>
