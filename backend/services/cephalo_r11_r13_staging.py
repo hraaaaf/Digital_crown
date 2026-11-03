@@ -79,6 +79,18 @@ def stage_clinical_evidence(
     graph_payload, revision = _current_graph(analysis)
     if body.expected_revision != revision:
         raise HTTPException(status_code=409, detail="Révision scientifique périmée.")
+    existing = analysis.angles_data.get(STAGING_KEY) if isinstance(analysis.angles_data, dict) else None
+    if (
+        isinstance(existing, dict)
+        and existing.get("analysis_revision") == revision
+        and isinstance(existing.get("r13"), dict)
+        and existing["r13"].get("option_validations")
+    ):
+        # A new stage must never erase a clinician decision on the same graph.
+        raise HTTPException(
+            status_code=409,
+            detail="Décision R13 déjà auditée ; nouvelle révision scientifique requise.",
+        )
     if not _clinician_claims_bound(body, actor_id):
         raise HTTPException(status_code=403, detail="Auteurs ou décisions R11-R13 non autorisés.")
 
