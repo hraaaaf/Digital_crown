@@ -48,29 +48,31 @@ try {
     const dialog = page.getByRole('dialog');
     await dialog.waitFor({ timeout: 20000 });
     const isMobile = viewport.width < 500;
-    let canvasVariation = null;
-    if (isMobile) {
-      const mobilePage = page.locator('[data-testid="mobile-pdf-pages"] canvas[data-pdf-rendered="true"]');
-      await mobilePage.first().waitFor({ state: 'visible', timeout: 30000 });
-      const count = await mobilePage.count();
-      if (count !== 1) throw new Error(`Expected one A4 PDF page, got ${count}`);
-      canvasVariation = await mobilePage.first().evaluate(canvas => {
-        const ctx = canvas.getContext('2d');
-        const pixels = ctx?.getImageData(0, 0, canvas.width, canvas.height).data;
-        if (!pixels) throw new Error('PDF canvas pixels inaccessible');
-        let lowest = 255;
-        let highest = 0;
-        for (let i = 0; i < pixels.length; i += 64) {
-          lowest = Math.min(lowest, pixels[i]);
-          highest = Math.max(highest, pixels[i]);
-        }
-        return highest - lowest;
-      });
-      if (canvasVariation < 20) throw new Error(`Blank mobile PDF canvas: variation ${canvasVariation}`);
-    } else {
-      const frame = page.locator('iframe[title^="Aperçu PDF"]');
-      await frame.waitFor({ timeout: 15000 });
+    if (!isMobile) {
+      // Assert the native PDF path is preserved on desktop, then switch to
+      // the user-visible compatible mode for a deterministic visual capture.
+      await page.locator('iframe[title^="Aperçu PDF"]').waitFor({ timeout: 15000 });
+      await page.getByRole('button', { name: 'Aperçu compatible' }).click();
+      await page.getByRole('button', { name: 'Lecteur natif' }).waitFor();
     }
+    const pageCanvas = page.locator('[data-testid="mobile-pdf-pages"] canvas[data-pdf-rendered="true"]');
+    await pageCanvas.first().waitFor({ state: 'visible', timeout: 30000 });
+    if (await pageCanvas.count() !== 1) {
+      throw new Error(`Expected one A4 PDF page in canvas preview`);
+    }
+    const canvasVariation = await pageCanvas.first().evaluate(canvas => {
+      const context = canvas.getContext('2d');
+      const pixels = context?.getImageData(0, 0, canvas.width, canvas.height).data;
+      if (!pixels) throw new Error('PDF canvas pixels inaccessible');
+      let lowest = 255;
+      let highest = 0;
+      for (let i = 0; i < pixels.length; i += 64) {
+        lowest = Math.min(lowest, pixels[i]);
+        highest = Math.max(highest, pixels[i]);
+      }
+      return highest - lowest;
+    });
+    if (canvasVariation < 20) throw new Error(`Blank PDF canvas: variation ${canvasVariation}`);
     const print = page.getByRole('button', { name: 'Imprimer' });
     await print.waitFor({ state: 'visible', timeout: 15000 });
     await print.waitFor({ state: 'attached' });
@@ -101,7 +103,7 @@ try {
     results.push({
       viewport, screenshot, pdf_sha256: actual,
       preview_download_blob_parity: true,
-      preview_mode: isMobile ? 'pdfjs-canvas-pages' : 'native-desktop-pdf',
+      preview_mode: isMobile ? 'pdfjs-canvas-pages' : 'pdfjs-compatible-fallback',
       canvas_variation: canvasVariation,
       print_button_enabled: true,
       print_dialog_opened: false,
