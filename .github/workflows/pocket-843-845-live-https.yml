@@ -1,0 +1,154 @@
+name: Pocket 843+845 — actual backend HTTPS WebKit lifecycle (isolated)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/pocket-843-845-live-https.yml
+      - scripts/ci/pocket_843_845_https_gateway.py
+      - scripts/ci/pocket_843_845_issue_local.py
+      - scripts/ci/pocket_843_845_seed_demo_agenda.py
+      - scripts/ci/pocket_843_845_live_webkit.mjs
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-https-first-pairing:
+    name: WebKit HTTPS + actual ECDH + IndexedDB + Agenda/Today/Plus
+    runs-on: ubuntu-24.04
+    timeout-minutes: 32
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      T2_USER: t2-browser@cabinet.ma
+      FUE_TUNNEL_ORIGIN: https://127.0.0.1:5443
+    steps:
+      - name: Exact HEAD checkout (no persistent GitHub credentials)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Verify isolated HEAD and no external test tunnel
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DATABASE_URL" = 'sqlite:///./t2-runtime-cert.db'
+          test "$FUE_TUNNEL_ORIGIN" = 'https://127.0.0.1:5443'
+          echo "POCKET_FUE_EXACT_SHA=$(git rev-parse HEAD)"
+          echo "POCKET_FUE_ISOLATION=loopback-TLS-disposable"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+          cache-dependency-path: requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate throwaway test password
+        shell: bash
+        run: |
+          set -euo pipefail
+          password="$(python -c 'import secrets; print(secrets.token_urlsafe(32))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+      - name: Install isolated backend requirements (CPU only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/pocket-843-845-requirements.txt
+          python -m pip install -r /tmp/pocket-843-845-requirements.txt
+      - name: Generate ephemeral local-only TLS identity
+        shell: bash
+        run: |
+          set -euo pipefail
+          openssl req -x509 -nodes -newkey rsa:2048 -days 1 \
+            -keyout /tmp/pocket-fue-loopback-key.pem \
+            -out /tmp/pocket-fue-loopback-cert.pem \
+            -subj '/CN=127.0.0.1' \
+            -addext 'subjectAltName=IP:127.0.0.1,DNS:localhost' \
+            > /dev/null 2>&1
+          chmod 600 /tmp/pocket-fue-loopback-key.pem
+          echo 'POCKET_TLS_LOCAL_CERT_ONLY=true'
+      - name: Build product from current exact SHA with test-only API origin
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci
+          VITE_API_URL=https://127.0.0.1:5443 npm run build
+          echo 'POCKET_PRODUCT_SOURCES_UNMODIFIED=true'
+      - name: Start disposable backend and seed synthetic appointments only
+        shell: bash
+        run: |
+          set -euo pipefail
+          rm -f t2-runtime-cert.db
+          python scripts/t2_runtime_server.py > /tmp/pocket-843-845-backend.log 2>&1 &
+          for i in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8005/health > /dev/null; then break; fi
+            sleep 2
+          done
+          curl -fsS http://127.0.0.1:8005/health > /dev/null
+          test -f t2-runtime-cert.db
+          python scripts/ci/pocket_843_845_seed_demo_agenda.py
+          echo 'POCKET_REAL_ISOLATED_BACKEND_READY=true'
+      - name: Start frontend loopback preview and private TLS gateway
+        shell: bash
+        run: |
+          set -euo pipefail
+          (cd frontend && ./node_modules/.bin/vite preview --host 127.0.0.1 --port 5173 --strictPort > /tmp/pocket-843-845-vite.log 2>&1 &)
+          for i in $(seq 1 60); do
+            if curl -fsS http://127.0.0.1:5173/mobile/onboarding > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS http://127.0.0.1:5173/mobile/onboarding > /dev/null
+          python scripts/ci/pocket_843_845_https_gateway.py > /tmp/pocket-843-845-gateway.log 2>&1 &
+          for i in $(seq 1 35); do
+            if curl -fsS --cacert /tmp/pocket-fue-loopback-cert.pem https://127.0.0.1:5443/healthz > /dev/null; then break; fi
+            sleep 1
+          done
+          curl -fsS --cacert /tmp/pocket-fue-loopback-cert.pem https://127.0.0.1:5443/healthz > /dev/null
+          status="$(curl -sS --cacert /tmp/pocket-fue-loopback-cert.pem -o /dev/null -w '%{http_code}' https://127.0.0.1:5443/mobile/onboarding)"
+          test "$status" = 403
+          echo 'POCKET_HTTPS_GATEWAY_DENIES_UNAUTHORIZED=true'
+      - name: Install real WebKit engine into isolated frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps webkit
+      - name: Issue private short-lived pairing and certify lifecycle
+        shell: bash
+        run: |
+          set -euo pipefail
+          private_file="$(mktemp)"
+          chmod 600 "$private_file"
+          trap 'rm -f "$private_file"' EXIT
+          python scripts/ci/pocket_843_845_issue_local.py > "$private_file"
+          (cd frontend && FUE_LIVE_BROWSER_CODE_FILE="$private_file" POCKET_TESTED_HEAD="$(git -C .. rev-parse HEAD)" node ../scripts/ci/pocket_843_845_live_webkit.mjs)
+      - name: Keep only synthetic browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: pocket-843-845-local-tls-webkit-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            /tmp/pocket-pwa-first-launch-after-webkit.png
+            /tmp/pocket-pwa-first-launch-failed-webkit.png
+          retention-days: 1
+          if-no-files-found: ignore
+
+# This isolated test is not a physical iPhone installation or a production launch.
+# No tunnels, clinical records, clinic ports, Vercel or mutation of actual cabinets.
