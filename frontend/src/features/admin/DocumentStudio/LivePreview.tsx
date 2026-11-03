@@ -1,6 +1,7 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Loader2, Maximize, Printer, Download, RefreshCcw } from 'lucide-react';
+import { MobilePdfCanvas } from './MobilePdfCanvas';
 
 interface LivePreviewProps {
   pdfUrl: string | null;
@@ -21,6 +22,15 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
 }) => {
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const pdfFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [mobileView, setMobileView] = useState(() => window.matchMedia('(max-width: 639px)').matches);
+
+  useEffect(() => {
+    const query = window.matchMedia('(max-width: 639px)');
+    const onChange = (event: MediaQueryListEvent) => setMobileView(event.matches);
+    setMobileView(query.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
 
   useEffect(() => {
     if (inline) return;
@@ -111,12 +121,16 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
         )}
 
         {pdfUrl ? (
-          <iframe
-            ref={pdfFrameRef}
-            src={pdfUrl}
-            className="h-full w-full border-none"
-            title={`Aperçu PDF — ${title}`}
-          />
+          mobileView ? (
+            <MobilePdfCanvas pdfUrl={pdfUrl} />
+          ) : (
+            <iframe
+              ref={pdfFrameRef}
+              src={pdfUrl}
+              className="h-full w-full border-none"
+              title={`Aperçu PDF — ${title}`}
+            />
+          )
         ) : !loading ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center sm:p-16">
             <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-slate-100 text-slate-300 shadow-inner sm:h-24 sm:w-24">
@@ -135,7 +149,12 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
               type="button"
               disabled={loading}
               onClick={() => {
-                // Print the exact PDF being previewed, never regenerate a second copy.
+                // On mobile, open the exact PDF in the native viewer: printing
+                // a hidden or unsupported embedded frame can silently fail.
+                if (mobileView) {
+                  window.open(pdfUrl.split('#')[0], '_blank', 'noopener,noreferrer');
+                  return;
+                }
                 try {
                   const frame = pdfFrameRef.current?.contentWindow;
                   if (!frame) throw new Error('PDF frame unavailable');
