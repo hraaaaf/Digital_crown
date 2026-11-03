@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from backend import database, models
 from backend.routers.auth import require_permission
 from backend.services.cephalo_r15_clinical_studio import build_r15_clinical_studio_snapshot
+from backend.services.cephalo_r13_option_decision import R13DecisionRequest, decide_r13_option
 from backend.services.cephalo_r11_r13_staging import (
     R11R13StagingRequest,
     read_staged_clinical_evidence,
@@ -114,3 +115,18 @@ def get_r11_r13_clinical_snapshot(
 ):
     analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
     return read_staged_clinical_evidence(patient_id=patient_id, analysis=analysis)
+
+
+@router.post("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r13-option-decision", status_code=201)
+def post_r13_clinician_option_decision(
+    patient_id: int,
+    analysis_id: int,
+    body: R13DecisionRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Select or reject one eligible R13 option with a backend audit. NOT R14."""
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db, lock=True)
+    return decide_r13_option(
+        patient_id=patient_id, analysis=analysis, actor=current_user, request=body, db=db,
+    )
