@@ -23,7 +23,10 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const pdfFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [mobileView, setMobileView] = useState(() => window.matchMedia('(max-width: 639px)').matches);
-  const [compatiblePreview, setCompatiblePreview] = useState(false);
+  // PDF.js is the reliable default on the main application's desktop preview.
+  // Chromium's native PDF plugin can paint a blank or black frame, even when
+  // the PDF is valid. The native viewer remains available by explicit choice.
+  const [compatiblePreview, setCompatiblePreview] = useState(true);
   const showCanvas = mobileView || compatiblePreview;
 
   useEffect(() => {
