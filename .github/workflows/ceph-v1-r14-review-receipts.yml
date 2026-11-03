@@ -7,6 +7,8 @@ on:
     paths:
       - 'backend/services/cephalo_r14_review_receipt.py'
       - 'backend/services/cephalo_r11_r13_staging.py'
+      - 'backend/services/cephalo_r11_r12_attestation.py'
+      - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
       - 'backend/services/cephalo_r13_option_read.py'
       - 'backend/services/cephalo_r13_decision_authority.py'
@@ -22,6 +24,8 @@ on:
     paths:
       - 'backend/services/cephalo_r14_review_receipt.py'
       - 'backend/services/cephalo_r11_r13_staging.py'
+      - 'backend/services/cephalo_r11_r12_attestation.py'
+      - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
       - 'backend/services/cephalo_r13_option_read.py'
       - 'backend/services/cephalo_r13_decision_authority.py'
@@ -69,6 +73,7 @@ jobs:
           python -m pytest -q \
             backend/tests/test_cephalo_r14_review_receipt.py \
             backend/tests/test_cephalo_r11_r13_staging.py \
+            backend/tests/test_cephalo_r11_r12_attestation.py \
             backend/tests/test_cephalo_r13_option_decision.py \
             backend/tests/test_cephalo_r13_option_read.py \
             backend/tests/test_cephalo_r14_final_validation_safety.py \
