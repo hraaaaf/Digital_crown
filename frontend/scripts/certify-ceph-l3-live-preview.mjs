@@ -23,7 +23,7 @@ const server = await createServer({
   clearScreen: false,
 });
 await server.listen();
-// The native PDF plugin cannot be visually certified in headless Chromium.
+// The desktop native PDF plugin cannot be visually certified in headless Chromium.
 // Run inside xvfb-run to exercise the actual PDF viewer paint path.
 const browser = await chromium.launch({ headless: false });
 const results = [];
@@ -47,8 +47,30 @@ try {
     await page.goto('http://127.0.0.1:4189/tests/visual/ceph-l3-live-preview.html', { waitUntil: 'networkidle' });
     const dialog = page.getByRole('dialog');
     await dialog.waitFor({ timeout: 20000 });
-    const frame = page.locator('iframe[title^="Aperçu PDF"]');
-    await frame.waitFor({ timeout: 15000 });
+    const isMobile = viewport.width < 500;
+    let canvasVariation = null;
+    if (isMobile) {
+      const mobilePage = page.locator('[data-testid="mobile-pdf-pages"] canvas[data-pdf-rendered="true"]');
+      await mobilePage.first().waitFor({ state: 'visible', timeout: 30000 });
+      const count = await mobilePage.count();
+      if (count !== 1) throw new Error(`Expected one A4 PDF page, got ${count}`);
+      canvasVariation = await mobilePage.first().evaluate(canvas => {
+        const ctx = canvas.getContext('2d');
+        const pixels = ctx?.getImageData(0, 0, canvas.width, canvas.height).data;
+        if (!pixels) throw new Error('PDF canvas pixels inaccessible');
+        let lowest = 255;
+        let highest = 0;
+        for (let i = 0; i < pixels.length; i += 64) {
+          lowest = Math.min(lowest, pixels[i]);
+          highest = Math.max(highest, pixels[i]);
+        }
+        return highest - lowest;
+      });
+      if (canvasVariation < 20) throw new Error(`Blank mobile PDF canvas: variation ${canvasVariation}`);
+    } else {
+      const frame = page.locator('iframe[title^="Aperçu PDF"]');
+      await frame.waitFor({ timeout: 15000 });
+    }
     const print = page.getByRole('button', { name: 'Imprimer' });
     await print.waitFor({ state: 'visible', timeout: 15000 });
     await print.waitFor({ state: 'attached' });
@@ -61,8 +83,11 @@ try {
     await page.getByRole('button', { name: 'Plein écran' }).waitFor({ state: 'visible' });
     const parity = await page.evaluate(() => {
       const iframe = document.querySelector('iframe[title^="Aperçu PDF"]');
+      const mobile = document.querySelector('[data-testid="mobile-pdf-pages"]');
       const anchor = document.querySelector('a[download]');
-      return iframe?.getAttribute('src')?.split('#')[0] === anchor?.getAttribute('href');
+      const previewUrl = iframe?.getAttribute('src')?.split('#')[0] ??
+        mobile?.getAttribute('data-preview-pdf-url');
+      return !!previewUrl && previewUrl === anchor?.getAttribute('href');
     });
     if (!parity) throw new Error('Download and preview URLs differ');
     if (errors.length) throw new Error('React runtime errors: ' + errors.join('; '));
@@ -76,6 +101,8 @@ try {
     results.push({
       viewport, screenshot, pdf_sha256: actual,
       preview_download_blob_parity: true,
+      preview_mode: isMobile ? 'pdfjs-canvas-pages' : 'native-desktop-pdf',
+      canvas_variation: canvasVariation,
       print_button_enabled: true,
       print_dialog_opened: false,
       source: 'actual LivePreview.tsx; actual backend-generated synthetic PDF',
