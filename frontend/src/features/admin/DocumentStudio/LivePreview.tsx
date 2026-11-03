@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Maximize, Printer, Download, RefreshCcw } from 'lucide-react';
+import { X, Loader2, Maximize, Printer, Download, RefreshCcw, Eye } from 'lucide-react';
 import { MobilePdfCanvas } from './MobilePdfCanvas';
 
 interface LivePreviewProps {
@@ -23,6 +23,8 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
   const pdfFrameRef = useRef<HTMLIFrameElement | null>(null);
   const [mobileView, setMobileView] = useState(() => window.matchMedia('(max-width: 639px)').matches);
+  const [compatiblePreview, setCompatiblePreview] = useState(false);
+  const showCanvas = mobileView || compatiblePreview;
 
   useEffect(() => {
     const query = window.matchMedia('(max-width: 639px)');
@@ -72,6 +74,13 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {pdfUrl && !mobileView && (
+            <button type="button" onClick={() => setCompatiblePreview(current => !current)}
+              disabled={loading} aria-pressed={compatiblePreview}
+              className="flex min-h-11 items-center gap-2 rounded-xl border border-border-main bg-card px-4 py-2 text-xs font-semibold text-text-main focus-visible:ring-2 focus-visible:ring-primary/50">
+              <Eye size={16} /> {compatiblePreview ? 'Lecteur natif' : 'Aperçu compatible'}
+            </button>
+          )}
           {onRefresh && (
             <button
               type="button"
@@ -120,7 +129,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
         )}
 
         {pdfUrl ? (
-          mobileView ? (
+          showCanvas ? (
             <MobilePdfCanvas key={pdfUrl} pdfUrl={pdfUrl} />
           ) : (
             <iframe
@@ -150,7 +159,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
               onClick={() => {
                 // On mobile, open the exact PDF in the native viewer: printing
                 // a hidden or unsupported embedded frame can silently fail.
-                if (mobileView) {
+                if (showCanvas) {
                   window.open(pdfUrl.split('#')[0], '_blank', 'noopener,noreferrer');
                   return;
                 }
