@@ -11,6 +11,9 @@ on:
       - 'frontend/tests/visual/ceph-l3-live-preview.html'
       - 'frontend/tests/visual/ceph-l3-live-preview.tsx'
       - 'frontend/src/features/admin/DocumentStudio/LivePreview.tsx'
+      - 'frontend/src/features/admin/DocumentStudio/MobilePdfCanvas.tsx'
+      - 'frontend/package.json'
+      - 'frontend/package-lock.json'
       - '.github/workflows/ceph-v1-l3-clinical-gate-targeted.yml'
   workflow_dispatch:
 
