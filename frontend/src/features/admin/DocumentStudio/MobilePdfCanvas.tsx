@@ -37,13 +37,13 @@ export function MobilePdfCanvas({ pdfUrl }: MobilePdfCanvasProps) {
         pdfjs.GlobalWorkerOptions.workerSrc = workerModule.default;
 
         const task = pdfjs.getDocument({ url: pdfUrl, isEvalSupported: false });
-        const document = await task.promise;
-        currentDocument = document;
+        const pdfDocument = await task.promise;
+        currentDocument = pdfDocument;
         if (disposed) return;
 
-        for (let pageNo = 1; pageNo <= document.numPages; pageNo += 1) {
+        for (let pageNo = 1; pageNo <= pdfDocument.numPages; pageNo += 1) {
           if (disposed) return;
-          const page = await document.getPage(pageNo);
+          const page = await pdfDocument.getPage(pageNo);
           const reference = page.getViewport({ scale: 1 });
           const width = Math.max(120, pagesRoot.clientWidth - 8);
           const displayScale = width / reference.width;
