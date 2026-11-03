@@ -9,6 +9,7 @@ on:
       - 'backend/services/cephalo_r14_final_decision.py'
       - 'backend/services/cephalo_clinical_cas.py'
       - 'backend/services/cephalo_scientific_write.py'
+      - 'backend/tests/test_cephalo_pg_scientific_cas.py'
       - 'backend/tests/test_cephalo_scientific_write.py'
       - 'backend/repositories/cephalo_repository.py'
       - 'backend/routers/cephalo_auto_calibration.py'
@@ -40,6 +41,7 @@ on:
       - 'backend/services/cephalo_r14_final_decision.py'
       - 'backend/services/cephalo_clinical_cas.py'
       - 'backend/services/cephalo_scientific_write.py'
+      - 'backend/tests/test_cephalo_pg_scientific_cas.py'
       - 'backend/tests/test_cephalo_scientific_write.py'
       - 'backend/repositories/cephalo_repository.py'
       - 'backend/routers/cephalo_auto_calibration.py'
@@ -72,7 +74,22 @@ jobs:
   backend-r14-hold:
     runs-on: ubuntu-latest
     timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cephalo_ci
+          POSTGRES_PASSWORD: local_ci_only
+          POSTGRES_DB: cephalo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cephalo_ci -d cephalo_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     env:
+      CEPH_PG_URL: 'postgresql+psycopg2://cephalo_ci:local_ci_only@127.0.0.1:5432/cephalo_ci'
       SECRET_KEY: 'ceph-r14-isolated-review-key-32-chars'
       DATABASE_URL: 'sqlite:///:memory:'
       ENVIRONMENT: test
@@ -107,6 +124,7 @@ jobs:
             backend/tests/test_cephalo_r14_final_decision.py \
             backend/tests/test_cephalo_clinical_cas.py \
             backend/tests/test_cephalo_scientific_write.py \
+            backend/tests/test_cephalo_pg_scientific_cas.py \
             backend/tests/test_cephalo_repository_calibration_invariants.py \
             backend/tests/test_cephalo_auto_calibration_route.py \
             backend/tests/test_cephalo_calibration_route_provenance.py \
