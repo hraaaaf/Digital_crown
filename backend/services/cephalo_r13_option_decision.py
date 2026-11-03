@@ -6,6 +6,7 @@ from typing import Literal
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
 from backend import models
+from backend.services.cephalo_clinical_cas import cas_replace_clinical_json
 from backend.schemas.cephalo_evidence import ClinicianValidationEvidence, ValidationAction
 from backend.schemas.cephalo_r13_therapeutic_options import R13TreatmentOptionEvidence, R13TreatmentOptionStatus
 from backend.services.cephalo_r14_review_receipt import _current_graph, _graph_digest, _require_clinician
@@ -89,8 +90,11 @@ def decide_r13_option(*, patient_id, analysis, actor, request: R13DecisionReques
         "option_validations": [validation.model_dump(mode="json")],
     }, "clinical_validation_available": False}
     new_stage["content_sha256"] = _json_hash({k:v for k,v in new_stage.items() if k != "content_sha256"})
-    analysis.angles_data = {**analysis.angles_data, STAGING_KEY: new_stage}
-    db.add(analysis)
+    cas_replace_clinical_json(
+        db=db, analysis=analysis, patient_id=patient_id,
+        expected_revision=revision, expected_stage_sha=staged["content_sha256"],
+        replacement={**analysis.angles_data, STAGING_KEY: new_stage},
+    )
     db.add(models.AuditLog(
         user_id=actor_id, employer_id=actor.get_employer_id(),
         action=DECISION_ACTION, resource_type="CephaloAnalysis",
