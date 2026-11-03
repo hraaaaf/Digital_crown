@@ -75,7 +75,7 @@ def test_doctor_attestation_persisted_in_audit_without_plan(monkeypatch):
             patient_id=1, analysis=analysis, tenant_id=actor.get_employer_id(), db=db,
         )
         assert view["state"] == "CURRENT_NON_FINAL_ATTESTED"
-        assert db.query(models.AuditLog).count() == 2
+        assert db.query(models.AuditLog).count() == 4
         row = db.query(models.AuditLog).order_by(models.AuditLog.id.desc()).first()
         assert row.action == attest.ATTEST_ACTION
         metadata = json.loads(row.details)
@@ -94,7 +94,7 @@ def test_same_review_cannot_be_replayed(monkeypatch):
         with pytest.raises(HTTPException) as err:
             attest.attest_r11r12(patient_id=1, analysis=analysis, actor=actor, request=req, db=db)
         assert err.value.status_code == 409
-        assert db.query(models.AuditLog).count() == 2
+        assert db.query(models.AuditLog).count() == 4
 
 
 def test_r13_rejects_unattested_staging_even_with_test_rules(monkeypatch):
@@ -110,7 +110,7 @@ def test_r13_rejects_unattested_staging_even_with_test_rules(monkeypatch):
                 actor=actor, request=selection, db=db,
             )
         assert err.value.status_code == 409
-        assert db.query(models.AuditLog).count() == 1
+        assert db.query(models.AuditLog).count() == 3
 
 
 def test_review_invalidated_when_graph_revision_changes(monkeypatch):
@@ -159,7 +159,7 @@ def test_unreviewed_production_registry_prevents_attestation(monkeypatch):
                 actor=actor, request=req, db=db,
             )
         assert err.value.status_code == 409
-        assert db.query(models.AuditLog).count() == 1
+        assert db.query(models.AuditLog).count() == 3
 
 
 def test_router_checks_patient_boundary_before_study_query(monkeypatch):
@@ -224,4 +224,4 @@ def test_deleted_attestation_audit_cannot_authorize_r13(monkeypatch):
                 patient_id=1, analysis=analysis, actor=actor, request=requested, db=db,
             )
         assert err.value.status_code == 409
-        assert db.query(models.AuditLog).count() == 1
+        assert db.query(models.AuditLog).count() == 3
