@@ -6,16 +6,20 @@ on:
       - feat/ceph-v1-r14-audit-receipts-20261103
     paths:
       - 'backend/services/cephalo_r14_review_receipt.py'
+      - 'backend/services/cephalo_r11_r13_staging.py'
       - 'backend/routers/cephalo_clinical_studio.py'
       - 'backend/tests/test_cephalo_r14_review_receipt.py'
+      - 'backend/tests/test_cephalo_r11_r13_staging.py'
       - '.github/workflows/ceph-v1-r14-review-receipts.yml'
   pull_request:
     branches:
       - feat/ceph-v1-l3-practitioner-gate-20261102
     paths:
       - 'backend/services/cephalo_r14_review_receipt.py'
+      - 'backend/services/cephalo_r11_r13_staging.py'
       - 'backend/routers/cephalo_clinical_studio.py'
       - 'backend/tests/test_cephalo_r14_review_receipt.py'
+      - 'backend/tests/test_cephalo_r11_r13_staging.py'
       - '.github/workflows/ceph-v1-r14-review-receipts.yml'
   workflow_dispatch:
 
@@ -54,6 +58,7 @@ jobs:
         run: |
           python -m pytest -q \
             backend/tests/test_cephalo_r14_review_receipt.py \
+            backend/tests/test_cephalo_r11_r13_staging.py \
             backend/tests/test_cephalo_r14_final_validation_safety.py \
             backend/tests/test_cephalo_r15_clinical_studio.py \
             backend/tests/test_cephalo_r17_pdf_projection.py
