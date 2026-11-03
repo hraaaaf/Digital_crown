@@ -3,6 +3,7 @@ import json
 from backend import models
 from backend.schemas.cephalo_evidence import ClinicianValidationEvidence, ValidationAction
 from backend.services.cephalo_r13_option_decision import DECISION_ACTION
+from backend.services.cephalo_r11_r12_attestation import verified_r11r12_attestation
 from backend.services.cephalo_r13_decision_authority import resolve_r13_staging
 from backend.services.cephalo_r11_r13_staging import STAGING_KEY, read_staged_clinical_evidence
 
@@ -44,6 +45,11 @@ def read_r13_decision(*, patient_id, analysis, tenant_id, db):
             and claim.get("timestamp") == validation.validated_at.isoformat()
             and selected.clinician_decided_at == validation.validated_at
             and claim.get("action") == action
+            and verified_r11r12_attestation(
+                patient_id=patient_id, analysis=analysis, tenant_id=tenant_id,
+                graph_sha256=staged["graph_sha256"], revision=staged["analysis_revision"],
+                staging_sha256=claim.get("staging_before"), db=db,
+            )
             and claim.get("clinical_validation_available") is False
         ):
             raise ValueError("Unverified R13 audit")
