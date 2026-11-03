@@ -8,6 +8,11 @@ on:
       - 'backend/services/cephalo_r14_review_receipt.py'
       - 'backend/services/cephalo_r14_final_decision.py'
       - 'backend/services/cephalo_clinical_cas.py'
+      - 'backend/services/cephalo_scientific_write.py'
+      - 'backend/tests/test_cephalo_scientific_write.py'
+      - 'backend/repositories/cephalo_repository.py'
+      - 'backend/routers/cephalo_auto_calibration.py'
+      - 'backend/routers/cephalo_calibration_provenance.py'
       - 'backend/tests/test_cephalo_clinical_cas.py'
       - 'backend/services/cephalo_r14_final_read.py'
       - 'backend/tests/test_cephalo_r14_final_decision.py'
@@ -30,6 +35,11 @@ on:
       - 'backend/services/cephalo_r14_review_receipt.py'
       - 'backend/services/cephalo_r14_final_decision.py'
       - 'backend/services/cephalo_clinical_cas.py'
+      - 'backend/services/cephalo_scientific_write.py'
+      - 'backend/tests/test_cephalo_scientific_write.py'
+      - 'backend/repositories/cephalo_repository.py'
+      - 'backend/routers/cephalo_auto_calibration.py'
+      - 'backend/routers/cephalo_calibration_provenance.py'
       - 'backend/tests/test_cephalo_clinical_cas.py'
       - 'backend/services/cephalo_r14_final_read.py'
       - 'backend/tests/test_cephalo_r14_final_decision.py'
@@ -88,6 +98,8 @@ jobs:
             backend/tests/test_cephalo_r13_option_read.py \
             backend/tests/test_cephalo_r14_final_decision.py \
             backend/tests/test_cephalo_clinical_cas.py \
+            backend/tests/test_cephalo_scientific_write.py \
+            backend/tests/test_cephalo_repository_calibration_invariants.py \
             backend/tests/test_cephalo_r14_final_validation_safety.py \
             backend/tests/test_cephalo_r15_clinical_studio.py \
             backend/tests/test_cephalo_r17_pdf_projection.py
