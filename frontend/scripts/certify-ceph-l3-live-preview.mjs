@@ -23,7 +23,9 @@ const server = await createServer({
   clearScreen: false,
 });
 await server.listen();
-const browser = await chromium.launch();
+// The native PDF plugin cannot be visually certified in headless Chromium.
+// Run inside xvfb-run to exercise the actual PDF viewer paint path.
+const browser = await chromium.launch({ headless: false });
 const results = [];
 try {
   for (const viewport of [
@@ -67,6 +69,9 @@ try {
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth > innerWidth + 2);
     if (overflow) throw new Error('Horizontal page overflow');
     const screenshot = `ceph-l3-preview-${viewport.name}-${viewport.width}x${viewport.height}.png`;
+    // Give Chromium's native PDF plugin a chance to paint after the modal
+    // controls become enabled. Pixel-level verification runs in the workflow.
+    await page.waitForTimeout(1500);
     await page.screenshot({ path: path.join(output, screenshot), animations: 'disabled' });
     results.push({
       viewport, screenshot, pdf_sha256: actual,
