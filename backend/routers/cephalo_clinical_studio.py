@@ -4,6 +4,9 @@ from sqlalchemy.orm import Session
 from backend import database, models
 from backend.routers.auth import require_permission
 from backend.services.cephalo_r15_clinical_studio import build_r15_clinical_studio_snapshot
+from backend.services.cephalo_r11_target_reviews import (
+    R11TargetReviewRequest, record_r11_target_review,
+)
 from backend.services.cephalo_r11_r12_attestation import (
     R11R12AttestationRequest,
     attest_r11r12,
@@ -152,6 +155,22 @@ def get_r13_clinician_option_decision(
     return read_r13_decision(
         patient_id=patient_id, analysis=analysis,
         tenant_id=current_user.get_employer_id(), db=db,
+    )
+
+
+@router.post("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r11-target-reviews", status_code=201)
+def post_r11_individual_review(
+    patient_id: int,
+    analysis_id: int,
+    body: R11TargetReviewRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Clinician confirms one exact current finding or diagnosis, never edits science."""
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db, lock=True)
+    return record_r11_target_review(
+        patient_id=patient_id, analysis=analysis, actor=current_user,
+        request=body, db=db,
     )
 
 
