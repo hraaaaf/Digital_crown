@@ -44,7 +44,7 @@ export function MobilePdfCanvas({ pdfUrl }: MobilePdfCanvasProps) {
           if (disposed) return;
           const page = await pdfDocument.getPage(pageNo);
           const reference = page.getViewport({ scale: 1 });
-          const width = Math.max(120, pagesRoot.clientWidth - 8);
+          const width = Math.min(820, Math.max(120, pagesRoot.clientWidth - 8));
           const displayScale = width / reference.width;
           const density = Math.min(window.devicePixelRatio || 1, 2);
           const viewport = page.getViewport({ scale: displayScale * density });
@@ -91,7 +91,7 @@ export function MobilePdfCanvas({ pdfUrl }: MobilePdfCanvasProps) {
   }, [pdfUrl]);
 
   return (
-    <div className="h-full w-full overflow-y-auto bg-background p-3" aria-label="Aperçu des pages PDF sur mobile">
+    <div className="h-full w-full overflow-y-auto bg-background p-3" aria-label="Aperçu des pages PDF">
       {status === 'loading' && (
         <div role="status" className="flex items-center justify-center gap-3 py-8 text-sm text-text-muted">
           <Loader2 className="animate-spin" size={20} />
