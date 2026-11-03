@@ -23,7 +23,6 @@ export function MobilePdfCanvas({ pdfUrl }: MobilePdfCanvasProps) {
     let currentRender: { cancel: () => void } | null = null;
     let currentDocument: { destroy: () => Promise<void> } | null = null;
     pagesRoot.replaceChildren();
-    setStatus('loading');
 
     const renderPages = async () => {
       try {
@@ -109,7 +108,7 @@ export function MobilePdfCanvas({ pdfUrl }: MobilePdfCanvasProps) {
           </a>
         </div>
       )}
-      <div ref={pagesRef} data-testid="mobile-pdf-pages"
+      <div ref={pagesRef} data-testid="mobile-pdf-pages" data-preview-pdf-url={pdfUrl.split('#')[0]}
         className="flex w-full flex-col items-center gap-3" />
     </div>
   );
