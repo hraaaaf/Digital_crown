@@ -10,6 +10,7 @@ from backend import models
 from backend.routers import cephalo_clinical_studio as router
 from backend.services import cephalo_r13_option_decision as decisions
 from backend.services import cephalo_r11_r12_attestation as attestation
+from backend.services import cephalo_r11_target_reviews as target_reviews
 from backend.services import cephalo_r13_decision_authority as authority
 from backend.services import cephalo_r11_r13_staging as staging
 from backend.services import cephalo_r15_clinical_studio as studio
@@ -39,6 +40,24 @@ def _source_locked_test_validators(monkeypatch):
     monkeypatch.setattr(decisions, "validate_r13_therapeutic_options", reviewed_synthetic_rules)
 
 
+def _complete_r11_reviews(*, db, analysis, actor, stage_sha):
+    """Synthetic fixture: explicit authenticated API action for each R11 target."""
+    graph = analysis.angles_data["_evidence_graph_v1"]
+    for target_type, key, group in (
+        ("finding", "finding_id", graph["findings"]),
+        ("diagnosis", "diagnosis_id", graph["diagnoses"]),
+    ):
+        for item in group:
+            target_reviews.record_r11_target_review(
+                patient_id=1, analysis=analysis, actor=actor,
+                request=target_reviews.R11TargetReviewRequest(
+                    expected_revision=2, expected_staging_sha256=stage_sha,
+                    target_type=target_type, target_id=item[key],
+                    action="CONFIRM_R11_TARGET_REVIEW",
+                ), db=db,
+            )
+
+
 def _prepared(monkeypatch):
     _source_locked_test_validators(monkeypatch)
     engine, body, actor = synthetic_case()
@@ -48,6 +67,10 @@ def _prepared(monkeypatch):
             patient_id=1, analysis=analysis, actor=actor, body=body, db=db,
         )
     with Session(engine) as db:
+        _complete_r11_reviews(
+            db=db, analysis=db.get(models.CephaloAnalysis, 101),
+            actor=actor, stage_sha=stage["content_sha256"],
+        )
         attestation.attest_r11r12(
             patient_id=1, analysis=db.get(models.CephaloAnalysis, 101),
             actor=actor, request=attestation.R11R12AttestationRequest(
