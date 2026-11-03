@@ -14,7 +14,7 @@ from backend.services import cephalo_r13_decision_authority as authority
 from backend.services import cephalo_r13_option_decision as decision
 from backend.services.cephalo_r13_therapeutic_safety import validate_r13_therapeutic_options as production_validate
 from backend.tests.test_cephalo_r11_r13_staging import fixture, approve_test_rules
-from backend.tests.test_cephalo_r13_option_decision import _source_locked_test_validators
+from backend.tests.test_cephalo_r13_option_decision import _source_locked_test_validators, _complete_r11_reviews
 
 
 def prepared(monkeypatch):
@@ -24,6 +24,11 @@ def prepared(monkeypatch):
         result = staging.stage_clinical_evidence(
             patient_id=1, analysis=db.get(models.CephaloAnalysis, 101),
             actor=actor, body=body, db=db,
+        )
+    with Session(engine) as db:
+        _complete_r11_reviews(
+            db=db, analysis=db.get(models.CephaloAnalysis, 101),
+            actor=actor, stage_sha=result["content_sha256"],
         )
     req = attest.R11R12AttestationRequest(
         expected_revision=2,
