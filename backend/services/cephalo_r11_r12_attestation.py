@@ -108,3 +108,83 @@ def verified_r11r12_attestation(
         ):
             return True
     return False
+
+
+def attest_r11r12(*, patient_id, analysis, actor, request: R11R12AttestationRequest, db):
+    actor_id = _require_clinician(actor)
+    if analysis.patient_id != patient_id:
+        raise HTTPException(status_code=404, detail="Analyse hors patient.")
+    graph, revision = _current_graph(analysis)
+    if revision != request.expected_revision:
+        raise HTTPException(status_code=409, detail="Révision scientifique périmée.")
+    staged, r13 = resolve_r13_staging(patient_id=patient_id, analysis=analysis)
+    if staged["content_sha256"] != request.expected_staging_sha256:
+        raise HTTPException(status_code=409, detail="Contenu R11–R13 modifié.")
+    if r13.option_validations:
+        raise HTTPException(status_code=409, detail="L'attestation R11/R12 précède obligatoirement R13.")
+    require_committed_staging_audit(db=db, analysis=analysis, staged=staged, actor=actor)
+    if staged["actor_user_id"] != actor_id or not _actor_owns_review(r13, actor_id):
+        raise HTTPException(status_code=403, detail="Revue clinique R11/R12 non attribuable au praticien.")
+    sha = _graph_digest(graph)
+    tenant = actor.get_employer_id()
+    if verified_r11r12_attestation(
+        patient_id=patient_id, analysis=analysis, tenant_id=tenant,
+        graph_sha256=sha, revision=revision,
+        staging_sha256=staged["content_sha256"], db=db,
+    ):
+        raise HTTPException(status_code=409, detail="Attestation déjà enregistrée.")
+    current, rev = _current_graph(analysis)
+    if rev != revision or _graph_digest(current) != sha:
+        raise HTTPException(status_code=409, detail="Graphe modifié pendant la revue.")
+    now = dt.datetime.now(dt.timezone.utc).isoformat()
+    details = {
+        "contract": ATTEST_CONTRACT,
+        "patient_id": patient_id,
+        "analysis_id": analysis.id,
+        "actor_user_id": actor_id,
+        "analysis_revision": revision,
+        "graph_sha256": sha,
+        "staging_sha256": staged["content_sha256"],
+        "reviewed_at": now,
+        "clinical_validation_available": False,
+        "r14_status": "NOT_VALIDATED",
+    }
+    db.add(models.AuditLog(
+        user_id=actor_id, employer_id=tenant,
+        action=ATTEST_ACTION, resource_type="CephaloAnalysis",
+        resource_id=str(analysis.id), severity="INFO",
+        details=json.dumps(details, sort_keys=True, ensure_ascii=True),
+    ))
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
+    return {
+        "state": "R11_R12_REVIEW_ATTESTED_NON_FINAL",
+        "analysis_revision": revision,
+        "staging_sha256": staged["content_sha256"],
+        "clinical_validation_available": False,
+        "r14_status": "NOT_VALIDATED",
+    }
+
+
+def read_r11r12_attestation(*, patient_id, analysis, tenant_id, db):
+    if analysis.patient_id != patient_id:
+        raise HTTPException(status_code=404, detail="Analyse hors patient.")
+    try:
+        graph, revision = _current_graph(analysis)
+        staged, _r13 = resolve_r13_staging(patient_id=patient_id, analysis=analysis)
+        sha = _graph_digest(graph)
+        current = verified_r11r12_attestation(
+            patient_id=patient_id, analysis=analysis, tenant_id=tenant_id,
+            graph_sha256=sha, revision=revision,
+            staging_sha256=staged["content_sha256"], db=db,
+        )
+        return {
+            "state": "CURRENT_NON_FINAL_ATTESTED" if current else "NOT_ATTESTED",
+            "analysis_revision": revision,
+            "clinical_validation_available": False,
+        }
+    except HTTPException:
+        return {"state": "STALE_OR_UNVERIFIED", "clinical_validation_available": False}
