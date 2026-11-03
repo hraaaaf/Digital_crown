@@ -64,7 +64,26 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Capture actual LivePreview component — desktop and mobile Chromium (NO DEPLOY)
         working-directory: frontend
-        run: node scripts/certify-ceph-l3-live-preview.mjs
+        run: xvfb-run -a node scripts/certify-ceph-l3-live-preview.mjs
+      - name: Reject empty Chromium PDF viewport screenshots
+        run: |
+          python - <<'PY'
+          from PIL import Image, ImageStat
+          from pathlib import Path
+          folder = Path("artifacts/cephalo-pdf-l3-human-review/browser")
+          checks = {
+              "ceph-l3-preview-desktop-chromium-1440x900.png": (400, 170, 1040, 680),
+              "ceph-l3-preview-mobile-chromium-390x844.png": (65, 190, 325, 650),
+          }
+          for file_name, crop in checks.items():
+              file = folder / file_name
+              with Image.open(file).convert("RGB") as image:
+                  data = ImageStat.Stat(image.crop(crop))
+                  variation = max(data.stddev)
+              if variation < 4:
+                  raise SystemExit(f"BLANK PDF PREVIEW — {file_name}: variation {variation:.2f}; FUE NO-GO")
+              print(f"{file_name}: PDF preview image variation {variation:.2f} VERIFIED")
+          PY
       - name: Publish screenshot evidence — NOT human approval
         if: always()
         uses: actions/upload-artifact@v4
