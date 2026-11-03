@@ -4,6 +4,11 @@ from sqlalchemy.orm import Session
 from backend import database, models
 from backend.routers.auth import require_permission
 from backend.services.cephalo_r15_clinical_studio import build_r15_clinical_studio_snapshot
+from backend.services.cephalo_r11_r13_staging import (
+    R11R13StagingRequest,
+    read_staged_clinical_evidence,
+    stage_clinical_evidence,
+)
 from backend.services.cephalo_r14_review_receipt import (
     CephaloBlockerReviewRequest,
     read_blocker_review_receipts,
@@ -45,14 +50,15 @@ def get_cephalo_clinical_studio(
     )
 
 
-def _bound_review_analysis(patient_id: int, analysis_id: int, current_user: models.User, db: Session):
+def _bound_review_analysis(patient_id: int, analysis_id: int, current_user: models.User, db: Session, *, lock: bool = False):
     # Patient ownership must be checked BEFORE an analysis query, including GET.
     assert_patient_access(patient_id, current_user, db)
-    analysis = (
+    query = (
         db.query(models.CephaloAnalysis)
         .filter(models.CephaloAnalysis.patient_id == patient_id, models.CephaloAnalysis.id == analysis_id)
-        .first()
     )
+    # The staged scientific JSON must not overwrite a concurrent revision.
+    analysis = (query.with_for_update() if lock else query).first()
     if not analysis or analysis.patient_id != patient_id or analysis.id != analysis_id:
         raise HTTPException(status_code=404, detail="Analyse céphalométrique introuvable pour ce patient")
     return analysis
@@ -82,3 +88,29 @@ def get_r14_blocker_receipts(
 ):
     analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
     return read_blocker_review_receipts(patient_id=patient_id, analysis=analysis, db=db)
+
+
+@router.post("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r11-r13-staging", status_code=201)
+def stage_r11_r13_clinical_snapshot(
+    patient_id: int,
+    analysis_id: int,
+    body: R11R13StagingRequest,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Store non-final source-validated data; never select R13 or sign R14."""
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db, lock=True)
+    return stage_clinical_evidence(
+        patient_id=patient_id, analysis=analysis, actor=current_user, body=body, db=db,
+    )
+
+
+@router.get("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r11-r13-staging")
+def get_r11_r13_clinical_snapshot(
+    patient_id: int,
+    analysis_id: int,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
+    return read_staged_clinical_evidence(patient_id=patient_id, analysis=analysis)
