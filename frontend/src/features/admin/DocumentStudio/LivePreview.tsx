@@ -27,7 +27,6 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   useEffect(() => {
     const query = window.matchMedia('(max-width: 639px)');
     const onChange = (event: MediaQueryListEvent) => setMobileView(event.matches);
-    setMobileView(query.matches);
     query.addEventListener('change', onChange);
     return () => query.removeEventListener('change', onChange);
   }, []);
@@ -122,7 +121,7 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
 
         {pdfUrl ? (
           mobileView ? (
-            <MobilePdfCanvas pdfUrl={pdfUrl} />
+            <MobilePdfCanvas key={pdfUrl} pdfUrl={pdfUrl} />
           ) : (
             <iframe
               ref={pdfFrameRef}
