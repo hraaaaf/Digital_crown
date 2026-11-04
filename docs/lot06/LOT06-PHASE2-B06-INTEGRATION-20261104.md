@@ -433,3 +433,12 @@ Cette insertion est **documentaire uniquement** ; la batterie `lot06-phase2-b06-
 **Batterie actuellement clôturée :** 77 backend + 18 React + Windows SUCCESS est une preuve de laboratoire du contrat SQLCipher, **pas** une validation d'un cabinet PostgreSQL ni une autorisation de migration. Les certificats Windows de test ne constituent pas une signature éditeur de production.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false` · `LOT10_PHYSICAL_VALIDATED=false`. PR #1210 DRAFT et non fusionnée. Aucun déploiement, aucune activation cabinet.
+
+
+## PRE — B06-4B : PostgreSQL clone FUE / rollback invariants (2026-11-04)
+
+**Current source** PR #1210 OPEN/DRAFT, HEAD `169a608d3b0fb9c90407d3ee0efc6464b5dc2e57`. [B06 #41925461995](https://github.com/hraaaaf/Digital_crown/actions/runs/41925461995) 3/3 SUCCESS (77 backend / 18 React / Windows). Same-HEAD Portability Runtime, CB-02, 03K/L, 03M SUCCESS. Independent B03 Windows [#41925470235](https://github.com/hraaaaf/Digital_crown/actions/runs/41925470235) FAILURE during synthetic spool seed `DC06B03_SYNTHETIC_REAL_SPOOL_SEED_FAILED`; this is an outstanding regression/runner reliability signal, not an authorized waiver. Human Visual Approval FAILURE remains deliberate gate.
+
+**GOAL:** test the documented on-prem PostgreSQL engine as a **disposable CI service/clone only** for the unchanged B06 receipt/audit/outbox layout, primary/unique constraints, append-only enforcement, transaction rollback/replay, and verify the current product durable service still REFUSES PostgreSQL. Convert findings into a concrete, operator-approval-required PostgreSQL migration/adapter contract. Reuse existing Media Core primitives and minimize parallel code. No actual cabinet database, no patient data, no migration Alembic in this pass, no product PostgreSQL enablement, no claim of integrated PG ClinicalAsset or clinical release.
+
+**REQUIRED safety:** sandbox must be synthetic, loopback-only and fail closed without exact test env; no runtime DDL/automatic fallback; no approval of PostgreSQL backend or schema silently. If tests expose a mismatch, mark the PG contract OPEN rather than assert parity. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
