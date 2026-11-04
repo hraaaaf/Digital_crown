@@ -95,14 +95,21 @@ def _wire(manifest: UnassignedManifest) -> bytes:
     ).encode("ascii")
 
 
-def unsigned_from_capture(claim, *, nonce: str | None = None,
-                          now: int | None = None) -> UnassignedManifest:
-    """Synthetic device-side projection, NEVER including patient/staff IDs."""
+def new_unassigned_manifest(
+    *, tenant: int, device: str, station: str, generation: int,
+    capture: str, digest: str, byte_size: int, mime: str = "image/png",
+    nonce: str | None = None, now: int | None = None,
+) -> UnassignedManifest:
+    """Device-side contract: accepts ONLY unassigned capture metadata.
+
+    Cannot receive a Patient/User/Appointment model or a patient-bound claim.
+    The future physical scanner must produce this BEFORE any staff selection.
+    """
     issued = int(time.time()) if now is None else now
     result = UnassignedManifest(
-        tenant=claim.tenant, device=claim.device, station=claim.station,
-        generation=claim.generation, capture=claim.capture,
-        digest=claim.digest, byte_size=claim.byte_size, mime="image/png",
+        tenant=tenant, device=device, station=station,
+        generation=generation, capture=capture,
+        digest=digest, byte_size=byte_size, mime=mime,
         nonce=nonce if nonce is not None else secrets.token_hex(24),
         issued_at=issued, expires_at=issued + 170,
     )
