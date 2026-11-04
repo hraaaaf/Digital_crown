@@ -188,8 +188,26 @@ public static class DC06RClient {
     $env:DC06_B06_NATIVE_INVENTORY_LAB='1'
     $env:DC06_B06_NATIVE_MEDIA_LAB='1'
     $python=(Get-Command python -ErrorAction Stop).Source
-    & $python -I (Join-Path $PSScriptRoot 'windows_b06_native_media_client.py') $PipeName $B06MediaStatus
-    if ($LASTEXITCODE -ne 0) { throw ('DC06_B06_NATIVE_MEDIA_FAILED_'+$LASTEXITCODE) }
+    $mediaProbeOutput=@(& $python -I (Join-Path $PSScriptRoot 'windows_b06_native_media_client.py') $PipeName $B06MediaStatus)
+    if ($LASTEXITCODE -ne 0) {
+      # Whitelist-only diagnostic: never echo child output, media, path or SHA.
+      $reason='UNCLASSIFIED'
+      $allowed=@('NATIVE_MEDIA_LAB_DISABLED','NATIVE_MEDIA_INVENTORY_CHANGED',
+        'NATIVE_MEDIA_REQUEST_DENIED','NATIVE_MEDIA_PIPE_UNAVAILABLE','NATIVE_MEDIA_PEER_DENIED',
+        'NATIVE_MEDIA_SEND_DENIED','NATIVE_MEDIA_TRUNCATED','NATIVE_MEDIA_SERVICE_REFUSED',
+        'NATIVE_MEDIA_LENGTH_MISMATCH','NATIVE_MEDIA_RESPONSE_DENIED',
+        'NATIVE_MEDIA_FINAL_INTEGRITY_DENIED','NATIVE_INVENTORY_LAB_DISABLED',
+        'NATIVE_INVENTORY_PIPE_UNAVAILABLE','NATIVE_INVENTORY_PEER_DENIED',
+        'NATIVE_INVENTORY_REQUEST_DENIED','NATIVE_INVENTORY_REPLY_DENIED',
+        'NATIVE_INVENTORY_REPLY_LENGTH','NATIVE_INVENTORY_FRAME_DENIED','UNKNOWN')
+      foreach ($item in $allowed) {
+        if (@($mediaProbeOutput) -contains ('DC06_B06_MEDIA_CLIENT_FAIL_' + $item)) {
+          $reason=$item
+          break
+        }
+      }
+      throw ('DC06_B06_NATIVE_MEDIA_FAILED_'+$LASTEXITCODE+'_'+$reason)
+    }
   }
   if ($ExpectedOpen -eq 0) {
     Write-Output 'C05B03R_ALLOWED_USER_READ_WRITE_ALLOWED_INSTANCE_CREATION_DENIED'
