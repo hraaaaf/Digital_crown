@@ -45,6 +45,9 @@ def test_phase2_authentic_review_and_encrypted_signed_ack_replay(
         http.cookies.set("dc_workstation", station)
         assert _post(http, claim, raw, headers).status_code == 409
         assert http.get(endpoint).status_code in (401, 403)
+        preview_endpoint = "/isolated/lot06-phase2/preview/" + claim.capture
+        # Authenticated access alone does not unlock a capture preview.
+        assert http.get(preview_endpoint, headers=headers).status_code == 409
         response = http.get(endpoint, headers=headers)
         assert response.status_code == 200, response.text[:200]
         view = response.json()
@@ -52,7 +55,13 @@ def test_phase2_authentic_review_and_encrypted_signed_ack_replay(
         assert view["clinical_receipt_authorized"] is False
         assert view["numero_dossier"] and view["date_naissance"]
         assert view["capture_digest"] == claim.digest
-        preview = http.get(view["preview_url"], headers=headers)
+        assert http.get(view["preview_url"], headers=headers).status_code == 409
+        assert http.get(view["preview_url"], headers={
+            **headers, "X-DC-Review-Challenge": "wrong-review-challenge-000000000",
+        }).status_code == 409
+        preview = http.get(view["preview_url"], headers={
+            **headers, "X-DC-Review-Challenge": view["challenge"],
+        })
         assert preview.status_code == 200 and preview.content == raw
         assert preview.headers["cache-control"] == "no-store"
 
@@ -90,6 +99,11 @@ def test_phase2_authentic_review_and_encrypted_signed_ack_replay(
         assert accepted.status_code == 200, accepted.text[:300]
         assert accepted.json()["clinical_receipt_authorized"] is False
         assert http.post(confirm, json=_input(newer), headers=review_headers).status_code == 409
+        # Once the staff consumes the one-use challenge, even a still-valid
+        # bearer session and its formerly valid challenge cannot fetch media.
+        assert http.get(newer["preview_url"], headers={
+            **headers, "X-DC-Review-Challenge": newer["challenge"],
+        }).status_code == 409
         with Session(engine) as db:
             assert db.execute(select(reviews.c.consumed)).scalar_one() == 1
             assert db.execute(select(audit.c.event)).scalar_one() == "LAB_HTTP_EXPLICIT_STAFF_CONFIRM"
@@ -127,6 +141,9 @@ def test_phase2_expiry_revocation_and_cabinet_kill_switch(
             conn.execute(update(reviews).values(expires_at=1))
         assert http.post(endpoint + "/confirm", json=_input(view),
                          headers=review_headers).status_code == 409
+        assert http.get(view["preview_url"], headers={
+            **headers, "X-DC-Review-Challenge": view["challenge"],
+        }).status_code == 409
         assert _counts(engine) == (0, 0, 0)
 
         monkeypatch.setenv("ENVIRONMENT", "cabinet")
