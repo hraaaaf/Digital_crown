@@ -17,6 +17,12 @@ if ($env:DC06B04_RESTART_KEY_TEST -eq '1' -and
 if ($env:DC06B06_NATIVE_INVENTORY -eq '1' -and $env:DC06B03_SERVICE_SPOOL -ne '1') {
     throw 'DC06_B06_REQUIRES_B03_ENCRYPTED_SPOOL'
 }
+if ($env:DC06B06_NATIVE_MEDIA -eq '1' -and
+    ($env:DC06B03_SERVICE_SPOOL -ne '1' -or
+     $env:DC06B06_NATIVE_INVENTORY -ne '1' -or
+     $env:DC06B04_RESTART_KEY_TEST -ne '1')) {
+    throw 'DC06_B06_MEDIA_REQUIRES_SERVICE_SPOOL_INVENTORY_AND_RESTART_FUE'
+}
 if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1' -and
     ($env:DC06B03_SERVICE_SPOOL -ne '1' -or $env:DC06B04_RESTART_KEY_TEST -ne '1')) {
     throw 'DC06B05_REQUIRES_B04_SCOPED_WINDOWS_LAB'
@@ -57,7 +63,8 @@ function Invoke-Child([string]$Username, [string]$Password,
                        [int]$ExpectedCreate, [switch]$ProbeQueueReadOnly,
                        [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
                        [switch]$ProbeB05Package,
-                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None') {
+                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
+                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06MediaStatus='None') {
     $cred=[System.Management.Automation.PSCredential]::new(
         ('.' + [char]92 + $Username), (ConvertTo-SecureString $Password -AsPlainText -Force)
     )
@@ -69,6 +76,7 @@ function Invoke-Child([string]$Username, [string]$Password,
     if ($ProbeQueueReadOnly) { $arguments += ' -ProbeQueueReadOnly' }
     if ($B03Status -ne 'None') { $arguments += ' -B03Status ' + $B03Status }
     if ($B06InventoryStatus -ne 'None') { $arguments += ' -B06InventoryStatus ' + $B06InventoryStatus }
+    if ($B06MediaStatus -ne 'None') { $arguments += ' -B06MediaStatus ' + $B06MediaStatus }
     if ($ProbeB05Package) {
         $arguments += ' -ProbeB05Package -B05KeyFile "' + $keyPath +
             '" -B05ServiceDll "' + $dll + '" -B05BinDirectory "' + $bin + '"'
@@ -237,6 +245,10 @@ try {
         if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
             Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06InventoryStatus Valid
             Write-Output 'DC06_B06_NATIVE_SCM_APPROVED_USER_PER_CAPTURE_PASS'
+            if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus Valid
+                Write-Output 'DC06_B06_NATIVE_MEDIA_REAL_WINDOWS_AES_BYTES_PASS'
+            }
         }
         if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1') {
             # The same approved Windows user that can query the pipe
@@ -272,6 +284,10 @@ try {
             if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
                 Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06InventoryStatus Valid
                 Write-Output 'DC06_B06_NATIVE_INVENTORY_RESTART_STABLE_PASS'
+                if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                    Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus Valid
+                    Write-Output 'DC06_B06_NATIVE_MEDIA_RESTART_SHA_STABLE_PASS'
+                }
             }
 
             # A different 256-bit synthetic key must be rejected at the AES-GCM
@@ -286,6 +302,10 @@ try {
                 if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
                     Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06InventoryStatus WrongKey
                     Write-Output 'DC06_B06_NATIVE_WRONG_KEY_DENIED_PASS'
+                    if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus WrongKey
+                        Write-Output 'DC06_B06_NATIVE_MEDIA_WRONG_KEY_DENIED_PASS'
+                    }
                 }
             }
             finally {
@@ -308,12 +328,20 @@ try {
         if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
             Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06InventoryStatus Tampered
             Write-Output 'DC06_B06_NATIVE_TAMPER_DENIED_PASS'
+            if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus Tampered
+                Write-Output 'DC06_B06_NATIVE_MEDIA_TAMPER_DENIED_PASS'
+            }
         }
     }
     Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5
     if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
         Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5 -B06InventoryStatus Unauthorized
         Write-Output 'DC06_B06_NATIVE_SECOND_USER_DENIED_PASS'
+        if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+            Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5 -B06MediaStatus Unauthorized
+            Write-Output 'DC06_B06_NATIVE_MEDIA_SECOND_USER_DENIED_PASS'
+        }
     }
     Write-Output 'C05B03R_REAL_UNAUTHORIZED_OTHER_USER_PROCESS_ALL_DENIED_PASS'
     Write-Output 'C05B03R_REAL_HOSTED_WINDOWS_SERVICE_LEAST_PRIVILEGE_PASS'
