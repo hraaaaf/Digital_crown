@@ -8,6 +8,10 @@ from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from pydantic import BaseModel, Field
+from backend.services.imaging_acquisition_durable_v15 import (
+    DurableCaptureDenied, commit_capture, receipt_for, is_committed,
+)
+from backend.routers.auth import has_permission
 from backend.services.imaging_acquisition_product_review_v15 import (
     ProductReviewStore, ProductReviewDenied,
 )
@@ -284,3 +288,118 @@ def cancel_product_review(
     except ProductReviewDenied:
         raise HTTPException(409, "REVIEW_CANCELLATION_DENIED") from None
     return Response(status_code=204, headers={"Cache-Control": "no-store"})
+
+
+# B06-3 candidate is disabled on the real product until the additive SQLCipher
+# schema and cabinet-side trust/bootstrap contract receive explicit approval.
+# No DDL/migration occurs in HTTP handlers or normal startup.
+@router.post("/review/{review_id}/commit")
+def commit_product_media(
+    request: Request, review_id: str, data: ConfirmReview,
+    db: Session = Depends(database.get_db),
+    staff: models.User = Depends(require_permission("patients")),
+):
+    tenant, station, session, bridge, store = _review_context(request, db, staff)
+    if getattr(request.app.state, "dc06_b06_durable_enabled", False) is not True:
+        raise HTTPException(503, "DURABLE_SCHEMA_APPROVAL_REQUIRED")
+    root = getattr(request.app.state, "dc06_b06_media_root", None)
+    if root is not None:
+        from pathlib import Path
+        root = Path(root)
+    # Unlike transient B06-2 confirmation, keep the challenge lease locked
+    # across the complete SQLCipher commit. Cancellation cannot race a write.
+    try:
+        with store.durable_attempt(
+            review_id=review_id, tenant=tenant, workstation=station,
+            staff=staff.id, session=session, challenge=data.challenge,
+        ) as review:
+            patient = _selected_patient(
+                db, patient_id=review.patient, tenant=tenant, staff=staff,
+            )
+            if (data.explicit_confirmation is not True
+                    or data.selected_patient_id != review.patient
+                    or data.capture_digest != review.capture.digest
+                    or data.dossier != patient.numero_dossier
+                    or data.date_naissance != patient.date_naissance.date().isoformat()):
+                raise HTTPException(409, "DURABLE_TWO_IDENTIFIERS_MISMATCH")
+            try:
+                media = bridge.read_verified_media(
+                    review.capture, tenant_id=tenant, workstation_id=station,
+                )
+            except NativeInventoryDenied:
+                raise HTTPException(409, "DURABLE_NATIVE_CAPTURE_CHANGED") from None
+
+            def locked_authority(writer: Session):
+                current_staff = writer.get(models.User, staff.id)
+                if (current_staff is None or current_staff.get_employer_id() != tenant
+                        or not current_staff.is_active or current_staff.is_archived
+                        or current_staff.is_suspended
+                        or current_staff.approval_status != "approved"
+                        or not has_permission(current_staff, "patients")):
+                    raise DurableCaptureDenied("DURABLE_STAFF_REVOKED")
+                current_station = _find_workstation(request, writer, employer_id=tenant)
+                if (current_station is None or current_station.id != station
+                        or current_station.default_experience == "station"):
+                    raise DurableCaptureDenied("DURABLE_STATION_REVOKED")
+                current_patient = _selected_patient(
+                    writer, patient_id=review.patient, tenant=tenant,
+                    staff=current_staff,
+                )
+                if (data.dossier != current_patient.numero_dossier
+                        or data.date_naissance != current_patient.date_naissance.date().isoformat()):
+                    raise DurableCaptureDenied("DURABLE_PATIENT_MARKERS_CHANGED")
+
+            fail_at = None
+            if (getattr(request.app.state, "dc06_b06_lab_failpoint", None)
+                    and __import__("os").environ.get("ENVIRONMENT") == "test"
+                    and __import__("os").environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "true"):
+                fail_at = request.app.state.dc06_b06_lab_failpoint
+            result = commit_capture(
+                db.get_bind(), tenant=tenant, station=station,
+                capture=review.capture.id, patient=review.patient,
+                staff=staff.id, digest=review.capture.digest, media=media,
+                category=review.capture.category,
+                validate_locked=locked_authority, media_root=root,
+                fail_at=fail_at,
+            )
+        return Response(
+            content=__import__("json").dumps(result), media_type="application/json",
+            headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+        )
+    except ProductReviewDenied:
+        raise HTTPException(409, "DURABLE_REVIEW_CHALLENGE_DENIED") from None
+    except DurableCaptureDenied:
+        raise HTTPException(503, "DURABLE_CAPTURE_NOT_COMMITTED") from None
+    except HTTPException:
+        raise
+    except Exception:
+        raise HTTPException(503, "DURABLE_COMMIT_UNAVAILABLE") from None
+
+
+@router.get("/receipts/{capture_id}")
+def recover_product_media_ack(
+    request: Request, capture_id: int, selected_patient_id: int,
+    capture_digest: str, db: Session = Depends(database.get_db),
+    staff: models.User = Depends(require_permission("patients")),
+):
+    tenant, station, _session, _bridge, _store = _review_context(request, db, staff)
+    if getattr(request.app.state, "dc06_b06_durable_enabled", False) is not True:
+        raise HTTPException(503, "DURABLE_SCHEMA_APPROVAL_REQUIRED")
+    if (capture_id < 1 or not __import__("re").fullmatch(r"[a-f0-9]{64}", capture_digest)):
+        raise HTTPException(422, "DURABLE_RECEIPT_ARGUMENTS_DENIED")
+    _selected_patient(db, patient_id=selected_patient_id, tenant=tenant, staff=staff)
+    root = getattr(request.app.state, "dc06_b06_media_root", None)
+    try:
+        receipt = receipt_for(
+            db.get_bind(), tenant=tenant, station=station,
+            capture=capture_id, patient=selected_patient_id,
+            staff=staff.id, digest=capture_digest, media_root=root,
+        )
+    except DurableCaptureDenied:
+        raise HTTPException(409, "DURABLE_RECEIPT_NOT_VERIFIED") from None
+    except Exception:
+        raise HTTPException(503, "DURABLE_RECEIPT_UNAVAILABLE") from None
+    return Response(
+        content=__import__("json").dumps(receipt), media_type="application/json",
+        headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
+    )
