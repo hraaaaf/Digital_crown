@@ -46,6 +46,10 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
   const [pending, setPending] = useState(false);
   const [error, setError] = useState('');
   const [approved, setApproved] = useState(false);
+  // No confirmation unless the image for THIS exact review was rendered.
+  // Stored as a context key so a prior patient's onLoad cannot authorize a new review.
+  const [loadedPreviewContext, setLoadedPreviewContext] = useState('');
+  const previewContext = [review.capture, review.capture_digest, review.patient_id, review.challenge, previewUrl].join(':');
   const now = Math.floor(Date.now() / 1000);
 
   useEffect(() => {
@@ -55,9 +59,15 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
     setChecked(false);
     setError('');
     setApproved(false);
-  }, [review.capture, review.capture_digest, review.patient_id, review.challenge]);
+    setLoadedPreviewContext('');
+  }, [review.capture, review.capture_digest, review.patient_id, review.challenge, previewUrl]);
 
+  // LAB preview is authenticated by the server and must stay on its canonical
+  // same-origin capture path; never load arbitrary client-supplied image URLs.
+  const trustedPreview = previewUrl === review.preview_url &&
+    previewUrl === '/isolated/lot06-phase2/preview/' + encodeURIComponent(review.capture);
   const sane =
+    trustedPreview &&
     review.status === 'STAFF_REVIEW_REQUIRED' &&
     review.lab_only === true && review.clinical_receipt_authorized === false &&
     /^([a-f0-9]{64})$/.test(review.capture_digest) &&
@@ -66,7 +76,8 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
   const matches =
     dossier.trim() === review.numero_dossier &&
     birthDate === review.date_naissance;
-  const canConfirm = sane && !pending && !approved && checked && matches &&
+  const previewReady = sane && loadedPreviewContext === previewContext;
+  const canConfirm = previewReady && !pending && !approved && checked && matches &&
     review.expires_at > now;
 
   const confirm = async () => {
@@ -104,7 +115,15 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="overflow-hidden rounded-lg border border-border bg-background">
-          <img src={previewUrl} alt="Aperçu de la capture à associer au patient" className="h-auto max-h-[540px] w-full object-contain" />
+          <img key={previewContext} src={previewUrl} alt="Aperçu de la capture à associer au patient"
+            className="h-auto max-h-[540px] w-full object-contain"
+            onLoad={() => setLoadedPreviewContext(previewContext)}
+            onError={() => setLoadedPreviewContext('')} />
+          {!previewReady && (
+            <p role="alert" className="px-3 py-2 text-sm text-text-muted">
+              Aperçu non chargé : confirmation désactivée.
+            </p>
+          )}
           <p className="break-all px-3 py-2 text-xs text-text-muted">
             Empreinte SHA-256 : {review.capture_digest}
           </p>
