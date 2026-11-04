@@ -12,6 +12,8 @@ from sqlalchemy.pool import NullPool
 from sqlcipher3 import dbapi2 as sqlcipher
 
 import httpx
+import pytest
+from sqlalchemy.exc import DatabaseError
 from sqlalchemy import select, func
 from sqlalchemy.orm import Session
 
@@ -19,7 +21,7 @@ from backend import database, models
 from backend.models_media_core import ClinicalAsset
 from backend.routers import imaging_acquisition_unassigned_v15
 from backend.services.imaging_acquisition_durable_v15 import (
-    metadata, receipts, audit, outbox,
+    metadata, receipts, audit, outbox, LEDGER_IMMUTABILITY_TRIGGERS,
 )
 from backend.services.imaging_acquisition_native_bridge_v15 import LocalNativeCaptureBridge
 from backend.services.imaging_acquisition_product_review_v15 import ProductReviewStore
@@ -28,6 +30,17 @@ from isolated_fue_lot06c.test_c05b03m_device_human_authority_v15 import (
 )
 from isolated_fue_lot06c.test_phase2_staff_review_media_sqlcipher_v15 import _ctx
 from tools.imaging_gateway.native_inventory_protocol_v15 import UnassignedCapture
+
+
+def _lab_approve_schema(engine):
+    # Only synthetic SQLCipher lab fixtures may provision these tables/triggers.
+    assert os.environ.get("ENVIRONMENT") == "test"
+    assert os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "true"
+    assert os.environ.get("DC06C05B03E_TEST_ONLY") == "1"
+    metadata.create_all(engine)
+    with engine.begin() as connection:
+        for sql in LEDGER_IMMUTABILITY_TRIGGERS.values():
+            connection.exec_driver_sql(sql)
 
 
 def _setup(synthetic_sqlcipher_bridge, tmp_path, monkeypatch, capture_id):
@@ -131,6 +144,9 @@ def test_b06_3_schema_and_enablement_fail_closed_before_any_write(
             assert db.query(ClinicalAsset).filter(ClinicalAsset.source_ref.like('DC06:%')).count() == 0
         metadata.create_all(engine)
         assert _counts(engine) == [0, 0, 0, 0]
+        # Table names and unique indexes alone are NOT approved schema.
+        assert http.post(commit, json=data, headers=headers).status_code == 503
+        _lab_approve_schema(engine)
         missing = http.post(commit, json={
             **data, "explicit_confirmation": False,
         }, headers=headers)
@@ -145,7 +161,7 @@ def test_b06_3_durable_signed_ack_recovered_after_worker_restart(
     engine, claim, station, headers, app, active = _setup(
         synthetic_sqlcipher_bridge, tmp_path, monkeypatch, 82,
     )
-    metadata.create_all(engine)
+    _lab_approve_schema(engine)
     with _localhost_server(app) as origin, httpx.Client(
         base_url=origin, trust_env=False, timeout=20,
     ) as http:
@@ -213,7 +229,7 @@ def test_b06_3_sql_failure_rollback_then_single_commit(
     engine, claim, station, headers, app, active = _setup(
         synthetic_sqlcipher_bridge, tmp_path, monkeypatch, 83,
     )
-    metadata.create_all(engine)
+    _lab_approve_schema(engine)
     with _localhost_server(app) as origin, httpx.Client(
         base_url=origin, trust_env=False, timeout=20,
     ) as http:
@@ -238,15 +254,25 @@ def test_b06_3_signed_ledger_tamper_refused_on_ack_recovery(
     engine, claim, station, headers, app, active = _setup(
         synthetic_sqlcipher_bridge, tmp_path, monkeypatch, 84,
     )
-    metadata.create_all(engine)
+    _lab_approve_schema(engine)
     with _localhost_server(app) as origin, httpx.Client(
         base_url=origin, trust_env=False, timeout=20,
     ) as http:
         http.cookies.set("dc_workstation", station)
         commit, data = _start(http, claim, active, headers)
         assert http.post(commit, json=data, headers=headers).status_code == 200
+        # Immutable schema refuses online alteration. A privileged adversary
+        # can still tamper with a DB by deliberately removing the trigger;
+        # restore the correct guard and verify signature rejection separately.
+        with pytest.raises(DatabaseError):
+            with engine.begin() as conn:
+                conn.execute(receipts.update().values(signature="0" * 128))
         with engine.begin() as conn:
+            conn.exec_driver_sql("DROP TRIGGER dc06_b06_receipts_update_lock")
             conn.execute(receipts.update().values(signature="0" * 128))
+            conn.exec_driver_sql(
+                LEDGER_IMMUTABILITY_TRIGGERS["dc06_b06_receipts_update_lock"]
+            )
         lookup = http.get(
             f"/api/imaging/acquisition/receipts/{active['capture'].id}",
             params={
@@ -257,3 +283,63 @@ def test_b06_3_signed_ledger_tamper_refused_on_ack_recovery(
         assert lookup.status_code == 409
         assert _counts(engine) == [1, 1, 1, 1]
     print("DC06_B06_3_TAMPERED_SIGNED_ACK_DENIED_PASS")
+
+
+def test_b06_4_schema_corruption_and_audit_immutability_fail_closed(
+    synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    engine, claim, station, headers, app, active = _setup(
+        synthetic_sqlcipher_bridge, tmp_path, monkeypatch, 85,
+    )
+    _lab_approve_schema(engine)
+    with _localhost_server(app) as origin, httpx.Client(
+        base_url=origin, trust_env=False, timeout=20,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        commit, data = _start(http, claim, active, headers)
+        with engine.begin() as conn:
+            conn.exec_driver_sql("DROP TRIGGER dc06_b06_audit_delete_lock")
+        # Even if all tables exist, the absent audit guard MUST block writes.
+        assert http.post(commit, json=data, headers=headers).status_code == 503
+        assert _counts(engine) == [0, 0, 0, 0]
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                LEDGER_IMMUTABILITY_TRIGGERS["dc06_b06_audit_delete_lock"]
+            )
+        stored = http.post(commit, json=data, headers=headers)
+        assert stored.status_code == 200, stored.text[:300]
+        assert _counts(engine) == [1, 1, 1, 1]
+        # Six independent triggers prevent UPDATE/DELETE of receipts,
+        # audit and outbox. An operator-only migration must provision them.
+        for table in (receipts, audit, outbox):
+            for statement in (table.update().values(
+                **({"event": "FORGED"} if table is not receipts
+                   else {"signature": "f" * 128})
+            ), table.delete()):
+                with pytest.raises(DatabaseError):
+                    with engine.begin() as conn:
+                        conn.execute(statement)
+        assert _counts(engine) == [1, 1, 1, 1]
+        ack = http.get(
+            f"/api/imaging/acquisition/receipts/{active['capture'].id}",
+            params={"selected_patient_id": claim.patient,
+                    "capture_digest": active["capture"].digest},
+            headers=headers,
+        )
+        assert ack.status_code == 200
+        assert ack.json()["receipt_id"] == stored.json()["receipt_id"]
+    print("DC06_B06_4_REJECTS_INCOMPLETE_SCHEMA_AND_IMMUTABLE_ACK_AUDIT_PASS")
+
+
+def test_b06_4_plaintext_sqlite_engine_cannot_authorize_durable_ledger():
+    from sqlalchemy import create_engine
+    from backend.services.imaging_acquisition_durable_v15 import (
+        is_committed, DurableCaptureDenied,
+    )
+    engine = create_engine("sqlite:///:memory:")
+    try:
+        with pytest.raises(DurableCaptureDenied, match="DURABLE_SQLCIPHER_REQUIRED"):
+            is_committed(engine, tenant=1, station="test-station", capture=1)
+    finally:
+        engine.dispose()
+    print("DC06_B06_4_PLAINTEXT_SQLITE_REFUSED_PASS")
