@@ -86,7 +86,10 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
     // Browser <img src> cannot attach the application's bearer auth header.
     // Fetch with the same authenticated API client; never expose a remote URL,
     // token, PHI or raw media to logs. Digest and size refer to exact capture.
-    void api.get<ArrayBuffer>(`${API_BASE}${previewUrl}`, { responseType: 'arraybuffer' })
+    void api.get<ArrayBuffer>(`${API_BASE}${previewUrl}`, {
+      responseType: 'arraybuffer',
+      headers: { 'X-DC-Review-Challenge': review.challenge },
+    })
       .then(async reply => {
         if (!active || !(reply.data instanceof ArrayBuffer)) return;
         const mime = String(reply.headers?.['content-type'] ?? '').split(';', 1)[0].trim().toLowerCase();
