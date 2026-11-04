@@ -92,9 +92,12 @@ function Invoke-Child([string]$Username, [string]$Password,
         if ($null -eq $child -or $child.Id -eq $PID) {
             throw 'C05B03R_CHILD_NOT_REAL_PROCESS'
         }
-        if (-not $child.WaitForExit(15000)) {
+        # A Windows hosted runner may cold-start the secondary OS account.
+        # Still strictly bounded, fail-closed and NO automatic retry: a
+        # child stalled beyond 30s is an explicit failed security FUE.
+        if (-not $child.WaitForExit(30000)) {
             $child.Kill($true)
-            throw 'C05B03R_CHILD_15S_TIMEOUT'
+            throw 'C05B03R_CHILD_30S_TIMEOUT'
         }
         if ($child.ExitCode -ne 0) {
             $diagnostic=''
