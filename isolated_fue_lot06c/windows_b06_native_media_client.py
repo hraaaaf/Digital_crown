@@ -21,7 +21,7 @@ from tools.imaging_gateway.native_inventory_protocol_v15 import (
 from tools.imaging_gateway.native_inventory_windows_v15 import read_native_unassigned
 from tools.imaging_gateway.native_media_protocol_v15 import DENIED, encode_request
 from tools.imaging_gateway.native_media_windows_v15 import read_native_capture_bytes
-from backend.services.imaging_acquisition_native_bridge_v15 import windows_native_bridge
+from tools.imaging_gateway.native_product_bridge_v15 import windows_native_bridge
 
 
 def direct_lab_probe(pipe: str, request: bytes) -> bytes | None:
