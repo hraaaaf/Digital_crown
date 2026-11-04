@@ -15,6 +15,8 @@ on:
       - tools/imaging_gateway/native_media_windows_v15.py
       - isolated_fue_lot06c/scm_spool_read_b03.py
       - isolated_fue_lot06c/c05b03m_security_gate_lab.py
+      - isolated_fue_lot06c/unassigned_device_manifest_lab.py
+      - isolated_fue_lot06c/test_b06_unassigned_manifest_v15.py
       - isolated_fue_lot06c/phase2_staff_review_sqlcipher_lab.py
       - isolated_fue_lot06c/test_phase2_staff_review_media_sqlcipher_v15.py
       - isolated_fue_lot06c/scm_fixture_c05b03r/Program.cs
@@ -80,6 +82,7 @@ jobs:
               "-q", "-s", "--maxfail=1",
               "isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py",
               "isolated_fue_lot06c/test_phase2_staff_review_media_sqlcipher_v15.py",
+              "isolated_fue_lot06c/test_b06_unassigned_manifest_v15.py",
               "isolated_fue_lot06c/test_phase2_product_status_v15.py",
               "isolated_fue_lot06c/test_b06_native_inventory_protocol_v15.py",
               "isolated_fue_lot06c/test_b06_native_media_protocol_v15.py",
