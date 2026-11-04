@@ -136,3 +136,51 @@ one atomic on-prem media/receipt/outbox transaction with interruption/retry,
 visual FUE-G and owner authorization.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
+
+
+## B06 — device-signed patient-unassigned manifest before human selection (2026-11-04)
+
+**Architectural correction (pending exact-HEAD proof):** the LAB test-device
+Ed25519 signature previously covered a staff-/patient-bearing `claim` even
+for preview. This is the wrong authority for a physical scanner, which must
+never decide the eventual patient. The new **independent, immutable and
+patient-free signed capture manifest** contains exactly: enrolled tenant,
+device, station, generation, opaque capture ID, verified media SHA-256,
+byte length, image/png MIME, random nonce, issuance and expiry. Its
+canonical JSON includes domain-separated purpose, no staff, patient,
+dossier, DOB, appointment or asset ID. The private signing key stays in
+the disposable synthetic device fixture; server SQLCipher stores the
+manifest and signature, checks the enrolled pinned Ed25519 public key
+and rejects key substitution, changed digest/size, expiry and reused
+nonces. No browser/device client gets to submit the proof while reviewing.
+
+The LAB review now validates this **unassigned** signature when starting,
+previewing and confirming. Confirmation consumes the manifest **inside
+the same SQLCipher transaction** that marks the staff review consumed,
+records independent device-review approval and its audit. A rollback
+restores the manifest for safe retry; replay after confirmation cannot
+reopen preview or bind the same capture to another patient. The separate
+legacy 03M laboratory upload/receipt STILL uses its prior patient-/staff-
+coupled signed claim: the end-to-end production authority is therefore
+**not yet migrated**. This change only corrects the *pre-patient* proof
+and staff review boundary, not the clinical publisher.
+
+**FUE required on final SHA**: independent SQLCipher tests for signature
+byte fields excluding patient/staff, forged device key, crossed device,
+capture, station, generation, size/digest, duplicate nonce, expired and
+revoked manifest, transaction rollback and one-time consumption, plus
+existing localhost JWT + review + patient double-markers + encrypted
+ClinicalAsset/ACK replay, Windows real SCM multi-fragment/Authenticode,
+and React tests. The actual product endpoint must remain
+`NATIVE_IPC_NOT_CONNECTED` and the human visual workflow cannot be
+bypassed. Existing Windows child process 15-second timeout was observed
+on the prior PR HEAD despite an identical-SHA successful retry; keep
+CI reliability as an open risk.
+
+**Clinical gaps:** real scanner-signed manifest via service-owned pinned
+device key/TPM, native staff session capability, non-test enrollment,
+full-size radiography, independent authorization/transaction receipt,
+crash/recovery/second host, visual human approval. No physical hardware
+test was performed.
+
+`READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
