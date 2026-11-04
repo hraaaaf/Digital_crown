@@ -4,6 +4,7 @@ This is an actual SQLCipher test fixture with ephemeral Ed25519 device keys,
 not physical scanner enrollment or human clinical certification.
 """
 from dataclasses import replace
+import inspect
 import json
 import time
 
@@ -18,6 +19,23 @@ from isolated_fue_lot06c.test_phase2_staff_review_media_sqlcipher_v15 import _ct
 from isolated_fue_lot06c.test_c05b03m_device_human_authority_v15 import (
     _counts, synthetic_sqlcipher_bridge,
 )
+
+
+
+def test_b06_device_manifest_constructor_has_no_clinical_object_input():
+    arguments = set(inspect.signature(manifest.new_unassigned_manifest).parameters)
+    assert not arguments.intersection({
+        "claim", "patient", "patient_id", "staff", "staff_id",
+        "dossier", "dob", "date_naissance", "appointment",
+    })
+    assert "tenant" in arguments and "digest" in arguments
+    with pytest.raises(TypeError):
+        manifest.new_unassigned_manifest(patient=42)
+    assert not set(manifest.unassigned.c.keys()).intersection({
+        "patient", "patient_id", "staff", "staff_id", "dossier",
+        "date_naissance", "appointment",
+    })
+    print("DC06_B06_DEVICE_MANIFEST_CONSTRUCTOR_CANNOT_ACCEPT_PATIENT_PASS")
 
 
 def test_b06_manifest_has_no_patient_or_staff_and_rejects_forgery_nonce_replay(
