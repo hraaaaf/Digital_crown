@@ -340,10 +340,12 @@ def test_b06_product_real_staff_preview_and_two_marker_transient_review_no_media
         assert http.post(base, json={
             **start_data, "capture_id": 99999,
         }, headers=json_headers).status_code == 409
+        # The real authentication dependency rejects missing Bearer with
+        # 401 before this route's own stricter session guard can return 403.
         assert http.post(base, json=start_data, headers={
             k: v for k, v in json_headers.items()
             if k.lower() != "authorization"
-        }).status_code == 403
+        }).status_code in (401, 403)
 
         http.cookies.set("dc_workstation", "wrong-station-cookie")
         assert http.post(base, json=start_data, headers=json_headers).status_code == 423
