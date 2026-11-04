@@ -191,6 +191,8 @@ def test_phase2_preview_requires_independent_pinned_device_signature_and_staff_c
         for wrong in (
             replace(claim, patient=claim.patient + 1),
             replace(claim, staff=claim.staff + 1),
+            replace(claim, station=claim.station + "-other"),
+            replace(claim, byte_size=claim.byte_size + 1),
             replace(claim, device=claim.device + "-other"),
             replace(claim, capture=claim.capture + "-other"),
             replace(claim, digest="0" * 64),
