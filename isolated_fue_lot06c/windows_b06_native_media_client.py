@@ -85,21 +85,22 @@ def main(argv: list[str]) -> int:
             if capture != expected:
                 return 65
             result = read_native_capture_bytes(pipe, capture)
-            if result != PNG:
+            if len(PNG) <= 3 * 2048 or result != PNG:
                 return 66
             print("DC06_B06_NATIVE_REAL_WINDOWS_BINARY_AES_MEDIA_SHA256_PASS")
+            print("DC06_B06_NATIVE_REAL_WINDOWS_MULTI_FRAGMENT_MIN_FOUR_PASS")
             if direct_lab_probe(pipe, encode_request(
                 UnassignedCapture(
                     id=2, digest=expected.digest, size=expected.size,
                     mime="image/png", category="PHOTO",
-                ), 0, len(PNG),
+                ), 0, min(len(PNG), 2048),
             )) != DENIED:
                 return 67
             if direct_lab_probe(pipe, encode_request(
                 UnassignedCapture(
                     id=1, digest="0" * 64, size=expected.size,
                     mime="image/png", category="PHOTO",
-                ), 0, len(PNG),
+                ), 0, min(len(PNG), 2048),
             )) != DENIED:
                 return 68
             print("DC06_B06_NATIVE_SERVER_WRONG_ID_AND_DIGEST_DENIED_PASS")
@@ -132,7 +133,7 @@ def main(argv: list[str]) -> int:
             }
             print("DC06_B06_MEDIA_CLIENT_FAIL_" + (code if code in codes else "UNKNOWN"))
             return 69
-    frame = encode_request(expected, 0, len(PNG))
+    frame = encode_request(expected, 0, min(len(PNG), 2048))
     answer = direct_lab_probe(pipe, frame)
     if mode == "Unauthorized":
         if answer is not None:
