@@ -36,7 +36,7 @@ def _synthetic_multichunk_png() -> bytes:
     split. No clinical pixel data, no patient identity or source filesystem.
     """
     assert _BASE_PNG[-8:-4] == b"IEND"
-    content = b"Comment\\x00" + b"SYNTHETIC-NOT-PATIENT-" * 310
+    content = b"Comment\x00" + b"SYNTHETIC-NOT-PATIENT-" * 310
     label = b"tEXt"
     chunk = (len(content).to_bytes(4, "big") + label + content
              + (zlib.crc32(label + content) & 0xffffffff).to_bytes(4, "big"))
