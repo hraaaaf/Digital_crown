@@ -14,8 +14,7 @@ $project=Join-Path $PSScriptRoot 'scm_fixture_c05b03r/ScmPipeFixture.csproj'
 $admission=Join-Path $PSScriptRoot 'b05c1_admission_lab.py'
 $pub=$null
 $other=$null
-$rootStore=[System.Security.Cryptography.X509Certificates.X509Store]::new('Root','CurrentUser')
-$rootOpen=$false
+$trustedThumbs=@()
 function Make-TestCert([string]$role) {
     # Isolate Windows PKI work in a bounded background process so CI cannot
     # silently hang the entire 30-minute job on hosted certificate generation.
@@ -42,7 +41,34 @@ function Make-TestCert([string]$role) {
         Remove-Job -Job $job -Force -ErrorAction SilentlyContinue
     }
 }
-function Trust-TestCert($c) { $rootStore.Add($c) }
+function Invoke-BoundedCertutil([string[]]$arguments,[string]$failureTag) {
+    # Disposable hosted Windows VM only. Never import a release trust root.
+    $exe=Join-Path $env:SystemRoot 'System32/certutil.exe'
+    $process=Start-Process -FilePath $exe -ArgumentList $arguments -NoNewWindow -PassThru -ErrorAction Stop
+    try {
+        if (-not $process.WaitForExit(45000)) {
+            try { $process.Kill($true); $null=$process.WaitForExit(5000) } catch {}
+            throw ($failureTag+'_TIMEOUT')
+        }
+        if ($process.ExitCode -ne 0) { throw ($failureTag+'_EXIT_'+$process.ExitCode) }
+    } finally { $process.Dispose() }
+}
+function Trust-TestCert($c) {
+    $thumb=[string]$c.Thumbprint
+    if ($thumb -notmatch '^[A-Fa-f0-9]{40}$') { throw 'DC06B05D1_ROOT_THUMBPRINT_INVALID' }
+    $certFile=Join-Path $env:RUNNER_TEMP ('DC06B05D1-public-'+$id+'-'+$thumb+'.cer')
+    try {
+        # Only public DER is exported; the test private key stays nonexportable.
+        [IO.File]::WriteAllBytes($certFile,$c.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+        $script:trustedThumbs+= $thumb
+        Write-Output 'DC06B05D1_BOUNDED_ROOT_IMPORT_ENTER'
+        Invoke-BoundedCertutil @('-user','-f','-addstore','Root',('"'+$certFile+'"')) 'DC06B05D1_ROOT_IMPORT'
+        if (-not (Test-Path -LiteralPath ('Cert:\CurrentUser\Root\'+$thumb) -PathType Leaf)) { throw 'DC06B05D1_ROOT_IMPORT_NOT_VISIBLE' }
+        Write-Output 'DC06B05D1_BOUNDED_ROOT_IMPORT_VERIFIED_PASS'
+    } finally {
+        Remove-Item -LiteralPath $certFile -Force -ErrorAction SilentlyContinue
+    }
+}
 function Sign-Exe([string]$path,$c) {
     $s=Set-AuthenticodeSignature -FilePath $path -Certificate $c -HashAlgorithm SHA256 -ErrorAction Stop
     if ($s.Status -ne 'Valid') { throw ('DC06B05D1_SIGNING_NOT_VALID_'+$s.Status) }
@@ -64,8 +90,6 @@ function Assert-Package {
     if (-not $a.Valid -or -not $a.Pinned -or -not (Test-Seal $target)) { throw 'DC06B05D1_AUTH_OR_CLOSED_MANIFEST_REJECTED' }
 }
 try {
-    $rootStore.Open('ReadWrite')
-    $rootOpen=$true
     & dotnet publish $project -c Release -r win-x64 --self-contained true '-p:PublishSingleFile=true' '-p:DebugType=None' '-p:DebugSymbols=false' -o $source
     if ($LASTEXITCODE -ne 0) { throw 'DC06B05D1_PUBLISH_FAILED' }
     $original=Join-Path $source 'ScmPipeFixture.exe'
@@ -137,14 +161,34 @@ try {
     Write-Output 'DC06B05D1_ONLY_SELF_SIGNED_EPHEMERAL_LAB_NOT_PRODUCTION_PASS'
 }
 finally {
+    $cleanupErrors=@()
     foreach ($cert in @($other,$pub)) {
         if ($null -eq $cert) { continue }
-        if ($rootOpen) { $rootStore.Remove($cert) }
-        Remove-Item -LiteralPath ('Cert:\CurrentUser\My\' + $cert.Thumbprint) -Force -ErrorAction SilentlyContinue
+        $thumb=[string]$cert.Thumbprint
+        $rootPath='Cert:\CurrentUser\Root\'+$thumb
+        if ($thumb -in $trustedThumbs -and (Test-Path -LiteralPath $rootPath)) {
+            try {
+                Invoke-BoundedCertutil @('-user','-delstore','Root',$thumb) 'DC06B05D1_ROOT_REMOVE'
+                if (Test-Path -LiteralPath $rootPath) { throw 'DC06B05D1_ROOT_REMOVE_STILL_PRESENT' }
+            } catch {
+                $cleanupErrors+= 'DC06B05D1_ROOT_CLEANUP_FAILED'
+            }
+        }
+        $myPath='Cert:\CurrentUser\My\'+$thumb
+        try {
+            if (Test-Path -LiteralPath $myPath) { Remove-Item -LiteralPath $myPath -Force -ErrorAction Stop }
+            if (Test-Path -LiteralPath $myPath) { throw 'DC06B05D1_MY_CERT_REMAINS' }
+        } catch {
+            $cleanupErrors+= 'DC06B05D1_MY_CLEANUP_FAILED'
+        }
     }
-    if ($rootOpen) { $rootStore.Close() }
     foreach ($entry in @($source,$target,$zip,$pin,$publisherPin,$unsigned,$foreignExe)) {
-        if (Test-Path -LiteralPath $entry) { Remove-Item -LiteralPath $entry -Recurse -Force -ErrorAction Stop }
+        try {
+            if (Test-Path -LiteralPath $entry) { Remove-Item -LiteralPath $entry -Recurse -Force -ErrorAction Stop }
+        } catch {
+            $cleanupErrors+= 'DC06B05D1_PACKAGE_CLEANUP_FAILED'
+        }
     }
+    if ($cleanupErrors.Count -gt 0) { throw ('DC06B05D1_TEARDOWN_FAILED_'+($cleanupErrors -join '_')) }
     Write-Output 'DC06B05D1_DISPOSABLE_TEST_CERTS_AND_PACKAGE_DELETE_PASS'
 }
