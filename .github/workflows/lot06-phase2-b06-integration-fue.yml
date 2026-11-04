@@ -10,6 +10,8 @@ on:
       - frontend/src/features/patients/components/ImagingAcquisitionProductReviewV15.test.tsx
       - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx
       - isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py
+      - isolated_fue_lot06c/test_b06_product_durable_receipt_v15.py
+      - backend/services/imaging_acquisition_durable_v15.py
       - isolated_fue_lot06c/test_b06_native_inventory_protocol_v15.py
       - isolated_fue_lot06c/windows_b06_native_inventory_client.py
       - isolated_fue_lot06c/windows_b06_native_media_client.py
@@ -89,6 +91,7 @@ jobs:
           raise SystemExit(pytest.main([
               "-q", "-s", "--maxfail=1",
               "isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py",
+              "isolated_fue_lot06c/test_b06_product_durable_receipt_v15.py",
               "isolated_fue_lot06c/test_phase2_staff_review_media_sqlcipher_v15.py",
               "isolated_fue_lot06c/test_b06_unassigned_manifest_v15.py",
               "isolated_fue_lot06c/test_phase2_product_status_v15.py",
