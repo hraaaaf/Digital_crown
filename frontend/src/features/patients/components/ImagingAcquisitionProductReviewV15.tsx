@@ -19,6 +19,7 @@ type Review = {
   patient_id: number; nom: string; prenom: string;
   numero_dossier: string; date_naissance: string;
   expires_at: number; preview_url: string;
+  durable_commit_available?: boolean;
 };
 
 const safeCapture = (c: Capture) => Number.isSafeInteger(c.id) && c.id > 0 &&
@@ -35,9 +36,29 @@ const safeReview = (r: Review, c: Capture, patientId: number): boolean =>
   r.preview_url === '/imaging/acquisition/review/' + r.review_id + '/preview' &&
   typeof r.numero_dossier === 'string' && r.numero_dossier.length > 0 &&
   typeof r.date_naissance === 'string' && /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/.test(r.date_naissance) &&
-  r.expires_at > Math.floor(Date.now() / 1000);
+  r.expires_at > Math.floor(Date.now() / 1000) &&
+  (r.durable_commit_available === undefined || typeof r.durable_commit_available === 'boolean');
 
-/** Product staff review; NO automatic association, upload or clinical ACK. */
+type DurableAck = {
+  schema_version: 'dc06-b06-ack-v1'; status: 'DURABLE_MEDIA_ACK';
+  receipt_id: string; signature: string; signer_public_key: string;
+  asset_id: number; capture_id: number; capture_digest: string;
+  patient_id: number; patient_assigned: true; media_published: true;
+  clinical_receipt_authorized: false;
+};
+
+const safeAck = (a: DurableAck, r: Review): boolean =>
+  a?.schema_version === 'dc06-b06-ack-v1' &&
+  a.status === 'DURABLE_MEDIA_ACK' &&
+  /^DC06-[a-f0-9]{32}$/.test(a.receipt_id) &&
+  /^[a-f0-9]{128}$/.test(a.signature) &&
+  /^[a-f0-9]{64}$/.test(a.signer_public_key) &&
+  Number.isSafeInteger(a.asset_id) && a.asset_id > 0 &&
+  a.capture_id === r.capture_id && a.capture_digest === r.capture_digest &&
+  a.patient_id === r.patient_id && a.patient_assigned === true &&
+  a.media_published === true && a.clinical_receipt_authorized === false;
+
+/** Product staff review, optionally durable only after trusted backend provisioning. */
 export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: number }) {
   const epoch = useRef(0);
   const [capture, setCapture] = useState<Capture | null>(null);
@@ -48,13 +69,14 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
   const [checked, setChecked] = useState(false);
   const [verified, setVerified] = useState<{ key: string; url: string } | null>(null);
   const [loadedKey, setLoadedKey] = useState('');
-  const [result, setResult] = useState<'ready' | 'unavailable' | 'confirmed' | 'failed'>('ready');
+  const [result, setResult] = useState<'ready' | 'unavailable' | 'confirmed' | 'persisted' | 'failed'>('ready');
+  const [receiptId, setReceiptId] = useState('');
 
   useEffect(() => {
     const current = ++epoch.current;
     setReview(null); setCapture(null); setBusy(false);
     setDossier(''); setBirthDate(''); setChecked(false);
-    setVerified(null); setLoadedKey(''); setResult('ready');
+    setVerified(null); setLoadedKey(''); setResult('ready'); setReceiptId('');
     void api.get<Inventory>('/imaging/acquisition/unassigned')
       .then(({ data }) => {
         if (current !== epoch.current) return;
@@ -104,7 +126,7 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
   }, [context, review, capture, patientId]);
 
   const start = async () => {
-    if (!capture || busy || review || result === 'confirmed') return;
+    if (!capture || busy || review || result === 'confirmed' || result === 'persisted') return;
     const current = epoch.current;
     setBusy(true); setResult('ready');
     try {
@@ -146,26 +168,54 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
     verified?.key === context && loadedKey === context &&
     dossier.trim() === review.numero_dossier &&
     birthDate === review.date_naissance &&
-    checked && !busy && result !== 'confirmed';
+    checked && !busy && result !== 'confirmed' && result !== 'persisted';
 
   const confirm = async () => {
     if (!review || !canConfirm || review.expires_at <= Math.floor(Date.now() / 1000)) return;
     const current = epoch.current;
     setBusy(true); setResult('ready');
     try {
-      const { data } = await api.post('/imaging/acquisition/review/' + review.review_id + '/confirm', {
+      const endpoint = '/imaging/acquisition/review/' + review.review_id +
+        (review.durable_commit_available === true ? '/commit' : '/confirm');
+      const { data } = await api.post(endpoint, {
         challenge: review.challenge, selected_patient_id: patientId,
         dossier: dossier.trim(), date_naissance: birthDate,
         capture_digest: review.capture_digest, explicit_confirmation: true,
       });
       if (current !== epoch.current) return;
-      if (data?.status !== 'STAFF_REVIEW_VERIFIED_TRANSIENT_ONLY' ||
-          data?.clinical_receipt_authorized !== false ||
-          data?.patient_assigned !== false || data?.media_published !== false) {
-        setResult('failed'); return;
+      if (review.durable_commit_available === true) {
+        if (!safeAck(data as DurableAck, review)) { setResult('failed'); return; }
+        setReceiptId((data as DurableAck).receipt_id);
+        setResult('persisted'); setReview(null);
+      } else {
+        if (data?.status !== 'STAFF_REVIEW_VERIFIED_TRANSIENT_ONLY' ||
+            data?.clinical_receipt_authorized !== false ||
+            data?.patient_assigned !== false || data?.media_published !== false) {
+          setResult('failed'); return;
+        }
+        setResult('confirmed'); setReview(null);
       }
-      setResult('confirmed'); setReview(null);
     } catch {
+      // Lost HTTP reply after DB commit must not cause a second patient asset.
+      // Verify the existing signed ACK on the same backend instead of re-upload.
+      if (review.durable_commit_available === true) {
+        try {
+          const { data } = await api.get<DurableAck>(
+            '/imaging/acquisition/receipts/' + review.capture_id, {
+              params: {
+                selected_patient_id: patientId,
+                capture_digest: review.capture_digest,
+              },
+            },
+          );
+          if (current !== epoch.current) return;
+          if (safeAck(data, review)) {
+            setReceiptId(data.receipt_id);
+            setResult('persisted'); setReview(null);
+            return;
+          }
+        } catch { /* lost ACK remains unverified */ }
+      }
       if (current === epoch.current) setResult('failed');
     } finally {
       if (current === epoch.current) setBusy(false);
@@ -182,7 +232,10 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
       {result === 'confirmed' && <p role="status" className="text-sm text-text-muted">
         Revue temporaire vérifiée. Aucun média publié ni associé au patient.
       </p>}
-      {capture && !review && result !== 'confirmed' && (
+      {result === 'persisted' && <p role="status" className="text-sm text-text-muted">
+        Média chiffré associé au dossier. Reçu durable : {receiptId}. Activation cabinet non autorisée.
+      </p>}
+      {capture && !review && result !== 'confirmed' && result !== 'persisted' && (
         <div className="mt-3">
           <p className="text-sm text-text-muted">Une capture est en attente. Elle n'est liée à aucun patient.</p>
           <button type="button" disabled={busy} onClick={() => void start()}
@@ -223,12 +276,15 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" checked={checked}
                 onChange={event => setChecked(event.target.checked)} />
-              Je confirme avoir vérifié l'image et ces deux identifiants. Cette revue ne publie aucun média.
+              {review.durable_commit_available === true
+                ? "Je confirme l'image et les deux identifiants. Le média sera enregistré dans ce dossier."
+                : "Je confirme avoir vérifié l'image et ces deux identifiants. Cette revue ne publie aucun média."}
             </label>
             <div className="flex flex-wrap gap-2">
               <button type="button" disabled={!canConfirm} onClick={() => void confirm()}
                 className="min-h-11 rounded-lg border border-border-main bg-card px-4 py-2 disabled:opacity-40">
-                {busy ? 'Contrôle…' : 'Confirmer la revue temporaire'}
+                {busy ? 'Contrôle…' : review.durable_commit_available === true
+                  ? 'Associer et chiffrer le média' : 'Confirmer la revue temporaire'}
               </button>
               <button type="button" disabled={busy} onClick={() => void cancel()}
                 className="min-h-11 rounded-lg border border-border-main px-4 py-2">Annuler</button>
