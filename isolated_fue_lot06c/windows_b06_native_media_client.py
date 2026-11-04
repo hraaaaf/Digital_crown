@@ -21,6 +21,7 @@ from tools.imaging_gateway.native_inventory_protocol_v15 import (
 from tools.imaging_gateway.native_inventory_windows_v15 import read_native_unassigned
 from tools.imaging_gateway.native_media_protocol_v15 import DENIED, encode_request
 from tools.imaging_gateway.native_media_windows_v15 import read_native_capture_bytes
+from backend.services.imaging_acquisition_native_bridge_v15 import windows_native_bridge
 
 
 def direct_lab_probe(pipe: str, request: bytes) -> bytes | None:
@@ -81,12 +82,26 @@ def main(argv: list[str]) -> int:
     )
     if mode == "Valid":
         try:
-            capture = read_native_unassigned(pipe)
+            # The same provider invoked by the actual backend product
+            # inventory boundary uses THIS Win32 SCM restricted pipe.
+            native = windows_native_bridge(
+                tenant_id=1, workstation_id="DC06B06_LAB_STATION",
+                pipe_name=pipe,
+            )
+            capture = native.inventory(
+                tenant_id=1, workstation_id="DC06B06_LAB_STATION",
+            )
             if capture != expected:
                 return 65
+            try:
+                native.inventory(tenant_id=2, workstation_id="DC06B06_LAB_STATION")
+                return 72
+            except NativeInventoryDenied:
+                pass
             result = read_native_capture_bytes(pipe, capture)
             if len(PNG) <= 3 * 2048 or result != PNG:
                 return 66
+            print("DC06_B06_PRODUCT_NATIVE_BRIDGE_REAL_SCM_SCOPED_INVENTORY_PASS")
             print("DC06_B06_NATIVE_REAL_WINDOWS_BINARY_AES_MEDIA_SHA256_PASS")
             print("DC06_B06_NATIVE_REAL_WINDOWS_MULTI_FRAGMENT_MIN_FOUR_PASS")
             if direct_lab_probe(pipe, encode_request(
