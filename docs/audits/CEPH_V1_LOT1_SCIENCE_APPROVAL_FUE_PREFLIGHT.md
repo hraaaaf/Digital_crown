@@ -99,4 +99,30 @@ A. Faire relire et annoter par le praticien les dossiers scientifiques **réels*
 
 **Point d'arbitrage avant recette :** la matrice historique de dix tests techniques ne contient pas dix parcours UI démontrés. Une vérification API-only reste FUE-0 ; elle ne doit jamais être promue en FUE-I/G ni comptée comme expérience utilisateur cabinet sans interface effectivement manipulée. Vérifier l'existence des écrans et préparer le raccordement test avant de prétendre que les dix parcours sont pratiquables. Aucun jalon « 10/10 FUE cabinet » sans exécution distincte, preuves d'observation et acceptation humaine.
 
+### 8. Audit de faisabilité FUE sur le code réel — 2026-11-04 (READ-ONLY)
+
+**Périmètre inspecté au SHA `016ec06d` :**
+- `frontend/src/features/ortho/components/ClinicalScientificStudio.tsx` : charge le snapshot R15 avec **GET** `/patients/{patient_id}/cephalo-clinical-studio`, permet de sélectionner les **quatre onglets R11/R12/R13/R14** et affiche blocages/« action praticien ». **Il n'exécute aucun POST R11–R14** ; ses boutons d'étape ne sont que des boutons de navigation.
+- `frontend/src/features/ortho/CephaloWorkspace.tsx` : monte le Studio R15, sans câblage des commandes R11–R14 dans le flux inspecté.
+- `frontend/src/features/ortho/components/Step4Documents.tsx` : propose **prévisualisation, brouillon et archivage PDF** ; l'affichage d'un brouillon n'est pas une validation clinique.
+- `backend/routers/cephalo_clinical_studio.py` : expose réellement les routes authentifiées POST/GET de staging R11–R13, revue individuelle R11, attestation R11/R12, décision R13, décision R14 et revue des bloqueurs. **Routes API présentes ≠ parcours UI exécutable**.
+- `frontend/scripts/capture-cephalo-r15-after.mjs` : capture navigateur sur **snapshot API simulé** (route fulfilled), ce qui démontre une surface visuelle testable mais pas une FUE-G réelle avec backend clinique et persistance.
+
+| ID | Classification réalisable à ce stade sans nouveau câblage métier | Preuve non encore réalisée |
+|---|---|---|
+| FUE-01 | **FUE-0** (inspection registres/backend) | Contrôle du build exact chargé sur l'instance isolée |
+| FUE-02 | **FUE-I candidat** (écran Studio sans étude, si reproduit en vrai local) | Capture de l'écran et trace GET live |
+| FUE-03 | **Mixte** : API/test de texte legacy + visualisation de PDF/brouillon si l'environnement le permet | Non-promotion vérifiée et PDF `INCOMPLETE` observé sur backend réel |
+| FUE-04 | **FUE-0 sécurité API** (croisement patient/analyse) | Réponse 404 et aucun accès/mutation |
+| FUE-05 | **FUE-0 API** (POST staging, registre vide) | HTTP 409 et absence d'audit |
+| FUE-06 | **FUE-0 contrat API** (payload auteur/signature interdits) | Refus de validation et aucun audit |
+| FUE-07 | **FUE-0 API en labo test-only** (revue finding sans diagnostic puis attestation) | HTTP 409, audits inchangés hors scénario voulu |
+| FUE-08 | **FUE-0 API en labo test-only** (double revue ciblée) | Une revue authentique, seconde 409 |
+| FUE-09 | **FUE-0 API en labo test-only** (R13 sans attestation) | HTTP 409 et aucune option sélectionnée |
+| FUE-10 | **Mixte** : FUE-0 refus R14 API + **FUE-I candidat** écran R15/PDF si UI live | HTTP 409, R15 `clinical_validation_available=false`, document `INCOMPLETE`, trace visuelle |
+
+**Conclusion opérationnelle / STOP :** il n'existe pas dans les surfaces inspectées **dix parcours de validation cliniques pilotables par UI**. Il serait trompeur d'annoncer « 10/10 FUE-G cabinet ». Les dix tests backend préflight restent de bons *oracles de sûreté* mais ne couvrent pas l'observation humaine du parcours complet. **0/10 sessions cabinet exécutées ; aucune FUE-I/G revendiquée**. Les seuls candidats immédiats à la FUE visible sont 02 et l'affichage R15/PDF de 03/10, à condition de le constater avec backend réel sur cas fictif. Les autres se contrôlent d'abord par tests API en labo, comptés séparément. Ne pas développer les commandes cliniques UI ni les règles de production avant revue et autorisation humaine. Après avis clinique, décider séparément s'il faut câbler les commandes et refaire les vrais tests du parcours.
+
+**Gates obligatoires avant tout « PASS cabinet »** : (1) build local exact identifié ; (2) cas et compte fictifs isolés ; (3) preuve BEFORE → ACTION → AFTER ; (4) réponse API et audit DB ; (5) classification honnête FUE-0/I/G ; (6) relecture du praticien humain ; (7) aucune PHI exposée. Ces contrôles ne créent aucune approbation réglementaire ni médicale.
+
 **CHANTIER Digital Crown Céphalo V1 · LOT 1/4 R11–R14 NON CLOTURE · SOUS-LOT dossier des sources + 10 FUE préflight synthétiques · NEXT revue clinique indépendante + 10 FUE réelles · GOAL approbation scientifique traçable avant activation R15/PDF.**
