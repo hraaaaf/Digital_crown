@@ -5,6 +5,9 @@ on:
     paths:
       - .github/workflows/lot06-phase2-b06-integration-fue.yml
       - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.tsx
+      - frontend/src/features/patients/PatientDetailsInner.tsx
+      - frontend/src/features/patients/components/ImagingAcquisitionProductReviewV15.tsx
+      - frontend/src/features/patients/components/ImagingAcquisitionProductReviewV15.test.tsx
       - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx
       - isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py
       - isolated_fue_lot06c/test_b06_native_inventory_protocol_v15.py
@@ -26,6 +29,7 @@ on:
       - tools/imaging_gateway/native_inventory_windows_v15.py
       - backend/services/imaging_acquisition_native_inventory_v15.py
       - backend/services/imaging_acquisition_native_bridge_v15.py
+      - backend/services/imaging_acquisition_product_review_v15.py
       - tools/imaging_gateway/native_product_bridge_v15.py
       - backend/routers/imaging_acquisition_unassigned_v15.py
       - backend/main.py
@@ -122,7 +126,7 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Frontend dual identifiers, preview refusal and stale patient review FUE
         working-directory: frontend
-        run: npx vitest run src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx src/features/patients/components/ImagingAcquisitionProductStatusV15.test.tsx --reporter=dot
+        run: npx vitest run src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx src/features/patients/components/ImagingAcquisitionProductStatusV15.test.tsx src/features/patients/components/ImagingAcquisitionProductReviewV15.test.tsx --reporter=dot
 
   windows-real-service-and-b05-package:
     runs-on: windows-2022
