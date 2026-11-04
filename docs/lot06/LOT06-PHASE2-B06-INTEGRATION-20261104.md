@@ -56,3 +56,39 @@ Negative FUE required on actual Windows: valid binary PNG readback and SHA256, f
 Next true product work: replace per-chunk helper with performant persistent service protocol; use an approved service/device root of trust, SID and caller authentication, per-capture replay-safe staff-scoped capability, secure local app preview and explicit two-identifier patient binding, then atomic ClinicalAsset/receipt/outbox and real recovery/FUE-G. No merge/deployment without separate authorization.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
+
+
+## B06 staff preview / genuine multi-fragment Windows FUE — 2026-11-04
+
+This candidate extends the real SCM Windows fixture from its previous 79-byte
+PNG (one transport fragment) to a generated **synthetic, 6+ KiB valid PNG**
+containing a benign ancillary tEXt chunk. It requires at least **four actual
+2048-byte Win32 SCM pipe transfers**, not merely the preexisting two-fragment
+Python protocol unit test. Every fragment is freshly AES-GCM verified under
+the LocalService SID and the reassembled PNG must match the original SHA-256,
+size and structural validation. Wrong capture ID, wrong digest, wrong AES key,
+ciphertext corruption, wrong Windows user, restart and B05 signer/package
+oracles remain REQUIRED on the exact changed HEAD.
+
+Separate TEST-only staff preview hardening: the JWT + workstation + patient
+preflight alone no longer permits the media GET. The isolated review server
+requires the active, unexpired, unconsumed SQLCipher challenge of the same
+staff, patient, workstation, capture digest and byte size. The UI supplies the
+challenge as an authenticated `X-DC-Review-Challenge` request header, **not
+a URL query parameter**. HTTP FUE denies absent/mismatched challenge, missing
+review, expired review and post-confirm preview. This prevents previews from
+remaining accessible beyond the current explicit staff review ceremony. It is
+still a LAB authorization, **not** clinic device attestation or human approval.
+
+CI must report the actual Windows four-fragment marker and all negative
+oracles, HTTP/JWT/SQLCipher negatives and UI tests on the same HEAD; do not
+promote code changes alone into a GREEN certification. Neither isolated
+LAB review nor Win32 transport is mounted in production
+`backend.main`: real product continues `NATIVE_IPC_NOT_CONNECTED`.
+
+Remaining gates: approved publisher/service+device trust, secure
+session-bound per-capture capability, real clinical media transport beyond
+16 KiB, true on-prem patient selection/review + encrypted ClinicalAsset and
+durable ACK, crash/replay/restore and second-host/scanner/TPM/human FUE-G.
+
+`READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
