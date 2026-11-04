@@ -89,7 +89,7 @@ jobs:
           routers.__path__ = [str(Path.cwd() / "backend" / "routers")]
           sys.modules["backend.routers"] = routers
           raise SystemExit(pytest.main([
-              "-q", "-s", "--maxfail=1",
+              "-q", "-s", "--maxfail=5",
               "isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py",
               "isolated_fue_lot06c/test_b06_product_durable_receipt_v15.py",
               "isolated_fue_lot06c/test_phase2_staff_review_media_sqlcipher_v15.py",
