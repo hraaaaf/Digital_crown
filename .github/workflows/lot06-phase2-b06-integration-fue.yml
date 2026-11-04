@@ -7,6 +7,14 @@ on:
       - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.tsx
       - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx
       - isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py
+      - isolated_fue_lot06c/test_b06_native_inventory_protocol_v15.py
+      - isolated_fue_lot06c/windows_b06_native_inventory_client.py
+      - isolated_fue_lot06c/scm_spool_read_b03.py
+      - isolated_fue_lot06c/scm_fixture_c05b03r/Program.cs
+      - isolated_fue_lot06c/windows_scm_client_c05b03r.ps1
+      - isolated_fue_lot06c/windows_scm_service_sid_fue_c05b03r.ps1
+      - tools/imaging_gateway/native_inventory_protocol_v15.py
+      - backend/services/imaging_acquisition_native_inventory_v15.py
       - docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
   workflow_dispatch:
 permissions:
@@ -65,6 +73,7 @@ jobs:
               "isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py",
               "isolated_fue_lot06c/test_phase2_staff_review_media_sqlcipher_v15.py",
               "isolated_fue_lot06c/test_phase2_product_status_v15.py",
+              "isolated_fue_lot06c/test_b06_native_inventory_protocol_v15.py",
           ]))
           PY
       - name: Product route and clinical release remain strictly closed
@@ -74,6 +83,7 @@ jobs:
           ! grep -q "phase2_staff_review_sqlcipher_lab" backend/main.py
           ! grep -q "imaging_acquisition_transfer_lab_v15" backend/main.py
           ! grep -q "c05b03m_security_gate_lab" backend/main.py
+          ! grep -q "imaging_acquisition_native_inventory_v15" backend/main.py
           grep -q "CLINICAL_GO=false" docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
           grep -q "READY_TO_MERGE=false" docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
           echo DC06_B06_PRODUCT_INGRESS_CLOSED_PASS
@@ -121,6 +131,8 @@ jobs:
           DC06C05B03R_TEST_ONLY: '1'
           DC06B02_PROBE: '1'
           DC06B03_SERVICE_SPOOL: '1'
+          DC06B04_RESTART_KEY_TEST: '1'
+          DC06B06_NATIVE_INVENTORY: '1'
         run: |
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
           ./isolated_fue_lot06c/windows_scm_service_sid_fue_c05b03r.ps1
