@@ -4,7 +4,12 @@ Product's durable gate is OFF by default. Tables are provisioned explicitly
 ONLY in this synthetic test database; no clinic migration, device or deploy.
 """
 import hashlib
+import os
 from pathlib import Path
+
+from sqlalchemy import create_engine
+from sqlalchemy.pool import NullPool
+from sqlcipher3 import dbapi2 as sqlcipher
 
 import httpx
 from sqlalchemy import select, func
@@ -43,8 +48,26 @@ def _setup(synthetic_sqlcipher_bridge, tmp_path, monkeypatch, capture_id):
     app.state.dc06_review_store = ProductReviewStore()
     app.state.dc06_b06_durable_enabled = True  # trusted LAB-only setup
     app.state.dc06_b06_media_root = tmp_path / "product-c2-encrypted"
+    # The existing C05 fixture deliberately uses a strict single-thread SQLCipher
+    # creator. Real FastAPI dependency and sync route may execute on different
+    # worker threads. Match backend.database's check_same_thread=False policy
+    # WITHOUT modifying the legacy fixture or using plaintext SQLite.
+    db_path = tmp_path / "real-staff-station-bridge" / "clinical-asset-lab.db"
+    def open_product_sqlcipher():
+        con = sqlcipher.connect(str(db_path), timeout=30, check_same_thread=False)
+        key = os.environ["DC06B_TEST_SQLCIPHER_KEY"]
+        con.execute(f"PRAGMA key = '{key}'")
+        con.execute("PRAGMA journal_mode=WAL")
+        con.execute("PRAGMA synchronous=NORMAL")
+        con.execute("PRAGMA foreign_keys=ON")
+        con.execute("SELECT name FROM sqlite_master LIMIT 1").fetchone()
+        return con
+    product_engine = create_engine(
+        "sqlite://", creator=open_product_sqlcipher, poolclass=NullPool,
+    )
+    app.state.lab_sqlcipher_engine = product_engine
     async def product_db():
-        with Session(engine) as db:
+        with Session(product_engine) as db:
             yield db
     app.dependency_overrides[database.get_db] = product_db
     app.include_router(
@@ -52,7 +75,7 @@ def _setup(synthetic_sqlcipher_bridge, tmp_path, monkeypatch, capture_id):
         prefix="/api/imaging/acquisition",
     )
     json_headers = {k: v for k, v in headers.items() if k.lower() != 'content-type'}
-    return engine, claim, station_token, json_headers, app, active
+    return product_engine, claim, station_token, json_headers, app, active
 
 
 def _start(http, claim, active, headers):
