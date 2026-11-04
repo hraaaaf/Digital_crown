@@ -29,6 +29,10 @@ Jusqu'à ce que `V1_OPERATIONAL` soit explicitement enregistré dans `docs/clini
 
 En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 
+## Routage des reviewers indépendants V1.5 — lecture seule
+
+**Source unique lot → reviewer :** [docs/quality/V15_INDEPENDENT_REVIEWER_MATRIX.md](docs/quality/V15_INDEPENDENT_REVIEWER_MATRIX.md), fondée sur la [roadmap V1.5 canonique Notion](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb). Les sept agents `.claude/agents/reviewer-*.md` couvrent SEC (accès/confidentialité), DATA (migration/intégrité), OPS (postes/récupération), IMG (acquisition), DOC (documents patients), QUEUE (file/intégrations), UX (accessibilité/thèmes). Choisir **le minimum suffisant selon le diff et les risques**, pas sept revues systématiques. Reviewer distinct de l'auteur, **lecture seule `permissionMode: plan`**, sources/oracles, tests négatifs et FUE au HEAD exact. Une seconde persona de même agent **n'est pas une preuve de revue indépendante**. Les experts scientifiques existants gardent leur responsabilité; `Orthodontiste.md` demeure candidat sur PR #1209 et n'est pas implicite sur master. La matrice documentaire ne déverrouille aucun lot ni ne remplace les gates humain, clinique, sécurité, réglementaire ou terrain LOT10 ; aucun merge, activation, cabinet ou Vercel sans accord distinct.
+
 ## Autopilot contrôlé — autonomie bornée par mission
 
 **Portée prospective post-V1.** La roadmap consolidée V1 indique `V1_OPERATIONAL` ; elle conserve son rôle historique. Cette politique ne déverrouille aucune feature/lot V1.5+, n'autorise aucune opération cabinet et ne modifie pas rétroactivement les preuves.

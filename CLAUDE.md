@@ -4,6 +4,10 @@
 >
 > Ce fichier est uniquement un point d'entrée compatible avec Claude Code. Il ne définit **aucune seconde doctrine générale** d'exécution, de FUE, de revue, de scoring, de CI, de communication ou de closeout. Toute modification de ces consignes générales se fait **exclusivement dans AGENTS.md**.
 
+## Auditeurs spécialisés V1.5
+
+Pour la revue indépendante, consulter **[docs/quality/V15_INDEPENDENT_REVIEWER_MATRIX.md](docs/quality/V15_INDEPENDENT_REVIEWER_MATRIX.md)** puis charger le ou les `.claude/agents/reviewer-*.md` seulement si le lot et le risque le justifient. Ces agents sont en lecture seule, leurs noms ne constituent pas des reviews humaines indépendantes et leurs avis ne remplacent pas les tests/FUE ou le gate physique V1.5-10. Les agents scientifiques existants restent sous leurs contrats. Les instructions communes et l'autorisation de merge restent exclusivement dans [AGENTS.md](AGENTS.md).
+
 ## Lecture opérationnelle
 
 1. Lire `AGENTS.md` pour identifier le lot, sous-lot, chantier, mission, GO et contrat de communication.
