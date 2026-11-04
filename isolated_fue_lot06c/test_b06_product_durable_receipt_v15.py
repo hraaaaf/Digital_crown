@@ -76,8 +76,13 @@ def _start(http, claim, active, headers):
 def _counts(engine):
     with Session(engine) as db:
         return [
-            db.execute(select(func.count()).select_from(table)).scalar_one()
-            for table in (ClinicalAsset.__table__, receipts, audit, outbox)
+            db.execute(select(func.count()).select_from(ClinicalAsset.__table__).where(
+                ClinicalAsset.source_ref.like("DC06:%"),
+            )).scalar_one(),
+            *[
+                db.execute(select(func.count()).select_from(table)).scalar_one()
+                for table in (receipts, audit, outbox)
+            ],
         ]
 
 
