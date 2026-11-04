@@ -92,3 +92,47 @@ session-bound per-capture capability, real clinical media transport beyond
 durable ACK, crash/replay/restore and second-host/scanner/TPM/human FUE-G.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
+
+
+
+## B06 continuation — server-held Ed25519 device proof × staff review challenge (2026-11-04)
+
+The LAB review was already staff-JWT/workstation/challenge scoped, and the
+separate signed upload/receipt verified a pinned Ed25519 device identity.
+Previously the *preview* did not require that independently signed proof.
+This pass reuses the **existing** test-only SQLCipher device enrollment:
+`verify_pending_device_capture_proof(db, claim, device_proof)` validates
+the registered, active Ed25519 device key and its generation/station,
+the pending immutable capture ID, selected patient/staff/tenant, SHA-256,
+byte count, and the test-device-only challenge. It refuses key substitution,
+device revocation, expired or consumed pending capture and any invalid proof.
+It runs at **LAB review begin, explicit confirmation and preview**. The
+signature is supplied by a **server-owned test fixture closure**, never a
+query parameter, browser header or automatic patient identifier.
+
+The existing staff authority independently requires JWT + workstation cookie,
+patient access, the selected dossier/DOB markers, an expiring one-use SQLCipher
+challenge bound to the same capture and active staff, and explicit confirmation.
+The media bytes passed to LAB mount must match the signed claim digest and
+length. This is **two independent authorities for LAB**, not a certified
+physical scanner enrollment or an authenticated Windows host/device bridge.
+A browser's copied review challenge cannot replace the device proof, and a
+device signature cannot act as a staff confirmation.
+
+Exact-head FUE required: real SQLCipher/localhost HTTP refusing preview,
+begin or confirm after pinned key substitution, generation change or device
+deactivation; the underlying proof rejects wrong staff, workstation, patient,
+capture ID, digest, byte count, generation, foreign key; successful prior
+LAB review + encrypted Media Core signed ACK and Windows multi-fragment
+SCM/Authenticode must regress on SAME SHA. Product `backend.main` still
+does not mount the LAB preview/transfer and patient status stays
+`NATIVE_IPC_NOT_CONNECTED`.
+
+**Still OPEN:** verified signed capture issued by the *actual* Windows
+service instead of a disposable fixture closure; TPM/hardware enrollment,
+release signer and physical scanner; scalable real DICOM/JPEG/PNG/PDF media;
+actual staff login session-bound native capability in backend runtime,
+one atomic on-prem media/receipt/outbox transaction with interruption/retry,
+visual FUE-G and owner authorization.
+
+`READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
