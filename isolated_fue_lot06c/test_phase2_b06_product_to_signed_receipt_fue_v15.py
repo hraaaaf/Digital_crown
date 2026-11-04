@@ -15,7 +15,12 @@ from isolated_fue_lot06c.test_sqlcipher_real_staff_station_bridge_v15 import _is
 from backend.services.clinical_asset_storage import store_clinical_asset_bytes
 
 from backend import database
-from backend.routers import imaging_acquisition_status_v15
+from backend.routers import imaging_acquisition_status_v15, imaging_acquisition_unassigned_v15
+from backend.services.imaging_acquisition_native_bridge_v15 import LocalNativeCaptureBridge
+from tools.imaging_gateway.native_inventory_protocol_v15 import (
+    NativeInventoryDenied, UnassignedCapture,
+)
+import hashlib
 from isolated_fue_lot06c.test_phase2_staff_review_media_sqlcipher_v15 import _ctx, _input
 from isolated_fue_lot06c.test_c05b03m_device_human_authority_v15 import (
     _counts, _localhost_server, _post, synthetic_sqlcipher_bridge,
@@ -174,3 +179,109 @@ def test_b06_unassigned_receipt_failpoint_rolls_back_and_replays(
         assert again.status_code == 200 and again.json() == good.json()
         assert _counts(engine) == (1, 1, 1)
     print("DC06_B06_UNASSIGNED_PROVENANCE_RECEIPT_ROLLBACK_REPLAY_PASS")
+
+
+def test_b06_product_unassigned_inventory_jwt_workstation_bridge_and_verified_bytes(
+    synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    (engine, claim, _token, station_token, _media, _source, _collector, _item,
+     raw, _private, _challenge, headers, app, _pub) = _ctx(
+        synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+    )
+    capture = UnassignedCapture(
+        id=73, size=len(raw), digest=hashlib.sha256(raw).hexdigest(),
+        mime="image/png", category="RADIOGRAPH",
+    )
+    active = {"capture": capture, "bytes": raw}
+
+    async def product_db():
+        with Session(app.state.lab_sqlcipher_engine) as db:
+            yield db
+    app.dependency_overrides[database.get_db] = product_db
+    app.include_router(
+        imaging_acquisition_unassigned_v15.router,
+        prefix="/api/imaging/acquisition",
+    )
+    url = "/api/imaging/acquisition/unassigned"
+    expected_closed = {
+        "schema_version": "dc06-product-unassigned-v1",
+        "state": "NATIVE_IPC_NOT_CONNECTED",
+        "read_only": True, "clinical_receipt_authorized": False,
+        "patient_assigned": False, "captures": [],
+    }
+    bridge = LocalNativeCaptureBridge(
+        tenant_id=claim.tenant, workstation_id=claim.station,
+        inventory_reader=lambda: active["capture"],
+        media_reader=lambda c: active["bytes"],
+    )
+
+    with _localhost_server(app) as origin, httpx.Client(
+        base_url=origin, trust_env=False, timeout=20,
+    ) as http:
+        http.cookies.set("dc_workstation", station_token)
+        assert http.get(url).status_code in (401, 403)
+        assert http.get(url, headers=headers).json() == expected_closed
+        app.state.dc06_unassigned_bridge = bridge
+        http.cookies.set("dc_workstation", "unknown-workstation")
+        assert http.get(url, headers=headers).status_code == 423
+        http.cookies.set("dc_workstation", station_token)
+        response = http.get(url, headers=headers)
+        assert response.status_code == 200
+        assert response.headers["cache-control"] == "no-store"
+        payload = response.json()
+        assert payload == {
+            **expected_closed, "state": "UNASSIGNED_INVENTORY_READ_ONLY",
+            "captures": [{
+                "id": capture.id, "digest": capture.digest,
+                "size": capture.size, "mime": capture.mime,
+                "category": capture.category,
+            }],
+        }
+        assert not set(payload["captures"][0]).intersection({
+            "patient", "staff", "filename", "appointment", "dossier",
+        })
+        assert bridge.read_verified_media(
+            capture, tenant_id=claim.tenant,
+            workstation_id=claim.station,
+        ) == raw
+        with pytest.raises(NativeInventoryDenied, match="TENANT_STATION"):
+            bridge.inventory(tenant_id=claim.tenant + 1,
+                             workstation_id=claim.station)
+        with pytest.raises(NativeInventoryDenied, match="TENANT_STATION"):
+            bridge.read_verified_media(
+                capture, tenant_id=claim.tenant,
+                workstation_id="not-this-station",
+            )
+
+        # An unassigned capture is not made into a patient ClinicalAsset,
+        # and no raw media route is exposed by the product in B06-1.
+        assert http.post(url, json={}, headers={
+            k: v for k, v in headers.items() if k.lower() != "content-type"
+        }).status_code == 405
+        assert http.get(url + "/" + str(capture.id) + "/media",
+                        headers=headers).status_code == 404
+        assert _counts(engine) == (0, 0, 0)
+
+        active["bytes"] = raw + b"modified"
+        with pytest.raises(NativeInventoryDenied, match="INTEGRITY"):
+            bridge.read_verified_media(
+                capture, tenant_id=claim.tenant,
+                workstation_id=claim.station,
+            )
+        active["bytes"] = raw
+        active["capture"] = None
+        with pytest.raises(NativeInventoryDenied, match="CAPTURE_CHANGED"):
+            bridge.read_verified_media(
+                capture, tenant_id=claim.tenant,
+                workstation_id=claim.station,
+            )
+        assert http.get(url, headers=headers).json()["captures"] == []
+        def refuse():
+            raise NativeInventoryDenied("SERVICE_ACCESS_DENIED")
+        app.state.dc06_unassigned_bridge = LocalNativeCaptureBridge(
+            tenant_id=claim.tenant, workstation_id=claim.station,
+            inventory_reader=refuse, media_reader=lambda c: raw,
+        )
+        assert http.get(url, headers=headers).status_code == 503
+        assert _counts(engine) == (0, 0, 0)
+    print("DC06_B06_PRODUCT_UNASSIGNED_JWT_STATION_NATIVE_BRIDGE_NO_PATIENT_PASS")
