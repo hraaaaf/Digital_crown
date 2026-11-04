@@ -105,7 +105,31 @@ def main(argv: list[str]) -> int:
             print("DC06_B06_NATIVE_SERVER_WRONG_ID_AND_DIGEST_DENIED_PASS")
             # Full binary acquisition does not create an ACK or patient link.
             return 0
-        except NativeInventoryDenied:
+        except NativeInventoryDenied as exc:
+            # Strictly fixed, no-PHI diagnostic taxonomy. Never print media,
+            # path, pipe, capture digest, exception traceback or identity.
+            code = exc.args[0] if exc.args else ""
+            codes = {
+                "NATIVE_MEDIA_LAB_DISABLED",
+                "NATIVE_MEDIA_INVENTORY_CHANGED",
+                "NATIVE_MEDIA_REQUEST_DENIED",
+                "NATIVE_MEDIA_PIPE_UNAVAILABLE",
+                "NATIVE_MEDIA_PEER_DENIED",
+                "NATIVE_MEDIA_SEND_DENIED",
+                "NATIVE_MEDIA_TRUNCATED",
+                "NATIVE_MEDIA_SERVICE_REFUSED",
+                "NATIVE_MEDIA_LENGTH_MISMATCH",
+                "NATIVE_MEDIA_RESPONSE_DENIED",
+                "NATIVE_MEDIA_FINAL_INTEGRITY_DENIED",
+                "NATIVE_INVENTORY_LAB_DISABLED",
+                "NATIVE_INVENTORY_PIPE_UNAVAILABLE",
+                "NATIVE_INVENTORY_PEER_DENIED",
+                "NATIVE_INVENTORY_REQUEST_DENIED",
+                "NATIVE_INVENTORY_REPLY_DENIED",
+                "NATIVE_INVENTORY_REPLY_LENGTH",
+                "NATIVE_INVENTORY_FRAME_DENIED",
+            }
+            print("DC06_B06_MEDIA_CLIENT_FAIL_" + (code if code in codes else "UNKNOWN"))
             return 69
     frame = encode_request(expected, 0, len(PNG))
     answer = direct_lab_probe(pipe, frame)
