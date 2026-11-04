@@ -130,3 +130,47 @@ def test_b06_product_boundary_and_lab_review_media_receipt_same_server_and_db(
         ).status_code == 404
     assert source.read_bytes() == raw
     print("DC06_B06_SAME_SERVER_PRODUCT_CLOSED_LAB_DUAL_ID_MEDIA_ACK_REPLAY_PASS")
+
+
+def test_b06_unassigned_receipt_failpoint_rolls_back_and_replays(
+    synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    (engine, claim, token, station, media, _source, collector, item,
+     raw, _private, _challenge, headers, app, _pub) = _ctx(
+        synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+    )
+    authority = unassigned.TestOnlyUnassignedMediaAuthority()
+    with _localhost_server(app) as url, httpx.Client(
+        base_url=url, trust_env=False, timeout=20,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        review = "/isolated/lot06-phase2/review/" + claim.capture
+        view = http.get(review, headers=headers).json()
+        json_headers = {k: v for k, v in headers.items()
+                        if k.lower() != "content-type"}
+        confirmed = http.post(
+            review + "/confirm", json=_input(view), headers=json_headers,
+        )
+        assert confirmed.status_code == 200
+        with Session(engine) as db:
+            store_clinical_asset_bytes(
+                db, employer_id=claim.tenant, patient_id=claim.patient,
+                asset_id=claim.asset_id, content=raw, media_root=media,
+            )
+            db.commit()
+        with pytest.raises(BridgeRejected, match="INJECTED_TRANSACTION_ROLLBACK"):
+            _issue(
+                engine, claim, token, station, media, fail_at="after_audit",
+                locked_authorize=lambda db, c: authority.consume(db, c, ""),
+            )
+        assert _counts(engine) == (0, 0, 0)
+        with Session(engine) as db:
+            assert db.execute(select(device_review.c.consumed)).scalar_one() == 0
+            assert db.execute(select(unassigned.unassigned.c.consumed)).scalar_one() == 1
+        good = _post(http, claim, collector.read_verified(item["id"]), headers)
+        assert good.status_code == 200
+        assert _counts(engine) == (1, 1, 1)
+        again = _post(http, claim, raw, headers)
+        assert again.status_code == 200 and again.json() == good.json()
+        assert _counts(engine) == (1, 1, 1)
+    print("DC06_B06_UNASSIGNED_PROVENANCE_RECEIPT_ROLLBACK_REPLAY_PASS")
