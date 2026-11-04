@@ -362,3 +362,41 @@ Le calcul V1 applique `min(angle, 180-angle)` sur deux **axes non orientés**, e
 **NEXT :** un orthodontiste humain ou l'agent indépendant exécuté dans un vrai Claude Code doit confronter Po/Co/Gn et le profil cutané aux overlays et descriptions anatomiques (en lecture seule) ; ensuite un praticien habilité vérifie l'original natif, la calibration DICOM, les cas Z obtus et signe une décision clinique avant 10 FUE cabinet. Aucun merge ni déploiement autorisé.
 
 **CHANTIER Digital Crown Céphalo V1 · LOT 1/4 OPEN · SOUS-LOT FUE-0 réelles superpositions image source · NEXT revue Po–Co–Gn/Pog sur overlays et oracle humain · GOAL preuve anatomique et étalonnage défendables avant R15/PDF.**
+
+### 19. Revue visuelle ciblée Po/Or/Co/Gn et profil cutané — 2026-11-04 (coordinateur, pas une approbation clinique)
+
+**Provenance.** Contrôle visuel sur les [6 superpositions publiques dans l'artefact GitHub #13338620134](https://github.com/hraaaaf/Digital_crown/actions/runs/41855594616/artifacts/13338620134) (2 JPEG Aariz du miroir tiers, chacun full/posterior/profile), et calcul séparé des écarts entre [annotations Junior et Senior](https://github.com/Annagdy/CNN-CVM/tree/ea6678cd8ba62b615d909ecb1065023ea73eb827/Aariz_dataset/Aariz/test/Annotations/Cephalometric%20Landmarks). Les repères ont été examinés par le **coordinateur ChatGPT**, sans invocation indépendante du sous-agent Orthodontiste ni revue d'un praticien habilité. Définitions comparatives : [Aariz Scientific Data 2025](https://www.nature.com/articles/s41597-025-05542-3) et [StatPearls: Cephalometric Points](https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/). Ces définitions n'attestent ni l'identité locale du pixel source ni la convention propre à une méthode de Digital Crown.
+
+**Écarts Euclidiens Junior/Senior, valeurs en pixels NON converties en mm :**
+
+| Repère | Veraviewepocs 2D (px) | ProMax 2D (px) | Lecture permise |
+|---|---:|---:|---|
+| Po | 3,61 | 0 | Accord géométrique ≠ porion osseux démontré |
+| Or | 6,40 | 7,07 | À contre-pointer : ancrage du plan de Francfort |
+| Co | 0 | 0 | Accord des moyennes, pas preuve de position condylienne juste |
+| Gn | 0 | 1 | Position image plausible, point construit à certifier |
+| Me | 2,24 | 2,24 | Région mentonnière à revoir |
+| Ls | 3,16 | 0 | Tissu mou candidat |
+| Li | 0 | 2 | Tissu mou candidat |
+| Pog cutané (symbole source Pog + U+0060) | 0 | 0 | Candidat de correspondance avec Pog_soft, non certifié |
+| R, hors cibles de Co–Gn/Z | 0 | 29,73 | Divergence de groupe à ne pas masquer |
+
+17/29 points identiques entre les deux fichiers de groupes sur Veraviewepocs ; 18/29 sur ProMax. Les fichiers sont **des moyennes de groupes** et non quatre tracés individuels. Un accord parfait sur Co/Pog cutané ne mesure pas la reproductibilité indépendante de ces repères.
+
+**Sensibilité exploratoire de l'angle Z hors moteur DC, par fichier de groupe séparé :** Veraviewepocs Junior **77,4513°** versus Senior **75,5031°**, écart **1,9482°** ; ProMax Junior **57,8427°** versus Senior **58,0596°**, écart **0,2168°**. Ces différences peuvent dépendre de Po, Or, lèvres et pogonion simultanément : **ne pas les attribuer uniquement à Or**. Quatre résultats aigus, aucun angle >90° : le contre-exemple Merrifield V1 63,4349/116,5651° reste non arbitré. Aucun tracé manuel d'angle Z ni validation de sa convention.
+
+**Constats anatomiques visuels — impressions NON certifiables :**
+1. **ANA-Po-01 / BLOCKER :** sur ProMax, Po est voisin d'un dispositif circulaire de positionnement auriculaire ; l'identité exacte entre sommet osseux du méat auditif et repère instrumental est **NOT_EVALUABLE** sur ces overlays. Interdire Po source → Po_anatomic sans double marquage et référentiel.
+2. **ANA-Or-02 / MAJOR :** Or est visible vers les rebords orbitaires mais diffère de 6,4–7,1 px entre groupes ; le plan de Francfort et les angles associés exigent un tracé indépendant sur image non annotée. Aucun seuil en mm admis tant que calibration non certifiée.
+3. **ANA-Co-03 / BLOCKER :** Co est dans la région condylienne attendue ; les deux groupes ont les mêmes coordonnées sur les deux images, **sans prouver le point postéro-supérieur exact ni le mapping Co_anatomic**. Double contour possible à arbitrer.
+4. **ANA-Gn-04 / MAJOR :** Gn et Me projetés près de la symphyse osseuse, distribution visuellement plausible ; il faut vérifier construction de Gn, Pog osseux/Me et méthode avant Co–Gn clinique.
+5. **ANA-Soft-05 / MAJOR :** Ls, Li et pogonion cutané paraissent proches du contour facial antérieur ; segment labial bleu = construction candidate, PAS ligne Merrifield approuvée. Vérifier indépendamment la lèvre tangente et les secteurs aigu/obtus.
+6. **ANA-MM-06 / BLOCKER :** échelle ProMax discordante 1,139 mm/pixel publication contre 0,139 miroir, origine DICOM/export et magnification non certifiées. Aucune distance Co–Gn en mm clinique, aucun profil normatif.
+
+**Grille de décision humaine à remplir, actuellement TOUTES CASES NON RENSEIGNÉES :** sur chacun des 2 cas, identifier source native, date/lecteur/relecture, état **APPROUVÉ_SUR_NATIVE / REFUSÉ / NON_ÉVALUABLE** pour Po osseux versus instrument, Or, Co, Gn/Me, Ls/Li/Pog cutané, construction Z obtuse, calibration/mm. Tracé en aveugle sur cliché non annoté, puis comparaison à l'overlay et justification des corrections ; aucune signature fictive. Cette grille ne vaut pas FUE de cabinet et un accord sur deux JPEG tiers ne certifie pas les productions patient.
+
+**Décision :** image source publique = consultée ; 29 repères × 2 groupes × 2 images = contrôlés géométriquement, mais **LANDMARKS_ANATOMICAL_PARITY=NOT_APPROVED**, **ORTHODONTISTE_AGENT_RUN=NOT_RUN**, **HUMAN_SIGNOFF=NONE**, **NATIVE_DICOM_SCALE=NOT_EVALUABLE**, **HOLD-Z-ORIENTATION**, **HOLD-MCNAMARA-SCALE**, **clinical_validation_available=false**, PDF **INCOMPLETE**, **CABINET_FUE=0/10**. Pas de modification de formule/méthode, aucune activation médicale, PR Draft sans merge/deploy.
+
+**NEXT :** transmettre les 6 superpositions et clichés non annotés au praticien pour revue indépendante des cibles Po/Or/Co/Gn/soft ; récupérer convention de tracé, incertitude et calibration native ; vérifier un vrai cas Z obtus avant nouvelle méthode versionnée, puis FUE cabinet. L'agent Orthodontiste ne peut pas être déclaré exécuté sans runner autonome.
+
+**CHANTIER Digital Crown Céphalo V1 · LOT 1/4 OPEN · SOUS-LOT revue visuelle ciblée §19 · NEXT arbitrage humain Po/Or/Co/Gn et calibration native · GOAL lever les réserves anatomiques sur preuve avant R15/PDF.**
