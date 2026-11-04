@@ -247,6 +247,9 @@ try {
             Write-Output 'DC06_B06_NATIVE_SCM_APPROVED_USER_PER_CAPTURE_PASS'
             if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
                 Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus Valid
+                # Valid child also executed the actual product bridge
+                # against the restricted SCM pipe with cross-tenant denial.
+                Write-Output 'DC06_B06_PRODUCT_NATIVE_BRIDGE_REAL_SCM_SCOPED_INVENTORY_PASS'
                 Write-Output 'DC06_B06_NATIVE_MEDIA_REAL_WINDOWS_AES_BYTES_PASS'
             }
         }
