@@ -356,3 +356,30 @@ Base vérifiée à l'ouverture : PR #1210 OPEN/DRAFT, HEAD B06-2 `4d3ea038ca288d
 GOAL B06-3 : associer une capture native vérifiée au patient expressément choisi et revérifié par le personnel, écrire un ClinicalAsset Media Core chiffré + une décision d'approbation auditée + un ACK récupérable et idempotent ; prouver refus patient/tenant/poste/session/digest/rejeu, échec/rollback, crash/reprise et absence de doublon à l'aide de données synthétiques et SQLCipher réel. Le succès exige un chemin produit authentifié et une transaction durable cohérente, non un seul banc de tests isolé.
 
 Avant toute mutation de schéma : réévaluer modèle Media Core, migrations existantes et autorisation canonique LOT04/SQL ; si la migration/le contrat requis n'est pas autorisé ou la preuve de récupération n'existe pas, préserver le fail-closed et marquer B06-3 OPEN plutôt que simuler un ACK. Aucun média patient réel, secrets réels ou pilote ; aucun merge master, activation clinique, installation cabinet ou déploiement. LOT10 reste exclusivement le laboratoire matériel/terrain. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
+
+
+## POST — B06 bloc 3/5 : chemin ClinicalAsset/ACK durable, gate de schéma non levé (2026-11-04)
+
+**État honnête : B06-3 IMPLEMENTED_CANDIDATE / OPEN, non activé ; B06-2 GREEN LAB conservé.** Sur la PR #1210 DRAFT, création de `backend/services/imaging_acquisition_durable_v15.py` et raccordement conditionnel des routes de revue produit, du panneau Médias patient et des FUE SQLCipher ; aucun déploiement ni merge. La fonctionnalité durable n'est activable que via état serveur approuvé, absent de `backend/main.py`. Les tables `dc06_b06_product_receipts`, `_audit`, `_outbox` sont **des descriptors de schéma test-only** : pas de migration Alembic ni de `create_all` en chemin produit.
+
+### Invariants implémentés / à prouver au HEAD final
+
+- Sélection staff explicite, challenge/session/poste/JWT, deux marqueurs dossier + date de naissance, capture vérifiée par lecteur natif SHA-256 ; données binaires sans nom de patient dans le flux natif.
+- Écriture du ClinicalAsset Media Core et blob AES-GCM authentifié puis ledger `(tenant,station,capture)`, audit, outbox et reçu Ed25519 dans une transaction SQLCipher `BEGIN IMMEDIATE` ; rollback sans ACK/asset, éventuel orphan **chiffré seulement** ; contrôle du tenant/patient/staff sous verrou ; clé de signature dérivée de `CABINET_MASTER_KEY_HEX`, rotation à cadrer avant pilotage.
+- ACK ré-interrogeable par patient/empreinte/staff/poste et vérifié sur les octets déchiffrés, même si le scanner ou le cache de revue est arrêté. Rejeu inter-patient/digest refusé, statut de cabinet `clinical_receipt_authorized=false` explicite. L'interface ne confond pas revue temporaire et association durable et récupère un ACK perdu sans second upload.
+- Protection : schéma manquant / switch absent => 503, jamais une persistance fictive. Aucun établissement de confiance réel du périphérique/SCM ni test LOT10 physique dans ce sous-lot.
+
+### Batterie FUE et preuves provisoires
+
+- React 18/18 PASS sur les HEADs de travail du B06-3, dont reçu durable et récupération après perte de réponse ; Windows SCM/Authenticode SUCCESS dans les mêmes runs. Pas de capture visuelle humaine approuvée.
+- Run B06 #41917593370 au HEAD `325f56bf0eaaf286a3ec095e2910c59fcbaf92be` : 74/75 backend PASS, un seul échec d'**oracle de statut** dans le test nouveau : après retrait volontaire de l'IPC, la tentative de nouvelle capture retourne 503 (fail-closed) et non 409 (capture déjà prise). Le test a été corrigé pour exiger 409 avec IPC présent et 503 hors ligne ; pas de constat de défaut du chiffrement ou de l'ACK dans ce run.
+- **Convergence finale PENDING** : refaire backend/React/Windows sur le SHA final après correction et mise à jour canonique, contrôler collecte/exécution/skips ; ne jamais transformer ces 74 PASS partiels en 75/75 certifiés sans CI du HEAD final.
+
+### Gate non résolu / suites précises
+
+1. Faire approuver par propriétaire des données et LOT04 le schéma durable (unicité capture, références, immutabilité du ledger, migration/rollback/restauration SQLCipher et backfill anciens cabinets). Aucun SQL DDL implicite.
+2. Prouver le binding native SCM ↔ session ↔ patient dans un runtime de packaging autorisé, refus clé révoquée et retour après panne réelle, clé et signature en rotation, données synthétiques uniquement.
+3. Corriger et faire **approuver humainement** les screenshots BEFORE/AFTER, navigation clavier/focus et zoom 200% de l'onglet Médias ; un green React n'est pas une preuve visuelle humaine.
+4. Exécuter FUE-I/G sur un poste de test autorisé, puis seulement les épreuves physiques du LOT10 quand leur gate est atteint. Pas d'activation ni d'avis de conformité.
+
+`READY_TO_MERGE=false`; `PRODUCT_READY=false`; `CLINICAL_GO=false`; `LOT10_PHYSICAL_VALIDATED=false`.
