@@ -403,3 +403,33 @@ Cette insertion est **documentaire uniquement** ; la batterie `lot06-phase2-b06-
 **Scope de ce passage réversible (aucune mutation réelle)** : certifier un contrat d'intégrité du ledger SQLCipher B06 sur fixture isolée (tables, clés, unicité, immutabilité, refus de schéma tronqué/falsifié), oracle de refus PostgreSQL/plain SQLite, et rédiger décision opérateur explicite PostgreSQL vs SQLCipher + conditions restauration/rollback sans inventer un GO. Si un schéma additionnel change la fixture de laboratoire, un test doit le provisionner explicitement ; `backend.main` doit rester sans `create_all`/bootstrap durable.
 
 **GATES REQUIRED :** preuves FUE exact-HEAD, 0 données réelles, human visual approval réellement humain, architecture/migration approuvée, aucun merge, installer, déploiement, pilote ou test LOT10 physique. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
+
+
+## POST — B06 bloc 4/5 : contrat de schéma sécurisé, moteur cabinet non choisi (2026-11-04)
+
+**Verdict précis : B06-4 SQLCipher SCHEMA CONTRACT = GREEN LAB ; B06-4 PRODUCT = OPEN.**
+
+**Code HEAD certifié :** `57bca1eeb5c71af0d02911d7a3d0573335392d74` ; [run B06 #41924917294](https://github.com/hraaaaf/Digital_crown/actions/runs/41924917294) = **3/3 jobs SUCCESS sur le même SHA** :
+- Backend SQLCipher **77/77 PASS**, nouveau FUE `DC06_B06_4_REJECTS_INCOMPLETE_SCHEMA_AND_IMMUTABLE_ACK_AUDIT_PASS` et `DC06_B06_4_PLAINTEXT_SQLITE_REFUSED_PASS` ; revue produit précédente, hash, attestation temporaire, ClinicalAsset AES-GCM, récupération de l'ACK, rollback et refus de rejeu régressions PASS.
+- React **18/18 PASS** sur trois fichiers ; aucun nouveau delta visuel dans B06-4.
+- Windows SCM/LocalService, AES-GCM, redémarrage/clé erronée/corruption/autre utilisateur, signature Authenticode et manifeste fermé **SUCCESS**. Certificats LAB éphémères uniquement.
+- Première passe B06-4 `366cb3a`, 75/77 backend PASS : deux échecs d'oracle car le driver `sqlcipher3.dbapi2.IntegrityError` émerge directement au lieu d'un wrapper SQLAlchemy. L'implémentation refusait correctement les UPDATE ; le harnais a été corrigé pour accepter **uniquement l'exception d'intégrité native ou SQLAlchemy**, sans relâcher les triggers. Le run rouge reste conservé en preuve.
+
+**Modifications de code :** dans `backend/services/imaging_acquisition_durable_v15.py`, l'ancien contrôle « trois tables existent » est remplacé par la vérification en lecture seule des noms de colonnes, nullabilité, clés primaires et index UNIQUE (`asset_id`, `receipt_id`) et des six triggers anti-UPDATE/DELETE à SQL contrôlé sur reçus, audit et outbox. Aucune réparation automatique, DDL, Alembic ou `create_all` en `backend.main`. Le nouvel oracle exige les garde-fous en fixture SQLCipher synthétique et vérifie qu'une modification est effectivement rejetée. Le fait de créer des tables aux noms attendus, sans triggers, est maintenant un refus 503.
+
+### Décision d'architecture requise avant B06-4 PRODUCT
+
+**Conflit vérifié documentaire :** `docs/clinic/CABINET_UPGRADE_COMPATIBILITY_GATE.md` décrit le cabinet V1 déjà installé sur **PostgreSQL 18.2 local**, avec migration Alembic explicite avant démarrage ; `imaging_acquisition_durable_v15.py` est conçu **SQLite/SQLCipher seulement** (PRAGMA + `BEGIN IMMEDIATE`). Le moteur actuellement installé *aujourd'hui* n'a pas été interrogé physiquement pendant cette passe ; ne pas confondre baseline documentaire et inventaire cabinet 2026-11-04.
+
+**Recommandation sous réserve d'inventaire : conserver PostgreSQL local** sur le poste actuel et construire un adaptateur durable transactionnel PostgreSQL dans une suite isolée, avec schéma additif explicite, unicité et contrôle de concurrence, audit append-only, restauration de backup et FUE réels du serveur local. C'est moins risqué qu'une conversion complète des dossiers patients PostgreSQL→SQLite uniquement pour B06. Si l'autorité choisit SQLCipher, cela nécessite une **décision distincte de migration du moteur complet**, y compris préservation de tous les dossiers/liens/archives/médias/IDs, restore complet et approbation spécialisée ; aucun GO ici.
+
+**FUE / gates encore REQUIRED avant l'activation logicielle :**
+1. Inventaire read-only du véritable backend cabinet et autorisation explicite du propriétaire pour le schéma cible ; examen de coordination LOT04, index/FK/append-only, plan rollback/backfill et absence de modification historique.
+2. Migration **seulement en clone isolé**, tests de panne/reprise et restauration DB/médias ; aucune migration patient réelle ni conversion silencieuse.
+3. Intégration du service natif de confiance/SCM sans injection test `app.state`, autorité périphérique + staff + session, récupération ACK avec renouvellement/rotation des clés et preuve de visibilité dans la timeline patient.
+4. Screenshots BEFORE/TARGET/AFTER sur écran effectivement implémenté, 200% zoom et focus/clavier, puis **Human Visual Approval explicite par le propriétaire sur le HEAD final**. Le workflow trusted refuse le SHA modifié comme prévu : NE PAS créer/apposer de faux label.
+5. Exécuter FUE-I/G sur moteur **choisi et validé** ; les tests physiques appareil/TPM/second poste/coupure secteur appartiennent au LOT10 et restent NOT_RUN dans ce sous-lot.
+
+**Batterie actuellement clôturée :** 77 backend + 18 React + Windows SUCCESS est une preuve de laboratoire du contrat SQLCipher, **pas** une validation d'un cabinet PostgreSQL ni une autorisation de migration. Les certificats Windows de test ne constituent pas une signature éditeur de production.
+
+`READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false` · `LOT10_PHYSICAL_VALIDATED=false`. PR #1210 DRAFT et non fusionnée. Aucun déploiement, aucune activation cabinet.
