@@ -67,7 +67,10 @@ describe('ImagingAcquisitionReviewPanelV15 isolated LAB patient-safety UI', () =
     expect(submit).toBeDisabled();
     expect(screen.getByText('SYN-42')).toBeInTheDocument();
     expect(screen.getByText('2000-03-04')).toBeInTheDocument();
-    await waitFor(() => expect(get).toHaveBeenCalledWith(base.preview_url, { responseType: 'arraybuffer' }));
+    await waitFor(() => expect(get).toHaveBeenCalledWith(base.preview_url, {
+      responseType: 'arraybuffer',
+      headers: { 'X-DC-Review-Challenge': base.challenge },
+    }));
     await waitFor(() => expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:lab-preview-verified'));
     expect(screen.getByRole('alert')).toHaveTextContent(/Aperçu sécurisé/);
 
