@@ -245,3 +245,25 @@ feature-development blockers. LOT06 remains responsible for testable
 production integration plus automated CI and non-physical UI review.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
+
+
+### B06-1 Windows import regression / corrective boundary — 2026-11-04
+
+Initial three-job B06 run on HEAD `6794cf73` was **FAILURE** on
+Windows, although Linux SQLCipher/HTTP **68/68 PASS** and React PASS.
+The failure was **not** from AES-GCM or SCM: importing
+`backend.services.imaging_acquisition_native_bridge_v15` into the
+minimal separate-user Windows helper triggers `backend.__init__`, which
+imports SQLAlchemy (not installed in that hermetic client). The child
+exited 1 at Python import before its native media probe.
+
+Architectural fix: move the identical class implementation into
+`tools/imaging_gateway/native_product_bridge_v15.py`, a deliberately
+**ORM-free** shared native adapter. The product backend service facade
+reexports the same class; Windows helper imports the shared gateway
+module directly, without bringing ORM, API, or clinical DB packages to
+the LocalService/peer test. Existing Win32/SID DACL/AES checks unchanged.
+The exact-head Windows CI must now reach
+`DC06_B06_PRODUCT_NATIVE_BRIDGE_REAL_SCM_SCOPED_INVENTORY_PASS`
+and all original negative oracles. Never install SQLAlchemy into the
+trusted Windows IPC client just to hide this architecture regression.
