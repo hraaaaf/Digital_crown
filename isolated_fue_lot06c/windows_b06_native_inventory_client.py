@@ -12,7 +12,7 @@ import sys
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
-from backend.services.imaging_acquisition_native_inventory_v15 import read_native_unassigned
+from tools.imaging_gateway.native_inventory_windows_v15 import read_native_unassigned
 from tools.imaging_gateway.native_inventory_protocol_v15 import NativeInventoryDenied
 from isolated_fue_lot06c.scm_spool_read_b03 import PNG
 
