@@ -471,3 +471,12 @@ Le garde `_guarded_ci_dsn()` exige les trois indicateurs TEST/isolated/PG-LAB et
 ## POST B06-4B (2026-11-04)
 
 CI [#41927177139](https://github.com/hraaaaf/Digital_crown/actions/runs/41927177139): 77/77 SQLCipher, 4/4 PostgreSQL 18.6 ephemeral, 18/18 React, Windows SUCCESS. Ledger-only synthetic FUE; PostgreSQL product/clinical go BLOCKED. No merge, deployment, migration or cabinet changes. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
+
+
+## PRE B06-4C — PostgreSQL real-ORM synthetic product-route rehearsal, 2026-11-04
+
+**Current HEAD** `b0a13b0fe97c678539cadb4ba4af9b398888bc44`; [B06 #41928205095](https://github.com/hraaaaf/Digital_crown/actions/runs/41928205095) = 3/3 SUCCESS, backend SQLCipher 77 PASS + PostgreSQL ledger-only 4 PASS, React 18 PASS, Windows SUCCESS. Independent B03 and Portability SUCCESS. Human Visual Approval FAILURE expected (no human visual sign-off). PR #1210 DRAFT.
+
+**Goal:** prove, on disposable PostgreSQL 18 and synthetic actual ORM models, that authenticated product review + station + staff + patient two markers can persist AES-GCM ClinicalAsset + signed durable ACK + audit + outbox in one PostgreSQL transaction, with failpoints, recovery, denial and concurrent duplicate guards. Prototype the PostgreSQL transaction adapter **inside an isolated test module only**, injected by the lab fixture into the actual FastAPI route; leave SQLCipher-only product implementation and real cabinet/boot unchanged until architecture/migration authorization. Do not silently choose a cabinet engine. Continue to enforce the PostgreSQL production refusal established in B06-4B. Tests must distinguish product-route logic from authorized production PostgreSQL persistence.
+
+**Required FUE:** actual Postgres backend, JWT + workstation cookie + secondary patient markers, signed ACK verified against C2 encrypted bytes and ClinicalAsset timeline query, rollback 0/0/0/0, replay/recovery/negative tenant and tamper, and honest recorded gaps (role privileges, DB media restore, real device and human UI). Never access clinic DB, patient data, installer, deployment, migration or merge. `READY_TO_MERGE=false`; `PRODUCT_READY=false`; `CLINICAL_GO=false`.
