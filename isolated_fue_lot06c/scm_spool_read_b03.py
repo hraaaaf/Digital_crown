@@ -16,6 +16,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from tools.imaging_gateway import Config, HotFolder
 from tools.imaging_gateway.unassigned_queue_v15 import read_unassigned
+from tools.imaging_gateway.native_inventory_protocol_v15 import encode_inventory
 
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
@@ -23,7 +24,7 @@ PNG = base64.b64decode(
 )
 
 def run(argv: list[str]) -> int:
-    if os.name != "nt" or len(argv) != 5 or argv[0] not in ("seed", "read"):
+    if os.name != "nt" or len(argv) != 5 or argv[0] not in ("seed", "read", "inventory"):
         return 4
     mode, incoming, private, keyfile = argv[0], Path(argv[1]), Path(argv[2]), Path(argv[3])
     # Fourth user arg reserved, fixed for LAB only; never configurable tenant.
@@ -59,10 +60,15 @@ def run(argv: list[str]) -> int:
         stage = 3
         collector = HotFolder(cfg)
         stage = 4
+        if mode == "inventory":
+            # One integrity-checked unassigned capture, no patient/media/filename.
+            captures = read_unassigned(collector, limit=1)
+            os.write(1, encode_inventory(captures[0] if captures else None))
+            return 0
         captures = read_unassigned(collector, limit=9)
         if len(captures) > 9:
             return 5
-        # Fixed two-byte ASCII response, no patient/filename/digest/media.
+        # Existing two-byte count response, no patient/filename/media.
         os.write(1, b"S" + str(len(captures)).encode("ascii"))
         return 0
     except OSError as error:
@@ -92,11 +98,11 @@ def run(argv: list[str]) -> int:
             category = constants.get(marker, "Z")
         else:
             category = "Z"
-        if mode == "read":
+        if mode in ("read", "inventory"):
             os.write(1, ("E" + category).encode("ascii"))
         return 5
     except Exception:
-        if mode == "read": os.write(1, b"E2")
+        if mode in ("read", "inventory"): os.write(1, b"E2")
         return 5
 
 if __name__ == "__main__":
