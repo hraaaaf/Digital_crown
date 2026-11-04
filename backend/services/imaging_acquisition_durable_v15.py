@@ -124,7 +124,7 @@ def _verify_receipt(db: Session, record, media_root: Path | None) -> dict:
         raise DurableCaptureDenied("DURABLE_RECEIPT_INCOMPLETE")
     try:
         _signer().public_key().verify(bytes.fromhex(row["signature"]), _payload(row))
-    except (ValueError, Exception) as exc:
+    except Exception as exc:
         raise DurableCaptureDenied("DURABLE_RECEIPT_SIGNATURE_DENIED") from exc
     asset = db.get(ClinicalAsset, row["asset_id"])
     if (
@@ -188,7 +188,8 @@ def is_committed(engine, *, tenant: int, station: str, capture: int) -> bool:
 def commit_capture(
     engine, *, tenant: int, station: str, capture: int,
     patient: int, staff: int, digest: str, media: bytes,
-    validate_locked, media_root: Path | None = None, fail_at: str | None = None,
+    validate_locked, category: str, media_root: Path | None = None,
+    fail_at: str | None = None,
 ) -> dict:
     """One writer lock: patient/staff check, encrypted C2 blob, ledger, audit, ACK.
 
@@ -201,7 +202,8 @@ def commit_capture(
         and fail_at in ("after_asset", "after_receipt", "after_audit")
     ):
         raise DurableCaptureDenied("DURABLE_FAILPOINT_NOT_AUTHORIZED")
-    if (not isinstance(media, bytes) or not media
+    if (category not in ("PHOTO", "RADIOGRAPH")
+            or not isinstance(media, bytes) or not media
             or hashlib.sha256(media).hexdigest() != digest):
         raise DurableCaptureDenied("DURABLE_MEDIA_DIGEST_DENIED")
     with Session(engine, expire_on_commit=False) as db:
@@ -224,7 +226,7 @@ def commit_capture(
                 return result
             asset = create_clinical_asset(
                 db, employer_id=tenant, patient_id=patient,
-                asset_type="RADIOGRAPH" if media.startswith(b"DCM") else "PHOTO",
+                asset_type=category,
                 source_kind="DEVICE_CAPTURE", created_by=staff,
                 source_ref=f"DC06:{station}:{capture}",
                 mime_type="image/png",
