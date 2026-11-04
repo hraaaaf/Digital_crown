@@ -347,3 +347,12 @@ separate UI gates. Physical scanner/TPM/2nd workstation/power-cut are
 **LOT10 exclusively**. Do not infer physical proof from Windows CI.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
+
+
+## PRE — B06 bloc 3/5 — ClinicalAsset chiffré + ACK durable (2026-11-04)
+
+Base vérifiée à l'ouverture : PR #1210 OPEN/DRAFT, HEAD B06-2 `4d3ea038ca288ddab9e68a47a39b7f02d8762ba1`. B06-2 = confirmation éphémère : aucune association, aucun ClinicalAsset ni ACK ; sa réussite 71 backend / 16 React / Windows SCM reste limitée au LAB. Les workflows transversaux de ce SHA sont terminés : B03 et CB-02 SUCCESS ; Portability Runtime FAILURE (hors preuve B06, investigation séparée) ; Human Visual Approval FAILED. Le canonique Notion LOT06 et les garde-fous FUE-first ont été relus.
+
+GOAL B06-3 : associer une capture native vérifiée au patient expressément choisi et revérifié par le personnel, écrire un ClinicalAsset Media Core chiffré + une décision d'approbation auditée + un ACK récupérable et idempotent ; prouver refus patient/tenant/poste/session/digest/rejeu, échec/rollback, crash/reprise et absence de doublon à l'aide de données synthétiques et SQLCipher réel. Le succès exige un chemin produit authentifié et une transaction durable cohérente, non un seul banc de tests isolé.
+
+Avant toute mutation de schéma : réévaluer modèle Media Core, migrations existantes et autorisation canonique LOT04/SQL ; si la migration/le contrat requis n'est pas autorisé ou la preuve de récupération n'existe pas, préserver le fail-closed et marquer B06-3 OPEN plutôt que simuler un ACK. Aucun média patient réel, secrets réels ou pilote ; aucun merge master, activation clinique, installation cabinet ou déploiement. LOT10 reste exclusivement le laboratoire matériel/terrain. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
