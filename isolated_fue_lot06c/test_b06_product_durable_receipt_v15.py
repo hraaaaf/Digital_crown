@@ -91,8 +91,8 @@ def test_b06_3_schema_and_enablement_fail_closed_before_any_write(
         base_url=origin, trust_env=False, timeout=20,
     ) as http:
         http.cookies.set("dc_workstation", station)
-        commit, data = _start(http, claim, active, headers)
         app.state.dc06_b06_durable_enabled = False
+        commit, data = _start(http, claim, active, headers)
         assert http.post(commit, json=data, headers=headers).status_code == 503
         app.state.dc06_b06_durable_enabled = True
         assert http.post(commit, json=data, headers=headers).status_code == 503
@@ -140,6 +140,7 @@ def test_b06_3_durable_signed_ack_recovered_after_worker_restart(
         # Simulate application worker restart; transient review disappears,
         # but a fresh authenticated staff session can retrieve the same ACK.
         app.state.dc06_review_store = ProductReviewStore()
+        del app.state.dc06_unassigned_bridge  # recovery must not depend on scanner/IPC
         path = f"/api/imaging/acquisition/receipts/{active['capture'].id}"
         query = {
             "selected_patient_id": claim.patient,
@@ -161,7 +162,7 @@ def test_b06_3_durable_signed_ack_recovered_after_worker_restart(
             "capture_id": active["capture"].id,
             "capture_digest": active["capture"].digest,
             "selected_patient_id": claim.patient,
-        }, headers=headers).status_code in (200, 409)
+        }, headers=headers).status_code == 409
         assert _counts(engine) == [1, 1, 1, 1]
     print("DC06_B06_3_PRODUCT_SQLCIPHER_ASSET_SIGNED_ACK_RESTART_REPLAY_PASS")
 
