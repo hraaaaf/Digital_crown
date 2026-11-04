@@ -442,3 +442,28 @@ Cette insertion est **documentaire uniquement** ; la batterie `lot06-phase2-b06-
 **GOAL:** test the documented on-prem PostgreSQL engine as a **disposable CI service/clone only** for the unchanged B06 receipt/audit/outbox layout, primary/unique constraints, append-only enforcement, transaction rollback/replay, and verify the current product durable service still REFUSES PostgreSQL. Convert findings into a concrete, operator-approval-required PostgreSQL migration/adapter contract. Reuse existing Media Core primitives and minimize parallel code. No actual cabinet database, no patient data, no migration Alembic in this pass, no product PostgreSQL enablement, no claim of integrated PG ClinicalAsset or clinical release.
 
 **REQUIRED safety:** sandbox must be synthetic, loopback-only and fail closed without exact test env; no runtime DDL/automatic fallback; no approval of PostgreSQL backend or schema silently. If tests expose a mismatch, mark the PG contract OPEN rather than assert parity. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
+
+
+## POST — B06-4B : contrat PostgreSQL 18 certifié sur clone synthétique CI (2026-11-04)
+
+**HEAD code** `bd1344db50804755f632b9193b46020bc0a19d3f`; [GitHub run #41927177139](https://github.com/hraaaaf/Digital_crown/actions/runs/41927177139) **3/3 jobs SUCCESS** :
+- Backend produit/SQLCipher **77/77 PASS**, mêmes HTTP/JWT/ClinicalAsset/ACK/FUE LAB qu'au B06-4.
+- **PostgreSQL 18 jetable 4/4 PASS** via `isolated_fue_lot06c/test_b06_postgres_clone_contract_v15.py` et un service PostgreSQL Actions `dc06_b06_ci` à compte `dc06_synthetic` et schéma éphémère distinct par test. Preuves de logs : `DC06_B06_4B_PG18_CLONE_ATOMIC_ROLLBACK_AND_3_UNIQUE_KEYS_PASS`, `DC06_B06_4B_PG18_CLONE_APPEND_ONLY_UPDATE_DELETE_TRUNCATE_DENIED_PASS`, `DC06_B06_4B_PG18_CLONE_CONCURRENT_CAPTURE_SINGLE_BUNDLE_PASS`, `DC06_B06_4B_REAL_PG_SERVICE_PRODUCT_FAIL_CLOSED_ZERO_WRITES_PASS`.
+- React **18/18 PASS** et Windows SCM/LocalService, AES spool + Authenticode package **SUCCESS**.
+- Rejets SQL PostgreSQL `duplicate key`, `DC06_B06_LEDGER_IMMUTABLE` et `PRAGMA` incompatibles, observés dans les logs d'un test négatif, sont **attendus et assertés**. Le PG test valide la structure et la concurrence, pas une insertion produit dans PostgreSQL.
+
+**Périmètre réellement testé.** Le même ensemble de descripteurs SQLAlchemy `receipts/audit/outbox` se crée dans un **schéma PG de laboratoire**, avec 9 triggers temporaires anti-UPDATE/DELETE/TRUNCATE. Le test vérifie :
+1. rollback transac complet `0/0/0`, puis insertion `1/1/1` ;
+2. unicité `(tenant,station,capture)`, `asset_id` et `receipt_id` malgré tentatives de double insertion ;
+3. interdiction effective d'`UPDATE`, `DELETE`, `TRUNCATE` sur les trois tables ;
+4. concurrence deux writers : **un et un seul bundle** stocké ;
+5. service produit `is_committed`/`receipt_for`/`commit_capture` sur vrai engine PG => `DURABLE_SQLCIPHER_REQUIRED`, zéro écriture de tables B06.
+Le garde `_guarded_ci_dsn()` exige les trois indicateurs TEST/isolated/PG-LAB et une URL strictement identifiée au compte, base et hôte loopback. Aucune donnée de cabinet n'est appelée ; une CI verte ne démontre ni réelle migration PostgreSQL ni durabilité après panne secteur.
+
+**Limites critiques restant OPEN :** cette fixture ne crée pas `ClinicalAsset`, patients ni utilisateurs dans PostgreSQL ; elle **n'est pas** un adaptateur de publication PG ni une migration Alembic. Les références `asset_id` et `staff/patient` n'ont **pas encore** de FK certifiées PG sur ce candidat, la signature ACK `0` est volontairement synthétique, aucune écriture AES-GCM/Media Core via PostgreSQL et aucun nouveau boot cabinet validé. Un utilisateur privilégié PG pourrait supprimer ces triggers ; ce test démontre la protection SQL normale, pas une immutabilité face à un superuser. Concurrence simple, pas de preuve de crash/process kill/PITR/WAL replay/restore.
+
+**Décision recommandée :** avant de construire/activer un backend clinique PG, confirmer en lecture seule le moteur courant du cabinet et approuver une proposition LOT04/DB : schéma versionné avec FK et contraintes, migrations additives, autorité et locking `SELECT FOR UPDATE`/advisory ou gestion d'unicité, sauvegarde/restauration DB+médias sur clone, clés et ACK signés et révocation, et preuve HTTP/JWT + staff+patient+ClinicalAsset sur **même transaction PG**. Ne pas migrer toute la base à SQLCipher juste pour B06 sans décision distincte. Les migrations cabinet, merges, déploiements, connexion scanner et validation visuelle restent interdits sans autorisation correspondante. L'indépendant Windows B03 `#41925470235` présente un échec antérieur à la seed spool synthétique ; cela reste un risque de fiabilité séparé, bien que le Windows **B06 exact-HEAD** soit GREEN.
+
+**Next : B06-4C — architecture du véritable adaptateur PG et protocole rehearsal sur copie isolée, puis B06-5/5 produit/UX après approbation.** Le `Human Visual Approval` est toujours un gate humain non approuvé ; ne jamais le contourner. Les essais physiques restent LOT10.
+
+`READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false` · `LOT10_PHYSICAL_VALIDATED=false`.
