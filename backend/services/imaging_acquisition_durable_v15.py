@@ -146,7 +146,7 @@ def _schema(db: Session) -> None:
         raise DurableCaptureDenied("DURABLE_SCHEMA_NOT_APPROVED")
 
     def _canonical(sql: str) -> str:
-        return re.sub(r"\\s+", " ", sql.strip()).lower()
+        return re.sub(r"\s+", " ", sql.strip()).lower()
 
     rows = connection.exec_driver_sql(
         "SELECT name,sql FROM sqlite_master WHERE type='trigger'"
