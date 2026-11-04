@@ -53,6 +53,19 @@ outbox = Table(
 )
 SCHEMA_TABLES = (receipts, audit, outbox)
 
+# Operator migration proposal, not executed at startup. A table-name-only
+# existence check is insufficient: an incomplete or writable ledger could
+# produce a seemingly verified ACK without durable audit immutability.
+LEDGER_IMMUTABILITY_TRIGGERS = {
+    f"dc06_b06_{kind}_{action.lower()}_lock": (
+        f"CREATE TRIGGER dc06_b06_{kind}_{action.lower()}_lock "
+        f"BEFORE {action} ON dc06_b06_product_{kind} "
+        f"BEGIN SELECT RAISE(ABORT, 'DC06_B06_LEDGER_IMMUTABLE'); END"
+    )
+    for kind in ("receipts", "audit", "outbox")
+    for action in ("UPDATE", "DELETE")
+}
+
 
 class DurableCaptureDenied(RuntimeError):
     """Public caller must return a sanitized failure, never a partial ACK."""
@@ -93,12 +106,55 @@ def _sqlcipher(db: Session) -> None:
 
 
 def _schema(db: Session) -> None:
-    # No DDL or auto-upgrade in the product request. Missing ledger -> hard STOP.
-    actual = {row[0] for row in db.connection().exec_driver_sql(
-        "SELECT name FROM sqlite_master WHERE type='table'"
-    )}
-    if any(table.name not in actual for table in SCHEMA_TABLES):
+    """Read-only, fail-closed verification of the *exact* approved ledger.
+
+    No DDL, trigger repair, implicit Alembic upgrade or migration occurs here.
+    A future operator migration must independently install this schema.
+    """
+    connection = db.connection()
+    for table in SCHEMA_TABLES:
+        name = table.name  # fixed literal declared server-side
+        rows = connection.exec_driver_sql(f'PRAGMA table_info("{name}")').all()
+        expected = {column.name: column for column in table.columns}
+        if len(rows) != len(expected) or {row[1] for row in rows} != set(expected):
+            raise DurableCaptureDenied("DURABLE_SCHEMA_NOT_APPROVED")
+        for row in rows:
+            col = expected[row[1]]
+            if bool(row[3]) != (not col.nullable):
+                raise DurableCaptureDenied("DURABLE_SCHEMA_NOT_APPROVED")
+        required_pk = tuple(column.name for column in table.primary_key.columns)
+        actual_pk = tuple(row[1] for row in sorted(
+            (item for item in rows if item[5]), key=lambda item: item[5],
+        ))
+        if actual_pk != required_pk:
+            raise DurableCaptureDenied("DURABLE_SCHEMA_NOT_APPROVED")
+
+    # Exactly one ClinicalAsset and one receipt ID per ledger entry, independently
+    # of the tuple primary key (tenant, station, opaque capture ID).
+    unique_index_columns = set()
+    for info in connection.exec_driver_sql(
+        'PRAGMA index_list("dc06_b06_product_receipts")'
+    ).all():
+        if info[2]:
+            idx_name = info[1].replace('"', '""')
+            unique_index_columns.add(tuple(
+                col[2] for col in connection.exec_driver_sql(
+                    f'PRAGMA index_info("{idx_name}")'
+                ).all()
+            ))
+    if not {("asset_id",), ("receipt_id",)}.issubset(unique_index_columns):
         raise DurableCaptureDenied("DURABLE_SCHEMA_NOT_APPROVED")
+
+    def _canonical(sql: str) -> str:
+        return re.sub(r"\\s+", " ", sql.strip()).lower()
+
+    rows = connection.exec_driver_sql(
+        "SELECT name,sql FROM sqlite_master WHERE type='trigger'"
+    ).all()
+    triggers = {name: sql for name, sql in rows}
+    for name, sql in LEDGER_IMMUTABILITY_TRIGGERS.items():
+        if name not in triggers or _canonical(triggers[name] or "") != _canonical(sql):
+            raise DurableCaptureDenied("DURABLE_SCHEMA_NOT_APPROVED")
 
 
 def _receipt(db: Session, *, tenant: int, station: str, capture: int):
