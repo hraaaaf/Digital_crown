@@ -60,7 +60,10 @@ def test_b06_product_boundary_and_lab_review_media_receipt_same_server_and_db(
         assert candidate["clinical_receipt_authorized"] is False
         assert candidate["patient_id"] == claim.patient
         assert candidate["capture_digest"] == claim.digest
-        preview = http.get(candidate["preview_url"], headers=headers)
+        assert http.get(candidate["preview_url"], headers=headers).status_code == 409
+        preview = http.get(candidate["preview_url"], headers={
+            **headers, "X-DC-Review-Challenge": candidate["challenge"],
+        })
         assert preview.status_code == 200 and preview.content == raw
         assert preview.headers["cache-control"] == "no-store"
 
@@ -71,6 +74,9 @@ def test_b06_product_boundary_and_lab_review_media_receipt_same_server_and_db(
         ok = http.post(confirm, json=_input(candidate), headers=json_headers)
         assert ok.status_code == 200 and ok.json()["clinical_receipt_authorized"] is False
         assert http.post(confirm, json=_input(candidate), headers=json_headers).status_code == 409
+        assert http.get(candidate["preview_url"], headers={
+            **headers, "X-DC-Review-Challenge": candidate["challenge"],
+        }).status_code == 409
 
         saved = _post(http, claim, raw, headers)
         assert saved.status_code == 200
