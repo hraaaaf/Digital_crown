@@ -28,6 +28,8 @@ def encode_request(capture: UnassignedCapture, offset: int, count: int) -> bytes
             or not isinstance(capture.digest, str)
             or re.fullmatch(r"[a-f0-9]{64}", capture.digest) is None
             or type(capture.size) is not int or not 0 < capture.size <= LAB_MEDIA_MAX
+            or capture.mime != "image/png"
+            or capture.category not in ("PHOTO", "RADIOGRAPH")
             or type(offset) is not int or offset < 0 or offset >= capture.size
             or type(count) is not int or not 1 <= count <= MAX_CHUNK
             or offset + count > capture.size):
