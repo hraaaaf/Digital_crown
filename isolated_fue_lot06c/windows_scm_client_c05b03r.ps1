@@ -10,6 +10,7 @@ param(
   [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
   [switch]$ProbeB05Package,
   [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
+  [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06MediaStatus='None',
   [string]$B05KeyFile='',
   [string]$B05ServiceDll='',
   [string]$B05BinDirectory=''
@@ -176,6 +177,19 @@ public static class DC06RClient {
     $python=(Get-Command python -ErrorAction Stop).Source
     & $python -I (Join-Path $PSScriptRoot 'windows_b06_native_inventory_client.py') $PipeName $B06InventoryStatus
     if ($LASTEXITCODE -ne 0) { throw ('DC06_B06_NATIVE_ADAPTER_FAILED_'+$LASTEXITCODE) }
+  }
+  if ($B06MediaStatus -ne 'None') {
+    if ($B06MediaStatus -eq 'Unauthorized' -and $ExpectedOpen -ne 5) {
+      throw 'DC06_B06_MEDIA_DENIED_USER_EXPECTED'
+    }
+    if ($B06MediaStatus -ne 'Unauthorized' -and $ExpectedOpen -ne 0) {
+      throw 'DC06_B06_MEDIA_APPROVED_USER_EXPECTED'
+    }
+    $env:DC06_B06_NATIVE_INVENTORY_LAB='1'
+    $env:DC06_B06_NATIVE_MEDIA_LAB='1'
+    $python=(Get-Command python -ErrorAction Stop).Source
+    & $python -I (Join-Path $PSScriptRoot 'windows_b06_native_media_client.py') $PipeName $B06MediaStatus
+    if ($LASTEXITCODE -ne 0) { throw ('DC06_B06_NATIVE_MEDIA_FAILED_'+$LASTEXITCODE) }
   }
   if ($ExpectedOpen -eq 0) {
     Write-Output 'C05B03R_ALLOWED_USER_READ_WRITE_ALLOWED_INSTANCE_CREATION_DENIED'
