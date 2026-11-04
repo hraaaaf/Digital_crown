@@ -7,6 +7,9 @@ patient identities or device keys from an HTTP caller.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+import json
+import os
+import re
 from pydantic import BaseModel, Field
 from backend.services.imaging_acquisition_durable_v15 import (
     DurableCaptureDenied, commit_capture, receipt_for, is_committed,
@@ -93,7 +96,7 @@ class ConfirmReview(BaseModel):
     explicit_confirmation: bool
 
 
-def _review_context(request: Request, db: Session, staff: models.User):
+def _review_context(request: Request, db: Session, staff: models.User, *, require_native: bool = True):
     # Same-machine only; never trust client-controlled X-Forwarded-For or pipe
     # selection. Stateful requests require an actual bearer token, not a
     # cookie-only request susceptible to CSRF.
@@ -114,7 +117,7 @@ def _review_context(request: Request, db: Session, staff: models.User):
         raise HTTPException(423, "REVIEW_WORKSTATION_REQUIRED")
     bridge = getattr(request.app.state, "dc06_unassigned_bridge", None)
     store = getattr(request.app.state, "dc06_review_store", None)
-    if not isinstance(bridge, LocalNativeCaptureBridge) or not isinstance(store, ProductReviewStore):
+    if require_native and (not isinstance(bridge, LocalNativeCaptureBridge) or not isinstance(store, ProductReviewStore)):
         raise HTTPException(503, "REVIEW_NATIVE_BRIDGE_UNAVAILABLE")
     return tenant, station.id, raw, bridge, store
 
@@ -170,6 +173,12 @@ def start_product_review(
         # Read AND validate the exact binary server-side before granting a
         # preview capability. No bytes are sent to the client at this stage.
         bridge.read_verified_media(capture, tenant_id=tenant, workstation_id=station)
+        if getattr(request.app.state, 'dc06_b06_durable_enabled', False) is True:
+            try:
+                if is_committed(db.get_bind(), tenant=tenant, station=station, capture=capture.id):
+                    raise HTTPException(409, 'DURABLE_CAPTURE_ALREADY_COMMITTED')
+            except DurableCaptureDenied:
+                raise HTTPException(503, 'DURABLE_LEDGER_UNAVAILABLE') from None
         review, challenge = store.start(
             tenant=tenant, workstation=station, staff=staff.id,
             session=session, capture=capture, patient=patient.id,
@@ -193,6 +202,7 @@ def start_product_review(
         "numero_dossier": patient.numero_dossier,
         "date_naissance": patient.date_naissance.date().isoformat(),
         "preview_url": "/imaging/acquisition/review/" + review.review_id + "/preview",
+        "durable_commit_available": getattr(request.app.state, "dc06_b06_durable_enabled", False) is True,
     }
 
 
@@ -351,8 +361,8 @@ def commit_product_media(
 
             fail_at = None
             if (getattr(request.app.state, "dc06_b06_lab_failpoint", None)
-                    and __import__("os").environ.get("ENVIRONMENT") == "test"
-                    and __import__("os").environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "true"):
+                    and os.environ.get("ENVIRONMENT") == "test"
+                    and os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "true"):
                 fail_at = request.app.state.dc06_b06_lab_failpoint
             result = commit_capture(
                 db.get_bind(), tenant=tenant, station=station,
@@ -363,7 +373,7 @@ def commit_product_media(
                 fail_at=fail_at,
             )
         return Response(
-            content=__import__("json").dumps(result), media_type="application/json",
+            content=json.dumps(result), media_type="application/json",
             headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
         )
     except ProductReviewDenied:
@@ -382,10 +392,12 @@ def recover_product_media_ack(
     capture_digest: str, db: Session = Depends(database.get_db),
     staff: models.User = Depends(require_permission("patients")),
 ):
-    tenant, station, _session, _bridge, _store = _review_context(request, db, staff)
+    tenant, station, _session, _bridge, _store = _review_context(
+        request, db, staff, require_native=False,
+    )
     if getattr(request.app.state, "dc06_b06_durable_enabled", False) is not True:
         raise HTTPException(503, "DURABLE_SCHEMA_APPROVAL_REQUIRED")
-    if (capture_id < 1 or not __import__("re").fullmatch(r"[a-f0-9]{64}", capture_digest)):
+    if (capture_id < 1 or not re.fullmatch(r"[a-f0-9]{64}", capture_digest)):
         raise HTTPException(422, "DURABLE_RECEIPT_ARGUMENTS_DENIED")
     _selected_patient(db, patient_id=selected_patient_id, tenant=tenant, staff=staff)
     root = getattr(request.app.state, "dc06_b06_media_root", None)
@@ -400,6 +412,6 @@ def recover_product_media_ack(
     except Exception:
         raise HTTPException(503, "DURABLE_RECEIPT_UNAVAILABLE") from None
     return Response(
-        content=__import__("json").dumps(receipt), media_type="application/json",
+        content=json.dumps(receipt), media_type="application/json",
         headers={"Cache-Control": "no-store", "X-Content-Type-Options": "nosniff"},
     )
