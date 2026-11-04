@@ -184,3 +184,64 @@ crash/recovery/second host, visual human approval. No physical hardware
 test was performed.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
+
+
+## B06 implementation block 1/5 — product backend ↔ Windows SCM unassigned inventory (2026-11-04)
+
+**This is LOT06 software implementation, NOT a physical LOT10 test.**
+
+Product route `GET /api/imaging/acquisition/unassigned` is now mounted
+in **actual `backend.main`**. The endpoint is GET-only, served on loopback,
+and requires actual authenticated JWT permission `patients` and a valid
+current tenant's enrolled workstation cookie (station-locked mode DENIED).
+The response contains **only one unassigned record's canonical opaque ID,
+SHA-256, byte count, MIME and category**. No patient/dossier/appointment,
+raw image, filesystem path, pipe name or per-patient suggestion; no POST,
+ClinicalAsset or receipt. No-store/no-sniff response headers. With no
+trusted local native bridge explicitly attached to the server, it responds
+`NATIVE_IPC_NOT_CONNECTED` and an empty queue — with no false claim that
+the service is installed or trusted. Failed native inventory reads return
+503, **not** a fake empty queue.
+
+`backend/services/imaging_acquisition_native_bridge_v15.py` encapsulates a
+tenant/workstation-bound backend service adapter with real Win32 functions
+`read_native_unassigned` and `read_native_capture_bytes`. The latter is
+**server-side only** in block 1: it refuses changed inventory before/after
+read, mismatched hash, byte length or MIME, and exceeds neither the currently
+certified 16 KiB Win32 LAB limit nor its PNG-only media scope. No raw bytes
+are exposed by any B06-1 HTTP endpoint. The actual Windows SCM CI fixture
+now calls the same backend inventory adapter under the separate authorized
+Windows account, verifying real AES-GCM spool metadata and rejecting foreign
+tenant ID at the product service boundary.
+
+**Mandatory fail-closed bootstrap separation:** product `backend.main`
+does not automatically install, attach or discover an IPC pipe from a
+browser, HTTP request, environment toggle, filename or untrusted installer.
+The trusted object must be supplied via
+`app.state.dc06_unassigned_bridge` **only after future verified
+service installation and attestation**, not by front-end callers. The
+existing Win32 wire client remains explicitly LAB-gated to an approved
+GitHub-hosted Windows test environment. Thus this step **connects
+the software APIs and proves data flow with mocks and the genuine Windows
+SCM test**, but does **not** activate a real cabinet native service. The
+existing patient-scoped status remains `NATIVE_IPC_NOT_CONNECTED` and
+`clinical_receipt_authorized=false` intentionally until staff-bound
+preview and patient confirmation in block 2/5 and durable integration in
+block 3/5.
+
+**B06-1 FUE required** at exact SHA: no JWT 401/403, missing or wrong
+station 423, no attached bridge returns non-authorizing disconnected
+status, tenant/station mismatch denied, canonical inventory with no
+patient fields, actual SHA/size/MIME byte checks, race/swapped capture
+denied, malformed/failed peer gives 503, GET no-store, POST 405, raw
+media URL 404, zero receipt/asset writes. Real Windows SCM/LocalService
+unassigned read & multi-fragment SHA, wrong key/corruption/second user,
+Authenticode signer/ZIP and React must remain GREEN.
+No hardcoded theme styles. Do not merge/deploy/install on this pass.
+
+**LOT10 ONLY:** scanner physical, TPM hardware, true second workstation,
+power interruption and cabinet human acceptance; these are NOT LOT06
+feature-development blockers. LOT06 remains responsible for testable
+production integration plus automated CI and non-physical UI review.
+
+`READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
