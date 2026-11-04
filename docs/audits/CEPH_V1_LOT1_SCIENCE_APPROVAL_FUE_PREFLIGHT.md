@@ -151,4 +151,27 @@ A. Faire relire et annoter par le praticien les dossiers scientifiques **réels*
 
 **GOAL :** les libellés et états reflètent fidèlement ce qui est réellement calculable ; les références numériques ne deviennent jamais des seuils de décision par simple rapprochement bibliographique.
 
+### 10. Arbitrage ciblé des PDF primaires — McNamara 8 % / Merrifield angle Z (2026-11-04)
+
+**Preuves primaires relues visuellement :**
+- [McNamara, Am J Orthod 1984, p.451/Table I, PDF Michigan](https://media.dent.umich.edu/labs/mcnamara/files/A%20method%20of%20cephalometric%20evaluation.pdf) : six couples **moyenne ± SD** Co–Gn, Co–A, ANS–Me (F/H) concordants avec le registre. Le texte mentionne 8 % de magnification pour les mesures **« whenever possible »** et une synthèse historique mélangeant Bolton, Burlington et Ann Arbor. Les tableaux de valeurs linéaires historiques ne sont **pas en mm physiques directement comparables**, et l'article ne prouve pas une conversion uniforme `/1.08` applicable au cliché réel traité par DC. **Décision : HOLD-MCNAMARA-SCALE confirmé** ; ne pas transformer en norme, z-score ou couleur diagnostique sans description étalonnage par acquisition, construction, population, sexe/âge et autorité clinicien.
+- [Merrifield, Am J Orthod 1966, p.811–812, Fig.5, PDF Tweed Foundation](https://tweedortho.com/wp-content/uploads/2024/12/profile-line-aid.pdf) : définit l'**angle inférieur** entre Frankfort et profil Pog'–lèvre la plus proéminente. Fig.5 représente le secteur inférieur depuis le rayon Frankfort postérieur jusqu'à la ligne profil vers le menton. Le tableau II des **40 sujets normaux non orthodontiques** contient Z moyen 81,4°, min–max **71–89°** : aucune valeur >90° ne fait partie de cet échantillon ; l'extrapolation au-delà est un contre-exemple mathématique, **pas une validation clinique d'un nouveau seuil**.
+
+**Contre-exemple géométrique synthétique, sans patient (coordonnées de laboratoire) :** Francfort Po=(0,0), Or=(10,0), Pog'=(2,20).
+| Lèvre la plus proéminente | Angle inférieur candidat : rayon Or→Po vs rayon lèvre→Pog' | Calcul V1 actuel `merrifield_z_angle_deg_v1` |
+|---|---:|---:|
+| Ls=(7,10), Li=(6,12) | **63,4349°** | **63,4349°** |
+| Ls=(-3,10), Li=(-4,12) | **116,5651°** | **63,4349°** |
+
+Le calcul V1 applique `min(angle, 180-angle)` sur deux **axes non orientés**, effaçant le choix du secteur inférieur historique ; l'application **ne peut donc pas distinguer ces deux configurations synthétiques**. C'est une **collision démontrée de géométrie**, pas une preuve qu'un patient donné a une valeur fausse. L'orientation anatomique Po→Or et le choix lèvre/Pog' doivent faire l'objet d'une revue sur tracés réels anonymisés et images miroir/rotations avant de certifier une correction.
+
+**Preuve de code ajoutée sans modifier la géométrie :** `backend/tests/test_cephalo_r6_tweed_merrifield.py::test_merrifield_v1_folds_supplementary_inferior_angles_audit_only` reproduit les deux sorties V1 identiques et le secteur inférieur candidat distinct. Le test est un **oracle de collision**, **pas un nouveau calcul clinique certifié**.
+
+**Décision de versionnement et de sécurité :** ne **pas** changer en place `merrifield_z_angle_deg_v1` : la fonction est référencée par les méthodes de preuve persistée `MERRIFIELD_Z_ANGLE_DEG_V1` **et** `MERRIFIELD_Z_CANONICAL_DEG_V2`; un changement silencieux altérerait la reproductibilité des analyses existantes. **HOLD-Z-ORIENTATION maintenu**, étude de cas de parité anatomique supervisée requise, puis seulement une nouvelle méthode/identité versionnée avec tests de rétrocompatibilité et décision migration. En attendant, pas d'interprétation clinique d'angle Z et aucune norme Merrifield appliquée au patient.
+
+**Gates restant pour lever les HOLD :**
+1. McNamara : relever modalité / calibration / grossissement source et patient, identité exacte des points, population et règle d'équivalence vérifiée ; produire cas-oracles et arbitrage praticien.
+2. Merrifield : définir convention orientée et vérification des positions sur tracés cliniques anonymisés avec consentement, comparer au tracé manuel historique, valider l'orientation miroir/rotation et la variante Frankfort ; puis migration de méthode versionnée.
+3. Documenter FUE-I/G sur instance cabinet isolée, praticien et traces UI/API/DB. **FUE réelles : 0/10 ; aucune approbation médicale ni signature inventée.**
+
 **CHANTIER Digital Crown Céphalo V1 · LOT 1/4 R11–R14 NON CLOTURE · SOUS-LOT dossier des sources + 10 FUE préflight synthétiques · NEXT revue clinique indépendante + 10 FUE réelles · GOAL approbation scientifique traçable avant activation R15/PDF.**
