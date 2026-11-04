@@ -21,7 +21,7 @@ from sqlalchemy import (
     Column, Integer, MetaData, String, Table, UniqueConstraint,
     insert, select, update,
 )
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.orm import Session
 
 from isolated_fue_lot06c.c05b03m_security_gate_lab import (
@@ -160,14 +160,19 @@ def register_unassigned(db: Session, manifest: UnassignedManifest,
     _registry(db, manifest, signature)
     _fresh(manifest)
     metadata.create_all(bind=db.get_bind(), checkfirst=True)
-    try:
-        db.execute(insert(unassigned).values(
+    # SQLCipher's native driver can raise a raw DB-API IntegrityError,
+    # bypassing SQLAlchemy's wrapped exception type. Keep uniqueness atomic:
+    # a duplicate capture or nonce never inserts and never escapes as a raw
+    # SQL exception. Other SQL/storage errors still fail closed.
+    result = db.execute(
+        sqlite_insert(unassigned).values(
             **vars(manifest), signature=signature, consumed=0,
-        ))
-        db.commit()
-    except IntegrityError:
+        ).on_conflict_do_nothing()
+    )
+    if result.rowcount != 1:
         db.rollback()
-        raise BridgeRejected("UNASSIGNED_MANIFEST_DUPLICATE_OR_NONCE_REPLAY") from None
+        raise BridgeRejected("UNASSIGNED_MANIFEST_DUPLICATE_OR_NONCE_REPLAY")
+    db.commit()
 
 
 def _from_row(row) -> UnassignedManifest:
