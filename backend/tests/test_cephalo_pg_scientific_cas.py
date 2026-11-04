@@ -28,14 +28,18 @@ def pg_engine():
     engine = create_engine(url, isolation_level="READ COMMITTED", future=True)
     with engine.begin() as conn:
         conn.execute(text("CREATE TABLE IF NOT EXISTS patients (id integer primary key)"))
+        conn.execute(text("CREATE TABLE IF NOT EXISTS users (id integer primary key)"))
         models.CephaloAnalysis.__table__.create(conn, checkfirst=True)
+        models.AuditLog.__table__.create(conn, checkfirst=True)
         conn.execute(text("INSERT INTO patients(id) VALUES(1) ON CONFLICT DO NOTHING"))
+        conn.execute(text("INSERT INTO users(id) VALUES(1) ON CONFLICT DO NOTHING"))
     yield engine
     engine.dispose()
 
 
 def _reset(engine):
     with Session(engine) as db:
+        db.query(models.AuditLog).delete()
         db.query(models.CephaloAnalysis).delete()
         db.add(models.CephaloAnalysis(
             id=101, patient_id=1, image_original_path="synthetic://pg-cas",
@@ -112,3 +116,75 @@ def test_pg_two_connections_one_clinical_stage_cas_wins(pg_engine):
         ) * 64
         assert saved[EVIDENCE_GRAPH_KEY]["revision"] == 2
         assert saved[R14_KEY]["content_sha256"] == "b" * 64
+
+
+def _seed_stage_for_r11_reviews(pg_engine, monkeypatch):
+    """Transfer only synthetic fixture JSON and its audited staging into PG CI."""
+    from backend.tests.test_cephalo_r11_target_reviews import _case
+    from backend.services import cephalo_r11_r13_staging as stage
+    engine, body, actor, stage_sha = _case(monkeypatch)
+    with Session(engine) as source:
+        row = source.get(models.CephaloAnalysis, 101)
+        clinical_json = row.angles_data
+        staging_log = source.query(models.AuditLog).filter(
+            models.AuditLog.action == stage.STAGING_AUDIT_ACTION,
+        ).one()
+        log_details = staging_log.details
+    _reset(pg_engine)
+    with Session(pg_engine) as db:
+        target = db.get(models.CephaloAnalysis, 101)
+        target.angles_data = clinical_json
+        db.add(models.AuditLog(
+            action=stage.STAGING_AUDIT_ACTION,
+            resource_type="CephaloAnalysis", resource_id="101",
+            user_id=actor.id, employer_id=actor.get_employer_id(),
+            details=log_details, severity="INFO",
+        ))
+        db.commit()
+    return actor, stage_sha, body
+
+
+@pytest.mark.parametrize("same_target", [True, False], ids=["same-target","different-targets"])
+def test_pg_concurrent_r11_target_reviews_are_serialized(pg_engine, monkeypatch, same_target):
+    """Real PG16: identical target => one audit/409, separate targets => two audits."""
+    from backend.services import cephalo_r11_target_reviews as reviews
+    actor, stage_sha, _body = _seed_stage_for_r11_reviews(pg_engine, monkeypatch)
+    gate = Barrier(2)
+    def worker(target_type):
+        with Session(pg_engine) as db:
+            analysis = db.get(models.CephaloAnalysis, 101)
+            group, key = (
+                ("findings", "finding_id") if target_type == "finding"
+                else ("diagnoses", "diagnosis_id")
+            )
+            target_id = analysis.angles_data[EVIDENCE_GRAPH_KEY][group][0][key]
+            request = reviews.R11TargetReviewRequest(
+                expected_revision=2, expected_staging_sha256=stage_sha,
+                target_type=target_type, target_id=target_id,
+                action="CONFIRM_R11_TARGET_REVIEW",
+            )
+            gate.wait(timeout=25)
+            try:
+                answer = reviews.record_r11_target_review(
+                    patient_id=1, analysis=analysis, actor=actor,
+                    request=request, db=db,
+                )
+                return ("success", answer["audit_id"])
+            except HTTPException as error:
+                db.rollback()
+                return ("conflict", error.status_code)
+    targets = ("finding", "finding" if same_target else "diagnosis")
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(worker, targets))
+    with Session(pg_engine) as db:
+        count = db.query(models.AuditLog).filter(
+            models.AuditLog.action == reviews.R11_TARGET_ACTION,
+        ).count()
+        assert db.get(models.CephaloAnalysis, 101).angles_data[STAGING_KEY]["content_sha256"] == stage_sha
+    if same_target:
+        assert sorted(x[0] for x in outcomes) == ["conflict", "success"]
+        assert [x for x in outcomes if x[0] == "conflict"] == [("conflict", 409)]
+        assert count == 1
+    else:
+        assert [x[0] for x in outcomes] == ["success", "success"]
+        assert count == 2
