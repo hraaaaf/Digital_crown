@@ -1,12 +1,6 @@
 name: CEPH V1 LOT1 Aariz Landmark Overlays (RESEARCH ONLY, NO DEPLOY)
 
 on:
-  push:
-    branches:
-      - feat/ceph-v1-r14-audit-receipts-20261103
-    paths:
-      - 'scripts/research/aariz_overlay_lab.py'
-      - '.github/workflows/ceph-v1-lot1-aariz-overlays.yml'
   pull_request:
     branches:
       - feat/ceph-v1-l3-practitioner-gate-20261102
