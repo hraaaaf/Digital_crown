@@ -383,3 +383,12 @@ Avant toute mutation de schéma : réévaluer modèle Media Core, migrations exi
 4. Exécuter FUE-I/G sur un poste de test autorisé, puis seulement les épreuves physiques du LOT10 quand leur gate est atteint. Pas d'activation ni d'avis de conformité.
 
 `READY_TO_MERGE=false`; `PRODUCT_READY=false`; `CLINICAL_GO=false`; `LOT10_PHYSICAL_VALIDATED=false`.
+
+
+## FUE FINAL CONFIRMATION — B06-3 LAB, code HEAD `a938564d75e4c16f828b31d61a422a1831eb67d1` (2026-11-04)
+
+**CERTIFIABLE LAB RESULT, NOT CABINET RELEASE:** GitHub run [#41918287716](https://github.com/hraaaaf/Digital_crown/actions/runs/41918287716) : 3/3 jobs SUCCESS sur le SHA exact : SQLCipher backend **75/75 PASS** (0 skip sur suite collectée), frontend React **18/18 PASS** (3 fichiers), Windows 2022 SCM/service/identité/AES-GCM/restart/tamper/wrong key + Authenticode ZIP/manifeste/signataire non épinglé refusés **SUCCESS**. Des logs source portent `DC06_B06_3_SCHEMA_MISSING_AND_DISABLED_ZERO_WRITES_PASS`, `DC06_B06_3_PRODUCT_SQLCIPHER_ASSET_SIGNED_ACK_RESTART_REPLAY_PASS`, `DC06_B06_3_ATOMIC_ROLLBACK_ENCRYPTED_ORPHAN_SAFE_PASS`, `DC06_B06_3_TAMPERED_SIGNED_ACK_DENIED_PASS`, `DC06_B06_NATIVE_MEDIA_RESTART_SHA_STABLE_PASS`.
+
+Au même SHA, Portability Runtime SUCCESS et LOT06 C05B-03K/L + C05B-03M SUCCESS. **Human Visual Approval FAILURE** ; CB-02 B et B03 transversaux encore actifs au moment de cette preuve (leur statut peut évoluer). Le code/lab est **GREEN LAB B06-3**, mais le lot reste **OPEN** : aucune migration approuvée, aucun `main.py` flag d'activation, aucune preuve visuelle humaine ni LOT10 physique. Les certificats Windows sont explicitement jetables de laboratoire, pas un publisher cert de production.
+
+Cette insertion est **documentaire uniquement** ; la batterie `lot06-phase2-b06-integration-fue.yml` se réexécute sur le nouveau HEAD après ce changement de document. Seul le run du nouveau HEAD peut constituer une preuve one-HEAD finale si le contrôle strict l'exige. Aucun merge/déploiement/activation. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
