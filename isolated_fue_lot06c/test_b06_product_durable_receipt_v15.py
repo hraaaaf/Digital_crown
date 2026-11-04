@@ -167,6 +167,13 @@ def test_b06_3_durable_signed_ack_recovered_after_worker_restart(
         assert len(ack["signature"]) == 128
         assert _counts(engine) == [1, 1, 1, 1]
         assert http.post(commit, json=data, headers=headers).status_code == 409
+        # While native ingress is still present, the committed capture must
+        # not be selectable again even after a different review attempt.
+        assert http.post("/api/imaging/acquisition/review", json={
+            "capture_id": active["capture"].id,
+            "capture_digest": active["capture"].digest,
+            "selected_patient_id": claim.patient,
+        }, headers=headers).status_code == 409
 
         # Simulate application worker restart; transient review disappears,
         # but a fresh authenticated staff session can retrieve the same ACK.
@@ -189,11 +196,13 @@ def test_b06_3_durable_signed_ack_recovered_after_worker_restart(
         # A client cannot reuse the original ID with altered native bytes.
         active["media"] += b"tampered"
         assert http.get(path, headers=headers, params=query).json() == ack
+        # With native bridge gone, start must fail closed (503), while
+        # authenticated receipt recovery remains available (200).
         assert http.post("/api/imaging/acquisition/review", json={
             "capture_id": active["capture"].id,
             "capture_digest": active["capture"].digest,
             "selected_patient_id": claim.patient,
-        }, headers=headers).status_code == 409
+        }, headers=headers).status_code == 503
         assert _counts(engine) == [1, 1, 1, 1]
     print("DC06_B06_3_PRODUCT_SQLCIPHER_ASSET_SIGNED_ACK_RESTART_REPLAY_PASS")
 
