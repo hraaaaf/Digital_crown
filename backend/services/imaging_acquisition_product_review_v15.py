@@ -46,10 +46,10 @@ class ProductReviewStore:
     def __init__(self):
         self._lock = threading.RLock()
         self._pending: dict[str, PendingCaptureReview] = {}
-        self._used: set[tuple[int, str, int, str]] = set()
+        self._used: set[tuple[int, str, int]] = set()
 
     @staticmethod
-    def _key(review: PendingCaptureReview) -> tuple[int, str, int, str]:
+    def _key(review: PendingCaptureReview) -> tuple[int, str, int]:
         return (review.tenant, review.workstation,
                 review.capture.id, review.capture.digest)
 
@@ -62,7 +62,7 @@ class ProductReviewStore:
                 k: v for k, v in self._pending.items()
                 if v.expires_at > now
             }
-            key = (tenant, workstation, capture.id, capture.digest)
+            key = (tenant, workstation, capture.id)
             if key in self._used or any(
                 self._key(v) == key for v in self._pending.values()
             ):
