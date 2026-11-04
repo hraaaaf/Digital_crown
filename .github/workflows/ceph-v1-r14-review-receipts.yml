@@ -26,6 +26,7 @@ on:
       - 'backend/services/cephalo_r11_target_reviews.py'
       - 'backend/tests/test_cephalo_r11_target_reviews.py'
       - 'backend/tests/test_cephalo_v1_lot1_fue_preflight.py'
+      - 'backend/tests/test_cephalo_r6_tweed_merrifield.py'
       - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
       - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
@@ -62,6 +63,7 @@ on:
       - 'backend/services/cephalo_r11_target_reviews.py'
       - 'backend/tests/test_cephalo_r11_target_reviews.py'
       - 'backend/tests/test_cephalo_v1_lot1_fue_preflight.py'
+      - 'backend/tests/test_cephalo_r6_tweed_merrifield.py'
       - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
       - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
@@ -121,7 +123,7 @@ jobs:
           pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-r14-requirements.txt
           pip install -r /tmp/ceph-r14-requirements.txt
-      - name: Test R14 audit receipts, prior R14 safety, R15 and PDF hold
+      - name: Test R14 safety, R15/PDF hold and R6 Merrifield nonclinical regression
         run: |
           python -m pytest -q \
             backend/tests/test_cephalo_r14_review_receipt.py \
@@ -142,4 +144,5 @@ jobs:
             backend/tests/test_cephalo_calibration_missing_graph.py \
             backend/tests/test_cephalo_r14_final_validation_safety.py \
             backend/tests/test_cephalo_r15_clinical_studio.py \
-            backend/tests/test_cephalo_r17_pdf_projection.py
+            backend/tests/test_cephalo_r17_pdf_projection.py \
+            backend/tests/test_cephalo_r6_tweed_merrifield.py
