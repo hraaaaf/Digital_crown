@@ -476,3 +476,40 @@ Les images Aariz publiques demeurent des **cas méthodologiques de référence**
 **NEXT exact :** obtenir les fichiers natifs / la correspondance officielle Figshare et l'arbitrage des auteurs/constructeur, puis contre-tracés en aveugle avec décision Z (secteur inférieur) et Po/Or/Co/Gn ; enfin, seulement si signé, correction de méthode versionnée et batterie 10 FUE cabinet avant R15/PDF.
 
 **CHANTIER Digital Crown Céphalo V1 · LOT 1/4 OPEN · SOUS-LOT source Merrifield originale + provenance Figshare + gate humain préparés · NEXT examen des natifs, arbitrage signé et CI exact HEAD · GOAL lever scientifiquement les deux HOLD avant R15/PDF.**
+
+
+### 22. Réplication contrôlée des coordonnées Aariz (ground truth du code auteur) + CI exact SHA — 2026-11-04 (FUE-0, HOLD)
+
+**PRE / périmètre.** Reprise du HEAD `f1738c0e1106c41189a6fc596b144043fac5abae` sur [PR #1208 DRAFT](https://github.com/hraaaaf/Digital_crown/pull/1208) ; seul le présent canonique scientifique/FUE peut être modifié. Objectif : finir les preuves exact-SHA et répliquer la construction réelle des points de référence Aariz, **pas requalifier des annotations comme contre-tracés humains**. Aucune touche code clinique, modèle, calibration, activation, merge, deployment ni donnée patient.
+
+**CI pleinement achevée sur ce SHA (puisque le §21 était HEAD avant la présente écriture) :** les huit workflows terminés, **7 SUCCESS + 1 M6-I SKIPPED hors périmètre**. Run [R14 #41870754819](https://github.com/hraaaaf/Digital_crown/actions/runs/41870754819), job `backend-r14-hold` #126716831015 : log de checkout `HEAD is now at f1738c0` et résultat **`154 passed in 7.14s`** vérifiés. SUCCESS aussi [Aariz #41870755512](https://github.com/hraaaaf/Digital_crown/actions/runs/41870755512), [Scope #41870754949](https://github.com/hraaaaf/Digital_crown/actions/runs/41870754949), [UI #41870755602](https://github.com/hraaaaf/Digital_crown/actions/runs/41870755602), Theme09 #41870755079, Theme10 #41870755668, Theme11 #41870754927. Ne pas transférer cette preuve au prochain commit documentaire sans nouvel exact-HEAD.
+
+**Code upstream réel, distinct du CSV miroir :** [dépôt original des auteurs `manwaarkhd/aariz`, commit `0634b8b4e6783b13fb6383fac694d61123904d3c`](https://github.com/manwaarkhd/aariz/tree/0634b8b4e6783b13fb6383fac694d61123904d3c). Dans [`dataset.py` lignes `get_landmarks`](https://github.com/manwaarkhd/aariz/blob/0634b8b4e6783b13fb6383fac694d61123904d3c/dataset.py), Git blob `ce3d7c03e97ebd3f0f0b1fc63889f5b8f58f8482`, l'oracle utilisé par **ce chargeur** est :
+`x_gt=ceil(0.5*(x_junior+x_senior))`, `y_gt=ceil(0.5*(y_junior+y_senior))`, appliqué index par index sur les 29 repères. La [liste d'IDs et symboles `config.py`](https://github.com/manwaarkhd/aariz/blob/0634b8b4e6783b13fb6383fac694d61123904d3c/config.py) contient explicitement Po/Or/Co/Gn/Ls/Li/Pog' et Ramus. **Senior n'est pas le ground truth produit par ce chargeur**, les deux dossiers sont des *moyennes de groupes* et non quatre traces personnelles, et l'arrondi `ceil` peut changer la coordonnée de 1 px. Cela ne suffit pas à prouver que toute évaluation externe Aariz utilise nécessairement ce même chargeur/arrondi.
+
+**Réplication hors runtime Digital Crown, à partir de quatre JSON publics du miroir épinglé** [`Annagdy/CNN-CVM@ea6678cd`](https://github.com/Annagdy/CNN-CVM/tree/ea6678cd8ba62b615d909ecb1065023ea73eb827/Aariz_dataset/Aariz/test/Annotations/Cephalometric%20Landmarks) ; contrôle des 29 `landmark_id` à position égale Junior/Senior pour chaque cas avant moyenne. Unités **px de l'image du miroir**, jamais millimètres :
+
+| Cas | Landmark | Junior (x,y) | Senior (x,y) | `ceil((J+S)/2)` | `dist(J,S)` en px |
+|---|---|---|---|---|---:|
+| Veraviewepocs 2D `cl6cc2n5k405307716g0393xo` | Po | (307,538) | (310,540) | **(309,539)** | 3.606 |
+| idem | Or | (657,530) | (662,526) | **(660,528)** | 6.403 |
+| idem | Co | (370,553) | (370,553) | **(370,553)** | 0 |
+| idem | Gn | (703,946) | (703,946) | **(703,946)** | 0 |
+| ProMax 2D `cl5lc0isd1298072u53z31emu` | Po | (106,679) | (106,679) | **(106,679)** | 0 |
+| idem | Or | (703,562) | (710,563) | **(707,563)** | 7.071 |
+| idem | Co | (199,687) | (199,687) | **(199,687)** | 0 |
+| idem | Gn | (805,1181) | (806,1181) | **(806,1181)** | 1.000 |
+
+Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 11/29 ProMax**. *Maximum par cas sur les 29 points* : Veraviewepocs **Or 6.403 px** ; ProMax **Ramus `R` 29.732 px** [J=(209,870), S=(219,898)], bien que Ramus ne soit pas le repère central de la décision Z. Cas Po/Co sans écart ne signifie **pas** que la position osseuse réelle est correcte. Cette moyenne reproductible n'est PAS un nouvel avis de médecin, ni une mesure de performance clinique, ni un contrôle du ZIP officiel.
+
+**Chaîne de provenance des quatre JSON dans le miroir** (Git blob SHA, pas identité avec Figshare) :
+- Veraviewepocs Junior `fa5bdf3841aea69bd74efcfdfba3bfdeb1fc00e4`, Senior `2186adfdbc2b9be821c8a4da5cddcf3572f00907`.
+- ProMax Junior `fcc0d7f1eaad54c3e2099dafa230530d0e0e5cbd`, Senior `3447e8ef82d3aae2ef1fe11e28a6bbde22b4815d`.
+
+**Archive officielle — limite réconfirmée techniquement :** DNS `api.figshare.com`, `ndownloader.figshare.com`, `figshare.com` et `github.com` a échoué dans le conteneur (getaddrinfo `[Errno -3] Temporary failure in name resolution`, `curl (6)`). Le connecteur GitHub donne accès aux JSON et au code auteur, et l'API Figshare via recherche web aux métadonnées, **pas** aux octets du ZIP 2.1 Go dans ce runtime. Aucun Range reçu ; aucun CRC/MD5 membre ni correspondance CSV/image entre ZIP officiel et miroir certifiés. Une extraction côté environnement réseau autorisé devra contrôler SHA-256 de chaque membre et les dimensions/transformations ; ne pas entreprendre un transfert de 2 Go pour une simple CI.
+
+**POST / décision.** FUE-0 reproductibilité code source/annotations : **PASS technique** pour le chargeur auteur sur les 2 cas *du miroir* ; CI R14 sur `f1738c0` **154/154 PASS**, les 7 workflows applicables SUCCESS. **NO GO clinique** : origine image native et calibration NOT_VERIFIED, angle Z secteur inférieur à décider par praticien, Po/Or/Co/Gn indépendants NOT_RUN, vrai sous-agent Orthodontiste NOT_RUN, signature médecin NONE, `clinical_validation_available=false`, PDF `INCOMPLETE`, **0/10 FUE cabinet**. **HOLD-Z-ORIENTATION et HOLD-MCNAMARA-SCALE fermés.** Un éventuel nouveau HEAD ne sera pas dit CI-vert par héritage.
+
+**NEXT exact :** vérification fichier-à-fichier du ZIP officiel si environnement réseau disponible, métadonnées DICOM originales de la machine, arbitrage de l'écart ProMax 2D/ProTouch auprès de l'équipe source, double traçage praticien en aveugle et signature de la matrice §21 ; ensuite seulement versionner correctif scientifique et effectuer 10 FUE cabinet.
+
+**CHANTIER Digital Crown Céphalo V1 · LOT 1/4 OPEN · SOUS-LOT CI f1738c0 + réplication 29 points Aariz (mirroir seul) · NEXT ZIP officiel/natifs et contre-tracé signé · GOAL lever HOLD-Z et HOLD-MCNAMARA sans faux GO clinique.**
