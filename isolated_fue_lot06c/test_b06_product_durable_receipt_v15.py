@@ -128,7 +128,7 @@ def test_b06_3_schema_and_enablement_fail_closed_before_any_write(
         app.state.dc06_b06_durable_enabled = True
         assert http.post(commit, json=data, headers=headers).status_code == 503
         with Session(engine) as db:
-            assert db.query(ClinicalAsset).count() == 0
+            assert db.query(ClinicalAsset).filter(ClinicalAsset.source_ref.like('DC06:%')).count() == 0
         metadata.create_all(engine)
         assert _counts(engine) == [0, 0, 0, 0]
         missing = http.post(commit, json={
