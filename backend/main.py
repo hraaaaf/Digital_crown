@@ -691,6 +691,10 @@ app.include_router(patients.router, prefix="/api/patients", tags=["Patients"])
 # LOT06 B01: read-only clinical acquisition status, NOT device ingress.
 from backend.routers import imaging_acquisition_status_v15
 app.include_router(imaging_acquisition_status_v15.router, prefix="/api/patients")
+# LOT06 B06-1: read-only UNASSIGNED queue, authenticated loopback + approved
+# workstation. Default has no native provider: clinical ingress still CLOSED.
+from backend.routers import imaging_acquisition_unassigned_v15
+app.include_router(imaging_acquisition_unassigned_v15.router, prefix="/api/imaging/acquisition")
 # LOT07 B10: public empty shell only; data enters via isolated MessagePort.
 from backend.routers import ortho_presenter_sandbox
 app.include_router(ortho_presenter_sandbox.router, prefix="/api/ortho", tags=["Opaque Patient Presenter"])
