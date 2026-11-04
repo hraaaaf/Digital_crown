@@ -3,7 +3,16 @@ staff-authenticated review and encrypted signed receipt complete together.
 Never a real scanner, production IPC adapter, human click or cabinet activation.
 """
 import httpx
+import pytest
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
+
+from isolated_fue_lot06c import unassigned_device_manifest_lab as unassigned
+from isolated_fue_lot06c.c05b03m_security_gate_lab import (
+    identity, review as device_review, sign_test_device_claim, BridgeRejected,
+)
+from isolated_fue_lot06c.test_sqlcipher_real_staff_station_bridge_v15 import _issue
+from backend.services.clinical_asset_storage import store_clinical_asset_bytes
 
 from backend import database
 from backend.routers import imaging_acquisition_status_v15
@@ -17,8 +26,8 @@ from tools.imaging_gateway import HotFolder
 def test_b06_product_boundary_and_lab_review_media_receipt_same_server_and_db(
     synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
 ):
-    (engine, claim, _token, station, _media, source, collector, item,
-     raw, _private, _challenge, headers, app, _pub) = _ctx(
+    (engine, claim, token, station, media, source, collector, item,
+     raw, private, challenge, headers, app, _pub) = _ctx(
         synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
     )
 
@@ -77,6 +86,20 @@ def test_b06_product_boundary_and_lab_review_media_receipt_same_server_and_db(
         assert http.get(candidate["preview_url"], headers={
             **headers, "X-DC-Review-Challenge": candidate["challenge"],
         }).status_code == 409
+
+        # A legacy device signature containing patient/staff never authorizes
+        # this newly separated upload contract.
+        assert "X-DC-Lab-Device-Proof" not in headers
+        legacy = sign_test_device_claim(claim, challenge, private)
+        assert _post(http, claim, raw, {
+            **headers, "X-DC-Lab-Device-Proof": legacy,
+        }).status_code == 409
+        with engine.begin() as conn:
+            conn.execute(update(identity).values(active=0))
+        assert _post(http, claim, raw, headers).status_code == 409
+        with engine.begin() as conn:
+            conn.execute(update(identity).values(active=1))
+        assert _counts(engine) == (0, 0, 0)
 
         saved = _post(http, claim, raw, headers)
         assert saved.status_code == 200
