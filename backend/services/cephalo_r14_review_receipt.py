@@ -154,6 +154,7 @@ def read_blocker_review_receipts(
     *,
     patient_id: int,
     analysis: models.CephaloAnalysis,
+    tenant_id: int | None,
     db: Session,
 ) -> list[dict[str, Any]]:
     """Read only tenant-/patient-bound audit rows; never infer clinical authority."""
@@ -164,6 +165,7 @@ def read_blocker_review_receipts(
             models.AuditLog.resource_type == "CephaloAnalysis",
             models.AuditLog.resource_id == str(analysis.id),
             models.AuditLog.action == REVIEW_ACTION,
+            models.AuditLog.employer_id == tenant_id,
         )
         .order_by(models.AuditLog.id.desc())
         .limit(20)

@@ -138,7 +138,7 @@ def test_review_writes_real_audit_row_and_reads_back_without_clinical_promotion(
         assert audit.employer_id == 7
         assert audit.action == "CEPH_R14_BLOCKERS_ACKNOWLEDGED"
         rows = service.read_blocker_review_receipts(
-            patient_id=41, analysis=_analysis(), db=db
+            patient_id=41, analysis=_analysis(), tenant_id=_actor().get_employer_id(), db=db
         )
         assert len(rows) == 1
         assert rows[0]["currency"] == "CURRENT_BLOCKED"
@@ -153,10 +153,10 @@ def test_evidence_edit_or_same_revision_graph_tamper_invalidates_prior_review(mo
             patient_id=41, analysis=_analysis(), actor=_actor(), request=_request(), db=db
         )
         changed = _analysis({"revision": 4, "case_id": "synthetic:case:A"})
-        rows = service.read_blocker_review_receipts(patient_id=41, analysis=changed, db=db)
+        rows = service.read_blocker_review_receipts(patient_id=41, analysis=changed, tenant_id=_actor().get_employer_id(), db=db)
         assert rows[0]["currency"] == "STALE"
         tampered = _analysis({"revision": 3, "case_id": "synthetic:case:B"})
-        rows = service.read_blocker_review_receipts(patient_id=41, analysis=tampered, db=db)
+        rows = service.read_blocker_review_receipts(patient_id=41, analysis=tampered, tenant_id=_actor().get_employer_id(), db=db)
         assert rows[0]["currency"] == "STALE"
 
 
@@ -216,3 +216,33 @@ def test_receipt_studio_must_have_real_blockers_and_never_appear_signed(monkeypa
             db=ForbiddenDb()
         )
     assert exc.value.status_code == 409
+
+def test_blocker_review_receipts_enforce_tenant_boundary_on_same_study(monkeypatch):
+    """A same-resource audit from another employer must never leak into this cabinet."""
+    monkeypatch.setattr(service, "build_r15_clinical_studio_snapshot", _studio)
+    engine = _db()
+    with Session(engine) as db:
+        service.save_blocker_review_receipt(
+            patient_id=41, analysis=_analysis(), actor=_actor(),
+            request=_request(), db=db,
+        )
+        original = db.query(models.AuditLog).one()
+        foreign = models.AuditLog(
+            user_id=original.user_id,
+            employer_id=8,
+            action=original.action,
+            resource_type=original.resource_type,
+            resource_id=original.resource_id,
+            severity=original.severity,
+            details=original.details,
+        )
+        db.add(foreign)
+        db.commit()
+        rows = service.read_blocker_review_receipts(
+            patient_id=41, analysis=_analysis(), tenant_id=7, db=db,
+        )
+        assert [r["receipt_id"] for r in rows] == [original.id]
+        assert all(r["currency"] == "CURRENT_BLOCKED" for r in rows)
+        assert service.read_blocker_review_receipts(
+            patient_id=41, analysis=_analysis(), tenant_id=9, db=db,
+        ) == []

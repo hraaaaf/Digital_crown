@@ -99,7 +99,10 @@ def get_r14_blocker_receipts(
     current_user: models.User = Depends(require_permission("cephalo")),
 ):
     analysis = _bound_review_analysis(patient_id, analysis_id, current_user, db)
-    return read_blocker_review_receipts(patient_id=patient_id, analysis=analysis, db=db)
+    return read_blocker_review_receipts(
+        patient_id=patient_id, analysis=analysis,
+        tenant_id=current_user.get_employer_id(), db=db,
+    )
 
 
 @router.post("/{patient_id}/cephalo-clinical-studio/{analysis_id}/r11-r13-staging", status_code=201)
