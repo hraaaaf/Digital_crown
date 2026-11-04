@@ -214,4 +214,43 @@ Le calcul V1 applique `min(angle, 180-angle)` sur deux **axes non orientés**, e
 
 **État réel de la passe :** source et format officiels vérifiés, compatibilité des noms de repères établie comme **candidate**, **0 image Aariz chargée, 0 valeur Z manuelle extraite, 0 comparaison de mesures DC sur cliché public, 0/10 FUE en cabinet**. McNamara-SCALE et Merrifield-Z restent **HOLD**. Une archive de recherche publique ne justifie pas de libérer R15/PDF. Aucun runtime médical, règle, référentiel ni interface modifié.
 
+### 13. Premier pilote réel d'annotations Aariz — 21 cas multi-appareils (2026-11-04 ; HORS RUNTIME / clinique HOLD)
+
+**Différence avec §12 :** une archive ZIP Figshare complète n'est toujours **pas** récupérable depuis le conteneur (DNS `api.figshare.com` / `ndownloader.figshare.com` / `github.com` en erreur), mais une **copie publique tierce des fichiers d'annotations** a été retrouvée et lue via le connecteur GitHub : [`Annagdy/CNN-CVM`, commit immuable `ea6678cd8ba62b615d909ecb1065023ea73eb827`](https://github.com/Annagdy/CNN-CVM/tree/ea6678cd8ba62b615d909ecb1065023ea73eb827/Aariz_dataset/Aariz). Le dépôt comprend les 1000 lignes du [CSV métadonnées](https://github.com/Annagdy/CNN-CVM/blob/ea6678cd8ba62b615d909ecb1065023ea73eb827/Aariz_dataset/Aariz/cephalogram_machine_mappings.csv) et les annotations JSON senior/junior, mais **l'équivalence binaire au ZIP Figshare officiel (MD5 global) n'est pas vérifiée** ; l'origine exacte des fichiers et les transformations éventuelles des images devront être confirmées. Ceci est une **étude de faisabilité empirique d'une copie publique**, pas un nouvel oracle clinique certifié.
+
+**Prélèvement reproductible, sans identifiants de dossiers dans la PR :**
+- Filtrer le CSV `mode=Test` (150 lignes), répartir par la colonne `machine` (sept machines), trier les `cephalogram_id` lexicographiquement **dans chaque machine**, prendre **les 3 premiers par machine** ; total **21 études**, dont les identifiants publics ne sont **pas copiés** dans ce dossier.
+- À chaque étude : lire `test/Annotations/Cephalometric Landmarks/{Junior Orthodontists,Senior Orthodontists}/<id>.json` au commit ci-dessus. **42 fichiers JSON effectivement chargés ; 29/29 symboles uniques et correspondance `ceph_id` vérifiés par fichier**. Ce sont des **moyennes d'annotations des deux groupes** publiées par les auteurs, pas les traces brutes de quatre lecteurs individuels. Pour chaque symbole, calculer `ceil((junior_x + senior_x)/2)` et `ceil((junior_y + senior_y)/2)`, comme le [lecteur des auteurs](https://github.com/manwaarkhd/aariz/blob/main/dataset.py).
+- McNamara : appliquer **uniquement à titre exploratoire** la distance euclidienne `hypot(dx,dy)` entre Co–A, Co–Gn, ANS–Me sur ces points moyens, puis multiplier par `pixel_size` du CSV **sans appeler ces résultats des mm physiques certifiés** (calibration de l'export non démontrée).
+- Merrifield : prendre la lèvre la plus antérieure selon la projection sur `Po→Or` (convention du V1 DC) ; calculer d'une part l'angle aigu sur **axes non orientés** `min(acos(dot),180-acos(dot))` fidèle à `merrifield_z_angle_deg_v1`, et d'autre part le **secteur inférieur candidat orienté** entre `Or→Po` et `lèvre→Pog'`**. Calcul reproductible indépendant **en JavaScript**, non invocation de l'API ou de la fonction Python Digital Crown ; pas de tracé manuel, pas d'image affichée.
+
+**Résultats effectivement obtenus, échantillon non aléatoire n=21 :**
+
+| Groupe appareil | Cas | Co–Gn médian *après facteur CSV*, unité nominale mm — **NON CERTIFIÉE** |
+|---|---:|---:|
+| ART Plus | 3 | 118,33 |
+| Hyperion X5 | 3 | 37,71 |
+| ProMax 2D | 3 | 113,14 |
+| ProMax with ProTouch | 3 | 114,84 |
+| Rotograph EVO | 3 | 188,69 |
+| Smart3D | 3 | 43,84 |
+| Veraviewepocs 2D | 3 | 69,40 |
+
+- **Angle Z : 21/21** jeux de coordonnées moyennes donnent la même sortie pour la formule aiguë V1 reproduite et le secteur inférieur candidat orienté, à la précision du calcul double ; plage **56,326° à 85,039°**. **18/21** retiennent Ls, **3/21** Li. Aucun de ces 21 cas ne teste le secteur >90° où l'**oracle synthétique R6** révèle la collision ; **on ne peut donc pas lever HOLD-Z-ORIENTATION**. Les différences entre les deux fichiers de groupes d'annotations ne représentent **pas** une étude de reproductibilité clinique indépendante.
+- **McNamara :** les facteurs nominaux `pixel_size` du CSV donnent des longueurs Co–Gn extrêmement hétérogènes selon l'appareil, y compris des ordres de grandeur incompatibles avec une comparaison normative directe. **Le résultat ne prouve pas que le CSV est faux** : image exportée/éventuellement redimensionnée, association de calibration et définition des points/âge/cohorte sont non vérifiés. **STOP : ne pas afficher ces nombres comme dimensions physiques interprétables ; ne surtout pas les confronter aux moyennes Ann Arbor 1984.**
+- **Sensibilité au groupe annotateur :** sur les sept premières études exploratoires, les différences absolues junior–senior calculées ont atteint **8,539** en unité nominale mm pour Co–Gn, et **3,979°** pour l'angle Z ; ce sont des **différences de coordonnées des deux jeux de groupes**, pas des erreurs par rapport à une vérité clinique ni un critère PASS/FAIL. Les 21 cas ont une répartition d'âge/sexe inconnue dans les données exploitées ici ; aucune généralisation.
+
+**Chaîne de confiance et verdict par niveau :**
+
+| Couche | État |
+|---|---|
+| JSON externes + CSV de la copie tierce | **TECHNICALLY_READ / provenance source Figshare NOT VERIFIED** ; 42/42 fichiers chargés, 29/29 points structurés, 7 appareils |
+| Cohérence de calcul hors application, géométrie Z pour ces 21 cas | **TECHNICALLY_CONCORDANT in-sample** : 21/21, mais seulement angles <90° ; **HOLD clinique** |
+| Échelle native de chaque radio / magnification / recadrage / alias `Po_anatomic`, `Co_anatomic`, `Gn_anatomic` | **NOT_EVALUABLE** sans image native, métadonnées DICOM/export et revue anatomique |
+| Calcul et tracé réel dans Digital Crown UI/API/DB/PDF | **NOT_RUN** ; aucune analyse patient dans le runtime ; aucune importation de coordonnées réelles dans l'application |
+| Tracé indépendant praticien / consensus clinique | **NOT_RUN / HUMAN_GATE_REQUIRED** ; aucun angle Z manuel indépendant validé, aucune signature |
+| FUE cabinet | **0/10 observées** |
+
+**Décision actionnable :** source R&D désormais **partiellement échantillonnée en réel**, mais l'écart métrologique fait de la vérification de l'échelle par machine et image **le premier blocage** à résoudre avant tout test McNamara en mm. Obtenir un export natif non modifié (sans dépôt public), contrôler ratio pixel / résolution / éventuel redimensionnement et identités anatomiques sur image, puis effectuer une mesure manuelle indépendante sur un jeu de cas consentis ; seulement ensuite exécuter le véritable runtime Digital Crown en instance locale isolée et la batterie de 10 FUE. **HOLD-MCNAMARA-SCALE et HOLD-Z-ORIENTATION restent inchangés ; pas d'activation médicale ni de R15/PDF.**
+
 **CHANTIER Digital Crown Céphalo V1 · LOT 1/4 R11–R14 NON CLOTURE · SOUS-LOT dossier des sources + 10 FUE préflight synthétiques · NEXT revue clinique indépendante + 10 FUE réelles · GOAL approbation scientifique traçable avant activation R15/PDF.**
