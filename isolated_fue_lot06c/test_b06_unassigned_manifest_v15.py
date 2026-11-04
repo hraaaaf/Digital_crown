@@ -86,6 +86,19 @@ def test_b06_manifest_has_no_patient_or_staff_and_rejects_forgery_nonce_replay(
             manifest.register_unassigned(
                 db, replay, manifest.sign_unassigned(replay, private),
             )
+        # A different nonce must NOT permit overwriting the original
+        # immutable capture identity either. Both constraints fail closed.
+        with pytest.raises(BridgeRejected, match="DUPLICATE_OR_NONCE_REPLAY"):
+            second_nonce = replace(saved, nonce="0" * 48)
+            if second_nonce.nonce == saved.nonce:
+                second_nonce = replace(saved, nonce="1" * 48)
+            manifest.register_unassigned(
+                db, second_nonce, manifest.sign_unassigned(second_nonce, private),
+            )
+        with Session(engine) as verified:
+            assert verified.execute(select(manifest.unassigned)).mappings().one()[
+                "signature"
+            ] == row["signature"]
         db.rollback()
 
     assert _counts(engine) == (0, 0, 0)
