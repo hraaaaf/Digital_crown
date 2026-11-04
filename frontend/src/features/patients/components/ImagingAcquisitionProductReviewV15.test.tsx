@@ -68,7 +68,7 @@ beforeEach(() => {
 });
 afterEach(() => vi.unstubAllGlobals());
 
-describe('LOT06 B06-2 actual product review (no clinical publication)', () => {
+describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
   it('never opens preview or proposes a patient when native bridge is not connected', async () => {
     get.mockResolvedValueOnce({ data: {
       ...inventory, state: 'NATIVE_IPC_NOT_CONNECTED', captures: [],
@@ -161,4 +161,81 @@ describe('LOT06 B06-2 actual product review (no clinical publication)', () => {
     expect(screen.queryByRole('img')).toBeNull();
     expect(post).toHaveBeenCalledTimes(1);
   });
+
+  it('B06-3 only persists after explicit two-marker review and verified preview', async () => {
+    const durable = { ...review, durable_commit_available: true };
+    const ack = {
+      schema_version: 'dc06-b06-ack-v1', status: 'DURABLE_MEDIA_ACK',
+      receipt_id: 'DC06-' + 'c'.repeat(32), signature: 'd'.repeat(128),
+      signer_public_key: 'e'.repeat(64), asset_id: 99,
+      capture_id: 17, capture_digest: capture.digest, patient_id: 42,
+      patient_assigned: true, media_published: true,
+      clinical_receipt_authorized: false,
+    };
+    post.mockResolvedValueOnce({ data: durable } as never)
+      .mockResolvedValueOnce({ data: ack } as never);
+    render(<ImagingAcquisitionProductReviewV15 patientId={42} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Examiner cette capture/ }));
+    const button = await screen.findByRole('button', { name: /Associer et chiffrer/ });
+    expect(button).toBeDisabled();
+    fireEvent.load(await screen.findByRole('img'));
+    fireEvent.change(screen.getByLabelText(/Ressaisir le numéro de dossier/), {
+      target: { value: 'LAB-42' },
+    });
+    fireEvent.change(screen.getByLabelText(/Ressaisir la date de naissance/), {
+      target: { value: '2000-03-04' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => expect(post).toHaveBeenCalledWith(
+      '/imaging/acquisition/review/' + review.review_id + '/commit', {
+        challenge: review.challenge, selected_patient_id: 42,
+        dossier: 'LAB-42', date_naissance: '2000-03-04',
+        capture_digest: capture.digest, explicit_confirmation: true,
+      },
+    ));
+    expect(await screen.findByRole('status')).toHaveTextContent(/Média chiffré associé au dossier/);
+    expect(screen.getByRole('status')).toHaveTextContent(ack.receipt_id);
+  });
+
+  it('B06-3 recovers a lost commit response by lookup, not a second write', async () => {
+    const durable = { ...review, durable_commit_available: true };
+    const ack = {
+      schema_version: 'dc06-b06-ack-v1', status: 'DURABLE_MEDIA_ACK',
+      receipt_id: 'DC06-' + 'f'.repeat(32), signature: 'a'.repeat(128),
+      signer_public_key: 'b'.repeat(64), asset_id: 123,
+      capture_id: 17, capture_digest: capture.digest, patient_id: 42,
+      patient_assigned: true, media_published: true,
+      clinical_receipt_authorized: false,
+    };
+    post.mockResolvedValueOnce({ data: durable } as never)
+      .mockRejectedValueOnce(new Error('reply lost after commit'));
+    const oldGet = get.getMockImplementation();
+    get.mockImplementation(async (url, options) => {
+      if (url === '/imaging/acquisition/receipts/17')
+        return { data: ack } as never;
+      if (oldGet) return oldGet(url, options);
+      throw new Error('missing getter');
+    });
+    render(<ImagingAcquisitionProductReviewV15 patientId={42} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Examiner/ }));
+    fireEvent.load(await screen.findByRole('img'));
+    fireEvent.change(screen.getByLabelText(/Ressaisir le numéro de dossier/), {
+      target: { value: 'LAB-42' },
+    });
+    fireEvent.change(screen.getByLabelText(/Ressaisir la date de naissance/), {
+      target: { value: '2000-03-04' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    fireEvent.click(screen.getByRole('button', { name: /Associer et chiffrer/ }));
+    await waitFor(() => expect(get).toHaveBeenCalledWith(
+      '/imaging/acquisition/receipts/17', {
+        params: { selected_patient_id: 42, capture_digest: capture.digest },
+      },
+    ));
+    expect(await screen.findByRole('status')).toHaveTextContent(ack.receipt_id);
+    expect(post).toHaveBeenCalledTimes(2);
+  });
+
 });
