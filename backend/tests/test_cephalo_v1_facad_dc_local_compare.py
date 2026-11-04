@@ -160,3 +160,24 @@ def test_local_cli_invalid_json_refuses_without_leaking_path(tmp_path, capsys):
     output = capsys.readouterr().out
     assert str(path) not in output
     assert json.loads(output)["status"] == "INPUT_REJECTED"
+
+
+def test_extreme_but_finite_declared_values_never_emit_infinite_delta():
+    case = _fixture()
+    case["digital_crown"]["landmarks_px"]["a"] = [-1, 0]
+    case["digital_crown"]["landmarks_px"]["b"] = [0, 0]
+    case["digital_crown"]["calibration"]["mm_per_pixel"] = 1e308
+    case["facad"]["values_mm"]["Wits"] = 1e308
+    result = compare_local_case(case)
+    assert result["measurements"]["Wits"]["reason"] == "NUMERIC_DELTA_NONFINITE"
+    # JSON must remain serializable without non-standard NaN / Infinity values.
+    json.dumps(result, allow_nan=False)
+
+
+def test_huge_json_integer_in_point_is_refused_without_overflow_exception():
+    case = _fixture()
+    case["digital_crown"]["landmarks_px"]["a"] = [10 ** 400, 0]
+    result = compare_local_case(case)
+    assert result["measurements"]["Wits"]["status"] == "NOT_COMPARABLE"
+    assert result["measurements"]["Co-A"]["status"] == "NOT_COMPARABLE"
+    assert result["measurements"]["Co-Gn"]["status"] == "NUMERIC_MATCH"

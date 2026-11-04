@@ -29,12 +29,12 @@ _SHA = re.compile(r"^[0-9a-f]{64}$")
 
 
 def _number(value: Any, *, positive: bool = False) -> bool:
-    return (
-        isinstance(value, (int, float))
-        and not isinstance(value, bool)
-        and math.isfinite(value)
-        and (not positive or value > 0)
-    )
+    if not isinstance(value, (int, float)) or isinstance(value, bool):
+        return False
+    try:
+        return math.isfinite(value) and (not positive or value > 0)
+    except (OverflowError, TypeError, ValueError):
+        return False
 
 
 def _point(value: Any) -> tuple[float, float] | None:
@@ -124,6 +124,9 @@ def compare_local_case(payload: Any) -> dict[str, Any]:
             output["measurements"][name] = _not_comparable("MEASUREMENT_EVIDENCE_INCOMPLETE")
             return
         delta = computed - observed
+        if not math.isfinite(delta):
+            output["measurements"][name] = _not_comparable("NUMERIC_DELTA_NONFINITE")
+            return
         output["measurements"][name] = {
             "status": "NUMERIC_MATCH" if abs(delta) <= tolerance else "DIFFERENT",
             "reason": "DECLARED_VALUES_COMPARISON_ONLY",
