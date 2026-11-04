@@ -264,7 +264,7 @@ def test_b06_3_signed_ledger_tamper_refused_on_ack_recovery(
         # Immutable schema refuses online alteration. A privileged adversary
         # can still tamper with a DB by deliberately removing the trigger;
         # restore the correct guard and verify signature rejection separately.
-        with pytest.raises(DatabaseError):
+        with pytest.raises((DatabaseError, sqlcipher.IntegrityError)):
             with engine.begin() as conn:
                 conn.execute(receipts.update().values(signature="0" * 128))
         with engine.begin() as conn:
@@ -316,7 +316,7 @@ def test_b06_4_schema_corruption_and_audit_immutability_fail_closed(
                 **({"event": "FORGED"} if table is not receipts
                    else {"signature": "f" * 128})
             ), table.delete()):
-                with pytest.raises(DatabaseError):
+                with pytest.raises((DatabaseError, sqlcipher.IntegrityError)):
                     with engine.begin() as conn:
                         conn.execute(statement)
         assert _counts(engine) == [1, 1, 1, 1]
