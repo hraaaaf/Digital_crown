@@ -15,6 +15,12 @@ from typing import Literal
 
 from fastapi import HTTPException
 from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from sqlalchemy import update
+from sqlalchemy.exc import OperationalError
+
+from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
+from backend.services.cephalo_clinical_cas import STAGING_KEY
+
 
 from backend import models
 from backend.schemas.cephalo_evidence import ReviewState, ValidationAction
@@ -153,6 +159,45 @@ def verified_target_review_receipts(
     return [claimed[key] for key in sorted(claimed)]
 
 
+def _lock_r11_review_study(*, db, analysis, patient_id, revision, stage_sha256):
+    """Serialize all R11-target audit inserts on the study row in one transaction.
+
+    A no-op SQL UPDATE takes a PostgreSQL row lock / SQLite write lock, which
+    is held through the duplicate-audit lookup and final AuditLog commit.
+    Check the *database* revision and stage SHA, not only a cached ORM object.
+    No schema change, JSON rewrite, or clinical state promotion is performed.
+    """
+    statement = (
+        update(models.CephaloAnalysis)
+        .where(
+            models.CephaloAnalysis.id == analysis.id,
+            models.CephaloAnalysis.patient_id == patient_id,
+            models.CephaloAnalysis.angles_data[EVIDENCE_GRAPH_KEY]["revision"].as_integer() == revision,
+            models.CephaloAnalysis.angles_data[STAGING_KEY]["content_sha256"].as_string() == stage_sha256,
+        )
+        .values(angles_data=models.CephaloAnalysis.angles_data)
+        .execution_options(synchronize_session=False)
+    )
+    try:
+        result = db.execute(statement)
+    except OperationalError as exc:
+        db.rollback()
+        # SQLite may reject a stale reader's promotion to a write transaction.
+        # Such a conflict must be retried as a fresh *request*, never here.
+        if "locked" in str(exc).lower() or "busy" in str(exc).lower():
+            raise HTTPException(
+                status_code=409,
+                detail="Revue R11 concurrente ; rechargez l'étude avant de confirmer.",
+            ) from exc
+        raise
+    if result.rowcount != 1:
+        db.rollback()
+        raise HTTPException(
+            status_code=409,
+            detail="Révision ou staging modifié pendant la revue R11.",
+        )
+
+
 def record_r11_target_review(*, patient_id, analysis, actor,
                              request: R11TargetReviewRequest, db):
     actor_id = _require_clinician(actor)
@@ -178,6 +223,12 @@ def record_r11_target_review(*, patient_id, analysis, actor,
         raise HTTPException(status_code=404, detail="Cible R11 absente.")
     tenant = actor.get_employer_id()
     sha = _graph_digest(graph)
+    # This lock MUST be taken before querying the existing target audits.
+    # Both the audit lookup and insert occur under the same DB transaction.
+    _lock_r11_review_study(
+        db=db, analysis=analysis, patient_id=patient_id,
+        revision=revision, stage_sha256=staged["content_sha256"],
+    )
     for row in _audit_rows(db=db, analysis=analysis, tenant_id=tenant):
         try:
             claim = json.loads(row.details)
