@@ -267,3 +267,19 @@ The exact-head Windows CI must now reach
 `DC06_B06_PRODUCT_NATIVE_BRIDGE_REAL_SCM_SCOPED_INVENTORY_PASS`
 and all original negative oracles. Never install SQLAlchemy into the
 trusted Windows IPC client just to hide this architecture regression.
+
+
+### B06-1 Windows separate-account process launch bound — 2026-11-04
+
+After the ORM-free import correction, B06 CI #41895638025 backend **68 PASS**
+and React SUCCESS, but the hosted Windows runner failed **before any B06
+media probe**, at the disposable SCM harness's first separate-user child
+process launch `C05B03R_CHILD_15S_TIMEOUT`. This is a recurring runner
+startup fragility previously observed in B06 and does not prove a bad
+AES-GCM response. To preserve deterministic fail-closed behavior without
+adding retries, the one-process launch upper bound increases from
+15,000 ms to **30,000 ms**; after that, the child is killed and the FUE
+still fails `C05B03R_CHILD_30S_TIMEOUT`. No service authentication, pipe
+ACL, crypto, media validation or product route was weakened. Only exact-HEAD
+success with a real Windows SCM + B05 Authenticode can certify this pass;
+the previous failed attempt remains evidence.
