@@ -2,6 +2,8 @@
 staff-authenticated review and encrypted signed receipt complete together.
 Never a real scanner, production IPC adapter, human click or cabinet activation.
 """
+from dataclasses import replace
+
 import httpx
 import pytest
 from sqlalchemy import select, update
@@ -477,3 +479,45 @@ def test_b06_product_review_cancel_releases_only_own_session(
         assert second.json()["challenge"] != view["challenge"]
         assert _counts(engine) == (0, 0, 0)
     print("DC06_B06_PRODUCT_REVIEW_CANCEL_REPLAY_FAIL_CLOSED_PASS")
+
+
+def test_b06_product_review_same_capture_id_cannot_be_reselected_or_replayed():
+    """An altered digest must never bypass the per-capture one-use lock."""
+    store = ProductReviewStore()
+    old = UnassignedCapture(
+        id=23, digest="a" * 64, size=70,
+        mime="image/png", category="PHOTO",
+    )
+    altered = replace(old, digest="b" * 64)
+    selected, challenge = store.start(
+        tenant=1, workstation="station-one", staff=42,
+        session="staff-access-token-one", capture=old, patient=8,
+    )
+    with pytest.raises(Exception, match="CAPTURE_ALREADY_UNDER_REVIEW"):
+        store.start(
+            tenant=1, workstation="station-one", staff=42,
+            session="staff-access-token-one", capture=altered, patient=9,
+        )
+    with pytest.raises(Exception, match="REVIEW_SESSION_OR_CHALLENGE_DENIED"):
+        store.require(
+            review_id=selected.review_id, tenant=1,
+            workstation="station-one", staff=42,
+            session="different-session", challenge=challenge,
+        )
+    store.consume(
+        review_id=selected.review_id, tenant=1,
+        workstation="station-one", staff=42,
+        session="staff-access-token-one", challenge=challenge,
+    )
+    with pytest.raises(Exception, match="REVIEW_SESSION_OR_CHALLENGE_DENIED"):
+        store.consume(
+            review_id=selected.review_id, tenant=1,
+            workstation="station-one", staff=42,
+            session="staff-access-token-one", challenge=challenge,
+        )
+    with pytest.raises(Exception, match="CAPTURE_ALREADY_UNDER_REVIEW"):
+        store.start(
+            tenant=1, workstation="station-one", staff=42,
+            session="staff-access-token-one", capture=altered, patient=9,
+        )
+    print("DC06_B06_PRODUCT_CAPTURE_ID_SINGLE_USE_DIFFERENT_HASH_DENIED_PASS")
