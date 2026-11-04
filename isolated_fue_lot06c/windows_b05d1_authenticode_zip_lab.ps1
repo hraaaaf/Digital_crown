@@ -1,7 +1,9 @@
 #Requires -Version 7.0
 # LOT06 B05D1 synthetic Windows Authenticode ZIP rehearsal, hosted CI only.
 $ErrorActionPreference='Stop'
-if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $env:ENVIRONMENT -ne 'test' -or $env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true' -or $env:DC06B05D1_LAB -ne '1') { throw 'DC06B05D1_NON_LAB_DENIED' }
+if (-not $IsWindows -or $env:GITHUB_ACTIONS -ne 'true' -or $env:RUNNER_OS -ne 'Windows' -or $env:RUNNER_ENVIRONMENT -ne 'github-hosted' -or $env:ENVIRONMENT -ne 'test' -or $env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true' -or $env:DC06B05D1_LAB -ne '1') { throw 'DC06B05D1_NON_DISPOSABLE_LAB_DENIED' }
+$principal=[Security.Principal.WindowsPrincipal]::new([Security.Principal.WindowsIdentity]::GetCurrent())
+if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) { throw 'DC06B05D1_ADMIN_VM_REQUIRED' }
 $id=[guid]::NewGuid().ToString('N')
 $source=Join-Path $env:ProgramData ('DC06B05C-LAB-'+$id+'-source')
 $target=Join-Path $env:ProgramData ('DC06B05C-LAB-'+$id+'-target')
@@ -42,7 +44,7 @@ function Make-TestCert([string]$role) {
     }
 }
 function Invoke-BoundedCertutil([string[]]$arguments,[string]$failureTag) {
-    # Disposable hosted Windows VM only. Never import a release trust root.
+    # Ephemeral GitHub-hosted admin VM only. No trusted-root mutation on a clinic or self-hosted runner.
     $exe=Join-Path $env:SystemRoot 'System32/certutil.exe'
     $process=Start-Process -FilePath $exe -ArgumentList $arguments -NoNewWindow -PassThru -ErrorAction Stop
     try {
@@ -62,8 +64,8 @@ function Trust-TestCert($c) {
         [IO.File]::WriteAllBytes($certFile,$c.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
         $script:trustedThumbs+= $thumb
         Write-Output 'DC06B05D1_BOUNDED_ROOT_IMPORT_ENTER'
-        Invoke-BoundedCertutil @('-user','-f','-addstore','Root',('"'+$certFile+'"')) 'DC06B05D1_ROOT_IMPORT'
-        if (-not (Test-Path -LiteralPath ('Cert:\CurrentUser\Root\'+$thumb) -PathType Leaf)) { throw 'DC06B05D1_ROOT_IMPORT_NOT_VISIBLE' }
+        Invoke-BoundedCertutil @('-f','-addstore','Root',('"'+$certFile+'"')) 'DC06B05D1_ROOT_IMPORT'
+        if (-not (Test-Path -LiteralPath ('Cert:\LocalMachine\Root\'+$thumb) -PathType Leaf)) { throw 'DC06B05D1_ROOT_IMPORT_NOT_VISIBLE' }
         Write-Output 'DC06B05D1_BOUNDED_ROOT_IMPORT_VERIFIED_PASS'
     } finally {
         Remove-Item -LiteralPath $certFile -Force -ErrorAction SilentlyContinue
@@ -165,10 +167,10 @@ finally {
     foreach ($cert in @($other,$pub)) {
         if ($null -eq $cert) { continue }
         $thumb=[string]$cert.Thumbprint
-        $rootPath='Cert:\CurrentUser\Root\'+$thumb
+        $rootPath='Cert:\LocalMachine\Root\'+$thumb
         if ($thumb -in $trustedThumbs -and (Test-Path -LiteralPath $rootPath)) {
             try {
-                Invoke-BoundedCertutil @('-user','-delstore','Root',$thumb) 'DC06B05D1_ROOT_REMOVE'
+                Invoke-BoundedCertutil @('-delstore','Root',$thumb) 'DC06B05D1_ROOT_REMOVE'
                 if (Test-Path -LiteralPath $rootPath) { throw 'DC06B05D1_ROOT_REMOVE_STILL_PRESENT' }
             } catch {
                 $cleanupErrors+= 'DC06B05D1_ROOT_CLEANUP_FAILED'
