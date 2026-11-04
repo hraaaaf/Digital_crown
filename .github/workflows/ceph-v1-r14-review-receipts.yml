@@ -29,6 +29,8 @@ on:
       - 'backend/tests/test_cephalo_r6_tweed_merrifield.py'
       - 'backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py'
       - 'backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py'
+      - 'backend/services/cephalo_facad_wits_candidate.py'
+      - 'backend/tests/test_cephalo_facad_dc_numeric_oracles.py'
       - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
       - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
@@ -68,6 +70,8 @@ on:
       - 'backend/tests/test_cephalo_r6_tweed_merrifield.py'
       - 'backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py'
       - 'backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py'
+      - 'backend/services/cephalo_facad_wits_candidate.py'
+      - 'backend/tests/test_cephalo_facad_dc_numeric_oracles.py'
       - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
       - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
@@ -151,4 +155,5 @@ jobs:
             backend/tests/test_cephalo_r17_pdf_projection.py \
             backend/tests/test_cephalo_r6_tweed_merrifield.py \
             backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py \
-            backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py
+            backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py \
+            backend/tests/test_cephalo_facad_dc_numeric_oracles.py
