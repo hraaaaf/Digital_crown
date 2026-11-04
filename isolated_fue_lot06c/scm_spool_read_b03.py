@@ -5,6 +5,7 @@ No product install, no patient data, no key on argv, no API, no media output.
 """
 from __future__ import annotations
 import base64
+import hashlib
 import os
 from pathlib import Path
 import secrets
@@ -17,6 +18,9 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from tools.imaging_gateway import Config, HotFolder
 from tools.imaging_gateway.unassigned_queue_v15 import read_unassigned
 from tools.imaging_gateway.native_inventory_protocol_v15 import encode_inventory
+from tools.imaging_gateway.native_media_protocol_v15 import (
+    NativeInventoryDenied, decode_request, encode_response, DENIED as MEDIA_DENIED,
+)
 
 PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
@@ -24,7 +28,9 @@ PNG = base64.b64decode(
 )
 
 def run(argv: list[str]) -> int:
-    if os.name != "nt" or len(argv) != 5 or argv[0] not in ("seed", "read", "inventory"):
+    if (os.name != "nt" or len(argv) not in (5, 9)
+            or argv[0] not in ("seed", "read", "inventory", "media")
+            or (argv[0] == "media") != (len(argv) == 9)):
         return 4
     mode, incoming, private, keyfile = argv[0], Path(argv[1]), Path(argv[2]), Path(argv[3])
     # Fourth user arg reserved, fixed for LAB only; never configurable tenant.
@@ -65,6 +71,26 @@ def run(argv: list[str]) -> int:
             captures = read_unassigned(collector, limit=1)
             os.write(1, encode_inventory(captures[0] if captures else None))
             return 0
+        if mode == "media":
+            # Only a real Windows LocalService fixture can open the service
+            # SID-protected spool key. No item id accepted without a verified
+            # pending AES-GCM spool record with the same SHA-256.
+            item, digest, offset, count = decode_request(
+                ("M" + "".join(argv[5:9])).encode("ascii")
+            )
+            captures = read_unassigned(collector, limit=1)
+            if not captures or captures[0].id != item or captures[0].digest != digest:
+                raise NativeInventoryDenied("NATIVE_MEDIA_NOT_PENDING_OR_MISMATCH")
+            capture = captures[0]
+            if capture.size > 16384 or offset + count > capture.size:
+                raise NativeInventoryDenied("NATIVE_MEDIA_LAB_LIMIT_DENIED")
+            plaintext = collector.read_verified(item)
+            if (len(plaintext) != capture.size
+                    or hashlib.sha256(plaintext).hexdigest() != digest
+                    or read_unassigned(collector, limit=1)[0] != capture):
+                raise NativeInventoryDenied("NATIVE_MEDIA_CHANGED_DURING_READ")
+            os.write(1, encode_response(plaintext[offset:offset + count]))
+            return 0
         captures = read_unassigned(collector, limit=9)
         if len(captures) > 9:
             return 5
@@ -98,11 +124,14 @@ def run(argv: list[str]) -> int:
             category = constants.get(marker, "Z")
         else:
             category = "Z"
-        if mode in ("read", "inventory"):
+        if mode == "media":
+            os.write(1, MEDIA_DENIED)
+        elif mode in ("read", "inventory"):
             os.write(1, ("E" + category).encode("ascii"))
         return 5
     except Exception:
-        if mode in ("read", "inventory"): os.write(1, b"E2")
+        if mode == "media": os.write(1, MEDIA_DENIED)
+        elif mode in ("read", "inventory"): os.write(1, b"E2")
         return 5
 
 if __name__ == "__main__":
