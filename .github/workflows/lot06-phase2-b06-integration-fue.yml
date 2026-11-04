@@ -11,6 +11,7 @@ on:
       - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx
       - isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py
       - isolated_fue_lot06c/test_b06_product_durable_receipt_v15.py
+      - isolated_fue_lot06c/test_b06_postgres_clone_contract_v15.py
       - backend/services/imaging_acquisition_durable_v15.py
       - isolated_fue_lot06c/test_b06_native_inventory_protocol_v15.py
       - isolated_fue_lot06c/windows_b06_native_inventory_client.py
@@ -47,6 +48,21 @@ jobs:
   same-server-sqlcipher-product-fue:
     runs-on: ubuntu-24.04
     timeout-minutes: 20
+    # Never connect to a clinic: this container is an ephemeral per-job service.
+    services:
+      pg-b06-lab:
+        image: postgres:18
+        env:
+          POSTGRES_USER: dc06_synthetic
+          POSTGRES_PASSWORD: dc06_test_only
+          POSTGRES_DB: dc06_b06_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dc06_synthetic -d dc06_b06_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
     env:
       ENVIRONMENT: test
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
@@ -58,6 +74,8 @@ jobs:
       DC06C05B03E_TEST_ONLY: '1'
       DC06C05B03G_TEST_ONLY: '1'
       DC06C05B03M_TEST_ONLY: '1'
+      DC06_B06_PG_LAB_ONLY: '1'
+      DC06_B06_PG_TEST_DSN: 'postgresql+psycopg://dc06_synthetic:dc06_test_only@127.0.0.1:5432/dc06_b06_ci'
       DC_V15_06_BRIDGE_LAB: '0'
       DC_V15_06_HTTP_ACK_LAB: '1'
       DC_V15_06_TRANSFER_LAB: '0'
@@ -74,7 +92,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          python -m pip install pytest==9.0.3 pytest-asyncio==1.3.0 'pydantic[email]==2.6.3' fastapi==0.115.6 passlib==1.7.4 bcrypt==3.2.2 python-dotenv==1.2.1 pydantic-settings==2.2.1 python-jose==3.5.0 python-multipart==0.0.31 qrcode==8.2 pillow==12.2.0 arabic-reshaper==3.0.0 python-bidi==0.6.7 reportlab==4.4.10 opencv-python-headless==4.13.0.92 SQLAlchemy==2.0.28 httpx==0.28.1 jwcrypto==1.6.1 firebase-admin==7.5.0 'sentry-sdk[fastapi]==2.69.0' alembic==1.20.0 python-magic==0.4.27 PyMuPDF==1.27.2.3 'sqlcipher3>=0.5,<1' cryptography uvicorn==0.27.1
+          python -m pip install pytest==9.0.3 pytest-asyncio==1.3.0 'pydantic[email]==2.6.3' fastapi==0.115.6 passlib==1.7.4 bcrypt==3.2.2 python-dotenv==1.2.1 pydantic-settings==2.2.1 python-jose==3.5.0 python-multipart==0.0.31 qrcode==8.2 pillow==12.2.0 arabic-reshaper==3.0.0 python-bidi==0.6.7 reportlab==4.4.10 opencv-python-headless==4.13.0.92 SQLAlchemy==2.0.28 httpx==0.28.1 jwcrypto==1.6.1 firebase-admin==7.5.0 'sentry-sdk[fastapi]==2.69.0' alembic==1.20.0 python-magic==0.4.27 PyMuPDF==1.27.2.3 'sqlcipher3>=0.5,<1' 'psycopg[binary]==3.2.6' cryptography uvicorn==0.27.1
       - name: Product boundary and real SQLCipher end-to-end on one synthetic app
         shell: bash
         run: |
@@ -99,6 +117,12 @@ jobs:
               "isolated_fue_lot06c/test_b06_native_media_protocol_v15.py",
           ]))
           PY
+      - name: B06-4B PostgreSQL 18 disposable clone FUE (schema only, never product)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_postgres_clone_contract_v15.py
       - name: Product route and clinical release remain strictly closed
         shell: bash
         run: |
