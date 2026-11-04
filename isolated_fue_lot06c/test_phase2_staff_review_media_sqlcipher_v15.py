@@ -1,10 +1,18 @@
 """Phase2 LAB: real SQLCipher/JWT review -> signed ClinicalAsset receipt, not clinic."""
+from dataclasses import replace
+
 import httpx
+import pytest
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from backend import models
 from isolated_fue_lot06c.phase2_staff_review_sqlcipher_lab import mount_lab_review, reviews, audit
-from isolated_fue_lot06c.c05b03m_security_gate_lab import review as device_review
+from isolated_fue_lot06c.c05b03m_security_gate_lab import (
+    BridgeRejected, identity as device_identity, review as device_review,
+    sign_test_device_claim, verify_pending_device_capture_proof,
+)
 from isolated_fue_lot06c.test_c05b03m_device_human_authority_v15 import (
     _setup, _post, _counts, synthetic_sqlcipher_bridge, _localhost_server,
 )
@@ -155,3 +163,74 @@ def test_phase2_expiry_revocation_and_cabinet_kill_switch(
         assert http.get(endpoint, headers=headers).status_code in (401, 403)
         assert _counts(engine) == (0, 0, 0)
     print("LOT06_PHASE2_EXPIRED_REVIEW_AND_CABINET_DISABLE_PASS")
+
+
+def test_phase2_preview_requires_independent_pinned_device_signature_and_staff_challenge(
+    synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    (engine, claim, _token, station, _media, _source, _collector, _item,
+     _raw, private, challenge, headers, app, _public) = _ctx(
+        synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+    )
+    proof = headers["X-DC-Lab-Device-Proof"]
+    assert len(proof) == 128
+    endpoint = "/isolated/lot06-phase2/review/" + claim.capture
+    good_key = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
+    bad_key = Ed25519PrivateKey.generate().public_key().public_bytes(
+        Encoding.Raw, PublicFormat.Raw
+    ).hex()
+
+    with Session(engine) as db:
+        verify_pending_device_capture_proof(db, claim, proof)
+        with pytest.raises(BridgeRejected, match="DEVICE_SIGNATURE_DENIED"):
+            verify_pending_device_capture_proof(
+                db, claim, sign_test_device_claim(
+                    claim, challenge, Ed25519PrivateKey.generate(),
+                ),
+            )
+        for wrong in (
+            replace(claim, patient=claim.patient + 1),
+            replace(claim, staff=claim.staff + 1),
+            replace(claim, device=claim.device + "-other"),
+            replace(claim, capture=claim.capture + "-other"),
+            replace(claim, digest="0" * 64),
+            replace(claim, generation=claim.generation + 1),
+        ):
+            with pytest.raises(BridgeRejected):
+                verify_pending_device_capture_proof(db, wrong, proof)
+    assert _counts(engine) == (0, 0, 0)
+
+    with _localhost_server(app) as url, httpx.Client(
+        base_url=url, trust_env=False, timeout=20,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        view = http.get(endpoint, headers=headers)
+        assert view.status_code == 200
+        data = view.json()
+        preview_headers = {
+            **headers, "X-DC-Review-Challenge": data["challenge"],
+        }
+        assert http.get(data["preview_url"], headers=preview_headers).status_code == 200
+
+        # Simulate pinned device key replacement while review is still open.
+        with engine.begin() as conn:
+            conn.execute(update(device_identity).values(public_key_hex=bad_key))
+        assert http.get(data["preview_url"], headers=preview_headers).status_code == 409
+        assert http.get(endpoint, headers=headers).status_code == 409
+        confirm_headers = {k: v for k, v in headers.items()
+                           if k.lower() != "content-type"}
+        assert http.post(endpoint + "/confirm", json=_input(data),
+                         headers=confirm_headers).status_code == 409
+        assert _counts(engine) == (0, 0, 0)
+
+        with engine.begin() as conn:
+            conn.execute(update(device_identity).values(public_key_hex=good_key))
+            conn.execute(update(device_identity).values(generation=claim.generation + 1))
+        assert http.get(data["preview_url"], headers=preview_headers).status_code == 409
+        with engine.begin() as conn:
+            conn.execute(update(device_identity).values(generation=claim.generation))
+            conn.execute(update(device_identity).values(active=0))
+        assert http.get(data["preview_url"], headers=preview_headers).status_code == 409
+        assert _counts(engine) == (0, 0, 0)
+
+    print("DC06_B06_PINNED_ED25519_DEVICE_AND_STAFF_PREVIEW_REVOKE_PASS")
