@@ -7,6 +7,7 @@ association. No durable approval / ClinicalAsset is authorized until B06-3.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from contextlib import contextmanager
 import hashlib
 import hmac
 import secrets
@@ -116,3 +117,21 @@ class ProductReviewStore:
                 staff=staff, session=session, challenge=challenge,
             )
             self._pending.pop(review_id)
+
+    @contextmanager
+    def durable_attempt(self, *, review_id: str, tenant: int, workstation: str,
+                        staff: int, session: str, challenge: str):
+        """Serialize in-process cancellation against a durable SQL writer.
+
+        Only consume the transient lease AFTER the durable writer returns a
+        verified committed ACK. An exception leaves it retryable until TTL.
+        Cross-worker uniqueness is provided by the SQL ledger, not this lock.
+        """
+        with self._lock:
+            review = self.require(
+                review_id=review_id, tenant=tenant, workstation=workstation,
+                staff=staff, session=session, challenge=challenge,
+            )
+            yield review
+            self._pending.pop(review_id, None)
+            self._used.add(self._key(review))
