@@ -9,6 +9,7 @@ param(
   [switch]$ProbeQueueReadOnly,
   [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
   [switch]$ProbeB05Package,
+  [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
   [string]$B05KeyFile='',
   [string]$B05ServiceDll='',
   [string]$B05BinDirectory=''
@@ -163,6 +164,18 @@ public static class DC06RClient {
     }
     Write-Output ('DC06B03_NATIVE_REAL_AES_SPOOL_' +
         $B03Status.ToUpperInvariant() + '_RETURN_' + $actual + '_PASS')
+  }
+  if ($B06InventoryStatus -ne 'None') {
+    if ($B06InventoryStatus -eq 'Unauthorized' -and $ExpectedOpen -ne 5) {
+      throw 'DC06_B06_DENIED_USER_EXPECTED'
+    }
+    if ($B06InventoryStatus -ne 'Unauthorized' -and $ExpectedOpen -ne 0) {
+      throw 'DC06_B06_APPROVED_USER_EXPECTED'
+    }
+    $env:DC06_B06_NATIVE_INVENTORY_LAB='1'
+    $python=(Get-Command python -ErrorAction Stop).Source
+    & $python -I (Join-Path $PSScriptRoot 'windows_b06_native_inventory_client.py') $PipeName $B06InventoryStatus
+    if ($LASTEXITCODE -ne 0) { throw ('DC06_B06_NATIVE_ADAPTER_FAILED_'+$LASTEXITCODE) }
   }
   if ($ExpectedOpen -eq 0) {
     Write-Output 'C05B03R_ALLOWED_USER_READ_WRITE_ALLOWED_INSTANCE_CREATION_DENIED'
