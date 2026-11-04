@@ -1,0 +1,45 @@
+name: LOT06 B05-D1 Authenticode signed ZIP admission LAB FUE
+on:
+  push:
+    branches: [test/lot06-phase2-b05d1-authenticode-zip-lab-20261102]
+    paths:
+      - .github/workflows/lot06-phase2-b05d1-authenticode-zip-lab.yml
+      - isolated_fue_lot06c/windows_b05d1_authenticode_zip_lab.ps1
+      - docs/lot06/LOT06-PHASE2-B05D1-AUTHENTICODE-ZIP-LAB-20261102.md
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot06-b05d1-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  windows-ephemeral-authenticode-zip:
+    runs-on: windows-2022
+    timeout-minutes: 10
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06B05C1_LAB: '1'
+      DC06B05D1_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned cryptographic manifest dependency
+        shell: pwsh
+        run: python -m pip install cryptography==46.0.3
+      - name: Exact SHA self-signed Windows Authenticode and ZIP extracted payload admission
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06B05D1_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_b05d1_authenticode_zip_lab.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Explicit no release clinical gate
+        shell: pwsh
+        run: |
+          if (-not (Select-String -Path docs/lot06/LOT06-PHASE2-B05D1-AUTHENTICODE-ZIP-LAB-20261102.md -Pattern 'CLINICAL_GO=false' -Quiet)) { throw 'DC06B05D1_BOUNDARY_DOC_MISSING' }
+          if ($env:ENVIRONMENT -ne 'test' -or $env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true') { throw 'DC06B05D1_NOT_LAB' }
+          Write-Output 'DC06B05D1_LAB_ONLY_NO_CERTIFIED_PUBLISHER_NO_INSTALL_PASS'
