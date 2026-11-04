@@ -293,6 +293,28 @@ def mount_lab_review(app, *, claim, validated_media: bytes):
         try:
             _isolation(db)
             _authority(db, claim=claim, staff_id=current_user.id)
+            _guarded_capture(db, claim)
+            # A valid login alone cannot fetch a capture. The same staff must
+            # possess the currently-active, one-use review challenge.
+            active = db.execute(select(reviews).where(
+                reviews.c.tenant == claim.tenant,
+                reviews.c.device == claim.device,
+                reviews.c.capture == claim.capture,
+            )).mappings().one_or_none()
+            challenge_header = request.headers.get("x-dc-review-challenge", "")
+            if (active is None or active["consumed"] != 0
+                    or active["expires_at"] <= int(time.time())
+                    or active["staff"] != current_user.id
+                    or active["station"] != claim.station
+                    or active["patient"] != claim.patient
+                    or active["digest"] != claim.digest
+                    or active["byte_size"] != claim.byte_size
+                    or not 20 <= len(challenge_header) <= 128
+                    or not hmac.compare_digest(
+                        hashlib.sha256(challenge_header.encode("utf-8")).hexdigest(),
+                        active["challenge_sha"],
+                    )):
+                raise ReviewDenied("PREVIEW_REVIEW_CHALLENGE_DENIED")
             # Preview never changes the review or creates a ClinicalAsset.
             if hashlib.sha256(validated_media).hexdigest() != claim.digest:
                 raise ReviewDenied("PREVIEW_MEDIA_TAMPERED")
