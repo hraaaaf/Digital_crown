@@ -51,7 +51,8 @@ def _setup(synthetic_sqlcipher_bridge, tmp_path, monkeypatch, capture_id):
         imaging_acquisition_unassigned_v15.router,
         prefix="/api/imaging/acquisition",
     )
-    return engine, claim, station_token, headers, app, active
+    json_headers = {k: v for k, v in headers.items() if k.lower() != 'content-type'}
+    return engine, claim, station_token, json_headers, app, active
 
 
 def _start(http, claim, active, headers):
