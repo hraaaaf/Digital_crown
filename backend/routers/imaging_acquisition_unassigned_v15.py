@@ -84,7 +84,7 @@ class ConfirmReview(BaseModel):
     challenge: str = Field(min_length=16, max_length=128)
     selected_patient_id: int = Field(ge=1)
     dossier: str = Field(min_length=1, max_length=20)
-    date_naissance: str = Field(pattern=r"^\\d{4}-\\d{2}-\\d{2}$")
+    date_naissance: str = Field(pattern=r"^[0-9]{4}-[0-9]{2}-[0-9]{2}$")
     capture_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
     explicit_confirmation: bool
 
