@@ -50,8 +50,7 @@ class ProductReviewStore:
 
     @staticmethod
     def _key(review: PendingCaptureReview) -> tuple[int, str, int]:
-        return (review.tenant, review.workstation,
-                review.capture.id, review.capture.digest)
+        return (review.tenant, review.workstation, review.capture.id)
 
     def start(self, *, tenant: int, workstation: str, staff: int,
               session: str, capture: UnassignedCapture,
