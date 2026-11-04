@@ -33,7 +33,7 @@ def encode_inventory(capture: UnassignedCapture | None) -> bytes:
         return EMPTY
     if (not isinstance(capture, UnassignedCapture)
             or type(capture.id) is not int or not 1 <= capture.id <= 9_999_999_999
-            or type(capture.size) is not int or not 1 <= capture.size <= 50_000_000
+            or type(capture.size) is not int or not 1 <= capture.size <= 50 * 1024 * 1024
             or not isinstance(capture.digest, str)
             or not re.fullmatch(r"[a-f0-9]{64}", capture.digest)
             or capture.mime not in _MIME_TO_CODE
