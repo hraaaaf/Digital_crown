@@ -117,6 +117,7 @@ def main(argv: list[str]) -> int:
                 "NATIVE_MEDIA_PEER_DENIED",
                 "NATIVE_MEDIA_SEND_DENIED",
                 "NATIVE_MEDIA_TRUNCATED",
+                "NATIVE_MEDIA_DRAIN_FAILED",
                 "NATIVE_MEDIA_SERVICE_REFUSED",
                 "NATIVE_MEDIA_LENGTH_MISMATCH",
                 "NATIVE_MEDIA_RESPONSE_DENIED",
