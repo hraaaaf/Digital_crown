@@ -194,3 +194,67 @@ def test_fue_10_r14_unapproved_science_remains_blocked_and_pdf_incomplete(monkey
         )
         assert projection["document_state"] == "INCOMPLETE"
         assert projection["clinical_validation_available"] is False
+
+# External pixel coefficients are *untrusted inputs*, not calibration evidence.
+# The values below reproduce a published/mirror conflict, NOT physical ground truth.
+# All landmarks and ruler points are synthetic; these are technical preflight checks,
+# not the ten practitioner-led FUE sessions at the clinic.
+@pytest.mark.parametrize("untrusted_mm_per_pixel", [0.139, 1.139])
+def test_preflight_external_machine_ratio_alone_never_unlocks_linear_mm(untrusted_mm_per_pixel):
+    from datetime import datetime, timezone
+
+    from backend.services.cephalo_runtime_evidence import build_cephalo_runtime_evidence_payload
+    from backend.services.cephalo_evidence_case_integrity import validate_case_evidence_graph
+    from backend.tests.test_cephalo_runtime_evidence import _graph, _result, _srpose_raw
+
+    payload = build_cephalo_runtime_evidence_payload(
+        patient_id=7,
+        image_record_id="synthetic-promax-check.jpg",
+        result=_result(untrusted_mm_per_pixel),
+        landmarks=_srpose_raw(),
+        inference_mode="SOTA_ONNX_38",
+        case_id="cephalo:synthetic-promax-scale-gate",
+        recorded_at=datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc),
+    )
+    assert not any(source["kind"] == "calibration" for source in payload["sources"])
+    linear = [row for row in payload["measurements"] if row["requires_calibration"]]
+    assert linear, "The test must exercise actual calibrated measurement records"
+    assert all(row["value"] is None for row in linear)
+    assert all(row["availability_status"] != "AVAILABLE" for row in linear)
+    validate_case_evidence_graph(
+        _graph(payload), patient_id=7, case_id="cephalo:synthetic-promax-scale-gate"
+    )
+
+
+@pytest.mark.parametrize("untrusted_mm_per_pixel", [0.139, 1.139])
+def test_preflight_external_ratio_cannot_override_inconsistent_two_point_ruler(untrusted_mm_per_pixel):
+    from datetime import datetime, timezone
+
+    from backend.services.cephalo_runtime_evidence import (
+        CephaloRuntimeEvidenceError,
+        build_cephalo_runtime_evidence_payload,
+    )
+    from backend.tests.test_cephalo_runtime_evidence import _result, _srpose_raw
+
+    # The independent synthetic ruler is 10 mm / 50 px = 0.2 mm/px.
+    # Neither disputed external coefficient is consistent with that ruler.
+    with pytest.raises(
+        CephaloRuntimeEvidenceError,
+        match="Calibration geometry does not match runtime ratio",
+    ):
+        build_cephalo_runtime_evidence_payload(
+            patient_id=7,
+            image_record_id="synthetic-promax-check.jpg",
+            result=_result(untrusted_mm_per_pixel),
+            landmarks=_srpose_raw(),
+            inference_mode="SOTA_ONNX_38",
+            case_id="cephalo:synthetic-promax-scale-gate",
+            is_calibrated=True,
+            calibration_data={
+                "method": "MANUAL_TWO_POINT",
+                "p1": {"x": 0, "y": 0},
+                "p2": {"x": 0, "y": 50},
+                "distance_mm": 10,
+            },
+            recorded_at=datetime(2026, 11, 4, 12, 0, tzinfo=timezone.utc),
+        )
