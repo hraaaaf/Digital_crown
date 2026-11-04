@@ -27,6 +27,8 @@ on:
       - 'backend/tests/test_cephalo_r11_target_reviews.py'
       - 'backend/tests/test_cephalo_v1_lot1_fue_preflight.py'
       - 'backend/tests/test_cephalo_r6_tweed_merrifield.py'
+      - 'backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py'
+      - 'backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py'
       - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
       - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
@@ -64,6 +66,8 @@ on:
       - 'backend/tests/test_cephalo_r11_target_reviews.py'
       - 'backend/tests/test_cephalo_v1_lot1_fue_preflight.py'
       - 'backend/tests/test_cephalo_r6_tweed_merrifield.py'
+      - 'backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py'
+      - 'backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py'
       - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
       - 'backend/tests/test_cephalo_r11_r12_attestation.py'
       - 'backend/services/cephalo_r13_option_decision.py'
@@ -145,4 +149,6 @@ jobs:
             backend/tests/test_cephalo_r14_final_validation_safety.py \
             backend/tests/test_cephalo_r15_clinical_studio.py \
             backend/tests/test_cephalo_r17_pdf_projection.py \
-            backend/tests/test_cephalo_r6_tweed_merrifield.py
+            backend/tests/test_cephalo_r6_tweed_merrifield.py \
+            backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py \
+            backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py
