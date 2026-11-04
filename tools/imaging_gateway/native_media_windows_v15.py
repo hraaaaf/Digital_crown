@@ -93,6 +93,13 @@ def read_native_capture_bytes(pipe_name: str, capture: UnassignedCapture) -> byt
                 raise NativeInventoryDenied("NATIVE_MEDIA_LENGTH_MISMATCH")
             payload = receive_exact(handle, size)
             data.extend(decode_response(header + payload, size))
+            # The test service retains the byte pipe until receipt of this
+            # purely transport-level drain marker. This is NOT a durable ACK.
+            drain = ctypes.create_string_buffer(b"K", 1)
+            acknowledged = wintypes.DWORD(0)
+            if (not kernel.WriteFile(handle, drain, 1,
+                    ctypes.byref(acknowledged), None) or acknowledged.value != 1):
+                raise NativeInventoryDenied("NATIVE_MEDIA_DRAIN_FAILED")
         finally:
             kernel.CloseHandle(handle)
 
