@@ -7,6 +7,14 @@ patient identities or device keys from an HTTP caller.
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from pydantic import BaseModel, Field
+from backend.services.imaging_acquisition_product_review_v15 import (
+    ProductReviewStore, ProductReviewDenied,
+)
+from backend.services.imaging_acquisition_preflight_v15 import (
+    PreflightRejected, resolve_acquisition_preflight,
+)
+from backend.utils.access_control import assert_patient_access
 from sqlalchemy.orm import Session
 
 from backend import database, models
@@ -62,3 +70,217 @@ def get_unassigned_capture_inventory(
             "mime": capture.mime, "category": capture.category,
         }],
     }
+
+
+# Product review is deliberately transient and does not write ClinicalAsset,
+# approval, receipt or patient binding. Durable workflow begins only in B06-3.
+class StartReview(BaseModel):
+    capture_id: int = Field(ge=1)
+    capture_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    selected_patient_id: int = Field(ge=1)
+
+
+class ConfirmReview(BaseModel):
+    challenge: str = Field(min_length=16, max_length=128)
+    selected_patient_id: int = Field(ge=1)
+    dossier: str = Field(min_length=1, max_length=20)
+    date_naissance: str = Field(pattern=r"^\\d{4}-\\d{2}-\\d{2}$")
+    capture_digest: str = Field(pattern=r"^[a-f0-9]{64}$")
+    explicit_confirmation: bool
+
+
+def _review_context(request: Request, db: Session, staff: models.User):
+    # Same-machine only; never trust client-controlled X-Forwarded-For or pipe
+    # selection. Stateful requests require an actual bearer token, not a
+    # cookie-only request susceptible to CSRF.
+    if (request.client is None or request.client.host not in ("127.0.0.1", "::1")
+            or request.headers.get("sec-fetch-site", "same-origin") == "cross-site"
+            or not staff.is_active or staff.is_archived or staff.is_suspended
+            or staff.approval_status != "approved"):
+        raise HTTPException(403, "REVIEW_LOCAL_STAFF_REQUIRED")
+    auth = request.headers.get("authorization", "")
+    if not auth.startswith("Bearer ") or len(auth) <= 20:
+        raise HTTPException(403, "REVIEW_BEARER_SESSION_REQUIRED")
+    raw = auth[7:]
+    if request.cookies.get("access_token") not in (None, raw):
+        raise HTTPException(403, "REVIEW_SESSION_TOKEN_CONFLICT")
+    tenant = int(staff.get_employer_id())
+    station = _find_workstation(request, db, employer_id=tenant)
+    if station is None or station.default_experience == "station":
+        raise HTTPException(423, "REVIEW_WORKSTATION_REQUIRED")
+    bridge = getattr(request.app.state, "dc06_unassigned_bridge", None)
+    store = getattr(request.app.state, "dc06_review_store", None)
+    if not isinstance(bridge, LocalNativeCaptureBridge) or not isinstance(store, ProductReviewStore):
+        raise HTTPException(503, "REVIEW_NATIVE_BRIDGE_UNAVAILABLE")
+    return tenant, station.id, raw, bridge, store
+
+
+def _selected_patient(db: Session, *, patient_id: int,
+                      tenant: int, staff: models.User):
+    assert_patient_access(patient_id, staff, db)
+    try:
+        preflight = resolve_acquisition_preflight(
+            db, employer_id=tenant, patient_id=patient_id,
+        )
+    except PreflightRejected:
+        raise HTTPException(409, "REVIEW_PATIENT_PREFLIGHT_DENIED") from None
+    if preflight.patient_id != patient_id or preflight.status != "STAFF_CONFIRMATION_REQUIRED":
+        raise HTTPException(409, "REVIEW_PATIENT_NOT_SELECTABLE")
+    patient = db.get(models.Patient, patient_id)
+    if (patient is None or patient.employer_id != tenant
+            or patient.deleted_at is not None or not patient.numero_dossier
+            or patient.date_naissance is None):
+        raise HTTPException(409, "REVIEW_TWO_IDENTIFIERS_REQUIRED")
+    return patient
+
+
+def _review_candidate(store: ProductReviewStore, *, review_id: str, challenge: str,
+                      tenant: int, station: str, staff: int, session: str):
+    try:
+        return store.require(
+            review_id=review_id, challenge=challenge,
+            tenant=tenant, workstation=station,
+            staff=staff, session=session,
+        )
+    except ProductReviewDenied:
+        raise HTTPException(409, "REVIEW_CHALLENGE_NOT_ACTIVE") from None
+
+
+@router.post("/review")
+def start_product_review(
+    request: Request, data: StartReview, response: Response,
+    db: Session = Depends(database.get_db),
+    staff: models.User = Depends(require_permission("patients")),
+):
+    response.headers["Cache-Control"] = "no-store"
+    tenant, station, session, bridge, store = _review_context(request, db, staff)
+    patient = _selected_patient(
+        db, patient_id=data.selected_patient_id, tenant=tenant, staff=staff,
+    )
+    try:
+        capture = bridge.inventory(tenant_id=tenant, workstation_id=station)
+        if (capture is None or capture.id != data.capture_id
+                or capture.digest != data.capture_digest
+                or capture.mime != "image/png"):
+            raise HTTPException(409, "REVIEW_CAPTURE_NOT_AVAILABLE")
+        # Read AND validate the exact binary server-side before granting a
+        # preview capability. No bytes are sent to the client at this stage.
+        bridge.read_verified_media(capture, tenant_id=tenant, workstation_id=station)
+        review, challenge = store.start(
+            tenant=tenant, workstation=station, staff=staff.id,
+            session=session, capture=capture, patient=patient.id,
+        )
+    except NativeInventoryDenied:
+        raise HTTPException(503, "REVIEW_NATIVE_CAPTURE_DENIED") from None
+    except ProductReviewDenied:
+        raise HTTPException(409, "REVIEW_CAPTURE_ALREADY_CLAIMED") from None
+    return {
+        "schema_version": "dc06-product-review-v1",
+        "status": "STAFF_REVIEW_REQUIRED",
+        "clinical_receipt_authorized": False,
+        "capture_id": capture.id,
+        "capture_digest": capture.digest,
+        "capture_size": capture.size,
+        "challenge": challenge,
+        "review_id": review.review_id,
+        "expires_at": review.expires_at,
+        "patient_id": patient.id, "nom": patient.nom,
+        "prenom": patient.prenom,
+        "numero_dossier": patient.numero_dossier,
+        "date_naissance": patient.date_naissance.date().isoformat(),
+        "preview_url": "/imaging/acquisition/review/" + review.review_id + "/preview",
+    }
+
+
+@router.get("/review/{review_id}/preview")
+def preview_product_review(
+    request: Request, review_id: str, response: Response,
+    db: Session = Depends(database.get_db),
+    staff: models.User = Depends(require_permission("patients")),
+):
+    tenant, station, session, bridge, store = _review_context(request, db, staff)
+    review = _review_candidate(
+        store, review_id=review_id,
+        challenge=request.headers.get("x-dc-review-challenge", ""),
+        tenant=tenant, station=station, staff=staff.id, session=session,
+    )
+    _selected_patient(db, patient_id=review.patient, tenant=tenant, staff=staff)
+    try:
+        media = bridge.read_verified_media(
+            review.capture, tenant_id=tenant, workstation_id=station,
+        )
+    except NativeInventoryDenied:
+        raise HTTPException(409, "REVIEW_PREVIEW_MEDIA_CHANGED") from None
+    # Invalidate a race where the lease expired while the bytes were read.
+    _review_candidate(
+        store, review_id=review_id,
+        challenge=request.headers.get("x-dc-review-challenge", ""),
+        tenant=tenant, station=station, staff=staff.id, session=session,
+    )
+    return Response(content=media, media_type="image/png", headers={
+        "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+        "Content-Security-Policy": "default-src 'none'; sandbox",
+    })
+
+
+@router.post("/review/{review_id}/confirm")
+def confirm_product_review(
+    request: Request, review_id: str, data: ConfirmReview,
+    response: Response,
+    db: Session = Depends(database.get_db),
+    staff: models.User = Depends(require_permission("patients")),
+):
+    response.headers["Cache-Control"] = "no-store"
+    tenant, station, session, bridge, store = _review_context(request, db, staff)
+    review = _review_candidate(
+        store, review_id=review_id, challenge=data.challenge,
+        tenant=tenant, station=station, staff=staff.id, session=session,
+    )
+    patient = _selected_patient(
+        db, patient_id=review.patient, tenant=tenant, staff=staff,
+    )
+    if (data.explicit_confirmation is not True
+            or data.selected_patient_id != review.patient
+            or data.capture_digest != review.capture.digest
+            or data.dossier != patient.numero_dossier
+            or data.date_naissance != patient.date_naissance.date().isoformat()):
+        raise HTTPException(409, "REVIEW_TWO_IDENTIFIERS_MISMATCH")
+    try:
+        bridge.read_verified_media(
+            review.capture, tenant_id=tenant, workstation_id=station,
+        )
+    except NativeInventoryDenied:
+        raise HTTPException(409, "REVIEW_MEDIA_CHANGED") from None
+    try:
+        store.consume(
+            review_id=review_id, tenant=tenant, workstation=station,
+            staff=staff.id, session=session, challenge=data.challenge,
+        )
+    except ProductReviewDenied:
+        raise HTTPException(409, "REVIEW_REPLAY_DENIED") from None
+    # B06-2 cannot persist an approval or create a receipt. B06-3 must
+    # re-validate a fresh explicit staff decision inside a durable transaction.
+    return {
+        "status": "STAFF_REVIEW_VERIFIED_TRANSIENT_ONLY",
+        "clinical_receipt_authorized": False,
+        "patient_assigned": False,
+        "media_published": False,
+    }
+
+
+@router.delete("/review/{review_id}")
+def cancel_product_review(
+    request: Request, review_id: str,
+    db: Session = Depends(database.get_db),
+    staff: models.User = Depends(require_permission("patients")),
+):
+    tenant, station, session, _bridge, store = _review_context(request, db, staff)
+    try:
+        store.cancel(
+            review_id=review_id, tenant=tenant, workstation=station,
+            staff=staff.id, session=session,
+            challenge=request.headers.get("x-dc-review-challenge", ""),
+        )
+    except ProductReviewDenied:
+        raise HTTPException(409, "REVIEW_CANCELLATION_DENIED") from None
+    return Response(status_code=204, headers={"Cache-Control": "no-store"})
