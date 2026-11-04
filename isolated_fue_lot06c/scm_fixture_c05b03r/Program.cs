@@ -401,7 +401,18 @@ internal static class Program
                     }
                     var response = total == 86 ? ReadVerifiedMediaSlice(request)
                         : new byte[] { (byte)'E', (byte)'0', (byte)'0', (byte)'0', (byte)'0' };
-                    _ = WriteFile(pipe, response, (uint)response.Length, out _, IntPtr.Zero);
+                    // The byte-mode pipe must remain connected until the client
+                    // has drained the entire binary reply; disconnecting directly
+                    // after WriteFile can discard unread bytes (notably the PNG).
+                    // LAB peer closes on denied replies; the service is one-shot,
+                    // disposable and never installed in a clinical workstation.
+                    if (WriteFile(pipe, response, (uint)response.Length,
+                                  out uint sent, IntPtr.Zero) &&
+                        sent == (uint)response.Length)
+                    {
+                        var drained = new byte[1];
+                        _ = ReadFile(pipe, drained, 1, out _, IntPtr.Zero);
+                    }
                 }
                 else if (readOk && received == 1 && buffer[0] != (byte)'R')
                 {
