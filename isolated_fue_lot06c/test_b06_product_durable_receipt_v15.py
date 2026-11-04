@@ -18,7 +18,9 @@ from backend.services.imaging_acquisition_durable_v15 import (
 )
 from backend.services.imaging_acquisition_native_bridge_v15 import LocalNativeCaptureBridge
 from backend.services.imaging_acquisition_product_review_v15 import ProductReviewStore
-from isolated_fue_lot06c.test_c05b03m_device_human_authority_v15 import _localhost_server
+from isolated_fue_lot06c.test_c05b03m_device_human_authority_v15 import (
+    _localhost_server, synthetic_sqlcipher_bridge,
+)
 from isolated_fue_lot06c.test_phase2_staff_review_media_sqlcipher_v15 import _ctx
 from tools.imaging_gateway.native_inventory_protocol_v15 import UnassignedCapture
 
