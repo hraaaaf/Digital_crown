@@ -11,12 +11,15 @@ This infrastructure guides future scientific engineering; it is not a clinically
 | Examination/diagnosis/odontogram | @clinical-diagnosis-engineer | audit-clinical-diagnosis-flow |
 | Cephalometric measurement | @cephalometry-engineer | implement-cephalo-measurement |
 | Cephalometric pipeline audit | @cephalometry-engineer | validate-cephalo-pipeline |
+| Orthodontic clinical evidence and tracing audit (read-only) | @orthodontiste (`.claude/agents/Orthodontiste.md`) | scientific-source-research + validate-cephalo-pipeline + audit-clinical-diagnosis-flow |
 | Radiology finding | @radiology-engineer | implement-radiology-finding |
 | Panoramic pipeline audit | @radiology-engineer | audit-panoramic-report-pipeline |
 | Independent tests | @scientific-test-engineer | generate-scientific-golden-tests |
 | Independent final review | @scientific-reviewer | review-scientific-pull-request |
 
 Invoke the architect only for shared contracts, cross-domain dependencies or migrations. Cosmetic work does not trigger scientific skills merely because a label contains ordonnance, diagnostic, cephalo or panoramic.
+
+Clinical audit routing: `@orthodontiste` reviews trace/data/clinical plausibility and produces a structured evidence verdict; `@cephalometry-engineer` retains ownership of deterministic implementation. Neither agent can approve a patient diagnosis or activate a clinical rule without the designated human clinician. The orthodontiste agent is read-only and does not replace existing scientific specialists.
 
 ## Source and activation rules
 
