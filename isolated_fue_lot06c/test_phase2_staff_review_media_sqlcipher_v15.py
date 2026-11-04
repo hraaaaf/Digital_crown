@@ -9,6 +9,7 @@ from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 from backend import models
 from isolated_fue_lot06c.phase2_staff_review_sqlcipher_lab import mount_lab_review, reviews, audit
+from isolated_fue_lot06c import unassigned_device_manifest_lab as unassigned
 from isolated_fue_lot06c.c05b03m_security_gate_lab import (
     BridgeRejected, identity as device_identity, review as device_review,
     sign_test_device_claim, verify_pending_device_capture_proof,
@@ -24,12 +25,13 @@ def _ctx(bridge, tmp_path, monkeypatch):
     values = _setup(bridge, tmp_path)
     with values[0].begin() as conn:
         conn.execute(update(models.Patient.__table__).where(models.Patient.id == values[1].patient).values(numero_dossier='LAB-42'))
-    mount_lab_review(
-        values[12], claim=values[1], validated_media=values[8],
-        # Synthetic private device attestation is verified only inside the
-        # backend LAB fixture, never handed to a browser or patient route.
-        device_proof=values[11]["X-DC-Lab-Device-Proof"],
-    )
+    # The device signs a capture manifest without patient or staff fields.
+    # The human association is then established by separate review SQLCipher.
+    device_manifest = unassigned.unsigned_from_capture(values[1])
+    device_signature = unassigned.sign_unassigned(device_manifest, values[9])
+    with Session(values[0]) as db:
+        unassigned.register_unassigned(db, device_manifest, device_signature)
+    mount_lab_review(values[12], claim=values[1], validated_media=values[8])
     return values
 
 
