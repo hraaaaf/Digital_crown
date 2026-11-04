@@ -100,6 +100,14 @@ def test_b06_product_boundary_and_lab_review_media_receipt_same_server_and_db(
         with engine.begin() as conn:
             conn.execute(update(identity).values(active=1))
         assert _counts(engine) == (0, 0, 0)
+        with Session(engine) as db:
+            signed = db.execute(select(unassigned.unassigned.c.signature)).scalar_one()
+        with engine.begin() as conn:
+            conn.execute(update(unassigned.unassigned).values(signature="0" * 128))
+        assert _post(http, claim, raw, headers).status_code == 409
+        assert _counts(engine) == (0, 0, 0)
+        with engine.begin() as conn:
+            conn.execute(update(unassigned.unassigned).values(signature=signed))
 
         saved = _post(http, claim, raw, headers)
         assert saved.status_code == 200
