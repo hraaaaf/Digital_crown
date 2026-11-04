@@ -16,7 +16,7 @@ MAX_CHUNK = 2048
 # This experimental fixture is deliberately bounded to small synthetic images.
 # It does NOT advertise support for 50-MiB clinical scans.
 LAB_MEDIA_MAX = 16384
-REQUEST_BYTES = 86
+REQUEST_BYTES = 87
 REPLY_HEADER_BYTES = 5
 DENIED = b"E0000"
 _REQ = re.compile(rb"^M[0-9]{10}[a-f0-9]{64}[0-9]{8}[0-9]{4}$")
