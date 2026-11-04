@@ -467,3 +467,7 @@ Le garde `_guarded_ci_dsn()` exige les trois indicateurs TEST/isolated/PG-LAB et
 **Next : B06-4C — architecture du véritable adaptateur PG et protocole rehearsal sur copie isolée, puis B06-5/5 produit/UX après approbation.** Le `Human Visual Approval` est toujours un gate humain non approuvé ; ne jamais le contourner. Les essais physiques restent LOT10.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false` · `LOT10_PHYSICAL_VALIDATED=false`.
+
+## POST B06-4B (2026-11-04)
+
+CI [#41927177139](https://github.com/hraaaaf/Digital_crown/actions/runs/41927177139): 77/77 SQLCipher, 4/4 PostgreSQL 18.6 ephemeral, 18/18 React, Windows SUCCESS. Ledger-only synthetic FUE; PostgreSQL product/clinical go BLOCKED. No merge, deployment, migration or cabinet changes. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
