@@ -1,0 +1,73 @@
+name: CEPH V1 LOT1 Aariz Landmark Overlays (RESEARCH ONLY, NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - feat/ceph-v1-r14-audit-receipts-20261103
+    paths:
+      - 'scripts/research/aariz_overlay_lab.py'
+      - '.github/workflows/ceph-v1-lot1-aariz-overlays.yml'
+  pull_request:
+    branches:
+      - feat/ceph-v1-l3-practitioner-gate-20261102
+    paths:
+      - 'scripts/research/aariz_overlay_lab.py'
+      - '.github/workflows/ceph-v1-lot1-aariz-overlays.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  public-source-overlay:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Validate exact source HEAD
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated renderer (no application services)
+        run: python -m pip install Pillow==11.3.0
+      - name: Generate research-only annotated images from SHA-locked public dataset
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python scripts/research/aariz_overlay_lab.py \
+            --output artifacts/ceph-v1-lot1-aariz-overlay \
+            --expected-head "$PRODUCT_HEAD"
+      - name: Verify manifest is NOT a clinical approval
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path('artifacts/ceph-v1-lot1-aariz-overlay')
+          meta = json.loads((path/'manifest.json').read_text())
+          assert meta['product_head'] == __import__('os').environ['PRODUCT_HEAD']
+          assert meta['clinical_validation'] is False
+          assert len(meta['cases']) == 2
+          for case in meta['cases']:
+              assert case['points_per_group'] == 29
+              assert case['out_of_bounds'] == 0
+              assert case['approved_by_clinician'] is False
+              assert case['agent_independent_run'] == 'NOT_RUN'
+              for file in ('full_overlay.png','posterior_zoom.png','profile_zoom.png'):
+                  image = path / case['device'] / file
+                  assert image.is_file() and image.stat().st_size > 10000, image
+          print('FUE-0 SOURCE OVERLAY PASS: 2×3 PNG, 4 JSON, 116 markers; clinical HOLD')
+          PY
+      - name: Publish expiring source-attributed review images (NOT patient certification)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-v1-lot1-aariz-overlays-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-v1-lot1-aariz-overlay/
+          if-no-files-found: warn
+          retention-days: 7
