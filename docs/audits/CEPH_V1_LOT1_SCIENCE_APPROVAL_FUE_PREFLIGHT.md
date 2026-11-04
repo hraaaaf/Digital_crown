@@ -400,3 +400,29 @@ Le calcul V1 applique `min(angle, 180-angle)` sur deux **axes non orientés**, e
 **NEXT :** transmettre les 6 superpositions et clichés non annotés au praticien pour revue indépendante des cibles Po/Or/Co/Gn/soft ; récupérer convention de tracé, incertitude et calibration native ; vérifier un vrai cas Z obtus avant nouvelle méthode versionnée, puis FUE cabinet. L'agent Orthodontiste ne peut pas être déclaré exécuté sans runner autonome.
 
 **CHANTIER Digital Crown Céphalo V1 · LOT 1/4 OPEN · SOUS-LOT revue visuelle ciblée §19 · NEXT arbitrage humain Po/Or/Co/Gn et calibration native · GOAL lever les réserves anatomiques sur preuve avant R15/PDF.**
+
+
+### 20. Reprise R14 : oracle synthétique Z obtus et clarification ProMax — 2026-11-04 (FUE-0, clinique HOLD)
+
+**PRE.** Source unique vérifiée : ce dossier §19, [PR #1208 Draft](https://github.com/hraaaaf/Digital_crown/pull/1208), branche \`feat/ceph-v1-r14-audit-receipts-20261103\`, HEAD initial \`94fad0f049044618ba80f3ce2ed229fbe30639af\`. Goal : vérifier sur l'implémentation et une construction **strictement synthétique** la conservation du secteur aigu/obtus de Z, puis isoler exactement ce que les sources permettent de conclure sur l'échelle ProMax ; sans activation médicale.
+
+**R14 exact-HEAD terminé.** [Run #41861357086](https://github.com/hraaaaf/Digital_crown/actions/runs/41861357086), job \`backend-r14-hold\` #126683693058, logs inspectés : checkout \`94fad0f\`, **154 passed in 9.95s**, COMPLETED/SUCCESS. Autres contrôles du même SHA : [Aariz #41861357077](https://github.com/hraaaaf/Digital_crown/actions/runs/41861357077), [Scope #41861357076](https://github.com/hraaaaf/Digital_crown/actions/runs/41861357076), [UI #41861357099](https://github.com/hraaaaf/Digital_crown/actions/runs/41861357099), Theme09 #41861357053, Theme10 #41861357025, Theme11 #41861357040 = SUCCESS ; M6-I #41861357057 = SKIPPED hors scope. Il s'agit de **preuves du SHA initial**, pas d'un futur HEAD documentaire ou de validation clinique.
+
+**Z : contrat vérifié dans le code.** \`backend/services/cephalo_tweed_merrifield_geometry.py\` : \`merrifield_z_angle_deg_v1\` utilise \`_axis_angle_deg\` qui retourne \`min(angle_rays, 180.0-angle_rays)\`. Les valeurs de l'axe ne peuvent dépasser 90°. Le test existant \`backend/tests/test_cephalo_r6_tweed_merrifield.py::test_merrifield_z_angle_selects_most_protrusive_lip_and_is_mirror_invariant\` contrôle un résultat aigu 63,4349° et un miroir ; il ne démontre pas la préservation du secteur obtus.
+
+**Oracle mathématique indépendant (hors Digital Crown ; aucune anatomie patient).** Deux jeux de points avec \`Po=(0,0)\`, \`Or=(10,0)\`, \`Pog_soft=(2,20)\`, direction horizontale \`u=(10,0)\`. On calcule l'angle non réflexe des rayons avec \`degrees(atan2(abs(cross(u,v)),dot(u,v)))\`, puis le résultat de la formule entre axes avec \`min(angle,180-angle)\`.
+
+| Fixture synthétique | Ls_soft | Li_soft | v=Ls-Pog_soft | Rayons atan2 | Axe V1 |
+|---|---|---|---|---:|---:|
+| Z-SYN-ACUTE | (7,10) | (6,12) | (5,-10) | 63,434948823° | 63,434948823° |
+| Z-SYN-OBTUSE | (-3,10) | (-4,12) | (-5,-10) | **116,565051177°** | **63,434948823°** |
+
+Dans chaque fixture Ls reste la lèvre choisie par la projection Po→Or, selon la règle du code. **Constat technique :** le moteur replie le secteur obtus sur l'aigu et perd l'information de secteur. **Aucun bug clinique définitivement établi** : l'angle entre **axes** peut être intentionnel ; il faut une décision sur la construction/secteur Merrifield exact. Le [papier primaire Merrifield 1966](https://www.sciencedirect.com/science/article/pii/0002941666902508) est identifié (DOI \`10.1016/0002-9416(66)90250-8\`), mais sa méthode intégrale n'est pas disponible ici ; les [descriptions secondaires](https://scielo.org.za/scielo.php?pid=S0011-85162019000700008&script=sci_arttext) ne suffisent pas pour activer un changement. **HOLD-Z-ORIENTATION reste fermé.**
+
+**ProMax : précision documentaire importante.** Le [Tableau 2 de Khalid et al. (Scientific Data 2025)](https://pmc.ncbi.nlm.nih.gov/articles/PMC12313948/) donne **ProMax 2D : 1,139 mm/px (41 images)** mais **ProMax with ProTouch : 0,139 mm/px (135 images)**. Ce sont deux libellés d'appareils distincts ; attribuer automatiquement 0,139 à ProMax 2D serait une confusion possible. Le CSV du miroir attribue 0,139 au cas nommé ProMax 2D, mais l'identité avec l'archive Figshare officielle, le modèle réel, la calibration DICOM et l'éventuel resize ne sont pas certifiés. À titre **purement arithmétique**, 1256 px × 1,139 = 1430,584 mm ; × 0,139 = 174,584 mm ; ces produits ne démontrent pas le champ réel. **HOLD-MCNAMARA-SCALE reste fermé.**
+
+**POST / limites.** FUE-0 de lecture source + oracle synthétique réalisé, tests R14 prouvés sur \`94fad0f\`. \`ORTHODONTISTE_AGENT_RUN=NOT_RUN\` ; cliché natif DICOM et correction de magnification NOT_EVALUABLE ; vrai traçage en aveugle Po/Or/Co/Gn/soft NOT_RUN ; angle Z clinique >90° NOT_VERIFIED ; décision orthodontiste humain NONE ; \`clinical_validation_available=false\`, PDF \`INCOMPLETE\`, **0/10 FUE cabinet**. Aucun code, modèle, formule, norme, DB, média patient ou UI modifiés. PR Draft, aucun merge ni déploiement. La CI est à revérifier sur le nouveau HEAD documentaire.
+
+**NEXT exact :** confirmer identité appareil + CSV officiel Figshare + échelle native/crop/magnification ; obtenir un contre-tracé aveugle humain sur les sources natives et une convention signée pour l'angle Z (y compris >90°), Po/Or/Co/Gn/soft ; seulement ensuite envisager une correction versionnée et les 10 FUE cabinet. Ni le présent oracle ni un agent IA ne remplacent cette approbation.
+
+**CHANTIER Digital Crown Céphalo V1 · LOT 1/4 OPEN · SOUS-LOT R14 fini, oracle Z obtus documenté · NEXT native + convention Z + signature humaine + CI exact HEAD · GOAL lever HOLD-Z et HOLD-MCNAMARA avant R15/PDF.**
