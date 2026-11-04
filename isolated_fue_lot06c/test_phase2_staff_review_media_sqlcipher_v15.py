@@ -27,7 +27,14 @@ def _ctx(bridge, tmp_path, monkeypatch):
         conn.execute(update(models.Patient.__table__).where(models.Patient.id == values[1].patient).values(numero_dossier='LAB-42'))
     # The device signs a capture manifest without patient or staff fields.
     # The human association is then established by separate review SQLCipher.
-    device_manifest = unassigned.unsigned_from_capture(values[1])
+    # Fixture extracts only scanner fields. The constructor itself cannot
+    # accept a clinical patient/user/appointment object.
+    capture = values[1]
+    device_manifest = unassigned.new_unassigned_manifest(
+        tenant=capture.tenant, device=capture.device, station=capture.station,
+        generation=capture.generation, capture=capture.capture,
+        digest=capture.digest, byte_size=capture.byte_size,
+    )
     device_signature = unassigned.sign_unassigned(device_manifest, values[9])
     with Session(values[0]) as db:
         unassigned.register_unassigned(db, device_manifest, device_signature)
