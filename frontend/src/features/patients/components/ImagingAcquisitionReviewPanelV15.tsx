@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { api, API_BASE } from '../../../services/api';
 
 /**
  * LAB-only review surface. Deliberately NOT mounted in App.tsx or patient routes.
@@ -49,6 +50,7 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
   // No confirmation unless the image for THIS exact review was rendered.
   // Stored as a context key so a prior patient's onLoad cannot authorize a new review.
   const [loadedPreviewContext, setLoadedPreviewContext] = useState('');
+  const [verifiedPreview, setVerifiedPreview] = useState<{ context: string; url: string } | null>(null);
   const previewContext = [review.capture, review.capture_digest, review.patient_id, review.challenge, previewUrl].join(':');
   const now = Math.floor(Date.now() / 1000);
 
@@ -71,12 +73,45 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
     review.status === 'STAFF_REVIEW_REQUIRED' &&
     review.lab_only === true && review.clinical_receipt_authorized === false &&
     /^([a-f0-9]{64})$/.test(review.capture_digest) &&
+    Number.isSafeInteger(review.capture_size) && review.capture_size > 0 &&
+    review.capture_size <= 50 * 1024 * 1024 &&
     Boolean(review.numero_dossier && review.date_naissance && review.capture && review.challenge);
+
+  useEffect(() => {
+    let active = true;
+    let objectUrl: string | null = null;
+    setVerifiedPreview(null);
+    if (!sane) return;
+
+    // Browser <img src> cannot attach the application's bearer auth header.
+    // Fetch with the same authenticated API client; never expose a remote URL,
+    // token, PHI or raw media to logs. Digest and size refer to exact capture.
+    void api.get<ArrayBuffer>(`${API_BASE}${previewUrl}`, { responseType: 'arraybuffer' })
+      .then(async reply => {
+        if (!active || !(reply.data instanceof ArrayBuffer)) return;
+        const mime = String(reply.headers?.['content-type'] ?? '').split(';', 1)[0].trim().toLowerCase();
+        if (mime !== 'image/png' || reply.data.byteLength !== review.capture_size) return;
+        if (!globalThis.crypto?.subtle) return;
+        const digest = await globalThis.crypto.subtle.digest('SHA-256', reply.data);
+        const hex = Array.from(new Uint8Array(digest), byte => byte.toString(16).padStart(2, '0')).join('');
+        if (!active || hex !== review.capture_digest) return;
+        const url = URL.createObjectURL(new Blob([reply.data], { type: mime }));
+        if (!active) { URL.revokeObjectURL(url); return; }
+        objectUrl = url;
+        setVerifiedPreview({ context: previewContext, url });
+      })
+      .catch(() => { /* fail closed; never display an unverified preview */ });
+    return () => {
+      active = false;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [sane, previewContext, previewUrl, review.capture_digest, review.capture_size]);
 
   const matches =
     dossier.trim() === review.numero_dossier &&
     birthDate === review.date_naissance;
-  const previewReady = sane && loadedPreviewContext === previewContext;
+  const previewReady = sane && verifiedPreview?.context === previewContext &&
+    loadedPreviewContext === previewContext;
   const canConfirm = previewReady && !pending && !approved && checked && matches &&
     review.expires_at > now;
 
@@ -115,13 +150,16 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-2">
         <div className="overflow-hidden rounded-lg border border-border bg-background">
-          <img key={previewContext} src={previewUrl} alt="Aperçu de la capture à associer au patient"
-            className="h-auto max-h-[540px] w-full object-contain"
-            onLoad={() => setLoadedPreviewContext(previewContext)}
-            onError={() => setLoadedPreviewContext('')} />
+          {verifiedPreview?.context === previewContext && (
+            <img key={previewContext} src={verifiedPreview.url}
+              alt="Aperçu de la capture à associer au patient"
+              className="h-auto max-h-[540px] w-full object-contain"
+              onLoad={() => setLoadedPreviewContext(previewContext)}
+              onError={() => setLoadedPreviewContext('')} />
+          )}
           {!previewReady && (
             <p role="alert" className="px-3 py-2 text-sm text-text-muted">
-              Aperçu non chargé : confirmation désactivée.
+              Aperçu sécurisé non vérifié ou non chargé : confirmation désactivée.
             </p>
           )}
           <p className="break-all px-3 py-2 text-xs text-text-muted">
