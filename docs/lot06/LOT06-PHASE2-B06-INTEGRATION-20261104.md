@@ -392,3 +392,14 @@ Avant toute mutation de schéma : réévaluer modèle Media Core, migrations exi
 Au même SHA, Portability Runtime SUCCESS et LOT06 C05B-03K/L + C05B-03M SUCCESS. **Human Visual Approval FAILURE** ; CB-02 B et B03 transversaux encore actifs au moment de cette preuve (leur statut peut évoluer). Le code/lab est **GREEN LAB B06-3**, mais le lot reste **OPEN** : aucune migration approuvée, aucun `main.py` flag d'activation, aucune preuve visuelle humaine ni LOT10 physique. Les certificats Windows sont explicitement jetables de laboratoire, pas un publisher cert de production.
 
 Cette insertion est **documentaire uniquement** ; la batterie `lot06-phase2-b06-integration-fue.yml` se réexécute sur le nouveau HEAD après ce changement de document. Seul le run du nouveau HEAD peut constituer une preuve one-HEAD finale si le contrôle strict l'exige. Aucun merge/déploiement/activation. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
+
+
+## PRE — B06 bloc 4/5 : contrat de schéma / compatibilité locale / visuel (2026-11-04)
+
+**HEAD PRE** `ddc53c89a819af07762d84794b6105b57f6697bf`, PR #1210 OPEN/DRAFT. Le run [#41918952406](https://github.com/hraaaaf/Digital_crown/actions/runs/41918952406) est définitivement **3/3 SUCCESS** (rerun Windows du même HEAD), backend 75/75, React 18/18, SCM/Authenticode PASS. B02, B03, CB-02 et Portability Runtime également SUCCESS sur ce HEAD. Human Visual Approval `#41918956352` = FAILURE attendue `PR HEAD changed: approval revoked; new screenshots and explicit approval required` ; aucun contournement ni label forgé.
+
+**ARCHITECTURE RISK / BLOCKER C :** le cabinet V1 installé documenté dans `docs/clinic/CABINET_UPGRADE_COMPATIBILITY_GATE.md` exploite PostgreSQL 18.2, tandis que B06-3 `_sqlcipher()` refuse tout moteur non-SQLCipher. Le guide de LOT06-acceptance #851/#909/#1172 prescrit précisément de réconcilier SQLite/SQLCipher et PostgreSQL avant migration. Aucun choix de cible n'a été approuvé ici. Le code SQLCipher-only peut être certifié LAB mais ne peut pas être déclaré installable au cabinet PostgreSQL.
+
+**Scope de ce passage réversible (aucune mutation réelle)** : certifier un contrat d'intégrité du ledger SQLCipher B06 sur fixture isolée (tables, clés, unicité, immutabilité, refus de schéma tronqué/falsifié), oracle de refus PostgreSQL/plain SQLite, et rédiger décision opérateur explicite PostgreSQL vs SQLCipher + conditions restauration/rollback sans inventer un GO. Si un schéma additionnel change la fixture de laboratoire, un test doit le provisionner explicitement ; `backend.main` doit rester sans `create_all`/bootstrap durable.
+
+**GATES REQUIRED :** preuves FUE exact-HEAD, 0 données réelles, human visual approval réellement humain, architecture/migration approuvée, aucun merge, installer, déploiement, pilote ou test LOT10 physique. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`.
