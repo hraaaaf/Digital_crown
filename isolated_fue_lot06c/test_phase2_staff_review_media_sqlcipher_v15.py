@@ -22,7 +22,17 @@ from tools.imaging_gateway import HotFolder
 
 def _ctx(bridge, tmp_path, monkeypatch):
     monkeypatch.setenv("DC06_PHASE2_REVIEW_LAB", "1")
-    values = _setup(bridge, tmp_path)
+    values = _setup(
+        bridge, tmp_path, media_authority=unassigned.TestOnlyUnassignedMediaAuthority(),
+    )
+    # Unlike the historical 03M fixture, this B06 upload must NOT send a
+    # patient-/staff-bearing device signature as an HTTP authorization.
+    values = (
+        *values[:11],
+        {key: value for key, value in values[11].items()
+         if key.lower() != "x-dc-lab-device-proof"},
+        *values[12:],
+    )
     with values[0].begin() as conn:
         conn.execute(update(models.Patient.__table__).where(models.Patient.id == values[1].patient).values(numero_dossier='LAB-42'))
     # The device signs a capture manifest without patient or staff fields.
@@ -181,8 +191,11 @@ def test_phase2_preview_requires_independent_pinned_device_signature_and_staff_c
      _raw, private, challenge, headers, app, _public) = _ctx(
         synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
     )
-    proof = headers["X-DC-Lab-Device-Proof"]
+    # The historical patient-/staff-bearing proof is generated only for
+    # this independent negative oracle, never sent to the B06 upload server.
+    proof = sign_test_device_claim(claim, challenge, private)
     assert len(proof) == 128
+    assert "X-DC-Lab-Device-Proof" not in headers
     endpoint = "/isolated/lot06-phase2/review/" + claim.capture
     good_key = private.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw).hex()
     bad_key = Ed25519PrivateKey.generate().public_key().public_bytes(
