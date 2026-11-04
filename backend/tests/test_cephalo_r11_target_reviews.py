@@ -193,3 +193,27 @@ def test_router_checks_patient_access_before_study_query(monkeypatch):
             db=NoRead(), current_user=object(),
         )
     assert err.value.status_code == 403
+
+
+def test_stale_sqlite_session_cannot_duplicate_confirmed_target(monkeypatch):
+    """A second loaded Session sees the committed audit after the write lock."""
+    engine, _body, actor, sha = _case(monkeypatch)
+    with Session(engine) as stale:
+        loaded = stale.get(models.CephaloAnalysis, 101)
+        request = _request("finding", _target_id(loaded, "finding"), sha)
+        with Session(engine) as winner:
+            reviews.record_r11_target_review(
+                patient_id=1, analysis=winner.get(models.CephaloAnalysis, 101),
+                actor=actor, request=request, db=winner,
+            )
+        with pytest.raises(HTTPException) as err:
+            reviews.record_r11_target_review(
+                patient_id=1, analysis=loaded,
+                actor=actor, request=request, db=stale,
+            )
+        assert err.value.status_code == 409
+    with Session(engine) as db:
+        assert db.query(models.AuditLog).filter(
+            models.AuditLog.action == reviews.R11_TARGET_ACTION,
+        ).count() == 1
+        assert db.get(models.CephaloAnalysis, 101).angles_data[staging.STAGING_KEY]["content_sha256"] == sha
