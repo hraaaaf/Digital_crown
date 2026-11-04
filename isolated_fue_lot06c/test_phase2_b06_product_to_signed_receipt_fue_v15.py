@@ -16,6 +16,9 @@ from backend.services.clinical_asset_storage import store_clinical_asset_bytes
 
 from backend import database
 from backend.routers import imaging_acquisition_status_v15, imaging_acquisition_unassigned_v15
+from backend.services.imaging_acquisition_product_review_v15 import ProductReviewStore
+from backend import models
+from backend.security import create_access_token
 from backend.services.imaging_acquisition_native_bridge_v15 import LocalNativeCaptureBridge
 from tools.imaging_gateway.native_inventory_protocol_v15 import (
     NativeInventoryDenied, UnassignedCapture,
@@ -285,3 +288,190 @@ def test_b06_product_unassigned_inventory_jwt_workstation_bridge_and_verified_by
         assert http.get(url, headers=headers).status_code == 503
         assert _counts(engine) == (0, 0, 0)
     print("DC06_B06_PRODUCT_UNASSIGNED_JWT_STATION_NATIVE_BRIDGE_NO_PATIENT_PASS")
+
+
+def test_b06_product_real_staff_preview_and_two_marker_transient_review_no_media_commit(
+    synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    (engine, claim, _token, station, _media, _source, _collector, _item,
+     raw, _private, _challenge, headers, app, _public) = _ctx(
+        synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+    )
+    capture = UnassignedCapture(
+        id=17, digest=hashlib.sha256(raw).hexdigest(),
+        size=len(raw), mime="image/png", category="PHOTO",
+    )
+    actual = {"capture": capture, "media": raw}
+    app.state.dc06_unassigned_bridge = LocalNativeCaptureBridge(
+        tenant_id=claim.tenant, workstation_id=claim.station,
+        inventory_reader=lambda: actual["capture"],
+        media_reader=lambda _capture: actual["media"],
+    )
+    app.state.dc06_review_store = ProductReviewStore()
+
+    async def product_db():
+        with Session(app.state.lab_sqlcipher_engine) as db:
+            yield db
+    app.dependency_overrides[database.get_db] = product_db
+    app.include_router(
+        imaging_acquisition_unassigned_v15.router,
+        prefix="/api/imaging/acquisition",
+    )
+    base = "/api/imaging/acquisition/review"
+    start_data = {
+        "capture_id": capture.id, "capture_digest": capture.digest,
+        "selected_patient_id": claim.patient,
+    }
+    json_headers = {k: v for k, v in headers.items()
+                    if k.lower() != "content-type"}
+
+    with _localhost_server(app) as url, httpx.Client(
+        base_url=url, trust_env=False, timeout=20,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        assert http.post(base, json=start_data).status_code in (401, 403)
+        assert _counts(engine) == (0, 0, 0)
+        assert http.post(base, json={
+            **start_data, "selected_patient_id": claim.patient + 500000,
+        }, headers=json_headers).status_code in (403, 404, 409)
+        assert http.post(base, json={
+            **start_data, "capture_digest": "0" * 64,
+        }, headers=json_headers).status_code == 409
+        assert http.post(base, json={
+            **start_data, "capture_id": 99999,
+        }, headers=json_headers).status_code == 409
+        assert http.post(base, json=start_data, headers={
+            k: v for k, v in json_headers.items()
+            if k.lower() != "authorization"
+        }).status_code == 403
+
+        http.cookies.set("dc_workstation", "wrong-station-cookie")
+        assert http.post(base, json=start_data, headers=json_headers).status_code == 423
+        http.cookies.set("dc_workstation", station)
+
+        begin = http.post(base, json=start_data, headers=json_headers)
+        assert begin.status_code == 200, begin.text[:200]
+        review = begin.json()
+        assert review["clinical_receipt_authorized"] is False
+        assert review["patient_id"] == claim.patient
+        assert review["numero_dossier"] == "LAB-42"
+        preview = "/api" + review["preview_url"]
+        confirm = base + "/" + review["review_id"] + "/confirm"
+        assert http.post(base, json=start_data, headers=json_headers).status_code == 409
+        assert http.get(preview, headers=json_headers).status_code == 409
+        assert http.get(preview, headers={
+            **json_headers, "X-DC-Review-Challenge": "wrong-challenge",
+        }).status_code == 409
+
+        with Session(engine) as db:
+            staff_email = db.get(models.User, claim.staff).email
+        different_jwt = create_access_token({"sub": staff_email})
+        assert http.get(preview, headers={
+            **json_headers, "Authorization": "Bearer " + different_jwt,
+            "X-DC-Review-Challenge": review["challenge"],
+        }).status_code == 409
+
+        good_preview = http.get(preview, headers={
+            **json_headers, "X-DC-Review-Challenge": review["challenge"],
+        })
+        assert good_preview.status_code == 200
+        assert good_preview.headers["cache-control"] == "no-store"
+        assert good_preview.headers["content-type"].startswith("image/png")
+        assert good_preview.content == raw
+
+        valid = {
+            "challenge": review["challenge"],
+            "selected_patient_id": claim.patient,
+            "dossier": review["numero_dossier"],
+            "date_naissance": review["date_naissance"],
+            "capture_digest": capture.digest,
+            "explicit_confirmation": True,
+        }
+        for changed in (
+            {"selected_patient_id": claim.patient + 1},
+            {"dossier": "WRONG"},
+            {"date_naissance": "1970-01-01"},
+            {"capture_digest": "0" * 64},
+            {"explicit_confirmation": False},
+            {"challenge": "not-the-current-challenge"},
+        ):
+            bad = http.post(confirm, json={**valid, **changed},
+                            headers=json_headers)
+            assert bad.status_code in (409, 422), (changed, bad.status_code)
+        assert _counts(engine) == (0, 0, 0)
+
+        actual["media"] = raw + b"tampered"
+        assert http.get(preview, headers={
+            **json_headers, "X-DC-Review-Challenge": review["challenge"],
+        }).status_code == 409
+        assert http.post(confirm, json=valid, headers=json_headers).status_code == 409
+        actual["media"] = raw
+        accepted = http.post(confirm, json=valid, headers=json_headers)
+        assert accepted.status_code == 200, accepted.text[:200]
+        assert accepted.json() == {
+            "status": "STAFF_REVIEW_VERIFIED_TRANSIENT_ONLY",
+            "clinical_receipt_authorized": False,
+            "patient_assigned": False, "media_published": False,
+        }
+        assert http.post(confirm, json=valid, headers=json_headers).status_code == 409
+        assert http.get(preview, headers={
+            **json_headers, "X-DC-Review-Challenge": review["challenge"],
+        }).status_code == 409
+        assert http.post(base, json=start_data, headers=json_headers).status_code == 409
+        assert _counts(engine) == (0, 0, 0)
+    print("DC06_B06_PRODUCT_REAL_REVIEW_STAFF_SESSION_TWO_MARKERS_ONE_SHOT_NO_MEDIA_PASS")
+
+
+def test_b06_product_review_cancel_releases_only_own_session(
+    synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    (engine, claim, _token, station, _media, _source, _collector, _item,
+     raw, _private, _challenge, headers, app, _pub) = _ctx(
+        synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+    )
+    capture = UnassignedCapture(
+        id=18, digest=hashlib.sha256(raw).hexdigest(),
+        size=len(raw), mime="image/png", category="PHOTO",
+    )
+    app.state.dc06_unassigned_bridge = LocalNativeCaptureBridge(
+        tenant_id=claim.tenant, workstation_id=claim.station,
+        inventory_reader=lambda: capture, media_reader=lambda _capture: raw,
+    )
+    app.state.dc06_review_store = ProductReviewStore()
+    async def product_db():
+        with Session(app.state.lab_sqlcipher_engine) as db:
+            yield db
+    app.dependency_overrides[database.get_db] = product_db
+    app.include_router(
+        imaging_acquisition_unassigned_v15.router,
+        prefix="/api/imaging/acquisition",
+    )
+    base = "/api/imaging/acquisition/review"
+    payload = {
+        "capture_id": capture.id, "capture_digest": capture.digest,
+        "selected_patient_id": claim.patient,
+    }
+    json_headers = {k: v for k, v in headers.items()
+                    if k.lower() != "content-type"}
+    with _localhost_server(app) as url, httpx.Client(
+        base_url=url, trust_env=False, timeout=20,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        first = http.post(base, json=payload, headers=json_headers)
+        assert first.status_code == 200
+        view = first.json()
+        target = base + "/" + view["review_id"]
+        assert http.delete(target, headers={
+            **json_headers, "X-DC-Review-Challenge": "wrong",
+        }).status_code == 409
+        assert http.delete(target, headers={
+            **json_headers, "X-DC-Review-Challenge": view["challenge"],
+        }).status_code == 204
+        assert http.delete(target, headers={
+            **json_headers, "X-DC-Review-Challenge": view["challenge"],
+        }).status_code == 409
+        second = http.post(base, json=payload, headers=json_headers)
+        assert second.status_code == 200
+        assert second.json()["challenge"] != view["challenge"]
+        assert _counts(engine) == (0, 0, 0)
+    print("DC06_B06_PRODUCT_REVIEW_CANCEL_REPLAY_FAIL_CLOSED_PASS")
