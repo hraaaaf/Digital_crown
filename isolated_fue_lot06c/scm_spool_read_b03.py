@@ -10,6 +10,7 @@ import os
 from pathlib import Path
 import secrets
 import sys
+import zlib
 
 # -I Python isolated mode prevents PYTHONPATH injection; only repo-owned
 # source path is inserted. Not an arbitrary user-writable module directory.
@@ -22,10 +23,29 @@ from tools.imaging_gateway.native_media_protocol_v15 import (
     NativeInventoryDenied, decode_request, encode_response, DENIED as MEDIA_DENIED,
 )
 
-PNG = base64.b64decode(
+_BASE_PNG = base64.b64decode(
     "iVBORw0KGgoAAAANSUhEUgAAAAIAAAACCAIAAAD91Jpz"
     "AAAAFklEQVR4nGPkEpFjYGBgYmBgYGBgAAAC5gBAXKUgWwAAAABJRU5ErkJggg=="
 )
+
+
+def _synthetic_multichunk_png() -> bytes:
+    """Valid 2×2 synthetic PNG with a safe, uncompressed ancillary text chunk.
+
+    Purpose: exercise 4+ actual Win32 pipe fragments, not a simulated unit
+    split. No clinical pixel data, no patient identity or source filesystem.
+    """
+    assert _BASE_PNG[-8:-4] == b"IEND"
+    content = b"Comment\\x00" + b"SYNTHETIC-NOT-PATIENT-" * 310
+    label = b"tEXt"
+    chunk = (len(content).to_bytes(4, "big") + label + content
+             + (zlib.crc32(label + content) & 0xffffffff).to_bytes(4, "big"))
+    media = _BASE_PNG[:-12] + chunk + _BASE_PNG[-12:]
+    assert 6144 < len(media) <= 16384
+    return media
+
+
+PNG = _synthetic_multichunk_png()
 
 def run(argv: list[str]) -> int:
     if (os.name != "nt" or len(argv) not in (5, 9)
