@@ -283,3 +283,67 @@ still fails `C05B03R_CHILD_30S_TIMEOUT`. No service authentication, pipe
 ACL, crypto, media validation or product route was weakened. Only exact-HEAD
 success with a real Windows SCM + B05 Authenticode can certify this pass;
 the previous failed attempt remains evidence.
+
+
+## B06 bloc 2/5 — product staff preview and two-marker selection (2026-11-04)
+
+**Software scope, NOT real physical LOT10 testing.** Actual `backend.main`
+now keeps its authenticated unassigned queue (B06-1) AND mounts review
+endpoints in the same product router:
+
+- `POST /api/imaging/acquisition/review`: staff explicitly selects an
+  existing patient ID AND a verified pending capture ID/digest. Server uses
+  `require_permission("patients")`, real tenant-scoped WorkstationMode
+  cookie, loopback network, a matching bearer session, patient-access and
+  preflight. The verified native bridge checks SHA256/size/PNG before an
+  ephemeral review capability is created. It returns patient name and
+  the *two actual database markers* (dossier and birthdate) only to the
+  authorized selected staff, and a 90-second one-use challenge.
+- `GET /api/imaging/acquisition/review/{review_id}/preview`: only the
+  same staff+tenant+workstation+bearer session and matching challenge
+  may read the verified PNG; the backend rechecks native inventory before
+  and after the transfer and the precise digest/size, then returns
+  `no-store`/nosniff. Never issue an unrestricted or external media URL.
+- `POST /api/imaging/acquisition/review/{review_id}/confirm`: explicit
+  true consent flag, exact selected patient, typed dossier+DOB, capture
+  digest, unexpired one-use staff challenge AND a fresh validated media
+  read; then atomically consumes the **ephemeral** selection lease.
+  A second selection/confirmation of the same opaque capture ID is denied
+  within the process even if its digest changes.
+- `DELETE /api/imaging/acquisition/review/{review_id}`: authenticated
+  exact-session cancellation of a pending review; rejects wrong challenge
+  or replay, permits a fresh explicit attempt after cancellation.
+
+The real patient **Media** tab renders
+`ImagingAcquisitionProductReviewV15`, only when the genuine product
+unassigned-inventory route reports one valid PNG in the active workstation.
+It never chooses a patient from filename/appointment/device. The staff
+must press **Examine this capture for this patient** on the explicitly
+opened patient route, visually load a browser-side SHA256/size/MIME-verified
+preview and manually enter dossier and birth date + tick the confirmation
+checkbox. New capture, patient or token invalidates previous UI checks.
+Component uses theme tokens (no hardcoded palette).
+
+**Important fail-closed boundary:** `ProductReviewStore` is process-local
+and intentionally volatile, not a durable approval: after restart/worker
+change the capability fails. It does not create patient-asset association,
+ClinicalAsset, audit/outbox, medical media publication or clinical ACK.
+This is exactly block 2/5; durable media and cross-process authorization
+belong to block 3/5. The service-side Win32 provider remains unattached
+on actual product startup and the hosted Windows pipe stays test-only
+until installation/trust can be established. The pre-existing product
+patient status still reports `NATIVE_IPC_NOT_CONNECTED` and
+`clinical_receipt_authorized=false`. No real cabinet activation.
+
+**Exact-SHA FUE required**: actual HTTP/JWT/SQLCipher product route
+401/403/423, foreign patient/capture rejection, wrong digest, missing
+bearer, cross session, wrong preview challenge, tampered media, wrong
+dossier/DOB, no checkbox, one-use consumption/cancel, zero ClinicalAsset
+or receipt, POST 405 on inventory; React verified onLoad and SHA, no
+automatic patient selection, expiration/stale route fail-closed; Windows
+SCM + AES-GCM multi-fragment/restart/negative access + Authenticode
+unchanged. Human *visual approval* and code-level accessibility remain
+separate UI gates. Physical scanner/TPM/2nd workstation/power-cut are
+**LOT10 exclusively**. Do not infer physical proof from Windows CI.
+
+`READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false`.
