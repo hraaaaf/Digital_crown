@@ -245,6 +245,59 @@ internal static class Program
         catch { return new byte[] { (byte)'E', (byte)'5' }; }
     }
 
+    static byte[] ReadVerifiedUnassignedInventory()
+    {
+        // B06: LocalService decrypts/verifies the pending capture using the
+        // SAME AES-GCM/SQLite source; sends metadata only, never image or PHI.
+        // LAB only; neither pipe ACL nor this frame is clinical device trust.
+        static byte[] Refused() => new byte[] { (byte)'E', (byte)'2' };
+        if (s_b03Python is null || s_b03Script is null || s_b03Watch is null ||
+            s_b03Private is null || s_b03Key is null)
+            return Refused();
+        try
+        {
+            var start = new ProcessStartInfo(s_b03Python) {
+                UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+            };
+            foreach (var arg in new[] {
+                "-I", s_b03Script, "inventory", s_b03Watch, s_b03Private,
+                s_b03Key, "DC06B03_SYNTHETIC_ONLY"
+            }) start.ArgumentList.Add(arg);
+            start.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
+            using var child = Process.Start(start);
+            if (child is null) return Refused();
+            if (!child.WaitForExit(8000)) {
+                child.Kill(entireProcessTree: true);
+                return Refused();
+            }
+            if (child.ExitCode != 0) return Refused();
+            using var bytes = new MemoryStream();
+            child.StandardOutput.BaseStream.CopyTo(bytes);
+            var response = bytes.ToArray();
+            if (response.Length == 2 && response[0] == (byte)'N' &&
+                response[1] == (byte)'0')
+                return response;
+            if (response.Length != 86 || response[0] != (byte)'I' ||
+                response[1] != (byte)'1')
+                return Refused();
+            for (var i = 2; i < 20; ++i)
+                if (response[i] < (byte)'0' || response[i] > (byte)'9')
+                    return Refused();
+            for (var i = 20; i < 84; ++i)
+                if (!((response[i] >= (byte)'0' && response[i] <= (byte)'9') ||
+                    (response[i] >= (byte)'a' && response[i] <= (byte)'f')))
+                    return Refused();
+            if (response[84] != (byte)'P' && response[84] != (byte)'J' &&
+                response[84] != (byte)'W' && response[84] != (byte)'D')
+                return Refused();
+            if (response[85] != (byte)'P' && response[85] != (byte)'R')
+                return Refused();
+            return response;
+        }
+        catch { return Refused(); }
+    }
+
     static void Serve()
     {
         var pipe = s_pipe;
@@ -267,6 +320,11 @@ internal static class Program
                 {
                     var response = ReadVerifiedUnassignedCount();
                     _ = WriteFile(pipe, response, 2, out _, IntPtr.Zero);
+                }
+                else if (readOk && received == 1 && buffer[0] == (byte)'I')
+                {
+                    var response = ReadVerifiedUnassignedInventory();
+                    _ = WriteFile(pipe, response, (uint)response.Length, out _, IntPtr.Zero);
                 }
                 else if (readOk && received == 1 && buffer[0] != (byte)'R')
                 {
