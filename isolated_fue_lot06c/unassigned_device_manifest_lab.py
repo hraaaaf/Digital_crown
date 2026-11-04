@@ -212,3 +212,127 @@ def consume_for_review(db: Session, claim) -> None:
     ).values(consumed=1))
     if changed.rowcount != 1:
         raise BridgeRejected("UNASSIGNED_CAPTURE_CONSUMPTION_RACE")
+
+
+def _confirmed_for_upload(db: Session, claim):
+    """Capture provenance + separate staff choice MUST be durably confirmed.
+
+    This LAB check runs on the real SQLCipher writer connection; neither
+    browser-provided device proof nor a saved ClinicalAsset creates consent.
+    """
+    _guard(db)
+    row = db.execute(select(unassigned).where(
+        unassigned.c.tenant == claim.tenant,
+        unassigned.c.device == claim.device,
+        unassigned.c.capture == claim.capture,
+    )).mappings().one_or_none()
+    if row is None or row["consumed"] != 1:
+        raise BridgeRejected("UNASSIGNED_MANIFEST_NOT_STAFF_CONFIRMED")
+    manifest = _from_row(row)
+    if (manifest.station != claim.station
+            or manifest.generation != claim.generation
+            or manifest.digest != claim.digest
+            or manifest.byte_size != claim.byte_size):
+        raise BridgeRejected("UNASSIGNED_MANIFEST_CAPTURE_MISMATCH")
+    _fresh(manifest)
+    _registry(db, manifest, row["signature"])
+
+    # Import on the LAB-only execution path; clinical backend.main must never
+    # import this helper. The patient/staff binding is deliberately absent from
+    # the device signature and independently persisted by review endpoints.
+    from isolated_fue_lot06c import c05b03m_security_gate_lab as device_gate
+    from isolated_fue_lot06c import phase2_staff_review_sqlcipher_lab as ui
+
+    approved = db.execute(select(device_gate.review).where(
+        device_gate.review.c.tenant == claim.tenant,
+        device_gate.review.c.device == claim.device,
+        device_gate.review.c.capture == claim.capture,
+    )).mappings().one_or_none()
+    reviewed = db.execute(select(ui.reviews).where(
+        ui.reviews.c.tenant == claim.tenant,
+        ui.reviews.c.device == claim.device,
+        ui.reviews.c.capture == claim.capture,
+    )).mappings().one_or_none()
+    ui_audit = db.execute(select(ui.audit).where(
+        ui.audit.c.tenant == claim.tenant,
+        ui.audit.c.device == claim.device,
+        ui.audit.c.capture == claim.capture,
+    )).mappings().one_or_none()
+    staff_audit = db.execute(select(device_gate.review_audit).where(
+        device_gate.review_audit.c.tenant == claim.tenant,
+        device_gate.review_audit.c.device == claim.device,
+        device_gate.review_audit.c.capture == claim.capture,
+    )).mappings().one_or_none()
+    now = int(time.time())
+    if (approved is None or approved["approved_at"] is None
+            or approved["expires_at"] <= now
+            or approved["staff"] != claim.staff
+            or approved["patient"] != claim.patient
+            or approved["station"] != claim.station
+            or approved["digest"] != claim.digest
+            or approved["byte_size"] != claim.byte_size
+            or approved["generation"] != claim.generation
+            or approved["version"] != claim.version
+            or reviewed is None or reviewed["consumed"] != 1
+            or reviewed["expires_at"] <= now
+            or reviewed["staff"] != claim.staff
+            or reviewed["patient"] != claim.patient
+            or reviewed["station"] != claim.station
+            or reviewed["digest"] != claim.digest
+            or reviewed["byte_size"] != claim.byte_size
+            or ui_audit is None
+            or ui_audit["staff"] != claim.staff
+            or ui_audit["event"] != "LAB_HTTP_EXPLICIT_STAFF_CONFIRM"
+            or staff_audit is None
+            or staff_audit["staff"] != claim.staff
+            or staff_audit["event"] != "LAB_HTTP_EXPLICIT_STAFF_CONFIRM"):
+        raise BridgeRejected("UNASSIGNED_MANIFEST_STAFF_ASSOCIATION_DENIED")
+    return approved
+
+
+class TestOnlyUnassignedMediaAuthority:
+    """Real LAB HTTP upload/receipt depends on unassigned proof + staff review.
+
+    This replaces, ONLY in B06 LAB, the earlier device signature over patient
+    and staff. Upload must not accept that legacy signature as an authority.
+    """
+
+    @staticmethod
+    def check(db: Session, claim, legacy_device_proof: str) -> None:
+        if legacy_device_proof:
+            raise BridgeRejected("UNASSIGNED_LEGACY_PATIENT_SIGNED_PROOF_DENIED")
+        _confirmed_for_upload(db, claim)
+
+    @staticmethod
+    def consume(db: Session, claim, legacy_device_proof: str) -> None:
+        """Called by _issue under BEGIN IMMEDIATE with receipt/audit/outbox."""
+        TestOnlyUnassignedMediaAuthority.check(db, claim, legacy_device_proof)
+        from isolated_fue_lot06c.c05b03m_security_gate_lab import review
+        from isolated_fue_lot06c.test_sqlcipher_real_staff_station_bridge_v15 import receipts
+
+        row = db.execute(select(review).where(
+            review.c.tenant == claim.tenant,
+            review.c.device == claim.device,
+            review.c.capture == claim.capture,
+        )).mappings().one()
+        if row["consumed"] == 1:
+            # Lost-ACK replay is allowed only for identical immutable receipt.
+            prior = db.execute(select(receipts).where(
+                receipts.c.tenant == claim.tenant,
+                receipts.c.device == claim.device,
+                receipts.c.capture == claim.capture,
+            )).mappings().one_or_none()
+            if (prior is None or prior["asset_id"] != claim.asset_id
+                    or prior["digest"] != claim.digest
+                    or prior["version"] != claim.version):
+                raise BridgeRejected("UNASSIGNED_RECEIPT_REPLAY_CONFLICT")
+            return
+
+        updated = db.execute(update(review).where(
+            review.c.tenant == claim.tenant,
+            review.c.device == claim.device,
+            review.c.capture == claim.capture,
+            review.c.consumed == 0,
+        ).values(consumed=1))
+        if updated.rowcount != 1:
+            raise BridgeRejected("UNASSIGNED_RECEIPT_REVIEW_RACE_DENIED")
