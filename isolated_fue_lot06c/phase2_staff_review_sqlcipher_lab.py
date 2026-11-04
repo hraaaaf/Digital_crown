@@ -25,6 +25,7 @@ from backend.services.imaging_acquisition_preflight_v15 import (
     PreflightRejected, resolve_acquisition_preflight,
 )
 from isolated_fue_lot06c import c05b03m_security_gate_lab as gate
+from isolated_fue_lot06c import unassigned_device_manifest_lab as unassigned_manifest
 
 
 metadata = MetaData()
@@ -124,14 +125,14 @@ def _guarded_capture(db: Session, claim):
     return approval
 
 
-def begin(db: Session, *, claim, staff_id: int, device_proof: str) -> dict:
+def begin(db: Session, *, claim, staff_id: int) -> dict:
     _isolation(db)
     # Table is installed by mount_lab_review before opening any request session.
     db.connection().exec_driver_sql("BEGIN IMMEDIATE")
     try:
         patient = _authority(db, claim=claim, staff_id=staff_id)
         _guarded_capture(db, claim)
-        gate.verify_pending_device_capture_proof(db, claim, device_proof)
+        unassigned_manifest.check_pending(db, claim)
         challenge = secrets.token_urlsafe(32)
         now = int(time.time())
         expiry = min(now + 120, now + 119)
@@ -168,14 +169,14 @@ def begin(db: Session, *, claim, staff_id: int, device_proof: str) -> dict:
         raise
 
 
-def confirm(db: Session, *, claim, staff_id: int, data: ReviewInput, device_proof: str) -> dict:
+def confirm(db: Session, *, claim, staff_id: int, data: ReviewInput) -> dict:
     _isolation(db)
     # Keep UI challenge, preflight and security-gate approval in ONE SQLCipher commit.
     db.connection().exec_driver_sql("BEGIN IMMEDIATE")
     try:
         patient = _authority(db, claim=claim, staff_id=staff_id)
         approved = _guarded_capture(db, claim)
-        gate.verify_pending_device_capture_proof(db, claim, device_proof)
+        unassigned_manifest.check_pending(db, claim)
         row = db.execute(select(reviews).where(
             reviews.c.tenant == claim.tenant,
             reviews.c.device == claim.device,
@@ -216,6 +217,8 @@ def confirm(db: Session, *, claim, staff_id: int, data: ReviewInput, device_proo
         ).values(approved_at=int(time.time())))
         if gate_updated.rowcount != 1:
             raise ReviewDenied("STAFF_APPROVAL_RACE_DENIED")
+        # Patient-free manifest consumed in the SAME SQLCipher staff review commit.
+        unassigned_manifest.consume_for_review(db, claim)
         db.execute(insert(audit).values(
             tenant=claim.tenant, device=claim.device, capture=claim.capture,
             staff=staff_id, event="LAB_HTTP_EXPLICIT_STAFF_CONFIRM",
@@ -234,7 +237,7 @@ def confirm(db: Session, *, claim, staff_id: int, data: ReviewInput, device_proo
         raise
 
 
-def mount_lab_review(app, *, claim, validated_media: bytes, device_proof: str):
+def mount_lab_review(app, *, claim, validated_media: bytes):
     """Mounted ONLY on an isolated fixture server; never in backend.main."""
     if (os.getenv("ENVIRONMENT") != "test"
             or os.getenv("DIGITALCROWN_ISOLATED_RUNTIME") != "true"
@@ -243,9 +246,6 @@ def mount_lab_review(app, *, claim, validated_media: bytes, device_proof: str):
     if (len(validated_media) != claim.byte_size or
             hashlib.sha256(validated_media).hexdigest() != claim.digest):
         raise ReviewDenied("CAPTURE_PREVIEW_BYTES_MISMATCH")
-    # Server-owned fixture input, never a browser-facing upload parameter.
-    if not isinstance(device_proof, str) or re.fullmatch(r"[a-f0-9]{128}", device_proof) is None:
-        raise ReviewDenied("SERVER_OWNED_DEVICE_PROOF_REQUIRED")
 
     # Explicit LAB-only schema, created before any review DB transaction.
     with Session(app.state.lab_sqlcipher_engine) as setup:
@@ -273,7 +273,7 @@ def mount_lab_review(app, *, claim, validated_media: bytes, device_proof: str):
         if capture != claim.capture:
             raise HTTPException(404, "CAPTURE_NOT_FOUND")
         try:
-            return begin(db, claim=claim, staff_id=current_user.id, device_proof=device_proof)
+            return begin(db, claim=claim, staff_id=current_user.id)
         except (ReviewDenied, gate.BridgeRejected):
             raise HTTPException(409, "REVIEW_UNAVAILABLE") from None
 
@@ -285,8 +285,7 @@ def mount_lab_review(app, *, claim, validated_media: bytes, device_proof: str):
         if capture != claim.capture:
             raise HTTPException(404, "CAPTURE_NOT_FOUND")
         try:
-            return confirm(db, claim=claim, staff_id=current_user.id, data=data,
-                           device_proof=device_proof)
+            return confirm(db, claim=claim, staff_id=current_user.id, data=data)
         except (ReviewDenied, gate.BridgeRejected):
             raise HTTPException(409, "REVIEW_REJECTED") from None
 
@@ -301,7 +300,7 @@ def mount_lab_review(app, *, claim, validated_media: bytes, device_proof: str):
             _isolation(db)
             _authority(db, claim=claim, staff_id=current_user.id)
             _guarded_capture(db, claim)
-            gate.verify_pending_device_capture_proof(db, claim, device_proof)
+            unassigned_manifest.check_pending(db, claim)
             # A valid login alone cannot fetch a capture. The same staff must
             # possess the currently-active, one-use review challenge.
             active = db.execute(select(reviews).where(
