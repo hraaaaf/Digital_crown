@@ -5,6 +5,8 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import stat
+from pathlib import Path
 import os
 import re
 from dataclasses import dataclass
@@ -104,13 +106,7 @@ def _check_digest(digest: str) -> None:
 def _aad(tenant: int, digest: str, header: bytes) -> bytes:
     return _PURPOSE + b"\0" + str(_tenant(tenant)).encode("ascii") + b"\0" + digest.encode("ascii") + b"\0" + header
 
-def _retained_keys(env_name: str) -> dict[str, bytes]:
-    """Explicit JSON map of historical key IDs to 64-char hex keys."""
-    raw = os.environ.get(env_name, "{}")
-    try:
-        parsed = json.loads(raw)
-    except (TypeError, ValueError) as exc:
-        raise MediaCryptoV2Denied("INVALID_KEY_REGISTRY") from exc
+def _parse_key_map(parsed: object) -> dict[str, bytes]:
     if not isinstance(parsed, dict) or len(parsed) > 64:
         raise MediaCryptoV2Denied("INVALID_KEY_REGISTRY")
     result: dict[str, bytes] = {}
@@ -125,8 +121,62 @@ def _retained_keys(env_name: str) -> dict[str, bytes]:
     return result
 
 
+def _retained_keys(env_name: str) -> dict[str, bytes]:
+    """Explicit JSON map of historical key IDs to 64-char hex keys."""
+    raw = os.environ.get(env_name, "{}")
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError) as exc:
+        raise MediaCryptoV2Denied("INVALID_KEY_REGISTRY") from exc
+    return _parse_key_map(parsed)
+
+def _private_keyring_file() -> dict | None:
+    """POSIX-only local private keyring; no symlink or group/other access."""
+    filename = os.environ.get("DC_MEDIA_V2_KEYRING_FILE")
+    if not filename:
+        return None
+    if os.name != "posix":
+        raise MediaCryptoV2Denied("KEYRING_FILE_PLATFORM_UNSUPPORTED")
+    path = Path(filename)
+    try:
+        metadata = path.lstat()
+        if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
+            raise MediaCryptoV2Denied("INSECURE_KEYRING_FILE")
+        if metadata.st_uid != os.geteuid():
+            raise MediaCryptoV2Denied("INSECURE_KEYRING_OWNER")
+        if metadata.st_size > 16384:
+            raise MediaCryptoV2Denied("KEYRING_FILE_TOO_LARGE")
+        with path.open("r", encoding="utf-8") as stream:
+            data = json.load(stream)
+    except (OSError, UnicodeError, ValueError) as exc:
+        raise MediaCryptoV2Denied("INVALID_KEYRING_FILE") from exc
+    if not isinstance(data, dict):
+        raise MediaCryptoV2Denied("INVALID_KEYRING_FILE")
+    return data
+
+
 def configured_keyring() -> tuple[MediaKeyringV2, str, str]:
     """Opt-in key IDs and hex keys; no default, fallback, or secret logging."""
+    file_data = _private_keyring_file()
+    if file_data is not None:
+        if any(os.environ.get(name) for name in (
+            "DC_MEDIA_V2_ACTIVE_KEY_ID", "DC_MEDIA_V2_LOCATOR_KEY_ID",
+            "DC_MEDIA_V2_MEDIA_KEY_HEX", "DC_MEDIA_V2_LOCATOR_KEY_HEX",
+            "DC_MEDIA_V2_RETAINED_MEDIA_KEYS_JSON", "DC_MEDIA_V2_RETAINED_LOCATOR_KEYS_JSON",
+        )):
+            raise MediaCryptoV2Denied("MIXED_KEYRING_SOURCES")
+        required = {"active_media_id", "active_locator_id", "media_keys", "locator_keys"}
+        if set(file_data) != required or not all(isinstance(file_data[k], dict) for k in ("media_keys", "locator_keys")):
+            raise MediaCryptoV2Denied("INVALID_KEYRING_FILE")
+        media_id = _valid_id(file_data["active_media_id"])
+        locator_id = _valid_id(file_data["active_locator_id"])
+        media_keys = _parse_key_map(file_data["media_keys"])
+        locator_keys = _parse_key_map(file_data["locator_keys"])
+        _key(media_keys, media_id)
+        _key(locator_keys, locator_id)
+        if any(hmac.compare_digest(m, l) for m in media_keys.values() for l in locator_keys.values()):
+            raise MediaCryptoV2Denied("KEY_PURPOSE_REUSE_DENIED")
+        return MediaKeyringV2(media_keys, locator_keys), media_id, locator_id
     media_id = _valid_id(os.environ.get("DC_MEDIA_V2_ACTIVE_KEY_ID", ""))
     locator_id = _valid_id(os.environ.get("DC_MEDIA_V2_LOCATOR_KEY_ID", ""))
     media_hex = os.environ.get("DC_MEDIA_V2_MEDIA_KEY_HEX", "")
