@@ -766,3 +766,8 @@ Seven product adapter synthetic FUE in `isolated_fue_lot06c/test_b06_f2_product_
 ## PRE B06-4D-F3 — retained historical keys, 2026-11-05
 
 Baseline F2 HEAD `b8a7469`, exact SHA B06 CI #42018635157 GREEN 3/3; F2 7/7, F1 14/14. Implement retained historical media and locator keys for DCM2 read after rotation, while new writes use active IDs only. Synthetic FUE and exact-SHA CI required; DCM1 default, no clinical activation, merge or deploy.
+
+
+## POST B06-4D-F3 — retained historical DCM2 keys, 2026-11-05
+
+Implemented explicit retained-key maps `DC_MEDIA_V2_RETAINED_MEDIA_KEYS_JSON` and `DC_MEDIA_V2_RETAINED_LOCATOR_KEYS_JSON` (JSON key ID to 32-byte hex). Active IDs remain the sole write keys; reads resolve historical media ID from authenticated DCM2 header and historical locator ID from validated opaque tenant path. Unknown IDs, malformed registries, cross-purpose key reuse and conflicting active IDs fail closed. Four new F3 cases appended to the existing seven product synthetic FUE: historical read after both rotations, missing media key, missing locator key, conflicting active registry. Workflow B06 runs all 11 F2/F3 tests on exact SHA. **CI pending; no claim F3 GREEN until job logs.** No clinical key escrow, secure backup mechanism, ACK signer rotation, merge, deployment or live activation. `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
