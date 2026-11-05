@@ -18,7 +18,9 @@ on:
       - isolated_fue_lot06c/test_b06_f4_private_keyring.py
       - backend/services/clinical_media_crypto_v2.py
       - backend/services/clinical_media_keyring_recovery.py
+      - backend/services/windows_keyring_handle_probe.py
       - backend/services/windows_keyring_restore.py
+      - isolated_fue_lot06c/windows_f5bb_handle_probe_fue.ps1
       - isolated_fue_lot06c/windows_f5bd2_private_restore_fue.ps1
       - isolated_fue_lot06c/f5bd4_fixed_recovery_windows_fue.py
       - isolated_fue_lot06c/f5bd4_fixed_synthetic_oracle.json
