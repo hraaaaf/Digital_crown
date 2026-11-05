@@ -234,6 +234,12 @@ jobs:
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
           ./isolated_fue_lot06c/windows_scm_service_sid_fue_c05b03r.ps1
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B Windows native private-keyring ACL adversarial FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_f5b_private_keyring_acl_fue.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Windows bounded Authenticode + closed ZIP + wrong signer FUE
         shell: pwsh
         run: |
