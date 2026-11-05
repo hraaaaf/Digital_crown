@@ -127,3 +127,18 @@ Exact PR Draft source `7e95fd3d51360b8c48195e2fbac8c3555a3b9130`, [LOT05 FUE run
 **One common root cause, NOT two security defects:** `_measured_binary_digest` in `backend/services/legacy_migration_install_attestation_v15.py` checks `type(file_path) is Path`. Instances of `Path(path)` are actually `PosixPath` / `WindowsPath`; consequently valid test binaries are rejected before manifest claims, serial rollback, expiration or binary tamper assertions execute. The exact one-line **owner-authorized corrective requirement** is to replace this class-identity check with `isinstance(file_path, Path)`, preserving every existing non-symlink, `lstat`, `fstat`, size, inode, checksum, and fail-closed check. No change to test expectations is justified. A prior direct GitHub update to this verifier was blocked by safety controls: do not evade or write through alternate proxies.
 
 **Decision: 05.7A-D FAIL / NOT CERTIFIED until the authorized code correction and BOTH exact SHA Linux/Windows FUE reruns are green.** A/B/C lab evidence remains limited to prior exact SHA; the full product trust-root is still OPEN, issuer/installer provenance and durable rollback protections unproven. PR Draft, NO merge, deploy or clinical SQL import.
+
+## 2026-11-05 — 05.7A-D two-red corrective FUE on exact source SHA
+
+**Direct minimal code fix landed:** `backend/services/legacy_migration_install_attestation_v15.py` replaced the invalid concrete-class test `type(file_path) is Path` with the normal subclass-aware `isinstance(file_path, Path)`; no changes to the `lstat`, no-symlink, open/fstat, size, digest, signed manifest, serial floor, policy or clinical NOOP checks. Source SHA `609ea7ed6cf4e17b8bd2b5c53b681254c3b7549b`.
+
+**Verified source SHA FUE evidence:** [LOT05 05.7A Trust Root FUE #42103419428](https://github.com/hraaaaf/Digital_crown/actions/runs/42103419428) **SUCCESS, 4/4 jobs SUCCESS**:
+- Ubuntu `127511871372`: existing A cryptographic verifier **38 passed** plus D signed install-manifest FUE **50 passed** (0 failed).
+- Windows `127511871135`: A cryptographic verifier **38 passed** plus D signed install-manifest FUE **50 passed** (0 failed).
+- Native Windows SCM SID + OS-peer named pipe `127511871068`: SUCCESS.
+- Native Windows SCM + Ed25519 signed IPC + replay after service restart `127511870488`: SUCCESS.
+- CI Scope Gate `#42103419412`: SUCCESS. Other project-wide workflows were still in progress at initial observation; do not overstate global CI completion.
+
+**Verdict:** 05.7A-D **verify-only signed-manifest LAB FUE PASS** on the exact source SHA above. This still does **NOT** attest a real installed product or independent publisher issuer. Root/serial floor and observed service facts originate in tests, not authenticated real Windows installer/SCM product provisioning. Required remaining real-world proof: independently managed publisher signing authority, signed installer/manifest delivery and binary image/SID attestation, genuine JWT/tenant/consent permissions, persistent monotonic anti-rollback replay store and key-rotation/install downgrade tests. Full 05.7A PRODUCT GATE remains **OPEN / clinical SQL import NO-GO**; PR Draft, no merge/deploy.
+
+This documentation commit changes PR HEAD; new exact-HEAD CI must be checked before asserting PR-wide green.
