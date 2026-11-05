@@ -24,7 +24,7 @@ const dir=process.env.CEPH_PUBLIC_SOURCE_DIR||'/tmp/ceph-public-originals';
 const out=path.resolve('../artifacts/ceph-r23h-first-use');
 await fs.mkdir(out,{recursive:true});
 const report={head,clinical_release:false,scientific_goldset:false,patient_real:false,
- case_ids:[],checks:[],errors:[],screenshots:[],svg_screenshots:[],fullfilm_review:[],overall:'NOT_TESTED'};
+ case_ids:[],checks:[],errors:[],screenshots:[],svg_screenshots:[],react_steiner:[],fullfilm_review:[],overall:'NOT_TESTED'};
 const sourceLockedSnapshots=[];
 const browser=await chromium.launch({headless:true});
 const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
@@ -207,11 +207,54 @@ try {
      const uiFile='04-ui-svg-'+specs[i].name+'.png';
      await svg.screenshot({path:path.join(out,uiFile),animations:'disabled',timeout:20000});
      report.svg_screenshots.push(uiFile);
+     // This is the REAL native React SVG, using persisted GET landmarks,
+     // not the external Python drawing or a synthetic feature-point overlay.
+     const selector=page.locator('#cephalo-ready-analysis');
+     await selector.waitFor({state:'visible'});
+     const selectable=await selector.locator('option').evaluateAll(nodes=>
+       nodes.filter(n=>!n.disabled).map(n=>n.value));
+     ensure(JSON.stringify(selectable)===JSON.stringify(['com','steiner']),
+       'Unexpected V1 selectable modes: '+JSON.stringify(selectable));
+     await selector.selectOption('steiner');
+     await page.locator('[data-cephalo-analysis="steiner"]').waitFor({state:'visible'});
+     for(const id of ['sn','na','nb'])
+       await svg.locator('[data-cephalo-line-key="'+id+'"]').first()
+         .waitFor({state:'attached',timeout:20000});
+     const rendered=await svg.locator('[data-cephalo-line-key]').evaluateAll(nodes=>
+       nodes.map(node=>({id:node.getAttribute('data-cephalo-line-key'),
+         x1:Number(node.getAttribute('x1')),y1:Number(node.getAttribute('y1')),
+         x2:Number(node.getAttribute('x2')),y2:Number(node.getAttribute('y2'))})));
+     const originalPoints=new Map(locked.landmarks.map(p=>[p.id.toLowerCase(),p]));
+     const near=(line,p,q)=>Math.hypot(line.x1-p.x,line.y1-p.y)<0.05
+       &&Math.hypot(line.x2-q.x,line.y2-q.y)<0.05;
+     const segments=[];
+     for(const [id,from,to] of [['sn','s','n'],['na','n','a'],['nb','n','b']]){
+       const p=originalPoints.get(from),q=originalPoints.get(to);
+       ensure(p&&q,'Source GET points missing for '+id);
+       const line=rendered.find(l=>l.id===id&&near(l,p,q));
+       ensure(line,'Native React SVG line differs from source GET for '+id);
+       segments.push({...line,from,to});
+     }
+     const whole='05-real-react-steiner-'+specs[i].name+'.png';
+     const native='06-real-react-steiner-svg-'+specs[i].name+'.png';
+     await page.screenshot({path:path.join(out,whole),animations:'disabled'});
+     await svg.screenshot({path:path.join(out,native),animations:'disabled',timeout:20000});
+     report.screenshots.push(whole);
+     report.svg_screenshots.push(native);
+     report.react_steiner.push({radio:specs[i].name,study_id:report.case_ids[i],
+       source_image_sha256:specs[i].hash,renderer:'DIGITAL_CROWN_AUTHENTICATED_REACT_SVG',
+       source_lock:'AUTHENTICATED_GET_AFTER_REAL_UI_UPLOAD',model:'SOTA_ONNX_38',
+       uncalibrated:true,expert_verified:false,line_segments:segments,
+       screenshot:whole,svg_screenshot:native});
+     console.log('R23H_NATIVE_REACT_STEINER',specs[i].name,
+       'SEGMENTS_SN_NA_NB_SOURCE_LOCKED_NONCLINICAL');
    }
-   return {new_browser:true,studies:report.case_ids.slice().reverse()};
+   return {new_browser:true,studies:report.case_ids.slice().reverse(),
+     native_react_steiner:report.react_steiner.map(v=>v.radio)};
  });
- ensure(sourceLockedSnapshots.length===2&&report.svg_screenshots.length===2,
-   'Missing source-locked real-landmark data or native UI screenshots');
+ ensure(sourceLockedSnapshots.length===2&&report.svg_screenshots.length===4
+   &&report.react_steiner.length===2,
+   'Missing source-locked real-landmark data or genuine native Steiner screenshots');
  await fs.writeFile(path.join(out,'source-locked-38-points.json'),
    JSON.stringify({
      head,clinical_authority:false,model_sha256:'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb',
