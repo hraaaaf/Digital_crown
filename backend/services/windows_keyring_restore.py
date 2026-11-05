@@ -37,7 +37,9 @@ class _TokenUser(ctypes.Structure):
 
 def restore_new_private_file(filename: str, raw: bytes) -> None:
     """Write one validated JSON keyring to a private Windows file, exclusively."""
-    if os.name != "nt":
+    from backend.core.platform import get_platform_adapter
+
+    if not get_platform_adapter().is_windows:
         raise WindowsRestoreDenied("WINDOWS_ONLY")
     if not isinstance(raw, bytes) or not 1 <= len(raw) <= 16384:
         raise WindowsRestoreDenied("RESTORE_SIZE_DENIED")
