@@ -138,18 +138,33 @@ def _private_keyring_file() -> dict | None:
     if os.name != "posix":
         raise MediaCryptoV2Denied("KEYRING_FILE_PLATFORM_UNSUPPORTED")
     path = Path(filename)
+    if not path.is_absolute():
+        raise MediaCryptoV2Denied("KEYRING_PATH_NOT_ABSOLUTE")
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0)
+    if not hasattr(os, "O_NOFOLLOW"):
+        raise MediaCryptoV2Denied("KEYRING_NOFOLLOW_UNAVAILABLE")
+    flags |= os.O_NOFOLLOW
+    fd = None
     try:
-        metadata = path.lstat()
+        fd = os.open(path, flags)
+        metadata = os.fstat(fd)
         if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
             raise MediaCryptoV2Denied("INSECURE_KEYRING_FILE")
         if metadata.st_uid != os.geteuid():
             raise MediaCryptoV2Denied("INSECURE_KEYRING_OWNER")
         if metadata.st_size > 16384:
             raise MediaCryptoV2Denied("KEYRING_FILE_TOO_LARGE")
-        with path.open("r", encoding="utf-8") as stream:
-            data = json.load(stream)
+        with os.fdopen(fd, "r", encoding="utf-8") as stream:
+            fd = None
+            raw = stream.read(16385)
+        if len(raw.encode("utf-8")) > 16384:
+            raise MediaCryptoV2Denied("KEYRING_FILE_TOO_LARGE")
+        data = json.loads(raw)
     except (OSError, UnicodeError, ValueError) as exc:
         raise MediaCryptoV2Denied("INVALID_KEYRING_FILE") from exc
+    finally:
+        if fd is not None:
+            os.close(fd)
     if not isinstance(data, dict):
         raise MediaCryptoV2Denied("INVALID_KEYRING_FILE")
     return data
