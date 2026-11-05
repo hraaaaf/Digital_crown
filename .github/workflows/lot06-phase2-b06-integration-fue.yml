@@ -131,13 +131,14 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_versioned_crypto_synthetic.py
           echo DC06_B06_F1_VERSIONED_CRYPTO_SYNTHETIC_FUE_PASS
-      - name: B06-4D-F2 opt-in product DCM2 store and read synthetic FUE
+      - name: B06-4D-F2/F3 product DCM2 store read and retained-key rotation FUE
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_f2_product_storage_v2.py
           echo DC06_B06_F2_PRODUCT_STORAGE_V2_SYNTHETIC_FUE_PASS
+          echo DC06_B06_F3_RETAINED_KEYS_ROTATION_FUE_PASS
       - name: B06-4B PostgreSQL 18 disposable clone FUE (schema only, never product)
         shell: bash
         run: |
