@@ -146,7 +146,7 @@ export function ImagingAcquisitionReviewPanelV15({ review, previewUrl, onConfirm
   return (
     <section aria-labelledby="dc06-review-title" className="w-full max-w-5xl rounded-xl border border-border bg-card p-4 sm:p-6">
       <div className="mb-4">
-        <p className="mb-1 text-sm font-semibold text-amber-700">LAB uniquement — aucune publication clinique automatique</p>
+        <p className="mb-1 text-sm font-semibold text-warning">LAB uniquement — aucune publication clinique automatique</p>
         <h2 id="dc06-review-title" className="text-lg font-semibold">Confirmer le patient et la capture</h2>
         <p className="text-sm text-text-muted">Vérifiez l'image et saisissez deux identifiants avant de confirmer.</p>
       </div>
