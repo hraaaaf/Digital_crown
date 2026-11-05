@@ -5,6 +5,8 @@ on:
     branches: [master]
     paths:
       - 'backend/services/legacy_migration_trust_root_v15.py'
+      - 'backend/services/legacy_migration_install_attestation_v15.py'
+      - 'backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py'
       - 'backend/tests/test_legacy_sql_057a_trust_root_fue.py'
       - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
       - '.github/workflows/v15-05-7a-trust-root-fue.yml'
@@ -36,8 +38,8 @@ jobs:
           python-version: '3.11'
       - name: Install cryptographic FUE dependencies
         run: python -m pip install --disable-pip-version-check pytest cryptography
-      - name: Compile verifier
-        run: python -m py_compile backend/services/legacy_migration_trust_root_v15.py
+      - name: Compile verify-only trust-root modules
+        run: python -m py_compile backend/services/legacy_migration_trust_root_v15.py backend/services/legacy_migration_install_attestation_v15.py
       - name: Stage verifier tests outside heavyweight backend package
         run: >-
           python -c "from pathlib import Path; from shutil import copy2;
@@ -45,9 +47,13 @@ jobs:
           (dest/'services').mkdir(parents=True, exist_ok=True);
           (dest/'tests').mkdir(parents=True, exist_ok=True);
           copy2('backend/services/legacy_migration_trust_root_v15.py', dest/'services');
-          copy2('backend/tests/test_legacy_sql_057a_trust_root_fue.py', dest/'tests')"
+          copy2('backend/services/legacy_migration_install_attestation_v15.py', dest/'services');
+          copy2('backend/tests/test_legacy_sql_057a_trust_root_fue.py', dest/'tests');
+          copy2('backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py', dest/'tests')"
       - name: Execute FUE-G05.7A negative and positive no-op cases
         run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_trust_root_fue.py -q --noconftest -ra
+      - name: Execute FUE-G05.7A-D signed manifest, swapped binary and downgrade denials
+        run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py -q --noconftest -ra
 
   windows-scm-native-pipe-fue:
     name: Native SCM LocalService SID + authenticated named pipe (Windows)
