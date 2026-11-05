@@ -381,6 +381,8 @@ class GuidedRestoreService:
         *,
         owner_employer_id: int | None = None,
     ) -> dict[str, Any]:
+        # LOT05.7A: no product-attested issuer/IPC exists yet. Deny before any job access.
+        raise RuntimeError("Migration clinique bloquée : autorité worker non attestée")
         if confirmation != CONFIRMATION_TOKEN:
             raise ValueError(f"Confirmation exacte requise : {CONFIRMATION_TOKEN}")
         job = cls.get_job(restore_id)
