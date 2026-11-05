@@ -220,6 +220,22 @@ try {
      for(const id of ['sn','na','nb'])
        await svg.locator('[data-cephalo-line-key="'+id+'"]').first()
          .waitFor({state:'attached',timeout:20000});
+     // Real clinical protocol selection: Steiner is NOT an excuse to draw
+     // historic extended Frankfort/McNamara or lines outside source pixels.
+     ensure(await svg.locator('[data-cephalo-reference-line]').count()===0,
+       'Steiner leaked off-protocol Frankfort/McNamara long-line overlay');
+     ensure(await svg.getByText('McNamara',{exact:true}).count()===0,
+       'Steiner leaked an unrelated McNamara label');
+     const unbounded=await svg.locator('line').evaluateAll((nodes,frame)=>
+       nodes.map(node=>{
+         const names=['x1','y1','x2','y2'];
+         const values=names.map(key=>Number(node.getAttribute(key)));
+         return {key:node.getAttribute('data-cephalo-line-key')||node.getAttribute('data-cephalo-reference-line'),
+           values};
+       }).filter(({values})=>values.some((value,index)=>
+         !Number.isFinite(value)||value<0||value>(index%2===0?frame.width:frame.height))),
+       {width:specs[i].width,height:specs[i].height});
+     ensure(unbounded.length===0,'Steiner SVG contains out-of-frame construction lines '+JSON.stringify(unbounded));
      const rendered=await svg.locator('[data-cephalo-line-key]').evaluateAll(nodes=>
        nodes.map(node=>({id:node.getAttribute('data-cephalo-line-key'),
          x1:Number(node.getAttribute('x1')),y1:Number(node.getAttribute('y1')),
@@ -244,7 +260,8 @@ try {
      report.react_steiner.push({radio:specs[i].name,study_id:report.case_ids[i],
        source_image_sha256:specs[i].hash,renderer:'DIGITAL_CROWN_AUTHENTICATED_REACT_SVG',
        source_lock:'AUTHENTICATED_GET_AFTER_REAL_UI_UPLOAD',model:'SOTA_ONNX_38',
-       uncalibrated:true,expert_verified:false,line_segments:segments,
+       uncalibrated:true,expert_verified:false,off_protocol_lines:0,
+       out_of_image_lines:unbounded.length,line_segments:segments,
        screenshot:whole,svg_screenshot:native});
      console.log('R23H_NATIVE_REACT_STEINER',specs[i].name,
        'SEGMENTS_SN_NA_NB_SOURCE_LOCKED_NONCLINICAL');
