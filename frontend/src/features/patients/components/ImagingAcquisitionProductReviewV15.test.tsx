@@ -113,7 +113,7 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
       dossier: 'LAB-42', date_naissance: '2000-03-04',
       capture_digest: capture.digest, explicit_confirmation: true,
     }));
-    expect(await screen.findByRole('status')).toHaveTextContent(/Aucun média publié/i);
+    expect(await screen.findByRole('status')).toHaveTextContent(/capture n'a pas été ajoutée au dossier/i);
     expect(screen.queryByRole('img')).toBeNull();
     expect(post).toHaveBeenCalledTimes(2);
   });
@@ -195,8 +195,9 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
         capture_digest: capture.digest, explicit_confirmation: true,
       },
     ));
-    expect(await screen.findByRole('status')).toHaveTextContent(/Média chiffré associé au dossier/);
-    expect(screen.getByRole('status')).toHaveTextContent(ack.receipt_id);
+    expect(await screen.findByRole('status')).toHaveTextContent(/Image enregistrée dans le dossier du patient/i);
+    expect(screen.getByRole('status')).not.toHaveTextContent(ack.receipt_id);
+    expect(screen.queryByText(/SHA-256|Reçu durable|Activation cabinet non autorisée/i)).toBeNull();
   });
 
   it('B06-3 recovers a lost commit response by lookup, not a second write', async () => {
@@ -234,7 +235,8 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
         params: { selected_patient_id: 42, capture_digest: capture.digest },
       },
     ));
-    expect(await screen.findByRole('status')).toHaveTextContent(ack.receipt_id);
+    expect(await screen.findByRole('status')).toHaveTextContent(/Image enregistrée dans le dossier du patient/i);
+    expect(screen.getByRole('status')).not.toHaveTextContent(ack.receipt_id);
     expect(post).toHaveBeenCalledTimes(2);
   });
 
