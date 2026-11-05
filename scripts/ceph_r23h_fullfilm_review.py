@@ -133,6 +133,44 @@ def draw_one(case: dict, meta: dict, source_dir: Path, output_dir: Path, head: s
         "clinical_accuracy_validated": False,
     }
 
+def model_native_angle_candidates(case: dict) -> dict:
+    """Research-only angles from the model's OWN 38 persisted coordinates.
+
+    The raw Gn and D_point IDs are not remapped to canonical clinical aliases.
+    This never modifies clinical study JSON, calibration or Steiner read-path.
+    """
+    from backend.services.srpose38_contract import SOTA_LANDMARKS_MAPPING
+    from backend.services.cephalo_steiner_geometry import (
+        steiner_sn_mp_deg_v1, steiner_l1_gogn_deg_v1,
+        steiner_snd_deg_v1, steiner_l1_dline_deg_v1,
+    )
+
+    landmarks = case["landmarks"]
+    if [x["id"] for x in landmarks] != [SOTA_LANDMARKS_MAPPING[i] for i in range(38)]:
+        raise ValueError("ONNX38 point IDs/order drift from the pinned operational model")
+    points = {p["id"]: (p["x"], p["y"]) for p in landmarks}
+    specs = (
+        ("MODEL_SN_GOGN_DEG", ("S", "N", "Go", "Gn"),
+         steiner_sn_mp_deg_v1(points["S"], points["N"], points["Go"], points["Gn"])),
+        ("MODEL_L1_GOGN_DEG", ("L1_apex", "L1_incisal", "Go", "Gn"),
+         steiner_l1_gogn_deg_v1(points["L1_apex"], points["L1_incisal"], points["Go"], points["Gn"])),
+        ("MODEL_SND_DEG", ("S", "N", "D_point"),
+         steiner_snd_deg_v1(points["S"], points["N"], points["D_point"])),
+        ("MODEL_L1_VS_GOGN_NORMAL_DEG", ("L1_apex", "L1_incisal", "Go", "Gn"),
+         steiner_l1_dline_deg_v1(points["L1_apex"], points["L1_incisal"], points["Go"], points["Gn"])),
+    )
+    rows = []
+    for key, inputs, value in specs:
+        if value is None or not math.isfinite(value) or not 0 <= value <= 180:
+            raise ValueError(f"Invalid model-native geometry {key}: {case['radio']}")
+        rows.append({"id": key, "input_model_ids": list(inputs), "value_deg": round(value, 4),
+                     "status": "MODEL_NATIVE_EXPERIMENTAL_ONLY",
+                     "canonical_clinical_measurement_available": False})
+    return {"radio": case["radio"], "source_image_sha256": case["source_image_sha256"],
+            "study_id": case["study_id"], "model_sha256": EXPECTED_MODEL,
+            "point_count": 38, "calibration_verified": False,
+            "clinical_authority": False, "rows": rows}
+
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--input", required=True, type=Path)
@@ -159,6 +197,17 @@ def main() -> None:
              "format": "original full native JPEG dimensions plus detached, numbered, annotated proof",
              "cases": outputs}
     (args.output / "fullfilm-review-index.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
+    # The pinned model is the operational source of geometric coordinates.
+    # Raw Gn/D_point can feed experimental geometry without claiming that
+    # they satisfy the historical Gn_anatomic/D_Steiner_1959 clinical gates.
+    candidates = {"schema": "CEPH_MODEL_NATIVE_STEINER_4_ANGLES_NONCLINICAL_V1",
+                  "head": head, "model_sha256": EXPECTED_MODEL,
+                  "source": "AUTHENTICATED_GET_PINNED_ONNX38",
+                  "clinical_release": False, "historical_aliases_certified": False,
+                  "available_official_steiner_rows_modified": False,
+                  "cases": [model_native_angle_candidates(c) for c in cases]}
+    (args.output / "model-native-4-steiner-angles.json").write_text(
+        json.dumps(candidates, indent=2, ensure_ascii=False), encoding="utf-8")
     print("CEPH_FULLFILM_38POINTS_2_PUBLIC_ORIGINALS_REVIEW_ONLY_PASS")
     print(json.dumps({"head": head, "images": [x["annotated_png"] for x in outputs]}, indent=2))
 
