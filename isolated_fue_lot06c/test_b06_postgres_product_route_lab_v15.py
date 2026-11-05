@@ -299,3 +299,195 @@ def test_b06_4d_pg_ack_recovery_adversarial(
             assert denied.status_code in (401, 403, 423), denied.text[:300]
         assert _counts(engine) == (1, 1, 1, 1)
     print("DC06_B06_4D_PG18_ACK_RECOVERY_ADVERSARIAL_DENIED_PASS", fault)
+
+
+
+def test_b06_4db_pg_non_owner_role_matrix(
+    pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    """Separate PG roles in a disposable schema; no product credentials changed.
+
+    The CI fixture owner can SET LOCAL ROLE to prove the effective permissions.
+    This is not an actual non-owner product integration or a cabinet migration.
+    """
+    import re
+
+    from sqlalchemy.exc import DBAPIError
+
+    engine, claim, station, headers, app, active = _setup(
+        pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+        capture_id=721,
+    )
+    with _localhost_server(app) as base, httpx.Client(
+        base_url=base, trust_env=False, timeout=25,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        commit, valid = _review(http, claim, headers, active)
+        saved = http.post(commit, json=valid, headers=headers)
+        assert saved.status_code == 200, saved.text[:300]
+    assert _counts(engine) == (1, 1, 1, 1)
+
+    with engine.connect() as conn:
+        schema = conn.exec_driver_sql("SELECT current_schema()").scalar_one()
+        db_identity = conn.exec_driver_sql(
+            "SELECT current_database(), current_user"
+        ).one()
+    assert re.fullmatch(r"dc06_b06_lab_[0-9a-f]{16}", schema)
+    assert tuple(db_identity) == ("dc06_b06_ci", "dc06_synthetic")
+    runtime = f"{schema}_runtime"
+    migrator = f"{schema}_migrator"
+
+    read_tables = tuple(t.name for t in (
+        models.User.__table__, models.Patient.__table__,
+        models.WorkstationMode.__table__, models.RevokedToken.__table__,
+        ClinicalAsset.__table__, candidate.receipts, candidate.audit,
+        candidate.outbox,
+    ))
+    insert_tables = tuple(t.name for t in (
+        ClinicalAsset.__table__, candidate.receipts, candidate.audit,
+        candidate.outbox,
+    ))
+    # All dynamically quoted identifiers below are generated from the
+    # fixture's exact validated schema or fixed SQLAlchemy model metadata.
+    assert all(re.fullmatch(r"[a-z][a-z0-9_]*", name) for name in read_tables)
+    with engine.begin() as conn:
+        conn.exec_driver_sql(f'CREATE ROLE "{runtime}" NOLOGIN')
+        conn.exec_driver_sql(f'CREATE ROLE "{migrator}" NOLOGIN')
+        conn.exec_driver_sql(f'REVOKE ALL ON SCHEMA "{schema}" FROM PUBLIC')
+        conn.exec_driver_sql(f'GRANT USAGE ON SCHEMA "{schema}" TO "{runtime}"')
+        conn.exec_driver_sql(
+            f'GRANT USAGE, CREATE ON SCHEMA "{schema}" TO "{migrator}"'
+        )
+        for name in read_tables:
+            conn.exec_driver_sql(
+                f'GRANT SELECT ON TABLE "{schema}"."{name}" TO "{runtime}"'
+            )
+        for name in insert_tables:
+            conn.exec_driver_sql(
+                f'GRANT INSERT ON TABLE "{schema}"."{name}" TO "{runtime}"'
+            )
+        conn.exec_driver_sql(
+            f'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "{schema}" '
+            f'TO "{runtime}"'
+        )
+    try:
+        with engine.begin() as conn:
+            conn.exec_driver_sql(f'SET LOCAL ROLE "{runtime}"')
+            assert conn.exec_driver_sql(
+                "SELECT current_user"
+            ).scalar_one() == runtime
+            assert conn.exec_driver_sql(
+                f'SELECT count(*) FROM "{schema}"."{candidate.receipts.name}"'
+            ).scalar_one() == 1
+            for name in read_tables:
+                assert conn.exec_driver_sql(
+                    "SELECT has_table_privilege(%s, %s, 'SELECT')",
+                    (runtime, f"{schema}.{name}"),
+                ).scalar_one() is True
+                assert conn.exec_driver_sql(
+                    "SELECT has_table_privilege(%s, %s, 'UPDATE')",
+                    (runtime, f"{schema}.{name}"),
+                ).scalar_one() is False
+                assert conn.exec_driver_sql(
+                    "SELECT has_table_privilege(%s, %s, 'DELETE')",
+                    (runtime, f"{schema}.{name}"),
+                ).scalar_one() is False
+            for name in insert_tables:
+                assert conn.exec_driver_sql(
+                    "SELECT has_table_privilege(%s, %s, 'INSERT')",
+                    (runtime, f"{schema}.{name}"),
+                ).scalar_one() is True
+            assert conn.exec_driver_sql(
+                "SELECT has_schema_privilege(%s, %s, 'CREATE')",
+                (runtime, schema),
+            ).scalar_one() is False
+
+        denied_sql = [
+            f'CREATE TABLE "{schema}"."dc06_rogue" (id INTEGER)',
+            f'ALTER TABLE "{schema}"."{candidate.receipts.name}" '
+            'ADD COLUMN dc06_rogue INTEGER',
+        ]
+        for table in (candidate.receipts, candidate.audit, candidate.outbox):
+            ident = f'"{schema}"."{table.name}"'
+            denied_sql.extend([
+                f'UPDATE {ident} SET event = event' if table is not candidate.receipts
+                else f'UPDATE {ident} SET signature = signature',
+                f'DELETE FROM {ident}',
+                f'TRUNCATE {ident}',
+            ])
+        for sql in denied_sql:
+            with pytest.raises(DBAPIError) as err:
+                with engine.begin() as conn:
+                    conn.exec_driver_sql(f'SET LOCAL ROLE "{runtime}"')
+                    conn.exec_driver_sql(sql)
+            # Permission failure, not merely the owner-enforced trigger.
+            assert err.value.orig.sqlstate == "42501", (sql, err.value)
+
+        # Distinct migrator role can perform a synthetic disposable-schema
+        # DDL rehearsal but the runtime role cannot.
+        with engine.begin() as conn:
+            conn.exec_driver_sql(f'SET LOCAL ROLE "{migrator}"')
+            assert conn.exec_driver_sql(
+                "SELECT current_user"
+            ).scalar_one() == migrator
+            conn.exec_driver_sql(
+                f'CREATE TABLE "{schema}"."dc06_role_smoke" (id INTEGER)'
+            )
+            conn.exec_driver_sql(
+                f'DROP TABLE "{schema}"."dc06_role_smoke"'
+            )
+    finally:
+        # Must clean up roles even when assertions fail. All grants, schemas
+        # and test rows are isolated to ephemeral PostgreSQL CI state.
+        with engine.begin() as conn:
+            for role in (runtime, migrator):
+                conn.exec_driver_sql(f'DROP OWNED BY "{role}"')
+                conn.exec_driver_sql(f'DROP ROLE "{role}"')
+    assert _counts(engine) == (1, 1, 1, 1)
+    print("DC06_B06_4DB_PG18_SEPARATE_ROLES_RUNTIME_DDL_DML_DENIED_PASS")
+
+
+def test_b06_4db_pg_key_rotation_without_keyring_fail_closed(
+    pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    """Prove the current old-ACK outage under naive key replacement.
+
+    A historical verification keyring DOES NOT exist yet; a rotation is NOT
+    supported and restoring the original synthetic key is not a rotation plan.
+    """
+    import os
+
+    engine, claim, station, headers, app, active = _setup(
+        pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+        capture_id=722,
+    )
+    before = os.environ.get("CABINET_MASTER_KEY_HEX", "")
+    assert len(before) == 64
+    replacement = bytearray(bytes.fromhex(before))
+    replacement[0] ^= 1
+    with _localhost_server(app) as base, httpx.Client(
+        base_url=base, trust_env=False, timeout=25,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        commit, valid = _review(http, claim, headers, active)
+        result = http.post(commit, json=valid, headers=headers)
+        assert result.status_code == 200, result.text[:300]
+        receipt = result.json()
+        path = f"/api/imaging/acquisition/receipts/{active['capture'].id}"
+        params = {
+            "selected_patient_id": claim.patient,
+            "capture_digest": active["capture"].digest,
+        }
+        monkeypatch.setenv("CABINET_MASTER_KEY_HEX", replacement.hex())
+        try:
+            denied = http.get(path, params=params, headers=headers)
+            assert denied.status_code == 409, denied.text[:350]
+            assert denied.json()["detail"] == "DURABLE_RECEIPT_NOT_VERIFIED"
+            assert _counts(engine) == (1, 1, 1, 1)
+        finally:
+            monkeypatch.setenv("CABINET_MASTER_KEY_HEX", before)
+        restored = http.get(path, params=params, headers=headers)
+        assert restored.status_code == 200, restored.text[:350]
+        assert restored.json() == receipt
+        assert _counts(engine) == (1, 1, 1, 1)
+    print("DC06_B06_4DB_PG18_UNVERSIONED_KEY_ROTATION_FAIL_CLOSED_PASS")
