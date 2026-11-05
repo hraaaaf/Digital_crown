@@ -1772,3 +1772,20 @@ Step2 = un **panneau unique progressif**, question courante bien identifiée et 
 **Décision ouverte prioritaire** : approuver le séquencement `Denture → Sources → Dents évaluables → Arcades/DDM → Rapports bilatéraux → Vertical/transverse/fonctionnel → Vérification`. Ce n'est pas une approbation par défaut de l'exemple S-A. Le parcours documenté peut ensuite nourrir Step3 Diagnostic et Step4 Plan/Bilan **une fois la spécification entière approuvée**, avant toute réconciliation technique.
 
 **GATE final** : `SPEC_DISCOVERY / CANDIDATE / HUMAN_APPROVAL_REQUIRED / NO_CODE` ; aucun FUE exécuté pour cette interface, aucun cas patient, aucun merge/déploiement. **Dernière mise à jour canonique : 05/11/2026 — POST §63, onboarding denture mixte, questions conditionnelles candidate.**
+
+
+### 64. PRE — 2026-11-05 — correction fonctionnelle DDM réelle : clinique + céphalométrique
+
+**Instruction propriétaire (autorité clinique de périmètre)** : « La DDM réelle = DDM clinique + DDM céphalo ! Regarde sur le web ! ». La précédente Step2 §62-63 ne décrivait correctement que la composante moulages ; ne plus représenter la DDM réelle comme un nombre exclusivement issu du modèle.
+
+**Baseline vérifiée** : PR #1213 OPEN/DRAFT, HEAD de lecture `4ddd005c14275dc79308762c780ff8b3db41218f`, §63 POST relu. Notion PRE67 écrit. Duo V1 COM Digital Crown + Steiner 1953/1959 maintenu. Aucun code produit autorisé.
+
+**Littérature consultée — sources et limites** :
+1. *L'Orthodontie Française*, « La forme des dents. Un élément incontournable du diagnostic » (https://stm.cairn.info/revue-l-orthodontie-francaise-2020-1-page-7) : DDM ≠ encombrement uniquement, prendre en compte inclinaison/position incisive et courbe de Spee ; valeur signée + excès d'espace / – défaut d'espace.
+2. Thèse clinique Oran 1, Nabi Fatima épouse Benali (2022), §4.2.1–4.2.3 (https://apidspace.univ-oran1.dz/server/api/core/bitstreams/0ac7613b-803d-4ba4-b969-58bd531036ea/content) : DDM apparente = encombrement + nivellement Spee ; DDM réelle = apparente + effet du repositionnement de l'incisive mandibulaire **décidé par praticien**, au regard des critères céphalométriques, fonctionnels et esthétiques. **Contrôle web screenshot PDF non disponible (cache miss)**, texte extrait uniquement ; corroboration indépendante par dépôt universitaire UMMTO (https://dspace.ummto.dz/server/api/core/bitstreams/60fa8cd2-55f0-470d-a1e3-a59e281e1f45/content).
+3. Regragui et al., *International Orthodontics* 2010, https://doi.org/10.1016/j.ortho.2009.12.005 : méthode de discordance espace disponible - espace nécessaire sur moulages, échantillon **adulte** de Rabat ; ce papier ne prouve pas l'algorithme complet de DDM réelle ni estimation en denture mixte.
+4. PMC8600854 : conversions « mouvement de l'incisive → gain de place » simples ne sont pas systématiquement validées, ne pas en dériver un multiplicateur clinique arbitraire.
+
+**GOAL / SUCCESS** : spécifier par nom clinique de l'app `DDM_CLINIQUE + DDM_CEPHALO = DDM_REELLE` comme **somme algébrique de composantes exprimées dans le même espace, mêmes unités, même arcade, signe/version tracés**. Documenter sous-contenu Spee, estimations denture mixte, objectif incisif explicite non autonome, absence d'échelle/précision, et interdiction d'afficher un nombre faussement complet. Prouver uniquement cette correction de spec via §64 POST + Notion POST67 et batterie FUE prévue NOT RUN.
+
+**GATE** : SOURCE_CONSISTENT / FORMULA_DETAILS_PENDING_REVIEW / SPEC_ONLY / NO_CODE / HUMAN_SIGNOFF_REQUIRED ; ni changement runtime ni patient, merge, Vercel.
