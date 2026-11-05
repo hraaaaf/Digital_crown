@@ -1154,3 +1154,16 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Limites** : audit de composition code/runtime, **pas** exécution d'une nouvelle radio patient avec inspection des `n/15`, et aucune mesure clinique individuelle réalisée. Pas de merge, Vercel, EXE ni déclaration de GO clinique. Ce POST crée un SHA documentaire distinct ; CI du SHA précédent ne lui est pas attribuable sans recontrôle.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §51, matrice de complétude exacte ; nonclinical/clinical HOLD maintenu.**
+
+
+### 52. PRE — 2026-11-05 — Steiner 15/15 runtime per actual ONNX38 public fullfilms
+
+**Demande / autorisation** : « Next » après diagnostic d'incomplétude. Contrôle du fichier canonique unique **avant** passe, HEAD initial de PR DRAFT #1213 `48beec3b9641a37c59cb0411182ccfd5fc690627`, audits §51 et Roadmap/AGENTS lus. Notion PRE55 enregistré. Aucun déplacement des gates cliniques.
+
+**Constat précis** : `frontend/scripts/fue-ceph-r23h-first-use.mjs` prouve deux radio authentiques publiques (ANUG 2014 et Challiyan 2023), 38 landmarks via ONNX38 réel, image SHA/original, persistance autorisée, UI native React SVG Steiner 5 axes et sécurité entre cabinets ; **ne publie aucune grille des 15 mesures individuelles issues du read-path actif**. `backend/routers/cephalo_analysis_read.py` retourne `project_runtime_chain_read_path` dans `out.angles_data`; `cephalo_protocol_projection.py` expose `scientific_read_path.protocol_profiles.steiner.rows` (11 base + 4 extension), `availability_status`, valeur ou null, measurement refs, source method et classification_authority false ; `cephalo_runtime_chain.py` valide la chaîne active.
+
+**Goal / Success observable** : ajouter au FUE-H (sans modifier le produit médical, backend ni les formules) un audit indépendant depuis **GET authentifié réellement persisté et rouvert** sur **chacun des deux clichés**, sauvegardé comme JSON machine-readable dans l'artefact existant : les 15 identités uniques exactes, ordonnées, `AVAILABLE` seulement si valeur numérique finie + provenance méthode/measurement et `NC` si indisponibilité, absence de millimètres inventés quand calibration non vérifiée, aucun statut normatif clinique. Le script doit **échouer sur une contradiction de sécurité** mais **ne pas transformer l'absence d'un point nécessaire en un faux défaut clinique**. Zéro patient vrai, zéro diagnostic, zéro inférence de norme.
+
+**Plan** : instrumenter `frontend/scripts/fue-ceph-r23h-first-use.mjs` avec garde read-path et rapport par radio, CI H/P1/P2 exact SHA ; relever `n/15` seulement d'un `report.json` GitHub Actions réellement exécuté. Même si le test devient vert, FUE clinique 0/10, FACAD same-image absent, Human Visual Approval OPEN. Déploiement/Fusion/EXE non autorisés.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §52, témoin réel 15/15 à créer, aucun résultat patient revendiqué.**
