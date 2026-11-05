@@ -831,3 +831,8 @@ F5B-B2 exact SHA `0020dbf`, CI #42064800991 SUCCESS 3/3, nine Windows probe FUE 
 ## POST B06-4D-F5B-C — Windows product DCM2 file-keyring opt-in integration, 2026-11-05
 
 Integrated native handle-bound Windows keyring reader into `backend/services/clinical_media_crypto_v2.py` under existing explicit `DC_MEDIA_V2_KEYRING_FILE` only (`a13a5f3`). Windows path reads <=16KiB bytes from validated handle, decodes UTF-8, JSON validates, maps native deny to `MediaCryptoV2Denied`; no plaintext fallback, existing mixed-source checks preserved, POSIX behavior unchanged. Updated F5B-B2 probe guard to require integration (`19c88aa`). New synthetic Windows product FUE `isolated_fue_lot06c/windows_f5bc_product_keyring_fue.ps1` tests real configured_keyring valid retained-key read, env mixed-source deny, and broad Everyone ACL deny (`a1c80e3`); exact-SHA Windows CI workflow wired (`cbfd648`). **CI pending, no GREEN claim.** No production clinical enable, no merge/deploy, no key escrow/recovery yet. `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
+
+
+## CERTIFICATION F5B-C GREEN + PRE F5B-D recovery validation, 2026-11-05
+
+F5B-C exact SHA `a5a8b0451084e79dcad2fa1ef02d9eaf27cb9d3b`, CI #42073342776 COMPLETED SUCCESS 3/3 (Windows, SQLCipher, UI). Windows job logs include 13 F5BB/F5BC PASS markers; Windows product DCM2 file keyring integration proven synthetic. Next F5B-D: implement *offline synthetic* recovery verification for full active+retained media/locator keyring, verify DCM2 decryption/locator continuity after restore, tamper/wrong-secret rejection, and explicit recovery/escrow boundary. Do not store plaintext key backup in repo, logs or artifacts; no automatic backup, no clinical activation, no merge/deploy. `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
