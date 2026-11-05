@@ -116,3 +116,49 @@ def test_f2_07_v2_read_independent_of_opt_in_write_switch(asset_fixture, monkeyp
     _store(asset, db, root)
     monkeypatch.delenv("DC_MEDIA_V2_OPT_IN")
     assert _read(asset, db, root) == PLAINTEXT
+
+
+def test_f3_01_read_old_blob_after_both_key_rotations(asset_fixture, monkeypatch):
+    asset, db, root = asset_fixture
+    _store(asset, db, root)
+    old_key = asset.storage_key
+    monkeypatch.setenv("DC_MEDIA_V2_RETAINED_MEDIA_KEYS_JSON", '{"media1":"' + "01" * 32 + '"}')
+    monkeypatch.setenv("DC_MEDIA_V2_RETAINED_LOCATOR_KEYS_JSON", '{"loc1":"' + "02" * 32 + '"}')
+    monkeypatch.setenv("DC_MEDIA_V2_ACTIVE_KEY_ID", "media2")
+    monkeypatch.setenv("DC_MEDIA_V2_LOCATOR_KEY_ID", "loc2")
+    monkeypatch.setenv("DC_MEDIA_V2_MEDIA_KEY_HEX", "03" * 32)
+    monkeypatch.setenv("DC_MEDIA_V2_LOCATOR_KEY_HEX", "04" * 32)
+    assert _read(asset, db, root) == PLAINTEXT
+    assert asset.storage_key == old_key
+
+
+def test_f3_02_missing_retained_media_key_denied(asset_fixture, monkeypatch):
+    asset, db, root = asset_fixture
+    _store(asset, db, root)
+    monkeypatch.setenv("DC_MEDIA_V2_RETAINED_LOCATOR_KEYS_JSON", '{"loc1":"' + "02" * 32 + '"}')
+    monkeypatch.setenv("DC_MEDIA_V2_ACTIVE_KEY_ID", "media2")
+    monkeypatch.setenv("DC_MEDIA_V2_LOCATOR_KEY_ID", "loc2")
+    monkeypatch.setenv("DC_MEDIA_V2_MEDIA_KEY_HEX", "03" * 32)
+    monkeypatch.setenv("DC_MEDIA_V2_LOCATOR_KEY_HEX", "04" * 32)
+    with pytest.raises(storage.ClinicalAssetIntegrityError):
+        _read(asset, db, root)
+
+
+def test_f3_03_missing_retained_locator_key_denied(asset_fixture, monkeypatch):
+    asset, db, root = asset_fixture
+    _store(asset, db, root)
+    monkeypatch.setenv("DC_MEDIA_V2_RETAINED_MEDIA_KEYS_JSON", '{"media1":"' + "01" * 32 + '"}')
+    monkeypatch.setenv("DC_MEDIA_V2_ACTIVE_KEY_ID", "media2")
+    monkeypatch.setenv("DC_MEDIA_V2_LOCATOR_KEY_ID", "loc2")
+    monkeypatch.setenv("DC_MEDIA_V2_MEDIA_KEY_HEX", "03" * 32)
+    monkeypatch.setenv("DC_MEDIA_V2_LOCATOR_KEY_HEX", "04" * 32)
+    with pytest.raises(storage.ClinicalAssetStorageError):
+        _read(asset, db, root)
+
+
+def test_f3_04_conflicting_active_key_registry_denied(asset_fixture, monkeypatch):
+    asset, db, root = asset_fixture
+    monkeypatch.setenv("DC_MEDIA_V2_RETAINED_MEDIA_KEYS_JSON", '{"media1":"' + "ff" * 32 + '"}')
+    with pytest.raises(storage.ClinicalAssetStorageError):
+        _store(asset, db, root)
+    assert list(root.rglob("*.dcm")) == []
