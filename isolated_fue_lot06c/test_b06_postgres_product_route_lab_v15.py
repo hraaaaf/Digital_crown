@@ -608,8 +608,8 @@ def test_b06_4dc_pg_distinct_login_writer(
                     (f"{schema}.{name}",),
                 ).scalar_one() is False
             assert conn.exec_driver_sql(
-                "SELECT has_column_privilege(current_user, %s, 'UPDATE')",
-                (f"{schema}.clinical_assets.patient_id",),
+                "SELECT has_column_privilege(current_user, %s, %s, 'UPDATE')",
+                (f"{schema}.clinical_assets", "patient_id"),
             ).scalar_one() is False
 
         # Genuine SQLAlchemy Session used by the actual FastAPI route now
