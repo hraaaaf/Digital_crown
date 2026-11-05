@@ -13,7 +13,7 @@ if (-not $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administra
 $callerSid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value
 $nonce=[guid]::NewGuid().ToString('N').Substring(0,12)
 $serviceName="DC05E_$nonce"
-$pipeName="dc05e_$nonce"
+$pipeName="dc05b_e_$nonce"
 $root=Join-Path $env:ProgramData ("dc05e_fake_$nonce")
 $exe=Join-Path $root 'MeasuredScmWorker.exe'
 $proof=Join-Path $root 'service_probe.txt'
