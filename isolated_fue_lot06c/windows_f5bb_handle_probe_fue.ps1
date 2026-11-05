@@ -8,6 +8,7 @@ function Set-PrivateAcl([string]$path) {
   $acl = Get-Acl -LiteralPath $path
   $acl.SetAccessRuleProtection($true,$false)
   $acl.SetOwner($current)
+  $acl.RemoveAccessRuleAll((New-Object System.Security.AccessControl.FileSystemAccessRule($everyone,'Read','Allow')))
   $acl.SetAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($current,'FullControl','Allow')))
   Set-Acl -LiteralPath $path -AclObject $acl
 }
