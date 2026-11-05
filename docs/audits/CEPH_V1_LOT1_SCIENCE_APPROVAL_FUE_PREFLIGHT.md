@@ -1116,3 +1116,14 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT** : présenter les captures et le rendu interactif au praticien, obtenir une approbation explicite et traçable liée au SHA ; sinon conserver la PR DRAFT. Après cela, seulement, organiser les FUE cliniques indépendantes et goldset scientifique.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §50, preuve CI technique 9/9 green au HEAD `3bae5545`; gate humain et clinique OPEN.**
+
+
+### 51. PRE — 2026-11-05 — audit contradictoire « chaque analyse » ≠ cinq traits Steiner
+
+**Question du praticien** : exigence d'un bilan céphalométrique complet avant diagnostic ; ne pas présenter les 5 segments FUE `sn/na/nb/u1/l1` comme un Steiner intégral. **HEAD d'entrée** PR #1213 DRAFT `7fa3b602cad079c0d282b363d00db9bea55f9af4`. Autorisation de lecture/audit et mise à jour documentaire seulement ; **pas de modification de formules, modèle ONNX, modes V1, diagnostic, données, thème, merge, Vercel ou EXE**.
+
+**Constats initiaux sourcés au code exact** : `frontend/src/features/ortho/cephaloV1ProtocolScope.ts` n'autorise en V1 que `COM` et `STEINER`; `Step1Cephalo.tsx` affiche exclusivement ces deux valeurs et désactive l'ancien `all`. `CephaloAnalysisWorkbenchPanel.tsx` définit une liste Steiner de **15** IDs et Tweed/Merrifield **4**, mais aucune présence dans cette liste ne garantit une valeur disponible. `CephaloR23G4ReferencePanel.tsx` est une **référence contrôlée et non certifiée** pour COM 10 / McNamara 13 / Ricketts Atlas 33 et Gregoret 13 ; ces panneaux ne sont pas activés comme sélections cliniques V1. `cephalo_protocol_projection.py` n'invente aucune géométrie ni norme; les autres analyses restent fail-closed sans identité/chaîne de preuves. L'étape 3 conserve des zones de notes praticien et des valeurs descriptives sans diagnostic automatique.
+
+**Goal de cette passe** : dresser pour chaque famille V1/référence/hors V1 la composition exacte, disponibilité effective, dépendance landmarks/calibration, déficit de tracé/document et non-certification. Lire aussi les documents de complétude en distinguant audits anciens des contrats runtime actuels. **NEXT** : POST exact par analyse, pas un GO clinique fictif. `clinical_validation_available=false`; 0/10 FUE cabinet réel, Human Visual Approval pending.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §51 audit complétude ; aucune nouvelle validation scientifique déclarée.**
