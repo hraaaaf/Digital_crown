@@ -8,6 +8,8 @@ on:
       - 'backend/tests/test_legacy_sql_057a_trust_root_fue.py'
       - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
       - '.github/workflows/v15-05-7a-trust-root-fue.yml'
+      - 'backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_noop.cs'
+      - 'backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_probe.ps1'
   workflow_dispatch:
 
 permissions:
@@ -23,6 +25,8 @@ jobs:
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
@@ -40,3 +44,47 @@ jobs:
           copy2('backend/tests/test_legacy_sql_057a_trust_root_fue.py', dest/'tests')"
       - name: Execute FUE-G05.7A negative and positive no-op cases
         run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_trust_root_fue.py -q --noconftest -ra
+
+  windows-scm-native-pipe-fue:
+    name: Native SCM LocalService SID + authenticated named pipe (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      LOT05_7A_B_FAKE_ONLY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact PR head and PowerShell syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $actual=(git rev-parse HEAD).Trim()
+          if ($actual -ne "${{ github.event.pull_request.head.sha || github.sha }}") {throw '05B_HEAD_SHA_MISMATCH'}
+          $file='backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_probe.ps1'
+          $tokens=$null; $errors=$null
+          [Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file),[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) {throw ('05B_POWERSHELL_PARSE_ERROR '+($errors -join ';'))}
+      - name: Execute native ephemeral Windows SCM named pipe adversarial FUE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_probe.ps1 2>&1 | Tee-Object -FilePath 05b-ipc-evidence.txt
+          if ($LASTEXITCODE -ne 0) {throw '05B_NATIVE_IPC_FUE_FAILED'}
+          $report=Get-Content -LiteralPath 05b-ipc-evidence.txt -Raw
+          foreach($evidence in @(
+            '05B_NATIVE_SCM_LOCALSERVICE_SID_VERIFIED',
+            '05B_NATIVE_NAMED_PIPE_OS_PEER_SID_AUTHENTICATED',
+            '05B_FORGED_CLAIM_AND_CLINICAL_COMMAND_DENIED',
+            '05B_SAME_REAL_CLIENT_WRONG_ALLOWED_IDENTITY_DENIED',
+            '05B_ALL_OPERATIONS_SYNTHETIC_NOOP_NO_CLINICAL_IMPORT',
+            '05B_DISPOSABLE_SCM_AND_FILES_CLEANED')) {
+            if (-not $report.Contains($evidence)) {throw ('05B_MISSING_EVIDENCE '+$evidence)}
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7a-b-native-scm-ipc-proof
+          path: 05b-ipc-evidence.txt
+          if-no-files-found: ignore
+          retention-days: 14
