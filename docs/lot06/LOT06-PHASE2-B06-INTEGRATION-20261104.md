@@ -683,3 +683,8 @@ Baseline checked on [PR #1210](https://github.com/hraaaaf/Digital_crown/pull/121
 5. **Release gate:** authorize a separate code implementation lot and independent security/clinical review only after above answers; keep PR #1210 Draft and clinical/physical/human gates NO-GO.
 
 **ADR verdict:** \`B06-4D-E_ADR=DRAFT_FOR_HUMAN_DECISION\`; \`B06-4D-D_FUE=GREEN_LAB\`; \`KEYRING_PRODUCT_IMPLEMENTED=false\`; \`TENANT_RLS_VALIDATED=false\`; \`CONSISTENT_BACKUP_VALIDATED=false\`; \`LOT04_OWNER_APPROVAL=false\`; \`READY_TO_MERGE=false\`; \`PRODUCT_READY=false\`; \`CLINICAL_GO=false\`; \`LOT10_PHYSICAL_VALIDATED=false\`. **Next:** obtain explicit LOT04/owner architecture decisions; only then scope B06-4D-F versioned key implementation on disposable fixtures, with exact-SHA FUE and human gate preserved.
+
+
+## PRE LOT04 architecture decision evidence pass — 2026-11-05
+
+**Baseline:** PR #1210 Draft, HEAD `e74ce05922ec69655e50b0999be69575a8b88a16`, exact HEAD B06 CI #42006722273 SUCCESS 3/3; B06-4D-E ADR is proposed but NOT approved. The user's 'Go' authorizes a read-only architecture evidence pass and a recommendation, not a specific engine migration, cabinet inventory, cryptographic deployment, merge or human clinical approval. Inspect existing on-prem documentation and LOT04 closeout before a bounded POST. Single canonical GitHub file and Notion PRE/POST; no product code edits.
