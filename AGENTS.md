@@ -67,6 +67,18 @@ En cas de conflit, `DIGITALCROWN_V1_CONSOLIDATED_ROADMAP.md` prévaut.
 - **Revue :** rechercher BLOCKER/MAJOR, fail-open, régression et fausses preuves par une analyse adversariale transversale proportionnée au risque. Deux reviewers indépendants ne sont pas une condition mécanique de CONVERGED ; toute revue/validation spécialisée explicitement exigée reste distincte.
 - **Messages :** résultat → preuve → blocage → Next précis, avec effort recommandé (Instant/simple, Medium/standard, High/critique, Extra High si nécessaire et disponible ; en cas de doute choisir l'effort supérieur). Inscrire les réserves significatives dans `techdoubt.md` dès qu'une écriture sûre est possible. Terminer par le pied Lot · Sous-lot · Chantier · Roadmap défini ci-dessous.
 
+## Règle chronologique de progression — obligatoire en fin de chaque passe
+
+**Contrat de restitution transversal Digital Crown :** à la fin de **chaque passage, exécution ou point de suivi** (y compris audit, code, tests, CI et handover), afficher une **frise chronologique lisible allant de 0 à 100 %**, avec un curseur `●` sur le dernier jalon réellement atteint. Cette frise est une règle de **communication** et ne remplace aucun gate, aucune preuve ni la roadmap canonique.
+
+1. **Source avant la passe** : lire ou revérifier `AGENTS.md`, la roadmap et le fichier canonique du lot courant, puis le HEAD/CI réels. Identifier chantier, lot, sous-lot, Goal, jalons et critères de clôture ; ne pas recopier l'état du précédent message sans vérification.
+2. **Positionnement** : montrer l'ordre concret des jalons (ex. cadrage → implémentation → FUE → revue humaine → clôture). `●` désigne la position actuelle ; distinguer **VALIDÉ**, **EN COURS**, **BLOQUÉ**, **DIFFÉRÉ**. La ligne peut utiliser une barre de progression, une frise à jalons ou une petite règle graduée selon le support d'affichage.
+3. **Pourcentage fiable uniquement** : une valeur comme `10 %` est autorisée **seulement** si la roadmap ou une matrice de jalons pondérés explicite fournit un dénominateur et des preuves de réalisation. Ne jamais calculer l'avancement au nombre de commits, aux seuls runs verts, au nombre de mesures affichées, ni choisir un pourcentage « au feeling ». Si le calcul n'est pas justifié, écrire **« Avancement chiffré : à établir »** et placer `●` sur le **dernier jalon factuellement prouvé**, sans inventer de graduation numérique atteinte.
+4. **Informations minimales du pied de passe** : intitulé du chantier, lot, sous-lot ; frise/curseur et état des jalons ; HEAD exact et état CI (SUCCESS/FAIL/SKIPPED/IN_PROGRESS, sans transfert entre SHA) ; dernier POST Notion effectivement écrit (ou « non mis à jour ») ; **NEXT** et **GOAL**. Signaler clairement toute validation humaine/clinique manquante.
+5. **Ordre d'affichage impératif** : placer la frise et ses informations **juste avant** le **pied de message obligatoire** ci-dessous. Le pied existant `**Lot :** ... · **Sous-lot :** ... · **Chantier :** ... · **Roadmap :** ...` reste **la toute dernière ligne visible**, sans texte après. Éviter les doublons inutiles.
+
+**Exemple illustratif, NON représentatif de Digital Crown :** `0 % ──●────────────────── 100 %` / `● 10 % — uniquement si les critères pondérés démontrent 10 %`. Sans preuve chiffrée : `Cadrage ✓ → Tests ✓ → ● Revue praticien EN COURS → Clôture BLOQUÉE` ; `Avancement chiffré : à établir`.
+
 ## Pied de message obligatoire — contrat de communication Digital Crown
 
 **À la fin de chaque message adressé à l'utilisateur dans le projet Digital Crown**, y compris une réponse courte, une question, un point de progression, un rapport de CI, une décision ou un blocage, ajouter **une dernière ligne unique**, sans aucun texte après, au format exact :
