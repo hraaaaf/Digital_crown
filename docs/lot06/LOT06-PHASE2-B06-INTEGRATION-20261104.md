@@ -875,3 +875,10 @@ Exact-SHA run #42081751020 Windows FAILED: junction-parent negative test supplie
 ## POST F5B-D3 Windows CI fixture repair, 2026-11-05
 
 Replaced invalid `{"synthetic":true}` in parent junction adversarial FUE with complete valid synthetic active+retained media/locator keyring (`698c11f`), so the junction guard is reached and must reject the path. Product secure restore validator unchanged. New exact-SHA CI pending; `CLINICAL_GO=false`, no merge/deploy.
+
+
+## PRE F5B-D4 — independent recovery readiness gate, 2026-11-05
+
+Baseline: PR #1210 OPEN/DRAFT exact head `cde31664aaa3d263084ea7e58e929fe891b411d0` before this documentary PRE. CI B06 #42082740002 completed SUCCESS 3/3; CI Scope #42082750748 completed SUCCESS on the identical SHA. The Windows job emitted all seven F5BD3/D2 negative and positive restore markers. This certifies the bounded synthetic lab F5B-D3 test, not independent disaster recovery.
+
+Goal: independently assess the recovery evidence gap and define a reproducible non-clinical operator drill for DCM2 keyring restoration, including evidence-oracle independence, dual-custody/offsite checks, synthetic historical decrypt/locator continuity, fail-closed negatives and an unambiguous human sign-off. Inspect recovery code and exact-head Windows logs; no patient data, cabinet access, physical operator impersonation, clinical activation, merge or deployment. A real offsite Windows operator drill requires an authorized isolated station and custodians; physical/field execution is reserved to LOT10 where applicable. `CLINICAL_GO=false` and `READY_TO_MERGE=false` until separately proven and approved.
