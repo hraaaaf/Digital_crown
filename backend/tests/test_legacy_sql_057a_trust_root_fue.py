@@ -12,10 +12,23 @@ from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 import pytest
 
-from backend.services.legacy_migration_trust_root_v15 import (
-    ExpectedSyntheticContext, ProvisionedVerifier, SyntheticAuthorityDenied,
-    verify_synthetic_noop_ticket,
-)
+# Import the isolated verifier directly: normal backend package initialization imports
+# SQLAlchemy models and runtime policies unrelated to this pure-crypto FUE.
+import importlib.util
+from pathlib import Path
+import sys
+
+_module_path = Path(__file__).resolve().parents[1] / "services" / "legacy_migration_trust_root_v15.py"
+_spec = importlib.util.spec_from_file_location("_lot057a_trust_root_under_test", _module_path)
+assert _spec and _spec.loader
+_verifier = importlib.util.module_from_spec(_spec)
+sys.modules[_spec.name] = _verifier
+_spec.loader.exec_module(_verifier)
+
+ExpectedSyntheticContext = _verifier.ExpectedSyntheticContext
+ProvisionedVerifier = _verifier.ProvisionedVerifier
+SyntheticAuthorityDenied = _verifier.SyntheticAuthorityDenied
+verify_synthetic_noop_ticket = _verifier.verify_synthetic_noop_ticket
 
 
 _AUDIENCE = "digital-crown:lot05:synthetic-noop:v1"
