@@ -151,7 +151,7 @@ internal sealed class SignedNoopPipeService : ServiceBase
     {
         if (args.Length != 11 || args[1].Length > 96 ||
             !args[1].StartsWith("dc05c_", StringComparison.Ordinal) ||
-            (args[10] != "1" && args[10] != "9")) return 2;
+            (args[10] != "1" && args[10] != "10")) return 2;
         ServiceBase.Run(new SignedNoopPipeService(args[0],args[1],args[2],args[3],args[4],
             args[5],args[6],args[7],args[8],args[9],Int32.Parse(args[10])));
         return 0;
