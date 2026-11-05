@@ -1228,3 +1228,16 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Périmètre exécuté** : audit complet de l'artefact existant, ZIP vérifié avec digest GitHub, fichiers indépendants de lecture/export ; **aucune modification du produit** ni du modèle, aucune image patient privé, aucun merge, Vercel, EXE ou signature clinique. La présente mise à jour **documentaire** génère un nouveau HEAD : les 9 SUCCESS cités restent attachés au SHA de preuve \`dee9ac93\`, pas automatiquement au SHA documentaire ultérieur.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §53, couverture Steiner 6/15 sur ANUG et Challiyan, prochain FUE six placements/correction.**
+
+
+### 54. PRE — 2026-11-05 — audit source 38 canaux SRPose → identités Steiner, auto-first sans aliases inventés
+
+**Mission GO** : auditer l'intégralité des 38 sorties SRPose38 et comparer la provenance d'index, leur ID Digital Crown, les définitions anatomiques verrouillées et les dépendances exactes des 15 lignes du Steiner. Proposer le chemin d'automatisation défendable avant une quelconque mutation clinique, sans imposer la pose manuelle de six points par défaut. Notion **PRE57** enregistré ; HEAD de départ `399941cecd77f4315e63f816ea5353ae147a4954` dans PR #1213 DRAFT, non mergée ; `AGENTS.md` et roadmap V1 lus.
+
+**Sources techniques retenues** : `backend/services/srpose38_contract.py` (dictionnaire 0..37), `docs/SRPOSE38_LANDMARK_CONTRACT.md` (table officielle CL index/name/ID, ambiguïtés), `docs/audits/CEPHALO_SRPOSE38_PROVENANCE.md` (audit source checkpoint exact et limitation sémantique), `docs/audits/CEPHALO_VNEXT_LOT03_LANDMARK_ATLAS.md` (cohérence d'IDs), `backend/services/cephalo_landmark_identity_bridge.py` (alias versionnés fail-closed), `backend/services/cephalo_steiner_protocol_evidence.py` et profil Steiner `backend/data/cephalometry/steiner_protocol_profile_v1.json`.
+
+**Point critique établi d'emblée** : modèle ONNX SRPose38 certifié en parité et exact ordre 38 canaux, **mais son checkpoint source publié nomme les catégories numériquement 0–37 sans définir leurs identités anatomiques** (audit de provenance du 15/09/2026). L'inventaire local nomme 38 points ; il ne constitue **pas** une validation anatomique exhaustive des canaux du modèle. Le modèle livre `Gn`, `D_point` et `U6/L6` génériques, non les ancres `Gn_anatomic`, `D_Steiner_1959`, `Occ_Steiner_Ant/Post` ou les surfaces coronaires requises. Ne pas dégrader les protections, ne pas créer de mm sans étalon réel, aucune adaptation produit sans définition autoritative.
+
+**Success observable** : liste exhaustive 38/38, matrice dépendances 15/15 et verdict par groupe `DIRECT_GEOMETRY_CURRENT`, `ALIAS_ONLY_IF_PROVEN`, `CONSTRUCTION_SOURCE_LOCK_REQUIRED`, `MISSING_NEW_LANDMARK`, `CALIBRATION_REQUIRED`; recommandations de FUE pour l'auto-first avec alternatives vérifiables. Pas de merge, Vercel, EXE, données patients ni diagnostic ; validation clinique HOLD.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §54, étude 38 points en cours.**
