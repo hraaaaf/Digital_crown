@@ -1,0 +1,91 @@
+name: CPV2-02C Documents Browser FUE-I (synthetic, NO DEPLOY)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/cpv2-02c-documents-browser-fue.yml
+      - frontend/scripts/capture-cpv2-02c-documents-fue.mjs
+      - frontend/src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.tsx
+      - frontend/src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.test.tsx
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-02c-documents-fue-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  browser-documents:
+    name: Pocket documents Chromium + WebKit / 200% / negatives / screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout immutable PR source HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact HEAD and NO DEPLOY
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(node -e 'const v=require("./vercel.json"); process.stdout.write(String(v.git?.deploymentEnabled))')" = false
+          echo "FUE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated frontend runner
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium webkit
+      - name: Start local Vite-only component harness
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5174 --strictPort > /tmp/cpv2-02c-vite.log 2>&1 &
+          for i in {1..60}; do
+            curl -fsS 'http://127.0.0.1:5174/mobile/demo?demo=1' >/dev/null && exit 0
+            sleep 1
+          done
+          cat /tmp/cpv2-02c-vite.log
+          exit 1
+      - name: Execute real React browser interactions and screen captures (stubbed APIs)
+        working-directory: frontend
+        env:
+          CPV2_DOCS_FUE_URL: http://127.0.0.1:5174/mobile/demo?demo=1
+          CPV2_DOCS_FUE_DIR: ../artifacts/cpv2-02c-documents-fue
+          CPV2_DOCS_FUE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: node scripts/capture-cpv2-02c-documents-fue.mjs
+      - name: Verify exact-SHA FUE-I evidence count
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          root = Path('artifacts/cpv2-02c-documents-fue')
+          payload = json.loads((root / 'fue-i-evidence.json').read_text())
+          assert payload['sha'] == '${{ github.event.pull_request.head.sha || github.sha }}'
+          records = payload['evidence']
+          assert len(records) == 22, len(records)
+          assert all(x['passed'] for x in records)
+          assert all(x['mocks'] for x in records)
+          assert {x['engine'] for x in records} == {'chromium', 'webkit'}
+          for record in records:
+              if record['case'] == 'preview-archive':
+                  assert record['counts']['previewHits'] == 1
+                  assert record['counts']['archiveHits'] == 1
+          assert len(list(root.glob('*.png'))) >= 50
+          print(f'FUE-I SYNTHETIC {len(records)}/22 cases PASS, screenshots captured; FUE-G NOT RUN')
+          PY
+      - name: Upload exact-SHA screenshots and evidence
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: cpv2-02c-documents-fue-i-${{ github.event.pull_request.head.sha || github.sha }}
+          path: |
+            artifacts/cpv2-02c-documents-fue/
+          if-no-files-found: warn
+          retention-days: 30
