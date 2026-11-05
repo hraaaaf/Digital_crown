@@ -162,7 +162,9 @@ def _require_private_acl(handle: int) -> None:
 
 def read_no_reparse_file(path: str, *, max_bytes: int = 16384) -> bytes:
     """Windows local-drive, handle-bound, ACL-checked bounded read; no product use."""
-    if os.name != "nt":
+    from backend.core.platform import get_platform_adapter
+
+    if not get_platform_adapter().is_windows:
         raise WindowsKeyringHandleDenied("WINDOWS_ONLY")
     candidate = Path(path)
     if (not candidate.is_absolute() or len(candidate.drive) != 2
