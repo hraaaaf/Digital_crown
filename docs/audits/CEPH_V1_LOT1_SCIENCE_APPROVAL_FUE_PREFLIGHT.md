@@ -927,3 +927,13 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Gates HOLD maintenus** : `clinical_validation_available=false`, Wits `CANDIDATE_ONLY`, McNamara `HOLD-MCNAMARA-SCALE`, Z `HOLD-Z-ORIENTATION`, PDF clinique `INCOMPLETE`, 0/10 FUE cabinet réels. **Next** : praticien examine points/anatomie A+B, annote les erreurs, fournit ou produit via FACAD de vrais tracés experts des mêmes images ; introduire arcs + layout dans le **code React réel** en héritant des tokens thème, sur branche indépendante avec captures FUE React, réparer FUE-P1 / sélecteurs avant de prétendre à une validation utilisateur.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST V2 6 images arcs/labels, 2 PDF (8 pages), source-locked, zéro chevauchement technique, concordance FACAD en attente.**
+
+### 44. PRE — 2026-11-05 — audit PR historiques des vrais tracés Céphalo
+
+**Rappel précis du praticien :** « Regarde les anciens PR cephalo y avait bien des tracés effectués ». Ne pas réinventer arcs/tracés si les anciens PR et composants apportent déjà une implémentation saine. Inventorier les PR historiques (notamment #878 R23-E/F Focus, #1003 R23-G UI parity, #1198 Steiner/COM V1 et R15/F5), les fichiers React SVG/constructeurs qui ont réellement existé, leur présence éventuelle sur le HEAD clinique #1212 `aa7fb556...`, captures/FUE exact SHA et le statut des validations humaines. Différencier tracés graphiques, constructions calculées, Focus au survol et véritables tracés experts ; ne pas confondre « UI approuvée » et « précision clinique certifiée ».
+
+**Entrée** : SHA branche DRAFT #1213 avant passe `036275151f5bfe2557bc565bfb67bcd9b2f1ae4d` (ou SHA courant du fichier canonique au moment de l'écriture); branche clinique #1212 reste DRAFT, master intouché. Document unique `docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md`. Audit/documentation seulement, aucune modification produit, merge, Vercel ni EXE.
+
+**Critères** : identifier PR, SHA, preuves et noms de fichiers concrets ; vérifier le code HEAD actuel avant toute proposition ; choisir réutilisation/remise en service plutôt que nouveau moteur parallèle ; préserver tokens du thème, source-lock, gates de non-fabrication, `clinical_validation_available=false`, 0/10 FUE réels et UI Human Approval non transférable.
+
+**POST** à remplir avec résultats des PR, conclusions, recommandation de suite et statut CI réel.
