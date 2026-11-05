@@ -85,13 +85,78 @@ try{
    return {manual_entry_observed:true,applied:false,mm_per_pixel:null};
  });
  await check('VIEWER_ZOOM_AND_LAYER_REAL_INTERACTIONS',async()=>{
+   const svg=page.locator('svg[data-cephalo-viewport="base"]');
+   const selector=page.locator('#cephalo-ready-analysis');
+   await selector.selectOption('steiner');
+   await page.locator('[data-cephalo-analysis="steiner"]').waitFor({state:'visible'});
+   const five=['sn','na','nb','u1','l1'];
+   for(const id of five) await svg.locator('[data-cephalo-line-key="'+id+'"]').first().waitFor({state:'attached'});
+   const segments=async()=>svg.locator('[data-cephalo-line-key]').evaluateAll(nodes=>
+     nodes.map(n=>({key:n.getAttribute('data-cephalo-line-key'),
+       x1:Number(n.getAttribute('x1')),y1:Number(n.getAttribute('y1')),
+       x2:Number(n.getAttribute('x2')),y2:Number(n.getAttribute('y2'))}))
+       .sort((a,b)=>String(a.key).localeCompare(String(b.key))));
+   const beforeLines=await segments();
+   ensure(beforeLines.length===5&&five.every(id=>beforeLines.some(l=>l.key===id)),
+     'Steiner zoom baseline missing one of the five finite source lines');
+   const sourceBefore=(await detail()).landmarks_data;
+   const view=async()=>{
+     const nums=(await svg.getAttribute('viewBox')||'').split(/[\s,]+/).map(Number);
+     ensure(nums.length===4&&nums.every(Number.isFinite),'Invalid SVG viewBox');
+     return nums;
+   };
+   const baseline=await view();
    const zoom=page.locator('[data-cephalo-zoom-controls]');
    await zoom.waitFor({state:'visible'});
    ensure((await zoom.locator('[data-cephalo-zoom-level]').innerText()).includes('100'),'Not original 100% zoom');
-   await zoom.getByRole('button',{name:'Agrandir la radiographie'}).click();
-   ensure((await zoom.locator('[data-cephalo-zoom-level]').innerText()).includes('125'),'Zoom did not change to 125');
+   await shot('05a-steiner-zoom100');
+   for(const percent of [125,150,175,200]){
+     await zoom.getByRole('button',{name:'Agrandir la radiographie'}).click();
+     ensure((await zoom.locator('[data-cephalo-zoom-level]').innerText()).includes(String(percent)),
+       'Zoom stopped before '+percent+'%');
+     const box=await view();
+     ensure(Math.abs(box[2]-baseline[2]*100/percent)<0.01
+       &&Math.abs(box[3]-baseline[3]*100/percent)<0.01,
+       'Zoom changed geometry unexpectedly at '+percent+'%');
+     ensure(JSON.stringify(await segments())===JSON.stringify(beforeLines),
+       'Zoom modified anatomical Steiner line endpoints at '+percent+'%');
+     if(percent===150) await shot('05b-steiner-zoom150');
+   }
+   const box200=await view();
+   await zoom.getByRole('button',{name:'Déplacer la radiographie à droite'}).click();
+   await zoom.getByRole('button',{name:'Déplacer la radiographie vers le bas'}).click();
+   const panned=await view();
+   ensure(panned[0]>box200[0]&&panned[1]>box200[1]
+     &&Math.abs(panned[2]-box200[2])<0.01&&Math.abs(panned[3]-box200[3])<0.01,
+     'Pan failed to move the viewBox without changing scale');
+   ensure(JSON.stringify(await segments())===JSON.stringify(beforeLines),
+     'Pan changed source landmark lines');
+   await shot('05c-steiner-zoom200-pan');
    await zoom.getByRole('button',{name:'Afficher toute la radiographie'}).click();
-   ensure((await zoom.locator('[data-cephalo-zoom-level]').innerText()).includes('100'),'Zoom did not reset');
+   const restored=await view();
+   ensure((await zoom.locator('[data-cephalo-zoom-level]').innerText()).includes('100')
+     &&restored.every((n,i)=>Math.abs(n-baseline[i])<0.01),
+     'Reset did not restore complete original radiograph');
+   const layouts=[];
+   for(const [width,height] of [[390,844],[430,932],[768,1024],[1280,900]]){
+     await page.setViewportSize({width,height});
+     const visible=await svg.boundingBox();
+     ensure(visible&&visible.width>0&&visible.height>0,
+       'Native Steiner SVG disappeared at viewport '+width);
+     ensure((await page.locator('#cephalo-ready-analysis').inputValue())==='steiner',
+       'Changing viewport silently changed analysis at '+width);
+     ensure(JSON.stringify(await segments())===JSON.stringify(beforeLines),
+       'Responsive viewport mutated source geometry at '+width);
+     if(width<1280) ensure(!(await zoom.isVisible()),
+       'Desktop-only zoom controls unexpectedly shown at '+width);
+     await shot('05d-steiner-responsive-'+width);
+     layouts.push(width);
+   }
+   const sourceAfter=(await detail()).landmarks_data;
+   ensure(JSON.stringify(sourceAfter)===JSON.stringify(sourceBefore),
+     'Read-only zoom/pan/responsive controls altered persisted points');
+   ensure(JSON.stringify(await segments())===JSON.stringify(beforeLines),
+     'Reset/viewport transition altered Steiner geometry');
    await page.getByText('Gestionnaire de couches',{exact:true}).click();
    const lm=page.locator('[data-ortho-layer-control="landmarks"] button');
    await lm.waitFor({state:'visible'});
@@ -102,7 +167,9 @@ try{
    await lm.click();
    ensure((await lm.getAttribute('aria-pressed'))===initial,'Layer toggle failed restore');
    await shot('05-controls-and-layers');
-   return {zoom:'100→125→100',landmarks_layer:'toggle+restore'};
+   return {zoom:'100→125→150→175→200→pan→100',layouts,
+     steiner_lines:five,source_points_unchanged:true,landmarks_layer:'toggle+restore',
+     clinical_accuracy_evaluated:false};
  });
  await check('LANDMARK_POINTER_EDIT_UNDO_REDO_SAVE_RELOAD',async()=>{
    await page.getByText('Historique des corrections',{exact:true}).click();
@@ -141,6 +208,9 @@ try{
       const b=saved.landmarks_data[i];return l.id===b?.id&&(Math.abs(l.x-b.x)>0.05||Math.abs(l.y-b.y)>0.05);
    });
    ensure(changed,'Real pointer correction did not persist after Save');
+   const modified=original.filter((l,i)=>{const n=saved.landmarks_data[i];return l.id!==n?.id||Math.abs(l.x-n.x)>0.05||Math.abs(l.y-n.y)>0.05;});
+   ensure(modified.length===1&&saved.landmarks_data.length===original.length,
+     'Pointer edit changed more than the intended single landmark');
    ensure(saved.is_calibrated===false&&saved.mm_per_pixel==null,'Editing fabricated physical calibration');
    await shot('06-correction-saved');
    await page.reload({waitUntil:'domcontentloaded'});
