@@ -761,3 +761,8 @@ Implemented `backend/services/clinical_media_crypto_v2.py` product primitive and
 Seven product adapter synthetic FUE in `isolated_fue_lot06c/test_b06_f2_product_storage_v2.py`: DCM2 store/read, dedupe/tamper, wrong media key, wrong locator key, cross tenant, missing config/no writes, and reading V2 when write switch disabled. CI workflow `.github/workflows/lot06-phase2-b06-integration-fue.yml` now executes the F2 file on exact SHA and prints `DC06_B06_F2_PRODUCT_STORAGE_V2_SYNTHETIC_FUE_PASS` after success.
 
 **Known boundary:** This is an opt-in first-key product adapter, NOT a complete historical keyring or Ed25519 receipt-key versioning. Old V2 media-key IDs are not yet resolvable from an escrow registry after rotation; changing the locator key ID invalidates lookup for existing V2 blobs. Do not rotate either key in production until historical key registry/retention is implemented. No schema migration needed because `storage_format` is an existing text field. Clinical capture ACK signer remains v1. **F2 CI still pending; no claim GREEN before logs.** `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
+
+
+## PRE B06-4D-F3 — retained historical keys, 2026-11-05
+
+Baseline F2 HEAD `b8a7469`, exact SHA B06 CI #42018635157 GREEN 3/3; F2 7/7, F1 14/14. Implement retained historical media and locator keys for DCM2 read after rotation, while new writes use active IDs only. Synthetic FUE and exact-SHA CI required; DCM1 default, no clinical activation, merge or deploy.
