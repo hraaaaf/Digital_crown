@@ -929,3 +929,12 @@ Le run exact SHA [#42108539008](https://github.com/hraaaaf/Digital_crown/actions
 ## POST F5B-D4b Windows RED fixture checksum repair (CI pending), 2026-11-05
 
 Previous exact-head CI #42108539008 Windows job #127530228469 failed at **first line** of new F5B-D4b test (`FIXTURE_DRIFT`), before decrypt/restore. Source fixture on GitHub matched locally frozen public test vector byte-for-byte (1970 bytes, CRC32 `41fb7785`); probable cause is `windows-2022` Git checkout LF→CRLF conversion on JSON text. The existing F5B-D3/D2 Windows checks passed and must remain intact. Patch `88665c8`: normalize **only CRLF→LF** and explicitly reject any remaining bare CR *before* checking the unchanged pinned fixture SHA-256 `3de7f99acfba9b5bcc7df3394dc5272ace316c62c2331cd2e3091a80c257bd2e`; JSON parsed from verified canonical bytes. **No weakening or removal of SHA checks, no test-data change, no product code touched.** Await NEW exact-final-HEAD Windows CI and verify ALL F5B-D4b markers before any GREEN. `F5B_D4B=CI_PENDING_AFTER_FIX`; `F5B_D4_INDEPENDENT_OPERATOR_DRILL=NOT_RUN`; `READY_TO_MERGE=false`; `CLINICAL_GO=false`; no merge, release, or deployment.
+
+
+## PRE F5B-D4c — Portability P1 gate repair and legitimate UI review, 2026-11-05
+
+Owner instruction: "Je ne valide que ce qui touche a l'UX/UI ! Vas-y corrige les deux." Baseline PR #1210 DRAFT/OPEN exact head `1251b8826fa7e7839ead6a0c91acef20205fde65`; B06 #42109352876 SUCCESS 3/3 and Scope #42109365094 SUCCESS. Portability #42109365300 FAILED all Windows/macOS/Ubuntu at `scripts/portability_p1_check.py` due four direct `os.name` uses in `clinical_media_crypto_v2.py`, `windows_keyring_handle_probe.py`, `windows_keyring_restore.py`. Fix via **existing** `backend.core.platform.get_platform_adapter()` OS abstraction, keeping fail-closed security and new exact-head tests.
+
+Visual approval #42109359083 FAILED because approval is SHA-bound and reset after new HEAD. PR inventory includes genuine product-visible TSX under `frontend/src/features/patients`; **only the user may human-approve UX/UI**; auto-green or label fabrication prohibited. Existing protected `pull_request_target` workflow executes trusted *default branch*, not PR copy. Inspect UI evidence and prepare review; no visual approval bypass.
+
+No merge, deploy, publish, clinic or patient data. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`. Single canonical LOT06 document maintained PRE/POST.
