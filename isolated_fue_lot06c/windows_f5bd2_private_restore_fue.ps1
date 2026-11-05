@@ -105,7 +105,16 @@ restore = importlib.util.module_from_spec(spec)
 sys.modules[spec.name] = restore
 spec.loader.exec_module(restore)
 try:
-    restore.restore_new_private_file(os.environ["DC06_F5BD2_JUNCTION"], b'{"synthetic":true}')
+    import json
+    valid = {
+        "active_media_id": "media2", "active_locator_id": "loc2",
+        "media_keys": {"media1": "11" * 32, "media2": "22" * 32},
+        "locator_keys": {"loc1": "33" * 32, "loc2": "44" * 32},
+    }
+    restore.restore_new_private_file(
+        os.environ["DC06_F5BD2_JUNCTION"],
+        json.dumps(valid).encode("utf-8"),
+    )
 except restore.WindowsRestoreDenied as exc:
     assert str(exc) in ("RESTORE_PARENT_REPARSE_DENIED", "RESTORE_PARENT_OPEN_DENIED"), str(exc)
 else:
