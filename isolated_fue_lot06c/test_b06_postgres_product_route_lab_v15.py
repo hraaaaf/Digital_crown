@@ -843,3 +843,161 @@ def test_b06_4dc_pg_dump_restore_with_encrypted_media(
             asset_id=ack["asset_id"], media_root=root,
         ) == active["media"]
     print("DC06_B06_4DC_PG18_PGDUMP_MEDIA_RESTORE_SIGNED_ACK_PASS")
+
+
+
+@pytest.mark.parametrize("fault", [
+    "no_historical_key", "wrong_historical_key",
+    "manifest_wrong_key_id", "manifest_tampered",
+    "ciphertext_tampered", "historical_key_present",
+])
+def test_b06_4dd_versioned_offline_recovery_manifest_fail_closed(
+    pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch, fault,
+):
+    """B06-4D-D: synthetic *offline* version selector, NOT a product keyring.
+
+    The production media format and receipt remain unversioned. This lab-only
+    manifest uses a separate recovery MAC key, never embeds the old master
+    key and never modifies the product's encrypted blob or DB schema.
+    """
+    import hmac
+    import json
+    import os
+    import secrets
+
+    from backend.services.clinical_asset_storage import (
+        ClinicalAssetStorageError, ClinicalAssetIntegrityError,
+    )
+
+    engine, claim, station, headers, app, active = _setup(
+        pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+        capture_id={
+            "no_historical_key": 741,
+            "wrong_historical_key": 742,
+            "manifest_wrong_key_id": 743,
+            "manifest_tampered": 744,
+            "ciphertext_tampered": 745,
+            "historical_key_present": 746,
+        }[fault],
+    )
+    old_key = os.environ["CABINET_MASTER_KEY_HEX"]
+    assert len(old_key) == 64
+    replacement = bytearray(bytes.fromhex(old_key))
+    replacement[0] ^= 0x01
+    new_key = replacement.hex()
+    # Separate, non-persisted recovery authentication secret. This is not
+    # a production escrow, KMS, keyring or backup distribution mechanism.
+    recovery_mac_key = secrets.token_bytes(32)
+    old_id, new_id = "dc06-lab-key-v1", "dc06-lab-key-v2"
+    with _localhost_server(app) as base, httpx.Client(
+        base_url=base, trust_env=False, timeout=25,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        commit, valid = _review(http, claim, headers, active)
+        saved = http.post(commit, json=valid, headers=headers)
+        assert saved.status_code == 200, saved.text[:350]
+        original_ack = saved.json()
+        assert _counts(engine) == (1, 1, 1, 1)
+        with Session(engine) as db:
+            asset = db.get(ClinicalAsset, original_ack["asset_id"])
+            assert asset is not None
+            storage_key = asset.storage_key
+        root = app.state.dc06_b06_media_root
+        ciphertext_path = root.joinpath(*storage_key.split("/"))
+        original_ciphertext = ciphertext_path.read_bytes()
+        manifest_body = {
+            "format": "DC06-LAB-OFFLINE-RECOVERY-V1",
+            "database": "dc06_b06_ci",
+            "capture_id": active["capture"].id,
+            "tenant": claim.tenant,
+            "patient": claim.patient,
+            "key_id": old_id,
+            "storage_key": storage_key,
+            "ciphertext_sha256": hashlib.sha256(original_ciphertext).hexdigest(),
+            "ack_sha256": hashlib.sha256(
+                json.dumps(original_ack, sort_keys=True,
+                           separators=(",", ":")).encode("utf-8")
+            ).hexdigest(),
+        }
+        def canonical(body):
+            return json.dumps(body, sort_keys=True,
+                              separators=(",", ":")).encode("utf-8")
+        manifest_mac = hmac.new(
+            recovery_mac_key, canonical(manifest_body), hashlib.sha256
+        ).hexdigest()
+        assert old_key not in canonical(manifest_body).decode()
+        assert new_key not in canonical(manifest_body).decode()
+        manifest = dict(manifest_body)
+        if fault == "manifest_wrong_key_id":
+            manifest["key_id"] = new_id
+        elif fault == "manifest_tampered":
+            manifest["patient"] += 1
+        elif fault == "ciphertext_tampered":
+            ciphertext_path.write_bytes(
+                original_ciphertext[:-1] +
+                bytes([original_ciphertext[-1] ^ 1])
+            )
+
+        monkeypatch.setenv("CABINET_MASTER_KEY_HEX", new_key)
+        uri = f"/api/imaging/acquisition/receipts/{active['capture'].id}"
+        params = {
+            "selected_patient_id": claim.patient,
+            "capture_digest": active["capture"].digest,
+        }
+        denied = http.get(uri, params=params, headers=headers)
+        assert denied.status_code == 409, denied.text[:350]
+        assert denied.json()["detail"] == "DURABLE_RECEIPT_NOT_VERIFIED"
+
+        # A verified version label is not enough: historical key material
+        # must be supplied through an explicit, test-only offline resolver.
+        keyring = {
+            new_id: new_key,
+            **({old_id: new_key} if fault == "wrong_historical_key" else {}),
+            **({old_id: old_key} if fault in (
+                "manifest_wrong_key_id", "manifest_tampered",
+                "ciphertext_tampered", "historical_key_present"
+            ) else {}),
+        }
+        def resolve_checked():
+            if not hmac.compare_digest(
+                hmac.new(recovery_mac_key, canonical(manifest),
+                         hashlib.sha256).hexdigest(), manifest_mac
+            ):
+                return None
+            if (
+                manifest["database"] != "dc06_b06_ci"
+                or manifest["tenant"] != claim.tenant
+                or manifest["patient"] != claim.patient
+                or manifest["capture_id"] != active["capture"].id
+                or manifest["storage_key"] != storage_key
+                or manifest["ciphertext_sha256"] != hashlib.sha256(
+                    ciphertext_path.read_bytes()).hexdigest()
+            ):
+                return None
+            historical = keyring.get(manifest["key_id"])
+            if historical is None or historical == new_key:
+                return None
+            return historical
+
+        historical_key = resolve_checked()
+        if fault != "historical_key_present":
+            assert historical_key is None
+            assert http.get(uri, params=params, headers=headers).status_code == 409
+        else:
+            assert historical_key == old_key
+            monkeypatch.setenv("CABINET_MASTER_KEY_HEX", historical_key)
+            try:
+                with Session(engine) as db:
+                    assert read_clinical_asset_bytes(
+                        db, employer_id=claim.tenant, patient_id=claim.patient,
+                        asset_id=original_ack["asset_id"], media_root=root,
+                    ) == active["media"]
+                recovered = http.get(uri, params=params, headers=headers)
+                assert recovered.status_code == 200, recovered.text[:350]
+                assert recovered.json() == original_ack
+                assert http.get(uri, params=params, headers=headers).json() == original_ack
+            finally:
+                monkeypatch.setenv("CABINET_MASTER_KEY_HEX", new_key)
+            assert http.get(uri, params=params, headers=headers).status_code == 409
+        assert _counts(engine) == (1, 1, 1, 1)
+    print("DC06_B06_4DD_OFFLINE_HISTORICAL_KEY_MANIFEST_FUE_PASS", fault)
