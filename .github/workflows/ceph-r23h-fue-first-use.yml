@@ -150,6 +150,18 @@ jobs:
           assert len(index['cases'])==2 and {x['radio'] for x in index['cases']}=={'anug','challiyan'}
           assert all(x['landmarks_drawn']==38 and x['landmarks_outside']==0 for x in index['cases'])
           assert all((folder/x['annotated_png']).stat().st_size>50000 for x in index['cases'])
+          candidate=json.loads((folder/'model-native-4-steiner-angles.json').read_text())
+          assert candidate['head']==__import__('os').environ['PRODUCT_HEAD']
+          assert candidate['model_sha256']==index['model_sha256']
+          assert candidate['clinical_release'] is False and candidate['historical_aliases_certified'] is False
+          assert candidate['available_official_steiner_rows_modified'] is False
+          assert {x['radio'] for x in candidate['cases']}=={'anug','challiyan'}
+          for one in candidate['cases']:
+            assert one['clinical_authority'] is False and one['calibration_verified'] is False
+            assert one['point_count']==38 and one['source_image_sha256']==next(x['source_sha256'] for x in index['cases'] if x['radio']==one['radio'])
+            assert len(one['rows'])==4 and len({r['id'] for r in one['rows']})==4
+            assert all(r['status']=='MODEL_NATIVE_EXPERIMENTAL_ONLY' and r['canonical_clinical_measurement_available'] is False and 0<=r['value_deg']<=180 for r in one['rows'])
+          print('CEPH_MODEL_NATIVE_4_ANGLES_ARTIFACT_SOURCE_LOCKED_NONCLINICAL_PASS')
           print('CEPH_R23H_WHOLE_FILM_38_LANDMARKS_BOTH_SOURCE_LOCKED_PASS')
           PY
       - name: Publish exact-HEAD public original to ONNX38 proof summary
