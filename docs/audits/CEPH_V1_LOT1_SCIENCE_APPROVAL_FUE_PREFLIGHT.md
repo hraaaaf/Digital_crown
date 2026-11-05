@@ -1403,3 +1403,16 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Livraison bornée du passage** : import FUE identifié et corrigé, chaîne de traçage fondée exclusivement sur 38 coordonnées originales ONNX38 conservée, 4 angles exploratoires non cliniques inchangés, read-path Steiner officiel continue 6/15 sur les deux radios non calibrées ; pas de faux 10/15 cliniques, ni diagnostic ni étalon fictif. **NEXT** : lire le run et télécharger `model-native-4-steiner-angles.json` exact SHA, puis auditer l'exposition dans un espace de travail expérimental séparé, sans merge ni deployment.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §56, correctif import CLI FUE-H poussé, CI exacte en attente.**
+
+
+### 57. PRE — 2026-11-05 — gate bloquant captures humaines à approuver (propriétaire)
+
+**Instruction explicite** : « Pas d’approbation sans captures à approuver ». CI verte = seulement succès de l'automatisation, **jamais approbation des rendus**. Statut imposé : `HUMAN_VISUAL_APPROVAL_REQUIRED / HOLD` jusqu'à réception et décision *explicite* du propriétaire sur les captures, et gates cliniques indépendants avant tout usage clinique. Aucune approbation déduite du silence ; PR #1213 DRAFT et non mergée ; zéro Vercel, EXE ou mutation cabinet.
+
+**PRE vérifié** : HEAD Git `96d507cd381ac278a28b3d62e39a57bf6eb1a369`, 9/9 workflows requis SUCCESS (FUE-H #42096123950, P1 #42096123998, P2 #42096124046, build #42096123951, Scope #42096124085, R14 #42096123995, Theme09/10/11), M6-I SKIPPED hors scope. [Artefact H #13448099375](https://github.com/hraaaaf/Digital_crown/actions/runs/42096123950/artifacts/13448099375), digest `sha256:a4eb65874e0bf535c2d9de930ee04e85cc16d80fada3184ddb5b47d838b3789f`. Preuve source exact SHA ; le statut humain n'est **PAS APPROVED**.
+
+**Contrat du paquet visuel à présenter** : captures *réelles* ANUG et Challiyan comprenant image native entière avec 38 repères ONNX, + interface applicative/overlay SVG tracé. Indiquer SHA du modèle/source, HEAD, échelle, statut recherche et limites (absence de calibration mm) ; les afficher à l'utilisateur avant décision. En cas de modification d'UI, demander des **BEFORE/AFTER à viewports identiques** 390×844, 768×1024 et 1280×900, comparaison côte-à-côte ; pas de validation sur captures absentes ou non appariées. FUE-H vérifie les artefacts techniques ; revue visuelle humaine distincte.
+
+**Action après PRE** : inspecter ZIP FUE-H, auditer réellement les images et le JSON 2×4 angles, présenter les captures existantes avec invitation explicite « approuver/refuser » ; poster résultat POST §57 puis Notion POST60 ; ne pas écrire `APPROVED` sans réponse. Un seul canonique GitHub pour ce lot.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §57, images + approbation obligatoires.**
