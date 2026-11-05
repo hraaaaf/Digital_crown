@@ -869,3 +869,15 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **À faire pour un vrai bilan officiel Digital Crown** : établir calibration physique vérifiée si possible, corriger/geler manuellement les 38 repères, rejouer FUE-P1 avec sélecteurs/protocole réellement supportés, exporter via vrai endpoint PDF avec identité étude/révision et contrôler PDF/preview/screenshot. Les 2 radios publiques sans marqueur d'étalonnage **ne doivent pas recevoir de calibration estimée**. Wits candidate, McNamara et Z HOLD, PDF `INCOMPLETE`, `clinical_validation_available=false`, 0/10 FUE cabinet, approbation humaine absente. Aucun code clinique, couleur, token, master, Vercel ou EXE modifié.
 
 **Dernière mise à jour canonique 05/11/2026 — mesures 7 angles × 2 + deux bilans PDF techniques non-cliniques disponibles dans le chat ; export clinique officiel = BLOQUÉ légitimement.**
+
+### 42. PRE — 2026-11-05 — planches Steiner / Tweed / COM des deux radios réelles
+
+**GO du praticien** : après les bilans PDF angulaires, montrer des **tracés géométriques céphalométriques** sur les deux originaux publics ANUG (A) et Challiyan (B), avec visuels lisibles, valeurs SNA/SNB/ANB/FMA/IMPA/IF/inter-incisif, et PDF de revue auditables. Ne pas s'arrêter aux 38 points ni inventer une anatomie intermédiaire.
+
+**Source verrouillée** : `source-locked-38-points.json` issu des GET authentifiés au SHA de run `a7b633b93aa6a50aa72bdc04c621623af3c3cbea` par [GitHub #42011785804](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785804), originaux JPEG à SHA256 `ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6` (ANUG) et `98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b` (Challiyan). Formules angulaires relues dans `backend/services/cephalo_engine.py` sur SHA produit `aa7fb556...`: SNA/SNB/ANB à N, FMA entre Go-Me et Po-Or, IMPA = 180° − angle(L1a→L1i,Go→Me), I/Francfort et inter-incisif.
+
+**Portée** : 6 PNG A/B × Steiner, Tweed, COM, 2 PDF techniques + index JSON source/mesures/hash, éventuel script reproductible sur branche de test PR #1213. **Les tracés se limitent à segments entre repères sources** : Steiner SN/NA/NB, Tweed FH/GoMe/L1, COM agrégation angulaire sans diagnostic ni contour cutané inventé. Original radiographique jamais rééchantillonné pour la géométrie originale. Les PDF sont des **documents d'audit externes, pas ceux de l'export clinique officiel** ; rester explicite sur le modèle automatique non contrôlé et `mm_per_pixel=null`.
+
+**NO-GO clinique maintenu** : `clinical_validation_available=false`, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF OFFICIEL INCOMPLETE, FUE cabinet réel 0/10, approbation humaine absente. Aucun merge master, déploiement Vercel, EXE ou levée de gate.
+
+**POST** à compléter uniquement après génération, inspection PNG/PDF et preuve de cohérence des chiffres et des 38 points.
