@@ -721,7 +721,7 @@ class TestCPV202CMobileDocumentPreview:
 
         assert response.status_code == 503, response.text
 
-def test_archive_returns_pdf_only_with_matching_active_archive_row(
+    def test_archive_returns_pdf_only_with_matching_active_archive_row(
         self, client, db, dentiste, tmp_path, monkeypatch,
     ):
         from unittest.mock import AsyncMock
