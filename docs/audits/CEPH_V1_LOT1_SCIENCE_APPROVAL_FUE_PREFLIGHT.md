@@ -1604,3 +1604,12 @@ Desktop : cliché prioritaire + panneau protocole/mesures ; mobile : vue radio e
 **OPEN / une seule question au propriétaire ensuite** : sur les téléradiographies réellement importées, y a-t-il habituellement une réglette graduée physiquement référencée dans le cliché, ou surtout des JPEG/PNG sans réglette ? La réponse définit le flux par défaut ; demander ensuite le format des sources et des profils d'acquisition/DICOM si nécessaire, avant la matrice complète COM/Steiner.
 
 **GATE / résultat** : décision duo validée ; calibration **candidate**, non approuvée ; études/mesures V1 et captures **non cliniquement validées** ; aucun code, test clinique, patient, merge ou déploiement. Batterie FUE-CAL non exécutée. **NEXT** : confirmer le cas de réglette dominant, préciser ses données réelles, puis couvrir les mesures exactes COM/Steiner avant Moulages, Diagnostic et Bilan. **Dernière mise à jour canonique : 05/11/2026 — POST §60, SPEC_ONLY.**
+
+
+### 61. PRE — 2026-11-05 — parcours COM+Steiner : matrice fonctionnelle des mesures (SPEC ONLY)
+
+**Demande propriétaire** : « Alors » après validation de COM Digital Crown + Steiner 1953/1959 et cadrage calibration ; poursuivre utilement sans réitérer une question déjà posée ou passer au code. **Hypothèse de conception uniquement** : l'étape d'import doit gérer la présence ET l'absence d'une réglette, sans présumer de ce que le cabinet reçoit le plus souvent.
+
+**Vérifications** : PR #1213 OPEN/DRAFT, HEAD documentaire pré-passe `81595ddc49d97d84ce118e706eabbca2c09a8a24`. §60 POST relu. Documents additionnels lus : `docs/CEPHALO_ANALYSIS_DEPENDENCY_MATRIX.md` (12 lignes COM historiques), `docs/CEPHALO_CONSTRUCTION_REGISTRY.md` (A'B', Francfort et ambigüités Gi/Gs, orientation du regard) et §54 du présent canonique (15 facteurs Steiner, 6/15 AVAILABLE, 9/15 NC sur deux JPEG publics; pas de validation anatomique clinique 38/38). Notion PRE 64 enregistré.
+
+**GOAL/SUCCESS** : construire un inventaire fonctionnel **non-clinique et non final** des deux catalogues, distinguer construction source-verrouillée, entrée ONNX candidate, mesures mm, états et justification d'absence, puis préparer l'arbitrage portant sur la portée exacte de COM ; aucun ajout de norme ou formule. **GATE** : SPEC_DISCOVERY / NO_CODE / NOT_APPROVED, aucun changement produit, aucun merge ou déploiement.
