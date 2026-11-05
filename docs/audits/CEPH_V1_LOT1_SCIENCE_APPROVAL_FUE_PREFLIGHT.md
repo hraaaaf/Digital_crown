@@ -1338,3 +1338,16 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Preuve finale du POST** : ajout documentaire au seul fichier canonique `docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md`, Notion PRE57 / POST57 ; GitHub CI du HEAD POST à revérifier séparément de la preuve FUE-H `dee9ac93`.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §54, matrice SRPose 38/38 et Steiner 15/15, automatisation priorisée sans faux alias.**
+
+
+### 55. PRE — 2026-11-05 — décision propriétaire : poids ONNX38 = source opérationnelle du tracé
+
+**Décision utilisateur, explicite** : « valide les points du poids c'est notre base de travail, on capitalise dessus c'est notre source de vérité ». Digital Crown adopte **les 38 coordonnées sorties du modèle ONNX exact pin** comme **source de vérité d'ingénierie pour les constructions géométriques et tests**, en conservant leurs IDs bruts `S,N,...Gn,D_point...`, coordonnées subpixel, image originale et model SHA. Arrêter de bloquer la progression de calcul technique en recherchant systématiquement une équivalence clinique upstream. La décision est une **autorité d'exécution technique de travail**, pas une certification clinique externe ni une autorisation de forcer des alias dans le ledger clinique officiel.
+
+**Base source** : source model `srpose38-tta-1024.onnx` SHA256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb`, mapping local `SOTA_LANDMARKS_MAPPING` 38/38 ordonné, FUE-H déjà attesté sur 2 radios publiques ANUG et Challiyan au HEAD `dee9ac93ae45c1b4db47f53bb9cbe9532549b837`. Archive `13437698027` contenant `source-locked-38-points.json` depuis GET authentifié + 2 images numérotées réellement examinées. 38 points distincts dans les bounds des deux clichés, modèle pin, 0 fausse calibration. Recalcul indépendant en mémoire de six angles depuis ces 38 coordonnées, concordance au dixième avec les six `AVAILABLE` du GET ; quatre autres angles géométriques issus des coordonnées déjà présentes (`Gn`, `D_point`), **exploratoires / non cliniques**. Source des repères = poids, pas nouvelles annotations manuelles.
+
+**GOAL** : valoriser immédiatement le modèle acquis en ajoutant à la **preuve FUE-H non clinique** les quatre angles supplémentaires calculés depuis les points bruts, réutiliser strictement les fonctions géométriques existantes, garder la sortie clinique inchangée `6/15 AVAILABLE` tant que les identities historiques restent sous gate ; garder 4 mm NC sans calibration et occlusal NC sans ancrage sûr ; figer hash source, version de formule, images d'origine, empêcher l'invention de points ou de mm. Tests CI avec valeurs et provenance ; aucune modification ONNX ou produit médical ; zéro mise en production/merge.
+
+**FUE PRE** : [PR #1213](https://github.com/hraaaaf/Digital_crown/pull/1213) DRAFT, HEAD initial `f7f1f8bae6eca86bcb8191b75b30025fa9168381`, Notion PRE58 enregistré ; `AGENTS.md`, roadmap V1 et canonique §54 relus ; CI sur ce HEAD à relever après changement. FUE-H au HEAD `dee9ac93` précédemment 9/9 workflow SUCCESS ; preuves limitées à ce SHA.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §55, ONNX38 choisi source d'ingénierie technique, 4 angles exploratoires à certifier sans clinique.**
