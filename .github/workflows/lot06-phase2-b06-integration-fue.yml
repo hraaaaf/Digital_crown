@@ -20,6 +20,8 @@ on:
       - backend/services/clinical_media_keyring_recovery.py
       - backend/services/windows_keyring_restore.py
       - isolated_fue_lot06c/windows_f5bd2_private_restore_fue.ps1
+      - isolated_fue_lot06c/f5bd4_fixed_recovery_windows_fue.py
+      - isolated_fue_lot06c/f5bd4_fixed_synthetic_oracle.json
       - isolated_fue_lot06c/f5bd_offline_keyring_recovery_fue.py
       - backend/services/clinical_asset_storage.py
       - isolated_fue_lot06c/test_b06_postgres_product_route_lab_v15.py
@@ -267,6 +269,12 @@ jobs:
         run: |
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
           ./isolated_fue_lot06c/windows_f5bd2_private_restore_fue.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B-D4b prebuilt encrypted fixture and fresh-process DCM2 oracle FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          python isolated_fue_lot06c/f5bd4_fixed_recovery_windows_fue.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Windows bounded Authenticode + closed ZIP + wrong signer FUE
         shell: pwsh
