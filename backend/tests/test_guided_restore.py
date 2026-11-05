@@ -464,3 +464,13 @@ def test_worker_smoke_failure_triggers_proven_rollback(tmp_path, monkeypatch):
     assert final["status"] == "rolled_back"
     assert final["rollback"] == "passed"
     assert final["smoke_check"] == "failed"
+
+
+def test_lot05_sql_import_stays_forbidden_independent_of_guided_restore():
+    """LOT05 clinical SQL import and existing Guided Restore are separate gates."""
+    from dataclasses import fields
+    from backend.services.legacy_sql_mapping_v15 import MappingDraft, MappingProposal, Revalidation
+
+    for model in (MappingDraft, MappingProposal, Revalidation):
+        defaults = {field.name: field.default for field in fields(model)}
+        assert defaults["import_permitted"] is False
