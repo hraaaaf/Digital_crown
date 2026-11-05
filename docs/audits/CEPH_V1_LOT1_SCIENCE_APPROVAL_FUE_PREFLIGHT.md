@@ -987,3 +987,13 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT** : relever les résultats exacts HEAD, récupérer l'artefact `ceph-r23h-first-use`, lire `react_steiner` et inspecter les 4 véritables PNG natifs (2 pages + 2 SVG) ANUG/Challiyan ; réparer si les lignes échouent, sans ajouter de moteur parallèle. Une correction de harness qui compile n'est **pas encore** une FUE validée tant que cette preuve manque.
 
 **Dernière mise à jour canonique 05/11/2026 — POST patch tests/harness, CI queued, captures non certifiées.**
+
+### 46. PRE — 2026-11-05 — FUE-H rouge uniquement à cause de l'assertion de nombre de captures
+
+**Signalement praticien** : « FUE-H IS RED TOUT LE RESTE EST VERT ». Diagnostic vérifié au SHA exact `6f56dafe04ff663d363e2ee9d310a4345e6e4665` : [FUE-H #42036596943](https://github.com/hraaaaf/Digital_crown/actions/runs/42036596943) conclut **FAIL** à la seule étape finale `Publish exact-HEAD public original to ONNX38 proof summary` ; le log Python précise `<stdin> line 8 AssertionError`, qui correspond **exactement** à `assert len(report['screenshots'])==5` dans `.github/workflows/ceph-r23h-fue-first-use.yml` lignes 155-199. Or après ajout des deux screenshots React native `05-real-react-steiner-anug/challiyan.png`, les images page passent de 5 à **7**, et les quatre images SVG (2 avant + 2 Steiner) sont dans `report.svg_screenshots` séparément. Le parcours navigateur a réellement **6/6 PASS** et traces `R23H_NATIVE_REACT_STEINER challiyan` et `anug` PASS : source lock SN/NA/NB. Artifact émis malgré le step rouge : ID `13419397151`, 16 fichiers, run #42036596943.
+
+**Autres runs SHA `6f56dafe...`** : FUE-P1 #42036597040 SUCCESS (6/6), FUE-P2 #42036596939 SUCCESS (phantom synthétique, non clinique), frontend #42036597099 SUCCESS, Scope #42036596732 SUCCESS, R14 HOLD #42036596763 SUCCESS. Human Visual Approval #42036590517 FAIL : volontaire, approbation humaine non obtenue ; ne pas le présenter vert ni contourné.
+
+**Correction ciblée autorisée** : remplacer le nombre d'images page figé par une assertion exacte sur les **7 noms attendus**, vérification indépendante des **4 SVG natifs** et des **2 rapports React Steiner**, provenance/source hash pour A+B ; mettre à jour le résumé Actions ; ne modifier aucun code clinique ou module de dessin. Ne pas changer les gates; produire preuve exact nouveau SHA, déployer/réintégrer uniquement sur autorisation explicite (non donnée). PR #1213 DRAFT, #1212 et master intacts, `clinical_validation_available=false` et 0/10 FUE cabinet réels.
+
+**POST** uniquement après commit correction workflow et lecture des CI.
