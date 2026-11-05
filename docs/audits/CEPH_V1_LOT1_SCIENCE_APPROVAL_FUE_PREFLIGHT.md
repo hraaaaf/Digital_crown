@@ -1840,3 +1840,21 @@ Step2 = un **panneau unique progressif**, question courante bien identifiée et 
 **VERDICT** : Principe de l'addition **fonctionnellement accepté sur instruction du praticien et cohérent avec les publications**, **quantification et cible incisive NON APPROUVÉES**, aucune DDM réelle clinique calculée ni rapport activé. Prochain arbitrage nécessaire : la dénomination `DDM clinique` doit-elle **inclure** la correction Spee (recommandé pour correspondre à `DDM apparente`), ou l'afficher en sous-terme distinct à sommer avant DDM céphalo ? Les deux représentations sont équivalentes mathématiquement si la convention est strictement versionnée, mais peuvent produire un double comptage si fusionnées sans règle.
 
 **GATE** : SPEC_DISCOVERY / REVIEW_REQUIRED / NO_CODE / NO_MERGE / NO_DEPLOY. **NEXT** : valider la définition exacte des 3 composants et la convention de signe, puis poursuivre les écrans Step2–Step3 en restant spec-only. **Dernière mise à jour canonique : 05/11/2026 — POST §64, DDM réelle corrigée.**
+
+
+### 65. PRE — 2026-11-05 — recherche web : vraie méthode de calcul DDM céphalométrique Steiner vs Tweed
+
+**Demande propriétaire** : « Attends attends tu sais comment on calcule la ddm cephalo !? Regarde sur le net ! ». Revoir §64 (DDM réelle = clinique + céphalo) en corrigeant la phrase ambiguë « pas de conversion à coefficient fixe » : une **règle historique chiffrée existe**, mais la justesse clinique/prédictive pour chaque patient ne doit pas être déclarée acquise. Restons en SPEC_ONLY.
+
+**Baseline** : canonique §64 POST et Notion POST67 relus ; PR #1213 DRAFT/OPEN, HEAD documentaire précédent `50ab17d22a7bf346967fc1596ecb5e3f4f4d29a9`. Notion PRE68 écrit.
+
+**SOURCES WEB confirmées (ne pas fusionner les écoles)** :
+- **Steiner original** : Cecil C. Steiner, « The Use of Cephalometrics as an Aid to Planning and Assessing Orthodontic Treatment », *Am J Orthod*, 1960, 46(10):721–735 https://bbo.org.br/bbo/files/bibliografia/artigos/56_The_use_of_cep_halometrics.pdf . Texte p.729 confirme : reculer l'incisive mandibulaire de 7 mm réduit de 14 mm le périmètre total, 7 mm par hémiarcade, poste « Relocation 1 ». Attention : Steiner ajustait préalablement la position initiale de l'incisive pour corriger la malposition isolée / forme d'arcade.
+- **Steiner enseigné** : https://www.gsortho.ma/blog/boite-de-steiner/ et https://www.gsortho.ma/outils/chevrons-de-steiner/ : `RI_MM = 2 × [i-NB_final_target_MM − i-NB_initial_adjusted_MM]`, projections de la « boîte » et chevrons ; cible construite puis individualisée avec ANB, incisions et menton, jamais valeur générique.
+- **Tweed-Merrifield** : revue méthodologique https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/espace-total-tweed-merrifield/ : convention `0.8 mm` d'espace d'arcade par degré de repositionnement FMIA/IMPA. **Ceci ne remplace pas Steiner** dans les analyses V1. Bornes normatives variant selon références, à choisir explicitement avant tout éventuel mode Tweed futur.
+- **Prudence empirique** : https://pubmed.ncbi.nlm.nih.gov/16764682/ rapporte une précision de prévision Steiner insuffisante comme unique fondement du choix thérapeutique.
+- **HAS/ANAES** 2002 https://www.has-sante.fr/upload/docs/application/pdf/orthodontie_rap.pdf p.29 : DDM modèle `ED−EN`, mesure/prédiction possible en denture mixte, estimations des prémolaires limitées ; ne soutient PAS en elle-même la formule Steiner/Tweed.
+
+**LIMITATION DE PREUVE** : consultation HTML et texte extrait des PDF via recherche web ; appels `screenshot` PDF HAS et PDF Steiner 1960 ont retourné cache miss/erreur. Aucune capture PDF visuelle vérifiée ; ne pas présenter les PDFs comme relus image par image.
+
+**GOAL/SUCCESS** : corriger la future UX, source-versionner la conversion historique propre à Steiner, afficher les signes, la correction de forme d'arcade et la méthode de détermination du but incisif, bloquer le calcul si `L1–NB_MM` ou calibration/cible manque, séparer Spee du RI dans la boîte. **GATE** : recherche/SPÉCIFICATION uniquement ; aucune formule exécutée en clinique, aucun code, merge, CI clinique ou Vercel.
