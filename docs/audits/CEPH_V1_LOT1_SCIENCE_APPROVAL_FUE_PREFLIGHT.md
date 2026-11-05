@@ -1241,3 +1241,100 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Success observable** : liste exhaustive 38/38, matrice dépendances 15/15 et verdict par groupe `DIRECT_GEOMETRY_CURRENT`, `ALIAS_ONLY_IF_PROVEN`, `CONSTRUCTION_SOURCE_LOCK_REQUIRED`, `MISSING_NEW_LANDMARK`, `CALIBRATION_REQUIRED`; recommandations de FUE pour l'auto-first avec alternatives vérifiables. Pas de merge, Vercel, EXE, données patients ni diagnostic ; validation clinique HOLD.
 
 **Dernière mise à jour canonique : 05/11/2026 — PRE §54, étude 38 points en cours.**
+
+
+### 54. POST — 2026-11-05 — Audit 38/38 SRPose et 15/15 Steiner : auto-first, véritables gaps distingués
+
+**FUE-0 exécuté sur les sources du HEAD PRE `6132b56ed03f423ceb5c3e70cf86a9a105951ce6`** : parsing indépendant de `backend/services/srpose38_contract.py` vs la table `docs/SRPOSE38_LANDMARK_CONTRACT.md`. **38 entrées, index 0–37 contigus, 38/38 IDs Digital Crown identiques dans le même ordre, zéro collision/mismatch.** Profil `steiner_protocol_profile_v1.json` : **15 identifiants uniques (11 BASE 1953 + 4 EXTENSION 1959)**. Ceci démontre la cohérence **locale** code ↔ contrat documentaire, PAS une validation anatomique amont du checkpoint.
+
+**Important — objection du praticien résolue** : une fois les coordonnées de landmarks anatomiquement corrects connues, droites, plans, angles et projections se construisent de façon déterministe ; aucun marquage manuel systématique ni LLM ne doit être requis. Le moteur possède déjà des formules pour les 15 facteurs. La difficulté résiduelle porte sur les **identités et certains points géométriques non fournis**, plus calibration pour les mm.
+
+**Matrice exhaustive de disposition des 38 canaux (usage Steiner uniquement, pas certification médicale)** :
+
+| Index ONNX | ID logiciel exact | Portée dans ce Steiner 15 |
+|---:|---|---|
+| 00 | `S` | `GEOMETRY_INPUT_CURRENT` |
+| 01 | `N` | `GEOMETRY_INPUT_CURRENT` |
+| 02 | `Or` | `NOT_USED_IN_STEINER15` |
+| 03 | `Po` | `NOT_USED_IN_STEINER15` |
+| 04 | `A` | `GEOMETRY_INPUT_CURRENT` |
+| 05 | `B` | `GEOMETRY_INPUT_CURRENT` |
+| 06 | `Pog` | `ALIAS_POG_HARD_CONDITIONAL` |
+| 07 | `Me` | `NOT_USED_IN_STEINER15` |
+| 08 | `Gn` | `NEEDS_EXACT_STEINER_IDENTITY` |
+| 09 | `Go` | `GO_VARIANT_HOLD` |
+| 10 | `L1_incisal` | `GEOMETRY_INPUT_CURRENT` |
+| 11 | `U1_incisal` | `GEOMETRY_INPUT_CURRENT` |
+| 12 | `Ls_soft` | `NOT_USED_IN_STEINER15` |
+| 13 | `Li_soft` | `NOT_USED_IN_STEINER15` |
+| 14 | `Sn_soft` | `NOT_USED_IN_STEINER15` |
+| 15 | `Pog_soft` | `NOT_USED_IN_STEINER15` |
+| 16 | `PNS` | `NOT_USED_IN_STEINER15` |
+| 17 | `ANS` | `NOT_USED_IN_STEINER15` |
+| 18 | `Ar` | `NOT_USED_IN_STEINER15` |
+| 19 | `D_point` | `NEEDS_EXACT_STEINER_IDENTITY` |
+| 20 | `U1_apex` | `GEOMETRY_INPUT_CURRENT` |
+| 21 | `L1_apex` | `GEOMETRY_INPUT_CURRENT` |
+| 22 | `Cm` | `NOT_USED_IN_STEINER15` |
+| 23 | `Ptm` | `NOT_USED_IN_STEINER15` |
+| 24 | `Co` | `NOT_USED_IN_STEINER15` |
+| 25 | `Prn` | `NOT_USED_IN_STEINER15` |
+| 26 | `Ba` | `NOT_USED_IN_STEINER15` |
+| 27 | `PT_point` | `NOT_USED_IN_STEINER15` |
+| 28 | `Bo` | `NOT_USED_IN_STEINER15` |
+| 29 | `Ls2` | `NOT_USED_IN_STEINER15` |
+| 30 | `Li2` | `NOT_USED_IN_STEINER15` |
+| 31 | `Gn_soft` | `NOT_USED_IN_STEINER15` |
+| 32 | `Me_soft` | `NOT_USED_IN_STEINER15` |
+| 33 | `G_soft` | `NOT_USED_IN_STEINER15` |
+| 34 | `N_soft` | `NOT_USED_IN_STEINER15` |
+| 35 | `C_point` | `NOT_USED_IN_STEINER15` |
+| 36 | `U6` | `GENERIC_MOLAR_SEMANTIC_HOLD` |
+| 37 | `L6` | `GENERIC_MOLAR_SEMANTIC_HOLD` |
+
+**Synthèse exhaustive** : 8 canaux alimentent actuellement les six angles calculés ; `Go` est requis par des angles bloqués et conserve un hold de **variante de Gonion** ; `Pog` peut être projeté conditionnellement en `Pog_hard` via `cephalo_landmark_identity_bridge.py` seulement avec provenance SRPose38 certifiée ; `Gn` et `D_point` sont **2 canaux candidats à une équivalence anatomique ciblée, non prouvée** ; `U6`/`L6` sont des molaires **génériques** ne prouvant ni cuspide exacte ni plan occlusal Steiner ; les **24 autres** n'alimentent aucune des 15 mesures actives. La somme des catégories = **38/38**. Aucune identité supplémentaire ne doit être créée par ressemblance de nom.
+
+**Matrice exhaustive des 15 mesures sur les deux radios publiques réelles ONNX38 (preuve FUE-H HEAD `dee9ac93`)** :
+
+
+| Facteur | Code | Cas publics | Dépendance qui bloque l'automatisation manquante |
+|---|---|---|---|
+| SNA | M_SNA_DEG_V1 | AVAILABLE 2/2 | S,N,A par mapping local ; expertise goldset non faite |
+| SNB | M_SNB_DEG_V1 | AVAILABLE 2/2 | S,N,B ; même réserve |
+| ANB | M_ANB_DEG_V1 | AVAILABLE 2/2 | S,N,A,B ; même réserve |
+| U1–NA° | M_U1_NA_DEG_V1 | AVAILABLE 2/2 | U1 apex/incisal,N,A ; même réserve |
+| U1–NA mm | M_U1_NA_MM_V1 | NC 2/2 | U1_facial_surface explicite absent + calibration physique manquante |
+| L1–NB° | M_L1_NB_DEG_V1 | AVAILABLE 2/2 | L1 apex/incisal,N,B ; même réserve |
+| L1–NB mm | M_L1_NB_MM_V1 | NC 2/2 | L1_facial_surface explicite absent + calibration |
+| Inter-incisif | M_INTERINCISAL_DEG_V1 | AVAILABLE 2/2 | 2 axes incisifs ; même réserve |
+| Occlusal–SN | M_OCCLUSAL_PLANE_SN_DEG_V1 | NC 2/2 | Occ_Steiner_Ant/Post absents ; construction précise 1953 non matérialisée automatiquement |
+| SN–GoGn | M_SN_GOGN_DEG_V1 | NC 2/2 | Gn_anatomic absent ; Gn détecteur similaire en nom, contrat exact non prouvé ; version Go à clarifier |
+| L1–GoGn | M_L1_GOGN_DEG_V1 | NC 2/2 | Gn_anatomic absent ; version Go à clarifier |
+| SND | M_SND_DEG_V1 | NC 2/2 | D_Steiner_1959 absent ; D_point non équivalent attesté |
+| Pog–NB mm | M_POG_NB_MM_V1 | NC 2/2 | Pog_hard alias conditionnel existant, calibration absente |
+| L1–D mm | M_L1_DLINE_MM_V1 | NC 2/2 | L1_facial_surface + D_Steiner_1959 + Gn_anatomic + calibration |
+| L1–D° | M_L1_DLINE_DEG_V1 | NC 2/2 | D_Steiner_1959 + Gn_anatomic dans contrat de construction ; axe perp. à GoGn |
+
+
+**Différence essentielle** : les six ancres Steiner absentes du mapping direct sont `Gn_anatomic`, `D_Steiner_1959`, `U1_facial_surface`, `L1_facial_surface`, `Occ_Steiner_Ant`, `Occ_Steiner_Post`. `Pog_hard` est un 7e ID absent du mapping brut mais dispose déjà de **l'alias versionné conditionnel** `Pog → Pog_hard`. La règle actuelle `EXPLICIT_ONLY_CANONICAL_IDENTITIES` bloque légitimement `Gn_anatomic`. L'UI permet un secours manuel mais ne prouve pas un parcours clinique autosuffisant.
+
+**Autorité de la source, recoupée avec sources publiques** :
+- `docs/audits/CEPHALO_SRPOSE38_PROVENANCE.md` (audit 15/09/2026) a vérifié le repo source du checkpoint exact SRPose/CL-Detection : dataset MMPose déclaré sous numéros `0..37`, **sans nomenclature anatomique** associée à ces numéros. Le mapping `S,N,...L6` est un contrat **local**, historiquement annoncé sans table primaire attachée ; `LEGACY_LOCAL_MAPPING / SOURCE_LOCK_REQUIRED`. La table locale cohérente 38/38 ne ferme **pas** cette incertitude.
+- Article du challenge `https://arxiv.org/html/2409.15834v1` : 600 clichés / 38 landmarks ; la figure 3 **illustre** leur anatomie mais, sans lien vérifiable à la **numérotation des annotations effectivement entraînées**, l'image ne certifie pas les couples index→identité du checkpoint.
+- Site `https://cl-detection2023.grand-challenge.org/` et dépôt `https://github.com/5k5000/CLdetection2023` : inscription/accord nécessaires pour le dataset, README modèle confirme 38 canaux, dataset représenté par `landmark_1...38` ; il faut obtenir l'annotation native officielle/validation indépendante pour autoriser de nouveaux mappings cliniques.
+- `docs/audits/CEPHALO_VNEXT_LOT03_LANDMARK_ATLAS.md` définit `Gn` anatomique candidat mais non automatiquement promu, `U6/L6` sans spécification de cuspides, `Occ_Ant/Post` **compatibilité** non universelle ; `docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md` bloque explicitement `Gn→Gn_anatomic` sans source.
+- `backend/services/cephalo_steiner_protocol_evidence.py` et `cephalo_steiner_geometry.py` prouvent la présence d'opérateurs déterministes existants, pas leur résultat avec landmarks manquants.
+
+**Vérités mathématiques utiles** : sur cliché **non calibré**, au plus **11 mesures angulaires / 15** pourraient être calculées **si** toutes les identités/source-locks et constructions occlusales sont vérifiées et obtenues automatiquement. Les **4 distances mm** restent non calculables sans provenance métrologique vraie, même avec tous les landmarks. Si seules les 2 identités `Gn_anatomic` et `D_Steiner_1959` devenaient démontrablement disponibles et la variante `Go` résolue, **quatre angles supplémentaires** seraient théoriquement débloqués (`SN–GoGn`, `L1–GoGn`, `SND`, `L1–D°`), soit **10/15 théoriques non calibrés**, pas un résultat observé ni une autorisation d'alias. Le plan occlusal–SN resterait NC faute de construction automatisée source-lockée. L'expression 10/15/11/15 est une **borne conditionnelle**, pas un score FUE.
+
+**NEXT recommandé — sans overengineering / sans modifier le moteur** :
+1. **P0, source de vérité sur le détecteur** : obtenir l'original `train-gt.json`/manuel des 38 catégories avec correspondance index↔anatomie et protocole, ou créer un jeu expert indépendant avec revue praticien, version/hash ; prioriser la définition des canaux 8 (`Gn`), 19 (`D_point`), 9 (`Go`) et, en parallèle, tracer précisément la provenance des huit points qui donnent les six angles courants. Ne pas renommer toutes les données historiques.
+2. **P1, automatisation des angles** : **seulement après la preuve sémantique**, ajouter les promotions `Gn_anatomic` et `D_Steiner_1959` **versionnées et testées**, puis matérialiser `OCCLUSAL_PLANE_STEINER_1953_V1` avec points dentaire exacts, géométrie validée et fixtures golden. Interdire les raccourcis `U6/L6 ≡ cuspide mésiovestibulaire`.
+3. **P2, mesures linéaires** : acquérir/localiser automatiquement les surfaces faciales coronaires `U1_facial_surface`, `L1_facial_surface` via anatomie/modèle/segmentation autorisée (les apex/incisal seuls ne prouvent pas ces surfaces), puis intégrer la calibration **réelle source/étalon**. Ne pas inventer de mm depuis un JPEG public non calibré.
+4. **P3, FUE clinique contrôlée** : 2 clichés publics + fantôme physique calibré, save/reload et recalcul, preuves source-ref/version, tests négatifs de faux alias, puis comparaison du même cliché à un jeu expert et approbation praticien. La correction manuelle demeure **facultative et traçable**.
+
+**Verdict** : **38/38 mapping informatique cohérent, 0/38 canal anatomiquement certifié par ce contrôle statique, 6/15 AVAILABLE sur chacun des deux cas publics, 9/15 NC corrects, zéro faux GO clinique.** Le « 0/38 certifié par ce contrôle » ne prétend **pas** que les 38 coordonnées sont fausses ni qu'aucun travail antérieur de définition clinique n'existe ; il marque seulement ce que le **test d'index local** ne valide pas. **Aucune nouvelle liaison anatomique activée**, pas de code produit, merge, déploiement Vercel, sortie cabinet ou patient réel.
+
+**Preuve finale du POST** : ajout documentaire au seul fichier canonique `docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md`, Notion PRE57 / POST57 ; GitHub CI du HEAD POST à revérifier séparément de la preuve FUE-H `dee9ac93`.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §54, matrice SRPose 38/38 et Steiner 15/15, automatisation priorisée sans faux alias.**
