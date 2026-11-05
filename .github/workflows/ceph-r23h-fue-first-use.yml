@@ -136,7 +136,7 @@ jobs:
         if: success()
         shell: bash
         run: |
-          python scripts/ceph_r23h_fullfilm_review.py \
+          python -m scripts.ceph_r23h_fullfilm_review \
             --input artifacts/ceph-r23h-first-use/source-locked-38-points.json \
             --sources "$CEPH_PUBLIC_SOURCE_DIR" \
             --output artifacts/ceph-r23h-first-use
