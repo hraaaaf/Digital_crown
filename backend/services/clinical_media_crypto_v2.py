@@ -135,6 +135,23 @@ def _private_keyring_file() -> dict | None:
     filename = os.environ.get("DC_MEDIA_V2_KEYRING_FILE")
     if not filename:
         return None
+    if os.name == "nt":
+        # Windows opt-in: native handle-bound ACL and ancestor-reparse checks.
+        # No path-based Get-Acl precheck; the same opened file handle is read.
+        from backend.services.windows_keyring_handle_probe import (
+            WindowsKeyringHandleDenied,
+            read_no_reparse_file,
+        )
+        try:
+            raw = read_no_reparse_file(filename).decode("utf-8")
+            data = json.loads(raw)
+        except WindowsKeyringHandleDenied as exc:
+            raise MediaCryptoV2Denied(str(exc)) from exc
+        except (UnicodeError, ValueError) as exc:
+            raise MediaCryptoV2Denied("INVALID_KEYRING_FILE") from exc
+        if not isinstance(data, dict):
+            raise MediaCryptoV2Denied("INVALID_KEYRING_FILE")
+        return data
     if os.name != "posix":
         raise MediaCryptoV2Denied("KEYRING_FILE_PLATFORM_UNSUPPORTED")
     path = Path(filename)
