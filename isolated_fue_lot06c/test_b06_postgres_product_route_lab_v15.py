@@ -491,3 +491,353 @@ def test_b06_4db_pg_key_rotation_without_keyring_fail_closed(
         assert restored.json() == receipt
         assert _counts(engine) == (1, 1, 1, 1)
     print("DC06_B06_4DB_PG18_UNVERSIONED_KEY_ROTATION_FAIL_CLOSED_PASS")
+
+
+
+def test_b06_4dc_pg_distinct_login_writer(
+    pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    """Actual password-authenticated PG sockets, not SET ROLE impersonation.
+
+    Every username is derived from an ephemeral per-test schema. Separate
+    NO-SUPERUSER LOGIN principals are never installed outside disposable CI.
+    The product writer continues to refuse PostgreSQL; the test-only
+    candidate exercises the real HTTP/JWT/ORM route with a restricted login.
+    """
+    import re
+    import secrets
+
+    from sqlalchemy import create_engine
+    from sqlalchemy.engine import make_url
+    from sqlalchemy.exc import DBAPIError
+
+    from isolated_fue_lot06c.test_b06_postgres_clone_contract_v15 import (
+        _guarded_ci_dsn,
+    )
+
+    engine, claim, station, headers, app, active = _setup(
+        pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+        capture_id=731,
+    )
+    with engine.connect() as conn:
+        schema = conn.exec_driver_sql("SELECT current_schema()").scalar_one()
+    assert re.fullmatch(r"dc06_b06_lab_[0-9a-f]{16}", schema)
+    runtime = f"{schema}_runtime"
+    migrator = f"{schema}_migrator"
+    runtime_password = secrets.token_hex(24)
+    migrator_password = secrets.token_hex(24)
+    names = (runtime, migrator)
+    runtime_engine = None
+    migrator_engine = None
+
+    read_tables = tuple(table.name for table in (
+        models.User.__table__, models.Patient.__table__,
+        models.WorkstationMode.__table__, models.RevokedToken.__table__,
+        ClinicalAsset.__table__, candidate.receipts, candidate.audit,
+        candidate.outbox,
+    ))
+    insert_tables = tuple(table.name for table in (
+        ClinicalAsset.__table__, candidate.receipts,
+        candidate.audit, candidate.outbox,
+    ))
+    assert all(re.fullmatch(r"[a-z][a-z0-9_]*", name) for name in read_tables)
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            f'CREATE ROLE "{runtime}" LOGIN PASSWORD \'{runtime_password}\''
+        )
+        conn.exec_driver_sql(
+            f'CREATE ROLE "{migrator}" LOGIN PASSWORD \'{migrator_password}\''
+        )
+        conn.exec_driver_sql(f'REVOKE ALL ON SCHEMA "{schema}" FROM PUBLIC')
+        for role in names:
+            conn.exec_driver_sql(
+                f'GRANT CONNECT ON DATABASE dc06_b06_ci TO "{role}"'
+            )
+            conn.exec_driver_sql(
+                f'GRANT USAGE ON SCHEMA "{schema}" TO "{role}"'
+            )
+        conn.exec_driver_sql(
+            f'GRANT CREATE ON SCHEMA "{schema}" TO "{migrator}"'
+        )
+        for name in read_tables:
+            conn.exec_driver_sql(
+                f'GRANT SELECT ON TABLE "{schema}"."{name}" TO "{runtime}"'
+            )
+        for name in insert_tables:
+            conn.exec_driver_sql(
+                f'GRANT INSERT ON TABLE "{schema}"."{name}" TO "{runtime}"'
+            )
+        # C2 stores an asset in two steps: metadata INSERT then a bounded
+        # UPDATE of *storage fields*. Never grant UPDATE on patient_id,
+        # tenant, staff, provenance or the append-only receipt ledger.
+        conn.exec_driver_sql(
+            f'GRANT UPDATE (sha256, byte_size, storage_key, storage_format, '
+            f'stored_at) ON TABLE "{schema}"."clinical_assets" TO "{runtime}"'
+        )
+        conn.exec_driver_sql(
+            f'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "{schema}" '
+            f'TO "{runtime}"'
+        )
+    try:
+        url = make_url(_guarded_ci_dsn())
+        connect_options = {"options": f"-c search_path={schema}"}
+        runtime_engine = create_engine(
+            url.set(username=runtime, password=runtime_password),
+            connect_args=connect_options, pool_pre_ping=True,
+        )
+        migrator_engine = create_engine(
+            url.set(username=migrator, password=migrator_password),
+            connect_args=connect_options, pool_pre_ping=True,
+        )
+        for role, role_engine in (
+            (runtime, runtime_engine), (migrator, migrator_engine)
+        ):
+            with role_engine.connect() as conn:
+                assert tuple(conn.exec_driver_sql(
+                    "SELECT current_database(), session_user, current_user, "
+                    "current_schema()"
+                ).one()) == ("dc06_b06_ci", role, role, schema)
+        with runtime_engine.connect() as conn:
+            assert conn.exec_driver_sql(
+                "SELECT has_schema_privilege(current_user, current_schema(), 'CREATE')"
+            ).scalar_one() is False
+            for name in (candidate.receipts.name, candidate.audit.name,
+                         candidate.outbox.name):
+                assert conn.exec_driver_sql(
+                    "SELECT has_table_privilege(current_user, %s, 'UPDATE')",
+                    (f"{schema}.{name}",),
+                ).scalar_one() is False
+            assert conn.exec_driver_sql(
+                "SELECT has_column_privilege(current_user, %s, 'UPDATE')",
+                (f"{schema}.clinical_assets.patient_id",),
+            ).scalar_one() is False
+
+        # Genuine SQLAlchemy Session used by the actual FastAPI route now
+        # obtains its own *non-owner* PostgreSQL LOGIN connection.
+        async def limited_db():
+            with Session(runtime_engine) as db:
+                yield db
+        app.dependency_overrides[database.get_db] = limited_db
+        with _localhost_server(app) as base, httpx.Client(
+            base_url=base, trust_env=False, timeout=25,
+        ) as http:
+            http.cookies.set("dc_workstation", station)
+            commit, valid = _review(http, claim, headers, active)
+            saved = http.post(commit, json=valid, headers=headers)
+            assert saved.status_code == 200, saved.text[:450]
+            ack = saved.json()
+            assert ack["status"] == "DURABLE_MEDIA_ACK"
+            assert _counts(engine) == (1, 1, 1, 1)
+            path = f"/api/imaging/acquisition/receipts/{active['capture'].id}"
+            params = {
+                "selected_patient_id": claim.patient,
+                "capture_digest": active["capture"].digest,
+            }
+            replay = http.get(path, params=params, headers=headers)
+            assert replay.status_code == 200 and replay.json() == ack
+            assert http.get(path, params={**params,
+                "selected_patient_id": claim.patient + 1},
+                headers=headers).status_code in (403, 404, 409)
+            assert _counts(engine) == (1, 1, 1, 1)
+        with Session(runtime_engine) as db:
+            assert read_clinical_asset_bytes(
+                db, employer_id=claim.tenant, patient_id=claim.patient,
+                asset_id=ack["asset_id"],
+                media_root=app.state.dc06_b06_media_root,
+            ) == active["media"]
+
+        # Real runtime socket must receive PostgreSQL 42501, not a
+        # trigger's owner-only exception.
+        forbidden_sql = (
+            f'CREATE TABLE "{schema}".dc06_not_allowed (id INTEGER)',
+            f'ALTER TABLE "{schema}"."{candidate.receipts.name}" '
+            'ADD COLUMN forbidden INTEGER',
+            f'UPDATE "{schema}"."{candidate.receipts.name}" '
+            'SET signature = signature',
+            f'DELETE FROM "{schema}"."{candidate.audit.name}"',
+            f'TRUNCATE "{schema}"."{candidate.outbox.name}"',
+            f'UPDATE "{schema}".clinical_assets '
+            'SET patient_id = patient_id',
+        )
+        for stmt in forbidden_sql:
+            with pytest.raises(DBAPIError) as error:
+                with runtime_engine.begin() as conn:
+                    conn.exec_driver_sql(stmt)
+            assert error.value.orig.sqlstate == "42501", stmt
+        with migrator_engine.begin() as conn:
+            conn.exec_driver_sql(
+                f'CREATE TABLE "{schema}".dc06_migrator_smoke (id INTEGER)'
+            )
+            conn.exec_driver_sql(
+                f'DROP TABLE "{schema}".dc06_migrator_smoke'
+            )
+        assert _counts(engine) == (1, 1, 1, 1)
+    finally:
+        app.dependency_overrides.pop(database.get_db, None)
+        if runtime_engine is not None:
+            runtime_engine.dispose()
+        if migrator_engine is not None:
+            migrator_engine.dispose()
+        with engine.begin() as conn:
+            for name in names:
+                conn.exec_driver_sql(f'DROP OWNED BY "{name}"')
+                conn.exec_driver_sql(f'DROP ROLE "{name}"')
+    print("DC06_B06_4DC_PG18_SEPARATE_PASSWORD_LOGIN_REAL_WRITER_PASS")
+
+
+def test_b06_4dc_pg_dump_restore_with_encrypted_media(
+    pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    """Restore a REAL PG18 schema archive alongside AES-GCM test-only bytes.
+
+    Uses only the pinned local GitHub job PostgreSQL 18 Docker service.
+    This is an orderly synthetic PG restore, not a power cut, a clinic clone,
+    production key escrow or an approved restore runbook.
+    """
+    import json
+    import re
+    import shutil
+    import subprocess
+
+    from isolated_fue_lot06c.test_b06_postgres_clone_contract_v15 import (
+        _guarded_ci_dsn,
+    )
+
+    _guarded_ci_dsn()
+    engine, claim, station, headers, app, active = _setup(
+        pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+        capture_id=732,
+    )
+    root = app.state.dc06_b06_media_root
+    with engine.connect() as conn:
+        schema = conn.exec_driver_sql("SELECT current_schema()").scalar_one()
+        assert conn.exec_driver_sql(
+            "SELECT current_database(), current_user"
+        ).one() == ("dc06_b06_ci", "dc06_synthetic")
+    assert re.fullmatch(r"dc06_b06_lab_[0-9a-f]{16}", schema)
+
+    with _localhost_server(app) as base, httpx.Client(
+        base_url=base, trust_env=False, timeout=25,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        commit, valid = _review(http, claim, headers, active)
+        saved = http.post(commit, json=valid, headers=headers)
+        assert saved.status_code == 200, saved.text[:400]
+        ack = saved.json()
+        assert _counts(engine) == (1, 1, 1, 1)
+
+    # Require PostgreSQL 18's pg_dump/pg_restore, NEVER silently substitute
+    # ORM row copying or a text-only table snapshot. CI has a PG18 service.
+    assert shutil.which("docker"), "PG18_DOCKER_CLI_REQUIRED"
+    listed = subprocess.run(
+        ["docker", "ps", "--filter", "ancestor=postgres:18",
+         "--format", "{{.ID}}"], check=True, capture_output=True, text=True,
+    ).stdout.splitlines()
+    assert len(listed) == 1 and re.fullmatch(
+        r"[0-9a-f]{12,64}", listed[0]
+    ), "EXACTLY_ONE_GITHUB_PG18_LAB_CONTAINER_REQUIRED"
+    container_id = listed[0]
+    pg_dump = subprocess.run(
+        ["docker", "exec", container_id, "pg_dump",
+         "-U", "dc06_synthetic", "-d", "dc06_b06_ci",
+         "-n", schema, "-Fc"],
+        check=True, capture_output=True,
+    ).stdout
+    assert pg_dump.startswith(b"PGDMP")
+    backup = tmp_path / "pg18-and-media-synthetic-bundle"
+    backup.mkdir()
+    media_snapshot = backup / "media"
+    shutil.copytree(root, media_snapshot)
+    blob_files = tuple(p for p in media_snapshot.rglob("*") if p.is_file())
+    assert len(blob_files) == 1
+    relative = blob_files[0].relative_to(media_snapshot)
+    manifest = {
+        "lab_database": "dc06_b06_ci",
+        "schema": schema,
+        "pg_dump_sha256": hashlib.sha256(pg_dump).hexdigest(),
+        "encrypted_files": {
+            str(relative): hashlib.sha256(blob_files[0].read_bytes()).hexdigest()
+        },
+    }
+    (backup / "manifest.json").write_text(
+        json.dumps(manifest, sort_keys=True), encoding="utf-8"
+    )
+
+    def verify_bundle(dump_bytes):
+        loaded = json.loads((backup / "manifest.json").read_text(
+            encoding="utf-8"
+        ))
+        if loaded["schema"] != schema or loaded["lab_database"] != "dc06_b06_ci":
+            return False
+        if hashlib.sha256(dump_bytes).hexdigest() != loaded["pg_dump_sha256"]:
+            return False
+        return all(
+            (media_snapshot / rel).is_file()
+            and hashlib.sha256((media_snapshot / rel).read_bytes()).hexdigest() == expected
+            for rel, expected in loaded["encrypted_files"].items()
+        )
+
+    # Tampered archive does not trigger any destructive DB operation.
+    assert not verify_bundle(pg_dump[:-1] + bytes([pg_dump[-1] ^ 1]))
+    assert verify_bundle(pg_dump)
+    assert _counts(engine) == (1, 1, 1, 1)
+
+    # Simulate loss of service state and encrypted on-disk data.
+    shutil.rmtree(root)
+    app.state.dc06_review_store = ProductReviewStore()
+    del app.state.dc06_unassigned_bridge
+    # Deleting the complete per-test schema deliberately simulates DB loss.
+    with engine.begin() as conn:
+        conn.exec_driver_sql(f'DROP SCHEMA "{schema}" CASCADE')
+    engine.dispose()
+    # PG18 custom archive contains CREATE SCHEMA + tables, constraints,
+    # triggers and clinical row data. Never restore into another database.
+    assert verify_bundle(pg_dump)
+    subprocess.run(
+        ["docker", "exec", "-i", container_id, "pg_restore",
+         "-U", "dc06_synthetic", "-d", "dc06_b06_ci",
+         "--no-owner", "--no-acl", "--exit-on-error"],
+        input=pg_dump, capture_output=True, check=True,
+    )
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql(
+            "SELECT current_database(), current_schema()"
+        ).one() == ("dc06_b06_ci", schema)
+    assert _counts(engine) == (1, 1, 1, 1)
+    # First test that DB-only restore will NOT recover signed media ACK.
+    path = f"/api/imaging/acquisition/receipts/{active['capture'].id}"
+    params = {
+        "selected_patient_id": claim.patient,
+        "capture_digest": active["capture"].digest,
+    }
+    with _localhost_server(app) as base, httpx.Client(
+        base_url=base, trust_env=False, timeout=25,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        denied = http.get(path, params=params, headers=headers)
+        assert denied.status_code == 409, denied.text[:320]
+        assert denied.json()["detail"] == "DURABLE_RECEIPT_NOT_VERIFIED"
+
+        # Restore the encrypted bytes and verify the exact signed receipt.
+        shutil.copytree(media_snapshot, root)
+        restored = next(root.rglob("*.dcm"))
+        assert hashlib.sha256(restored.read_bytes()).hexdigest() == (
+            manifest["encrypted_files"][str(relative)]
+        )
+        recovered = http.get(path, params=params, headers=headers)
+        assert recovered.status_code == 200, recovered.text[:320]
+        assert recovered.json() == ack
+        repeat = http.get(path, params=params, headers=headers)
+        assert repeat.status_code == 200 and repeat.json() == ack
+        denied_scope = http.get(path, params={**params,
+            "selected_patient_id": claim.patient + 1},
+            headers=headers)
+        assert denied_scope.status_code in (403, 404, 409)
+        assert _counts(engine) == (1, 1, 1, 1)
+
+    with Session(engine) as db:
+        assert read_clinical_asset_bytes(
+            db, employer_id=claim.tenant, patient_id=claim.patient,
+            asset_id=ack["asset_id"], media_root=root,
+        ) == active["media"]
+    print("DC06_B06_4DC_PG18_PGDUMP_MEDIA_RESTORE_SIGNED_ACK_PASS")
