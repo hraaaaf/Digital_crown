@@ -1789,3 +1789,54 @@ Step2 = un **panneau unique progressif**, question courante bien identifiée et 
 **GOAL / SUCCESS** : spécifier par nom clinique de l'app `DDM_CLINIQUE + DDM_CEPHALO = DDM_REELLE` comme **somme algébrique de composantes exprimées dans le même espace, mêmes unités, même arcade, signe/version tracés**. Documenter sous-contenu Spee, estimations denture mixte, objectif incisif explicite non autonome, absence d'échelle/précision, et interdiction d'afficher un nombre faussement complet. Prouver uniquement cette correction de spec via §64 POST + Notion POST67 et batterie FUE prévue NOT RUN.
 
 **GATE** : SOURCE_CONSISTENT / FORMULA_DETAILS_PENDING_REVIEW / SPEC_ONLY / NO_CODE / HUMAN_SIGNOFF_REQUIRED ; ni changement runtime ni patient, merge, Vercel.
+
+
+### 64. POST — 2026-11-05 — correction de l'onboarding : DDM RÉELLE = DDM CLINIQUE + DDM CÉPHALO (SPEC)
+
+**Décision clinique de périmètre utilisateur :** le parcours V1 Digital Crown doit modéliser explicitement `DDM réelle = DDM clinique + DDM céphalométrique`. Ce **principe de composition** est accepté comme instruction du propriétaire ; les méthodes de quantification et les conventions de signe **ne sont pas encore cliniquement approuvées**. La correction invalide la représentation implicite de §62/63 où la DDM de moulage semblait suffire pour conclure à la DDM réelle. Conserver §62/63 comme historique, le présent §64 prévaut.
+
+#### 64-A. Modèle clinique de référence — notation métier à afficher
+
+`DDM_REELLE_MM = DDM_CLINIQUE_MM + DDM_CEPHALOMETRIQUE_MM`
+
+**Définir la terminologie avant l'addition** :
+- **DDM clinique / apparente**, en pratique surtout mandibulaire pour la construction classique : discordance signée `espace disponible − espace nécessaire` (encombrement en négatif) **plus une correction d'espace chiffrée pour le nivellement de la courbe de Spee lorsque la méthode choisie l'inclut**, avec espace physique, méthode, unité, niveau de preuve et statut du praticien. Une DDM seulement `ED−EN` ne doit **pas** être présentée comme complète si la correction Spee exigée n'est pas déterminée ; séparer `DDM_ENCOMBREMENT`, `SPEE_SPACE_IMPACT`, et `DDM_CLINIQUE`.
+- **DDM céphalométrique** : **impact spatial signé en millimètres** du repositionnement **proposé et approuvé** de l'incisive mandibulaire, interprétant la céphalométrie **avec examen clinique, fonctions, esthétique et contraintes biologiques**. `IMPA`, `L1-NB`, etc. ne sont pas **une** DDM céphalométrique en mm ; une différence d'angle ou déplacement linéaire de l'incisive ne se convertit pas directement en espace d'arcade au moyen d'une constante arbitraire. Une politique de conversion doit être documentée/scientifiquement prouvée et choisie pour l'étude.
+- **DDM réelle** : somme algébrique des **deux effets sur l'espace d'arcade** signés, de même unité et convention, pour la **même arcade** et le même scénario d'objectif incisif. Ne pas confondre signe numérique de déplacement anatomique et signe d'impact en espace disponible. `0` est un résultat mesuré/étayé, jamais repli par défaut.
+- **Cadre scientifique / réserve** : la littérature sur DDM apparente et réelle cadre principalement le **repositionnement incisif inférieur/mandibulaire**, non un automatisme généralisé à une DDM supérieure. Pour maxillaire, garder discordance d'arcade distincte et ne présenter `DDM_REELLE_MAXILLAIRE` qu'après protocole de calcul spécifiquement justifié et approuvé.
+- **Denture mixte** : le calcul d'espace nécessaire peut dépendre d'une méthode d'estimation vérifiable pour canines et prémolaires non éruptées, avec statut de maturité, dents prises en compte, leeway-space/potentiel de croissance **séparés des données effectivement mesurées**. Une projection future est `ESTIMATE / FORECAST` et non une certitude de `DDM réelle` actuelle. La courbe de Spee et la pertinence d'un objectif d'inclinaison peuvent être encore indéterminées : `INSUFFICIENT_DATA` est une issue normale.
+
+#### 64-B. Parcours d'onboarding corrigé (ne pas créer une cinquième étape)
+
+| Zone existante | Saisie/lecture | Résultat affiché |
+|---|---|---|
+| **Step1 Céphalométrie** | Points/analyses COM ou Steiner, géométrie et calibration qualifiées ; statut des mesures incisives utilisables ; **jamais** objectif thérapeutique déduit de la norme | données céphalométriques objective, limites, proposition de déplacement/objectif incisif **à renseigner/valider par praticien ultérieurement** |
+| **Step2 Moulages / occlusion** | Q2 sources, Q3 denture évaluée, Q4 espace disponible et nécessaire, correction Spee si documentée, DDM d'encombrement et **DDM clinique / apparente** ; autres rapports D/G, vertical/transverse | carte `DDM clinique` avec composantes, convention de signe, statut et lacunes, plus `DDM céphalo : en attente de définition/validation de l'objectif`; PAS de chiffre DDM réelle prématuré |
+| **Step3 Diagnostic / synthèse** | Le praticien prend connaissance de l'axe incisif, de la position, du contexte fonctionnel/esthétique, **définit le repositionnement incisif cible** et approuve le calcul de l'effet en espace avec méthode/version traçable ; vérifie compatibilité même arcade/unité/signe | calcul `DDM clinique + DDM céphalo = DDM réelle` uniquement si les deux nombres et toutes leurs dépendances sont `VERIFIED`; sinon `DDM réelle : NON CALCULABLE / À COMPLÉTER` et cause |
+| **Step4 Plan et bilan** | plan signé et validé par praticien, aperçu PDF | bloc de trois DDM/éléments + méthode, provenance, statut et hypothèses visibles ; ne pas proposer extractions/expansion/RAP comme décision automatique selon une somme |
+
+**UX** : présenter trois lignes distinctes `DDM clinique` / `DDM céphalo` / `DDM réelle`, avec sous-lignes (encombrement ED−EN et Spee) et statut. La valeur finale doit toujours être **cachée/remplacée par non calculable** quand une composante chiffrée, méthode, ou signe manque ; ne pas montrer un 0, valeur de secours ou simple `DDM clinique` renommée `réelle`. Résultat cliquable pour ouvrir sa dépendance (modèles/Spee, cliché/objectif incisif, validation). Les couleurs viennent exclusivement des tokens du thème global.
+
+#### 64-C. Conventions + lecture contrôlée, sans normes nouvelles
+
+- **Convention signée candidate** `ED−EN` : manque de place `négatif`, excès `positif`, concordant avec Regragui et al. (2010) et L'Orthodontie Française. Les contributions Spee et incisive doivent être transformées en **impact sur ce même espace**, sans réutiliser naïvement signe de profondeur ou déplacement anatomique ; documenter formule/protocole en source primaire et preuve. **La convention d'écran exacte reste à approuver**.
+- **Référence documentaire** : *L'Orthodontie Française*, « La forme des dents. Un élément incontournable du diagnostic », https://stm.cairn.info/revue-l-orthodontie-francaise-2020-1-page-7, confirme qu'il ne faut pas réduire DDM à l'encombrement ; la position incisive et Spee comptent.
+- **Référence académique secondaire** : Thèse Oran 1 (Nabi Fatima épouse Benali, 2022), https://apidspace.univ-oran1.dz/server/api/core/bitstreams/0ac7613b-803d-4ba4-b969-58bd531036ea/content, §4.2 : `DDM apparente = encombrement + Spee`, `DDM réelle = apparente + repositionnement de l'incisive inférieure décidé par praticien`. **Texte web consulté, capture screenshot du PDF non accessible (cache miss), pas de vérification visuelle du PDF** ; corroboration par dépôt universitaire UMMTO, https://dspace.ummto.dz/server/api/core/bitstreams/60fa8cd2-55f0-470d-a1e3-a59e281e1f45/content.
+- **Référence mesure moulages** : Regragui et al., *International Orthodontics* 8(1), 2010, DOI `10.1016/j.ortho.2009.12.005`, 30 moulages de patients **adultes** à Rabat, `ED−EN`. Ne pas étendre ses résultats à un modèle d'estimation denture mixte.
+- **Risque de coefficient** : https://pmc.ncbi.nlm.nih.gov/articles/PMC8600854/ met en garde contre relations fixes simplificatrices entre encombrement, position et inclinaison incisive. Aucune nouvelle constante. Les `107`/`90` anciens sont en audit, interdiction de les considérer comme références normatives validées ou conversion mm.
+- **Calcul/plan non autorisés** : deux mesures peuvent être anatomiquement correctes sans produire un objectif de position d'incisive. Le praticien décide du projet et l'atteste ; la DDM réelle n'impose **aucun** type de traitement, extraction, décapage, expansion ou plan.
+
+#### 64-D. FUE DDM futurs — NOT RUN, préalables à toute qualification
+
+1. `DDM-01` clinique signée seule (ED/EN et Spee source-présents), sans objectif incisif : clinique affichée, céphalo `EN ATTENTE`, réelle `NC`.
+2. `DDM-02` céphalo angulaire disponible sans calibration mm ou conversion approuvée : aucun impact spatial mm, réelle `NC`.
+3. `DDM-03` repositionnement incisif cible renseigné mais non validé par praticien : finale `NC`, pas de plan autonome.
+4. `DDM-04` deux effets spatiaux numériquement déterminés, même unité/arcade/convention, sources et accord du praticien : somme **algébrique** conforme oracle externe, pas de conversion implicite ni de valeur issue de norme fixe.
+5. `DDM-05` denture mixte avec méthode d'estimation non éruptées absente / courbe de Spee indisponible : DDM clinique partielle, vraie DDM réelle `NC`.
+6. `DDM-06` correction ED/EN, Spee, point céphalo, calibration ou objectif incisif : invalidation transitivement correcte de toutes les valeurs en aval, sauvegarde et bilan cohérents, historique.
+7. `DDM-07` maxillaire versus mandibulaire : aucune addition inter-arcade ni application automatique du repositionnement mandibulaire à la DDM maxillaire.
+8. `DDM-08` fichier patient absent/simulation non clinique, pas de LLM runtime, UI/rapport/PDF trois composantes, thème tokens globaux, 390/430/768/1280 + 200% et captures BEFORE/AFTER avec approbation propriétaire.
+
+**VERDICT** : Principe de l'addition **fonctionnellement accepté sur instruction du praticien et cohérent avec les publications**, **quantification et cible incisive NON APPROUVÉES**, aucune DDM réelle clinique calculée ni rapport activé. Prochain arbitrage nécessaire : la dénomination `DDM clinique` doit-elle **inclure** la correction Spee (recommandé pour correspondre à `DDM apparente`), ou l'afficher en sous-terme distinct à sommer avant DDM céphalo ? Les deux représentations sont équivalentes mathématiquement si la convention est strictement versionnée, mais peuvent produire un double comptage si fusionnées sans règle.
+
+**GATE** : SPEC_DISCOVERY / REVIEW_REQUIRED / NO_CODE / NO_MERGE / NO_DEPLOY. **NEXT** : valider la définition exacte des 3 composants et la convention de signe, puis poursuivre les écrans Step2–Step3 en restant spec-only. **Dernière mise à jour canonique : 05/11/2026 — POST §64, DDM réelle corrigée.**
