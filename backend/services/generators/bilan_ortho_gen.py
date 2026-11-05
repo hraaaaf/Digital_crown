@@ -340,7 +340,7 @@ class BilanOrthoPDFGenerator(BaseTemplate):
                 + "Date : " + escape(str(context["date_analyse"])), body,
             ),
             Paragraph(
-                "Étude céphalo : " + escape(str(context.get("cephalo_source_analysis_id") or "NON VÉRIFIÉ"))
+                "Étude Céphalo ID : " + escape(str(context.get("cephalo_source_analysis_id") or "NON VÉRIFIÉ"))
                 + " — Révision : " + escape(str(context.get("cephalo_source_analysis_revision") or "NON VÉRIFIÉE"))
                 + " — État : <b>" + ("Validé" if context["document_state"] == "COMPLETE" else "Non validé") + "</b>", small,
             ),

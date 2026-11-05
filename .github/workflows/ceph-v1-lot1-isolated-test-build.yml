@@ -79,3 +79,26 @@ jobs:
           path: frontend/dist-test/
           if-no-files-found: error
           retention-days: 7
+
+      - name: Diagnose missing optional npm lock entries (temporary, no commit)
+        run: |
+          cp package-lock.json "$RUNNER_TEMP/ceph-lot1-lock-before.json"
+          npm --version
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const before = JSON.parse(fs.readFileSync(process.env.RUNNER_TEMP+'/ceph-lot1-lock-before.json', 'utf8'));
+          const after = JSON.parse(fs.readFileSync('package-lock.json', 'utf8'));
+          const old = before.packages || {}, next = after.packages || {};
+          const delta = {added:{}, changed:{}, removed:[]};
+          for (const [k,v] of Object.entries(next)) {
+            if (!(k in old)) delta.added[k] = v;
+            else if (JSON.stringify(old[k]) !== JSON.stringify(v)) delta.changed[k] = v;
+          }
+          for (const k of Object.keys(old)) if (!(k in next)) delta.removed.push(k);
+          console.log('CEPH_LOCKFILE_DELTA_SUMMARY=' + JSON.stringify({
+            added:Object.keys(delta.added).length, changed:Object.keys(delta.changed).length,
+            removed:delta.removed.length,
+          }));
+          console.log('CEPH_LOCKFILE_DELTA_B64=' + Buffer.from(JSON.stringify(delta), 'utf8').toString('base64'));
+          NODE

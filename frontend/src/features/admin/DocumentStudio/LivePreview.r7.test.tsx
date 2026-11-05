@@ -1,10 +1,29 @@
 import { fireEvent, render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import '@testing-library/jest-dom/vitest'
 
 import { LivePreview } from './LivePreview'
 
 describe('LivePreview R7', () => {
+
+  // jsdom does not implement matchMedia; keep this test-only boundary faithful
+  // to desktop width while preserving real browser responsive behavior.
+  beforeEach(() => {
+    vi.stubGlobal('matchMedia', vi.fn((query: string): MediaQueryList => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      dispatchEvent: vi.fn(() => false),
+    })))
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
+  })
   it('utilise une terminologie déterministe et explicite quand aucun PDF n’est généré', () => {
     render(
       <LivePreview
