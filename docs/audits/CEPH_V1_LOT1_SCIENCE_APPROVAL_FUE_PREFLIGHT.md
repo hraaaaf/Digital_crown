@@ -1669,3 +1669,12 @@ Total **15/15 lignes recensées**, dont **6/15 AVAILABLE** et **9/15 NOT_COMPUTA
 **Résultat/limite** : inventaire **documenté, non cliniquement approuvé** ; 12 COM = état documentaire à réconcilier avec la source originale, 15 Steiner = profil projet source attesté, 6/15 disponible seulement au snapshot référencé. FUE actuel NOT RUN ; no code, no merge, no deploy. **NEXT** : arbitrer le périmètre COM, puis compléter la preuve du catalogue, définir les interactions Moulages et Diagnostic/Plan/Bilan, finir toutes les specs avant réconciliation technique.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §61, matrice COM+Steiner candidate.**
+
+
+### 62. PRE — 2026-11-05 — reprise onboarding Moulages/occlusion (SPEC ONLY)
+
+**Instruction propriétaire :** « On reprend notre onboarding !? » après validation COM + Steiner, cadrage calibrage et inventaire §61 ; reprendre les **questions fonctionnelles cliniques dans les quatre étapes actuelles** sans implémentation. Le différend de périmètre COM strict CRANIOM vs profil Digital Crown est laissé OPEN et n'empêche pas de cadrer l'onboarding transversal.
+
+**Baseline / preuve** : PR #1213 OPEN/DRAFT, HEAD `e4c15e0248c13e4b13476ea499c9bb14c15dfe78` ; le présent canonique §61 relu ; Notion PRE65 enregistré. Existant documenté §58 : `Step2Occlusal.tsx` contient DDM max/mand, forme d'arcade, classe molaire/canine D/G et subdivision. Constantes `107`/`90` liées à DDM à auditer, jamais traitées comme références approuvées à ce stade.
+
+**GOAL** : définir Step2 comme onboarding conditionnel, avec denture, provenance des examens/modèles, saisie sans données imposées, DDM avec valeurs/méthodes sourcées, rapports D/G, surplomb/recouvrement, transverse, milieux et observations ; parcours partiel sauvegardable. **Success** : chaque question a une condition d'apparition, unité et statut non évalué explicites, aucune inférence ni traitement automatique. **Gate** : SPEC_DISCOVERY / NOT_APPROVED / NO_CODE ; pas de code, CI, patients, merge ou Vercel déclenchés intentionnellement par un lot produit.
