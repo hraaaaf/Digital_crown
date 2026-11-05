@@ -789,7 +789,13 @@ class TestCPV202CMobileDocumentPreview:
         headers = {'Authorization': f'Bearer {token}'}
         note = client.post(
             '/api/mobile/documents/archive', headers=headers,
-            json=self._payload(patient.id, 'note'),
+            json={
+                **self._payload(patient.id, 'note'),
+                'data': {
+                    'payments': [{'acte': 'Acte fictif', 'montant': 100}],
+                    'doc_date': '2026-11-01',
+                },
+            },
         )
         assert note.status_code == 403, note.text
         payment = client.post(
