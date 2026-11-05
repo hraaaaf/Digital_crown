@@ -35,19 +35,39 @@ def _isolated(engine):
         and url.host == "127.0.0.1"
         and url.port == 5432
         and url.database == "dc06_b06_ci"
-        and url.username == "dc06_synthetic"
     ):
         raise DurableCaptureDenied("PG_PRODUCT_CANDIDATE_TEST_ONLY")
-    # Prevent a lookalike connection URL or altered search_path from escaping
-    # the disposable per-test schema. Revalidate on every operation.
+    # Strict loopback/CI-only candidate. B06-4D-C additionally permits a real
+    # NO-SUPERUSER LOGIN named after the *current disposable schema*; never
+    # accept an arbitrary PG account or a production/cabinet identifier.
     with engine.connect() as conn:
         ident = conn.exec_driver_sql(
-            "SELECT current_database(), current_user, current_schema()"
+            "SELECT current_database(), session_user, current_user, current_schema()"
         ).one()
-    if (ident[0], ident[1]) != ("dc06_b06_ci", "dc06_synthetic") or not (
-        ident[2].startswith("dc06_b06_lab_")
-    ):
-        raise DurableCaptureDenied("PG_PRODUCT_CANDIDATE_WRONG_SCHEMA")
+        schema = ident[3]
+        expected_runtime = f"{schema}_runtime"
+        if not (
+            ident[0] == "dc06_b06_ci"
+            and schema.startswith("dc06_b06_lab_")
+            and len(schema) == len("dc06_b06_lab_") + 16
+            and all(c in "0123456789abcdef" for c in schema[len("dc06_b06_lab_"):])
+            and ident[1] == ident[2] == url.username
+            and url.username in ("dc06_synthetic", expected_runtime)
+        ):
+            raise DurableCaptureDenied("PG_PRODUCT_CANDIDATE_WRONG_SCHEMA")
+        if url.username == expected_runtime:
+            role = conn.exec_driver_sql(
+                "SELECT rolcanlogin, rolsuper, rolcreatedb, rolcreaterole "
+                "FROM pg_roles WHERE rolname=%s", (expected_runtime,),
+            ).one_or_none()
+            if role is None or tuple(role) != (True, False, False, False):
+                raise DurableCaptureDenied("PG_PRODUCT_CANDIDATE_UNSAFE_RUNTIME_ROLE")
+            create = conn.exec_driver_sql(
+                "SELECT has_schema_privilege(%s, %s, 'CREATE')",
+                (expected_runtime, schema),
+            ).scalar_one()
+            if create:
+                raise DurableCaptureDenied("PG_PRODUCT_CANDIDATE_RUNTIME_ROLE_CAN_DDL")
 
 
 def _lab_schema(db):
