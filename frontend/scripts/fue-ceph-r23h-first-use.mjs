@@ -24,7 +24,8 @@ const dir=process.env.CEPH_PUBLIC_SOURCE_DIR||'/tmp/ceph-public-originals';
 const out=path.resolve('../artifacts/ceph-r23h-first-use');
 await fs.mkdir(out,{recursive:true});
 const report={head,clinical_release:false,scientific_goldset:false,patient_real:false,
- case_ids:[],checks:[],errors:[],screenshots:[],overall:'NOT_TESTED'};
+ case_ids:[],checks:[],errors:[],screenshots:[],svg_screenshots:[],fullfilm_review:[],overall:'NOT_TESTED'};
+const sourceLockedSnapshots=[];
 const browser=await chromium.launch({headless:true});
 const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 let page,ctx,token;
@@ -114,6 +115,18 @@ try {
        &&stored.mm_per_pixel==null&&stored.landmarks_data?.length===38
        &&stored.angles_data?.vision_metadata?.mode_inference==='SOTA_ONNX_38',
        'Persistence or actual source/model provenance mismatch');
+     // Independently persisted, authenticated GET snapshot — never invent landmarks.
+     const persistedPoints=stored.landmarks_data.map(p=>({id:p.id,x:p.x,y:p.y}));
+     ensure(persistedPoints.length===38&&new Set(persistedPoints.map(p=>p.id)).size===38
+       &&persistedPoints.every(p=>typeof p.id==='string'&&Number.isFinite(p.x)&&Number.isFinite(p.y)
+         &&p.x>=0&&p.x<spec.width&&p.y>=0&&p.y<spec.height),
+       'Cannot audit 38 complete landmarks in native-image coordinates');
+     sourceLockedSnapshots.push({
+       radio:spec.name,source_image_sha256:spec.hash,source_name:spec.file,
+       source_width:spec.width,source_height:spec.height,study_id:payload.analysis_id,
+       inference_mode:'SOTA_ONNX_38',is_calibrated:false,mm_per_pixel:null,
+       landmarks:persistedPoints,
+     });
      const displayed=await visibleImage(spec);
      await shot('02-real-upload-'+spec.name);
      return {study_id:payload.analysis_id,actual_onnx_landmarks:38,displayed_hash:displayed.hash,calibration_verified:false};
@@ -179,10 +192,35 @@ try {
      await page.locator('[data-cephalo-history-analysis-id="'+report.case_ids[i]+'"]').click();
      await page.locator('[data-cephalo-selected-analysis-id="'+report.case_ids[i]+'"]').waitFor({state:'visible'});
      await visibleImage(specs[i]);
+     const fresh=await api.get('/api/ia/analyses/'+report.case_ids[i],{headers:{Authorization:'Bearer '+token}});
+     ensure(fresh.status()===200,'Reopened study not independently readable by authenticated GET');
+     const persisted=await fresh.json();
+     const locked=sourceLockedSnapshots.find(p=>p.radio===specs[i].name);
+     ensure(locked&&JSON.stringify(persisted.landmarks_data.map(p=>({id:p.id,x:p.x,y:p.y})))
+       ===JSON.stringify(locked.landmarks)&&persisted.is_calibrated===false
+       &&persisted.mm_per_pixel==null,'Full-film source points changed during reopen');
      await shot('03-reopen-'+specs[i].name);
+     // Actual Digital Crown SVG screenshot. Kept separately from the audited
+     // pixel-accurate full-film board to prevent conflating UI and audit views.
+     const svg=page.locator('svg[data-cephalo-viewport="base"]');
+     await svg.waitFor({state:'visible',timeout:20000});
+     const uiFile='04-ui-svg-'+specs[i].name+'.png';
+     await svg.screenshot({path:path.join(out,uiFile),animations:'disabled',timeout:20000});
+     report.svg_screenshots.push(uiFile);
    }
    return {new_browser:true,studies:report.case_ids.slice().reverse()};
  });
+ ensure(sourceLockedSnapshots.length===2&&report.svg_screenshots.length===2,
+   'Missing source-locked real-landmark data or native UI screenshots');
+ await fs.writeFile(path.join(out,'source-locked-38-points.json'),
+   JSON.stringify({
+     head,clinical_authority:false,model_sha256:'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb',
+     source:'EXACT_SHA_AUTHENTICATED_GET_AFTER_REAL_UI_IMPORT',cases:sourceLockedSnapshots,
+   },null,2));
+ report.fullfilm_review=sourceLockedSnapshots.map(p=>({
+   radio:p.radio,landmark_count:p.landmarks.length,source_image_sha256:p.source_image_sha256,
+   study_id:p.study_id,source:'AUTHENTICATED_GET',clinical_accuracy_evaluated:false,
+ }));
  report.overall='FUE_H_REAL_UI_ONNX_PERSISTENCE_SECURITY_PASS_NONCLINICAL';
 }catch(e){report.overall='FUE_H_FAILED';if(!report.errors.some(x=>x.includes(String(e))))report.errors.push(String(e))}
 finally{

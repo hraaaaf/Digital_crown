@@ -132,6 +132,26 @@ jobs:
               assert x.angles_data['vision_metadata']['mode_inference']=='SOTA_ONNX_38'
           print('CEPH_R23H_FUE_H_USER_FIRST_REAL_ONNX_PASS_NONCLINICAL')
           PY
+      - name: Produce whole-film 38-landmark numbered review boards (nonclinical)
+        if: success()
+        shell: bash
+        run: |
+          python scripts/ceph_r23h_fullfilm_review.py \
+            --input artifacts/ceph-r23h-first-use/source-locked-38-points.json \
+            --sources "$CEPH_PUBLIC_SOURCE_DIR" \
+            --output artifacts/ceph-r23h-first-use
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          folder=Path('artifacts/ceph-r23h-first-use')
+          index=json.loads((folder/'fullfilm-review-index.json').read_text())
+          assert index['head']==__import__('os').environ['PRODUCT_HEAD']
+          assert index['clinical_accuracy_validated'] is False
+          assert len(index['cases'])==2 and {x['radio'] for x in index['cases']}=={'anug','challiyan'}
+          assert all(x['landmarks_drawn']==38 and x['landmarks_outside']==0 for x in index['cases'])
+          assert all((folder/x['annotated_png']).stat().st_size>50000 for x in index['cases'])
+          print('CEPH_R23H_WHOLE_FILM_38_LANDMARKS_BOTH_SOURCE_LOCKED_PASS')
+          PY
       - name: Publish exact-HEAD public original to ONNX38 proof summary
         if: success()
         run: |
