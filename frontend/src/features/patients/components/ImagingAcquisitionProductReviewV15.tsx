@@ -223,7 +223,7 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
   return (
     <section aria-label="Revue d'acquisition non attribuée"
       className="mx-1 mb-3 rounded-xl border border-border-main bg-card p-4 text-text-main">
-      <h3 className="text-sm font-bold">Revue de capture non attribuée</h3>
+      <h3 className="text-sm font-bold">Capture en attente de vérification</h3>
       {result === 'unavailable' && <p role="alert" className="text-sm text-text-muted">Acquisition indisponible : aucune association autorisée.</p>}
       {result === 'failed' && <p role="alert" className="text-sm text-text-muted">Vérification refusée. Réessayez avec une session et une capture valides.</p>}
       {result === 'confirmed' && <p role="status" className="text-sm text-text-muted">
@@ -273,14 +273,14 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
               <input type="checkbox" checked={checked}
                 onChange={event => setChecked(event.target.checked)} />
               {review.durable_commit_available === true
-                ? "Je confirme l'image et les deux identifiants. Le média sera enregistré dans ce dossier."
-                : "Je confirme avoir vérifié l'image et ces deux identifiants. Cette revue ne publie aucun média."}
+                ? "J'ai vérifié l'image et les deux identifiants du patient. L'image sera enregistrée dans ce dossier."
+                : "J'ai vérifié l'image et les deux identifiants du patient. Cette image ne sera pas ajoutée au dossier."}
             </label>
             <div className="flex flex-wrap gap-2">
               <button type="button" disabled={!canConfirm} onClick={() => void confirm()}
                 className="min-h-11 rounded-lg border border-border-main bg-card px-4 py-2 disabled:opacity-40">
                 {busy ? 'Contrôle…' : review.durable_commit_available === true
-                  ? 'Associer et chiffrer le média' : 'Confirmer la revue temporaire'}
+                  ? 'Ajouter l’image au dossier' : 'Terminer la vérification'}
               </button>
               <button type="button" disabled={busy} onClick={() => void cancel()}
                 className="min-h-11 rounded-lg border border-border-main px-4 py-2">Annuler</button>
