@@ -524,7 +524,7 @@ export const PatientDetails = () => {
                       <div className="w-24 h-24 bg-input-field rounded-full flex items-center justify-center mb-6"><Activity className="w-12 h-12 text-text-muted" /></div>
                       <h3 className="text-2xl font-black text-text-main mb-2">Module Céphalométrique Verrouillé</h3>
                       <p className="text-text-muted mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés céphalométriques.</p>
-                      <button onClick={activateOrtho} className="px-8 py-4 bg-[#003380] text-white font-bold rounded-2xl hover:bg-[#002266] transition-all shadow-lg flex items-center gap-3"><Target className="w-5 h-5" /> Activer le Suivi Orthodontique</button>
+                      <button onClick={activateOrtho} className="px-8 py-4 bg-primary text-on-primary font-bold rounded-2xl hover:bg-secondary transition-all shadow-lg flex items-center gap-3"><Target className="w-5 h-5" /> Activer le Suivi Orthodontique</button>
                     </div>
                   )
                 )}
