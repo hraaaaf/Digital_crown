@@ -881,3 +881,26 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NO-GO clinique maintenu** : `clinical_validation_available=false`, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF OFFICIEL INCOMPLETE, FUE cabinet réel 0/10, approbation humaine absente. Aucun merge master, déploiement Vercel, EXE ou levée de gate.
 
 **POST** à compléter uniquement après génération, inspection PNG/PDF et preuve de cohérence des chiffres et des 38 points.
+
+### 42. POST — 2026-11-05 — Steiner / Tweed / COM, A+B, PDF de revue et validation des images
+
+**PRE lié à cette passe** : §42 PRE, baseline de provenance `source-locked-38-points.json` API GET authentifié réel, source ONNX SHA `a7b633b...`, photo source ANUG et Challiyan vérifiées SHA256 et CC BY-SA 4.0. **Il s'agit d'une production d'audit externe locale, pas d'une nouvelle inférence ONNX ni d'un export PDF officiel de Digital Crown.** PR #1213 reste DRAFT, #1212/master inchangés.
+
+**POST : six PNG réels produits et rendus en conversation** depuis seulement 38 landmarks auto d'origine pour A et B :
+- `anug-steiner-traces-geometriques.png`, `challiyan-steiner-traces-geometriques.png` : segments SN, NA, NB, angles SNA/SNB/ANB (N commun), positions d'origine x/y verrouillées ;
+- `anug-tweed-traces-geometriques.png`, `challiyan-tweed-traces-geometriques.png` : plan FH Po-Or, mandibulaire Go-Me, axe L1a–L1i, FMA/IMPA ;
+- `anug-com-traces-geometriques.png`, `challiyan-com-traces-geometriques.png` : combinaison explicite des sept segments (SN, NA, NB, FH, Go-Me, U1a-i, L1a-i), sept angles bruts SNA, SNB, ANB, FMA, IMPA, I/Francfort, inter-incisif.
+
+**Valeurs calculées et recoupées par assertions des formules de `backend/services/cephalo_engine.py` au `aa7fb556...`** : ANUG SNA 79.1° SNB 77.7° ANB 1.4° FMA 31.5° IMPA 101.1° I/FH 115.9° interincisif 111.4°. Challiyan SNA 79.9° SNB 74.6° ANB 5.3° FMA 27.7° IMPA 104.3° I/FH 108.4° interincisif 119.6°. **Pas de valeurs normatives, classification, hypothèses ou distances mm**. Les tracés ne sont pas une segmentation de tissus mous ou un contour osseux interpolé (pas d'information source pour en dessiner un). Photos sources inchangées sur disque ; calques rendus dans des PNG d'audit indépendants.
+
+**Deux PDFs physiques de revue générés et vérifiés** : `CEPHALO_ANUG_STEINER_TWEED_COM_AUDIT_NON_CLINIQUE.pdf` SHA256 `703895f92087fee6f8f1192407126f3cd123daca62784bb066e46adab5e435e6` (4 pages) ; `CEPHALO_CHALLIYAN_STEINER_TWEED_COM_AUDIT_NON_CLINIQUE.pdf` SHA256 `a678f69ce51d1677272cda86978988231174896ead08e313f34eedc260334754` (4 pages). Chaque PDF contient (1) 7 angles + limites sur A4 (2) Steiner A3 paysage (3) Tweed A3 paysage (4) COM A3 paysage. **PDF généré par ReportLab externe**, pas par endpoint de bilan patient Digital Crown, strictement « AUDIT NON CLINIQUE » en page 1 ; la création ne prétend donc pas lever le blocage volontaire de l'export clinique pour ces 2 radios sans calibration.
+
+**QA physique** : rendu des deux PDF en PNG à 100 DPI et inspection de la première page et des planches A/B ; vérification structure PyMuPDF 4 pages chacune (8 pages), tous blocs texte dans limites ; assertions SHA sources, modèle, 38 ID distincts, x/y finis dans cadre, et exact 7 angles pour chaque source, SHA256 de 6 images et 2 PDF réinscrit dans `traces-provenance.json`. ZIP complet des 10 fichiers `Cephalo_FACAD_Steiner_Tweed_COM_ANUG_Challiyan_AUDIT_2026-11-05.zip` SHA256 `486c1e099d1c9d50addd555320ea81201e4fd771d3504d17146f4089be51650d`, contient le script Python de reproduction, 6 PNG, 2 PDF, manifest JSON.
+
+**État projet GitHub au SHA juste avant ce POST `d4487e1a3a155ac07adb0a7108c9b90d3a9efae8`** : branche #1213 DRAFT, run test-only CI Scope #42018667717 SUCCESS, R14 #42018667606 SUCCESS, frontend test #42018667595 SUCCESS, FUE-H #42018667542, FUE-P1 #42018667736 et FUE-P2 #42018667464 **IN_PROGRESS** au relevé. Gate « UI Human Visual Approval » #42018660457 **FAIL** comme non approuvé; ne pas auto-signer ni présenter PASS clinique. Ce PASS des audités externes ne remplace pas la CI live du nouveau SHA documentaire.
+
+**Blocages maintenus** : preuve ONNX technique réutilisée du run antérieur et non nouvellement inférée, pas de contours anatomiques expertisés, aucune comparaison FACAD même image / ground truth, `is_calibrated=false` / `mm_per_pixel=null`, `clinical_validation_available=false`, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF officiel INCOMPLETE, FUE cabinet réel 0/10. **No merge master, no Vercel, no EXE, no patient release.**
+
+**NEXT** : faire la revue visuelle humaine des deux plans Steiner et Tweed + COM, marquer les erreurs de placement landmark par landmark, puis produire une nouvelle vraie analyse corrigée via l'app avec révision contrôlée. Sans expert confirmé ni échelle mm, seule l'analyse angulaire de recherche reste autorisée.
+
+**Dernière mise à jour canonique 05/11/2026 — 6 PNG source-lock + 2 PDFs techniques (8 pages) + manifest et ZIP vérifiés, pas de GO clinique.**
