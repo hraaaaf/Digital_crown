@@ -811,3 +811,8 @@ F5B-A exact HEAD `78fb82d`, CI #42049169242 GREEN 3/3; native ACL FUE markers co
 ## POST B06-4D-F5B-B1 — Windows native handle probe (NOT product activation), 2026-11-05
 
 Added `backend/services/windows_keyring_handle_probe.py`: isolated Windows ctypes `CreateFileW` with final-component `FILE_FLAG_OPEN_REPARSE_POINT`, `GetFileInformationByHandle` reparse/directory/size checks and bounded `ReadFile` from the same handle; synthetic-only FUE `isolated_fue_lot06c/windows_f5bb_handle_probe_fue.ps1` tests read, oversized, relative path, final symlink and confirms product still denies Windows file keyrings. CI exact SHA Windows job wired. **Security boundary:** intermediate directory reparse traversal remains possible; no handle-bound owner/ACL security descriptor verification. Therefore module is NOT imported into the product loader and `WINDOWS_PRIVATE_KEYRING_IMPLEMENTED=false`. F5B-B2 remains OPEN. CI pending, no GREEN claim; no merge/deploy/clinical activation, `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
+
+
+## PRE B06-4D-F5B-B2 — Windows handle ACL/parent traversal and B1 red CI fix, 2026-11-05
+
+B1 CI #42059957792 exact SHA `b0e4c83` **RED** (Windows job fails because standalone test imports `backend.__init__` requiring uninstalled SQLAlchemy; Linux jobs GREEN). No claim B1 passed. First isolate standalone Windows test import by direct file loading, then harden handle-bound Windows ACL/parent reparse checks under synthetic FUE. Keep product Windows file loader denied until proof of exact SHA, proper owner, DACL and reparse semantics. No merge/deploy/clinical activation.
