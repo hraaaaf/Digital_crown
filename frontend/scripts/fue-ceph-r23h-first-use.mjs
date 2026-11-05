@@ -217,7 +217,7 @@ try {
        'Unexpected V1 selectable modes: '+JSON.stringify(selectable));
      await selector.selectOption('steiner');
      await page.locator('[data-cephalo-analysis="steiner"]').waitFor({state:'visible'});
-     for(const id of ['sn','na','nb'])
+     for(const id of ['sn','na','nb','u1','l1'])
        await svg.locator('[data-cephalo-line-key="'+id+'"]').first()
          .waitFor({state:'attached',timeout:20000});
      // Real clinical protocol selection: Steiner is NOT an excuse to draw
@@ -244,7 +244,7 @@ try {
      const near=(line,p,q)=>Math.hypot(line.x1-p.x,line.y1-p.y)<0.05
        &&Math.hypot(line.x2-q.x,line.y2-q.y)<0.05;
      const segments=[];
-     for(const [id,from,to] of [['sn','s','n'],['na','n','a'],['nb','n','b']]){
+     for(const [id,from,to] of [['sn','s','n'],['na','n','a'],['nb','n','b'],['u1','u1_apex','u1_incisal'],['l1','l1_apex','l1_incisal']]){
        const p=originalPoints.get(from),q=originalPoints.get(to);
        ensure(p&&q,'Source GET points missing for '+id);
        const line=rendered.find(l=>l.id===id&&near(l,p,q));
@@ -264,7 +264,7 @@ try {
        out_of_image_lines:unbounded.length,line_segments:segments,
        screenshot:whole,svg_screenshot:native});
      console.log('R23H_NATIVE_REACT_STEINER',specs[i].name,
-       'SEGMENTS_SN_NA_NB_SOURCE_LOCKED_NONCLINICAL');
+       'SEGMENTS_SN_NA_NB_U1_L1_SOURCE_LOCKED_NONCLINICAL');
    }
    return {new_browser:true,studies:report.case_ids.slice().reverse(),
      native_react_steiner:report.react_steiner.map(v=>v.radio)};
