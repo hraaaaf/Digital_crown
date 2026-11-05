@@ -5,6 +5,7 @@ No clinical data, production publisher, hardware counter or real issuer.
 from pathlib import Path
 import importlib.util
 import shutil
+import sqlite3
 import sys
 
 import pytest
@@ -26,26 +27,28 @@ class SyntheticIndependentWitness:
 
     def __init__(self, initial=0):
         self.value = initial
+        self.tip = f.genesis_digest(INSTALL_ID)
         self.fail_read = False
         self.fail_advance = False
         self.advance_then_crash = False
 
-    def current_counter(self, installation_id):
+    def current_checkpoint(self, installation_id):
         assert installation_id == INSTALL_ID
         if self.fail_read:
             raise RuntimeError("synthetic witness unavailable")
-        return self.value
+        return self.value, self.tip
 
-    def compare_and_advance(self, installation_id, expected):
+    def compare_and_advance(self, installation_id, expected, old_tip, new_tip):
         assert installation_id == INSTALL_ID
         if self.fail_advance:
             raise RuntimeError("synthetic witness unavailable")
-        if self.value != expected:
-            return -1
+        if self.value != expected or self.tip != old_tip:
+            return -1, ""
         self.value += 1
+        self.tip = new_tip
         if self.advance_then_crash:
             raise RuntimeError("simulated crash after witness advance")
-        return self.value
+        return self.value, self.tip
 
 
 def ledger(tmp_path, witness, db_name="local-noop-ledger.sqlite"):
@@ -160,7 +163,7 @@ def test_mismatched_installation_id_denied(tmp_path):
         f.WitnessedReplayLedgerLab(tmp_path / "local-noop-ledger.sqlite", "b" * 32, witness)
 
 
-def test_missing_or_caller_controlled_witness_denied(tmp_path):
+def test_missing_witness_denied(tmp_path):
     with pytest.raises(f.LedgerLabDenied, match="NO_INDEPENDENT_WITNESS"):
         f.WitnessedReplayLedgerLab(tmp_path / "no-witness.sqlite", INSTALL_ID, None)
 
@@ -184,3 +187,31 @@ def test_local_file_only_not_a_clinical_authority(tmp_path):
     assert not hasattr(store, "import_clinical")
     assert not hasattr(store, "authorize")
     assert store.consume_once("synthetic-only", NONCE_A)
+
+
+def test_local_journal_tamper_with_matching_counter_denied(tmp_path):
+    witness = SyntheticIndependentWitness()
+    store = ledger(tmp_path, witness)
+    assert store.consume_once("tenant", NONCE_A)
+    assert store.consume_once("tenant", NONCE_B)
+    # A privileged test adversary deletes a consumed nonce without changing the
+    # counter: the old counter-only model would have accepted a replay.
+    database = tmp_path / "local-noop-ledger.sqlite"
+    with sqlite3.connect(database) as connection:
+        connection.execute("DELETE FROM events WHERE nonce=?", (NONCE_A,))
+    with pytest.raises(f.LedgerLabDenied, match="LEDGER_INTEGRITY_FAILURE"):
+        ledger(tmp_path, witness).consume_once("tenant", NONCE_A)
+
+
+def test_forged_local_counter_cannot_hide_old_snapshot(tmp_path):
+    witness = SyntheticIndependentWitness()
+    store = ledger(tmp_path, witness)
+    assert store.consume_once("tenant", NONCE_A)
+    snapshot = tmp_path / "before-second.sqlite"
+    shutil.copy2(tmp_path / "local-noop-ledger.sqlite", snapshot)
+    assert store.consume_once("tenant", NONCE_B)
+    shutil.copy2(snapshot, tmp_path / "local-noop-ledger.sqlite")
+    with sqlite3.connect(tmp_path / "local-noop-ledger.sqlite") as connection:
+        connection.execute("UPDATE state SET seq=? WHERE id=1", (witness.value,))
+    with pytest.raises(f.LedgerLabDenied, match="LEDGER_INTEGRITY_FAILURE"):
+        ledger(tmp_path, witness).consume_once("tenant", NONCE_B)
