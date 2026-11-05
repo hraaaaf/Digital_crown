@@ -30,5 +30,13 @@ jobs:
         run: python -m pip install --disable-pip-version-check pytest cryptography
       - name: Compile verifier
         run: python -m py_compile backend/services/legacy_migration_trust_root_v15.py
+      - name: Stage verifier tests outside heavyweight backend package
+        run: >-
+          python -c "from pathlib import Path; from shutil import copy2;
+          dest=Path('isolated_fue_057a/backend');
+          (dest/'services').mkdir(parents=True, exist_ok=True);
+          (dest/'tests').mkdir(parents=True, exist_ok=True);
+          copy2('backend/services/legacy_migration_trust_root_v15.py', dest/'services');
+          copy2('backend/tests/test_legacy_sql_057a_trust_root_fue.py', dest/'tests')"
       - name: Execute FUE-G05.7A negative and positive no-op cases
-        run: python -m pytest backend/tests/test_legacy_sql_057a_trust_root_fue.py -q --noconftest -ra
+        run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_trust_root_fue.py -q --noconftest -ra
