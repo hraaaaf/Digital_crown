@@ -152,6 +152,23 @@ export const CEPHALO_LOT06_FOCUS_REGISTRY = {
     "availabilityGate": "VERIFIED_CALIBRATION_AND_EXACT_ANATOMIC_GN",
     "requiresCalibration": true
   },
+  "M_CO_GN_MINUS_CO_A_MM_V1": {
+    "measurementId": "M_CO_GN_MINUS_CO_A_MM_V1",
+    "unit": "mm",
+    "requiredLandmarks": [
+      "Co_anatomic",
+      "Gn_anatomic",
+      "A"
+    ],
+    "requiredConstructions": [],
+    "sourceContracts": [
+      "docs/audits/CEPHALO_ANALYSIS_MEASUREMENT_PROFILES.md",
+      "docs/audits/CEPHALO_GEOMETRIC_MEASUREMENT_CONTRACTS.md",
+      "docs/audits/CEPHALO_LOT08_MCNAMARA_FACAD_GAP_RESOLUTION.md"
+    ],
+    "availabilityGate": "BOTH_CANONICAL_CO_LENGTHS_AVAILABLE_SAME_IMAGE_AND_CALIBRATION_REF_EXACT_CO_ANATOMIC_AND_GN_ANATOMIC",
+    "requiresCalibration": true
+  },
   "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1": {
     "measurementId": "M_DOWNS_FACIAL_ANGLE_NPOG_FH_ACUTE_DEG_V1",
     "unit": "°",

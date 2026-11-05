@@ -74,3 +74,23 @@ def mcnamara_ans_me_mm_v1(
     ans: Optional[Point], me: Optional[Point], mm_per_pixel: Optional[float]
 ) -> Optional[float]:
     return mcnamara_linear_distance_mm_v1(ans, me, mm_per_pixel)
+
+
+def mcnamara_co_gn_minus_co_a_mm_v1(
+    co_gn_mm: Optional[float], co_a_mm: Optional[float]
+) -> Optional[float]:
+    """Signed effective-length differential from two calibrated typed mm values.
+
+    Inputs must be source-bound by the caller. No rounding or vendor Co alias.
+    """
+    if (
+        co_gn_mm is None or co_a_mm is None
+        or isinstance(co_gn_mm, bool) or isinstance(co_a_mm, bool)
+        or not isinstance(co_gn_mm, (int, float))
+        or not isinstance(co_a_mm, (int, float))
+        or not math.isfinite(co_gn_mm) or not math.isfinite(co_a_mm)
+        or co_gn_mm <= 0 or co_a_mm <= 0
+    ):
+        return None
+    result = float(co_gn_mm) - float(co_a_mm)
+    return result if math.isfinite(result) else None

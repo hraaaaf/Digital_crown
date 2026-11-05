@@ -57,13 +57,13 @@ def _ricketts1981_ids():
     return re.findall(pattern, lateral, re.M), re.findall(pattern, frontal, re.M)
 
 
-def test_mcnamara_1984_has_thirteen_independent_core_rows_and_seven_executable():
+def test_mcnamara_1984_has_thirteen_independent_core_rows_and_eight_executable():
     rows = _mcnamara_rows()
     ids = [row["measurement_id"] for row in rows]
     assert [row["order"] for row in rows] == list(range(1, 14))
     assert len(ids) == len(set(ids)) == 13
     available = {cid for cid in ids if cid in _contracts()}
-    assert len(available) == 7
+    assert len(available) == 8
     pack = _packs()["MCNAMARA_V1"]
     assert set(pack["measurement_ids"]) == available
     assert {"M_SNA_DEG_V1", "M_FH_GOME_DEG_V1"} <= set(pack["measurement_ids"])
@@ -74,11 +74,10 @@ def test_mcnamara_1984_has_thirteen_independent_core_rows_and_seven_executable()
     assert graph["scientific_state"] == "PROVISIONAL_MEMBERSHIP_FAIL_CLOSED"
 
 
-def test_mcnamara_six_missing_contracts_are_not_silently_replaced_or_promoted():
+def test_mcnamara_five_missing_contracts_are_not_silently_replaced_or_promoted():
     ids = {row["measurement_id"] for row in _mcnamara_rows()}
     missing = ids - set(_contracts())
     assert missing == {
-        "M_CO_GN_MINUS_CO_A_MM_V1",
         "M_FACIAL_AXIS_MCNAMARA_DEG_V1",
         "M_U1_A_VERTICAL_MM_V1",
         "M_L1_FACIAL_SURFACE_APOG_MM_V1",
