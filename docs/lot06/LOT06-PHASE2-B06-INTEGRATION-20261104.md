@@ -806,3 +806,8 @@ Created `isolated_fue_lot06c/windows_f5b_private_keyring_acl_fue.ps1`, exercised
 ## PRE B06-4D-F5B-B — native Windows handle and ACL-bound read, 2026-11-05
 
 F5B-A exact HEAD `78fb82d`, CI #42049169242 GREEN 3/3; native ACL FUE markers confirmed. Implement Windows native handle-bound ACL verification without path-based precheck/open race, adversarial FUE and exact-SHA CI. Fail closed if any platform capability or security check is unavailable; no clinical enable, merge or deploy.
+
+
+## POST B06-4D-F5B-B1 — Windows native handle probe (NOT product activation), 2026-11-05
+
+Added `backend/services/windows_keyring_handle_probe.py`: isolated Windows ctypes `CreateFileW` with final-component `FILE_FLAG_OPEN_REPARSE_POINT`, `GetFileInformationByHandle` reparse/directory/size checks and bounded `ReadFile` from the same handle; synthetic-only FUE `isolated_fue_lot06c/windows_f5bb_handle_probe_fue.ps1` tests read, oversized, relative path, final symlink and confirms product still denies Windows file keyrings. CI exact SHA Windows job wired. **Security boundary:** intermediate directory reparse traversal remains possible; no handle-bound owner/ACL security descriptor verification. Therefore module is NOT imported into the product loader and `WINDOWS_PRIVATE_KEYRING_IMPLEMENTED=false`. F5B-B2 remains OPEN. CI pending, no GREEN claim; no merge/deploy/clinical activation, `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
