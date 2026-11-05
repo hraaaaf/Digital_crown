@@ -222,68 +222,98 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
   if (!capture && result !== 'unavailable') return null;
   return (
     <section aria-label="Revue d'acquisition non attribuée"
-      className="mx-1 mb-3 rounded-xl border border-border-main bg-card p-4 text-text-main">
-      <h3 className="text-sm font-bold">Capture en attente de vérification</h3>
-      {result === 'unavailable' && <p role="alert" className="text-sm text-text-muted">Acquisition indisponible : aucune association autorisée.</p>}
-      {result === 'failed' && <p role="alert" className="text-sm text-text-muted">Vérification refusée. Réessayez avec une session et une capture valides.</p>}
-      {result === 'confirmed' && <p role="status" className="text-sm text-text-muted">
+      className="mx-1 mb-4 rounded-2xl border border-border-main bg-card p-4 text-text-main shadow-sm sm:p-5 lg:p-6">
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
+        <div className="space-y-1">
+          <h3 className="text-base font-bold sm:text-lg">Capture en attente de vérification</h3>
+          <p className="text-sm text-text-muted">
+            Vérifiez l'image et l'identité du patient avant toute association au dossier.
+          </p>
+        </div>
+      </div>
+      {result === 'unavailable' && <p role="alert" className="rounded-lg border border-danger-border bg-danger-surface p-3 text-sm text-danger">Acquisition indisponible : aucune association autorisée.</p>}
+      {result === 'failed' && <p role="alert" className="rounded-lg border border-danger-border bg-danger-surface p-3 text-sm text-danger">Vérification refusée. Réessayez avec une session et une capture valides.</p>}
+      {result === 'confirmed' && <p role="status" className="rounded-lg border border-info-border bg-info-surface p-3 text-sm text-info">
         Vérification terminée. Cette capture n'a pas été ajoutée au dossier.
       </p>}
-      {result === 'persisted' && <p role="status" className="text-sm text-text-muted">
+      {result === 'persisted' && <p role="status" className="rounded-lg border border-success-border bg-success-surface p-3 text-sm text-success">
         Image enregistrée dans le dossier du patient.
       </p>}
       {capture && !review && result !== 'confirmed' && result !== 'persisted' && (
-        <div className="mt-3">
-          <p className="text-sm text-text-muted">Une capture est en attente. Elle n'est liée à aucun patient.</p>
+        <div className="space-y-3 rounded-xl border border-border-main bg-background p-4 sm:p-5">
+          <p className="text-sm text-text-muted">
+            Une image est disponible. Elle n'est pas encore associée au dossier de ce patient.
+          </p>
           <button type="button" disabled={busy} onClick={() => void start()}
-            className="mt-2 min-h-11 rounded-lg border border-border-main bg-card px-4 py-2 text-text-main disabled:opacity-40">
+            className="inline-flex min-h-11 w-full items-center justify-center rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-on-primary transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 sm:w-auto">
             {busy ? 'Ouverture sécurisée…' : 'Examiner cette capture pour ce patient'}
           </button>
         </div>
       )}
       {review && capture && (
-        <div className="mt-3 grid grid-cols-1 gap-4 lg:grid-cols-2">
-          <div>
-            {verified?.key === context && (
-              <img src={verified.url} alt="Aperçu sécurisé de la capture"
-                className="max-h-[480px] w-full object-contain"
-                onLoad={() => setLoadedKey(context)}
-                onError={() => setLoadedKey('')} />
-            )}
-            {loadedKey !== context && <p role="alert" className="text-xs text-text-muted">
-              Aperçu non vérifié : confirmation désactivée.
-            </p>}
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+          <div className="min-w-0 space-y-3" aria-label="Étape 1 : contrôle de l'image">
+            <h4 className="text-sm font-semibold sm:text-base">1. Contrôler l'image</h4>
+            <div className="overflow-hidden rounded-xl border border-border-main bg-background p-3 sm:p-4">
+              {verified?.key === context && (
+                <img src={verified.url} alt="Aperçu sécurisé de la capture"
+                  className="mx-auto block max-h-[480px] w-full object-contain"
+                  onLoad={() => setLoadedKey(context)}
+                  onError={() => setLoadedKey('')} />
+              )}
+              {loadedKey !== context && (
+                <p role="alert" className="rounded-lg border border-warning-border bg-warning-surface p-3 text-sm text-warning">
+                  Image non vérifiée ou indisponible : confirmation désactivée.
+                </p>
+              )}
+            </div>
+            <p className="text-xs text-text-muted">
+              Vérifiez visuellement que cette image correspond au patient sélectionné.
+            </p>
           </div>
-          <div className="space-y-3">
-            <p className="font-semibold">{review.prenom} {review.nom}</p>
-            <p className="text-sm text-text-muted">Dossier : {review.numero_dossier} — Naissance : {review.date_naissance}</p>
-            <label className="block text-sm">
-              Ressaisir le numéro de dossier
-              <input type="text" autoComplete="off" value={dossier}
-                onChange={event => setDossier(event.target.value)}
-                className="mt-1 block w-full rounded-md border border-border-main bg-card p-2" />
-            </label>
-            <label className="block text-sm">
-              Ressaisir la date de naissance
-              <input type="date" value={birthDate}
-                onChange={event => setBirthDate(event.target.value)}
-                className="mt-1 block w-full rounded-md border border-border-main bg-card p-2" />
-            </label>
-            <label className="flex items-start gap-2 text-sm">
+          <div className="min-w-0 space-y-4" aria-label="Étape 2 : vérification d'identité">
+            <h4 className="text-sm font-semibold sm:text-base">2. Vérifier l'identité du patient</h4>
+            <div className="rounded-xl border border-border-main bg-background p-4">
+              <p className="font-semibold text-text-main">{review.prenom} {review.nom}</p>
+              <p className="mt-1 text-sm text-text-muted">
+                Dossier : {review.numero_dossier} — Naissance : {review.date_naissance}
+              </p>
+            </div>
+            <div className="space-y-3">
+              <p className="text-sm text-text-muted">
+                Pour éviter une erreur d'attribution, ressaisissez ces deux informations.
+              </p>
+              <label className="block text-sm font-medium">
+                Ressaisir le numéro de dossier
+                <input type="text" autoComplete="off" value={dossier}
+                  onChange={event => setDossier(event.target.value)}
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-border-main bg-card p-3 text-text-main focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+              </label>
+              <label className="block text-sm font-medium">
+                Ressaisir la date de naissance
+                <input type="date" autoComplete="off" value={birthDate}
+                  onChange={event => setBirthDate(event.target.value)}
+                  className="mt-1.5 min-h-11 w-full rounded-lg border border-border-main bg-card p-3 text-text-main focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+              </label>
+            </div>
+            <label className="flex items-start gap-3 rounded-xl border border-border-main bg-background p-3 text-sm">
               <input type="checkbox" checked={checked}
-                onChange={event => setChecked(event.target.checked)} />
-              {review.durable_commit_available === true
+                onChange={event => setChecked(event.target.checked)}
+                className="mt-0.5 h-5 w-5 shrink-0 accent-primary" />
+              <span>{review.durable_commit_available === true
                 ? "J'ai vérifié l'image et les deux identifiants du patient. L'image sera enregistrée dans ce dossier."
-                : "J'ai vérifié l'image et les deux identifiants du patient. Cette image ne sera pas ajoutée au dossier."}
+                : "J'ai vérifié l'image et les deux identifiants du patient. Cette image ne sera pas ajoutée au dossier."}</span>
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="flex flex-col-reverse gap-2 border-t border-border-main pt-4 sm:flex-row sm:flex-wrap sm:justify-end">
+              <button type="button" disabled={busy} onClick={() => void cancel()}
+                className="min-h-11 rounded-lg border border-border-main bg-card px-5 py-3 text-sm font-medium text-text-main transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40">
+                Annuler
+              </button>
               <button type="button" disabled={!canConfirm} onClick={() => void confirm()}
-                className="min-h-11 rounded-lg border border-border-main bg-card px-4 py-2 disabled:opacity-40">
+                className="min-h-11 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-on-primary transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40">
                 {busy ? 'Contrôle…' : review.durable_commit_available === true
                   ? 'Ajouter l’image au dossier' : 'Terminer la vérification'}
               </button>
-              <button type="button" disabled={busy} onClick={() => void cancel()}
-                className="min-h-11 rounded-lg border border-border-main px-4 py-2">Annuler</button>
             </div>
           </div>
         </div>
