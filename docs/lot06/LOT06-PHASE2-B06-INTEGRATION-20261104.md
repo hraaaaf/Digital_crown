@@ -865,3 +865,8 @@ Security patch `6e31296`: before any Windows file creation, parse UTF-8 JSON and
 **Operator procedure — LAB ONLY:** (1) isolate an offline Windows workstation; (2) confirm encrypted recovery envelope and password are independently available and controlled by two authorized operators; (3) restore only into a fresh, dedicated local NTFS folder, never an existing path; (4) verify product loader can read active and historical key IDs and decrypt synthetic test artifacts; (5) retain recovery envelope and password separately offsite; (6) on any interrupted write, quarantine private incomplete target and investigate, do not overwrite; (7) never print, commit, email, or upload plaintext keys. This is a synthetic runbook, **not** a real disaster recovery certification; independent offsite custody, dual-control drill and threat-model review still pending.
 
 Residual risk: parent directory traversal is absolute-path component-wise with pinned handles, not a formal handle-relative Windows NT traversal; no adversarial concurrent path-swap proof. **F5B-D3 CI pending**. `READY_TO_MERGE=false`, `CLINICAL_GO=false`. No merge, deploy, or clinical activation.
+
+
+## PRE F5B-D3 CI repair, 2026-11-05
+
+Exact-SHA run #42081751020 Windows FAILED: junction-parent negative test supplied invalid JSON `{"synthetic":true}`; new schema validator correctly returned `RESTORE_KEYRING_INVALID` before reaching the parent-junction guard. Other F5BD3 malformed/incomplete prewrite and F5BD2 readback/overwrite/relative markers PASS. Fix test fixture to use a valid synthetic full keyring so the intended junction denial is actually exercised; do not weaken production validation. No GREEN claim.
