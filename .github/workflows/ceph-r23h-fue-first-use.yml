@@ -199,9 +199,10 @@ jobs:
             assert item['screenshot']=='05-real-react-steiner-'+radio+'.png'
             assert item['svg_screenshot']=='06-real-react-steiner-svg-'+radio+'.png'
             segments=item['line_segments']
-            assert len(segments)==3 and {v['id'] for v in segments}=={'sn','na','nb'}
+            assert len(segments)==5 and {v['id'] for v in segments}=={'sn','na','nb','u1','l1'}
             assert {(v['id'],v['from'],v['to']) for v in segments}=={
-              ('sn','s','n'),('na','n','a'),('nb','n','b')}
+              ('sn','s','n'),('na','n','a'),('nb','n','b'),
+              ('u1','u1_apex','u1_incisal'),('l1','l1_apex','l1_incisal')}
           checks={c['id']:c['evidence'] for c in report['checks']}
           sources=(
             ('anug','ANUG (2014)','https://commons.wikimedia.org/wiki/File:Cephalometric_radiograph.JPG',
