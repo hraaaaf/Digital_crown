@@ -1730,3 +1730,45 @@ Step2 = un **panneau unique progressif**, question courante bien identifiée et 
 **Baseline :** PR #1213 OPEN/DRAFT, HEAD avant PRE `9fedc1e3594593993bdac871a88f4d818a107761`, canonique §62 POST relu, Notion PRE66 écrit. Hériter de Step2 existante, pas de nouvel assistant ; protocoles/DDL mixtes et valeurs `107/90` ne sont pas des règles validées.
 
 **GOAL/SUCCESS :** montrer questions concrètes et embranchements liés à l'existence de modèle mesurable, au statut des dents temporaires/permanentes, aux 1ères molaires permanentes et canines par côté, à l'espace/DDM sourcé, aux observations verticales/transverses, et à la revue. Toutes les branches écartées doivent être explicitement `NON_EVALUE` ou `NON_APPLICABLE`, pas `NORMAL`. Mettre en évidence le cas de modèle absent, les champs absents, le passage en brouillon partiel, et préparer une batterie FUE négative. **Gate** : SPEC_ONLY / HUMAN_APPROVAL_PENDING / NO_CODE / NO_MERGE / NO_DEPLOY.
+
+
+### 63. POST — 2026-11-05 — simulation conditionnelle concrète : denture mixte, questions 2–7
+
+**Portée** : démonstration de comportement produit sur une denture mixte hypothétique, **pas de données d'un vrai patient**, ni approbation médicale, ni code, ni nouvelle formule. Le praticien a choisi `DENTURE_MIXTE` en question 1 de Step2. Navigation dans le panneau existant; aucune nouvelle page indépendante. Tous les déclencheurs ci-dessous sont une **proposition à approuver**.
+
+| Écran/Question | Texte visible au praticien | Réponses / sources | Question suivante conditionnelle |
+|---|---|---|---|
+| Q2 | « Sur quelles données repose l'examen de l'occlusion ? » | examen clinique + moulages physiques/scan exploitable ; clinique seule ; photos seulement ; aucune donnée. Sources multiples et date disponibles, ne pas confondre photo et modèle mesurable | si modèle mesurable : branche DDM chiffrée autorisée **si données/méthode réellement renseignées** ; sinon observations qualitatives/mesures documentées indépendamment, DDM `NON_EVALUE`, ne pas forcer upload |
+| Q3 | « Quelles dents permanentes sont présentes et évaluables, par arcade/côté ? » | premières molaires permanentes D/G, incisives permanentes, canines permanentes, dents temporaires restantes, absence/extraction/non-éruption/doute ; statut de l'occlusion | si première molaire permanente du côté évaluée et en rapport exploitable : montrer Q5 classe molaire **pour ce côté seulement**. Sinon `NON_EVALUABLE`. Si canine permanente non éruptée, **ne pas imposer classe canine permanente** ; observation de rapports temporaires si pertinente et documentée |
+| Q4 | « Souhaites-tu quantifier l'encombrement ou les espaces ? » | arcades maxillaire/mandibulaire séparées : dimensions mesurées, espace disponible et nécessaire, méthode de mesure, dents prises en compte, unité mm, provenance ; méthode d'estimation explicite et versionnée des dents non éruptées | avec modèle fiable et données complètes/méthode applicable : proposer DDM sourcée. Sans modèle, estimation ou source valide : seulement encombrement/diastèmes observés, DDM numérique `NON_EVALUE` ; éviter `0` et constantes legacy `107/90` |
+| Q5 | « Quelle relation occlusale est observable à droite et à gauche ? » | molaires droite/gauche puis canines droite/gauche, classe I/II/III uniquement **quand classification pertinente**, côté, source et obstacle ; possibilité non évaluable/non applicable | affichage des relations uniquement si dents de référence/côté en occlusion et classification justifiée ; subdivisions ouvertes uniquement lorsque documentées. Aucune symétrie D/G automatique |
+| Q6 | « Observe-t-on un surplomb/recouvrement, un articulé croisé, une asymétrie ou une déviation fonctionnelle ? » | observation qualitative d'abord, puis si mesure étayée surplomb/recouvrement en mm, béance/supraclusion, ligne médiane D/G + amplitude, croisé antérieur/postérieur et côté/dents, ciseaux, observations fonctionnelles et courbe de Spee si source/conditions permettent | si `croisé` : demander secteur et côté ; si `déviation des milieux` : demander max/mand, sens, mm **si mesuré** ; si `déviation fonctionnelle` : observation clinique/praticien requise, jamais déduite du moulage statique |
+| Q7 | « Vérifier les données avant Diagnostic » | synthèse par arcade et par côté, valeurs/unités/sources/méthodes, `CONFIRME`, `A_CONFIRM`, `NON_EVALUE`, `NON_APPLICABLE`, contradictions à corriger | bouton `Continuer vers diagnostic` possible sur brouillon partiel avec lacunes explicites ; état de confirmation de Step2 n'est pas validation du diagnostic ni du plan |
+
+**Exemple narratif S-A** : denture mixte ; examen clinique + modèles mesurables ; premières molaires permanentes D/G évaluables ; canines permanentes non éruptées ; espace mandibulaire mesurable mais méthode d'estimation des canines/prémolaires non éruptées absente ; articulé croisé postérieur observé à droite. Le panneau propose les rapports molaires D/G et les questions de secteur/dents pour le croisé D ; ne force pas les classes des canines permanentes ; conserve DDM mandibulaire `NON_EVALUE` tant que les dimensions/méthode ne permettent pas le calcul. Les valeurs/faits sont **exemple fictif**, pas des observations d'image.
+
+**Exemple S-B** : denture mixte, examen clinique seulement, première molaire D non évaluable / G évaluable. On demande uniquement la relation molaire G si elle est documentée, affiche D `NON_EVALUABLE`, ne chiffre pas DDM par défaut, tout en pouvant saisir une observation clinique d'encombrement et poursuivre.
+
+**Exemple S-C** : photos seules sans examen clinique actif ni modèle calibré. Les éléments réellement visibles peuvent être rapportés comme observations non confirmées avec provenance photo ; relations, déviations fonctionnelles et distances non vérifiables restent `NON_EVALUE`. Le parcours reste enregistrable.
+
+**Gates produit / clinique** :
+- Pas de déduction de denture à partir de l'âge, de relation canine permanente à partir de canines temporaires ni de relation molaire à partir d'une dent absente.
+- `Classe I`, `aucune anomalie`, `DDM 0`, `surplomb 0`, `recouvrement 0` ne sont **jamais des valeurs par défaut**.
+- Les méthodes de prédiction denture mixte (si utilisées plus tard) doivent être nommées, sourcées, adaptées aux dents disponibles et validées séparément ; leur présence dans une liste ne valide ni seuil ni population.
+- Une saisie conditionnellement masquée à la suite d'un changement de denture/source reste historisée avec statut `STALE/REVIEW` selon le contrat ultérieur, sans contaminer diagnostic/PDF.
+- Overlays, surlignages et états héritent du thème global; aucune couleur hex locale. Zéro LLM runtime, diagnostic/traitement sous contrôle praticien.
+- Préserver une seule Step2 progressant en six sous-passes au maximum après Q1; pouvoir revenir sans perdre réponses et voir le résumé à tout moment.
+
+**FUE-MIX future — NON RUN** :
+1. Mx-01 S-A : modèles mesurables et 6 permanentes D/G présentes → questions molaires activées sans imposer canines permanentes.
+2. Mx-02 méthode de DDM manquante → résultat numérique bloqué, observations qualitatives conservées, `NON_EVALUE` dans UI/PDF.
+3. Mx-03 dent permanente absente d'un seul côté → classification bloquée côté absent seulement, pas de duplication.
+4. Mx-04 sans moulages et photo seule → pas de mm inventés ni d'observation fonctionnelle affirmée, brouillon sauvegardable.
+5. Mx-05 croisé postérieur D → secteur/côté révélés ; retrait de l'observation masque questions sans conserver de diagnostic actif obsolète.
+6. Mx-06 modification Q2/Q3 après DDM ou classe saisie → invalidation des dépendances obsolètes et synthèse de revue, pas de suppression opaque.
+7. Mx-07 synthèse Q7 : absence de classes, DDM, mesures et provenance se répercutent identiquement dans le brouillon clinique et futur bilan.
+8. Mx-08 UX/tokens a11y 390/430/768/1280 px, zoom 200 %, clavier, toucher, états non dépendants de la couleur, capture BEFORE/AFTER et validation clinicien.
+
+**Décision ouverte prioritaire** : approuver le séquencement `Denture → Sources → Dents évaluables → Arcades/DDM → Rapports bilatéraux → Vertical/transverse/fonctionnel → Vérification`. Ce n'est pas une approbation par défaut de l'exemple S-A. Le parcours documenté peut ensuite nourrir Step3 Diagnostic et Step4 Plan/Bilan **une fois la spécification entière approuvée**, avant toute réconciliation technique.
+
+**GATE final** : `SPEC_DISCOVERY / CANDIDATE / HUMAN_APPROVAL_REQUIRED / NO_CODE` ; aucun FUE exécuté pour cette interface, aucun cas patient, aucun merge/déploiement. **Dernière mise à jour canonique : 05/11/2026 — POST §63, onboarding denture mixte, questions conditionnelles candidate.**
