@@ -3,6 +3,7 @@ import { useCephaloUnitsPerPixel } from './components/useCephaloUnitsPerPixel';
 import { CephaloTracingLayer as BaseCephaloTracingLayer, getCephaloZoomViewBox } from './CephaloTracingLayerBase';
 import type { CephaloTracingLayerProps, GhostData, TracingUIMode } from './CephaloTracingLayerBase';
 import type { Landmark } from './cephaloShared';
+import { V1_CEPHALO_PROTOCOLS } from './cephaloV1ProtocolScope';
 import { projectPointOnLine } from './cephaloMath';
 import { getCephaloPalette } from './cephaloTheme';
 import {
@@ -21,14 +22,8 @@ export type { CephaloTracingLayerProps, GhostData, TracingUIMode };
 
 type AnalysisMode = CephaloAnalysisMode;
 
-const ANALYSIS_OPTIONS: Array<{ id: AnalysisMode; label: string; shortLabel?: string }> = [
-  { id: 'all', label: 'Tous' },
-  { id: 'steiner', label: 'Steiner' },
-  { id: 'tweed', label: 'Tweed' },
-  { id: 'mcnamara', label: 'McNamara', shortLabel: 'McN' },
-  { id: 'com', label: 'COM' },
-  { id: 'ricketts', label: 'Ricketts', shortLabel: 'Rick.' },
-];
+const ANALYSIS_OPTIONS: Array<{ id: AnalysisMode; label: string; shortLabel?: string }> =
+  V1_CEPHALO_PROTOCOLS.map(item => ({ id: item.mode, label: item.label }));
 
 const MODE_LANDMARKS: Record<Exclude<AnalysisMode, 'all'>, Set<string>> = {
   steiner: new Set([
@@ -114,7 +109,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = (props) =
   const labelUnit = useCephaloUnitsPerPixel(overlaySvgRef, !!props.compactLabels, overlayViewBox);
   const layerVisible = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.visibility[id] ?? true;
   const layerOpacity = (id: 'landmarks' | 'plans' | 'measurements') => props.layerPresentation?.opacity[id] ?? 1;
-  const [mode, setMode] = React.useState<AnalysisMode>(() => normalizeMode(props.activeAnalysis));
+  const [mode, setMode] = React.useState<AnalysisMode>(() => props.activeAnalysis ? normalizeMode(props.activeAnalysis) : 'com');
   const [metricFocus, setMetricFocus] = React.useState<CephaloMetricFocus | null>(props.hoveredMetric ?? null);
 
   React.useEffect(() => {

@@ -231,13 +231,12 @@ jobs:
           assert isinstance(report["viewports"],list) and len(report["viewports"])==2
           common_checks={"GENUINE_CABINET_LOGIN_AND_STUDY_SELECTION",
                          "COM10_SOURCE_ROWS_EXACT_REVISION",
-                         "RICKETTS_ATLAS33_VS_GREGORET13",
+                         "NON_V1_ANALYSES_ARE_NOT_SELECTABLE",
                          "SECOND_STUDY_HAS_NO_STALE_REFERENCE",
                          "COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED",
                          "NO_DESKTOP_VIEWPORT_OVERFLOW"}
-          common_shots=["before-from-stable-all","after-com-ten-factor"]
-          final_shots=["after-ricketts-atlas33","after-ricketts-gregoret13",
-                       "after-other-study-rebound","after-com-last-factor-accessible"]
+          common_shots=["before-v1-com","after-com-ten-factor"]
+          final_shots=["after-other-study-rebound","after-com-last-factor-accessible"]
           proof_variants={
               "verified-source-points":{
                   "check":"COM_FOCUS_MATCHES_SOURCE_EVIDENCE",
@@ -270,6 +269,10 @@ jobs:
                   assert focus.get("clinical_release") is False
               else:
                   assert focus=="Row remains NC and no Focus event/geometry is authorized"
+              phase1=evidence_by_id["NON_V1_ANALYSES_ARE_NOT_SELECTABLE"]
+              assert phase1["options"]==["com","steiner"]
+              assert phase1["tracing"]==["com","steiner"]
+              assert phase1["phase2_not_exposed"] is True
               last=evidence_by_id["COM_LAST_FACTOR_ACCESSIBLE_AND_UNOBSCURED"]
               assert last["bottomPadding"] >= 120
               assert last["rowTop"] >= last["scrollTop"]-1

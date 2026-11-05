@@ -31,6 +31,7 @@ from backend.services.cephalo_fiducial_profiles import validated_fiducial_profil
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY
 from backend.services.cephalo_safe_engine import cephalo_safe_engine as cephalo_engine
 from backend.utils.access_control import assert_patient_access
+from backend.services.cephalo_scientific_write import save_scientific_transition
 
 router = APIRouter()
 
@@ -188,10 +189,14 @@ def auto_calibrate_analysis_with_provenance(
         }
         updated_angles[EVIDENCE_GRAPH_KEY] = evidence_payload
 
-        analysis.mm_per_pixel = decision.mm_per_pixel
-        analysis.is_calibrated = True
-        analysis.calibration_data = calibration_data
-        analysis.angles_data = updated_angles
+        save_scientific_transition(
+            db=db, analysis=analysis, updated_angles=updated_angles,
+            other_values={
+                "mm_per_pixel": decision.mm_per_pixel,
+                "is_calibrated": True,
+                "calibration_data": calibration_data,
+            },
+        )
         db.commit()
         db.refresh(analysis)
     except HTTPException:
@@ -267,8 +272,10 @@ def confirm_auto_calibration_with_provenance(
         updated_angles["calibration_decision"] = updated_decision
         updated_angles[EVIDENCE_GRAPH_KEY] = evidence_payload
 
-        analysis.calibration_data = updated_calibration_data
-        analysis.angles_data = updated_angles
+        save_scientific_transition(
+            db=db, analysis=analysis, updated_angles=updated_angles,
+            other_values={"calibration_data": updated_calibration_data},
+        )
         db.commit()
         db.refresh(analysis)
     except AutoCalibrationConfirmationError as exc:

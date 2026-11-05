@@ -38,7 +38,7 @@ type BoundReference = {
 
 const NAME: Record<R23G2Analysis, string> = {
   com: 'COM historique — 10 facteurs',
-  mcnamara: 'McNamara — 13 facteurs',
+  mcnamara: 'McNamara — 13 facteurs référencés (non tous calculables)',
   ricketts: 'Ricketts',
 };
 const explanation = (state: string) =>

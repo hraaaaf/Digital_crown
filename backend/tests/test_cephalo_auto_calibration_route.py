@@ -20,6 +20,16 @@ from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY, build_
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services.sota_vision_service import SOTA_LANDMARKS_MAPPING
 
+@pytest.fixture(autouse=True)
+def fake_db_persistence_only_for_route_unit_tests(monkeypatch):
+    """Exercise router orchestration with a fake DB; real SQL CAS has separate tests."""
+    def apply(*, db, analysis, updated_angles, other_values=None):
+        analysis.angles_data = updated_angles
+        for key, value in (other_values or {}).items():
+            setattr(analysis, key, value)
+    monkeypatch.setattr(cephalo_auto_calibration, "save_scientific_transition", apply)
+
+
 NOW = datetime(2026, 9, 10, 20, 0, tzinfo=timezone.utc)
 CASE_ID = "cephalo:auto-route-test"
 
