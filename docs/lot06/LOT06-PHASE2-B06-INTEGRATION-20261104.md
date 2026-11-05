@@ -781,3 +781,8 @@ F3 exact HEAD `66bac52`, run #42022380767 GREEN 3/3, 11/11 F2/F3, 14/14 F1. F4 o
 ## POST B06-4D-F4 — private local keyring file, 2026-11-05
 
 Added opt-in `DC_MEDIA_V2_KEYRING_FILE` for local JSON with `active_media_id`, `active_locator_id`, `media_keys`, `locator_keys` (historical IDs included). On POSIX requires regular file (not symlink), owner == process EUID, no group/other permissions, size <= 16KiB; rejects mixed inline environment secrets, malformed map, missing active IDs, cross-purpose key reuse. Existing environment-key mode remains available for compatibility; Windows file mode explicitly unsupported until ACL-specific implementation. Seven synthetic F4 tests in `isolated_fue_lot06c/test_b06_f4_private_keyring.py`, exact SHA CI step added. **F4 CI pending; not certified GREEN**. This is configuration hardening, not an encrypted/escrowed backup or robust atomic file-opening/TOCTOU guarantee; do not treat it as full key custody. `READY_TO_MERGE=false`, `CLINICAL_GO=false`; no deploy or merge.
+
+
+## PRE B06-4D-F5 — atomic file open and Windows ACL gate, 2026-11-05
+
+F4 exact SHA `d988064` CI #42027167418 GREEN 3/3, F4 7/7. F5 target: eliminate POSIX lstat/open TOCTOU with O_NOFOLLOW+fstat and add fail-closed Windows ACL-aware file mode (no permissive fallback). Synthetic-only FUE, exact SHA CI, no merge/deploy/clinical activation.
