@@ -84,25 +84,6 @@ try{
      'Viewing a calibration dialog generated a false physical scale');
    return {manual_entry_observed:true,applied:false,mm_per_pixel:null};
  });
- await check('REAL_PROTOCOL_SELECTORS_AND_UNVERIFIED_LABELS',async()=>{
-   const options=['all','steiner','tweed','mcnamara','com','ricketts'];
-   const selector=page.locator('#cephalo-ready-analysis');
-   await selector.waitFor({state:'visible'});
-   const found=await selector.locator('option').evaluateAll(nodes=>nodes.map(n=>n.value));
-   ensure(options.every(x=>found.includes(x)),'Missing protocol select options '+JSON.stringify(found));
-   for(const option of options){
-     await selector.selectOption(option);
-     await page.locator('[data-r20-measures-panel]').waitFor({state:'visible'});
-     // Source completeness and measurements are NOT certified by showing a menu.
-     await page.waitForTimeout(80);
-   }
-   await selector.selectOption('steiner');
-   await shot('03-steiner-source-status');
-   await selector.selectOption('ricketts');
-   await shot('04-ricketts-held');
-   await selector.selectOption('all');
-   return {selectable:options,complete_protocols_certified:0,scientific_mre_certified:false};
- });
  await check('VIEWER_ZOOM_AND_LAYER_REAL_INTERACTIONS',async()=>{
    const zoom=page.locator('[data-cephalo-zoom-controls]');
    await zoom.waitFor({state:'visible'});
@@ -194,6 +175,45 @@ try{
    await shot('07-document-step-blocked-by-true-calibration-gate');
    return {requested_document_preview:true,actual_pdf_generated:false,
       expected_blocker:'PHYSICAL_SCALE_UNAVAILABLE',complete_four_steps:false};
+ });
+ await check('REAL_PROTOCOL_SELECTORS_AND_UNVERIFIED_LABELS',async()=>{
+   // V1 source contract (#1198): COM and Steiner only. Never re-enable historical
+   // clinical protocols just to satisfy an obsolete browser acceptance test.
+   await page.reload({waitUntil:'domcontentloaded'});
+   await page.locator('[data-ortho-workspace-title]').waitFor({state:'visible'});
+   if(!(await page.locator('[data-cephalo-selected-analysis-id="'+report.case_id+'"]').isVisible())){
+     await page.getByRole('button',{name:'Historique',exact:true}).click();
+     await page.locator('[data-cephalo-history-analysis-id="'+report.case_id+'"]').click();
+   }
+   await page.locator('[data-cephalo-selected-analysis-id="'+report.case_id+'"]').waitFor({state:'visible'});
+   const options=['com','steiner'];
+   const selector=page.locator('#cephalo-ready-analysis');
+   await selector.waitFor({state:'visible'});
+   const found=await selector.locator('option').evaluateAll(nodes=>
+     nodes.filter(node=>!node.disabled).map(node=>node.value));
+   ensure(JSON.stringify(found)===JSON.stringify(options),
+     'Expected exactly V1 COM/Steiner selectable protocols, got '+JSON.stringify(found));
+   for(const option of options){
+     await selector.selectOption(option);
+     await page.locator('[data-r20-measures-panel]').waitFor({state:'visible'});
+     await page.locator('[data-cephalo-analysis="'+option+'"]').waitFor({state:'visible'});
+     if(option==='com'){
+       ensure(await page.locator('svg[data-cephalo-viewport="base"] [data-cephalo-line-key]').count()===0,
+         'COM HOLD unexpectedly rendered unsupported historical geometry');
+       await shot('04-com-hold-source-only');
+     }else{
+       const svg=page.locator('svg[data-cephalo-viewport="base"]');
+       for(const name of ['sn','na','nb'])
+         await svg.locator('[data-cephalo-line-key="'+name+'"]').first()
+           .waitFor({state:'attached',timeout:15000});
+       await shot('03-steiner-native-react-source');
+     }
+   }
+   // A protocol selection does not validate landmark anatomy, norms, mm,
+   // the complete Steiner protocol, or a clinical PDF.
+   return {selectable:options,legacy_not_selectable:true,com_geometry_hold:true,
+     steiner_native_segments:['sn','na','nb'],complete_protocols_certified:0,
+     scientific_mre_certified:false};
  });
  }
  report.overall=report.errors.length?'FUE_P1_REAL_UI_FAILED':'FUE_P1_REAL_UI_SAFE_PARTIAL__DOCUMENT_BLOCKED_CALIBRATION';
