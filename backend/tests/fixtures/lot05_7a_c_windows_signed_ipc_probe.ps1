@@ -72,7 +72,7 @@ function ExactAcl([string]$target,[string]$serviceSid,[string]$rights,[bool]$dir
 }
 function Configure([string]$name,[string]$pipe,[string]$allowed,[string]$expected,
                    [string]$serviceSid,[string]$proofPath,[string]$limit) {
-    $bin=('"{0}" "{1}" "{2}" "{3}" "{4}" "{5}" "{6}" "{7}" "{8}" "{9}" "{10}" "{11}"' -f
+    $bin=('"{0}" "{1}" "{2}" "{3}" "{4}" "{5}" "{6}" "{7}" "{8}" "{9}" "{10}" "{11}" "{12}"' -f
         $exe,$name,$pipe,$allowed,$expected,$serviceSid,$proofPath,$python,
         $config,$ledger,$verifier,$pythonVerifier,$limit)
     Strict 'sc.exe' @('config',$name,'binPath=',$bin) | Out-Null
