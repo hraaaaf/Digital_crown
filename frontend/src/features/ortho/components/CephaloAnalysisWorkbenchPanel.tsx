@@ -217,6 +217,9 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
   const setActivePointId = useOrthoStore(state => state.setActivePointId);
   const steinerProfile = React.useMemo(() => readSteinerProtocolProjection(anglesData), [anglesData]);
   const tweedMerrifieldProfile = React.useMemo(() => readTweedMerrifieldProtocolProjection(anglesData), [anglesData]);
+  // The complete versioned Steiner membership is displayed even without a
+  // verified study. Metric values remain unavailable until the evidence
+  // read-path authorizes an individual measurement.
   const definitions = React.useMemo(() => ANALYSIS_METRICS[analysis].map(key => DEFINITIONS[key]), [analysis]);
   const availableCount = definitions.filter(definition => readValue(metricFromResults(anglesData, definition)) !== null).length;
   const unavailableCount = definitions.length - availableCount;
@@ -280,7 +283,7 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
           </div>
           <div className="min-w-0">
             <h3 className="break-words text-base font-extrabold leading-tight" style={{ color: P.text }}>Analyse {ANALYSIS_LABELS[analysis]}</h3>
-            <p className="mt-0.5 text-xs leading-snug" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Profil source-lock\u00e9 1953 + extension 1959' : analysis === 'tweed' ? 'Triangle DC Po_anatomic-Or / Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
+            <p className="mt-0.5 text-xs leading-snug" style={{ color: P.textMuted }}>{analysis === 'steiner' ? 'Steiner complet 1953 + 1959 — calculs conditionnels, validation clinique en attente' : analysis === 'tweed' ? 'Triangle DC Po_anatomic-Or / Go-Me + ligne de profil Merrifield 1966' : 'Mesure \u2194 construction g\u00e9om\u00e9trique'}</p>
           </div>
         </div>
         <div className="mt-2 flex flex-wrap items-center gap-2 text-xs" role="status" aria-live="polite">

@@ -4,6 +4,7 @@ import type { DiagnosticTexts, DonneesEtape3 } from '../cephaloTypes';
 import { fmtNum } from '../cephaloUtils';
 import { cn } from '../../../utils/cn';
 import { useOrthoStore } from '../stores/useOrthoStore';
+import { V1_CEPHALO_PROTOCOLS, asV1CephaloProtocol } from '../cephaloV1ProtocolScope';
 
 interface Step3ClinicalProps {
   P: any;
@@ -23,18 +24,13 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
     onChange(prev => ({ ...prev, osseuse: { ...prev.osseuse, [key]: num } }));
   };
 
-  const updateEsthetique = (key: keyof typeof data.esthetique, val: string) => {
-    const num = val === '' ? '' : parseFloat(val);
-    onChange(prev => ({ ...prev, esthetique: { ...prev.esthetique, [key]: num } }));
-  };
-
   const handleDiagChange = (key: keyof DiagnosticTexts, value: string) => {
     onDiagChange(prev => ({ ...prev, [key]: value }));
   };
 
-  const currentAnalysis = data.selectedAnalysis || 'COM';
+  const currentAnalysis = asV1CephaloProtocol(data.selectedAnalysis);
   const updateEtape3Data = (update: Partial<DonneesEtape3>) => onChange(prev => ({ ...prev, ...update }));
-  const setAnalysis = (type: 'COM' | 'STEINER' | 'TWEED') => updateEtape3Data({ selectedAnalysis: type });
+  const setAnalysis = (type: 'COM' | 'STEINER') => updateEtape3Data({ selectedAnalysis: type });
   const typeArcadeEtape2 = store.etape2Data.type_arcade || 'Indéterminé';
 
   const raw = (value: number | '' | null | undefined, unit: string) => {
@@ -46,7 +42,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
     <div className="flex flex-col gap-4 animate-in fade-in slide-in-from-bottom-4 duration-500">
       <div className="flex justify-center">
         <div className="inline-flex rounded-xl border p-0.5 backdrop-blur-md" style={{ background: `${P.bgCard}80`, borderColor: P.border }}>
-          {(['COM', 'STEINER', 'TWEED'] as const).map(type => (
+          {V1_CEPHALO_PROTOCOLS.map(({ id: type, label }) => (
             <button
               key={type}
               type="button"
@@ -57,12 +53,17 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
               )}
               style={{ background: currentAnalysis === type ? P.accent : 'transparent', color: currentAnalysis === type ? '#fff' : P.text }}
             >
-              {type === 'COM' ? 'McNamara (COM)' : type}
+              {label}
             </button>
           ))}
         </div>
       </div>
 
+      {!currentAnalysis && (
+        <p role="alert" className="text-xs" style={{ color: P.accentWarning }}>
+          Analyse historique hors V1 : sélectionnez COM Digital Crown ou Steiner complet.
+        </p>
+      )}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="space-y-4">
           <div className="rounded-xl p-4" style={{ background: P.bgPanel, border: `1px solid ${P.border}`, boxShadow: P.shadow }}>
@@ -104,22 +105,18 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
                 <MetricInput label="Inter Incisif (1/1)" value={data.dentaire.inter_incisif} unit="°" P={P} readOnly />
               </>}
               {currentAnalysis === 'STEINER' && <>
-                <MetricInput label="1 / NA (°)" value={data.dentaire.i_na_angle || ''} onChange={v => updateDentaire('i_na_angle', v)} unit="°" P={P} />
-                <MetricInput label="1 / NA (mm)" value={data.dentaire.i_na_mm || ''} onChange={v => updateDentaire('i_na_mm', v)} unit="mm" P={P} />
-                <MetricInput label="1 / NB (°)" value={data.dentaire.i_nb_angle || ''} onChange={v => updateDentaire('i_nb_angle', v)} unit="°" P={P} />
-                <MetricInput label="1 / NB (mm)" value={data.dentaire.i_nb_mm || ''} onChange={v => updateDentaire('i_nb_mm', v)} unit="mm" P={P} />
+                <MetricInput label="1 / NA (°)" value={data.dentaire.i_na_angle ?? ''} onChange={v => updateDentaire('i_na_angle', v)} unit="°" P={P} />
+                <MetricInput label="1 / NA (mm)" value={data.dentaire.i_na_mm ?? ''} onChange={v => updateDentaire('i_na_mm', v)} unit="mm" P={P} />
+                <MetricInput label="1 / NB (°)" value={data.dentaire.i_nb_angle ?? ''} onChange={v => updateDentaire('i_nb_angle', v)} unit="°" P={P} />
+                <MetricInput label="1 / NB (mm)" value={data.dentaire.i_nb_mm ?? ''} onChange={v => updateDentaire('i_nb_mm', v)} unit="mm" P={P} />
                 <MetricInput label="Inter-Incisif" value={data.dentaire.inter_incisif} onChange={v => updateDentaire('inter_incisif', v)} unit="°" P={P} />
-              </>}
-              {currentAnalysis === 'TWEED' && <>
-                <MetricInput label="IMPA" value={data.dentaire.impa} onChange={v => updateDentaire('impa', v)} unit="°" P={P} />
-                <MetricInput label="FMIA" value={data.dentaire.fmia || ''} onChange={v => updateDentaire('fmia', v)} unit="°" P={P} />
               </>}
             </div>
           </AccordionSection>
 
           <AccordionSection title="Analyse Osseuse" icon={<Activity size={14} style={{ color: P.accent }} />} P={P}>
             <div className="grid grid-cols-2 gap-2 pt-1">
-              {(currentAnalysis === 'COM' || currentAnalysis === 'TWEED') && <MetricInput label="Angle de Tweed" value={data.osseuse.angle_tweed} onChange={v => updateOsseuse('angle_tweed', v)} unit="°" P={P} />}
+              {currentAnalysis === 'COM' && <MetricInput label="Angle de Tweed" value={data.osseuse.angle_tweed} onChange={v => updateOsseuse('angle_tweed', v)} unit="°" P={P} />}
               {currentAnalysis === 'COM' && <>
                 <MetricInput label="A′B′" value={data.osseuse.decalage_ab} onChange={v => updateOsseuse('decalage_ab', v)} unit="mm" P={P} />
                 <MetricInput label="Situation Point A" value={data.osseuse.situation_a} onChange={v => updateOsseuse('situation_a', v)} unit="mm" P={P} />
@@ -134,14 +131,7 @@ export const Step3Clinical: React.FC<Step3ClinicalProps> = ({ P }) => {
             </div>
           </AccordionSection>
 
-          {currentAnalysis !== 'COM' && (
-            <AccordionSection title="Analyse Esthétique (Ricketts)" icon={<Activity size={14} style={{ color: P.accentSuccess }} />} P={P}>
-              <div className="grid grid-cols-2 gap-2 pt-1">
-                <MetricInput label="Ligne E / Ls" value={data.esthetique?.ligne_e_ls} onChange={v => updateEsthetique('ligne_e_ls', v)} unit="mm" P={P} />
-                <MetricInput label="Ligne E / Li" value={data.esthetique?.ligne_e_li} onChange={v => updateEsthetique('ligne_e_li', v)} unit="mm" P={P} />
-              </div>
-            </AccordionSection>
-          )}
+
         </div>
 
         <div className="space-y-4">

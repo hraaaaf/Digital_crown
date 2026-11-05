@@ -20,6 +20,8 @@ const state = vi.hoisted(() => ({
   layerVisibility:{landmarks:true,plans:true,hard_tissue:false,teeth:true,soft_tissue:true,measurements:true,t1:false,t2:false},
   layerOpacity:{landmarks:1,plans:1,hard_tissue:0.85,teeth:1,soft_tissue:0.9,measurements:1,t1:0.5,t2:0.5},
   local:{landmarks:[{id:'S',x:10,y:20}],version:1},
+  etape3Data: {selectedAnalysis: 'COM' as 'COM'|'STEINER'},
+  setEtape3Data: vi.fn(),
   landmarkEditTimeline:{baseline:[{id:'S',x:10,y:20}],undoStack:[],redoStack:[],auditTrail:[],nextSequence:1} as any,
   setMagnifierEnabled:vi.fn(),
   setVtoSettings:vi.fn(),
@@ -52,6 +54,10 @@ const P:any={
 beforeEach(()=>{
   vi.clearAllMocks();
   state.imageSrc='blob:cephalo';
+  state.etape3Data={selectedAnalysis:'COM'};
+  state.setEtape3Data.mockImplementation((update:any) => {
+    state.etape3Data = typeof update === 'function' ? update(state.etape3Data) : update;
+  });
   state.magnifierEnabled=false;
   state.imgFilters={brightness:100,contrast:110,invert:false};
   state.activeMorphing='none';
@@ -170,10 +176,13 @@ describe('Cephalo Step1 G4 workbench controls',()=>{
   });
 
   it('updates the active scientific analysis label from the canonical analysis event',()=>{
-    render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
-    expect(screen.getByText('Workbench analysis: all')).toBeTruthy();
+    const { rerender } = render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    expect(screen.getByText('Workbench analysis: com')).toBeTruthy();
 
     act(() => window.dispatchEvent(new CustomEvent(CEPHALO_ANALYSIS_CHANGE_EVENT,{detail:'steiner'})));
+    expect(state.setEtape3Data).toHaveBeenCalled();
+    expect(state.etape3Data.selectedAnalysis).toBe('STEINER');
+    rerender(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
     expect(screen.getByText('Workbench analysis: steiner')).toBeTruthy();
   });
 });

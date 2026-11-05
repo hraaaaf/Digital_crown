@@ -22,7 +22,7 @@ const output = path.resolve('../artifacts/ceph-r23g4-reference-ui');
 await fs.mkdir(output, {recursive:true});
 const report = {head, scope:'CEPH-UXCLIN-01/R23-G4 STAGE3 DESKTOP REFERENCE ONLY',
   clinical_release:false, independent_ortho_review:false,
-  before_semantics:'stable all-analysis tab at same viewport, NOT prior COM master screenshot',
+  before_semantics:'V1 selected COM state at same viewport; not an All/Phase2 protocol selection',
   after_semantics:'new opt-in verified reference tab',
   viewports:[], overall:'NOT_TESTED'};
 const browser = await chromium.launch({headless:true});
@@ -101,10 +101,14 @@ async function viewportRun(viewport) {
       await page.locator('[data-cephalo-history-analysis-id="'+ids.older_id+'"]').click();
       await page.locator('[data-cephalo-selected-analysis-id="'+ids.older_id+'"]').waitFor({state:'visible'});
       await page.locator('#cephalo-ready-analysis').waitFor({state:'visible'});
-      await shot('before-from-stable-all');
+      await shot('before-v1-com');
       return {patient_id:ids.patient_id,study_id:ids.older_id,legitimate_user_ui:true};
     });
     await check('COM10_SOURCE_ROWS_EXACT_REVISION',async()=>{
+      // An existing V1 study may already default to COM; switch to Steiner
+      // first so this is a genuine, reproducible opt-in request.
+      await page.locator('#cephalo-ready-analysis').selectOption('steiner');
+      await page.locator('[data-r19-analysis-panel="steiner"]').waitFor({state:'visible'});
       const responsePromise=page.waitForResponse(res=>{
         const uri=new URL(res.url());
         return uri.pathname==='/api/ia/analyses/'+ids.older_id+'/r23g2-reference-profiles'
@@ -160,16 +164,16 @@ async function viewportRun(viewport) {
       await shot('after-com-source-backed-focus');
       return {factor_id:factorId,points:expectedPoints,lines:event.lines,clinical_release:false};
     });
-    await check('RICKETTS_ATLAS33_VS_GREGORET13',async()=>{
-      await page.locator('#cephalo-ready-analysis').selectOption('ricketts');
-      const panel=page.locator('[data-r23g4-reference-panel="ricketts"]');
-      await panel.waitFor({state:'visible'});
-      await panel.locator('table[data-r23g4-row-count="33"]').waitFor({state:'visible'});
-      await shot('after-ricketts-atlas33');
-      await panel.locator('[data-r23g4-version="gregoret"]').click();
-      await panel.locator('table[data-r23g4-row-count="13"]').waitFor({state:'visible'});
-      await shot('after-ricketts-gregoret13');
-      return 'Source-locked Atlas 33 and Gregoret 13 without classification';
+    await check('NON_V1_ANALYSES_ARE_NOT_SELECTABLE',async()=>{
+      const options=await page.locator('#cephalo-ready-analysis option').evaluateAll(nodes =>
+        nodes.map(node => node.value));
+      if(JSON.stringify(options)!==JSON.stringify(['com','steiner']))
+        throw Error('V1 selector differs from COM/Steiner: '+JSON.stringify(options));
+      const tracing=await page.locator('[aria-label="Analyse du tracé"] [data-analysis]')
+        .evaluateAll(nodes => nodes.map(node => node.getAttribute('data-analysis')));
+      if(JSON.stringify(tracing.sort())!==JSON.stringify(['com','steiner']))
+        throw Error('V1 tracing tabs contain historical Phase2 modes: '+JSON.stringify(tracing));
+      return {options,tracing,phase2_not_exposed:true};
     });
     await check('SECOND_STUDY_HAS_NO_STALE_REFERENCE',async()=>{
       await page.getByRole('button',{name:'Historique',exact:true}).click();
@@ -177,8 +181,9 @@ async function viewportRun(viewport) {
       await page.locator('[data-cephalo-selected-analysis-id="'+ids.latest_id+'"]').waitFor({state:'visible'});
       const selector=page.locator('#cephalo-ready-analysis');
       await selector.waitFor({state:'visible'});
-      // A newly selected study opens in the default "all" view.
-      // Fetch the opt-in reference only once COM is selected on study B.
+      // The V1 default can already be COM. Force a genuine re-selection.
+      await selector.selectOption('steiner');
+      await page.locator('[data-r19-analysis-panel="steiner"]').waitFor({state:'visible'});
       const responsePromise=page.waitForResponse(res=>new URL(res.url()).pathname
         ==='/api/ia/analyses/'+ids.latest_id+'/r23g2-reference-profiles'
           && res.request().method()==='GET',{timeout:45000});
@@ -207,13 +212,19 @@ async function viewportRun(viewport) {
         const row=panel?.querySelector('tbody tr:last-child');
         if(!scroller||!row)return null;
         const r=row.getBoundingClientRect(),c=scroller.getBoundingClientRect();
+        const header=document.querySelector('[data-dc-patient-radiology="true"] > header');
+        const headerStyle=header ? getComputedStyle(header) : null;
+        const headerBackground=headerStyle?.backgroundColor ?? null;
+        // Opaque theme surface: a translucent sticky header leaks clinical rows during scroll.
+        const headerOpaque=Boolean(header && headerStyle?.opacity==='1'
+          && headerBackground && headerBackground.startsWith('rgb('));
         return {rowTop:r.top,rowBottom:r.bottom,scrollTop:c.top,scrollBottom:c.bottom,
           bottomPadding:parseFloat(getComputedStyle(scroller).paddingBottom)||0,
-          viewportHeight:innerHeight};
+          viewportHeight:innerHeight,headerBackground,headerOpaque};
       });
       if(!readable || readable.bottomPadding<120 || readable.rowBottom>readable.scrollBottom+1
-        || readable.rowTop<readable.scrollTop-1)
-        throw Error('Reference last factor is unreachable or unsafe toasts obstruct its scrolling: '+JSON.stringify(readable));
+        || readable.rowTop<readable.scrollTop-1 || !readable.headerOpaque)
+        throw Error('Reference last factor or patient header is not visually safe after scrolling: '+JSON.stringify(readable));
       await shot('after-com-last-factor-accessible');
       return readable;
     });
