@@ -14,6 +14,9 @@ on:
       - isolated_fue_lot06c/test_b06_postgres_clone_contract_v15.py
       - isolated_fue_lot06c/b06_versioned_crypto_synthetic.py
       - isolated_fue_lot06c/test_b06_versioned_crypto_synthetic.py
+      - isolated_fue_lot06c/test_b06_f2_product_storage_v2.py
+      - backend/services/clinical_media_crypto_v2.py
+      - backend/services/clinical_asset_storage.py
       - isolated_fue_lot06c/test_b06_postgres_product_route_lab_v15.py
       - isolated_fue_lot06c/b06_postgres_product_candidate_lab.py
       - backend/services/imaging_acquisition_durable_v15.py
@@ -128,6 +131,13 @@ jobs:
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_versioned_crypto_synthetic.py
           echo DC06_B06_F1_VERSIONED_CRYPTO_SYNTHETIC_FUE_PASS
+      - name: B06-4D-F2 opt-in product DCM2 store and read synthetic FUE
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_f2_product_storage_v2.py
+          echo DC06_B06_F2_PRODUCT_STORAGE_V2_SYNTHETIC_FUE_PASS
       - name: B06-4B PostgreSQL 18 disposable clone FUE (schema only, never product)
         shell: bash
         run: |
