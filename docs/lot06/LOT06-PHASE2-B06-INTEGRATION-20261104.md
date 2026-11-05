@@ -771,3 +771,8 @@ Baseline F2 HEAD `b8a7469`, exact SHA B06 CI #42018635157 GREEN 3/3; F2 7/7, F1 
 ## POST B06-4D-F3 — retained historical DCM2 keys, 2026-11-05
 
 Implemented explicit retained-key maps `DC_MEDIA_V2_RETAINED_MEDIA_KEYS_JSON` and `DC_MEDIA_V2_RETAINED_LOCATOR_KEYS_JSON` (JSON key ID to 32-byte hex). Active IDs remain the sole write keys; reads resolve historical media ID from authenticated DCM2 header and historical locator ID from validated opaque tenant path. Unknown IDs, malformed registries, cross-purpose key reuse and conflicting active IDs fail closed. Four new F3 cases appended to the existing seven product synthetic FUE: historical read after both rotations, missing media key, missing locator key, conflicting active registry. Workflow B06 runs all 11 F2/F3 tests on exact SHA. **CI pending; no claim F3 GREEN until job logs.** No clinical key escrow, secure backup mechanism, ACK signer rotation, merge, deployment or live activation. `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
+
+
+## PRE B06-4D-F4 — secure keyring configuration gate, 2026-11-05
+
+F3 exact HEAD `66bac52`, run #42022380767 GREEN 3/3, 11/11 F2/F3, 14/14 F1. F4 objective: remove insecure inline historical-key JSON from environment by supporting local private keyring file with strict permissions, fail-closed malformed/insecure config, synthetic FUE and exact-SHA CI. Keep existing opt-in mode, no merge/deploy/clinical activation.
