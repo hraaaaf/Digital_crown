@@ -9,7 +9,13 @@ try {
   @'
 import os
 from pathlib import Path
-from backend.services.windows_keyring_handle_probe import read_no_reparse_file, WindowsKeyringHandleDenied
+import importlib.util
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("dc06_f5bb_handle", Path("backend/services/windows_keyring_handle_probe.py"))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+read_no_reparse_file = module.read_no_reparse_file
+WindowsKeyringHandleDenied = module.WindowsKeyringHandleDenied
 path = Path(os.environ["DC06_F5BB_TEST_FILE"])
 assert read_no_reparse_file(str(path)).decode("utf-8-sig") == '{"synthetic":true}'
 print("DC06_F5BB_NATIVE_HANDLE_READ_PASS")
@@ -36,7 +42,13 @@ print("DC06_F5BB_RELATIVE_DENIED_PASS")
     $env:DC06_F5BB_TEST_FILE = $link
     @'
 import os
-from backend.services.windows_keyring_handle_probe import read_no_reparse_file, WindowsKeyringHandleDenied
+import importlib.util
+from pathlib import Path
+spec = importlib.util.spec_from_file_location("dc06_f5bb_handle", Path("backend/services/windows_keyring_handle_probe.py"))
+module = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(module)
+read_no_reparse_file = module.read_no_reparse_file
+WindowsKeyringHandleDenied = module.WindowsKeyringHandleDenied
 try:
     read_no_reparse_file(os.environ["DC06_F5BB_TEST_FILE"])
 except WindowsKeyringHandleDenied as e:
