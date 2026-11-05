@@ -965,3 +965,13 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Verdict : ancien moteur à RÉUTILISER, pas à réécrire.** Prochain lot = HARNESS V1 FIX + capture Native React Steiner × A/B ; pas de changement produit pendant cet audit. PR #1213 DRAFT et #1212/master intacts hors écriture documentaire dans le canonique. Aucune validation clinique : `clinical_validation_available=false`, Wits candidate, McNamara/Z HOLD, PDF officiel INCOMPLETE, 0/10 FUE cabinet réels. Approbation UI R23-E ancien SHA non transférable.
 
 **Dernière mise à jour canonique : 05/11/2026 — audit PR historiques #878/#911/#1003/#1198 et composants React actuels, correction de la cause FUE-P1 identifiée ; aucun nouveau code produit.**
+
+### 45. PRE — 2026-11-05 — correction FUE-P1 V1 et captures React Steiner ANUG/Challiyan
+
+**GO praticien** : rectifier le harness FUE-P1 obsolète et récupérer les vrais tracés React Steiner sur les deux vraies radios publiques via FUE-H authentifié (pas Photoshop/Python). Moteur actuel sur base clinique #1212 SHA `aa7fb5569c00b8a22b6493a4b729fab29a9674f4` contient déjà dans `CephaloTracingLayerBase.tsx` les segments SN/NA/NB sous `data-cephalo-line-key`. Le test `frontend/scripts/fue-ceph-p1-authenticated.mjs` compare à tort le sélecteur V1 à `['all','steiner','tweed','mcnamara','com','ricketts']` alors que `cephaloV1ProtocolScope.ts` n'autorise exactement que `com` et `steiner` depuis #1198 ; ne pas forcer les anciens modes dans l'UI.
+
+**Plan borné** : (1) vérifier dans FUE-P1 présence exacte et sélection persistante des deux modes V1, labels de manque de preuve ; pas de prétention à la couverture complète COM/Steiner ; (2) utiliser le FUE-H réel avec JPEG ANUG/Challiyan vérifiés SHA et SRPose38 source authentifié pour capturer, si possible, un état **Steiner natif** et les 3 lignes SN/NA/NB sur le même SVG base, et un état COM réellement protégé, en produisant un artefact Actions PNG + JSON noms/SHA ; (3) rerun exact SHA et lire logs/artefacts ; (4) documenter vrais résultats, y compris FAIL éventuel, dans canonique et Notion. 
+
+**Contraintes** : ne pas ajouter de dessin géométrique parallèle, ne pas réactiver `showCom=false`, ne jamais assimiler Po et Po_anatomic pour Tweed, aucune calibration mm synthétique, aucun diagnostic ni validation clinique ; conserver thème et composants actuels ; branche PR #1213 DRAFT, PR #1212/master inchangés, pas de Vercel/EXE/merge. `clinical_validation_available=false`, PDF clinique INCOMPLETE, FUE cabinet réel 0/10.
+
+**POST :** à renseigner strictement à partir des captures React réelles et logs/actions, pas des dessins externes.
