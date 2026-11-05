@@ -796,3 +796,8 @@ Hardened private file loader to require absolute path, O_NOFOLLOW and O_DIRECTOR
 ## PRE B06-4D-F5B — Windows ACL adversarial gate, 2026-11-05
 
 F5A GREEN exact HEAD `3cda3a0`, CI #42034452238 3/3, F4/F5A 10/10. Scope: Windows native ACL negative tests and a fail-closed guard for DCM2 private-keyring path; never enable Windows loader until safe open and security descriptor checks are implemented and verified. CI exact SHA; no merge/deploy/clinical activation.
+
+
+## POST B06-4D-F5B-A — Windows native ACL negative gate, 2026-11-05
+
+Created `isolated_fue_lot06c/windows_f5b_private_keyring_acl_fue.ps1`, exercised by existing Windows 2022 exact-SHA CI job: synthetic private file ACL acceptance, Everyone read access denial, inherited ACL denial, symlink/reparse denial when test-runner privilege permits, and verification that product Windows loader remains fail-closed. No clinical data or secrets. **This is a Windows ACL threat-model test, not a production Windows loader.** Windows secure file-handle open and ACL validation are not integrated into Python product runtime; `WINDOWS_PRIVATE_KEYRING_IMPLEMENTED=false`. CI pending; no F5B GREEN claim. Next F5B-B requires native Windows secure open+descriptor validation, reparse/path handling and adversarial race tests before enabling. No merge/deploy/clinical activation, `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
