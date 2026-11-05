@@ -938,3 +938,16 @@ Owner instruction: "Je ne valide que ce qui touche a l'UX/UI ! Vas-y corrige les
 Visual approval #42109359083 FAILED because approval is SHA-bound and reset after new HEAD. PR inventory includes genuine product-visible TSX under `frontend/src/features/patients`; **only the user may human-approve UX/UI**; auto-green or label fabrication prohibited. Existing protected `pull_request_target` workflow executes trusted *default branch*, not PR copy. Inspect UI evidence and prepare review; no visual approval bypass.
 
 No merge, deploy, publish, clinic or patient data. `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `CLINICAL_GO=false`. Single canonical LOT06 document maintained PRE/POST.
+
+## POST F5B-D4c — Portability P1 refactor + strictly owner-only visual approval, 2026-11-05
+
+**Applied only in PR #1210 DRAFT, no merge:**
+- `backend/services/clinical_media_crypto_v2.py` routes Windows versus supported POSIX keyring reader through **existing** `backend.core.platform.get_platform_adapter()` (`PlatformAdapter.is_windows`, `kind in {"linux","macos"}`); unknown OS fail-closed. Existing native Windows ACL/reparse and POSIX `O_NOFOLLOW` semantics remain mandatory.
+- `backend/services/windows_keyring_handle_probe.py` and `backend/services/windows_keyring_restore.py` use `get_platform_adapter().is_windows` instead of direct `os.name` (no change to native Win32 primitives/ACL policy or error codes).
+- Standalone F5B-B1/B2 Windows probe FUE `isolated_fue_lot06c/windows_f5bb_handle_probe_fue.ps1` now supplies a **synthetic backend namespace package** before loading the real module. This avoids importing `backend/__init__.py` / unrelated SQLAlchemy in the lightweight Windows CI while importing **real** `backend/core/platform.py`. Same adversarial assertions, no bypass.
+- `.github/workflows/lot06-phase2-b06-integration-fue.yml` adds the native probe source and Windows harness to push triggers: all future changes to these security files must rerun B06 Windows FUE (was missing).
+- **Human UI gate audited, not forged or disabled.** Trusted `pull_request_target` workflow runs its script from default branch, and PR #1210 really changes visible `frontend/src/features/patients/` components. Thus `UI_HUMAN_APPROVAL=PENDING_OWNER_REVIEW` is the valid status even if backend/docs-only commits changed HEAD. The owner only validates UX/UI; no request for their technical approval. Reviewer must inspect product-visible changes and independently supply explicit authorized label event to re-approve exact HEAD. No auto-approval, no label spoof, no altered privileged workflow.
+
+**Before technical certification**: old source HEAD `1251b8826fa7e7839ead6a0c91acef20205fde65` had Portability P1 RED all three OS in #42109365300 for four direct `os.name` accesses; UI human gate RED for revoked SHA-bound approval. **Current final CI outcome = PENDING at doc update**; verify exact FINAL HEAD and Portability all Windows/macOS/Linux, B06 3/3 and F5B-D4b markers, Scope. Do not claim GREEN until observed.
+
+**Safety:** `CLINICAL_GO=false`, `READY_TO_MERGE=false`, `PRODUCT_READY=false`, `F5B_D4_INDEPENDENT_OPERATOR_DRILL=NOT_RUN`, `OFFSITE_ESCROW_VERIFIED=false`, `WINDOWS_PARENT_SWAP_RISK=OPEN`, `FULL_CABINET_RESTORE_VERIFIED=false`. No release, merge, Vercel, cabinet migration, patient data, or clinical enable.
