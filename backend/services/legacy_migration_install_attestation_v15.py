@@ -108,7 +108,7 @@ def _measured_binary_digest(file_path: Path) -> str:
     OS-loaded-image attestation and privileged path provenance are OUT OF SCOPE
     for this primitive; its caller must establish them separately.
     """
-    _deny_unless(type(file_path) is Path, "UNVERIFIED_EXECUTABLE_PATH")
+    _deny_unless(isinstance(file_path, Path), "UNVERIFIED_EXECUTABLE_PATH")
     try:
         before = file_path.lstat()
         _deny_unless(stat.S_ISREG(before.st_mode) and before.st_nlink == 1
