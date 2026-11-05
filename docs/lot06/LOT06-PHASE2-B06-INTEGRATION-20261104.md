@@ -738,3 +738,8 @@ Owner clarification: no clinical data currently to preserve; optimize delivery v
 **Important release boundary:** This is a **standalone contract prototype**, not yet integrated with \`clinical_asset_storage.py\`, \`ClinicalAsset\` or the durable receipt signer. The new FUE test file is committed, but no claim that a CI workflow actually executes it until an exact-SHA job log proves that. Do not call \`PRODUCT_READY\`, \`KEYRING_PRODUCT_IMPLEMENTED\` or \`CLINICAL_GO\` true. Avoid a compatibility migration for nonexistent clinical history unless a real requirement emerges.
 
 **Next accelerated step:** wire isolated F1 pytest into the LOT06 exact-HEAD workflow and certify it; then integrate DCM2 with storage and receipt key IDs on disposable SQLCipher/PG fixtures in one bounded product sublot, preserving legacy fail-closed behavior and FUE evidence. No merge/deploy without explicit owner authorization.
+
+
+## PRE B06-4D-F1 CI wiring — 2026-11-05
+
+Baseline HEAD `9c3f9ed`, B06 #42011480767 GREEN 3/3 but logs prove 77 SQLCipher + 4 PG schema + 19 PG route tests only; **F1 synthetic crypto tests not executed**. Inspect `.github/workflows/lot06-phase2-b06-integration-fue.yml`; add explicit F1 test file and implementation to path filters and run isolated pytest on exact SHA in existing Ubuntu synthetic job. No product storage changes, merge, deploy or clinical data. Notion PRE/POST and exact-SHA CI required.
