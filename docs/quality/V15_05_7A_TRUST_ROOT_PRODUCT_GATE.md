@@ -6,7 +6,7 @@ Date: 2026-11-05. Canonical authority: Notion V1.5 roadmap, LOT05; product contr
 - Preparation 05.1–05.6 is merged (#890). J9 candidate #984 is DRAFT, FAKE-only, not merged; source HEAD observed `3756de8841f1f5234616e650d1c7afad598fefd5`.
 - J9 proves a real ephemeral Windows SCM LocalService service and RSA signature checks in isolated tests, including cross-SID ACL denial, JWT checks and clinical fail-closed.
 - J9 explicitly does **not** attest a Digital Crown product installer, independent issuer root, authenticated production IPC, anti-rollback or full DB/WAL/SHM/media recovery. Admin/SYSTEM of the CI runner controls the RSA private key, public pin and synthetic JWT secret.
-- Keep `import_permitted=false`, `full_schema_certified=false`, `GuidedRestoreService.request_apply` and `GuidedRestoreWorker.run` fail-closed. Do not modify runtime guards under this documentation-only scope.
+- Keep SQL migration `import_permitted=false` and `full_schema_certified=false`. **Guided Restore** (`GuidedRestoreService.request_apply` / `GuidedRestoreWorker.run`) is an existing separate backup/restore flow with its own owner, cabinet runtime and recovery guards; it is **not** LOT05 SQL importer. Preserve its existing synthetic integration, rollback and permission tests. Do not introduce a blanket-deny into those entrypoints to implement LOT05.7A.
 
 ## 05.7A minimal architecture decision
 1. **Issuer vs requester:** The desktop UI, JWT-bearing requester and clinic DB must never be able to mint migration authorization tickets or replace the trusted issuer pin. A JWT establishes user identity, **not** restore authorization.
@@ -26,4 +26,9 @@ Date: 2026-11-05. Canonical authority: Notion V1.5 roadmap, LOT05; product contr
 - Windows + Linux where applicable; executed test counts, logs, negative assertions, exact SHA, artifacts and risk-based FUE-0 / FUE-I / FUE-G evidence (no mandatory independent A/B review). No synthetic success is physical/clinical certification.
 
 ## Decision / stop conditions
-**05.7A PRODUCT GATE = OPEN.** A successful J9 FAKE-only CI cannot close it. Do not merge a runtime change, install service, alter clinical DB, enable import, or deploy without a separate FUE-validated implementation and explicit owner approval. Next deliverable: independent issuer/provisioning threat-model decision, followed by a narrowly scoped implementation PR and evidence. Physical workstation/installer verification belongs to LOT10.
+**05.7A PRODUCT GATE = OPEN.** A successful J9 FAKE-only CI cannot close it. Do not merge a runtime change, install service, alter clinical DB, enable import, or deploy without a separate FUE-validated implementation and explicit owner approval. Next deliverable: issuer/provisioning trust-boundary decision, followed by a narrowly scoped implementation PR and FUE evidence. An independent **issuer** is a technical key-ownership requirement, not an external reviewer requirement. Physical workstation/installer verification belongs to LOT10.
+
+## 2026-11-05 corrective FUE finding — Guided Restore regression
+- PR #1214 initial blanket-deny on Guided Restore caused **4 failed / 12 passed** tests in Settings Guided Restore AFTER (`#42056906137`); the affected existing synthetic owner-dispatch, DB+media restore and rollback tests are valid invariants, not tests to rewrite.
+- Both unrelated Guided Restore runtime files were restored bit-for-bit to `master` on the PR branch; invalid blanket-deny AST test removed. These changes restore prior behavior but do **not** establish product issuer, signed installer manifest, authenticated IPC or replay-resistant ledger.
+- Required verification: on final PR HEAD, Settings Guided Restore AFTER targeted tests and actual AFTER evidence where applicable; FUE/RPG-C/X/F for LOT05 trust-root security remains **OPEN** until implemented. Do not interpret a green Guided Restore suite as 05.7A product certification.
