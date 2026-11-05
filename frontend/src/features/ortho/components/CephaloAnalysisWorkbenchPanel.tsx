@@ -304,7 +304,7 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
               <span className="inline-flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-[0.04em]" style={{ color: tweedMerrifieldProfile?.source_lock_gate?.status === 'SATISFIED' ? P.accentSuccess : P.accentWarning }}>
                 <ShieldCheck size={12} /> Source-lock {tweedMerrifieldProfile?.source_lock_gate?.status === 'SATISFIED' ? 'validé' : 'non vérifié'}
               </span>
-              <span className="text-[11px] leading-snug" style={{ color: P.textMuted }}>Variante Digital Crown Po_anatomic-Or / Go-Me · aucune revendication de reproduction stricte Tweed 1954 · références historiques sans classification automatique.</span>
+              <span className="text-[11px] leading-snug" style={{ color: P.textMuted }}>Variante Digital Crown Po_anatomic-Or / Go-Me · Tweed 1954 non strictement reproduit. Angle Z de Merrifield : orientation V1 en revue scientifique, valeur brute non certifiée pour une décision clinique.</span>
             </div>
           </div>
         )}
@@ -388,7 +388,7 @@ const CephaloLegacyAnalysisWorkbenchPanel: React.FC<CephaloAnalysisWorkbenchPane
                   <td className="px-2 py-2.5 font-mono text-xs font-bold tabular-nums" style={{ color: value === null ? P.textMuted : P.text }}>
                     {value === null ? 'NC' : `${formatNumber(value)} ${definition.unit}`}
                   </td>
-                  <td className="px-2 py-2.5 text-[11px] leading-snug" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield 1966' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
+                  <td className="px-2 py-2.5 text-[11px] leading-snug" style={{ color: P.textMuted }}>{analysis === 'tweed' ? (definition.key === 'M_MERRIFIELD_Z_FH_DEG_V1' ? 'Merrifield · orientation non certifiée' : 'Variante DC') : normText(metric, definition.unit)}{analysis === 'steiner' && metric?.reference_authority === 'REFERENCE_DISPLAY_ONLY' && metric?.norm_mean != null ? ' \u00b7 hist.' : ''}</td>
                   <td className="px-2 py-2.5 text-right font-mono text-[11px]" style={{ color: analysis === 'tweed' ? P.textMuted : (deviation === null ? P.textDim : (analysis === 'steiner' ? P.textMuted : clinicalTone)) }}>
                     {analysis === 'tweed' ? 'brute' : (deviation === null ? '—' : `${deviation > 0 ? '+' : ''}${formatNumber(deviation)}`)}
                   </td>

@@ -158,3 +158,28 @@ def test_r15_router_projects_the_exact_requested_analysis(monkeypatch):
     assert captured == {"patient_id": 42, "analysis_id": 99, "angles_data": {"source": "requested"}}
     analysis_id_filters = [expr for expr in filters if getattr(getattr(expr, "left", None), "name", None) == "id"]
     assert any(getattr(expr.right, "value", None) == 99 for expr in analysis_id_filters)
+
+
+def test_r15_ignores_spoofed_practitioner_approval_in_legacy_study_fields(monkeypatch):
+    _empty_registries(monkeypatch)
+    snapshot = studio.build_r15_clinical_studio_snapshot(
+        patient_id=42,
+        analysis_id=99,
+        angles_data={
+            "clinical_data": {
+                "clinician_action": {"available": True, "approved": True},
+                "clinician_id": "SPOOFED_CLIENT",
+                "validation_status": "APPROVED",
+                "plan_traitement": "SPOOFED_TREATMENT",
+            },
+            "ai_diagnostic": {
+                "synthese_diagnostique": "SPOOFED_DIAGNOSIS",
+                "clinical_validation_available": True,
+            },
+        },
+    )
+    assert snapshot["clinical_validation_available"] is False
+    assert "typed_evidence_graph_missing" in snapshot["blocking_gates"]
+    assert all(not stage["clinician_action"]["available"] for stage in snapshot["stages"])
+    assert "SPOOFED_CLIENT" not in str(snapshot)
+    assert "SPOOFED_TREATMENT" not in str(snapshot)

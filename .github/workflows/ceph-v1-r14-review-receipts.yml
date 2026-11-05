@@ -1,0 +1,164 @@
+name: CEPH V1 R14 audited hold receipts (NO DEPLOY)
+
+on:
+  push:
+    branches:
+      - feat/ceph-v1-r14-audit-receipts-20261103
+    paths:
+      - 'backend/services/cephalo_r14_review_receipt.py'
+      - 'backend/services/cephalo_r14_final_decision.py'
+      - 'backend/services/cephalo_clinical_cas.py'
+      - 'backend/services/cephalo_scientific_write.py'
+      - 'backend/tests/test_cephalo_pg_scientific_cas.py'
+      - 'backend/tests/test_cephalo_scientific_write.py'
+      - 'backend/repositories/cephalo_repository.py'
+      - 'backend/routers/cephalo_auto_calibration.py'
+      - 'backend/tests/test_cephalo_auto_calibration_route.py'
+      - 'backend/tests/test_cephalo_calibration_route_provenance.py'
+      - 'backend/tests/test_cephalo_calibration_preserves_clinical_payload.py'
+      - 'backend/tests/test_cephalo_calibration_missing_graph.py'
+      - 'backend/routers/cephalo_calibration_provenance.py'
+      - 'backend/tests/test_cephalo_clinical_cas.py'
+      - 'backend/services/cephalo_r14_final_read.py'
+      - 'backend/tests/test_cephalo_r14_final_decision.py'
+      - 'backend/services/cephalo_r11_r13_staging.py'
+      - 'backend/services/cephalo_r11_r12_attestation.py'
+      - 'backend/services/cephalo_r11_target_reviews.py'
+      - 'backend/tests/test_cephalo_r11_target_reviews.py'
+      - 'backend/tests/test_cephalo_v1_lot1_fue_preflight.py'
+      - 'backend/tests/test_cephalo_r6_tweed_merrifield.py'
+      - 'backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py'
+      - 'backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py'
+      - 'backend/services/cephalo_facad_wits_candidate.py'
+      - 'backend/tests/test_cephalo_facad_dc_numeric_oracles.py'
+      - 'audit/cephalo_v1_facad_dc_local_compare.py'
+      - 'backend/tests/test_cephalo_v1_facad_dc_local_compare.py'
+      - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
+      - 'backend/tests/test_cephalo_r11_r12_attestation.py'
+      - 'backend/services/cephalo_r13_option_decision.py'
+      - 'backend/services/cephalo_r13_option_read.py'
+      - 'backend/services/cephalo_r13_decision_authority.py'
+      - 'backend/tests/test_cephalo_r13_option_decision.py'
+      - 'backend/tests/test_cephalo_r13_option_read.py'
+      - 'backend/routers/cephalo_clinical_studio.py'
+      - 'backend/tests/test_cephalo_r14_review_receipt.py'
+      - 'backend/tests/test_cephalo_r11_r13_staging.py'
+      - '.github/workflows/ceph-v1-r14-review-receipts.yml'
+  pull_request:
+    branches:
+      - feat/ceph-v1-l3-practitioner-gate-20261102
+    paths:
+      - 'backend/services/cephalo_r14_review_receipt.py'
+      - 'backend/services/cephalo_r14_final_decision.py'
+      - 'backend/services/cephalo_clinical_cas.py'
+      - 'backend/services/cephalo_scientific_write.py'
+      - 'backend/tests/test_cephalo_pg_scientific_cas.py'
+      - 'backend/tests/test_cephalo_scientific_write.py'
+      - 'backend/repositories/cephalo_repository.py'
+      - 'backend/routers/cephalo_auto_calibration.py'
+      - 'backend/tests/test_cephalo_auto_calibration_route.py'
+      - 'backend/tests/test_cephalo_calibration_route_provenance.py'
+      - 'backend/tests/test_cephalo_calibration_preserves_clinical_payload.py'
+      - 'backend/tests/test_cephalo_calibration_missing_graph.py'
+      - 'backend/routers/cephalo_calibration_provenance.py'
+      - 'backend/tests/test_cephalo_clinical_cas.py'
+      - 'backend/services/cephalo_r14_final_read.py'
+      - 'backend/tests/test_cephalo_r14_final_decision.py'
+      - 'backend/services/cephalo_r11_r13_staging.py'
+      - 'backend/services/cephalo_r11_r12_attestation.py'
+      - 'backend/services/cephalo_r11_target_reviews.py'
+      - 'backend/tests/test_cephalo_r11_target_reviews.py'
+      - 'backend/tests/test_cephalo_v1_lot1_fue_preflight.py'
+      - 'backend/tests/test_cephalo_r6_tweed_merrifield.py'
+      - 'backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py'
+      - 'backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py'
+      - 'backend/services/cephalo_facad_wits_candidate.py'
+      - 'backend/tests/test_cephalo_facad_dc_numeric_oracles.py'
+      - 'audit/cephalo_v1_facad_dc_local_compare.py'
+      - 'backend/tests/test_cephalo_v1_facad_dc_local_compare.py'
+      - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
+      - 'backend/tests/test_cephalo_r11_r12_attestation.py'
+      - 'backend/services/cephalo_r13_option_decision.py'
+      - 'backend/services/cephalo_r13_option_read.py'
+      - 'backend/services/cephalo_r13_decision_authority.py'
+      - 'backend/tests/test_cephalo_r13_option_decision.py'
+      - 'backend/tests/test_cephalo_r13_option_read.py'
+      - 'backend/routers/cephalo_clinical_studio.py'
+      - 'backend/tests/test_cephalo_r14_review_receipt.py'
+      - 'backend/tests/test_cephalo_r11_r13_staging.py'
+      - '.github/workflows/ceph-v1-r14-review-receipts.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-r14-hold:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: cephalo_ci
+          POSTGRES_PASSWORD: local_ci_only
+          POSTGRES_DB: cephalo_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U cephalo_ci -d cephalo_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+    env:
+      CEPH_PG_URL: 'postgresql+psycopg2://cephalo_ci:local_ci_only@127.0.0.1:5432/cephalo_ci'
+      SECRET_KEY: 'ceph-r14-isolated-review-key-32-chars'
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact candidate SHA
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-r14-requirements.txt
+          pip install -r /tmp/ceph-r14-requirements.txt
+      - name: Test R14 safety, R15/PDF hold and R6 Merrifield nonclinical regression
+        run: |
+          python -m pytest -q \
+            backend/tests/test_cephalo_r14_review_receipt.py \
+            backend/tests/test_cephalo_r11_r13_staging.py \
+            backend/tests/test_cephalo_r11_r12_attestation.py \
+            backend/tests/test_cephalo_r11_target_reviews.py \
+            backend/tests/test_cephalo_v1_lot1_fue_preflight.py \
+            backend/tests/test_cephalo_r13_option_decision.py \
+            backend/tests/test_cephalo_r13_option_read.py \
+            backend/tests/test_cephalo_r14_final_decision.py \
+            backend/tests/test_cephalo_clinical_cas.py \
+            backend/tests/test_cephalo_scientific_write.py \
+            backend/tests/test_cephalo_pg_scientific_cas.py \
+            backend/tests/test_cephalo_repository_calibration_invariants.py \
+            backend/tests/test_cephalo_auto_calibration_route.py \
+            backend/tests/test_cephalo_calibration_route_provenance.py \
+            backend/tests/test_cephalo_calibration_preserves_clinical_payload.py \
+            backend/tests/test_cephalo_calibration_missing_graph.py \
+            backend/tests/test_cephalo_r14_final_validation_safety.py \
+            backend/tests/test_cephalo_r15_clinical_studio.py \
+            backend/tests/test_cephalo_r17_pdf_projection.py \
+            backend/tests/test_cephalo_r6_tweed_merrifield.py \
+            backend/tests/test_cephalo_lot08_tweed_facad_gap_contract.py \
+            backend/tests/test_cephalo_lot08_mcnamara_facad_gap_contract.py \
+            backend/tests/test_cephalo_facad_dc_numeric_oracles.py \
+            backend/tests/test_cephalo_v1_facad_dc_local_compare.py

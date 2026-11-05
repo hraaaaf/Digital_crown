@@ -758,6 +758,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     try {
       const bound = await prepareBoundCephaloDocumentSource(
         s.patientId, s.analysisId, stillSelected, () => s.silentSave(s.analysisId, true),
+        () => { const live = get(); return { landmarks: live.local.landmarks, mmPerPixel: live.mmPerPixel }; },
       );
       const data = await cephaloRepository.generatePDF(s.patientId, {
         ...bound, ...snapshotCephaloPdfClinicalInputs(s), archive: false,
@@ -787,6 +788,7 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     try {
       const bound = prevalidatedSource ?? await prepareBoundCephaloDocumentSource(
         s.patientId, s.analysisId, stillSelected, () => s.silentSave(s.analysisId, true),
+        () => { const live = get(); return { landmarks: live.local.landmarks, mmPerPixel: live.mmPerPixel }; },
       );
       if (!stillSelected() || bound.analysis_id !== s.analysisId) {
         throw new Error("Le PDF ne correspond pas à l'étude prévalidée.");
