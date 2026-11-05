@@ -70,13 +70,12 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
   const [verified, setVerified] = useState<{ key: string; url: string } | null>(null);
   const [loadedKey, setLoadedKey] = useState('');
   const [result, setResult] = useState<'ready' | 'unavailable' | 'confirmed' | 'persisted' | 'failed'>('ready');
-  const [receiptId, setReceiptId] = useState('');
 
   useEffect(() => {
     const current = ++epoch.current;
     setReview(null); setCapture(null); setBusy(false);
     setDossier(''); setBirthDate(''); setChecked(false);
-    setVerified(null); setLoadedKey(''); setResult('ready'); setReceiptId('');
+    setVerified(null); setLoadedKey(''); setResult('ready');
     void api.get<Inventory>('/imaging/acquisition/unassigned')
       .then(({ data }) => {
         if (current !== epoch.current) return;
@@ -185,7 +184,6 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
       if (current !== epoch.current) return;
       if (review.durable_commit_available === true) {
         if (!safeAck(data as DurableAck, review)) { setResult('failed'); return; }
-        setReceiptId((data as DurableAck).receipt_id);
         setResult('persisted'); setReview(null);
       } else {
         if (data?.status !== 'STAFF_REVIEW_VERIFIED_TRANSIENT_ONLY' ||
@@ -210,7 +208,6 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
           );
           if (current !== epoch.current) return;
           if (safeAck(data, review)) {
-            setReceiptId(data.receipt_id);
             setResult('persisted'); setReview(null);
             return;
           }
@@ -230,10 +227,10 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
       {result === 'unavailable' && <p role="alert" className="text-sm text-text-muted">Acquisition indisponible : aucune association autorisée.</p>}
       {result === 'failed' && <p role="alert" className="text-sm text-text-muted">Vérification refusée. Réessayez avec une session et une capture valides.</p>}
       {result === 'confirmed' && <p role="status" className="text-sm text-text-muted">
-        Revue temporaire vérifiée. Aucun média publié ni associé au patient.
+        Vérification terminée. Cette capture n'a pas été ajoutée au dossier.
       </p>}
       {result === 'persisted' && <p role="status" className="text-sm text-text-muted">
-        Média chiffré associé au dossier. Reçu durable : {receiptId}. Activation cabinet non autorisée.
+        Image enregistrée dans le dossier du patient.
       </p>}
       {capture && !review && result !== 'confirmed' && result !== 'persisted' && (
         <div className="mt-3">
@@ -256,7 +253,6 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
             {loadedKey !== context && <p role="alert" className="text-xs text-text-muted">
               Aperçu non vérifié : confirmation désactivée.
             </p>}
-            <p className="mt-1 break-all text-xs text-text-muted">SHA-256 : {capture.digest}</p>
           </div>
           <div className="space-y-3">
             <p className="font-semibold">{review.prenom} {review.nom}</p>
