@@ -801,3 +801,8 @@ F5A GREEN exact HEAD `3cda3a0`, CI #42034452238 3/3, F4/F5A 10/10. Scope: Window
 ## POST B06-4D-F5B-A — Windows native ACL negative gate, 2026-11-05
 
 Created `isolated_fue_lot06c/windows_f5b_private_keyring_acl_fue.ps1`, exercised by existing Windows 2022 exact-SHA CI job: synthetic private file ACL acceptance, Everyone read access denial, inherited ACL denial, symlink/reparse denial when test-runner privilege permits, and verification that product Windows loader remains fail-closed. No clinical data or secrets. **This is a Windows ACL threat-model test, not a production Windows loader.** Windows secure file-handle open and ACL validation are not integrated into Python product runtime; `WINDOWS_PRIVATE_KEYRING_IMPLEMENTED=false`. CI pending; no F5B GREEN claim. Next F5B-B requires native Windows secure open+descriptor validation, reparse/path handling and adversarial race tests before enabling. No merge/deploy/clinical activation, `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
+
+
+## PRE B06-4D-F5B-B — native Windows handle and ACL-bound read, 2026-11-05
+
+F5B-A exact HEAD `78fb82d`, CI #42049169242 GREEN 3/3; native ACL FUE markers confirmed. Implement Windows native handle-bound ACL verification without path-based precheck/open race, adversarial FUE and exact-SHA CI. Fail closed if any platform capability or security check is unavailable; no clinical enable, merge or deploy.
