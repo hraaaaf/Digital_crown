@@ -222,7 +222,7 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
   if (!capture && result !== 'unavailable') return null;
   return (
     <section aria-label="Revue d'acquisition non attribuée"
-      className="mx-1 mb-3 rounded-xl border border-border-main bg-card-bg p-4 text-text-main">
+      className="mx-1 mb-3 rounded-xl border border-border-main bg-card p-4 text-text-main">
       <h3 className="text-sm font-bold">Revue de capture non attribuée</h3>
       {result === 'unavailable' && <p role="alert" className="text-sm text-text-muted">Acquisition indisponible : aucune association autorisée.</p>}
       {result === 'failed' && <p role="alert" className="text-sm text-text-muted">Vérification refusée. Réessayez avec une session et une capture valides.</p>}
