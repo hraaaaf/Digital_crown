@@ -1182,3 +1182,49 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT concret** : obtenir l'artefact exact-HEAD et reporter les comptes ANUG/Challiyan avec 15 lignes chacune ; isoler les NC par origine de preuve, cible bornée par source, calibration réelle et validation praticien, avec FUE adversariale négative. Aucun merge, déploiement Vercel ni EXE.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §52, test H Steiner 15/15 ajouté, n/15 exact observé en attente de CI.**
+
+
+### 53. PRE — 2026-11-05 — lecture indépendante de l’artefact FUE-H exact HEAD (Go)
+
+**Sources relues avant conclusion** : PR #1213 DRAFT HEAD \`dee9ac93ae45c1b4db47f53bb9cbe9532549b837\` ; canonique §52 ; Notion PRE56. FUE-H [#42073826915](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826915) **SUCCESS** et archive [#13437698027](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826915/artifacts/13437698027), ZIP SHA256 \`57708828e040f6c448d79c9fc887d474a46b4e1f3afe79f093a595c2128f24bf\` **égal au digest GitHub**. Source interne \`steiner-15-coverage.json\` \`head=dee9ac93...\`; \`report.json\` \`errors=[]\` et check \`STEINER_15_READPATH_COVERAGE: PASS\`. Deux images publiques sourcées par SHA256 et traitement réel ONNX38, patient T2 fictif, 0 patient clinique.
+
+**Objectif** : contrôler les 30 cellules de mesure, classifier les NC par contrat de point et calibration, établir les priorités de prochaine FUE sans inventer 15/15, sans altérer les formules ni diagnostiquer.
+
+### 53. POST — 2026-11-05 — Steiner observé 6/15 ANUG, 6/15 Challiyan : 9 NC expliqués
+
+**Preuve** : [FUE-H #42073826915](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826915) et \`steiner-15-coverage.json\` téléchargé, extrait et vérifié localement ; tête source \`dee9ac93ae45c1b4db47f53bb9cbe9532549b837\` ; schéma \`CEPH_STEINER_15_NONCLINICAL_V1\`, \`clinical_release=false\`, \`source=AUTHENTICATED_GET\`. Runs **9/9 SUCCESS** à ce SHA, M6-I SKIPPED hors scope : H [#42073826915](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826915), P1 [#42073827296](https://github.com/hraaaaf/Digital_crown/actions/runs/42073827296), P2 [#42073827032](https://github.com/hraaaaf/Digital_crown/actions/runs/42073827032), frontend [#42073826830](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826830), Scope [#42073826918](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826918), R14 [#42073826781](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826781), Theme09 [#42073827093](https://github.com/hraaaaf/Digital_crown/actions/runs/42073827093), Theme10 [#42073826748](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826748), Theme11 [#42073827403](https://github.com/hraaaaf/Digital_crown/actions/runs/42073827403).
+
+**30 résultats du read-path actif, 15 identités ordonnées sur les deux clichés** (aucun résultat clinique validé) :
+
+| Steiner / canonical ID | ANUG | Challiyan | Disponibilité des deux |
+|---|---:|---:|---|
+| SNA · \`M_SNA_DEG_V1\` | 79,1° | 79,9° | AVAILABLE |
+| SNB · \`M_SNB_DEG_V1\` | 77,7° | 74,6° | AVAILABLE |
+| ANB · \`M_ANB_DEG_V1\` | 1,4° | 5,3° | AVAILABLE |
+| U1–NA angle · \`M_U1_NA_DEG_V1\` | 32,5° | 20,8° | AVAILABLE |
+| U1–NA mm · \`M_U1_NA_MM_V1\` | NC | NC | NOT_COMPUTABLE |
+| L1–NB angle · \`M_L1_NB_DEG_V1\` | 34,6° | 34,2° | AVAILABLE |
+| L1–NB mm · \`M_L1_NB_MM_V1\` | NC | NC | NOT_COMPUTABLE |
+| Inter-incisif · \`M_INTERINCISAL_DEG_V1\` | 111,4° | 119,6° | AVAILABLE |
+| Plan occlusal–SN · \`M_OCCLUSAL_PLANE_SN_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+| SN–GoGn · \`M_SN_GOGN_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+| L1–GoGn · \`M_L1_GOGN_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+| SND · \`M_SND_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+| Pog–NB mm · \`M_POG_NB_MM_V1\` | NC | NC | NOT_COMPUTABLE |
+| L1–D-line mm · \`M_L1_DLINE_MM_V1\` | NC | NC | NOT_COMPUTABLE |
+| L1–D-line angle · \`M_L1_DLINE_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+
+**Scores bornés** : ANUG **6 AVAILABLE / 9 NC / 15** ; Challiyan **6 / 9 / 15**. 6/15 = **40 % de couverture de rangées calculées sur ces deux clichés non calibrés**, **pas l'avancement global du lot ni l'exactitude orthodontique**. Les six disponibles sont des angles produits par ONNX38 non expert-vérifiés. Aucun résultat mm n'est exposé, conformément à \`is_calibrated=false\` et \`mm_per_pixel=null\`.
+
+**Causes techniques identifiées via les contrats du backend** \`backend/services/cephalo_steiner_protocol_evidence.py\` et \`steiner_protocol_profile_v1.json\`, plus les 38 IDs exacts de l'artefact (les 38 contiennent \`Gn\` et \`D_point\` mais **pas** \`Gn_anatomic\` ni \`D_Steiner_1959\`) :
+
+- **Quatre NC en mm** : \`U1–NA mm\` = \`U1_facial_surface\` explicite + calibration ; \`L1–NB mm\` = \`L1_facial_surface\` explicite + calibration ; \`Pog–NB mm\` = \`Pog_hard\` (seul alias \`Pog→Pog_hard\` sur modèle certifié) + calibration ; \`L1–D mm\` = \`L1_facial_surface\`, \`D_Steiner_1959\`, \`Gn_anatomic\` + calibration. La calibration manquante est un blocker certain pour les quatre ; absence des surfaces/D/Gn est un blocker additionnel pour les cas concernés, **sans inférer qu'une présence nominale du détecteur suffit**.
+- **Cinq NC angulaires** : plan occlusal–SN exige \`Occ_Steiner_Ant\` + \`Occ_Steiner_Post\` exacts ; SN–GoGn et L1–GoGn exigent \`Gn_anatomic\` ; SND exige \`D_Steiner_1959\` ; L1–D° exige \`D_Steiner_1959\` + \`Gn_anatomic\`. Aucun de ces points n'est automatiquement substituable par \`D_point\`, \`Gn\` détecté ou un plan occlusal approximatif. Leur null est une **protection scientifique**, pas neuf défauts de formules démontrés.
+- **Source UI existante** : \`frontend/src/features/ortho/cephaloSteinerProtocol.ts\` expose **six identités à placer manuellement ou selon construction contrôlée** (\`Gn_anatomic\`, \`U1_facial_surface\`, \`L1_facial_surface\`, \`D_Steiner_1959\`, \`Occ_Steiner_Ant\`, \`Occ_Steiner_Post\`) ; \`Step1CephaloBase.tsx\` a un handler de placement explicite et une calibration manuelle. **Existence de ce code ≠ preuve que placement→save→reload→recalcul débloque une mesure sur cliché réel**. Ce parcours n'est pas encore FUE-certifié pour les six identités.
+- Le rapport FUE-H \`nc_context\` est intentionnellement générique, **pas un diagnostic automatique des raisons exactes par la chaîne** ; les dépendances ci-dessus sont déduites des contrats sources et de l'absence d'IDs autoritaires, non des champs \`nc_context\` seuls.
+
+**Prochain sous-lot recommandé, dans cet ordre** : 1) FUE interactive réelle de placement des six identités, sauvegarde et reload sur fixture/clique image autorisée, avec provenance sans alias ; test négatif de déplacement/absence/doublons ; 2) calibration **uniquement** sur un fantôme de référence physique connu ou source cliniquement étalonnée autorisée (jamais inventer une distance sur ANUG/Challiyan) et maintien des mm à NC sinon ; 3) vérifier recalcul stable, 15 géométries/tracés et transmission du rapport ; 4) contrôle expert sur goldset indépendant (mêmes images) et validation humaine séparée. Ne pas promettre 15/15 en clinique simplement avec le placement.
+
+**Périmètre exécuté** : audit complet de l'artefact existant, ZIP vérifié avec digest GitHub, fichiers indépendants de lecture/export ; **aucune modification du produit** ni du modèle, aucune image patient privé, aucun merge, Vercel, EXE ou signature clinique. La présente mise à jour **documentaire** génère un nouveau HEAD : les 9 SUCCESS cités restent attachés au SHA de preuve \`dee9ac93\`, pas automatiquement au SHA documentaire ultérieur.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §53, couverture Steiner 6/15 sur ANUG et Challiyan, prochain FUE six placements/correction.**
