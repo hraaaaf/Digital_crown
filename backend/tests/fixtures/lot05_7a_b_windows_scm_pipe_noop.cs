@@ -12,19 +12,21 @@ using System.Threading;
 internal sealed class NoopScmPipeService : ServiceBase
 {
     private readonly string pipeName;
+    private readonly string allowedConnectSid;
     private readonly string expectedClientSid;
     private readonly string requiredServiceSid;
     private readonly string proofFile;
     private readonly int connections;
 
     private NoopScmPipeService(string serviceName, string pipeName,
-        string expectedClientSid, string requiredServiceSid,
+        string allowedConnectSid, string expectedClientSid, string requiredServiceSid,
         string proofFile, int connections)
     {
         ServiceName = serviceName;
         CanStop = true;
         AutoLog = false;
         this.pipeName = pipeName;
+        this.allowedConnectSid = allowedConnectSid;
         this.expectedClientSid = expectedClientSid;
         this.requiredServiceSid = requiredServiceSid;
         this.proofFile = proofFile;
@@ -74,7 +76,7 @@ internal sealed class NoopScmPipeService : ServiceBase
         try
         {
             if (!serviceSidInToken) throw new UnauthorizedAccessException("SERVICE_SID_MISMATCH");
-            PipeSecurity acl = RestrictPipe(expectedClientSid, requiredServiceSid);
+            PipeSecurity acl = RestrictPipe(allowedConnectSid, requiredServiceSid);
             for (int index = 0; index < connections; index++)
             {
                 using (NamedPipeServerStream pipe = new NamedPipeServerStream(
@@ -120,11 +122,11 @@ internal sealed class NoopScmPipeService : ServiceBase
 
     private static int Main(string[] args)
     {
-        if (args.Length != 6 || args[1].Length > 96 ||
+        if (args.Length != 7 || args[1].Length > 96 ||
             !args[1].StartsWith("dc05b_", StringComparison.Ordinal) ||
-            (args[5] != "1" && args[5] != "3")) return 2;
+            (args[6] != "1" && args[6] != "3")) return 2;
         ServiceBase.Run(new NoopScmPipeService(
-            args[0], args[1], args[2], args[3], args[4], Int32.Parse(args[5])));
+            args[0], args[1], args[2], args[3], args[4], args[5], Int32.Parse(args[6])));
         return 0;
     }
 }
