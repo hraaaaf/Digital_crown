@@ -763,3 +763,14 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT** : attendre les résultats de tests `frontend` complets et `npm ci` Node24 sur SHA final ; enquêter les autres CI rouges indépendantes ; captures BEFORE/AFTER et approval humain exact SHA obligatoires ; aucune fusion master ni release/EXE tant que le gate CODE_CERTIFIED candidate n'est pas vert.
 
 **Statut V1 :** Wits `CANDIDATE_ONLY`, McNamara `HOLD-MCNAMARA-SCALE`, Z `HOLD-Z-ORIENTATION`, `clinical_validation_available=false`, PDF `INCOMPLETE` ; FUE cabinet 0/10. Aucun déploiement Vercel ni données patients.
+
+
+### 36. PRE/POST technique — 2026-11-05 — FUE-I P2ter historique 409 (sans contournement scientifique)
+
+**PRE observé** : [CI P2ter authentifiée #41999066368](https://github.com/hraaaaf/Digital_crown/actions/runs/41999066368) FAIL sur produit `8d9f27d1563fa54a66ea37a916b93144aca54148`, artefact #13402851829 et rapport exact SHA : `REAL_UI_LOGIN` et `SELECT_OLDER_STUDY_2` PASS, puis deux `PUT /api/ia/analyses/2` 409 à 1280×900 et 1600×1000 ; aucun POST PDF, `page.waitForResponse` expire. La réponse 409 interdit une mutation de graphe sans prochaine révision. C'est un **fail-closed légitime**, pas une autorisation de relaxer le backend. [L3 #41999066863](https://github.com/hraaaaf/Digital_crown/actions/runs/41999066863) 34/34 PASS + 2 captures, lock npm24 PASS, backend P2ter PASS.
+
+**POST correctif candidat (non certifié à ce nouveau SHA)** : `prepareBoundCephaloDocumentSource` accepte facultativement le snapshot actif landmark (ID + x/y) et calibration du store. Il lit **l'étude expressément sélectionnée** via API ; si et seulement si landmarks/ratio sont strictement identiques aux octets de référence persistés ET révision positive certifiée, il réutilise cette révision **sans PUT no-op**. Sinon la sauvegarde stricte historique est conservée et toute 409 reste bloquante ; la sélection est vérifiée avant et après les I/O, le backend PDF continue à vérifier `analysis_id` + `expected_revision`. Le chemin est activé pour les brouillons/archives et prévisualisations du store ; aucun changement du moteur de calcul, de l'auth, de la politique des révisions, des normes, des PDF, du CSS ou des tokens. Tests unitaires ajoutés : historique déjà persisté, repère modifié, ratio modifié, conflit scientifique et révision non vérifiable. **Aucun test PASS présumé avant CI à SHA final**.
+
+**NEXT** : full Vitest, TS, test e2e authentifié réel à deux résolutions + vérification des captures et identité A/B, negative gates et clinical HOLD ; verdict sous contrôle humain. Aucun merge master, EXE, cabinet, Vercel, CODE_CERTIFIED ou INSTALLABLE_CERTIFIED auto.
+
+**Dernière mise à jour canonique 05/11/2026 — candidat FUE-I historique 409, CI après commit indispensable.**
