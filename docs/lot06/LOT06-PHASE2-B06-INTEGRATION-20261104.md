@@ -753,3 +753,11 @@ Workflow `.github/workflows/lot06-phase2-b06-integration-fue.yml` updated in `39
 ## PRE B06-4D-F2 — 2026-11-05
 
 Baseline exact HEAD `2e25471`; F1 CI #42012440563 14/14 GREEN, existing B06 3/3. Owner confirms no real clinical history, delivery speed prioritized. Implement opt-in DCM2 product storage adapter using independent versioned media and locator keys and synthetic FUE, without changing default legacy DCM1 or real cabinet. Notion PRE/POST and exact SHA CI required. No merge or deploy.
+
+## POST B06-4D-F2 — opt-in product DCM2 store/read, 2026-11-05
+
+Implemented `backend/services/clinical_media_crypto_v2.py` product primitive and opt-in branch in `backend/services/clinical_asset_storage.py`: `DC_MEDIA_V2_OPT_IN=true` writes DCM2 AES-GCM envelopes, media key ID in authenticated header, tenant+digest AAD, independent versioned HMAC locator namespace, and `AESGCM_V2` metadata. Existing default DCM1 writes/reads remain unchanged. V2 reads are selected by stored format, not by the write switch. Strict configuration requires `DC_MEDIA_V2_ACTIVE_KEY_ID`, `DC_MEDIA_V2_LOCATOR_KEY_ID`, `DC_MEDIA_V2_MEDIA_KEY_HEX` and `DC_MEDIA_V2_LOCATOR_KEY_HEX` (distinct 32-byte keys). No secrets are committed. Unknown/wrong key, wrong tenant, wrong locator and tampering fail closed. No migrations or live activation.
+
+Seven product adapter synthetic FUE in `isolated_fue_lot06c/test_b06_f2_product_storage_v2.py`: DCM2 store/read, dedupe/tamper, wrong media key, wrong locator key, cross tenant, missing config/no writes, and reading V2 when write switch disabled. CI workflow `.github/workflows/lot06-phase2-b06-integration-fue.yml` now executes the F2 file on exact SHA and prints `DC06_B06_F2_PRODUCT_STORAGE_V2_SYNTHETIC_FUE_PASS` after success.
+
+**Known boundary:** This is an opt-in first-key product adapter, NOT a complete historical keyring or Ed25519 receipt-key versioning. Old V2 media-key IDs are not yet resolvable from an escrow registry after rotation; changing the locator key ID invalidates lookup for existing V2 blobs. Do not rotate either key in production until historical key registry/retention is implemented. No schema migration needed because `storage_format` is an existing text field. Clinical capture ACK signer remains v1. **F2 CI still pending; no claim GREEN before logs.** `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
