@@ -43,6 +43,12 @@ try {
   [IO.File]::WriteAllText($localPin, ('a' * 64), [Text.Encoding]::ASCII)
   ExpectDenied 'ARTIFACT_PROVIDED_PIN' '05G_PUBLISHER_DENIED_TRUST_PIN_WITHIN_ARTIFACT_DIRECTORY' $installer $app $localPin
 
+  $nested = Join-Path $artifactDir 'attacker-nested-pin'
+  New-Item -ItemType Directory -Path $nested -Force | Out-Null
+  $nestedPin = Join-Path $nested 'publisher-pin.txt'
+  [IO.File]::WriteAllText($nestedPin, ('a' * 64), [Text.Encoding]::ASCII)
+  ExpectDenied 'NESTED_ARTIFACT_PIN' '05G_PUBLISHER_DENIED_TRUST_PIN_WITHIN_ARTIFACT_DIRECTORY' $installer $app $nestedPin
+
   ExpectDenied 'UNSIGNED_INSTALLER' '05G_PUBLISHER_DENIED_INSTALLER_AUTHENTICODE_NOT_VALID' $installer $app $pin
 
   $otherInstaller = Join-Path $artifactDir 'renamed-malicious-installer.exe'
