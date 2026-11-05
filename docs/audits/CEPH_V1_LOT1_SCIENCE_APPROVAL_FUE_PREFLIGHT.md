@@ -843,3 +843,29 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Critères de réussite :** chaque PDF identifié et lié à la bonne étude, non interverti, au moins une page A4 vérifiée; 2 fichiers d'analyse JSON source-authentifiée listant unités/valeurs/NC, pas de norme ni diagnostic inféré, vérification absence de mesure mm non calibrée, et revue PDF visuelle. **Les vert/anormal ne certifient pas l'exactitude anatomique.** Aucun changement de moteur, schéma, thème, ni app backend ; un harness/tests/workflow seulement. Aucun merge master/Vercel/EXE ni clinical approval. État initial `clinical_validation_available=false`, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF INCOMPLETE au plan clinique.
 
 **POST :** à compléter strictement sur des artefacts et logs exact SHA.
+
+### 40. BILANS TECHNIQUES NON CLINIQUES — 2026-11-05 — deux radios FACAD, analyse angulaire / PDF d'audit
+
+**PRE/constat** : Le praticien demande explicitement les analyses et le bilan PDF, pas seulement les 38 points. Le précédent FUE-H [#42011785804](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785804), SHA `a7b633b93aa6a50aa72bdc04c621623af3c3cbea`, **6/6 PASS** et artefact #13407028578 fournit deux vrais clichés publics ANUG/Challiyan + **38 points auto chacun** via GET authentifié SQLite, mais **aucun PDF clinique de ces 2 études n'est généré**. La radio A étude T2 #2, B #3 ; `is_calibrated=false`, `mm_per_pixel=null`. Les FUE-P1 [#42011785853](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785853) / FUE-P2 [#42011785726](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785726) indiquent `DOCUMENT_STEPPER_SAFELY_BLOCKS_UNCALIBRATED_STUDY` PASS et `REAL_PROTOCOL_SELECTORS_AND_UNVERIFIED_LABELS` FAIL (sélecteurs COM/Steiner manquants). Ne pas contourner l'export clinique fail-closed, ne pas diagnostiquer.
+
+**POST calculs transparents depuis les points authentifiés de `source-locked-38-points.json`** selon les **7 formules angulaires géométriques** de [`backend/services/cephalo_engine.py` au SHA produit](https://github.com/hraaaaf/Digital_crown/blob/aa7fb5569c00b8a22b6493a4b729fab29a9674f4/backend/services/cephalo_engine.py), sans normes : `SNA/SNB/ANB`, `FMA`, `IMPA`, `I_Francfort`, `Inter_Incisif` ; aucune entrée clinique ni échelle millimétrique inventée.
+
+| Mesure en degrés (brute, aucun verdict clinique) | ANUG A | Challiyan B |
+| --- | ---: | ---: |
+| SNA | 79.1 | 79.9 |
+| SNB | 77.7 | 74.6 |
+| ANB = SNA − SNB | 1.4 | 5.3 |
+| FMA / Tweed | 31.5 | 27.7 |
+| IMPA | 101.1 | 104.3 |
+| Incisive sup. / Francfort | 115.9 | 108.4 |
+| Inter-incisif | 111.4 | 119.6 |
+
+**Deux PDF réellement produits et inspectés dans le container utilisateur**, trois pages chacun : (1) analyse tabulée angulaire + screenshot véritable de l'UI, (2) radio entière annotée 38 repères + légende sur A3 paysage, (3) table des 38 coordonnées pixel + provenance. Documents **distincts du moteur PDF CLINIQUE officiel** et titrés en première page **NON CLINIQUE / NON SIGNÉ / NON CALIBRÉ**. Sorties générées dans le chat du 05/11/2026 :
+- `CEPHALO_ANUG_BILAN_TECHNIQUE_NON_CLINIQUE.pdf` (SHA256 `bfb98896f63223e3762ee8b7cab2894e86fac7fd7831d5a92b6b788dbeb0f591`)
+- `CEPHALO_CHALLIYAN_BILAN_TECHNIQUE_NON_CLINIQUE.pdf` (SHA256 `0e9ec21634ed866ee8cae71375ff863daa1fb33794db035b16fdd3ff8650851d`)
+
+**QA PDF** : ReportLab et rendu à 120 DPI via la compétence PDF ; inspection visuelle des trois pages ANUG et extraction PyMuPDF des deux (3 pages, A4/A3/A4), aucun bloc texte hors cadre. Les chiffres ne prétendent **pas** être des réponses persistées du protocole R23G4 ni une comparaison anatomique FACAD : ils sont un **recalcul déterministe externe** des formules contenues dans le module Céphalo, appliqué aux points authentifiés.
+
+**À faire pour un vrai bilan officiel Digital Crown** : établir calibration physique vérifiée si possible, corriger/geler manuellement les 38 repères, rejouer FUE-P1 avec sélecteurs/protocole réellement supportés, exporter via vrai endpoint PDF avec identité étude/révision et contrôler PDF/preview/screenshot. Les 2 radios publiques sans marqueur d'étalonnage **ne doivent pas recevoir de calibration estimée**. Wits candidate, McNamara et Z HOLD, PDF `INCOMPLETE`, `clinical_validation_available=false`, 0/10 FUE cabinet, approbation humaine absente. Aucun code clinique, couleur, token, master, Vercel ou EXE modifié.
+
+**Dernière mise à jour canonique 05/11/2026 — mesures 7 angles × 2 + deux bilans PDF techniques non-cliniques disponibles dans le chat ; export clinique officiel = BLOQUÉ légitimement.**
