@@ -135,7 +135,10 @@ def _private_keyring_file() -> dict | None:
     filename = os.environ.get("DC_MEDIA_V2_KEYRING_FILE")
     if not filename:
         return None
-    if os.name == "nt":
+    from backend.core.platform import get_platform_adapter
+
+    platform_adapter = get_platform_adapter()
+    if platform_adapter.is_windows:
         # Windows opt-in: native handle-bound ACL and ancestor-reparse checks.
         # No path-based Get-Acl precheck; the same opened file handle is read.
         from backend.services.windows_keyring_handle_probe import (
@@ -152,7 +155,9 @@ def _private_keyring_file() -> dict | None:
         if not isinstance(data, dict):
             raise MediaCryptoV2Denied("INVALID_KEYRING_FILE")
         return data
-    if os.name != "posix":
+    # Fail closed for unknown systems; only known POSIX runtime adapters
+    # support the O_NOFOLLOW + owner/mode-based keyring reader.
+    if platform_adapter.kind not in ("linux", "macos"):
         raise MediaCryptoV2Denied("KEYRING_FILE_PLATFORM_UNSUPPORTED")
     path = Path(filename)
     if not path.is_absolute():
