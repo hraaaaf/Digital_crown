@@ -17,6 +17,8 @@ on:
       - isolated_fue_lot06c/test_b06_f2_product_storage_v2.py
       - isolated_fue_lot06c/test_b06_f4_private_keyring.py
       - backend/services/clinical_media_crypto_v2.py
+      - backend/services/clinical_media_keyring_recovery.py
+      - isolated_fue_lot06c/f5bd_offline_keyring_recovery_fue.py
       - backend/services/clinical_asset_storage.py
       - isolated_fue_lot06c/test_b06_postgres_product_route_lab_v15.py
       - isolated_fue_lot06c/b06_postgres_product_candidate_lab.py
@@ -251,6 +253,12 @@ jobs:
         run: |
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
           ./isolated_fue_lot06c/windows_f5bc_product_keyring_fue.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B-D offline encrypted recovery and retained DCM2 continuity FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          python isolated_fue_lot06c/f5bd_offline_keyring_recovery_fue.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
       - name: Windows bounded Authenticode + closed ZIP + wrong signer FUE
         shell: pwsh
