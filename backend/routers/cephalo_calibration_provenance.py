@@ -16,6 +16,7 @@ from backend.services.cephalo_calibration_evidence import rebuild_evidence_after
 from backend.services.cephalo_runtime_evidence import EVIDENCE_GRAPH_KEY, CephaloRuntimeEvidenceError
 from backend.services.cephalo_safe_engine import cephalo_safe_engine as cephalo_engine
 from backend.utils.access_control import assert_patient_access
+from backend.services.cephalo_scientific_write import save_scientific_transition
 
 router = APIRouter()
 
@@ -106,10 +107,20 @@ def calibrate_analysis_with_provenance(
                 calibrated_at=calibrated_at,
             )
 
-        analysis.mm_per_pixel = mm_per_pixel
-        analysis.is_calibrated = True
-        analysis.calibration_data = calibration_data
-        analysis.angles_data = updated_angles
+        if isinstance(previous_evidence, dict):
+            save_scientific_transition(
+                db=db, analysis=analysis, updated_angles=updated_angles,
+                other_values={
+                    "mm_per_pixel": mm_per_pixel,
+                    "is_calibrated": True,
+                    "calibration_data": calibration_data,
+                },
+            )
+        else:
+            analysis.mm_per_pixel = mm_per_pixel
+            analysis.is_calibrated = True
+            analysis.calibration_data = calibration_data
+            analysis.angles_data = updated_angles
         db.commit()
         db.refresh(analysis)
     except HTTPException:

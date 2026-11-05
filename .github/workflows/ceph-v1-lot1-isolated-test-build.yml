@@ -1,0 +1,81 @@
+name: CEPH V1 LOT1 isolated frontend TEST build (NO DEPLOY)
+
+on:
+  pull_request:
+    branches:
+      - feat/ceph-v1-l3-practitioner-gate-20261102
+    paths:
+      - 'frontend/**'
+      - 'backend/services/cephalo_**'
+      - 'backend/routers/cephalo_clinical_studio.py'
+      - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
+      - '.github/workflows/ceph-v1-lot1-isolated-test-build.yml'
+  push:
+    branches:
+      - feat/ceph-v1-r14-audit-receipts-20261103
+      - feat/ceph-v1-l3-practitioner-gate-20261102
+    paths:
+      - 'frontend/**'
+      - 'backend/services/cephalo_**'
+      - 'backend/routers/cephalo_clinical_studio.py'
+      - 'docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md'
+      - '.github/workflows/ceph-v1-lot1-isolated-test-build.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  frontend-isolated-test-build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      VITE_API_URL: ''
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - name: Checkout exact product SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact product checkout
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        working-directory: .
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated frontend lockfile
+        run: npm ci
+      - name: Build TEST output only (never real cabinet dist)
+        run: npm run build:test
+      - name: Verify build artifact's exact SHA and test isolation
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const manifest = JSON.parse(fs.readFileSync('dist-test/build-manifest.json', 'utf8'));
+          if (manifest.commit !== process.env.EXPECTED_SHA
+              || manifest.mode !== 'test'
+              || manifest.environment !== 'test'
+              || manifest.outputDir !== 'dist-test'
+              || !fs.existsSync('dist-test/index.html')) {
+            throw new Error('Refuse: wrong SHA/mode or missing isolated test build');
+          }
+          console.log('CEPH_LOT1_TEST_FRONTEND_BUILD_SHA_MATCH=PASS');
+          NODE
+      - name: Upload static test frontend (NOT CABINET INSTALLER)
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-lot1-test-frontend-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/dist-test/
+          if-no-files-found: error
+          retention-days: 7
