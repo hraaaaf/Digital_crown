@@ -1416,3 +1416,25 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Action après PRE** : inspecter ZIP FUE-H, auditer réellement les images et le JSON 2×4 angles, présenter les captures existantes avec invitation explicite « approuver/refuser » ; poster résultat POST §57 puis Notion POST60 ; ne pas écrire `APPROVED` sans réponse. Un seul canonique GitHub pour ce lot.
 
 **Dernière mise à jour canonique : 05/11/2026 — PRE §57, images + approbation obligatoires.**
+
+
+### 57. POST — 2026-11-05 — FUE-H SUCCESS, captures authentifiées présentées, approbation visuelle EN ATTENTE
+
+**CI exacte avant PRE documentaire** : [FUE-H #42096123950](https://github.com/hraaaaf/Digital_crown/actions/runs/42096123950), HEAD de preuve `96d507cd381ac278a28b3d62e39a57bf6eb1a369`, **SUCCESS**. Les 9 workflows requis de ce SHA (H/P1/P2/frontend/Scope/R14/themes09–11) sont SUCCESS, M6-I SKIPPED. PR #1213 reste DRAFT, jamais fusionnée. L'ajout documentaire §57 PRE crée son propre SHA distinct ; ne jamais transférer le succès de CI d'un SHA à un autre.
+
+**Preuves effectivement téléchargées et relues** : [artefact ZIP H #13448099375](https://github.com/hraaaaf/Digital_crown/actions/runs/42096123950/artifacts/13448099375) SHA-256 archive `a4eb65874e0bf535c2d9de930ee04e85cc16d80fada3184ddb5b47d838b3789f` (digest du provider indépendant confirmé sur octets téléchargés). 18 fichiers, dont 13 PNG réelles, `report.json` 7/7 PASS avec `errors=[]`, `fullfilm-review-index.json`, `source-locked-38-points.json`, `steiner-15-coverage.json`, et **`model-native-4-steiner-angles.json` présent** avec deux radios et quatre angles expérimentaux par radio. `clinical_release=false`, `historical_aliases_certified=false`, `available_official_steiner_rows_modified=false` ; 6/15 AVAILABLE et 9/15 NC dans read-path médical par cliché. Les 38 repères sont source-locked au modèle ONNX et à chaque image ; absence de calibration physique et de goldset anatomique.
+
+**Captures réelles à soumettre au propriétaire pour examen et approbation séparée** :
+- `05-real-react-steiner-anug.png` — UI réelle React 1600×1000, radio ANUG, panneau Steiner 6/15 et tracé des lignes ;
+- `05-real-react-steiner-challiyan.png` — UI réelle React 1600×1000, autre radio, même parcours ;
+- `fullfilm-anug-38points-numerotes.png` — image entière non recadrée originale 2272×1818 avec les 38 coordonnées numérotées/calque de revue ;
+- `fullfilm-challiyan-38points-numerotes.png` — original 1000×1255, 38 points ;
+- `06-real-react-steiner-svg-anug.png` et `06-real-react-steiner-svg-challiyan.png` — fragments réels de l'overlay SVG ; disponibles dans l'archive.
+
+**Revue critique de l'agent (ne vaut PAS validation du propriétaire)** : les captures UI disent `Steiner complet (1953 + 1959)` mais affichent seulement `6/15 mesures calculées` ; le libellé doit clarifier qu'il s'agit d'un *profil 15 facteurs partiellement calculé*, pas d'une analyse complète achevée. Les six tuiles `Gn anatomique / U1 surface faciale / L1 surface faciale / D Steiner / Occlusal antérieur / Occlusal postérieur` indiquent encore `À placer`, contradictoires avec l'objectif **ONNX38 auto-first sans six placements obligatoires**. Les quatre angles modèles supplémentaires sont prouvés dans le JSON expérimental mais **ne sont pas dessinés dans cet écran** ; les captures ne prouvent donc pas leur intégration UI. L'écran 1600×1000 montre aussi bandeau supérieur/titre coupé partiellement et un toast qui masque une partie du panneau au bas de l'écran. Ces observations sont des **points à corriger avant approbation du rendu final**, pas des erreurs géométriques démontrées.
+
+**Gate explicite ACTIVE** : `HUMAN_VISUAL_APPROVAL_REQUIRED / NOT_APPROVED`, captures à présenter dans le chat à l'utilisateur ; lui demander avis explicite sur (1) emplacement des 38 points et (2) lisibilité/layout/tracés de l'UI. Même si l'utilisateur approuve la capture actuelle, toute future modification du rendu exige BEFORE/AFTER à viewports identiques 390×844 / 768×1024 / 1280×900 + captures et confirmation distincte. Le grand lot clinique reste HOLD ; aucune autorisation de merge, deploy, EXE, patient réel ou décision médicale.
+
+**NEXT** : recueillir approbation/refus explicite des captures ; si refus ou corrections demandées, effectuer une passe UI limitée et photographier before/after + tests responsive, puis nouvelle revue humaine. `FUE-H SUCCESS` ne signifie pas `VISUAL APPROVED`.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §57, screenshots à approuver, statut NOT_APPROVED.**
