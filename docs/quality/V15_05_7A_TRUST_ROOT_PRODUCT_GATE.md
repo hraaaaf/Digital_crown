@@ -90,3 +90,18 @@ Implementation on Draft PR #1214 extends the prior *independent* 05.7A-A Ed25519
 **Strict limitations / no false product certification:** private signing keys are simulated inside CI; the public pin is written by the *same privileged CI harness*, not attested by a separately controlled publisher or Digital Crown product installer. There is no genuine JWT authentication or tenant/role revocation binding; the service code and worker module are test fixtures, not a signed or installer-provisioned product. The signed ticket is *actually* verified across Windows IPC in this synthetic experiment, but signer trust and installed service binary hash chain cannot be inferred. File-based nonce serialization survives process restart but cannot prove resilience to admin tampering, database rollback, power loss or installer downgrade. Clinical data is not read; clinical SQL import remains **NO-GO**. No merge, no deploy.
 
 **FUE-G05.7A-C state: pending exact-head Windows native integration result.** Preserve 05.7A-A crypto Windows/Linux 38-case FUE and 05.7A-B native Windows peer SID FUE on every candidate HEAD. Full product 05.7A gate remains **OPEN** until issuer root, signed provisioning manifest and installed executable attestation, actual JWT/tenant authorization, replay monotonic root outside rollback surface and hardened product IPC are independently evidenced.
+
+## 2026-11-05 — LOT05.7A-C exact-source-SHA FUE GREEN / LAB closeout
+
+The previously pending [LOT05 FUE run #42082924921](https://github.com/hraaaaf/Digital_crown/actions/runs/42082924921) **completed SUCCESS** for source SHA `e2825eccb8114b1fb6ab2210adfe340a527132a5`; its **four jobs all succeeded**:
+- Windows native SCM LocalService + Ed25519 signed named-pipe + restart replay FUE job `127440400608`: SUCCESS; positive signed synthetic no-op and service-SID-only protected lab public pin+nonce ledger; OS peer SID, wrong tenant/source/service identity/expiry, forged/tampered/clinical signature checks, wrong OS principal, replay after actual SCM restart, and disposable cleanup were explicitly observed. Artifact ID `13441949178`.
+- Existing Windows native SID-authenticated unsigned transport baseline job `127440401570`: SUCCESS.
+- Standalone verifier `windows-latest` job `127440400752`: **38 passed**.
+- Standalone verifier `ubuntu-latest` job `127440401159`: **38 passed**.
+- All **14 PR-associated workflows terminated: 13 SUCCESS, 1 SKIPPED, 0 FAILURES**. CI Scope Gate, Settings Guided Restore AFTER, FUE-G04 SQLCipher, Cabinet CODE_CERTIFIED are all SUCCESS on the same source SHA.
+
+**Evidence-limited verdict:** LOT05.7A-C **LAB FUE-G PASS on the above exact source SHA**. The Windows CI process itself generated the ephemeral private signer key and provisioned the public trust pin; this *does not prove* independently owned issuer/root, signed product installer or genuine JWT authorization, and its nonce file is not a certified monotonic anti-rollback store. This is explicitly **NOT** product-installed attestation or clinical import authorization.
+
+**Full 05.7A PRODUCT GATE OPEN / clinical SQL import NO-GO; PR remains Draft / no merge or deploy.** Required product next: independently signed issuer provisioning and service binary/manifest verification, genuine JWT/tenant/consent linkage, product IPC, durable ledger including crash/rollback and key-rotation adversarial proof, and LOT05.7B+ clinical integrity gates.
+
+This documentation write advances PR HEAD beyond the source FUE SHA; recheck the new docs-only HEAD before calling all PR checks green again.
