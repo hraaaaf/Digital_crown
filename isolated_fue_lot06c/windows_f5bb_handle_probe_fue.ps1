@@ -86,8 +86,8 @@ try {
 
   $source = Get-Content -LiteralPath 'backend/services/clinical_media_crypto_v2.py' -Raw
   if (-not $source.Contains('KEYRING_FILE_PLATFORM_UNSUPPORTED')) { throw 'WINDOWS_FAIL_CLOSED_MISSING' }
-  if ($source.Contains('windows_keyring_handle_probe')) { throw 'UNREVIEWED_PRODUCT_ACTIVATION' }
-  Write-Output 'DC06_F5BB_PRODUCT_STILL_CLOSED_PASS'
+  if (-not $source.Contains('windows_keyring_handle_probe')) { throw 'F5BC_PRODUCT_INTEGRATION_MISSING' }
+  Write-Output 'DC06_F5BB_PRODUCT_INTEGRATION_GUARD_PASS'
   Write-Output 'DC06_F5BB_NATIVE_ACL_PARENT_REPARSE_FUE_PASS'
 } finally {
   Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
