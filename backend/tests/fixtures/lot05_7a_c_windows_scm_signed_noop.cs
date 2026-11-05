@@ -15,18 +15,18 @@ using System.Threading;
 internal sealed class SignedNoopPipeService : ServiceBase
 {
     private readonly string pipeName, allowedSid, expectedPeerSid, serviceSid;
-    private readonly string proofFile, pythonExe, configFile, ledgerDir, verifierModule;
+    private readonly string proofFile, pythonExe, configFile, ledgerDir, workerScript, verifierModule;
     private readonly int connectionCount;
 
     private SignedNoopPipeService(string name, string pipe, string allowedSid, string expectedPeerSid,
         string serviceSid, string proof, string pythonExe, string configFile, string ledgerDir,
-        string verifierModule, int connectionCount)
+        string workerScript, string verifierModule, int connectionCount)
     {
         ServiceName = name; CanStop = true; AutoLog = false;
         this.pipeName = pipe; this.allowedSid = allowedSid; this.expectedPeerSid = expectedPeerSid;
         this.serviceSid = serviceSid; this.proofFile = proof;
         this.pythonExe = pythonExe; this.configFile = configFile;
-        this.ledgerDir = ledgerDir; this.verifierModule = verifierModule;
+        this.ledgerDir = ledgerDir; this.workerScript = workerScript; this.verifierModule = verifierModule;
         this.connectionCount = connectionCount;
     }
 
@@ -72,7 +72,7 @@ internal sealed class SignedNoopPipeService : ServiceBase
     {
         if (String.IsNullOrEmpty(request) || request.Length > 8192) return false;
         ProcessStartInfo info = new ProcessStartInfo(pythonExe,
-            "-B " + Quote(verifierModule) + " " + Quote(configFile) + " " +
+            "-B " + Quote(workerScript) + " " + Quote(configFile) + " " +
             Quote(ledgerDir) + " " + Quote(verifierModule));
         info.UseShellExecute = false;
         info.CreateNoWindow = true;
@@ -85,6 +85,7 @@ internal sealed class SignedNoopPipeService : ServiceBase
             using (Process child = Process.Start(info))
             {
                 if (child == null) return false;
+                child.StandardInput.NewLine = "\n";
                 child.StandardInput.WriteLine(request);
                 child.StandardInput.Flush();
                 child.StandardInput.Close();
@@ -149,11 +150,11 @@ internal sealed class SignedNoopPipeService : ServiceBase
 
     private static int Main(string[] args)
     {
-        if (args.Length != 11 || args[1].Length > 96 ||
+        if (args.Length != 12 || args[1].Length > 96 ||
             !args[1].StartsWith("dc05c_", StringComparison.Ordinal) ||
-            (args[10] != "1" && args[10] != "10")) return 2;
+            (args[11] != "1" && args[11] != "10")) return 2;
         ServiceBase.Run(new SignedNoopPipeService(args[0],args[1],args[2],args[3],args[4],
-            args[5],args[6],args[7],args[8],args[9],Int32.Parse(args[10])));
+            args[5],args[6],args[7],args[8],args[9],args[10],Int32.Parse(args[11])));
         return 0;
     }
 }
