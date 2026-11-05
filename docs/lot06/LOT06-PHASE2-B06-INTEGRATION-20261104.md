@@ -826,3 +826,8 @@ B1 CI #42059957792 exact SHA `b0e4c83` **RED** (Windows job fails because standa
 ## PRE B06-4D-F5B-C — Windows product DCM2 keyring opt-in integration, 2026-11-05
 
 F5B-B2 exact SHA `0020dbf`, CI #42064800991 SUCCESS 3/3, nine Windows probe FUE markers confirmed. Integrate audited handle-bound Windows reader behind existing explicit `DC_MEDIA_V2_KEYRING_FILE` opt-in in `clinical_media_crypto_v2.py`, preserve POSIX and env-only behavior, mixed-source fail-closed, reject invalid UTF-8/JSON and ACL/reparse threats, add real product-loader Windows synthetic FUE. Require exact-SHA Windows CI before GREEN; no merge, deploy or clinical activation.
+
+
+## POST B06-4D-F5B-C — Windows product DCM2 file-keyring opt-in integration, 2026-11-05
+
+Integrated native handle-bound Windows keyring reader into `backend/services/clinical_media_crypto_v2.py` under existing explicit `DC_MEDIA_V2_KEYRING_FILE` only (`a13a5f3`). Windows path reads <=16KiB bytes from validated handle, decodes UTF-8, JSON validates, maps native deny to `MediaCryptoV2Denied`; no plaintext fallback, existing mixed-source checks preserved, POSIX behavior unchanged. Updated F5B-B2 probe guard to require integration (`19c88aa`). New synthetic Windows product FUE `isolated_fue_lot06c/windows_f5bc_product_keyring_fue.ps1` tests real configured_keyring valid retained-key read, env mixed-source deny, and broad Everyone ACL deny (`a1c80e3`); exact-SHA Windows CI workflow wired (`cbfd648`). **CI pending, no GREEN claim.** No production clinical enable, no merge/deploy, no key escrow/recovery yet. `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
