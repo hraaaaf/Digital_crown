@@ -189,8 +189,6 @@ class GuidedRestoreWorker:
 
     @classmethod
     def run(cls, restore_id: str, parent_pid: int, executable: str | None = None) -> int:
-        # LOT05.7A: deny before job read, filesystem access or process wait.
-        raise RuntimeError("Migration clinique bloquée : autorité worker non attestée")
         executable = executable or sys.executable
         job = GuidedRestoreService.get_job(restore_id)
         job_dir = GuidedRestoreService.job_dir(restore_id)
