@@ -23,7 +23,7 @@ Date: 2026-11-05. Canonical authority: Notion V1.5 roadmap, LOT05; product contr
 - Reused ticket after service restart, crash, DB rollback or key rotation -> DENY.
 - Unauthorized service or same-account-different-SID cannot read private key or write authoritative outbox -> DENY, with native Windows ACL evidence.
 - Valid synthetic request through **installed, attested product service** and authenticated IPC -> observable authorized *no-op* only; clinical apply still DENY.
-- Windows + Linux where applicable; executed test counts, logs, negative assertions, exact SHA, artifacts and two independent adversarial review perspectives. No synthetic success is physical/clinical certification.
+- Windows + Linux where applicable; executed test counts, logs, negative assertions, exact SHA, artifacts and risk-based FUE-0 / FUE-I / FUE-G evidence (no mandatory independent A/B review). No synthetic success is physical/clinical certification.
 
 ## Decision / stop conditions
-**05.7A PRODUCT GATE = OPEN.** A successful J9 FAKE-only CI cannot close it. Do not merge a runtime change, install service, alter clinical DB, enable import, or deploy without a separate reviewed implementation and explicit owner approval. Next deliverable: independent issuer/provisioning threat-model decision, followed by a narrowly scoped implementation PR and evidence. Physical workstation/installer verification belongs to LOT10.
+**05.7A PRODUCT GATE = OPEN.** A successful J9 FAKE-only CI cannot close it. Do not merge a runtime change, install service, alter clinical DB, enable import, or deploy without a separate FUE-validated implementation and explicit owner approval. Next deliverable: independent issuer/provisioning threat-model decision, followed by a narrowly scoped implementation PR and evidence. Physical workstation/installer verification belongs to LOT10.
