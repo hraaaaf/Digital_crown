@@ -525,3 +525,14 @@ Code HEAD `c9551e0a9fd73b34033d40164f4f91e93b30917b`, [B06 exact-HEAD #419383308
 **Recommended conditional design (proposal, not GO):** retain existing local PostgreSQL architecture *if read-only current inventory confirms it*, rather than migrate all patient records to SQLCipher solely for B06. Prepare an explicit LOT04/operator-reviewed additive schema proposal with separate runtime/migration roles and composite patient/tenant FK, durable encrypted-media reconciliation and DB+media restore, key versioning/history, process crash/multiworker replay, and visual human release protocol. No silent engine switch.
 
 **Gate:** `B06-4D-A_ADVERSARIAL_FUE=GREEN_LAB`; **B06-4D PRODUCT ARCHITECTURE = OPEN / NO-GO**. `READY_TO_MERGE=false`; `PRODUCT_READY=false`; `CLINICAL_GO=false`; `LOT10_PHYSICAL_VALIDATED=false`. No product adapter, Alembic, cabinet access, patient data, merge or deployment touched. **Next exact:** request explicit owner/LOT04 approval of target engine and role/key schema plan, then run a controlled synthetic rehearsal and *separately approved* representative isolated clone; complete FUE-I/G UI human gate before B06-5/5.
+
+
+## PRE B06-4D-B — PostgreSQL roles, key lifecycle & backup architecture lab, 2026-11-05
+
+**Verified baseline:** PR #1210 OPEN/DRAFT HEAD `d146217457c1f408c4e37db469c89c90b0b471ee`; exact-HEAD B06 workflow [#41994376088](https://github.com/hraaaaf/Digital_crown/actions/runs/41994376088) COMPLETED/SUCCESS 3/3 jobs. The current product still enforces SQLCipher-only and the PostgreSQL candidate is test-only.
+
+**Goal:** on a strictly pinned PostgreSQL 18 disposable laboratory schema, validate *separate* least-privileged runtime/migrator DB roles with explicit negative privilege FUE, and demonstrate existing one-master-key ACK recovery behavior under synthetic rotation/restoration; prepare a conditional ADR for DB engine, SQL schema, media backup, key rotation and rollback, not an approval.
+
+**Success criteria:** runtime role cannot ALTER/CREATE/UPDATE/DELETE/TRUNCATE protected ledger, cannot elevate ownership, while read and intended insert grants are documented; migration role remains distinct and never used by product; PostgreSQL tests and existing SQLCipher, React and Windows tests remain green on exact code SHA. Rotated-key negative FUE must fail closed and re-use of original test key must restore synthetic ACK; absence of a versioned historical keyring remains a documented MAJOR, not declared solved.
+
+**Restrictions:** test module, ADR and CI only; no real cabinet access, clinic patient data, schema migrations/Alembic, actual role creation outside disposable CI, production keyring, activation, merge or deploy. Do not silently choose PostgreSQL for the cabinet. `READY_TO_MERGE=false` / `PRODUCT_READY=false` / `CLINICAL_GO=false` / `LOT10_PHYSICAL_VALIDATED=false`.
