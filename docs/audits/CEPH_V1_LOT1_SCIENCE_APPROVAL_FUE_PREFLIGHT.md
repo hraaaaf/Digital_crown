@@ -1379,3 +1379,14 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT** : lire le nouveau JSON GitHub CI exact HEAD une fois `SUCCESS` pour confirmer les quatre angles modèle sur les 2 images ; afficher automatiquement les résultats **dans un espace de travail expérimental distinct**, puis décider la promotion au protocole Steiner historique seulement après un contrôle sur mêmes images par orthodontiste ; ouvrir travail de construction du plan occlusal et une calibration physique conforme pour 4 mm. L'objectif maintenant est **d'exploiter les points des poids**, pas de solliciter une pose manuelle par défaut. Aucune autorisation donnée pour fusion, Vercel, EXE, données cabinet, normes ou décisions cliniques.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §55, ONNX38 vérité d'ingénierie, 4 angles automatiques supplémentaires calculés, CI HEAD final à contrôler.**
+
+
+### 56. PRE — 2026-11-05 — reprise immédiate / réparer la CI FUE-H du modèle ONNX38
+
+**Mission** : après l'ordre « Non vas y reprend », désactiver le rappel différé et poursuivre immédiatement la preuve exacte des quatre angles expérimentaux calculés depuis les poids ONNX38. Canonique §55 relu ; Notion PRE59 ajouté. PR #1213 toujours DRAFT, départ `0e54e82d83eec0fe48ab4a1eb5c95e8343813a23`.
+
+**Preuve d'échec déterministe** : [FUE-H #42083922038](https://github.com/hraaaaf/Digital_crown/actions/runs/42083922038) FAILURE alors que huit autres jobs SUCCESS et M6-I SKIPPED hors périmètre. Log job `127443857623` : `R23H_RESULT ... passed=7, failed=[], studies=2` — upload, ONNX, GET authentifié, 38 landmarks et Steiner 15 lignes ont passé. L'étape suivante `Produce whole-film 38-landmark numbered review boards` a lancé `python scripts/ceph_r23h_fullfilm_review.py` et échoué à la ligne 142 sur `ModuleNotFoundError: No module named 'backend'`. Cause : exécution d'un fichier sous `scripts/` sans ajout de la racine dans le chemin d'import Python. L'archive [#13443847560](https://github.com/hraaaaf/Digital_crown/actions/runs/42083922038/artifacts/13443847560) a les 17 pièces en amont mais pas `model-native-4-steiner-angles.json`.
+
+**Correction bornée prévue** : dans le workflow FUE-H remplacer l'appel direct du fichier Python par `python -m scripts.ceph_r23h_fullfilm_review` depuis la racine checkout, en conservant tous les arguments, les validations sécuritaires et la source ONNX38. Aucun changement de formules ni des identités, aucun nouveau landmark, calibration inventée, UI ou résultat clinique. FUE = PASS H sur SHA exact avec JSON 2 études × 4 angles, non-clinique ; P1/P2/build/scope sans régression ; PR/Notion/document mis à jour après.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §56, import de rapport FUE-H à corriger.**
