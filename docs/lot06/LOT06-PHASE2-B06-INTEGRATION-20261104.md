@@ -870,3 +870,8 @@ Residual risk: parent directory traversal is absolute-path component-wise with p
 ## PRE F5B-D3 CI repair, 2026-11-05
 
 Exact-SHA run #42081751020 Windows FAILED: junction-parent negative test supplied invalid JSON `{"synthetic":true}`; new schema validator correctly returned `RESTORE_KEYRING_INVALID` before reaching the parent-junction guard. Other F5BD3 malformed/incomplete prewrite and F5BD2 readback/overwrite/relative markers PASS. Fix test fixture to use a valid synthetic full keyring so the intended junction denial is actually exercised; do not weaken production validation. No GREEN claim.
+
+
+## POST F5B-D3 Windows CI fixture repair, 2026-11-05
+
+Replaced invalid `{"synthetic":true}` in parent junction adversarial FUE with complete valid synthetic active+retained media/locator keyring (`698c11f`), so the junction guard is reached and must reject the path. Product secure restore validator unchanged. New exact-SHA CI pending; `CLINICAL_GO=false`, no merge/deploy.
