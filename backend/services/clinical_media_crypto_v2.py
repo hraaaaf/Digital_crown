@@ -145,8 +145,15 @@ def _private_keyring_file() -> dict | None:
         raise MediaCryptoV2Denied("KEYRING_NOFOLLOW_UNAVAILABLE")
     flags |= os.O_NOFOLLOW
     fd = None
+    directory_fd = None
     try:
-        fd = os.open(path, flags)
+        directory_flags = os.O_RDONLY | os.O_NOFOLLOW | os.O_DIRECTORY | getattr(os, "O_CLOEXEC", 0)
+        directory_fd = os.open(path.anchor, directory_flags)
+        for component in path.parent.parts[1:]:
+            next_fd = os.open(component, directory_flags, dir_fd=directory_fd)
+            os.close(directory_fd)
+            directory_fd = next_fd
+        fd = os.open(path.name, flags, dir_fd=directory_fd)
         metadata = os.fstat(fd)
         if not stat.S_ISREG(metadata.st_mode) or metadata.st_mode & 0o077:
             raise MediaCryptoV2Denied("INSECURE_KEYRING_FILE")
@@ -165,6 +172,8 @@ def _private_keyring_file() -> dict | None:
     finally:
         if fd is not None:
             os.close(fd)
+        if directory_fd is not None:
+            os.close(directory_fd)
     if not isinstance(data, dict):
         raise MediaCryptoV2Denied("INVALID_KEYRING_FILE")
     return data
