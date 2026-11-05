@@ -43,8 +43,30 @@ def _key(password: bytes, salt: bytes) -> bytes:
 
 
 def _canonical(data: Any) -> bytes:
-    if not isinstance(data, dict):
+    if not isinstance(data, dict) or set(data) != {
+        "active_media_id", "active_locator_id", "media_keys", "locator_keys"
+    }:
         raise KeyringRecoveryDenied("RECOVERY_KEYRING_INVALID")
+    for purpose, active in (("media_keys", "active_media_id"),
+                            ("locator_keys", "active_locator_id")):
+        keys = data[purpose]
+        if not isinstance(keys, dict) or not 1 <= len(keys) <= 64:
+            raise KeyringRecoveryDenied("RECOVERY_KEYRING_INVALID")
+        if data[active] not in keys:
+            raise KeyringRecoveryDenied("RECOVERY_KEYRING_INVALID")
+        for key_id, value in keys.items():
+            if (not isinstance(key_id, str) or not 1 <= len(key_id) <= 32
+                    or not key_id[0].islower()
+                    or any(ch not in "abcdefghijklmnopqrstuvwxyz0123456789_-"
+                           for ch in key_id)
+                    or not isinstance(value, str) or len(value) != 64):
+                raise KeyringRecoveryDenied("RECOVERY_KEYRING_INVALID")
+            try:
+                bytes.fromhex(value)
+            except ValueError as exc:
+                raise KeyringRecoveryDenied("RECOVERY_KEYRING_INVALID") from exc
+    if set(data["media_keys"].values()) & set(data["locator_keys"].values()):
+        raise KeyringRecoveryDenied("RECOVERY_KEY_PURPOSE_REUSE_DENIED")
     try:
         raw = json.dumps(data, sort_keys=True, separators=(",", ":"),
                          ensure_ascii=True, allow_nan=False).encode("ascii")
