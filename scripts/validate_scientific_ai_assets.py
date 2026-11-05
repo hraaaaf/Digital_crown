@@ -22,6 +22,7 @@ EXPECTED_AGENTS = {
     "radiology-engineer",
     "scientific-test-engineer",
     "scientific-reviewer",
+    "orthodontiste",
 }
 EXPECTED_SKILLS = {
     "scientific-source-research",
@@ -108,12 +109,12 @@ def _check_forbidden(path: Path, text: str, errors: list[str]) -> None:
 
 def _validate_agents(root: Path, errors: list[str]) -> None:
     agent_dir = root / ".claude" / "agents"
-    found = {p.stem for p in agent_dir.glob("*.md") if p.stem in EXPECTED_AGENTS}
+    found = {p.stem.lower() if p.stem == "Orthodontiste" else p.stem for p in agent_dir.glob("*.md") if (p.stem.lower() if p.stem == "Orthodontiste" else p.stem) in EXPECTED_AGENTS}
     if found != EXPECTED_AGENTS:
         errors.append(f"agents mismatch: missing={sorted(EXPECTED_AGENTS-found)}")
     seen: set[str] = set()
     for name in EXPECTED_AGENTS:
-        path = agent_dir / f"{name}.md"
+        path = agent_dir / ("Orthodontiste.md" if name == "orthodontiste" else f"{name}.md")
         if not path.exists():
             continue
         try:
@@ -130,7 +131,7 @@ def _validate_agents(root: Path, errors: list[str]) -> None:
         for section in AGENT_SECTIONS:
             if f"## {section}" not in body and f"# {section}" not in body:
                 errors.append(f"{path}: missing section {section}")
-        if name in {"scientific-architect", "scientific-reviewer"}:
+        if name in {"scientific-architect", "scientific-reviewer", "orthodontiste"}:
             tools = str(meta.get("tools", ""))
             if any(tool in tools for tool in ("Edit", "Write")) or meta.get("permissionMode") != "plan":
                 errors.append(f"{path}: read-only agent is writable")
