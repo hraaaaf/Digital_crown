@@ -88,7 +88,7 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
     await waitFor(() => expect(post).toHaveBeenCalledWith('/imaging/acquisition/review', {
       selected_patient_id: 42, capture_id: 17, capture_digest: capture.digest,
     }));
-    const button = await screen.findByRole('button', { name: /Confirmer la revue temporaire/ });
+    const button = await screen.findByRole('button', { name: /Terminer la vérification/ });
     expect(button).toBeDisabled();
     await waitFor(() => expect(get).toHaveBeenCalledWith(
       review.preview_url,
@@ -143,10 +143,10 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Examiner/ }));
     await waitFor(() => expect(get).toHaveBeenCalledWith(review.preview_url, expect.anything()));
     expect(screen.queryByRole('img')).toBeNull();
-    expect(await screen.findByRole('button', { name: /Confirmer la revue temporaire/ })).toBeDisabled();
+    expect(await screen.findByRole('button', { name: /Terminer la vérification/ })).toBeDisabled();
     expect(post).toHaveBeenCalledTimes(1);
     ui.rerender(<ImagingAcquisitionProductReviewV15 patientId={43} />);
-    await waitFor(() => expect(screen.queryByRole('button', { name: /Confirmer la revue temporaire/ })).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('button', { name: /Terminer la vérification/ })).toBeNull());
   });
 
   it('cancel explicitly revokes this review and never creates a receipt', async () => {
@@ -176,7 +176,7 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
       .mockResolvedValueOnce({ data: ack } as never);
     render(<ImagingAcquisitionProductReviewV15 patientId={42} />);
     fireEvent.click(await screen.findByRole('button', { name: /Examiner cette capture/ }));
-    const button = await screen.findByRole('button', { name: /Associer et chiffrer/ });
+    const button = await screen.findByRole('button', { name: /Ajouter l’image au dossier/ });
     expect(button).toBeDisabled();
     fireEvent.load(await screen.findByRole('img'));
     fireEvent.change(screen.getByLabelText(/Ressaisir le numéro de dossier/), {
@@ -229,7 +229,7 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
       target: { value: '2000-03-04' },
     });
     fireEvent.click(screen.getByRole('checkbox'));
-    fireEvent.click(screen.getByRole('button', { name: /Associer et chiffrer/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Ajouter l’image au dossier/ }));
     await waitFor(() => expect(get).toHaveBeenCalledWith(
       '/imaging/acquisition/receipts/17', {
         params: { selected_patient_id: 42, capture_digest: capture.digest },
