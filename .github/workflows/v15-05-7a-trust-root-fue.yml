@@ -7,6 +7,8 @@ on:
       - 'backend/services/legacy_migration_trust_root_v15.py'
       - 'backend/services/legacy_migration_install_attestation_v15.py'
       - 'backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py'
+      - 'backend/tests/test_legacy_sql_057a_f_rollback_ledger_fue.py'
+      - 'backend/tests/fixtures/lot05_7a_f_rollback_ledger_lab.py'
       - 'backend/tests/test_legacy_sql_057a_trust_root_fue.py'
       - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
       - '.github/workflows/v15-05-7a-trust-root-fue.yml'
@@ -48,14 +50,19 @@ jobs:
           dest=Path('isolated_fue_057a/backend');
           (dest/'services').mkdir(parents=True, exist_ok=True);
           (dest/'tests').mkdir(parents=True, exist_ok=True);
+          (dest/'tests'/'fixtures').mkdir(parents=True, exist_ok=True);
           copy2('backend/services/legacy_migration_trust_root_v15.py', dest/'services');
           copy2('backend/services/legacy_migration_install_attestation_v15.py', dest/'services');
           copy2('backend/tests/test_legacy_sql_057a_trust_root_fue.py', dest/'tests');
-          copy2('backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py', dest/'tests')"
+          copy2('backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py', dest/'tests');
+          copy2('backend/tests/test_legacy_sql_057a_f_rollback_ledger_fue.py', dest/'tests');
+          copy2('backend/tests/fixtures/lot05_7a_f_rollback_ledger_lab.py', dest/'tests'/'fixtures')"
       - name: Execute FUE-G05.7A negative and positive no-op cases
         run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_trust_root_fue.py -q --noconftest -ra
       - name: Execute FUE-G05.7A-D signed manifest, swapped binary and downgrade denials
         run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py -q --noconftest -ra
+      - name: Execute FUE-G05.7A-F independently witnessed rollback ledger lab
+        run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_f_rollback_ledger_fue.py -q --noconftest -ra
 
   windows-scm-native-pipe-fue:
     name: Native SCM LocalService SID + authenticated named pipe (Windows)
