@@ -501,3 +501,12 @@ Code HEAD `c9551e0a9fd73b34033d40164f4f91e93b30917b`, [B06 exact-HEAD #419383308
 **Next B06-4D (OPEN product architecture) before B06-5/5:** read-only true cabinet engine inventory, explicit LOT04/owner selection and additive Alembic SQL schema + separate DB roles; restore DB AND media on representative isolated clone, signer rotation/backup, multi-worker stale authority and crash/ACK recovery, then qualified visual BEFORE/TARGET/AFTER screenshots, 200% zoom/keyboard/focus and explicit owner approval on exact HEAD. LOT10 hardware physical remains separate. Never label a lab candidate installable.
 
 `READY_TO_MERGE=false` · `PRODUCT_READY=false` · `CLINICAL_GO=false` · `LOT10_PHYSICAL_VALIDATED=false`.
+
+
+## PRE B06-4D — adversarial architecture and no-product PG review, 2026-11-05
+
+**Verified exact baseline:** PR #1210 OPEN/DRAFT, branch `feat/lot06-phase2-b06-product-integration-20261104`, original B06-4C POST HEAD `243d23e9bbe925d27ba5af3681565a078f001284`; B06 workflow [#41939323313](https://github.com/hraaaaf/Digital_crown/actions/runs/41939323313) COMPLETED/SUCCESS, 3/3 jobs (Linux SQLCipher/PostgreSQL CI lab, React, Windows SCM/Authenticode). Candidate PostgreSQL adapter stays in `isolated_fue_lot06c/` and is not product-activated.
+
+**Goal/Success/Proof:** review B06-4C and design an approvable B06-4D architecture decision, with tests for cross-tenant and stale authorizations, SQL-role separation, transaction/ciphertext orphan cases, crashes, concurrent replay, DB+media restore, signer rotation and human visual workflow. Record verified evidence and explicit UNKNOWN/HUMAN_GATE_REQUIRED, without asserting an actual cabinet clone or clinical readiness.
+
+**Boundaries:** no real patient/cabinet access, migrations, Alembic, PostgreSQL product adapter, real hardware, merge, deployment, human approval simulation or forced DB engine choice. `READY_TO_MERGE=false`; `PRODUCT_READY=false`; `CLINICAL_GO=false`; `LOT10_PHYSICAL_VALIDATED=false`.
