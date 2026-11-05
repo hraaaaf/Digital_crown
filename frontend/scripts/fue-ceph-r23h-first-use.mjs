@@ -269,6 +269,34 @@ try {
    return {new_browser:true,studies:report.case_ids.slice().reverse(),
      native_react_steiner:report.react_steiner.map(v=>v.radio)};
  });
+ await check('STEINER_15_READPATH_COVERAGE',async()=>{
+   const ids=['M_SNA_DEG_V1','M_SNB_DEG_V1','M_ANB_DEG_V1','M_U1_NA_DEG_V1','M_U1_NA_MM_V1','M_L1_NB_DEG_V1','M_L1_NB_MM_V1','M_INTERINCISAL_DEG_V1','M_OCCLUSAL_PLANE_SN_DEG_V1','M_SN_GOGN_DEG_V1','M_L1_GOGN_DEG_V1','M_SND_DEG_V1','M_POG_NB_MM_V1','M_L1_DLINE_MM_V1','M_L1_DLINE_DEG_V1'];
+   const cases=[];
+   for(let i=0;i<specs.length;i++){
+     const response=await api.get('/api/ia/analyses/'+report.case_ids[i],{headers:{Authorization:'Bearer '+token}});
+     ensure(response.status()===200,'Steiner GET refused');
+     const study=await response.json();
+     ensure(study.is_calibrated===false&&study.mm_per_pixel==null,'Unexpected calibration');
+     const s=study.angles_data?.scientific_read_path;
+     ensure(s?.authority==='EVIDENCE_GRAPH_V1'&&s?.active_chain==='VERIFIED','Unverified scientific chain');
+     const p=s.protocol_profiles?.steiner;
+     ensure(p?.protocol_profile_id==='STEINER_STATIC_PROTOCOL_PROFILE_V1'&&p?.source_lock_gate?.status==='SATISFIED'&&p?.norm_set?.authority==='REFERENCE_DISPLAY_ONLY','Wrong Steiner source');
+     ensure(Array.isArray(p.rows)&&p.rows.length===15&&p.rows.every((r,j)=>r.canonical_measurement_id===ids[j]),'Steiner membership drift');
+     const rows=p.rows.map(r=>{
+       const available=r.availability_status==='AVAILABLE';
+       ensure(typeof r.availability_status==='string'&&r.classification_authority===false&&r.interpretation_status==='REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION','Unsafe Steiner metadata');
+       ensure(available?(Number.isFinite(r.value)&&r.measurement_refs?.length>0&&typeof r.value_authority_method_id==='string'):r.value==null,'Incoherent Steiner row '+r.canonical_measurement_id);
+       ensure(!available||!r.canonical_measurement_id.includes('_MM_'),'Uncalibrated mm forbidden '+r.canonical_measurement_id);
+       return {id:r.canonical_measurement_id,label:r.label,layer:r.layer,status:r.availability_status,value:available?r.value:null,unit:r.unit??null,method:available?r.value_authority_method_id:null,measurement_refs:available?r.measurement_refs:[],nc_context:available?[]:(r.canonical_measurement_id.includes('_MM_')?['CALIBRATION_UNVERIFIED','SOURCE_LANDMARKS_NOT_INFERRED']:['SOURCE_EVIDENCE_NOT_AVAILABLE']),classification_authority:false};
+     });
+     const available=rows.filter(r=>r.status==='AVAILABLE').length;
+     cases.push({radio:specs[i].name,study_id:report.case_ids[i],source_image_sha256:specs[i].hash,model:'SOTA_ONNX_38',source:'AUTHENTICATED_GET_ACTIVE_CHAIN_VERIFIED',calibration_verified:false,clinical_authority:false,available_count:available,nc_count:15-available,total:15,rows});
+     console.log('R23H_STEINER_15_COVERAGE',specs[i].name,JSON.stringify({available,total:15,clinical:false}));
+   }
+   report.steiner_15_coverage={schema:'CEPH_STEINER_15_NONCLINICAL_V1',head,clinical_release:false,source:'AUTHENTICATED_GET',cases};
+   await fs.writeFile(path.join(out,'steiner-15-coverage.json'),JSON.stringify(report.steiner_15_coverage,null,2));
+   return cases.map(c=>({radio:c.radio,available:c.available_count,total:c.total}));
+ });
  ensure(sourceLockedSnapshots.length===2&&report.svg_screenshots.length===4
    &&report.react_steiner.length===2,
    'Missing source-locked real-landmark data or genuine native Steiner screenshots');
