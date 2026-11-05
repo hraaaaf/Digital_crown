@@ -736,6 +736,7 @@ class TestCPV202CMobileDocumentPreview:
         doc = models.DocumentArchive(
             patient_id=patient.id, uploaded_by_id=dentiste.id,
             document_type=models.DocumentType.CERTIFICAT,
+            document_group_id='cpv2-02c-synthetic-safe-pdf',
             filename='safe.pdf', original_filename='safe.pdf',
             file_path=path, file_hash='abc', file_size=pdf.stat().st_size,
         )
