@@ -18,7 +18,14 @@ function RunProbe([string]$case, [string]$path) {
   @'
 import importlib.util
 import os
+import sys
+import types
 from pathlib import Path
+# Standalone CI probe must not execute backend/__init__.py (requires SQLAlchemy).
+# The platform adapter itself is the real backend/core/platform.py module.
+backend = types.ModuleType("backend")
+backend.__path__ = [str(Path.cwd() / "backend")]
+sys.modules["backend"] = backend
 spec = importlib.util.spec_from_file_location(
     "dc06_f5bb_handle", Path("backend/services/windows_keyring_handle_probe.py"))
 module = importlib.util.module_from_spec(spec)
