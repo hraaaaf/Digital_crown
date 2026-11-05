@@ -7,12 +7,12 @@ Only the current user and SYSTEM are granted access by the creation DACL.
 from __future__ import annotations
 
 import ctypes
+import json
 import os
 from ctypes import wintypes
 from pathlib import Path
 
 from backend.services.windows_keyring_handle_probe import (
-    WindowsKeyringHandleDenied,
     _FileInfo,
 )
 
@@ -41,6 +41,17 @@ def restore_new_private_file(filename: str, raw: bytes) -> None:
         raise WindowsRestoreDenied("WINDOWS_ONLY")
     if not isinstance(raw, bytes) or not 1 <= len(raw) <= 16384:
         raise WindowsRestoreDenied("RESTORE_SIZE_DENIED")
+    # Reject malformed or incomplete key registries before touching the filesystem.
+    from backend.services.clinical_media_keyring_recovery import (
+        KeyringRecoveryDenied, _canonical,
+    )
+    try:
+        parsed = json.loads(raw.decode("utf-8"))
+        _canonical(parsed)
+    except (UnicodeError, ValueError, KeyringRecoveryDenied) as exc:
+        raise WindowsRestoreDenied("RESTORE_KEYRING_INVALID") from exc
+    if not isinstance(filename, str):
+        raise WindowsRestoreDenied("RESTORE_PATH_DENIED")
     path = Path(filename)
     if (not path.is_absolute() or len(path.drive) != 2
             or path.drive[1] != ":" or path.anchor != path.drive + "\\"
@@ -93,8 +104,6 @@ def restore_new_private_file(filename: str, raw: bytes) -> None:
     sid_string = wintypes.LPWSTR()
     descriptor = ctypes.c_void_p()
     opened = []
-    created = False
-    finished = False
     try:
         if not adv.OpenProcessToken(kernel.GetCurrentProcess(), 0x0008,
                                     ctypes.byref(token)):
@@ -136,7 +145,6 @@ def restore_new_private_file(filename: str, raw: bytes) -> None:
         if handle is None or handle == ctypes.c_void_p(-1).value:
             raise WindowsRestoreDenied("RESTORE_CREATE_NEW_DENIED")
         opened.append(handle)
-        created = True
         count = wintypes.DWORD()
         raw_buffer = ctypes.create_string_buffer(raw)
         if (not kernel.WriteFile(handle, raw_buffer, len(raw),
@@ -144,7 +152,6 @@ def restore_new_private_file(filename: str, raw: bytes) -> None:
                 or count.value != len(raw)
                 or not kernel.FlushFileBuffers(handle)):
             raise WindowsRestoreDenied("RESTORE_WRITE_DENIED")
-        finished = True
     finally:
         for handle in reversed(opened):
             kernel.CloseHandle(handle)
@@ -154,8 +161,6 @@ def restore_new_private_file(filename: str, raw: bytes) -> None:
             kernel.LocalFree(ctypes.cast(sid_string, ctypes.c_void_p))
         if token.value:
             kernel.CloseHandle(token)
-        if created and not finished:
-            try:
-                os.unlink(path)
-            except OSError:
-                pass
+        # Never unlink by pathname after closing the exclusive handle: another
+        # actor could have replaced the path. An interrupted private file is
+        # quarantined for explicit operator handling, not auto-retried.
