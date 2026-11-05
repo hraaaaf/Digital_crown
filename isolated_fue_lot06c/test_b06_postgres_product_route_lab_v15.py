@@ -44,7 +44,8 @@ def _setup(pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch, capture
     # Real ORM tables, real SQL FK linking capture ledger to real ClinicalAsset
     # and tenant/patient. The schema is synthesized ONLY in isolated pg_ledger.
     for table in (models.User.__table__, models.Patient.__table__,
-                  models.WorkstationMode.__table__, ClinicalAsset.__table__):
+                  models.WorkstationMode.__table__, models.RevokedToken.__table__,
+                  ClinicalAsset.__table__):
         table.create(engine)
     with engine.begin() as conn:
         conn.exec_driver_sql(
