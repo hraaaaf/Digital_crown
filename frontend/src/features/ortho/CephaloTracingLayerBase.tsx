@@ -299,7 +299,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
       if (activeAnalysis !== 'all' && !isGhost) {
         const analysis = activeAnalysis.toLowerCase();
-        if (analysis === 'steiner' && !['sn', 'na', 'nb'].includes(lineKey)) return null;
+        if (analysis === 'steiner' && !['sn', 'na', 'nb', 'u1', 'l1'].includes(lineKey)) return null;
         if (analysis === 'tweed' && !['fh', 'mp', 'u1', 'l1', 'zprofile'].includes(lineKey)) return null;
         if (analysis === 'mcnamara' && !['fh', 'mcnamara_perp', 'coa', 'cogn', 'ansme'].includes(lineKey)) return null;
         if (analysis === 'wits' && !['occ'].includes(lineKey)) return null;
@@ -410,6 +410,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
             {seg(s, n, 'sn', P.sn)}
             {seg(n, a, 'na', P.na)}
             {seg(n, b, 'nb', P.nb)}
+            {/* Source-to-source finite incisor axes replace Steiner's infinite
+                local-coordinate tooth decoration; no synthetic extensions. */}
+            {seg(u1a, u1i, 'u1', P.u1)}
+            {seg(l1a, l1i, 'l1', P.l1)}
             {seg(a, b, 'ab', P.ab, { dash: isGhost ? '6,4' : '2,3', op: 0.50 })}
           </>
         )}
@@ -536,7 +540,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           <path data-ortho-layer="measurements" opacity={layerOpacityFor('measurements')} d={wedgeNormPath} fill={wNorm} fillOpacity="0.20" stroke={wNorm} strokeWidth="1.1" vectorEffect="non-scaling-stroke" className="pointer-events-none" />
         )}
 
-        {!referenceHold && isLayerVisible('teeth') && u1i && u1a && (
+        {!referenceHold && !steinerOnly && isLayerVisible('teeth') && u1i && u1a && (
           <AnatomicalTooth
             incisalPoint={u1i}
             apexPoint={u1a}
@@ -548,7 +552,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
             glowFilter={u1Glow}
           />
         )}
-        {!referenceHold && isLayerVisible('teeth') && l1i && l1a && (
+        {!referenceHold && !steinerOnly && isLayerVisible('teeth') && l1i && l1a && (
           <AnatomicalTooth
             incisalPoint={l1i}
             apexPoint={l1a}
