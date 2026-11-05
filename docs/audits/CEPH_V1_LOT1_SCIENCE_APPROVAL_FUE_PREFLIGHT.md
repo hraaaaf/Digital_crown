@@ -1678,3 +1678,46 @@ Total **15/15 lignes recensées**, dont **6/15 AVAILABLE** et **9/15 NOT_COMPUTA
 **Baseline / preuve** : PR #1213 OPEN/DRAFT, HEAD `e4c15e0248c13e4b13476ea499c9bb14c15dfe78` ; le présent canonique §61 relu ; Notion PRE65 enregistré. Existant documenté §58 : `Step2Occlusal.tsx` contient DDM max/mand, forme d'arcade, classe molaire/canine D/G et subdivision. Constantes `107`/`90` liées à DDM à auditer, jamais traitées comme références approuvées à ce stade.
 
 **GOAL** : définir Step2 comme onboarding conditionnel, avec denture, provenance des examens/modèles, saisie sans données imposées, DDM avec valeurs/méthodes sourcées, rapports D/G, surplomb/recouvrement, transverse, milieux et observations ; parcours partiel sauvegardable. **Success** : chaque question a une condition d'apparition, unité et statut non évalué explicites, aucune inférence ni traitement automatique. **Gate** : SPEC_DISCOVERY / NOT_APPROVED / NO_CODE ; pas de code, CI, patients, merge ou Vercel déclenchés intentionnellement par un lot produit.
+
+
+### 62. POST — 2026-11-05 — onboarding Moulages et occlusion : parcours fonctionnel candidat
+
+**Statut** : `SPEC_DISCOVERY / DRAFT / HUMAN_GATE_REQUIRED / NO_CODE`. Quatre étapes globales inchangées : Céphalométrie → Moulages & occlusion → Diagnostic → Plan & Bilan. Cadrage de la **Step2 existante**, sans écran assistant indépendant, sans décision thérapeutique automatique ni activation clinique. Duo COM Digital Crown + Steiner 1953/1959 toujours `PROJECT_LOCKED`; composition exacte historique COM encore à arbitrer séparément.
+
+#### 62-A. Séquence d'onboarding proposée (non approuvée)
+
+| Sous-passe | Question / saisie | Condition d'affichage | Statut/provenance |
+|---|---|---|---|
+| 1. Denture | temporaire, mixte, permanente, non déterminée ; âge / stade uniquement s'il est déjà documenté dans dossier | toujours, avant calculs dépendants des dents présentes | saisi/confirmé par praticien ; aucune dentition déduite de l'âge seul |
+| 2. Disponibilité | examen clinique, moulages physiques, scan numérique exploitable, photographies d'appoint, aucun modèle ; date/source | toujours ; plusieurs sources possibles | une photo seule ne vaut pas un moulage mesurable ; les données non observables restent NON_EVALUE |
+| 3. Arcades / espace | maxillaire et mandibulaire séparés ; forme d'arcade ; encombrement/diastèmes observés ; DDM (espace disponible, espace nécessaire, méthode, unité mm et résultat signé si définissable) | si mesure documentée de chaque arcade ; en denture mixte, demander méthode d'estimation des dents non éruptées et source applicable avant DDM | pas de conversion automatique depuis `107`/`90` legacy sans norme source/version/population ; une DDM non mesurée ne devient pas 0 |
+| 4. Relations sagittales | molaire droite/gauche + canine droite/gauche : I/II/III/non évaluable, subdivisions si observées, absences/éruption/anomalie si affectent l'évaluation | seulement si denture, dents index et occlusion permettent une classification pertinente ; si dent absent ou relation non observable, marquer NON_EVALUABLE au côté concerné | provenance examen clinique ou modèle ; ne pas forcer symétrie D=G |
+| 5. Vertical/transverse | overjet et overbite en mm si mesurés ; béance et supraclusion observées ; lignes médianes (déviation D/G + mesure) ; occlusion croisée antérieure/postérieure, côté, ciseaux, déviation fonctionnelle, courbe de Spee, asymétrie selon données | bloc de base visible, sous-questions uniquement si anomalie/mesure pertinente ; champs numériques facultatifs quand aucune valeur étayée | séparer observation qualitative et mesure documentée ; pas de diagnostic automatique à partir d'un seul critère |
+| 6. Vérification | synthèse D/G, arcades, valeurs, unités, sources, champs non évalués et éventuelles contradictions | fin d'étape | sauvegarde brouillon et reprise ; confirmation clinique praticien traçable distincte de validation finale du diagnostic |
+
+**Règles conditionnelles P0** :
+- Sans moulages, saisir uniquement ce que l'examen clinique permet réellement ; masquer les mesures de modèle requérant un étalon ou déclarer NON_EVALUABLE. Ne pas empêcher de poursuivre le dossier.
+- En denture mixte, demander quelles dents sont présentes et la méthode applicable avant toute prédiction ou DDM ; aucune taille coronaire calculée d'après un seuil implicite.
+- Classes molaire/canine droite/gauche totalement indépendantes ; si dent index absente/non éruptée, ne pas forcer classe ou subdivision. 
+- Mesures d'overjet/overbite/lignes médianes : distinguer unité numérique et observation qualitative ; ne jamais mettre `0` par défaut.
+- Gestion des éléments non évalués/non observés : `NON_EVALUE`, `NON_APPLICABLE`, `A_CONFIRM`, `CONFIRME_PAR_PRATICIEN` sont des états de concept, à réconcilier avec les vrais contrats de persistance uniquement **après** fin des specs.
+- Le compte rendu doit conserver provenance, côté, denture, méthode, date, auteur, correction et statut ; aucune conclusion classe squelettique/indication thérapeutique issue automatiquement de la classe molaire.
+
+#### 62-B. UX compacte proposée
+
+Step2 = un **panneau unique progressif**, question courante bien identifiée et retour arrière sans perte de réponse ; résumé d'arcades et côtés constamment accessible ; champs cachés conditionnellement sans effacer leur valeur historique si non pertinente (marquer état / version) ; bouton `Continuer vers diagnostic` même lorsque des données sont manquantes, avec résumé explicite des omissions. Règles UX/couleurs héritées des tokens globaux, jamais HEX locaux, accessibilité clavier/zoom et touch. Ne pas imposer une page par question si cela augmente le nombre de clics ; la progressivité est principalement la révélation conditionnelle dans Step2 existante.
+
+#### 62-C. Batterie FUE prévue — NON EXECUTEE
+
+- FUE-M01 denture permanente, deux modèles mesurés : deux arcades et quatre rapports D/G éditables et persistés.
+- FUE-M02 denture mixte : méthode estimation requise pour DDM concernée ; sans preuve, état NON_EVALUE et aucune valeur numérique fictive.
+- FUE-M03 molaire manquante d'un seul côté / canine non éruptée : aucune classe automatique côté absent, autre côté conservé.
+- FUE-M04 sans moulages : parcours clinique partiel avec absence de mesure, pas de blocage ni d'invention, état retrouvé après réouverture.
+- FUE-M05 DDM en mm avec données contradictoires ou unités manquantes : calcul suspendu, source et conflit visibles ; constantes historiques 107/90 jamais activées par défaut.
+- FUE-M06 modification de mesure/latéralité : mise à jour seulement des dépendances, historique et bilan/aperçu identiques.
+- FUE-M07 contradictions molaires/canines, déviation/occlusion croisée, saisis qualitatives : ne pas produire de diagnostic autonome.
+- FUE-M08 navigation réversible, non-effacement des saisies, thème actif, 390/430/768/1280, 200% zoom texte, clavier/tactile, BEFORE/AFTER réelles sur UI autorisée, validation du praticien.
+
+**Arbitrage unique proposé ensuite** : confirmer comme première question du parcours la **denture** plutôt que la disponibilité du modèle. L'ordre « denture d'abord » est recommandé car il conditionne la pertinence des relations dentaires, les méthodes DDM et les champs. Ce n'est pas encore une décision du propriétaire.
+
+**Proof/limitations** : spécification candidate dans ce seul fichier, FUE-M01..08 NON RUN, aucun changement logiciel, aucun patient, merge, Vercel ou approbation des captures. **NEXT** : arbitrage de l'ordre d'entrée Step2, puis préciser les questions conditionnelles et poursuivre Step3/Step4 en atelier, avant réconciliation technique. **Dernière mise à jour canonique : 05/11/2026 — POST §62, onboarding Moulages SPEC ONLY.**
