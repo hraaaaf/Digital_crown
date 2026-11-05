@@ -776,3 +776,8 @@ Implemented explicit retained-key maps `DC_MEDIA_V2_RETAINED_MEDIA_KEYS_JSON` an
 ## PRE B06-4D-F4 — secure keyring configuration gate, 2026-11-05
 
 F3 exact HEAD `66bac52`, run #42022380767 GREEN 3/3, 11/11 F2/F3, 14/14 F1. F4 objective: remove insecure inline historical-key JSON from environment by supporting local private keyring file with strict permissions, fail-closed malformed/insecure config, synthetic FUE and exact-SHA CI. Keep existing opt-in mode, no merge/deploy/clinical activation.
+
+
+## POST B06-4D-F4 — private local keyring file, 2026-11-05
+
+Added opt-in `DC_MEDIA_V2_KEYRING_FILE` for local JSON with `active_media_id`, `active_locator_id`, `media_keys`, `locator_keys` (historical IDs included). On POSIX requires regular file (not symlink), owner == process EUID, no group/other permissions, size <= 16KiB; rejects mixed inline environment secrets, malformed map, missing active IDs, cross-purpose key reuse. Existing environment-key mode remains available for compatibility; Windows file mode explicitly unsupported until ACL-specific implementation. Seven synthetic F4 tests in `isolated_fue_lot06c/test_b06_f4_private_keyring.py`, exact SHA CI step added. **F4 CI pending; not certified GREEN**. This is configuration hardening, not an encrypted/escrowed backup or robust atomic file-opening/TOCTOU guarantee; do not treat it as full key custody. `READY_TO_MERGE=false`, `CLINICAL_GO=false`; no deploy or merge.
