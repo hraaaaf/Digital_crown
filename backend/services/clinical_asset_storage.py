@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import hmac
+import re
 import os
 from pathlib import Path, PurePosixPath
 import uuid
@@ -132,7 +133,13 @@ def _validate_storage_key_for_tenant(storage_key: str, employer_id: int, *, dige
         if digest is None:
             raise ClinicalAssetStorageError("missing v2 digest")
         try:
-            ring, _media_id, locator_id = configured_keyring()
+            ring, _media_id, _active_locator_id = configured_keyring()
+            match = re.fullmatch(r"v2-([a-z][a-z0-9_-]{0,31})-t-[0-9a-f]{24}", pure.parts[1]) if len(pure.parts) == 4 else None
+            if match is None:
+                raise ClinicalAssetStorageError("v2 storage locator mismatch")
+            locator_id = match.group(1)
+            if locator_id not in ring.locator_keys:
+                raise ClinicalAssetStorageError("v2 historical locator key unavailable")
             expected_key = _storage_key_v2(employer_id, digest, ring, locator_id)
         except MediaCryptoV2Denied as exc:
             raise ClinicalAssetStorageError("v2 media key unavailable") from exc
