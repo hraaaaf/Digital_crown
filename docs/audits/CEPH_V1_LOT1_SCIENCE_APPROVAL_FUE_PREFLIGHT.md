@@ -1858,3 +1858,43 @@ Step2 = un **panneau unique progressif**, question courante bien identifiée et 
 **LIMITATION DE PREUVE** : consultation HTML et texte extrait des PDF via recherche web ; appels `screenshot` PDF HAS et PDF Steiner 1960 ont retourné cache miss/erreur. Aucune capture PDF visuelle vérifiée ; ne pas présenter les PDFs comme relus image par image.
 
 **GOAL/SUCCESS** : corriger la future UX, source-versionner la conversion historique propre à Steiner, afficher les signes, la correction de forme d'arcade et la méthode de détermination du but incisif, bloquer le calcul si `L1–NB_MM` ou calibration/cible manque, séparer Spee du RI dans la boîte. **GATE** : recherche/SPÉCIFICATION uniquement ; aucune formule exécutée en clinique, aucun code, merge, CI clinique ou Vercel.
+
+
+### 65. POST — 2026-11-05 — DDM céphalo : Steiner ×2 et Tweed–Merrifield ×0,8, formules distinctes
+
+**VERDICT après recherche** : correction chiffrée enseignée **confirmée par source primaire Steiner 1960**, corroborée par supports de formation : la règle historique n'est **pas** « indéfinie » : `RI_STEINER_MM = 2 × (L1_to_NB_TARGET_MM − L1_to_NB_INITIAL_ADJUSTED_MM)`, avec la convention d'espace signée `+ = gain potentiel`, `− = consommation d'espace`. Exemple fictif : initiale 7 mm, cible 4 mm, écart `−3 mm` → `RI = −6 mm` sur les deux hémiarcades. **Cette formule est une convention géométrique clinique de planification, pas une prédiction clinique assurée ni une règle pour une arcade maxillaire.**
+
+#### Source primaire et subtilité indispensable
+
+Steiner, 1960, *The Use of Cephalometrics as an Aid to Planning and Assessing Orthodontic Treatment* (article original, Am J Orthod 46:721–735), https://bbo.org.br/bbo/files/bibliografia/artigos/56_The_use_of_cep_halometrics.pdf : `−7 mm` de recul incisif de **11→4 mm après ajustement de forme d'arcade** donne `−14 mm` de périmètre d'arcade au poste « Relocation 1 » ; l'incisive initiale **avait été mesurée à 13 mm**, et l'auteur a retranché 2 mm pour l'envisager alignée dans une forme d'arcade acceptable. Donc :
+- l'incisive initiale brute `i-NB_initial_measured` et sa valeur ajustée selon l'alignement/forme d'arcade `i-NB_initial_adjusted` sont deux informations **séparées** ; ne pas utiliser arbitrairement la première dans une équation conçue pour la seconde ;
+- il faut un **objectif i-NB** individualisé d'après chevrons et examen praticien, avec la méthodologie source. Ne pas forcer `i-NB cible = 4 mm`.
+- les chevrons Steiner utilisent notamment ANB, I–NA, i–NB, Pog–NB, hypothèses de croissance/position squelettique ; leur fonctionnement exact est un **sous-protocole de planification à spécifier et versionner** (l'actuel profil 15 mesures de géométrie ne suffit pas à lui seul pour déclarer la boîte « calculable »).
+- l'étude https://pubmed.ncbi.nlm.nih.gov/16764682/ relève une fiabilité prédictive insuffisante de Steiner en tant que seule base de décision thérapeutique. Utiliser la projection en **simulation contrôlée** et non « optimum automatique ».
+
+#### Tweed est une méthode différente, même si la formule conventionnelle est simple
+
+Revue https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/espace-total-tweed-merrifield/ : `|RI_TWEED_MM| = 0.8 (mm/degree) × |FMIA_TARGET_DEG − FMIA_MEASURED_DEG|` (ou IMPA avec les conventions de signe équivalentes si FMA inchangé). Exemple FMA 26°, FMIA 57°, FMIA cible 67° ⇒ angle à redresser de 10° ⇒ consommation `−8 mm`. **Coefficient conventionnel**, seuils FMIA/FMA variables selon écoles (67/68°, limites 22/28° vs 20/30°), **ne PAS réactiver automatiquement Tweed** dans la V1 COM + Steiner, ne pas fusionner les deux méthodes ni importer « valeurs normales » universelles. Les constantes `107/90` legacy ne sont pas certifiées par cette découverte et restent en audit.
+
+#### UI / comportement V1 (SPEC CANDIDATE, NON APPROUVÉ)
+
+- **Step1 Céphalométrie** : fournir `L1_to_NB_initial_mm` uniquement si définition exacte `L1_facial_surface` + source anatomique SRPose38 / correction humaine contrôlée + calibration géométrique mm vérifiée. Sur deux JPEG publics sans calibration, `M_L1_NB_MM_V1` reste NC au snapshot §54 ; la formule `×2` ne doit **pas** faire passer le moteur de 6/15 à 7/15.
+- **Step2 Moulages** : `encombrement ED−EN` mesuré/estimé, forme d'arcade et ajustement initial Steiner s'il est nécessaire, Spee et provenance ; distinguer la **boîte de Steiner** où `encombrement`, `repositionnement incisif (RI)` et `courbe de Spee` sont trois lignes distinctes. La décision antérieure sur Spee « inclus dans clinique » n'était **pas approuvée** ; proposer des sous-postes conservés séparés et une vue de total sans double comptage.
+- **Step3 Diagnostic / objectif praticien** : déterminer selon chevrons Steiner la cible `i–NB` et enregistrer le choix de compromis `initial mesuré→initial ajusté→cible projetée→cible retenue par clinicien`, unités et date ; après vérifications, afficher `RI = 2 × (cible − initial ajusté)`, détailler résultat signé avec variante source `STEINER_LOWER_ARCH_RELOCATION_1_1960`. La **DDM réelle** peut alors être synthétisée en additionnant la DDM clinique définie/étayée et cette correction sans Spee en double. Aucune décision d'extraction, d'ancrage ou d'appareil automatisée.
+- **Step4 Bilan** : montrer valeur source, cible, correction du positionnement initial, conversion ×2, signe, hypothèses, Spee et enveloppe d'applicabilité ; si un lien manque afficher `NON CALCULABLE` + cause, jamais `0`, jamais masquer une extrapolation de denture mixte.
+- **Protocoles** : DUO V1 COM Digital Crown + Steiner 1953/1959 **déjà verrouillé** ; l'article historique de planification Steiner 1960 est une **référence complémentaire proposée** pour sa boîte/chevrons, ne modifie pas sans accord la liste 15/15 du profil géométrique. L'option Tweed est **comparaison documentaire uniquement**, pas troisième analyse V1.
+- **Métrologie / UI** : tous les mm exigent leur origine et étalon, tous les traits/couleurs via tokens du thème global, zéro runtime LLM.
+
+#### Batterie FUE-ST (future / NOT RUN)
+
+- ST-01 : initial `7 mm`, ajustement `0`, cible `4 mm` → `−6 mm` ; ratio et signe vérifiés sur oracle.
+- ST-02 : cas source Steiner `13 mm mesuré`, `11 mm ajusté`, `4 mm cible` → `−14 mm` et non `−18 mm`; ne pas confondre les deux états de la dent.
+- ST-03 : seule ANB/IMPA/FMIA connue sans `i-NB mm` valide → RI Steiner `NC` (angle seul ne suffit pas pour mode Steiner).
+- ST-04 : cible générée par chevrons mais non validée par praticien → RI prévisionnel identifiable, jamais « final clinique » / pas de plan autonome.
+- ST-05 : témoin Tweed 10°×0,8 = 8 mm de coût d'espace, **n'entre jamais dans la somme Steiner**, y compris si un autre sous-module historique garde Tweed.
+- ST-06 : changer calibration, point incisif, correction de forme, cible ou denture → invalidation/recalcul dirigé, historique.
+- ST-07 : Spee présent séparément dans boîte Steiner et éventuellement inclus par définition explicite dans DDM clinique : jamais deux fois dans total.
+- ST-08 : denture mixte, germes non mesurés et prévisions de croissance → état `ESTIMÉ / NON ÉVALUÉ` ; pas de faux « définitif », contrôle clinique humain, UI/PDF même provenance.
+- ST-09 : thème tokens globaux, aucun patient réel en test/artifacts, FUE futurs avant/après 390/430/768/1280 + zoom 200%, aucun run de ces scénarios encore réalisé.
+
+**PREUVE ET GATES** : article Steiner original **texte extrait et audité via web**, appels screenshot PDF Steiner et HAS ont échoué `cache miss`; ne pas prétendre inspection graphique authentifiée des figures. Confirmations pédagogiques GS Ortho, revue Tweed 2022, étude de valeur prédictive indépendante. Nous pouvons donc **spécifier** ces formules historiques ; pas d'implémentation, de recalcul rétrospectif patient, de certification médicale, de merge ou de déploiement. **NEXT** : valider le mode de détermination cible via chevrons Steiner et la correction de forme d'arcade ; régler la présentation boîte de Steiner des lignes Spee ; poursuivre étape 2 puis 3/4. **Dernière mise à jour canonique : 05/11/2026 — POST §65, DDM céphalo précisée, SPEC ONLY.**
