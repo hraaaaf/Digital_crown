@@ -140,13 +140,14 @@ jobs:
           python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_f2_product_storage_v2.py
           echo DC06_B06_F2_PRODUCT_STORAGE_V2_SYNTHETIC_FUE_PASS
           echo DC06_B06_F3_RETAINED_KEYS_ROTATION_FUE_PASS
-      - name: B06-4D-F4 POSIX private keyring security FUE
+      - name: B06-4D-F4/F5 POSIX private keyring and atomic open security FUE
         shell: bash
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
           python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_f4_private_keyring.py
           echo DC06_B06_F4_PRIVATE_KEYRING_FUE_PASS
+          echo DC06_B06_F5_ATOMIC_NOFOLLOW_KEYRING_FUE_PASS
       - name: B06-4B PostgreSQL 18 disposable clone FUE (schema only, never product)
         shell: bash
         run: |
