@@ -231,3 +231,71 @@ def test_b06_4c_pg_real_orm_rollback_all_four_records(
         assert ok.status_code == 200, ok.text[:300]
         assert _counts(engine) == (1, 1, 1, 1)
     print("DC06_B06_4C_PG18_ASSET_LEDGER_AUDIT_OUTBOX_ROLLBACK_PASS", failpoint)
+
+
+@pytest.mark.parametrize("fault", [
+    "encrypted_blob_corrupt",
+    "encrypted_blob_missing",
+    "workstation_cookie_changed",
+    "bearer_missing",
+    "staff_revoked",
+])
+def test_b06_4d_pg_ack_recovery_adversarial(
+    pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch, fault,
+):
+    """Disposable PG/FastAPI: never return a signed ACK after loss of proof.
+
+    This validates a laboratory recovery boundary, not PostgreSQL product
+    readiness, human sign-off, power-cut durability or cabinet migration.
+    """
+    engine, claim, station, headers, app, active = _setup(
+        pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+        capture_id=700,
+    )
+    with _localhost_server(app) as base, httpx.Client(
+        base_url=base, trust_env=False, timeout=25,
+    ) as http:
+        http.cookies.set("dc_workstation", station)
+        commit, valid = _review(http, claim, headers, active)
+        saved = http.post(commit, json=valid, headers=headers)
+        assert saved.status_code == 200, saved.text[:300]
+        assert _counts(engine) == (1, 1, 1, 1)
+        path = f"/api/imaging/acquisition/receipts/{active['capture'].id}"
+        params = {
+            "selected_patient_id": claim.patient,
+            "capture_digest": active["capture"].digest,
+        }
+        authorized_headers = headers
+        if fault in ("encrypted_blob_corrupt", "encrypted_blob_missing"):
+            files = [p for p in app.state.dc06_b06_media_root.rglob("*")
+                     if p.is_file()]
+            assert len(files) == 1, "expected exactly one synthetic ciphertext"
+            blob = files[0]
+            if fault == "encrypted_blob_corrupt":
+                original = blob.read_bytes()
+                assert len(original) > 1
+                blob.write_bytes(original[:-1] + bytes([original[-1] ^ 1]))
+            else:
+                blob.unlink()
+        elif fault == "workstation_cookie_changed":
+            http.cookies.set("dc_workstation", "wrong-station")
+        elif fault == "bearer_missing":
+            authorized_headers = {}
+        elif fault == "staff_revoked":
+            with Session(engine) as db:
+                record = db.execute(select(candidate.receipts)).mappings().one()
+                user = db.get(models.User, record["staff"])
+                assert user is not None
+                user.is_active = False
+                db.commit()
+
+        denied = http.get(path, params=params, headers=authorized_headers)
+        if fault.startswith("encrypted_blob_"):
+            assert denied.status_code == 409, denied.text[:300]
+            assert denied.json()["detail"] == "DURABLE_RECEIPT_NOT_VERIFIED"
+        elif fault == "workstation_cookie_changed":
+            assert denied.status_code == 423, denied.text[:300]
+        else:
+            assert denied.status_code in (401, 403, 423), denied.text[:300]
+        assert _counts(engine) == (1, 1, 1, 1)
+    print("DC06_B06_4D_PG18_ACK_RECOVERY_ADVERSARIAL_DENIED_PASS", fault)
