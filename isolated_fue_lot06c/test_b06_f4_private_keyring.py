@@ -44,7 +44,7 @@ def test_f4_03_symlink_denied(keyfile, monkeypatch, tmp_path):
     link = tmp_path / "link"
     link.symlink_to(path)
     monkeypatch.setenv("DC_MEDIA_V2_KEYRING_FILE", str(link))
-    with pytest.raises(MediaCryptoV2Denied, match="INSECURE_KEYRING_FILE"):
+    with pytest.raises(MediaCryptoV2Denied, match="INVALID_KEYRING_FILE"):
         configured_keyring()
 
 
@@ -74,4 +74,28 @@ def test_f4_07_missing_active_key_denied(keyfile):
     del data["media_keys"]["media2"]
     path.write_text(json.dumps(data))
     with pytest.raises(MediaCryptoV2Denied, match="KEY_UNAVAILABLE"):
+        configured_keyring()
+
+
+def test_f5_01_relative_path_denied(keyfile, monkeypatch):
+    monkeypatch.setenv("DC_MEDIA_V2_KEYRING_FILE", "relative-keyring.json")
+    with pytest.raises(MediaCryptoV2Denied, match="KEYRING_PATH_NOT_ABSOLUTE"):
+        configured_keyring()
+
+
+def test_f5_02_oversize_file_denied(keyfile):
+    path, _ = keyfile
+    path.write_text(" " * 16385)
+    with pytest.raises(MediaCryptoV2Denied, match="KEYRING_FILE_TOO_LARGE"):
+        configured_keyring()
+
+
+def test_f5_03_symlink_swap_denied_at_open(keyfile, monkeypatch, tmp_path):
+    path, _ = keyfile
+    alternate = tmp_path / "alternate"
+    alternate.write_text(path.read_text())
+    alternate.chmod(0o600)
+    path.unlink()
+    path.symlink_to(alternate)
+    with pytest.raises(MediaCryptoV2Denied, match="INVALID_KEYRING_FILE"):
         configured_keyring()
