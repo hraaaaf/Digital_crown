@@ -25,8 +25,12 @@ PINNED_FIXTURE_SHA256 = "3de7f99acfba9b5bcc7df3394dc5272ace316c62c2331cd2e3091a8
 
 def fixture():
     raw = FIXTURE.read_bytes()
-    assert hashlib.sha256(raw).hexdigest() == PINNED_FIXTURE_SHA256, "FIXTURE_DRIFT"
-    data = json.loads(raw)
+    # GitHub's Windows checkout can convert JSON text LF to CRLF.
+    # Pin the same canonical LF bytes; do not weaken the content checksum.
+    canonical = raw.replace(b"\r\n", b"\n")
+    assert b"\r" not in canonical, "INVALID_FIXTURE_LINE_ENDING"
+    assert hashlib.sha256(canonical).hexdigest() == PINNED_FIXTURE_SHA256, "FIXTURE_DRIFT"
+    data = json.loads(canonical)
     assert data["schema"] == "dc06-f5bd4-fixed-synthetic-v1"
     assert data["provenance"] == "prebuilt-before-ci-run-2026-11-05-not-offsite-or-human-attested"
     envelope = base64.b64decode(data["envelope_b64"], validate=True)
