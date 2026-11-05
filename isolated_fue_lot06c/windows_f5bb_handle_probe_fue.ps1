@@ -71,8 +71,8 @@ try {
 
   $link = Join-Path $root 'link.json'
   New-Item -ItemType SymbolicLink -Path $link -Target $file -ErrorAction SilentlyContinue | Out-Null
-  if (Test-Path -LiteralPath $link) { RunProbe 'reparse' $link }
-  else { Write-Output 'DC06_F5BB_REPARSE_SKIPPED_NO_PRIVILEGE' }
+  if (-not (Test-Path -LiteralPath $link)) { throw 'F5BB_FINAL_SYMLINK_FUE_UNAVAILABLE' }
+  RunProbe 'reparse' $link
 
   $parent = Join-Path $root 'realparent'
   New-Item -ItemType Directory -Path $parent | Out-Null
@@ -81,13 +81,14 @@ try {
   Set-PrivateAcl $nested
   $junction = Join-Path $root 'junctionparent'
   New-Item -ItemType Junction -Path $junction -Target $parent -ErrorAction SilentlyContinue | Out-Null
-  if (Test-Path -LiteralPath $junction) { RunProbe 'parent_reparse' (Join-Path $junction 'keyring.json') }
-  else { Write-Output 'DC06_F5BB_PARENT_REPARSE_SKIPPED_NO_PRIVILEGE' }
+  if (-not (Test-Path -LiteralPath $junction)) { throw 'F5BB_PARENT_JUNCTION_FUE_UNAVAILABLE' }
+  RunProbe 'parent_reparse' (Join-Path $junction 'keyring.json')
 
   $source = Get-Content -LiteralPath 'backend/services/clinical_media_crypto_v2.py' -Raw
   if (-not $source.Contains('KEYRING_FILE_PLATFORM_UNSUPPORTED')) { throw 'WINDOWS_FAIL_CLOSED_MISSING' }
   if ($source.Contains('windows_keyring_handle_probe')) { throw 'UNREVIEWED_PRODUCT_ACTIVATION' }
   Write-Output 'DC06_F5BB_PRODUCT_STILL_CLOSED_PASS'
+  Write-Output 'DC06_F5BB_NATIVE_ACL_PARENT_REPARSE_FUE_PASS'
 } finally {
   Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
