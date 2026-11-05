@@ -1721,3 +1721,12 @@ Step2 = un **panneau unique progressif**, question courante bien identifiée et 
 **Arbitrage unique proposé ensuite** : confirmer comme première question du parcours la **denture** plutôt que la disponibilité du modèle. L'ordre « denture d'abord » est recommandé car il conditionne la pertinence des relations dentaires, les méthodes DDM et les champs. Ce n'est pas encore une décision du propriétaire.
 
 **Proof/limitations** : spécification candidate dans ce seul fichier, FUE-M01..08 NON RUN, aucun changement logiciel, aucun patient, merge, Vercel ou approbation des captures. **NEXT** : arbitrage de l'ordre d'entrée Step2, puis préciser les questions conditionnelles et poursuivre Step3/Step4 en atelier, avant réconciliation technique. **Dernière mise à jour canonique : 05/11/2026 — POST §62, onboarding Moulages SPEC ONLY.**
+
+
+### 63. PRE — 2026-11-05 — exploration de la denture mixte : questions conditionnelles de Step2 (SPEC ONLY)
+
+**Demande :** « Pour notre conception de l'onboarding Moulages, prenons l'exemple d'une denture mixte. Montre-moi les questions conditionnelles suivantes, sans coder. » Considérer l'exemple comme un **parcours hypothétique**, non patient et non validation de l'écran. Le propriétaire ne change pas la décision de V1 COM Digital Crown + Steiner 1953/1959.
+
+**Baseline :** PR #1213 OPEN/DRAFT, HEAD avant PRE `9fedc1e3594593993bdac871a88f4d818a107761`, canonique §62 POST relu, Notion PRE66 écrit. Hériter de Step2 existante, pas de nouvel assistant ; protocoles/DDL mixtes et valeurs `107/90` ne sont pas des règles validées.
+
+**GOAL/SUCCESS :** montrer questions concrètes et embranchements liés à l'existence de modèle mesurable, au statut des dents temporaires/permanentes, aux 1ères molaires permanentes et canines par côté, à l'espace/DDM sourcé, aux observations verticales/transverses, et à la revue. Toutes les branches écartées doivent être explicitement `NON_EVALUE` ou `NON_APPLICABLE`, pas `NORMAL`. Mettre en évidence le cas de modèle absent, les champs absents, le passage en brouillon partiel, et préparer une batterie FUE négative. **Gate** : SPEC_ONLY / HUMAN_APPROVAL_PENDING / NO_CODE / NO_MERGE / NO_DEPLOY.
