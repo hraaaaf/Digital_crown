@@ -1451,3 +1451,60 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Goal** : produire dans cette passe un tableau « déjà existant / écart produit / décision proposée », un parcours cible utilisable et une liste minimale de choix cliniques à approuver ; PAS de reconciliation ni implémentation. **Success** : décisions séparées des hypothèses, protocole de calibration sans tricherie, deux profils candidats motivés, bornes de rapport/diagnostic/plan, thèmes et gate screenshots. GitHub et Notion POST à la fin.
 
 **Dernière mise à jour canonique : 05/11/2026 — PRE §58, atelier de conception, zéro code.**
+
+
+### 58. POST — 2026-11-05 — Architecture fonctionnelle cible Céphalo V1 : COM et Steiner (proposition, zéro code)
+
+**Nature de la passe** : inventaire source réel + atelier de conception ; **aucune réconciliation ni développement produit**, aucune approbation, aucun changement moteur ni norme, aucun merge ou déploiement. Les propositions suivantes sont **non approuvées** tant que l'utilisateur n'a pas tranché les détails.
+
+#### Décisions explicites du propriétaire — ACQUISES
+
+1. Poids SRPose38 / 38 coordonnées comme **source de travail du tracé** ; les points affichés sur la radio doivent porter leur **nom anatomique** et non leur numéro d'ordre. La numérotation 01..38 des planches FUE-H constitue une **preuve QA**, pas l'UI cible.
+2. L'analyse choisie doit filtrer automatiquement **les points, lignes, plans, angles et mesures propres à ce protocole** ; le besoin final dépasse la simple superposition de 38 points.
+3. Détecter les graduations d'une réglette et calibrer lorsque sa **longueur physique est déterminable** ; sans preuve de mm réelle, garder les mesures linéaires indisponibles. Éviter l'étalonnage inventé et les conclusions cliniques non fondées.
+4. Deux analyses **complètes** seulement en première livraison, puis flux intégral radio → points / calibration / analyse choisie → moulages (onboarding structuré à définir) → diagnostic détaillé puis résumé → plan de traitement → Créer bilan / Aperçu / archive.
+5. **ZÉRO couleur de module codée en dur** : tout état UI + tracé hérite des tokens sémantiques du thème choisi, y compris contrastes/états. Pas de reconstruction from scratch. **Finir la définition des fonctionnalités avant toute réconciliation technique**.
+6. Validation visuelle propriétaire **obligatoire sur captures authentiques BEFORE/AFTER** aux mêmes viewports ; FUE verte ne vaut jamais approbation.
+
+#### Source code audit — EXISTANT, à réutiliser
+
+| Source | Ce qui existe réellement | Gap de design/implémentation à traiter plus tard |
+|---|---|---|
+| `srpose38_contract.py`, `cephalo_service.py`, R23-H FUE | Poids ONNX38 pin, 38 points avec IDs, sauvegarde/lecture, captures de 2 cas publics | rendre les noms réellement visibles sur l'image produit plutôt que board QA numéroté ; conserver identité et édition ponctuelle traçable |
+| `CephaloLandmarkReticles.tsx` | IDs anatomiques, noms compacts, collisions, focus/hover et déplacement | modes d'affichage noms/protocole et lisibilité, étiquetage non ambigu sans 38 noms superposés |
+| `cephaloVisualSemantics.ts`, `CephaloTracingLayerBase.tsx`, Workbench | moteur de plans/axes et famille scientifique de couleurs, sélecteur visuel, tracés existants | choix **unique** d'analyse qui alimente le viewer, métriques, overlay, PDF ; couleurs des familles actuellement basées sur des **hex littéraux fixes** même si mêlés à `--text-main` ; refactor en tokens **du thème global**, sans palette autonome |
+| `cephaloCalibration.ts`, `Step1CephaloBase.tsx`, `calibration_service.py`, `cephalo_auto_calibration_gate.py` | états `UNCALIBRATED/CANDIDATE_UNVERIFIED/AUTO_VERIFIED/CLINICIAN_CONFIRMED/MANUAL_TWO_POINT/LEGACY_VERIFIED`; candidat de graduations et workflow de calibration avec profil physique versionné | détecteur actuel recherche **une réglette verticale dans les 30% supérieurs** et n'infère pas les mm à partir de graduations seules ; élargir une fois spécifié les cas d'image/règle ; capturer l'espacement connu, profil/fiabilité, zoom, mm/px et validation |
+| `cephaloV1ProtocolScope.ts`, `Step3Clinical.tsx`, `CephaloAnalysisWorkbenchPanel.tsx` | Deux modes V1 cliniques **COM Digital Crown + Steiner 1953/1959** ; sélecteur placé dans Step3 alors que viewer autorise d'autres analyses | unifier source de sélection **dès Step1** et ne livrer que 2 profils décidés ; résorber « Steiner complet » trompeur quand 6/15 affichés |
+| `Step2Occlusal.tsx` | DDM max/mand, formes d'arcade, classes molaires/canines R/G, subdivisions | mode onboarding guidé progressif, surplomb/recouvrement/ligne médiane/crossbites selon choix ; **audit obligatoire** des constantes `107` et `90` actuellement dans `calcDDMReelle`, non admissibles comme normes implicites |
+| `Step3Clinical.tsx`, `orthoExpertSystem.ts`, `bilan_ortho_engine.py` | observations, CVM/denture explicites, notes diagnostiques/plan éditables ; déduction automatique de plan et de classe désactivée | séparer données mesurées / observations du praticien / diagnostic structuré signé / résumé lisible, sans diagnostic IA non corroboré, aucune décision thérapeutique autonome |
+| `Step4Documents.tsx`, `CephaloWorkspace.tsx` | quatre étapes, sauvegarde, brouillon PDF, aperçu `LivePreview`, prévalidation / archivage | flux clair `Créer bilan → Aperçu → Valider/archiver`, même protocole/mesures/calibration au viewer, au diagnostic et au PDF ; vérifier que la preview n'est pas une validation clinique |
+
+**Fait scientifique utile** : 38 points ONNX et **six** Steiner actuellement `AVAILABLE` (sur 2 JPEG publics non calibrés), **quatre angles supplémentaires expérimentaux** calculés dans JSON `model-native-4-steiner-angles.json`. La première version sera dite **complète** seulement si **toutes les mesures obligatoires de chacun des deux profils** ont une sortie justifiée sur un cliché approprié et un dispositif d'échec explicite sinon. Pas de 15/15 imaginaire sans surfaces coronaires, calibration mm et constructions spécifiques. La calibration de règle doit distinguer **repérage des traits** de **connaissance de la distance physique** et tenir compte de l'échelle du plan radiographique.
+
+#### Proposition de parcours — à approuver
+
+1. **Céphalométrie > importer** : image originale, lecture ONNX38 + identité source et sauvegarde ; UI **vrais noms**, mode **Analyse** défaut limité aux points pertinents, mode **Tous les repères** facultatif.
+2. **Céphalométrie > calibrer** : détection réglette/traits; si profil de graduations millimétriques versionné/étalonné, proposition `AUTO_VERIFIED` avec segment superposé + contrôle praticien ; sinon demander longueur réelle (deux marques + mm connu) ou garder `NON CALIBRÉ` et poursuivre en version partielle **sans mesures mm**. La méthode, échelle, image et correction sont persistées.
+3. **Céphalométrie > protocole / tracé** : sélectionner **un** des deux protocoles V1, faire apparaître points strictement utiles + plans/lignes/angles/mesures ; modes `Points / Constructions / Angles / Mesures / Tout`, sélection mesure ↔ surbrillance des mêmes traits sur radio ; avertir des valeurs `NC`. Changer d'analyse change la vue, **pas** les 38 coordonnées source, ni l'identité historique de l'étude.
+4. **Moulages/occlusion** : mini-onboarding conditionnel dans Step2 existant : denture, arcades et DDM (sources et unités), classes molaires/canines droite/gauche, lignes médianes, surplomb/recouvrement, occlusion transverse/croisée et autres champs uniquement s'ils sont cliniquement utiles ; autosave/reprise et `non évalué` explicite. Aucune mesure inventée.
+5. **Synthèse clinique** : cartes `Mesures objectives` + `Examen des moulages` + `Observations praticien`, puis **diagnostic détaillé multi-axes** (squelettique, vertical, dentaire, occlusal, tissus mous selon données), **résumé du diagnostic** éditable/validé ; séparé de l'inférence automatique.
+6. **Stratégie / Documents** : problème/objectif thérapeutique/options/choix/plan saisis et **validés par praticien** ; bouton `Créer bilan`, `Aperçu` du PDF puis validation/archivage, y compris image des constructions exactes du protocole et provenance des points/calibration. Le brouillon partiel est identifiable ; une analyse **complète** n'est déclarée qu'avec tous les critères déterminés et satisfaits.
+
+**UI recommandée sans repartir de zéro** : garder le stepper actuel en 4 blocs `Céphalométrie` (3 sous-passes), `Moulages`, `Diagnostic`, `Plan & Bilan`. Sur desktop, radio principale à gauche et panneau protocole/constructions/mesures à droite ; radio et résultats en deux onglets sur mobile, contrôles persistants. Couleurs = tokens d'application pour toutes les familles (y compris états et courbes); aucun nouvel hex local. Sélecteur de protocole unique, avant calcul, non un doublon dans Step3.
+
+#### Deux analyses — recommandation, PAS décision utilisateur
+
+Le code `cephaloV1ProtocolScope.ts` borne **déjà** la V1 à `COM Digital Crown` et `Steiner complet (1953 + 1959)`. **Recommandation** : garder précisément **COM + Steiner** pour ne pas disperser le chantier ; ne pas démarrer Tweed/McNamara/Ricketts dans ce premier lot complet. `COM` = convention locale alignée CRANIOM dans `CEPHALO_ANALYSIS_DEPENDENCY_MATRIX.md`, avec nuances historiques/normatives à préserver ; ne pas confondre la composition COM avec Tweed ou McNamara. Le propriétaire doit confirmer le duo et la **liste finale des mesures obligatoires par protocole**, calibrations et données requises avant implémentation.
+
+#### Questions ouvertes, dans cet ordre (max 1 question au propriétaire par passe)
+
+1. **Duo initial** : confirmation de **COM Digital Crown + Steiner 1953/1959** plutôt qu'un autre duo.
+2. **Calibration** : formats d'images visés (JPEG/PNG avec règle, DICOM si réellement requis), type réel de réglette physique/espacement et situations sans règle.
+3. **Protocole complet** : liste figée des mesures obligatoires pour chaque analyse, définition des points additionnels stricts, gestion `NC` et preuves de précision.
+4. **Moulages** : champs obligatoires vs conditionnels, précision requise par denture ; design de l'onboarding par une capture cible soumise à approbation.
+5. **Diagnostic et bilan** : sections, niveau d'assistance rédactionnelle sans LLM runtime, signature finale, PDF et source d'archive ; au moins une capture desktop/mobile BEFORE/AFTER à chaque sous-lot.
+6. **Enfin seulement** : réconciliation technique et lotissement d'exécution, série FUE bout en bout ; zéro GO avant captures et accord explicite.
+
+**Gate à la clôture de cette discussion** : `SPEC_DISCOVERY / NOT_APPROVED / NO_CODE`, décision clinique inchangée, aucun merge/déploiement ni patients. Les PRE/POST §58 documentent le cadrage (la présente mise à jour documentaire change HEAD et doit avoir sa propre CI).
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §58, atelier produit complet, choix duo ouvert, NO CODE.**
