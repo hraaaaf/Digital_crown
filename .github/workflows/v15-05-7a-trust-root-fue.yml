@@ -10,6 +10,10 @@ on:
       - '.github/workflows/v15-05-7a-trust-root-fue.yml'
       - 'backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_noop.cs'
       - 'backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_probe.ps1'
+      - 'backend/tests/fixtures/lot05_7a_c_signed_ipc_worker.py'
+      - 'backend/tests/fixtures/lot05_7a_c_make_tickets.py'
+      - 'backend/tests/fixtures/lot05_7a_c_windows_scm_signed_noop.cs'
+      - 'backend/tests/fixtures/lot05_7a_c_windows_signed_ipc_probe.ps1'
   workflow_dispatch:
 
 permissions:
@@ -86,5 +90,58 @@ jobs:
         with:
           name: lot05-7a-b-native-scm-ipc-proof
           path: 05b-ipc-evidence.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  windows-scm-signed-ipc-fue:
+    name: Native Windows SCM + Ed25519 signed IPC + restart replay (CI fake)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      LOT05_7A_C_FAKE_ONLY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install verifier-only crypto dependency
+        run: python -m pip install --disable-pip-version-check cryptography
+      - name: Exact HEAD and C-fixture syntax check
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne "${{ github.event.pull_request.head.sha || github.sha }}") {
+            throw '05C_EXACT_SOURCE_SHA_MISMATCH'
+          }
+          $script=Resolve-Path 'backend/tests/fixtures/lot05_7a_c_windows_signed_ipc_probe.ps1'
+          $tokens=$null; $parseErrors=$null
+          [Management.Automation.Language.Parser]::ParseFile($script,[ref]$tokens,[ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) {throw ('05C_POWERSHELL_PARSE_ERROR '+($parseErrors -join ';'))}
+          python -m py_compile backend/tests/fixtures/lot05_7a_c_make_tickets.py backend/tests/fixtures/lot05_7a_c_signed_ipc_worker.py
+          if ($LASTEXITCODE -ne 0) {throw '05C_PYTHON_COMPILE_FAIL'}
+      - name: Native installed ephemeral SCM signed IPC FUE and negatives
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05_7a_c_windows_signed_ipc_probe.ps1 2>&1 | Tee-Object -FilePath 05c-signed-ipc-evidence.txt
+          if ($LASTEXITCODE -ne 0) {throw '05C_NATIVE_SIGNED_IPC_FUE_FAILED'}
+          $report=Get-Content -LiteralPath 05c-signed-ipc-evidence.txt -Raw
+          foreach ($marker in @(
+            '05C_SERVICE_SID_PROTECTED_PIN_AND_LEDGER',
+            '05C_SIGNED_ED25519_TICKET_ACCEPTED_VIA_OS_AUTHENTICATED_SCM_IPC',
+            '05C_REPLAY_AFTER_SCM_RESTART_DENIED',
+            '05C_SIGNED_CONTEXT_EXPIRY_TAMPER_FORGERY_AND_CLINICAL_DENIED',
+            '05C_VALID_SIGNATURE_WRONG_OS_PRINCIPAL_DENIED',
+            '05C_SYNTHETIC_NOOP_ONLY_NO_CLINICAL_IMPORT',
+            '05C_EPHEMERAL_SERVICES_AND_FILES_CLEANED')) {
+            if (-not $report.Contains($marker)) {throw ('05C_EVIDENCE_MISSING '+$marker)}
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7a-c-native-scm-signed-ipc
+          path: 05c-signed-ipc-evidence.txt
           if-no-files-found: ignore
           retention-days: 14
