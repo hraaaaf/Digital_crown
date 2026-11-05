@@ -20,6 +20,8 @@ on:
       - 'backend/tests/fixtures/lot05_7a_c_windows_signed_ipc_probe.ps1'
       - 'backend/tests/fixtures/lot05_7a_e_windows_image_manifest_lab.py'
       - 'backend/tests/fixtures/lot05_7a_e_windows_scm_image_probe.ps1'
+      - 'backend/scripts/verify_lot05_windows_publisher_preflight.ps1'
+      - 'backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1'
   workflow_dispatch:
 
 permissions:
@@ -211,5 +213,63 @@ jobs:
         with:
           name: lot05-7a-e-real-scm-image-signed-manifest-lab
           path: 05e-loaded-image-proof.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+
+  windows-authenticode-publisher-negative-fue:
+    name: Windows Authenticode publisher external-pin reject-only FUE (NO product cert)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exact SHA / syntax — product signature verifier and negative probe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne "${{ github.event.pull_request.head.sha || github.sha }}") {
+            throw '05G_EXACT_HEAD_REQUIRED'
+          }
+          foreach ($file in @(
+            'backend/scripts/verify_lot05_windows_publisher_preflight.ps1',
+            'backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1')) {
+            $tok=$null
+            $parseErrors=$null
+            [Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file), [ref]$tok, [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -ne 0) {
+              throw ('05G_POWERSHELL_PARSE_ERROR '+$file+': '+($parseErrors -join ';'))
+            }
+          }
+      - name: Native Windows denial proofs — no product keys and no signing
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1 2>&1 |
+            Tee-Object -FilePath 05g-authenticode-negative-evidence.txt
+          if ($LASTEXITCODE -ne 0) {throw '05G_AUTHENTICODE_NEGATIVE_FUE_FAILED'}
+          $report=Get-Content -LiteralPath 05g-authenticode-negative-evidence.txt -Raw
+          foreach ($marker in @(
+            '05G_DENIED_MISSING_EXTERNAL_PIN',
+            '05G_DENIED_UNVERIFIED_PIN',
+            '05G_DENIED_ARTIFACT_PROVIDED_PIN',
+            '05G_DENIED_UNSIGNED_INSTALLER',
+            '05G_DENIED_WRONG_INSTALLER_NAME',
+            '05G_DENIED_MISSING_APP_BINARY',
+            '05G_DENIED_ONE_FILE_FOR_BOTH',
+            '05G_WINDOWS_NATIVE_UNSIGNED_AND_FAKE_PUBLISHER_REJECTIONS_CONFIRMED',
+            '05G_NO_CI_GENERATED_PUBLISHER_KEY_OR_SIGNED_PRODUCT_USED',
+            '05G_REAL_SIGNED_PRODUCT_AND_INDEPENDENT_ISSUER_REMAIN_NO_GO',
+            '05G_EPHEMERAL_NEGATIVE_FUE_FILES_CLEANED')) {
+            if (-not $report.Contains($marker)) {throw ('05G_REQUIRED_EVIDENCE_MISSING '+$marker)}
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7a-g-windows-authenticode-reject-only-proof
+          path: 05g-authenticode-negative-evidence.txt
           if-no-files-found: ignore
           retention-days: 14
