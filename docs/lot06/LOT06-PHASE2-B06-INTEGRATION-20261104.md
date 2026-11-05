@@ -786,3 +786,8 @@ Added opt-in `DC_MEDIA_V2_KEYRING_FILE` for local JSON with `active_media_id`, `
 ## PRE B06-4D-F5 — atomic file open and Windows ACL gate, 2026-11-05
 
 F4 exact SHA `d988064` CI #42027167418 GREEN 3/3, F4 7/7. F5 target: eliminate POSIX lstat/open TOCTOU with O_NOFOLLOW+fstat and add fail-closed Windows ACL-aware file mode (no permissive fallback). Synthetic-only FUE, exact SHA CI, no merge/deploy/clinical activation.
+
+
+## POST B06-4D-F5A — atomic POSIX keyring read, 2026-11-05
+
+Hardened private file loader to require absolute path, O_NOFOLLOW and O_DIRECTORY dirfd traversal for each parent component, open final file with dir_fd, fstat the opened descriptor, validate owner/mode/type/size and bound read to 16KiB before JSON decode. Prevents precheck-to-open symlink swap and intermediate symlink traversal on POSIX; F4 existing seven tests adjusted for atomic-open denial and F5 adds three tests for relative path, oversized file, and symlink swap. Workflow runs 10 F4/F5 tests on exact SHA, marker `DC06_B06_F5_ATOMIC_NOFOLLOW_KEYRING_FUE_PASS`. **CI pending, no F5 GREEN claim.** Windows ACL-safe file mode is still explicitly denied; Windows F5B remains necessary. No false claim of Windows compatibility, no key backup/escrow, no merge/deploy/clinical activation. `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
