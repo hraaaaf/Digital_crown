@@ -709,3 +709,15 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT** : confirmer build isolé exact SHA post-merge et CI associées ; préparer séparément la PR cible master pour le pipeline `CODE_CERTIFIED` après revue d'impact générale et approbation, composer ensuite un bundle d'assets runtime certifié sur le poste autorisé, puis seulement TEST cabinet.
 
 **GOAL** : intégration technique prouvée, build de test reproductible, et aucune fausse installation ou validation clinique.
+
+### 33. PRE — 2026-11-05 — PR MASTER CANDIDATE REVIEW, NO MERGE / NO INSTALL
+
+**GO scope** : le praticien demande d'avancer vers CODE_CERTIFIED et un installateur. Le `AGENTS.md` actif sur master (§ Autopilot) exige un **accord distinct pour chaque fusion** : ce GO autorise uniquement **l'ouverture d'une PR DRAFT d'évaluation** pour master, pas son merge, pas la release ni la signature humaine visuelle. La politique `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` interdit de packager une branche ou une archive CI comme `DigitalCrown.exe`.
+
+**PRE branche** : la PR #1208 a été fusionnée vers `feat/ceph-v1-l3-practitioner-gate-20261102` ; HEAD documentaire d'entrée `177b58ba58d3f3f97e89d4aec7d9df14de09f5c0`. `master` = `a95454459a0f28a25622b420df9ef271053d47b5`. Comparaison : **197 commits ahead, 3 behind, 71 chemins**. Les 3 commits master-only concernent des règles/reviewers et le routeur mobile ; aucun écrasement silencieux acceptable. Les PR historiques de couches #1198 et #1206 restent DRAFT et leurs décisions non implicites. Le candidat master est une **stack agrégée** à revue complète, non un cherry-pick validé automatiquement.
+
+**Preuves source** : sur `177b58ba58d3f3f97e89d4aec7d9df14de09f5c0`, 14 workflows applicables SUCCESS + 1 SKIPPED (M6-I hors scope), [frontend test #41940139358](https://github.com/hraaaaf/Digital_crown/actions/runs/41940139358) SUCCESS, artifact #13375936726. R14 sur le code source pré-merge `b7e06d0` 212/212 PASS. Les CI de certification master, PG18, full backend/frontend et sécurité ne sont **pas encore certifiées** sur le candidat agrégé avant la PR ; ne pas interpoler.
+
+**Action PRE limitée** : créer une PR DRAFT vers master pour déclencher les workflows officiels de revue candidate, inspecter diff/conflits, constater BLOCKERS et rendre un verdict `OPEN/READY` ou `BLOCKED` fidèle aux preuves. **Ne pas fusionner master, ne pas lancer certification CODE sur master, ne pas composer assets/EXE, ne pas déployer**. `clinical_validation_available=false`, PDF `INCOMPLETE`, Wits `CANDIDATE_ONLY`, `HOLD-MCNAMARA-SCALE`, `HOLD-Z-ORIENTATION`, 0/10 FUE cabinet restent inchangés.
+
+**GOAL** : construire une chaîne de preuve de candidature master sans confondre compilabilité, certification signée et autorité clinique ; NEXT inspecter CI, approbation visuelle humaine et certification officielle du SHA master après GO séparé.
