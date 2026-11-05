@@ -568,11 +568,13 @@ def test_b06_4dc_pg_distinct_login_writer(
                 f'GRANT INSERT ON TABLE "{schema}"."{name}" TO "{runtime}"'
             )
         # C2 stores an asset in two steps: metadata INSERT then a bounded
-        # UPDATE of *storage fields*. Never grant UPDATE on patient_id,
-        # tenant, staff, provenance or the append-only receipt ledger.
+        # UPDATE of storage fields. SQLAlchemy also auto-updates updated_at
+        # on the ORM UPDATE; omit it and real PostgreSQL returns 42501.
+        # Never grant UPDATE on patient_id, tenant, staff, provenance or the
+        # append-only receipt ledger.
         conn.exec_driver_sql(
             f'GRANT UPDATE (sha256, byte_size, storage_key, storage_format, '
-            f'stored_at) ON TABLE "{schema}"."clinical_assets" TO "{runtime}"'
+            f'stored_at, updated_at) ON TABLE "{schema}"."clinical_assets" TO "{runtime}"'
         )
         conn.exec_driver_sql(
             f'GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA "{schema}" '
