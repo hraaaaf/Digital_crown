@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import json
 import os
 import re
 from dataclasses import dataclass
@@ -103,6 +104,27 @@ def _check_digest(digest: str) -> None:
 def _aad(tenant: int, digest: str, header: bytes) -> bytes:
     return _PURPOSE + b"\0" + str(_tenant(tenant)).encode("ascii") + b"\0" + digest.encode("ascii") + b"\0" + header
 
+def _retained_keys(env_name: str) -> dict[str, bytes]:
+    """Explicit JSON map of historical key IDs to 64-char hex keys."""
+    raw = os.environ.get(env_name, "{}")
+    try:
+        parsed = json.loads(raw)
+    except (TypeError, ValueError) as exc:
+        raise MediaCryptoV2Denied("INVALID_KEY_REGISTRY") from exc
+    if not isinstance(parsed, dict) or len(parsed) > 64:
+        raise MediaCryptoV2Denied("INVALID_KEY_REGISTRY")
+    result: dict[str, bytes] = {}
+    for key_id, value in parsed.items():
+        _valid_id(key_id)
+        if not isinstance(value, str) or len(value) != 64:
+            raise MediaCryptoV2Denied("INVALID_KEY_REGISTRY")
+        try:
+            result[key_id] = bytes.fromhex(value)
+        except ValueError as exc:
+            raise MediaCryptoV2Denied("INVALID_KEY_REGISTRY") from exc
+    return result
+
+
 def configured_keyring() -> tuple[MediaKeyringV2, str, str]:
     """Opt-in key IDs and hex keys; no default, fallback, or secret logging."""
     media_id = _valid_id(os.environ.get("DC_MEDIA_V2_ACTIVE_KEY_ID", ""))
@@ -115,9 +137,19 @@ def configured_keyring() -> tuple[MediaKeyringV2, str, str]:
         media_key, locator_key = bytes.fromhex(media_hex), bytes.fromhex(locator_hex)
     except ValueError as exc:
         raise MediaCryptoV2Denied("KEY_UNAVAILABLE") from exc
+    media_keys = _retained_keys("DC_MEDIA_V2_RETAINED_MEDIA_KEYS_JSON")
+    locator_keys = _retained_keys("DC_MEDIA_V2_RETAINED_LOCATOR_KEYS_JSON")
+    if media_id in media_keys and not hmac.compare_digest(media_keys[media_id], media_key):
+        raise MediaCryptoV2Denied("ACTIVE_KEY_CONFLICT")
+    if locator_id in locator_keys and not hmac.compare_digest(locator_keys[locator_id], locator_key):
+        raise MediaCryptoV2Denied("ACTIVE_KEY_CONFLICT")
+    media_keys[media_id] = media_key
+    locator_keys[locator_id] = locator_key
+    if any(hmac.compare_digest(m, l) for m in media_keys.values() for l in locator_keys.values()):
+        raise MediaCryptoV2Denied("KEY_PURPOSE_REUSE_DENIED")
     if hmac.compare_digest(media_key, locator_key):
         raise MediaCryptoV2Denied("KEY_PURPOSE_REUSE_DENIED")
     return MediaKeyringV2(
-        media_keys={media_id: media_key},
-        locator_keys={locator_id: locator_key},
+        media_keys=media_keys,
+        locator_keys=locator_keys,
     ), media_id, locator_id
