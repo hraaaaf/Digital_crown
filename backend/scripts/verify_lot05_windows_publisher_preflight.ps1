@@ -59,9 +59,10 @@ if ([IO.Path]::GetFileName($installer) -cne 'DigitalCrownSetup-INSTALLABLE-CERTI
 if ([IO.Path]::GetFileName($app) -cne 'DigitalCrown.exe') {
   Deny 'UNEXPECTED_APPLICATION_NAME'
 }
-$pinDir = [IO.Path]::GetDirectoryName($pinPath)
 foreach ($artifactDir in @([IO.Path]::GetDirectoryName($installer), [IO.Path]::GetDirectoryName($app))) {
-  if ([string]::Equals($pinDir, $artifactDir, [StringComparison]::OrdinalIgnoreCase)) {
+  $artifactSubtree = $artifactDir.TrimEnd([char]'\') + [IO.Path]::DirectorySeparatorChar
+  if ($pinPath.StartsWith($artifactSubtree, [StringComparison]::OrdinalIgnoreCase) -or
+      [string]::Equals($pinPath, $artifactDir, [StringComparison]::OrdinalIgnoreCase)) {
     Deny 'TRUST_PIN_WITHIN_ARTIFACT_DIRECTORY'
   }
 }
