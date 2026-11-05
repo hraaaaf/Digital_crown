@@ -1082,3 +1082,22 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT** : ajouter et exécuter des assertions ciblées, inspecter les images AFTER et les artifacts du SHA final ; si défaut réel, ne pas alléger le test ; POST seulement avec résultat réel et limites. `clinical_validation_available=false`, COM HOLD, PDF clinique INCOMPLETE, 0/10 FUE patients cabinet.
 
 **Dernière mise à jour canonique : 05/11/2026 — PRE §49 ; tests zoom/drag PAS ENCORE exécutes sur le nouveau HEAD.**
+
+
+### 49. POST — 2026-11-05 — FUE P1 zoom 200%, pan, responsive et drag mono-landmark : code intégré, CI non encore conclue
+
+**Travail effectué** : à partir du PRE `1c4ad43196398486b3edd2785065bdab35fd8c81`, commit [230700249e693ea1fbe650d6b6047dfffa8e9ab9](https://github.com/hraaaaf/Digital_crown/commit/230700249e693ea1fbe650d6b6047dfffa8e9ab9) modifie **un seul fichier de test** `frontend/scripts/fue-ceph-p1-authenticated.mjs` : sur vrai Cabinet React de la fixture T2, sélectionner Steiner, exiger exactement les 5 lignes `sn/na/nb/u1/l1`, comparer leurs coordonnées SVG inchangées à chaque 125/150/175/200%, tester pan droit/bas et reset viewBox, interdire toute modification aux 38 repères GET, enregistrer les captures à 100%,150%,200% + pan, puis des screenshots 390/430/768/1280. Le FUE-P1 existant continue le pointer-drag, undo/redo, Save puis reload; l'assertion supplémentaire exige qu'un seul landmark parmi 38 ait changé. **Zéro code produit, source ONNX, formule, DB, token thème, garde sécurité ou workflow modifié.**
+
+**Etat CI pour le HEAD de code 2307002 au relevé** :
+- [CI Scope Gate #42063594365](https://github.com/hraaaaf/Digital_crown/actions/runs/42063594365) COMPLETED/SUCCESS ;
+- [CEPH R23-H FUE-H genuine first UI uploads with pinned SRPose38 (experimental) #42063590898](https://github.com/hraaaaf/Digital_crown/actions/runs/42063590898) IN_PROGRESS ;
+- [CEPH FUE-P2 real calibrated synthetic phantom to draft PDF (nonclinical) #42063590994](https://github.com/hraaaaf/Digital_crown/actions/runs/42063590994) IN_PROGRESS ;
+- [CEPH V1 LOT1 isolated frontend TEST build (NO DEPLOY) #42063591282](https://github.com/hraaaaf/Digital_crown/actions/runs/42063591282) COMPLETED/SUCCESS ;
+- [CEPH V1 R14 audited hold receipts (NO DEPLOY) #42063591299](https://github.com/hraaaaf/Digital_crown/actions/runs/42063591299) IN_PROGRESS ;
+- [CEPH FUE-P1 genuine authenticated journey beyond prior FUE-H (nonclinical) #42063591070](https://github.com/hraaaaf/Digital_crown/actions/runs/42063591070) IN_PROGRESS ;
+
+**Verdict strict** : le build TEST est SUCCESS s'il est indiqué ci-dessus; les nouveaux tests zoom/drag/viewport sont **NOT YET VERIFIED** tant que le job FUE-P1 exact HEAD n'a pas produit rapport et captures. Le présent POST documentaire change encore le HEAD; ne pas transférer l'ancienne CI au nouveau SHA. Une défaillance est un résultat utile, jamais un motif pour assouplir la sécurité. Human Visual Approval **non obtenu**, approbation du propriétaire interdite par auto-simulation. `clinical_validation_available=false`, 0/10 FUE réels cabinet, COM HOLD, PDF clinique INCOMPLETE. PR #1213 toujours DRAFT, aucun merge/Vercel/EXE.
+
+**NEXT exact** : lire les runs FUE-H, P1, P2 et TEST build après le POST sur SHA exact, inspecter JSON/snapshots P1 ; corriger seulement un défaut démontré et refaire preuve. Si tout est vert, soumettre visuels au propriétaire sans présumer son approbation.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §49, tests renforcés enregistrés, verdict CI FUE-P1 en attente de preuves.**
