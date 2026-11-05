@@ -1909,3 +1909,41 @@ Revue https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/e
 **Sources web** : McNamara JA Jr, « A method of cephalometric evaluation », *Am J Orthod* 1984;86(6):449–469, DOI `10.1016/S0002-9416(84)90352-X`, https://pubmed.ncbi.nlm.nih.gov/6594933/ ; texte intégral indexé via reproduction tierce https://pdfcoffee.com/a-method-of-cephalometric-evaluation-mcnamara-1984-pdf-free.html ; mesure définie dans analyse McNamara https://pmc.ncbi.nlm.nih.gov/articles/PMC8018756/ et revue https://pmc.ncbi.nlm.nih.gov/articles/PMC8770963/ ; dépendance de l'espace à la forme d'arcade selon Mutinelli et al., *Eur J Orthod* 2000 https://pubmed.ncbi.nlm.nih.gov/10822884/. Reproduction tierce ≠ validation graphique de l'original.
 
 **Goal / success** : décrire une mesure clinique `L1 facial surface→A–Pog` (historique 1–3 mm antérieurs dans contexte facial équilibré), le recalage de la ligne après repositionnement mandibulaire projeté, et la différence entre changement de repère squelettique et déplacement réel de l'incisive. Donner un verdict de spécification sans inventer `McNamara = 2 × ΔA–Pog`. **Gate : SPEC ONLY, NO_CODE, NO_APPROVAL, FUE_NOT_RUN**, pas de merge/déploiement.
+
+
+### 66. POST — 2026-11-05 — McNamara (1984) : A–Pog avec référence squelettique projetée, pas de « DDM ×2 » propre à McNamara prouvée
+
+**Statut : synthèse scientifique documentaire, non spécification approuvée d'une troisième analyse V1.**
+
+**1. Position incisive de McNamara :**
+- Référence inférieure : `A–Pog`, droite du point A au Pogonion osseux (ne pas utiliser Pog_soft). Mesure signée **perpendiculaire** entre la surface vestibulaire/coronaire de l'incisive mandibulaire et la ligne, en mm, positive en avant. McNamara 1984 rapporte environ **+1 à +3 mm** pour une face équilibrée, contexte normatif historique, pas cible universelle. Notamment le texte original reproduit mentionne +1,5 mm dans un standard Bolton et +2,3 à +2,7 mm dans échantillon Ann Arbor. Les distributions varient et la norme seule ne prescrit pas une cible pour un patient.
+- Référence supérieure : bord facial de l'incisive maxillaire vs verticale depuis point A **perpendiculaire à Frankfort** (et non NA de Steiner), environ **+4 à +6 mm** dans la publication, cadre normatif historique. Cette mesure n'est pas une composante indépendante de DDM clinique.
+- Contexte squelettique : McNamara évalue les bases via N-perpendiculaire, longueurs Co–A et Co–Gn, différence maxillo-mandibulaire, hauteur faciale inférieure ANS–Me ; l'incisive ne se lit pas isolément. La **cible** de L1 peut dépendre de la correction/du développement des bases et de facteurs fonctionnels/esthétiques.
+
+**2. Référence dynamique, nuance déterminante pour l'onboarding :**
+- Si l'on envisage un déplacement squelettique mandibulaire, McNamara décrit soit la superposition d'un tracé mandibulaire projeté, soit la construction d'un nouveau `A–Pog` en déplaçant géométriquement le point A dans le sens opposé au déplacement mandibulaire prévu afin d'approximer le repère projeté. Il re-mesure la position de L1 vis-à-vis du **nouveau** A–Pog, avec une position incisive projetée dans certains cas de l'ordre de **1 à 2 mm antérieurs**.
+- **La différence `(L1–A-Pog)_cible − (L1–A-Pog)_initiale` entre deux droites de référence squelettique qui changent n'est pas, en général, la translation physique de la dent ni la variation du périmètre d'arcade.** Ne pas la multiplier mécaniquement par 2.
+
+**3. Comment transformer une stratégie McNamara en estimation d'espace si un jour autorisée :**
+- Étape `mesure initiale` : même image/calibration, A, Pog_hard anatomiquement source-verrouillés, `L1_facial_surface` explicite ; fichier de contexte clinique et classification faciale. Ni `L1_incisal` seul, ni `Pog_soft` ni `Pog_hard` supposé équivalent sans preuve ne sont des alias libres.
+- Étape `projection` : praticien renseigne scénario squelettique et pose/valide A–Pog projeté, puis sa **position cible incisive** par rapport à la nouvelle ligne. Faire le transfert dans un référentiel spatial commun pour isoler `déplacement réel mandibulaire-incisif` de la variation de ligne de référence.
+- Étape `impact spatial` : une méthode séparée et sourcée pour projeter le mouvement réel de L1 en variation d'espace d'arcade, sensible à forme d'arcade, mécanique, tipping et hypothèses ; **pas de coefficient « McNamara ×2 » démontré comme formule propre à la publication de 1984** dans les sources lues. Les modèles géométriques de Mutinelli et al. (2000) varient selon la forme : environ 1,21–2,07 mm de changement de longueur d'arcade par mm de déplacement dans le modèle, ce qui constitue une démonstration de sensibilité, **pas un multiplicateur clinique directement autorisé**.
+- Si les preuves géométriques ou méthode d'espace manquent, `DEPLACEMENT_PREVISIONNEL / NON_EVALUE`, `DDM_CEPHALO_MCNAMARA_NOT_DEFINED`, sans produire de DDM réelle numérique; un objectif incisif ne valide jamais automatiquement une extraction ou appareil.
+
+**Comparatif décisionnel avec analyses V1 :**
+
+| | Steiner (déjà V1) | McNamara (référence documentaire non V1) |
+|---|---|---|
+| Repère incisive inférieure | surface vestibulaire de L1 à `NB` | surface vestibulaire de L1 à `A–Pog` |
+| Situation squelettique projetée | chevrons/objectif incisif dans boîte, cible individualisée | reconstruire A–Pog relatif à la correction des bases, puis objectif incisif |
+| « DDM céphalo » | convention de planification Steiner `RI=2×(i–NB cible−i–NB initiale ajustée)` avec preuves et avertissements §65 | **pas de formule universelle autonome ×2 attribuable à McNamara 1984** trouvée ; conversion d'un mouvement réel vers espace = sous-méthode distincte |
+| Conséquence | simulation clinique sous validation praticien et calibration mm vérifiée | ne pas intégrer silencieusement une variante McNamara sous le nom Steiner |
+
+**Sources principales vérifiées** :
+- McNamara JA Jr. *A method of cephalometric evaluation.* Am J Orthod 1984;86:449–469. DOI `10.1016/S0002-9416(84)90352-X`, PubMed https://pubmed.ncbi.nlm.nih.gov/6594933/ ; texte article via transcription tierce https://pdfcoffee.com/a-method-of-cephalometric-evaluation-mcnamara-1984-pdf-free.html (**reproduction secondaire à utiliser avec prudence**, et article primaire intégral non authentifié via éditeur).
+- Étude contrôlant les variables « Lower incisor to A–Po » vs « Upper incisor to Point A vertical », https://pmc.ncbi.nlm.nih.gov/articles/PMC8018756/ ; revue systématique sur repères d'incisive https://pmc.ncbi.nlm.nih.gov/articles/PMC8770963/.
+- Mutinelli, Manfredi, Cozzani (2000), *A mathematic-geometric model to calculate variation in mandibular arch form*, *Eur J Orthod* 22:113–125, DOI `10.1093/ejo/22.2.113`, https://pubmed.ncbi.nlm.nih.gov/10822884/ ; variations d'espace selon forme/mécanique (résultat de modèle, pas prescription clinique).
+
+**Future FUE-MCN (NOT RUN)** : (1) L1→A–Pog trace/label exacts, pas L1→NB ; (2) absence L1_facial_surface/Pog_hard/mm calibration bloque mm ; (3) déplacement de A–Pog squelettique sans déplacement dentaire ⇒ **pas** de faux chiffre de gain/perte d'espace ; (4) tout scénario dentaire corrigé réinitialise les projections dépendantes et requiert revue humaine ; (5) aucun multiplicateur ×2 détourné de Steiner ; (6) archivage de contexte/versions sans patient réel ni LLM, état NC dans bilan ; (7) responsive, tokens thème, a11y/200% avec preuves UI après futur GO.
+
+**GOAL/GATE** : réponse documentaire à la question, méthode clinique non activée, **ne pas modifier le choix propriétaire COM Digital Crown + Steiner 1953/1959**. Ne pas ajouter McNamara à la V1, ni code, merge, Vercel, ni nouvelle source de normes. **NEXT** : fermer les détails de la boîte Steiner / DDM et progresser dans le parcours conditionnel denture mixte, puis diagnostic/bilan. **Dernière mise à jour canonique : 05/11/2026 — POST §66, comparaison McNamara/Steiner SPEC_ONLY.**
