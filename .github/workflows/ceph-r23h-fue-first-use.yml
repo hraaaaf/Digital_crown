@@ -132,6 +132,52 @@ jobs:
               assert x.angles_data['vision_metadata']['mode_inference']=='SOTA_ONNX_38'
           print('CEPH_R23H_FUE_H_USER_FIRST_REAL_ONNX_PASS_NONCLINICAL')
           PY
+      - name: Publish exact-HEAD public original to ONNX38 proof summary
+        if: success()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads(Path('artifacts/ceph-r23h-first-use/report.json').read_text())
+          assert report['head']==os.environ['PRODUCT_HEAD']
+          assert report['overall']=='FUE_H_REAL_UI_ONNX_PERSISTENCE_SECURITY_PASS_NONCLINICAL'
+          assert report['clinical_release'] is False and report['scientific_goldset'] is False
+          assert all(c['status']=='PASS' for c in report['checks'])
+          assert len(report['screenshots'])==5
+          checks={c['id']:c['evidence'] for c in report['checks']}
+          sources=(
+            ('anug','ANUG (2014)','https://commons.wikimedia.org/wiki/File:Cephalometric_radiograph.JPG',
+             'ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6'),
+            ('challiyan','Challiyan (2023)','https://commons.wikimedia.org/wiki/File:A_lateral_cephalogram_without_true_vertical.jpg',
+             '98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b'),
+          )
+          lines=[
+            '# CEPH real public radiographs — genuine ONNX38 proof',
+            '',
+            'Exact product SHA: '+report['head'],
+            '',
+            'Real UI, real FastAPI/JWT, two original public JPEGs, local SRPose38 ONNX.',
+            '',
+            '| Source (CC BY-SA 4.0) | Input SHA-256 | Study | Actual ONNX landmarks | Original bytes displayed |',
+            '| --- | --- | ---: | ---: | --- |',
+          ]
+          for key,author,url,expected in sources:
+            e=checks[key.upper()+'_REAL_UI_UPLOAD_WITH_PINNED_ONNX']
+            assert e['displayed_hash']==expected and e['actual_onnx_landmarks']==38
+            lines.append(f'| [{author}]({url}) | `{expected}` | {e["study_id"]} | 38 | SHA-256 MATCH |')
+          lines.extend([
+            '',
+            'Model SRPose38: `srpose38-tta-1024.onnx`, SHA-256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb` (runner independently checks byte hash).',
+            '',
+            '5 screenshots included in the artifact: '+', '.join('`'+x+'`' for x in report['screenshots'])+'.',
+            '',
+            '**Research / engineering only.** No independent expert-landmark accuracy, no confirmed mm/pixel, no diagnostic certification, no clinical release, no PDF clinical sign-off.',
+            '',
+          ])
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as stream:
+            stream.write('\n'.join(lines))
+          print('CEPH_PUBLIC_ORIGINAL_ONNX38_EXACT_SHA_PROOF_SUMMARY_PASS')
+          PY
       - name: Diagnostics on failure — no patient images or secrets in logs
         if: failure()
         run: |
