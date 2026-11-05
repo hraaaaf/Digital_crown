@@ -801,3 +801,13 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Portée de la modification Git :** ce POST est une écriture **documentaire sur une branche de test distincte**, qui conserve les mêmes octets de code que `aa7fb556...`; la PR DRAFT #1212 et `master` restent inchangés et le run prouve uniquement `aa7fb556...`. Aucun nouveau canonique créé, il s'agit du fichier existant.
 
 **Dernière mise à jour canonique 05/11/2026 — deux run FUE-H exact-SHA 6/6 chacun, screenshots AFTER identiques sur 2 runs ; précision anatomique et vraie clinique toujours non certifiées.**
+
+### 39. PRE — 2026-11-05 — FUE-H plein-cliché 38 repères A/B et capture du vrai SVG (branche de test uniquement)
+
+**Demande praticien / cible :** images ANUG et Challiyan exactement identiques (SHA-256 A `ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6`, B `98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b`), nouveaux rendus complets avec les 38 vrais repères numérotés et légende lisible, **exclusivement depuis le GET authentifié au SHA précis du test**, ainsi que captures SVG de la vraie UI. Ne jamais générer les landmarks ni inventer leur position.
+
+**Baseline** : produit `aa7fb5569c00b8a22b6493a4b729fab29a9674f4`, PR #1212 DRAFT, FUE-H existant [#42008168486](https://github.com/hraaaaf/Digital_crown/actions/runs/42008168486) 6/6 PASS, mais 5 screenshots non plein-cliché et pas de JSON des positions. Le canonique UNIQUE actuel §38 déjà mis à jour. Uniquement copie du script FUE-H, artefact d'audit généré et workflow minimal sur la branche isolée ; **aucun changement aux fichiers applicatifs**. Nouveau commit implique nouveau SHA : les preuves antérieures ne se transfèrent pas au nouveau commit.
+
+**Gates nouvelles preuves** : source hashée, modèle ONNX local hashé, JWT réel, étude distincte A/B, GET et identité, 38 IDs uniques, x/y finis et image complète non recadrée ; image audit avec distinction « points AUTO non validés » et géométrie explicite, pas d'affirmation mm/normalité/diagnostic. Captures app véridiques séparées des planches d'audit PIL, jamais maquillées. Relever si le statut « 4/10 valeurs prouvées » n'a aucun rapport avec la vérité terrain. Résultat FINAL à remplir après CI ; ne pas toucher `master`, ne pas toucher PR #1212, pas de Vercel ou EXE.
+
+**CLINICAL NO-GO** : `clinical_validation_available=false`, Wits `CANDIDATE_ONLY`, McNamara/Z HOLD, PDF INCOMPLETE, 0/10 FUE cabinet réels. Le PDF L3 [#42008168295](https://github.com/hraaaaf/Digital_crown/actions/runs/42008168295) échoue dans Vite/Playwright `Execution context was destroyed` (reload optimizeDeps), distinct des 38 points ; si traité, contrôle isolé sans contourner le PDF.
