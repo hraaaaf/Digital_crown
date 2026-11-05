@@ -1069,3 +1069,16 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT** : vérifier le nouvel FUE-H réel exact SHA et son artefact `05-real-react-steiner-A/B`, `06-real-react-steiner-svg-A/B`. Produire une comparaison visuelle BEFORE/AFTER et tests zoom/pointdrag, puis soumettre à validation humaine ; en cas d'échec corriger sans falsifier les angles/repères. Pas de merge ni Vercel ; aucune preuve clinique expert. `clinical_validation_available=false`, 0/10 FUE cabinet réel, COM HOLD, Po_anatomic distinct de Po, PDF clinique INCOMPLETE, Wits candidate, McNamara/Z HOLD.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §48 code + test + résumé cinq lignes, CI en cours ; aucune note visuelle après à ce stade.**
+
+
+### 49. PRE — 2026-11-05 — FUE réel zoom/pan/drag Steiner sur 2 radios A+B
+
+**Autorisation** : « Go » du propriétaire pour la passe de test zoom / déplacement manuel et preuves visuelles préparatoires **uniquement**. Ceci n'est pas la signature Human Visual Approval, ni GO merge/Vercel/EXE/activation clinique.
+
+**Baseline** : PR #1213 DRAFT OPEN `test/ceph-v1-facad-two-public-radios-20261105`, HEAD d'entrée `a54216ed2397247e93ce5975c871ef86d1426d96`. [FUE-H #42057053298](https://github.com/hraaaaf/Digital_crown/actions/runs/42057053298) SUCCESS 6/6 ; [P1 #42057053440](https://github.com/hraaaaf/Digital_crown/actions/runs/42057053440) SUCCESS ; [P2 #42057053421](https://github.com/hraaaaf/Digital_crown/actions/runs/42057053421) SUCCESS ; [build TEST #42057053333](https://github.com/hraaaaf/Digital_crown/actions/runs/42057053333) SUCCESS ; Scope/R14 SUCCESS, Human Visual Approval non accordée. Deux radios publiques ANUG/Challiyan, 38 landmarks source GET chacun, 5 segments Steiner stricts `sn,na,nb,u1,l1`, aucun hors cadre. **Aucune étude réelle de patient de cabinet**.
+
+**Goal / preuve** : exécuter dans Playwright sur l'authentique Cephalo Step1 après le parcours ONNX/SVG : zoom 100/150/200 %, pan/reset, alignement des lignes Steiner aux 38 landmarks au zoom, drag d'un point avec recalcul du tracé et contrôle des autres points, evidence UI 390/430/768/1280/1600 quand supportée. Préserver les assertions source-lock et le non-débordement SVG, la palette héritée et les protections auth/tenant. Distinguer vue zoomée et écriture persistée ; ne jamais tirer une interprétation clinique de deux sources publiques.
+
+**NEXT** : ajouter et exécuter des assertions ciblées, inspecter les images AFTER et les artifacts du SHA final ; si défaut réel, ne pas alléger le test ; POST seulement avec résultat réel et limites. `clinical_validation_available=false`, COM HOLD, PDF clinique INCOMPLETE, 0/10 FUE patients cabinet.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §49 ; tests zoom/drag PAS ENCORE exécutes sur le nouveau HEAD.**
