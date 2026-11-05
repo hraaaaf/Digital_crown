@@ -23,6 +23,7 @@ $badProof=Join-Path $root 'bad_proof.txt'
 $source=Join-Path $env:GITHUB_WORKSPACE 'backend\tests\fixtures\lot05_7a_c_windows_scm_signed_noop.cs'
 $ticketMaker=Join-Path $env:GITHUB_WORKSPACE 'backend\tests\fixtures\lot05_7a_c_make_tickets.py'
 $verifier=Join-Path $env:GITHUB_WORKSPACE 'backend\tests\fixtures\lot05_7a_c_signed_ipc_worker.py'
+$pythonVerifier=Join-Path $env:GITHUB_WORKSPACE 'backend\services\legacy_migration_trust_root_v15.py'
 $csc=Join-Path $env:WINDIR 'Microsoft.NET\Framework64\v4.0.30319\csc.exe'
 $python=(python -c 'import sys; print(sys.executable)').Trim()
 $created=[System.Collections.Generic.List[string]]::new()
@@ -73,7 +74,7 @@ function Configure([string]$name,[string]$pipe,[string]$allowed,[string]$expecte
                    [string]$serviceSid,[string]$proofPath,[string]$limit) {
     $bin=('"{0}" "{1}" "{2}" "{3}" "{4}" "{5}" "{6}" "{7}" "{8}" "{9}" "{10}" "{11}"' -f
         $exe,$name,$pipe,$allowed,$expected,$serviceSid,$proofPath,$python,
-        $config,$ledger,$verifier,$limit)
+        $config,$ledger,$verifier,$pythonVerifier,$limit)
     Strict 'sc.exe' @('config',$name,'binPath=',$bin) | Out-Null
 }
 function AwaitReady([string]$file) {
@@ -111,7 +112,7 @@ function Ticket([string]$name) {
     if (-not (Test-Path -LiteralPath $path -PathType Leaf)) {throw ('05C_TICKET_MISSING '+$name)}
     return (Get-Content -LiteralPath $path -Raw -Encoding UTF8).Trim()
 }
-foreach($file in @($source,$ticketMaker,$verifier,$csc,$python)) {
+foreach($file in @($source,$ticketMaker,$verifier,$pythonVerifier,$csc,$python)) {
     if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {throw ('05C_REQUIRED_FILE_MISSING '+$file)}
 }
 if (Test-Path -LiteralPath $root) {throw '05C_DISPOSABLE_ROOT_EXISTS'}
