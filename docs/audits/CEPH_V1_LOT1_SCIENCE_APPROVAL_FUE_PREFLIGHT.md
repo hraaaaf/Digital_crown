@@ -1898,3 +1898,14 @@ Revue https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/e
 - ST-09 : thème tokens globaux, aucun patient réel en test/artifacts, FUE futurs avant/après 390/430/768/1280 + zoom 200%, aucun run de ces scénarios encore réalisé.
 
 **PREUVE ET GATES** : article Steiner original **texte extrait et audité via web**, appels screenshot PDF Steiner et HAS ont échoué `cache miss`; ne pas prétendre inspection graphique authentifiée des figures. Confirmations pédagogiques GS Ortho, revue Tweed 2022, étude de valeur prédictive indépendante. Nous pouvons donc **spécifier** ces formules historiques ; pas d'implémentation, de recalcul rétrospectif patient, de certification médicale, de merge ou de déploiement. **NEXT** : valider le mode de détermination cible via chevrons Steiner et la correction de forme d'arcade ; régler la présentation boîte de Steiner des lignes Spee ; poursuivre étape 2 puis 3/4. **Dernière mise à jour canonique : 05/11/2026 — POST §65, DDM céphalo précisée, SPEC ONLY.**
+
+
+### 66. PRE — 2026-11-05 — McNamara : position incisive et contribution d'espace, ne pas confondre avec Steiner (SPEC ONLY)
+
+**Instruction propriétaire :** « Mmm et mcnamara fait comment !? » (après §65 POST sur la correction `2× Δ(i–NB)` de Steiner). Rechercher ce que McNamara (1984) définit effectivement, ses constructions dento-squelettiques et si une **formule de DDM céphalométrique indépendante** existe réellement dans ce protocole.
+
+**Baseline contrôlée :** PR #1213 OPEN/DRAFT, HEAD `22238f372d97471a02846091fb9d112e38148ba1`, §65 POST relu ; Notion PRE69 écrit. Deux analyses V1 COM Digital Crown + Steiner 1953/1959 verrouillées, McNamara pas sélectionnée en V1. Ne pas ajouter par réponse à une question une analyse/valeur clinique exécutée.
+
+**Sources web** : McNamara JA Jr, « A method of cephalometric evaluation », *Am J Orthod* 1984;86(6):449–469, DOI `10.1016/S0002-9416(84)90352-X`, https://pubmed.ncbi.nlm.nih.gov/6594933/ ; texte intégral indexé via reproduction tierce https://pdfcoffee.com/a-method-of-cephalometric-evaluation-mcnamara-1984-pdf-free.html ; mesure définie dans analyse McNamara https://pmc.ncbi.nlm.nih.gov/articles/PMC8018756/ et revue https://pmc.ncbi.nlm.nih.gov/articles/PMC8770963/ ; dépendance de l'espace à la forme d'arcade selon Mutinelli et al., *Eur J Orthod* 2000 https://pubmed.ncbi.nlm.nih.gov/10822884/. Reproduction tierce ≠ validation graphique de l'original.
+
+**Goal / success** : décrire une mesure clinique `L1 facial surface→A–Pog` (historique 1–3 mm antérieurs dans contexte facial équilibré), le recalage de la ligne après repositionnement mandibulaire projeté, et la différence entre changement de repère squelettique et déplacement réel de l'incisive. Donner un verdict de spécification sans inventer `McNamara = 2 × ΔA–Pog`. **Gate : SPEC ONLY, NO_CODE, NO_APPROVAL, FUE_NOT_RUN**, pas de merge/déploiement.
