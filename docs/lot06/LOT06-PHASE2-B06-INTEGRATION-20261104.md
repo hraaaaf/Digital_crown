@@ -727,3 +727,14 @@ Baseline: PR #1210 Draft, `dfa75c1`, prior CI #42007847209 IN_PROGRESS (not GREE
 ## PRE B06-4D-F1 — accelerated synthetic crypto contract implementation, 2026-11-05
 
 Owner clarification: no clinical data currently to preserve; optimize delivery velocity. Baseline `feea87f` CI #42008115265 SUCCESS 3/3. Implement a **small standalone, isolated synthetic crypto v2 contract** with versioned AES-GCM media keys, independent HMAC locator keys, strict key IDs and authenticated AAD; retain existing DCM1 product behavior unchanged until independent integration FUE. Add focused synthetic tests including wrong key, wrong tenant, tamper, missing key and locator stability across encryption-key rotation. No actual clinic data, migration, product activation, merge or deploy. Update Notion PRE/POST and exact SHA CI.
+
+## POST B06-4D-F1 — synthetic-only versioned media crypto implementation, 2026-11-05
+
+**Implementation on this PR branch, no product activation:**
+- \`isolated_fue_lot06c/b06_versioned_crypto_synthetic.py\`: standalone DCM2 AES-256-GCM envelope containing a validated media key ID, nonce and authenticated ciphertext. Tenant ID, SHA-256 digest and envelope header are bound in AEAD AAD. Missing/incorrect historical key, invalid header, wrong tenant/digest, tampering and invalid key ID fail closed. Separate 32-byte HMAC locator keys avoid locator churn when only the encryption key rotates.
+- \`isolated_fue_lot06c/test_b06_versioned_crypto_synthetic.py\`: ten named synthetic FUE scenarios (F1-01 through F1-10; F1-07 parametrized five invalid IDs), covering versioned roundtrip, key rotation, locator stability, missing/wrong historical keys, cross-tenant swap, tamper, invalid IDs, digest mismatch, truncated envelopes and no legacy downgrade.
+- No key bytes in the repository are production credentials: test constants are public, synthetic and deterministic. Product DCM1 and ACK-v1 code, schema, installer, API and real clinic configuration remain untouched.
+
+**Important release boundary:** This is a **standalone contract prototype**, not yet integrated with \`clinical_asset_storage.py\`, \`ClinicalAsset\` or the durable receipt signer. The new FUE test file is committed, but no claim that a CI workflow actually executes it until an exact-SHA job log proves that. Do not call \`PRODUCT_READY\`, \`KEYRING_PRODUCT_IMPLEMENTED\` or \`CLINICAL_GO\` true. Avoid a compatibility migration for nonexistent clinical history unless a real requirement emerges.
+
+**Next accelerated step:** wire isolated F1 pytest into the LOT06 exact-HEAD workflow and certify it; then integrate DCM2 with storage and receipt key IDs on disposable SQLCipher/PG fixtures in one bounded product sublot, preserving legacy fail-closed behavior and FUE evidence. No merge/deploy without explicit owner authorization.
