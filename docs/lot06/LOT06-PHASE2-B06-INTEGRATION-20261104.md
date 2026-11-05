@@ -702,3 +702,8 @@ Baseline checked on [PR #1210](https://github.com/hraaaaf/Digital_crown/pull/121
 **Owner decision gate, unresolved:** (1) identify the actual engine of the specific cabinet using an owner-approved read-only inventory (not attempted); (2) choose supported target installation topology (solo or multi-PC) and permitted runtime environment; (3) authorize a purpose-separated versioned key design, key custody/escrow and retention; (4) define RPO/RTO and approve isolated restore rehearsal; (5) independently authorize any additive schema/code work, representative clone and physical/human gate. No evidence in these files grants such approvals.
 
 **Verdict:** \`LOT04_READONLY_DOCUMENTARY_RECONCILIATION=COMPLETE\`; \`CABINET_LIVE_ENGINE_VERIFIED=false\`; \`LOT04_OWNER_APPROVAL=false\`; \`B06-4D-E_ADR=PROPOSED_NOT_APPROVED\`; \`READY_TO_MERGE=false\`; \`PRODUCT_READY=false\`; \`CLINICAL_GO=false\`. No clinic connection, no patient data, no code/migration/merge/deployment. **Next:** owner-authorized, non-secret, read-only current-cabinet engine/topology inventory; then decide whether B06-4D-F is an isolated contract prototype only or a separately approved implementation.
+
+
+## PRE B06-4D-F0 — non-secret read-only runtime engine identification contract, 2026-11-05
+
+Baseline: PR #1210 Draft, `dfa75c1`, prior CI #42007847209 IN_PROGRESS (not GREEN yet). Scope: inspect source-level startup/engine guards and author a **read-only operator inventory procedure** that does not collect credentials, connection strings, patient data or touch live cabinet. No access to actual workstation is available or authorized. No product code/migration, merge or deployment. POST must distinguish repository source evidence from live engine proof. Notion PRE/POST mandatory.
