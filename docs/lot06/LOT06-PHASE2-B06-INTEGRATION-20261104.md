@@ -743,3 +743,8 @@ Owner clarification: no clinical data currently to preserve; optimize delivery v
 ## PRE B06-4D-F1 CI wiring — 2026-11-05
 
 Baseline HEAD `9c3f9ed`, B06 #42011480767 GREEN 3/3 but logs prove 77 SQLCipher + 4 PG schema + 19 PG route tests only; **F1 synthetic crypto tests not executed**. Inspect `.github/workflows/lot06-phase2-b06-integration-fue.yml`; add explicit F1 test file and implementation to path filters and run isolated pytest on exact SHA in existing Ubuntu synthetic job. No product storage changes, merge, deploy or clinical data. Notion PRE/POST and exact-SHA CI required.
+
+
+## POST B06-4D-F1 CI wiring — 2026-11-05
+
+Workflow `.github/workflows/lot06-phase2-b06-integration-fue.yml` updated in `39f1ee4`: add synthetic F1 module and test paths to push triggers and dedicated `B06-4D-F1 synthetic versioned crypto FUE exact SHA` step in existing isolated Ubuntu job. Step asserts `git rev-parse HEAD == GITHUB_SHA`, runs `python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_versioned_crypto_synthetic.py` and prints `DC06_B06_F1_VERSIONED_CRYPTO_SYNTHETIC_FUE_PASS` only after success. This fixes previously untested F1; **CI verdict pending exact HEAD job log**. No product DCM1 integration, schema/migration, real clinical data, merge or deploy. `F1_TESTS_CI_CERTIFIED=false` until proof; `READY_TO_MERGE=false`; `CLINICAL_GO=false`.
