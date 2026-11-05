@@ -1553,3 +1553,12 @@ Desktop : cliché prioritaire + panneau protocole/mesures ; mobile : vue radio e
 **Gate actuel** : tests FUE ci-dessus **NOT RUN**, aucun FUE d'une nouvelle interface n'existe ; l'ancien run du HEAD précédent ne certifie pas cette spécification. Aucune implémentation ni réconciliation technique autorisée avant arbitrages fonctionnels sur les 4 étapes.
 
 **Décisions encore ouvertes, ordre** : 1) confirmer/rejeter officiellement COM + Steiner comme duo V1 ; 2) cadrer formats/réglette/étalon ; 3) figer toutes les lignes COM et Steiner et leur provenance ; 4) spécifier Moulages ; 5) Diagnostic ; 6) Plan/Bilan et signature ; **ensuite seulement** réconciliation technique et lotissement. Notion POST 62 à synchroniser. **Dernière mise à jour canonique : 05/11/2026 — POST §59, Step1 SPEC CANDIDATE, NO CODE.**
+
+
+### 60. PRE — 2026-11-05 — validation propriétaire du duo V1 et calibration (SPEC ONLY)
+
+**Décision utilisateur acquise** : « Je valide COM Digital Crown + Steiner 1953/1959 comme les deux analyses V1. Continuons les spécifications fonctionnelles sans implémentation. » Désormais **PROJECT_LOCKED pour le choix de duo V1**, en conservant les autres filtres/analyses historiques comme existants hors objectif de complétude initiale. Cette validation **ne couvre pas** la liste fine des mesures, les normes, les constructions manquantes, le rendu, la calibration clinique, les captures ou un déploiement.
+
+**État technique contrôlé avant écriture** : PR #1213 OPEN/DRAFT, HEAD `9c7e0d7fc67973e0a1023b75d37dba76d260392f`; neuf workflows pertinents COMPLETED/SUCCESS sur ce HEAD (FUE-H, FUE-P1, FUE-P2, frontend TEST build, Scope, R14, Theme09/10/11), M6-I SKIPPED. Canonique §59 POST relu, Notion PRE63 enregistré. SUCCESS technique ne signifie ni approbation visuelle ni validité clinique.
+
+**GOAL/SUCCESS/PROOF** : spécifier les scénarios de calibration, états de preuve, actions et refus ciblés, avec une question minimale de cadrage (formats de radios + réglette réellement disponible) ; vérifier compatibilité avec le parcours COM+Steiner sans coder, retester ou réconcilier. **SOURCE SCIENTIFIQUE candidate** : DICOM PS3.3 courant §10.7 (https://dicom.nema.org/medical/DICOM/current/output/chtml/part03/sect_10.7.html), notamment Pixel Spacing, Imager Pixel Spacing, GEOMETRY et FIDUCIAL, et limites de profondeur/grossissement. **GATE** : SPEC_DISCOVERY / NO_CODE / NOT_APPROVED, aucun patient, merge ou Vercel.
