@@ -1613,3 +1613,59 @@ Desktop : cliché prioritaire + panneau protocole/mesures ; mobile : vue radio e
 **Vérifications** : PR #1213 OPEN/DRAFT, HEAD documentaire pré-passe `81595ddc49d97d84ce118e706eabbca2c09a8a24`. §60 POST relu. Documents additionnels lus : `docs/CEPHALO_ANALYSIS_DEPENDENCY_MATRIX.md` (12 lignes COM historiques), `docs/CEPHALO_CONSTRUCTION_REGISTRY.md` (A'B', Francfort et ambigüités Gi/Gs, orientation du regard) et §54 du présent canonique (15 facteurs Steiner, 6/15 AVAILABLE, 9/15 NC sur deux JPEG publics; pas de validation anatomique clinique 38/38). Notion PRE 64 enregistré.
 
 **GOAL/SUCCESS** : construire un inventaire fonctionnel **non-clinique et non final** des deux catalogues, distinguer construction source-verrouillée, entrée ONNX candidate, mesures mm, états et justification d'absence, puis préparer l'arbitrage portant sur la portée exacte de COM ; aucun ajout de norme ou formule. **GATE** : SPEC_DISCOVERY / NO_CODE / NOT_APPROVED, aucun changement produit, aucun merge ou déploiement.
+
+
+### 61. POST — 2026-11-05 — inventaire COM + Steiner, exigences de complétude (CANDIDATE / SPEC ONLY)
+
+**Statut** : le duo COM Digital Crown + Steiner 1953/1959 reste **PROJECT_LOCKED** par décision explicite. La calibration du §60 demeure **candidate**, non approuvée ; elle doit fonctionner avec **et sans réglette** par choix de robustesse de la future interface, sans présumer le type de cliché dominant et sans accorder de calibration mm implicite. Aucun nouveau code produit, aucune validation normative, visuelle, thérapeutique ou clinique.
+
+#### 61-A — Trois niveaux de vérité à préserver
+
+1. **Catalogue inventorié** : références et IDs présents dans les documents existants ; n'est pas une preuve que la composition de l'analyse historique est exhaustive.
+2. **Protocole entièrement spécifié** : liste finale de facteurs démontrée par sources primaires/versionnées avec formule, landmarks/points construits, constructions exactes, unité, conditions d'applicabilité/étalonnage, norme éventuellement pertinente et déclinaison UI/PDF. La source COM (CRANIOM) impose de rechercher l'intégralité originale ; les **12 lignes recensées** aujourd'hui ne permettent pas de déclarer un protocole historique « complet ».
+3. **Étude individuelle calculée/validée** : les résultats d'une image restent indépendamment `AVAILABLE`, `NOT_COMPUTABLE`, `CANDIDATE`, `HUMAN_GATE_REQUIRED`, etc. Un protocole historiquement documenté peut produire un cas partiel. `NOT_COMPUTABLE` n'est ni zéro ni absence clinique.
+
+#### 61-B — COM Digital Crown / famille CRANIOM — 12 entrées du référentiel historique (composition finale À APPROUVER)
+
+| Catégorie | Facteurs documentés | Unité | Condition/limite distincte |
+|---|---|---|---|
+| Dento-alvéolaire | Surplomb ; Recouvrement | mm | Projection d'incisives/plan orienté, échelle réelle vérifiée ; documentation candidate |
+| Dento-alvéolaire | Inclinaison incisive mandibulaire / plan mandibulaire ; Inclinaison incisive maxillaire / Francfort ; Angle inter-incisif | degrés | Axe incisif disponible mais choix du plan mandibulaire Downs/variante nécessite source/identité ; Francfort Po-Or source défini |
+| Squelettique AP | A'B' sur Francfort ; A / verticale de Nasion ; B / verticale de Nasion ; profondeur faciale S / verticale de Nasion | mm | Projections versionnées Po–Or, S/N/A/B ; calibration pour valeurs mm et contrôle des conventions/signes/source |
+| Squelettique vertical | Forme faciale CRANIOM SN / mandibulaire Downs ; Forme mandibulaire CRANIOM Ar–Gi–Gs–Me | degrés | Downs ne s'assimile pas à GoGn ; Gi et Gs absents des 38 canaux, aucune promotion de Go |
+| Suivi / posture | A''B'' selon le regard horizontal | mm | Orientation naturelle de tête / protocole photographique requis ; non calculable sinon |
+
+**Réserve scientifique** : il s'agit d'un inventaire extrait de `docs/CEPHALO_ANALYSIS_DEPENDENCY_MATRIX.md`, daté historiquement et non d'un inventaire validé ligne par ligne de la méthode originale. Le projet identifie historiquement COM à CRANIOM (Bonnefont et collaborateurs, publications 2010/2011), source cohorte de 83 jeunes adultes Classe I non traités. Aucune valeur normative ne doit être généralisée à toutes populations/âges ; registres de source/population et vérification clinicien avant activation. Le champ COM ne doit pas fusionner silencieusement Tweed, Steiner ou McNamara.
+
+#### 61-C — Steiner 1953/1959 — 15 facteurs dans le profil source (11 base + 4 extension)
+
+| Groupe fonctionnel | Facteurs du profil documentaire | Statut sur les deux JPEG publics non calibrés (HEAD historique §54) |
+|---|---|---|
+| Sagittal osseux | SNA, SNB, ANB | 3 AVAILABLE, expertise anatomique non prouvée |
+| Incisives et axe | U1–NA° ; L1–NB° ; angle inter-incisif | 3 AVAILABLE, même réserve |
+| Incisives / rapports linéaires | U1–NA mm ; L1–NB mm | 2 NC : surfaces coronaires faciales exactes absentes + échelle mm |
+| Relations au plan SN/mandibulaire | Occlusal–SN ; SN–GoGn ; L1–GoGn | 3 NC : plan occlusal exact non identifié et/ou Gn_anatomic + variante Go |
+| Extension / symphyse | SND ; Pog–NB mm ; L1–D mm ; L1–D° | 4 NC : D_Steiner_1959, Gn_anatomic, surfaces coronaires, calibration selon mesure |
+
+Total **15/15 lignes recensées**, dont **6/15 AVAILABLE** et **9/15 NOT_COMPUTABLE** sur les deux radios témoins au snapshot §54 ; ceci **n'est pas** une validation clinique ou anatomique. Quatre angles ONNX calculés expérimentalement plus tard dans FUE-H ne sont **pas** promus automatiquement parmi les 15 mesures médicales.
+
+**Six identités/constructions spécifiques à traiter sans alias arbitraire** : `Gn_anatomic` ≠ automatiquement `Gn`; `D_Steiner_1959` ≠ `D_point`; `U1_facial_surface` et `L1_facial_surface` ≠ point incisif seul ; `Occ_Steiner_Ant` / `Occ_Steiner_Post` ≠ centroïdes génériques `U6/L6`. `Pog_hard` est un alias conditionnel versionné supplémentaire, pas une libre synonymie. Source de ce tableau : §54 POST du présent canonique, pas une nouvelle observation de patient.
+
+#### 61-D — Contrat écran du catalogue, à approuver
+
+- **Sélecteur V1 unique** : COM / Steiner dans Step1 ; aucune duplication de choix dans Step3 ; historique du choix conservé par étude.
+- **Toutes les lignes attendues** de l'analyse choisie figurent dans le panneau `Mesures`, regroupées par sagittal / vertical / dentaire / tissus mous si effectivement prévus par le protocole. Pour chaque mesure : nom/ID/version, valeur, unité, calculable/non-calculable et **raison**, source normative éventuelle distincte, état de confirmation, clic = repères et construction exacts sur la radio.
+- **Mesures angulaires** sans mm possibles sous contrôle géométrie/landmarks ; **distances mm** refusées jusqu'à preuve d'étalonnage appliquée à la structure mesurée. Une règle trouvée ne satisfait pas cette preuve.
+- **Correction ciblée** : seulement les points/étalons qui bloquent une mesure ; clic du statut ouvre correction avec provenance, ancien/nouveau, auteur, validation ; recalcul des descendants transitifs et propagation jusqu'à PDF, sans changer les indépendants.
+- **Un cas partiel peut continuer** vers Moulages et produire un **brouillon** avec lacunes explicites ; « analyse complète » n'est pas un badge fondé sur la présence des titres, et « étude validée » exige toujours praticien + preuves adéquates.
+- **Thème** : couleurs de points/plans/valeurs/alertes hériteront des tokens sémantiques globaux ; aucun hex local à réintroduire plus tard.
+
+#### 61-E — Arbitrages restants et contrôles futurs
+
+**Question clinique prioritaire pour la suite** : le premier périmètre COM est-il le **protocole original CRANIOM** avec inventaire exhaustif à confirmer à partir de ses publications, ou **COM Digital Crown personnalisé** composé des mesures historiques documentées ? Les deux ne peuvent être annoncés équivalents sans preuve ; proposer par défaut de garder COM comme profil nommé du produit, tout en documentant sa filiation CRANIOM et en interdisant l'étiquette « CRANIOM complet » tant que la composition n'est pas contrôlée.
+
+**FUE future (NON RUN)** : parcourir chacun des 12 items recensés COM et 15 Steiner dans le panneau ; sélectionner mesure → mettre en évidence dépendances exactes ; supprimer volontairement point Go/Gn/D/surface/incisal/étalon → déclencher NC motivé et ne pas altérer mesures indépendantes ; corriger point/échelle → recalcul + persistance PDF/DB ; changer COM↔Steiner → rendu filtré/coordonnées conservées ; vérifier intégrité de source et absence de patient réel dans les artefacts ; contrôles 390/430/768/1280 et zoom 200 % ; obtenir capture BEFORE/AFTER et accord praticien. Oracles géométriques indépendants et concordance scientifique source/version nécessaires avant GO.
+
+**Résultat/limite** : inventaire **documenté, non cliniquement approuvé** ; 12 COM = état documentaire à réconcilier avec la source originale, 15 Steiner = profil projet source attesté, 6/15 disponible seulement au snapshot référencé. FUE actuel NOT RUN ; no code, no merge, no deploy. **NEXT** : arbitrer le périmètre COM, puis compléter la preuve du catalogue, définir les interactions Moulages et Diagnostic/Plan/Bilan, finir toutes les specs avant réconciliation technique.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §61, matrice COM+Steiner candidate.**
