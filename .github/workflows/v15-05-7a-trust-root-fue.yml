@@ -16,6 +16,8 @@ on:
       - 'backend/tests/fixtures/lot05_7a_c_make_tickets.py'
       - 'backend/tests/fixtures/lot05_7a_c_windows_scm_signed_noop.cs'
       - 'backend/tests/fixtures/lot05_7a_c_windows_signed_ipc_probe.ps1'
+      - 'backend/tests/fixtures/lot05_7a_e_windows_image_manifest_lab.py'
+      - 'backend/tests/fixtures/lot05_7a_e_windows_scm_image_probe.ps1'
   workflow_dispatch:
 
 permissions:
@@ -149,5 +151,58 @@ jobs:
         with:
           name: lot05-7a-c-native-scm-signed-ipc
           path: 05c-signed-ipc-evidence.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  windows-scm-image-signed-manifest-fue:
+    name: Windows native SCM PID/image SHA256 + Ed25519 manifest (CI lab)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      LOT05_7A_E_FAKE_ONLY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install signature verification dependency
+        run: python -m pip install --disable-pip-version-check cryptography
+      - name: Verify exact HEAD and static fixture syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne "${{ github.event.pull_request.head.sha || github.sha }}") {
+            throw '05E_EXACT_HEAD_REQUIRED'
+          }
+          $p=Resolve-Path 'backend/tests/fixtures/lot05_7a_e_windows_scm_image_probe.ps1'
+          $tokens=$null; $errors=$null
+          [Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) {throw ('05E_SCRIPT_PARSE_FAILED '+($errors -join ';'))}
+          python -m py_compile backend/tests/fixtures/lot05_7a_e_windows_image_manifest_lab.py backend/services/legacy_migration_install_attestation_v15.py
+          if ($LASTEXITCODE -ne 0) {throw '05E_PYTHON_STATIC_COMPILE_FAILED'}
+      - name: Run actual SCM PID and image-to-signed-manifest lab FUE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05_7a_e_windows_scm_image_probe.ps1 2>&1 | Tee-Object -FilePath 05e-loaded-image-proof.txt
+          if ($LASTEXITCODE -ne 0) {throw '05E_WINDOWS_NATIVE_IMAGE_FUE_FAILED'}
+          $proof=Get-Content -LiteralPath 05e-loaded-image-proof.txt -Raw
+          foreach($marker in @(
+            '05E_REAL_SCM_PID_MATCHES_OS_PROCESS_LOADED_EXE',
+            '05E_REAL_WINDOWS_LOADED_IMAGE_SHA256_MEASURED',
+            '05E_SIGNED_MANIFEST_MATCHES_SCM_PROCESS_IMAGE_SHA256_AND_SERVICE_SID',
+            '05E_REPLACED_IMAGE_SID_FORGERY_CLINICAL_AND_ROLLBACK_DENIED',
+            '05E_CI_EPHEMERAL_SIGNER_NOT_PRODUCT_PUBLISHER_NO_CLINICAL_IMPORT',
+            '05E_REAL_SERVICE_SID_AND_PEER_TOKEN_NOOP_ONLY',
+            '05E_DISPOSABLE_SCM_BINARY_AND_MANIFEST_LAB_CLEANED')) {
+            if (-not $proof.Contains($marker)) {throw ('05E_REQUIRED_PROOF_MISSING '+$marker)}
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7a-e-real-scm-image-signed-manifest-lab
+          path: 05e-loaded-image-proof.txt
           if-no-files-found: ignore
           retention-days: 14
