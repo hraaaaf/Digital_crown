@@ -1562,3 +1562,45 @@ Desktop : cliché prioritaire + panneau protocole/mesures ; mobile : vue radio e
 **État technique contrôlé avant écriture** : PR #1213 OPEN/DRAFT, HEAD `9c7e0d7fc67973e0a1023b75d37dba76d260392f`; neuf workflows pertinents COMPLETED/SUCCESS sur ce HEAD (FUE-H, FUE-P1, FUE-P2, frontend TEST build, Scope, R14, Theme09/10/11), M6-I SKIPPED. Canonique §59 POST relu, Notion PRE63 enregistré. SUCCESS technique ne signifie ni approbation visuelle ni validité clinique.
 
 **GOAL/SUCCESS/PROOF** : spécifier les scénarios de calibration, états de preuve, actions et refus ciblés, avec une question minimale de cadrage (formats de radios + réglette réellement disponible) ; vérifier compatibilité avec le parcours COM+Steiner sans coder, retester ou réconcilier. **SOURCE SCIENTIFIQUE candidate** : DICOM PS3.3 courant §10.7 (https://dicom.nema.org/medical/DICOM/current/output/chtml/part03/sect_10.7.html), notamment Pixel Spacing, Imager Pixel Spacing, GEOMETRY et FIDUCIAL, et limites de profondeur/grossissement. **GATE** : SPEC_DISCOVERY / NO_CODE / NOT_APPROVED, aucun patient, merge ou Vercel.
+
+
+### 60. POST — 2026-11-05 — duo COM + Steiner verrouillé ; calibration Step1 spécifiée en candidate
+
+**DECISION PROJECT_LOCKED — uniquement choix du duo** : COM Digital Crown + Steiner (1953/1959) sont les deux analyses cibles V1. Cette décision provient de la confirmation explicite du propriétaire du 05/11/2026. Conserver les autres familles existantes sans les traiter comme parcours complets V1. Ne pas modifier le produit ni inférer une validation du protocole historique intégral, des normes, des landmarks ONNX ou des captures.
+
+**Calibration — DESIGN PROPOSAL / NOT YET APPROVED (et pas une règle clinique activée)**
+
+**S-01 — Origine** : préserver l'original, son format, sa géométrie raster, orientation, dimensions, empreinte d'intégrité et toute métadonnée exploitable. Les formats cibles JPEG/PNG et DICOM restent à arbitrer selon la vraie pratique et la capacité vérifiée ultérieurement ; DICOM est une source possible de données, pas une garantie de calibration.
+
+**S-02 — Détection candidate** : examiner le cliché entier afin de localiser une ou plusieurs réglettes/gradations candidates indépendamment de l'ancienne ROI verticale 30% supérieure ; afficher cadre/segment détecté à l'échelle native, zoom et origine sans recadrer le cliché. Les candidats multiples, incomplets, obliques, rééchantillonnés, distordus ou contradictoires gardent le statut non vérifié. La présence de traits n'identifie ni distance réelle ni position dans la géométrie d'acquisition.
+
+**S-03 — Trois niveaux explicitement distincts** :
+- `RULER_DETECTED` / « Réglette détectée » : graduations candidates localisées ; unité/longueur réelles inconnues ; aucune distance mm autorisée sur cette seule preuve.
+- `SCALE_DETERMINED` / « Échelle déterminée » : longueur physique connue, profil d'étalon traçable ou deux marques avec distance mm documentée (ou métadonnées DICOM qualifiées), calcul de conversion selon géométrie image ; l'échelle dans le plan de la réglette peut être numérique sans garantir des distances anatomiques exactes.
+- `CALIBRATION_VERIFIED` / « Calibration vérifiée » : fiabilité des métadonnées, orientation/ratio, unité, mode GEOMETRY/FIDUCIAL ou fiducial physique, position relative de l'étalon au plan anatomique, éventuel grossissement, méthode/limites et approbation qualifiée contrôlées pour les distances concernées ; ces conditions ne sont **pas** déduites uniquement de la détection automatique. Les états internes existants `UNCALIBRATED/CANDIDATE_UNVERIFIED/AUTO_VERIFIED/CLINICIAN_CONFIRMED/MANUAL_TWO_POINT/LEGACY_VERIFIED` sont **à réconcilier plus tard** sans changer le runtime actuellement.
+- `UNCALIBRATED`, `AMBIGUOUS` et `INVALIDATED` sont des issues explicites, pas des preuves supplémentaires.
+
+**S-04 — Méthodes fonctionnelles candidates** :
+1) profil d'étalon physique identifié et versionné + graduations mesurables + géométrie pertinente → proposition de conversion ; 2) opérateur sélectionne exactement deux graduations et renseigne leur distance physique connue ainsi que provenance et plan de référence → échelle candidate manuelle ; 3) DICOM natif avec `Pixel Spacing (0028,0030)`, `Imager Pixel Spacing (0018,1164)`, `Pixel Spacing Calibration Type (0028,0A02)`, `Pixel Spacing Calibration Description (0028,0A04)` si présents → qualification distincte de la correction de grossissement et du repère FIDUCIAL/GEOMETRY ; 4) aucune preuve fiable → poursuite du parcours sans distances en mm. **Aucun facteur de grossissement ni pas de graduation choisi arbitrairement.** Même la méthode manuelle n'atteste pas automatiquement la profondeur anatomique.
+
+**S-05 — Affichage minimal** : bandeau `Échelle non vérifiée / Réglage proposé / Calibration vérifiée`, segment(s) visibles sur radio, origine (`étalon / saisie manuelle / DICOM`), valeur et unité mm/pixel uniquement lorsque déterminées, orientation et avertissement sur grossissement, identité/date de la vérification. Boutons `Confirmer selon preuve`, `Corriger`, `Continuer sans mesures mm`. Un simple clic de confirmation ne doit pas transformer une preuve géométriquement insuffisante en « vérifiée » ; exiger la justification et l'action du praticien lorsque pertinente.
+
+**S-06 — Mesures / effets aval** : sans calibration anatomiquement applicable, les distances mm sont `NON_CALCULABLE: CALIBRATION_UNVERIFIED` et l'export indique la même limite. Les angles 2D peuvent rester techniquement calculables si repères, conventions et géométrie/ratio d'aspect sont fiables ; image anisotropiquement étirée ou miroir non résolu bloque également les angles affectés. Une modification/invalidité d'échelle déclenche recalcul transitif/versionné des distances, normes et sections dépendantes du diagnostic et du PDF ; conserver l'historique. Aucune mesure remplacée par zéro, aucun choix thérapeutique automatisé.
+
+**S-07 — Règles de progression** : le praticien peut poursuivre vers Moulages avec une étude partielle et non calibrée, mais le dashboard et le projet de bilan indiquent les mesures absentes ; l'application ne qualifie ni COM ni Steiner comme « cas complet » lorsque des critères requis manquent. La validation de l'étude et du plan thérapeutique reste une action clinique humaine séparée.
+
+**Référence scientifique candidate contrôlée** : DICOM PS3.3 2026c, §10.7 « Basic Pixel Spacing Calibration Macro » https://dicom.nema.org/medical/DICOM/current/output/chtml/part03/sect_10.7.html ; valeurs Pixel Spacing ordonnées rangée/colonne, correction GEOMETRY vs FIDUCIAL, même profondeur/central ray, et absence d'indication fiable si métadonnées de calibration manquantes. `TECH_PRIMARY` pour la lecture de DICOM, **non** preuve de validité clinique d'un fichier importé et non norme orthodontique universelle.
+
+**Future battery FUE-CAL (NOT RUN)** :
+- CAL-01 JPEG/PNG sans règle ni métadonnées : 0 mm, angles contrôlés séparément, poursuite en « incomplet ».
+- CAL-02 faux traits / règle tronquée / 2 candidats contradictoires : candidat seulement, refus `VERIFIED`.
+- CAL-03 graduation sans longueur réelle connue : `RULER_DETECTED`, pas d'échelle arbitraire.
+- CAL-04 deux marques + valeur mm attestée : `SCALE_DETERMINED` ; pas de `CALIBRATION_VERIFIED` sans preuve géométrique pertinente.
+- CAL-05 DICOM Imager Pixel Spacing seul / correction non décrite : pas de preuve anatomique par magie.
+- CAL-06 calibrage anisotrope, zoom, crop, miroir, double-resize : vérifier les transformations indépendamment (angle et distance ne doivent pas avoir de faux PASS).
+- CAL-07 correction manuelle de l'échelle après mesure : recalcul dépendant, revue UI/API/DB/PDF, conservation de l'historique.
+- CAL-08 états d'échec/accessibilité/thèmes : statut textuel visible, couleurs issues uniquement de tokens du thème global, FUE réelle à valider plus tard par captures BEFORE/AFTER et approbation humaine.
+
+**OPEN / une seule question au propriétaire ensuite** : sur les téléradiographies réellement importées, y a-t-il habituellement une réglette graduée physiquement référencée dans le cliché, ou surtout des JPEG/PNG sans réglette ? La réponse définit le flux par défaut ; demander ensuite le format des sources et des profils d'acquisition/DICOM si nécessaire, avant la matrice complète COM/Steiner.
+
+**GATE / résultat** : décision duo validée ; calibration **candidate**, non approuvée ; études/mesures V1 et captures **non cliniquement validées** ; aucun code, test clinique, patient, merge ou déploiement. Batterie FUE-CAL non exécutée. **NEXT** : confirmer le cas de réglette dominant, préciser ses données réelles, puis couvrir les mesures exactes COM/Steiner avant Moulages, Diagnostic et Bilan. **Dernière mise à jour canonique : 05/11/2026 — POST §60, SPEC_ONLY.**
