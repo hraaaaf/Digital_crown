@@ -39,6 +39,19 @@ data = {
 password = b"synthetic-recovery-passphrase-for-lab"
 sealed = recovery.seal_keyring(data, password)
 raw = json.dumps(recovery.open_keyring(sealed, password)).encode("utf-8")
+for label, bad in (
+    ("malformed", b"{not-json"),
+    ("incomplete", b'{"active_media_id":"media2"}'),
+):
+    rejected = root / (label + ".json")
+    try:
+        restore.restore_new_private_file(str(rejected), bad)
+    except restore.WindowsRestoreDenied as exc:
+        assert str(exc) == "RESTORE_KEYRING_INVALID", str(exc)
+    else:
+        raise AssertionError("INVALID_RESTORE_ACCEPTED_" + label)
+    assert not rejected.exists()
+    print("DC06_F5BD3_" + label.upper() + "_PREWRITE_DENIED_PASS")
 restore.restore_new_private_file(str(target), raw)
 assert target.is_file()
 print("DC06_F5BD2_PRIVATE_NEW_FILE_CREATED_PASS")
