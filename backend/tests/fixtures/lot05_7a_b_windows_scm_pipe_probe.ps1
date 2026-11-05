@@ -46,17 +46,18 @@ function AwaitReady([string]$file) {
 function Send([string]$pipeName,[string]$request) {
     $pipe = [IO.Pipes.NamedPipeClientStream]::new(
         '.', $pipeName, [IO.Pipes.PipeDirection]::InOut,
-        [IO.Pipes.PipeOptions]::None,
+        [IO.Pipes.PipeOptions]::Asynchronous,
         [Security.Principal.TokenImpersonationLevel]::Impersonation)
     try {
         $pipe.Connect(5000)
-        $pipe.ReadTimeout = 5000
         $writer = [IO.StreamWriter]::new($pipe,[Text.Encoding]::ASCII,128,$true)
         $reader = [IO.StreamReader]::new($pipe,[Text.Encoding]::ASCII,$false,128,$true)
         $writer.NewLine = "`n"
         $writer.WriteLine($request)
         $writer.Flush()
-        $value = $reader.ReadLine()
+        $readTask = $reader.ReadLineAsync()
+        if (-not $readTask.Wait(5000)) { throw '05B_PIPE_REPLY_TIMEOUT' }
+        $value = $readTask.GetAwaiter().GetResult()
         if ($null -eq $value) { throw '05B_UNEXPECTED_EMPTY_PIPE_REPLY' }
         return $value
     } finally { $pipe.Dispose() }
