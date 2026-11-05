@@ -1508,3 +1508,12 @@ Le code `cephaloV1ProtocolScope.ts` borne **déjà** la V1 à `COM Digital Crown
 **Gate à la clôture de cette discussion** : `SPEC_DISCOVERY / NOT_APPROVED / NO_CODE`, décision clinique inchangée, aucun merge/déploiement ni patients. Les PRE/POST §58 documentent le cadrage (la présente mise à jour documentaire change HEAD et doit avoir sa propre CI).
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §58, atelier produit complet, choix duo ouvert, NO CODE.**
+
+
+### 59. PRE — 2026-11-05 — atelier Étape 1 : céphalométrie utilisateur (SPEC, zéro produit)
+
+**Owner instruction** : reprendre depuis §58 et Notion POST 61 ; construire un véritable parcours clinique plutôt qu'une simple superposition ONNX38. Les quatre décisions acquises (§58) sont conservées, images BEFORE refusées, duo COM Digital Crown + Steiner 1953/1959 toujours **recommandé/non approuvé**.
+
+**Baseline contrôlée** : PR #1213 DRAFT, HEAD de lecture `67b29d984579ae201378c7f025e7c4065206c3f6` ; neuf workflows pertinents SUCCESS sur ce HEAD (FUE-H, P1, P2, frontend TEST, Scope, R14, Theme09–11), M6-I SKIPPED. Ce succès est non clinique et sans approbation visuelle. `CEPHALO_DIAGNOSTIC_SPEC.md` et contrat `SRPOSE38_LANDMARK_CONTRACT.md` relus ; détail §58 présent ; Notion PRE 62 écrit.
+
+**Goal / Success** : figer en proposition testable le comportement Céphalométrie (import, 38 repères anatomiques, états de provenance/correction, calibration et limites, choix protocole, constructions/mesures, vue et export) et ses critères d'acceptation, sans décider un seuil, une norme ou un traitement. **Gate** : SPEC_DISCOVERY / NO_CODE / NOT_APPROVED ; ne toucher ni au runtime, ni à la CI, ni aux patients, ni à master, ni aux déploiements. **NEXT** : consigner §59 POST et Notion POST 62 ; demander l'arbitrage sur COM + Steiner et les limites de calibration avant de spécifier les étapes 2/3/4.
