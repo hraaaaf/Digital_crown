@@ -1438,3 +1438,16 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **NEXT** : recueillir approbation/refus explicite des captures ; si refus ou corrections demandées, effectuer une passe UI limitée et photographier before/after + tests responsive, puis nouvelle revue humaine. `FUE-H SUCCESS` ne signifie pas `VISUAL APPROVED`.
 
 **Dernière mise à jour canonique : 05/11/2026 — POST §57, screenshots à approuver, statut NOT_APPROVED.**
+
+
+### 58. PRE — 2026-11-05 — cadrage fonctionnel Céphalo end-to-end, deux analyses (aucun code)
+
+**Ordre du praticien** : arrêter de traiter Céphalo comme 38 numéros sur une radio. Nouvelle cible : les 38 points issus du poids ONNX identifiés par leurs noms, calibrage dès qu'une réglette graduée fiable est présente, sélection précoce de l'analyse (puis filtrage contextualisé des landmarks/lignes/plans/angles/mm), analyse des moulages structurée par onboarding, diagnostic détaillé et synthétique, plan de traitement rédigé/validé par le praticien, `Créer bilan` puis `Aperçu` et archivage. **Deux analyses réellement complètes dans la première livraison**, à choisir explicitement. Les chiffres seuls dans le paquet de preuve H sont des IDs de board QA et non une UX acceptable.
+
+**Règles incontournables — acquises, non « propositions »** : couleurs (UI **et** géométrie) dérivées des tokens du thème actif, jamais une palette module autonome hardcodée ; conserver tous les acquis de Digital Crown, pas de from scratch ; **définir et valider toutes les spécifications avant la réconciliation technique** ; capture-rendu BEFORE/AFTER et approbation humaine explicite obligatoires ; poids ONNX38 opérationnel source des coordonnées pour la géométrie, correction ponctuelle traçable facultative ; pas d'activation diagnostique/treatment en automatique sans contexte clinique et validation praticien. Les 4 mm non calibrés restent indisponibles, jamais estimés.
+
+**PRE lecture réelle** : PR #1213 DRAFT, HEAD `39524b1b6a78600331229d559cdf126d9e04bc40`, canonique §57 PRE/POST relu et Notion PRE61 ajouté. Existant à inventorier sans modifier : `CephaloWorkspace.tsx` (4 étapes), `Step1CephaloBase.tsx` (ONNX, overlay, calibration), `CephaloLandmarkReticles.tsx` (noms compacts et collisions, à distinguer du board QA numéroté), `CephaloAnalysisWorkbenchPanel.tsx` (sélecteur de 6 familles), `Step2Occlusal.tsx` (DDM et rapports), `Step3Clinical.tsx` (CVM, denture, diagnostic/notes), `Step4Documents.tsx` (brouillon/preview/archive), `calibration_service.py` (candidat réglette en zone haute uniquement), `cephalo_auto_calibration_gate.py` (étalon physique profilé), `cephaloTheme.ts` (tokens partiels, fallback chromatique), `orthoExpertSystem.ts` et `bilan_ortho_engine.py` (aucune décision de traitement autonome).
+
+**Goal** : produire dans cette passe un tableau « déjà existant / écart produit / décision proposée », un parcours cible utilisable et une liste minimale de choix cliniques à approuver ; PAS de reconciliation ni implémentation. **Success** : décisions séparées des hypothèses, protocole de calibration sans tricherie, deux profils candidats motivés, bornes de rapport/diagnostic/plan, thèmes et gate screenshots. GitHub et Notion POST à la fin.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §58, atelier de conception, zéro code.**
