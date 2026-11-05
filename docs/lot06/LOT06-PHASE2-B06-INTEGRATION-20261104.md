@@ -791,3 +791,8 @@ F4 exact SHA `d988064` CI #42027167418 GREEN 3/3, F4 7/7. F5 target: eliminate P
 ## POST B06-4D-F5A — atomic POSIX keyring read, 2026-11-05
 
 Hardened private file loader to require absolute path, O_NOFOLLOW and O_DIRECTORY dirfd traversal for each parent component, open final file with dir_fd, fstat the opened descriptor, validate owner/mode/type/size and bound read to 16KiB before JSON decode. Prevents precheck-to-open symlink swap and intermediate symlink traversal on POSIX; F4 existing seven tests adjusted for atomic-open denial and F5 adds three tests for relative path, oversized file, and symlink swap. Workflow runs 10 F4/F5 tests on exact SHA, marker `DC06_B06_F5_ATOMIC_NOFOLLOW_KEYRING_FUE_PASS`. **CI pending, no F5 GREEN claim.** Windows ACL-safe file mode is still explicitly denied; Windows F5B remains necessary. No false claim of Windows compatibility, no key backup/escrow, no merge/deploy/clinical activation. `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
+
+
+## PRE B06-4D-F5B — Windows ACL adversarial gate, 2026-11-05
+
+F5A GREEN exact HEAD `3cda3a0`, CI #42034452238 3/3, F4/F5A 10/10. Scope: Windows native ACL negative tests and a fail-closed guard for DCM2 private-keyring path; never enable Windows loader until safe open and security descriptor checks are implemented and verified. CI exact SHA; no merge/deploy/clinical activation.
