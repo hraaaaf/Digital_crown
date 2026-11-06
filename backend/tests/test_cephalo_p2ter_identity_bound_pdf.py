@@ -99,14 +99,14 @@ def test_two_studies_older_selection_generates_exact_study_and_revision(
                         out / f"selected-old-study-a-page-{index+1:02}.png"
                     )
     text_a = _compact(_text(pdf_a))
-    assert _compact(f"ÉTUDE CÉPHALO ID : {study_a.id}") in text_a
-    assert _compact(f"ÉTUDE CÉPHALO ID : {study_b.id}") not in text_a
+    assert _compact(f"Étude céphalométrique n°{study_a.id}") in text_a
+    assert _compact(f"Étude céphalométrique n°{study_b.id}") not in text_a
 
     pdf_b = _request(client, patient.id, study_b.id, headers)
     assert pdf_b.status_code == 200
     assert pdf_b.headers["X-Cephalo-Analysis-Id"] == str(study_b.id)
     text_b = _compact(_text(pdf_b))
-    assert _compact(f"ÉTUDE CÉPHALO ID : {study_b.id}") in text_b
+    assert _compact(f"Étude céphalométrique n°{study_b.id}") in text_b
     assert len(list(tmp_path.glob("*.pdf"))) == 2
 
 
@@ -363,8 +363,8 @@ def test_legacy_document_pdf_route_uses_same_explicit_historical_study(
     assert right.headers["X-Cephalo-Analysis-Id"] == str(older.id)
     assert right.headers["X-Cephalo-Revision"] == "1"
     text = _compact(_text(right))
-    assert _compact(f"ÉTUDE CÉPHALO ID : {older.id}") in text
-    assert _compact(f"ÉTUDE CÉPHALO ID : {newer.id}") not in text
+    assert _compact(f"Étude céphalométrique n°{older.id}") in text
+    assert _compact(f"Étude céphalométrique n°{newer.id}") not in text
     # Old document route never archives silently.
     assert client.post(
         path, json={"analysis_id": older.id, "expected_revision": 1, "archive": True},
