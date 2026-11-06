@@ -107,7 +107,35 @@ jobs:
               for n, page in enumerate(pdf, 1):
                   page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
                       root / f'with-dated-photos-page-{n:02d}.png')
-          print('FOUR_PART_A4_SYNTHETIC_DATED_MEDIA_DRAFT_RENDERED_NONCLINICAL')
+          # Clinician-audited synthetic graph: verify that source-backed
+          # diagnoses/objectives/phases appear, but the A4 stays unsigned.
+          from backend.tests.test_cephalo_four_part_report import _clinician_audited_graph
+          from backend.services.cephalo_pdf_clinician_evidence import (
+              project_audited_clinician_evidence,
+          )
+          graph, case_id = _clinician_audited_graph()
+          audited = project_audited_clinician_evidence(
+              graph, patient_id=1, case_id=case_id, analysis_id=867, revision=4,
+          )
+          clinical_projection = _projection()
+          clinical_projection.update({
+              'patient_id': 1, 'analysis_id': 867, 'analysis_revision': 4,
+              'evidence_graph_present': True,
+              'clinician_evidence': audited,
+          })
+          clinical_vm = _vm().model_copy(update={'patient_id': 1})
+          clinical_file = generator.generate(
+              clinical_vm, filename='synthetic-audited-unsigned.pdf',
+              projection=clinical_projection, media={'photos': photos, 'radio_jpeg': None},
+          )
+          with fitz.open(clinical_file) as pdf:
+              body = chr(10).join(p.get_text() for p in pdf)
+              assert 'Synthetic diagnosis used only to test graph integrity.' in body
+              assert 'Synthetic phase' in body and 'BROUILLON' in body
+              for n, page in enumerate(pdf, 1):
+                  page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
+                      root / f'audited-draft-page-{n:02d}.png')
+          print('FOUR_PART_A4_SYNTHETIC_DATED_MEDIA_AND_AUDITED_DRAFT_RENDERED_NONCLINICAL')
           PY
       - name: Upload A4 rendered pages (NOT human clinical approval)
         if: always()
