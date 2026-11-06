@@ -20,7 +20,11 @@ jobs:
   browser-documents:
     name: Pocket documents Chromium + WebKit / 200% / negatives / screenshots
     runs-on: ubuntu-latest
-    timeout-minutes: 35
+    # Playwright's pinned image contains Chromium/WebKit and OS dependencies.
+    # Avoid slow azure.archive.ubuntu.com apt downloads during every FUE run.
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    timeout-minutes: 20
     steps:
       - name: Checkout immutable PR source HEAD
         uses: actions/checkout@v4
@@ -42,7 +46,7 @@ jobs:
         run: |
           npm ci
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium webkit
+          node -e "const { chromium, webkit } = require('playwright'); const fs=require('node:fs'); for (const browser of [chromium, webkit]) { if (!fs.existsSync(browser.executablePath())) throw Error('Pinned Playwright browser missing: ' + browser.executablePath()); }"
       - name: Start local Vite-only component harness
         working-directory: frontend
         run: |
@@ -61,25 +65,29 @@ jobs:
           CPV2_DOCS_FUE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: node scripts/capture-cpv2-02c-documents-fue.mjs
       - name: Verify exact-SHA FUE-I evidence count
+        env:
+          EXPECTED_FUE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
-          python - <<'PY'
-          import json
-          from pathlib import Path
-          root = Path('artifacts/cpv2-02c-documents-fue')
-          payload = json.loads((root / 'fue-i-evidence.json').read_text())
-          assert payload['sha'] == '${{ github.event.pull_request.head.sha || github.sha }}'
-          records = payload['evidence']
-          assert len(records) == 22, len(records)
-          assert all(x['passed'] for x in records)
-          assert all(x['mocks'] for x in records)
-          assert {x['engine'] for x in records} == {'chromium', 'webkit'}
-          for record in records:
-              if record['case'] == 'preview-archive':
-                  assert record['counts']['previewHits'] == 1
-                  assert record['counts']['archiveHits'] == 1
-          assert len(list(root.glob('*.png'))) >= 50
-          print(f'FUE-I SYNTHETIC {len(records)}/22 cases PASS, screenshots captured; FUE-G NOT RUN')
-          PY
+          node <<'NODE'
+          const assert = require('node:assert/strict');
+          const fs = require('node:fs');
+          const path = require('node:path');
+          const root = 'artifacts/cpv2-02c-documents-fue';
+          const payload = JSON.parse(fs.readFileSync(path.join(root, 'fue-i-evidence.json'), 'utf8'));
+          assert.equal(payload.sha, process.env.EXPECTED_FUE_SHA);
+          const records = payload.evidence;
+          assert.equal(records.length, 22);
+          assert.ok(records.every(record => record.passed && record.mocks));
+          assert.deepEqual(new Set(records.map(record => record.engine)), new Set(['chromium', 'webkit']));
+          for (const record of records) {
+            if (record.case === 'preview-archive') {
+              assert.equal(record.counts.previewHits, 1);
+              assert.equal(record.counts.archiveHits, 1);
+            }
+          }
+          assert.ok(fs.readdirSync(root).filter(name => name.endsWith('.png')).length >= 50);
+          console.log('FUE-I SYNTHETIC 22/22 cases PASS, screenshots captured; FUE-G NOT RUN');
+          NODE
       - name: Upload exact-SHA screenshots and evidence
         uses: actions/upload-artifact@v4
         if: always()
