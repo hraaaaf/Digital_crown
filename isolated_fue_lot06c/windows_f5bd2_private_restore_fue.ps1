@@ -123,6 +123,119 @@ assert not pathlib.Path(os.environ["DC06_F5BD2_JUNCTION"]).exists()
 print("DC06_F5BD2_PARENT_JUNCTION_DENIED_PASS")
 '@ | python -
   if ($LASTEXITCODE -ne 0) { throw 'F5BD2_JUNCTION_FAILED' }
+
+  # J4: a separate process attempts a live namespace mutation while a parent
+  # directory handle has EXACTLY the no-write/no-delete sharing used by restore.
+  # This is a bounded share-mode adversarial FUE, NOT a full concurrent race proof.
+  @'
+import ctypes
+import importlib.util
+import json
+import os
+from pathlib import Path
+import subprocess
+import sys
+import types
+from ctypes import wintypes
+
+for name in ("backend", "backend.services"):
+    module = types.ModuleType(name)
+    module.__path__ = [name.replace(".", "/")]
+    sys.modules[name] = module
+
+def load(name, filename):
+    spec = importlib.util.spec_from_file_location(name, Path(filename))
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+load("backend.services.windows_keyring_handle_probe",
+     "backend/services/windows_keyring_handle_probe.py")
+load("backend.services.clinical_media_keyring_recovery",
+     "backend/services/clinical_media_keyring_recovery.py")
+restore = load("backend.services.windows_keyring_restore",
+               "backend/services/windows_keyring_restore.py")
+
+parent = Path(os.environ["DC06_F5BD2_ROOT"]) / "held-parent"
+moved = Path(os.environ["DC06_F5BD2_ROOT"]) / "attacker-moved"
+parent.mkdir()
+kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+kernel.CreateFileW.argtypes = [
+    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+    wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+]
+kernel.CreateFileW.restype = wintypes.HANDLE
+kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+kernel.CloseHandle.restype = wintypes.BOOL
+INVALID = ctypes.c_void_p(-1).value
+# FILE_READ_ATTRIBUTES | READ_CONTROL, FILE_SHARE_READ, OPEN_EXISTING,
+# FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS.
+handle = kernel.CreateFileW(str(parent), 0x00000080 | 0x00020000,
+                            0x00000001, None, 3, 0x00200000 | 0x02000000, None)
+if handle is None or handle == INVALID:
+    raise AssertionError("J4_PARENT_HANDLE_UNAVAILABLE")
+
+try:
+    attacker = r"""
+import ctypes
+import os
+from pathlib import Path
+import sys
+from ctypes import wintypes
+parent = Path(sys.argv[1])
+moved = Path(sys.argv[2])
+try:
+    os.rename(parent, moved)
+except OSError as exc:
+    if getattr(exc, "winerror", None) not in (5, 32, 33):
+        raise
+    print("DC06_J4_PARENT_RENAME_DENIED_PASS")
+else:
+    raise AssertionError("PARENT_SWAP_RENAME_ALLOWED")
+
+kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+kernel.CreateFileW.argtypes = [
+    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
+    wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+]
+kernel.CreateFileW.restype = wintypes.HANDLE
+kernel.CloseHandle.argtypes = [wintypes.HANDLE]
+kernel.CloseHandle.restype = wintypes.BOOL
+# A write-attributes handle is required to modify the directory reparse data;
+# its open must conflict with the restore-held read-only share contract.
+write_handle = kernel.CreateFileW(str(parent), 0x00000100, 0x00000007,
+                                  None, 3, 0x00200000 | 0x02000000, None)
+if write_handle is not None and write_handle != ctypes.c_void_p(-1).value:
+    kernel.CloseHandle(write_handle)
+    raise AssertionError("PARENT_WRITE_ATTRIBUTES_ALLOWED")
+if ctypes.get_last_error() not in (5, 32, 33):
+    raise AssertionError("PARENT_WRITE_ATTRIBUTES_UNEXPECTED_WINERROR")
+print("DC06_J4_PARENT_WRITE_ATTRIBUTES_DENIED_PASS")
+"""
+    attack = subprocess.run(
+        [sys.executable, "-c", attacker, str(parent), str(moved)],
+        check=True, capture_output=True, text=True, timeout=20,
+    )
+    assert "DC06_J4_PARENT_RENAME_DENIED_PASS" in attack.stdout
+    assert "DC06_J4_PARENT_WRITE_ATTRIBUTES_DENIED_PASS" in attack.stdout
+    assert parent.is_dir() and not moved.exists()
+    data = {
+        "active_media_id": "media2", "active_locator_id": "loc2",
+        "media_keys": {"media1": "11" * 32, "media2": "22" * 32},
+        "locator_keys": {"loc1": "33" * 32, "loc2": "44" * 32},
+    }
+    target = parent / "restored.json"
+    restore.restore_new_private_file(str(target), json.dumps(data).encode("utf-8"))
+    assert target.is_file() and not moved.exists()
+    assert json.loads(target.read_text(encoding="utf-8")) == data
+    print(attack.stdout.strip())
+    print("DC06_J4_PARENT_NAMESPACE_AND_RESTORE_PASS")
+finally:
+    kernel.CloseHandle(handle)
+'@ | python -
+  if ($LASTEXITCODE -ne 0) { throw 'F5BD2_J4_PARENT_SHARE_BARRIER_FAILED' }
+
 } finally {
   Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
 }
