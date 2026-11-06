@@ -120,6 +120,19 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
                   escape(str(vm.patient_prenom)) + "</b> · Date : " +
                   escape(str(vm.date_generation)), body),
     ]
+    study_id = projection.get("analysis_id")
+    revision = projection.get("analysis_revision")
+    if (
+        type(study_id) is int and study_id > 0
+        and type(revision) is int and revision > 0
+        and projection.get("active_runtime_chain_verified")
+    ):
+        # Human-readable study binding without exposing storage paths or
+        # claiming that the associated clinical diagnosis has been signed.
+        elements.append(Paragraph(
+            "Étude céphalométrique n°" + str(study_id) +
+            " · Révision " + str(revision), muted,
+        ))
 
     def add_measurements(name: str, data: list[tuple[str, str]]):
         elements.append(Paragraph(name, subhead))
