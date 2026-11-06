@@ -23,6 +23,7 @@ def _vm():
             visual_debug={},
             t1_projection={},
             t2_projection={},
+            clinical_data=schemas.ClinicalData(),
         ),
         doctor_name="Dr Test",
         cabinet_config={
