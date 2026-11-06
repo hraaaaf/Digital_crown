@@ -1058,3 +1058,8 @@ Owner GO “Vas y J4” on PR #1210 baseline `ce017616a0670d36c3521d14d55e8ba47c
 **Release state unchanged:** \`F5B_D4_INDEPENDENT_OPERATOR_DRILL=NOT_RUN\`; \`OFFSITE_ESCROW_VERIFIED=false\`; \`INDEPENDENT_ORACLE_VERIFIED=false\` for separate custodian; \`FULL_CABINET_RESTORE_VERIFIED=false\`; \`WINDOWS_PARENT_SWAP_RISK=OPEN\`; \`READY_TO_MERGE=false\`; \`PRODUCT_READY=false\`; \`CLINICAL_GO=false\`.
 
 **NEXT:** confirm exact-SHA Windows job markers and all CI runs, record audit evidence. Any RED is a real blocker requiring narrow targeted fix. Then independent human/custodian drill when authorized station available, without hallucinating signoff.
+
+
+## PRE J4/F5B-D4c exact-SHA Windows RED diagnosis, 2026-11-06
+
+Run [#42193603430](https://github.com/hraaaaf/Digital_crown/actions/runs/42193603430) at `411d5ac83e2e7c172da43842a88ef134907c811d`, Windows job `127811748215`: all prior Windows SCM/ACL/read/product and offline recovery checks including parent-junction refusal PASS, but new J4 child adversarial subprocess failed with `subprocess.CalledProcessError`. The current harness uses `capture_output=True, check=True` and suppresses the child stderr/stdout, so there is **no evidence yet** distinguishing a real successful rename/WRITE_ATTRIBUTES attack from a test failure. Downstream fixed-oracle D4b was SKIPPED because of this RED. Narrow next change: surface bounded **non-sensitive error class and marker state** from the child on failure, still fail-closed, with no change to product cryptography or Windows security. Re-run exact-SHA CI. J4 is RED, not certified. `WINDOWS_PARENT_SWAP_RISK=OPEN`, `READY_TO_MERGE=false`, `CLINICAL_GO=false`.
