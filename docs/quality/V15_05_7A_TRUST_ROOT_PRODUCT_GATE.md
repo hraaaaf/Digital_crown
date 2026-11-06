@@ -1,5 +1,13 @@
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
+## PRE — 2026-11-06 — LOT05.7C-A vendor source inventory (READ-ONLY / DRAFT)
+
+**Basis:** `master@ffa5361ab261b1d02e2fee8b13f628131b831972` (Cabinet Upgrade PostgreSQL run #42199047086 SUCCESS 2/2). Owner `Go` authorizes this *read-only lab preparation*, not source patient data access, merging, deploying, installing, or real import. Source vendor/version/export format **unknown** in available evidence; do NOT invent one. Work on branch `test/lot05-7c-a-source-inventory-readonly-20261106` with separate Draft PR.
+
+**FUE FIRST contract:** reuse existing 05.1 `inspect_staged_copy` only; require declared operator metadata (software name/version/dialect/format), attested isolated offline copy and format gate. Supported in this *laboratory* only: cold SQLite (`.db/.sqlite/.sqlite3`, rollback journal) and restricted text `CREATE TABLE` DDL (`.sql`). Refuse non-DDL SQL statements (e.g. INSERT/COPY), native PostgreSQL archives, arbitrary binary/native vendor backups, unknown formats, symlinks/hardlinks/outside-root sources and unauthorized live DB. No schema names/raw SQL/row values/vendor labels in public summary; source hash/aggregates only. Test with synthetic files on Linux and Windows. No API/UI, no target connection, SQL write, migration or credentials.
+
+**Strict no-go:** `import_permitted=false`, `full_schema_certified=false`; genuine vendor-specific row adapters, human mapping approval, tenant identity/JWT, recovery and clinic validation remain OPEN. Keep only this one canonical LOT05 file; POST must cite exact PR HEAD and CI, never claim PASS before observed runs.
+
 ## POST-MERGE CI GREEN #42195273143 — 2026-11-06 — exact SHA c0f6711 (LAB ONLY)
 
 **Evidence:** [Cabinet Upgrade PostgreSQL Certification #42195273143](https://github.com/hraaaaf/Digital_crown/actions/runs/42195273143), `event=push`, head SHA `c0f6711d0a49a7bada07ca9f1d6ed1eb786bc1f9`, `status=completed`, `conclusion=success` at `2026-11-06T09:46:34Z`. Both 2/2 jobs SUCCESS: **PostgreSQL 18 + immutable release invariants** (job `127816864434`) and **Windows PowerShell 5.1 release guards** (job `127816864820`). GitHub checked after user said “Green”; this is directly verified, not inferred from the statement. Prior intermediate squash push run [#42195035576](https://github.com/hraaaaf/Digital_crown/actions/runs/42195035576) was CANCELLED by a later push; do not count it SUCCESS or a regression.
