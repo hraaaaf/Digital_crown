@@ -289,8 +289,11 @@ class SyntheticReplayEvidenceFUE(unittest.TestCase):
         self.denied("EMPTY_PATIENT_CSV", self.build)
 
     def test_33_unrecognized_source_schema_denied(self):
+        # Preserve the previously approved-for-lab-only draft before making
+        # the source header hostile; the evidence wrapper must refuse it.
+        draft = self.draft()
         self.write(headers=["ancien_id", "prenom", "nom", "naissance", "pwd"])
-        self.denied("UNSAFE_CSV_HEADER", self.build)
+        self.denied("UNSAFE_CSV_HEADER", self.build, draft)
 
     def test_34_report_mutation_changes_evidence_digest(self):
         d = self.draft()
