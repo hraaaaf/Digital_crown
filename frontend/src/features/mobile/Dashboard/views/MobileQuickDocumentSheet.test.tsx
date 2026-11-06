@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileQuickDocumentSheet } from './MobileQuickDocumentSheet';
@@ -13,6 +14,20 @@ const mockedCredentials = vi.mocked(MobileStorage.getCredentials);
 describe('MobileQuickDocumentSheet', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  it('consumes shared desktop theme status and overlay tokens, never fixed palette classes', () => {
+    const component = readFileSync(new URL('./MobileQuickDocumentSheet.tsx', import.meta.url), 'utf8');
+    const theme = readFileSync(new URL('../../../../index.css', import.meta.url), 'utf8');
+    expect(component).not.toMatch(/\b(?:bg|text|border)-(?:rose|emerald|red|green|black|white)(?:-\d+)?(?:\/\d+)?\b/);
+    expect(component).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\s*\(/);
+    expect(component).toContain('bg-modal-scrim');
+    expect(component).toContain('bg-success-surface');
+    expect(component).toContain('bg-danger-surface');
+    expect(theme).toContain('--color-success: var(--status-success)');
+    expect(theme).toContain('--color-danger: var(--status-danger)');
+    expect(theme).toContain('--color-modal-scrim: var(--modal-scrim)');
+    expect(theme).toContain("[data-theme='high-contrast']");
   });
 
   it('exposes the five canonical quick document families in isolated preview', () => {
