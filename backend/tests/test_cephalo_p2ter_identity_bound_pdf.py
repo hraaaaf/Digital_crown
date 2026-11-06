@@ -248,70 +248,62 @@ def test_structural_consistency_failure_refuses_archive_without_writing_pdf(
     assert list(tmp_path.glob("*.pdf")) == []
 
 
-def test_archive_failure_is_not_silenced(client, db, dentiste, monkeypatch, tmp_path):
+def test_unsigned_archive_policy_preempts_archive_storage_calls(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """A valid unsigned PDF must not touch ArchiveService at all."""
     _temporary_pdf_output(monkeypatch, tmp_path)
     _cabinet(db, dentiste)
     patient, study, _ = _case(db, dentiste)
     headers = _jwt(client, dentiste)
-
-    # Synthetic validation bypass only to reach the I/O-failure branch; this
-    # intentionally confers NO clinical authority on the fixture.
     from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
     monkeypatch.setattr(
         cephalo_consistency_validator, "validate",
-        lambda _source: SimpleNamespace(is_valid=True, fatals=[], warnings=[]),
+        lambda _: SimpleNamespace(is_valid=True, fatals=[], warnings=[]),
     )
-
     from backend.services.archive_service import ArchiveService
-    def fail_archive(self, **kwargs):
-        raise OSError("synthetic archive disk failure")
-    monkeypatch.setattr(ArchiveService, "archive_document", fail_archive)
-    from fastapi import HTTPException
-    # The endpoint must never return 200 or silently claim the archive exists.
-    try:
-        response = _request(client, patient.id, study.id, headers, archive=True)
-        assert response.status_code == 500
-    except HTTPException as exc:
-        assert exc.status_code == 500
+
+    def must_not_archive(self, **kwargs):
+        raise AssertionError("Unsigned HTTP route attempted an official archive write")
+
+    monkeypatch.setattr(ArchiveService, "archive_document", must_not_archive)
+    response = _request(client, patient.id, study.id, headers, archive=True)
+    assert response.status_code == 409, response.text[:400]
+    assert "BROUILLON NON SIGNÉ" in response.json()["detail"]
     assert list(tmp_path.glob("*.pdf")) == []
-
-
-def test_archive_persists_selected_study_fk_and_revision_on_synthetic_fixture(
-    client, db, dentiste, monkeypatch, tmp_path,
-):
-    _temporary_pdf_output(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
-    patient, original, _ = _case(db, dentiste)
-    newer = _second(db, original)
-    headers = _jwt(client, dentiste)
-
-    # Force only the consistency-validator branch to pass so that the archive
-    # I/O contract can be tested. This is NEVER clinical approval.
-    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
-    from backend.services import archive_service
-    monkeypatch.setattr(
-        cephalo_consistency_validator, "validate",
-        lambda _data: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
-    )
-    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "isolated-archives")
-
-    older_pdf = _request(client, patient.id, original.id, headers, archive=True)
-    assert older_pdf.status_code == 200, older_pdf.text[:700] if older_pdf.status_code != 200 else ""
-    assert older_pdf.headers["X-Cephalo-Analysis-Id"] == str(original.id)
-    archived = db.query(models.DocumentArchive).filter(
+    assert db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient.id,
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
-    ).all()
-    assert len(archived) == 1
-    assert archived[0].analysis_id == original.id
-    assert archived[0].analysis_id != newer.id
-    assert archived[0].clinical_data["cephalo_analysis_id"] == original.id
-    assert archived[0].clinical_data["cephalo_analysis_revision"] == 1
-    assert archived[0].file_path.startswith("static/archives/")
-    relative = archived[0].file_path.removeprefix("static/archives/")
-    saved = (tmp_path / "isolated-archives" / relative).read_bytes()
-    assert saved == older_pdf.content
-    assert _compact(f"ÉTUDE CÉPHALO ID : {original.id}") in _compact(_text(older_pdf))
+    ).count() == 0
+
+
+def test_unsigned_archive_refuses_even_when_older_study_is_selected(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Source binding still selects the correct study, never creates an archive."""
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, older, _ = _case(db, dentiste)
+    newer = _second(db, older)
+    headers = _jwt(client, dentiste)
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    for study in (older, newer):
+        response = _request(client, patient.id, study.id, headers, archive=True)
+        assert response.status_code == 409, response.text[:500]
+        assert "BROUILLON NON SIGNÉ" in response.json()["detail"]
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+    assert not list(tmp_path.glob("*.pdf"))
+    preview = _request(client, patient.id, older.id, headers)
+    assert preview.status_code == 200, preview.text[:400]
+    assert preview.headers["X-Cephalo-Analysis-Id"] == str(older.id)
+    assert preview.headers["X-Cephalo-Analysis-Id"] != str(newer.id)
 
 
 def test_unversioned_historical_study_cannot_be_archived_as_authoritative(
