@@ -489,5 +489,50 @@ def test_four_part_a4_inherits_cabinet_theme_tokens(tmp_path: Path):
     def has_color(text, rgb):
         return any(text in span["text"] and span["color"] == rgb for span in spans)
     assert has_color("BILAN ORTHODONTIQUE", 0x9B2C88)
-    assert has_color("Analyse dento-alvéolaire", 0x198C70)
+    # PDF text extractors split accented headings across font spans.
+    assert has_color("Analyse", 0x198C70)
     assert any("BROUILLON" in span["text"] and span["color"] == 0x51676F for span in spans)
+
+
+def test_four_part_a4_shared_header_footer_logo_and_two_themes(tmp_path: Path, monkeypatch):
+    """Synthetic cabinet branding renders on every A4 page across shared templates."""
+    from PIL import Image
+    from backend.services import base_template_core
+
+    logo = tmp_path / "synthetic-cabinet-logo.png"
+    Image.new("RGB", (60, 60), (18, 102, 135)).save(logo)
+    monkeypatch.setattr(base_template_core, "get_media_root", lambda: str(tmp_path))
+    gen = BilanOrthoPDFGenerator(str(tmp_path))
+    palette_cases = (
+        ("swiss", "#9B2C88", "#51676F", "#198C70"),
+        ("clinical", "#1A566F", "#596873", "#B66A16"),
+    )
+    for template, primary, secondary, accent in palette_cases:
+        vm = _vm().model_copy(update={"cabinet_config": {
+            **_vm().cabinet_config,
+            "selected_template": template,
+            "primary_color": primary,
+            "secondary_color": secondary,
+            "accent_color": accent,
+            "logo_path": logo.name,
+            "header_lines_fr": ["Dr Test Cabinet", "Orthodontie de demonstration"],
+            "footer_address": "Adresse fictive de test, 10000",
+            "footer_phones": "05 00 00 00 00",
+        }})
+        path = gen.generate(vm, filename=f"branding-{template}.pdf", projection=_projection())
+        expected_title_rgb = int(primary[1:], 16)
+        with fitz.open(path) as pdf:
+            assert len(pdf) >= 1
+            for page in pdf:
+                txt = page.get_text("text")
+                assert "Dr Test Cabinet" in txt
+                assert "Adresse fictive de test" in txt
+                assert "05 00 00 00 00" in txt
+                assert "BROUILLON" in txt
+                assert page.get_images(full=True), "the shared letterhead must embed the configured logo"
+                assert any(
+                    span["color"] == expected_title_rgb and "BILAN ORTHODONTIQUE" in span["text"]
+                    for block in page.get_text("dict")["blocks"]
+                    for line in block.get("lines", [])
+                    for span in line.get("spans", [])
+                ) if "BILAN ORTHODONTIQUE" in txt else True
