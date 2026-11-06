@@ -202,7 +202,7 @@ def test_media_core_photo_provenance_is_preserved_without_new_storage(monkeypatc
         24680, "T0", "06/11/2026",
     )
     assert image["group"] == "Extra-buccales"
-    assert image["jpeg"].startswith(b"\\xff\\xd8")
+    assert image["jpeg"].startswith(bytes((0xFF, 0xD8)))
 
 
 def test_media_core_photo_loader_rejects_wrong_patient_or_unverified_provenance(monkeypatch):
@@ -259,7 +259,7 @@ def test_four_part_a4_prints_only_dated_canonical_photos_and_no_asset_identifier
         media={"radio_jpeg": None, "photos": [photo]},
     )
     with fitz.open(pdf_path) as pdf:
-        content = "\\n".join(page.get_text() for page in pdf)
+        content = chr(10).join(page.get_text() for page in pdf)
         assert "Profil" in content
         assert "06/11/2026" in content
         assert "T0" in content
