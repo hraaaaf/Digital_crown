@@ -79,6 +79,20 @@ def stage(target_raw: str) -> None:
     print("DC06_J4_VM1_SYNTHETIC_ENCRYPTED_ESCROW_STAGED_PASS")
 
 
+
+def _validate_encrypted_transfer(
+    backup: bytes, receipt: dict, oracle: dict, expected_backup: bytes
+) -> None:
+    """Validate the actual downloaded ciphertext; reject before any disk restore."""
+    if (not isinstance(backup, bytes)
+            or not 52 <= len(backup) <= 16464
+            or len(backup) != receipt["encrypted_backup_bytes"]
+            or hashlib.sha256(backup).hexdigest() != receipt["encrypted_backup_sha256"]
+            or receipt["encrypted_backup_sha256"] != oracle["envelope_sha256"]
+            or backup != expected_backup):
+        raise RuntimeError("DC06_J4_BACKUP_PIN_OR_TRANSFER_DENIED")
+
+
 def operator(escrow_raw: str, verdict_raw: str) -> None:
     sha, run_id = _runtime(_EXPECTED_OPERATOR)
     escrow = _directory(escrow_raw, must_exist=True)
@@ -104,15 +118,16 @@ def operator(escrow_raw: str, verdict_raw: str) -> None:
     # The authenticated ciphertext must come from a separate GitHub artifact.
     oracle, expected_backup = existing.fixture()
     backup = (escrow / _BACKUP).read_bytes()
-    if (not 52 <= len(backup) <= 16464
-            or len(backup) != receipt["encrypted_backup_bytes"]
-            or hashlib.sha256(backup).hexdigest() != receipt["encrypted_backup_sha256"]
-            or receipt["encrypted_backup_sha256"] != oracle["envelope_sha256"]
-            or backup != expected_backup):
-        raise RuntimeError("DC06_J4_BACKUP_PIN_OR_TRANSFER_DENIED")
-    # Regression: an altered downloaded blob is rejected BEFORE any restore.
+    _validate_encrypted_transfer(backup, receipt, oracle, expected_backup)
+    # Regression: run intentionally altered ciphertext through the EXACT SAME
+    # admission path. A hash-difference assertion alone was a false positive.
     corrupted = backup[:-1] + bytes((backup[-1] ^ 1,))
-    if hashlib.sha256(corrupted).hexdigest() == oracle["envelope_sha256"]:
+    try:
+        _validate_encrypted_transfer(corrupted, receipt, oracle, expected_backup)
+    except RuntimeError as exc:
+        if str(exc) != "DC06_J4_BACKUP_PIN_OR_TRANSFER_DENIED":
+            raise
+    else:
         raise AssertionError("DC06_J4_ARTIFACT_TAMPER_FALSE_ACCEPT")
     print("DC06_J4_VM2_ARTIFACT_SHA_AND_PRECOMMITTED_ORACLE_PASS")
     print("DC06_J4_VM2_TAMPERED_TRANSFER_PREWRITE_DENIED_PASS")
