@@ -6,6 +6,7 @@ on:
       - 'backend/services/generators/cephalo_four_part_report.py'
       - 'backend/services/generators/bilan_ortho_gen.py'
       - 'backend/services/cephalo_pdf_projection.py'
+      - 'backend/services/cephalo_pdf_media.py'
       - 'backend/tests/test_cephalo_four_part_report.py'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
       - '.github/workflows/ceph-fourpart-a4-targeted.yml'
@@ -55,18 +56,57 @@ jobs:
           import fitz
           from pathlib import Path
           from backend.tests.test_cephalo_four_part_report import _vm, _projection
+          from io import BytesIO
+          from PIL import Image
           from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
           root = Path('artifacts/ceph-fourpart-a4')
-          filename = BilanOrthoPDFGenerator(str(root)).generate(
+          generator = BilanOrthoPDFGenerator(str(root))
+          filename = generator.generate(
               _vm(), filename='synthetic-unsigned.pdf', projection=_projection())
           with fitz.open(filename) as pdf:
               assert len(pdf) >= 1
-              text = '\n'.join(p.get_text() for p in pdf)
+              text = chr(10).join(p.get_text() for p in pdf)
               assert 'BROUILLON' in text and 'IV' in text
               for n, page in enumerate(pdf, 1):
                   page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
                       root / f'page-{n:02d}.png')
-          print('FOUR_PART_A4_SYNTHETIC_DRAFT_RENDERED_NONCLINICAL')
+
+          # Separate reproducible photo/layout fixture: images are generated
+          # rectangles, not real clinical radiographs or an asserted diagnosis.
+          photo_slots = [
+              ('EXTRA_FRONTAL_REPOSE', 'Frontal', 'Extra-buccales'),
+              ('EXTRA_PROFILE', 'Profil', 'Extra-buccales'),
+              ('EXTRA_SMILE', 'Sourire', 'Extra-buccales'),
+              ('INTRA_FRONTAL', 'Intra frontal', 'Intra-buccales'),
+              ('INTRA_RIGHT', 'Intra droit', 'Intra-buccales'),
+              ('INTRA_LEFT', 'Intra gauche', 'Intra-buccales'),
+              ('INTRA_OCCLUSAL_MAXILLARY', 'Occlusal maxillaire', 'Intra-buccales'),
+              ('INTRA_OCCLUSAL_MANDIBULAR', 'Occlusal mandibulaire', 'Intra-buccales'),
+          ]
+          photos = []
+          for index, (slot, label, group) in enumerate(photo_slots):
+              buffer = BytesIO()
+              Image.new('RGB', (220, 150), (
+                  120 + index * 11, 154 + index * 6, 175 + index * 4,
+              )).save(buffer, format='JPEG')
+              photos.append({
+                  'slot_id': slot, 'asset_id': 3000 + index,
+                  'group': group, 'label': label,
+                  'timepoint': 'T0', 'captured_at': '06/11/2026',
+                  'jpeg': buffer.getvalue(),
+              })
+          gallery_file = generator.generate(
+              _vm(), filename='synthetic-with-dated-photos-unsigned.pdf',
+              projection=_projection(), media={'photos': photos, 'radio_jpeg': None},
+          )
+          with fitz.open(gallery_file) as pdf:
+              content = chr(10).join(p.get_text() for p in pdf)
+              assert '06/11/2026' in content and 'BROUILLON' in content
+              assert 'IV' in content
+              for n, page in enumerate(pdf, 1):
+                  page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
+                      root / f'with-dated-photos-page-{n:02d}.png')
+          print('FOUR_PART_A4_SYNTHETIC_DATED_MEDIA_DRAFT_RENDERED_NONCLINICAL')
           PY
       - name: Upload A4 rendered pages (NOT human clinical approval)
         if: always()
