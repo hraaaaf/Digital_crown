@@ -1,0 +1,49 @@
+name: LOT05 05.7C-C Synthetic CSV Mapping Dry-Run FUE (NO IMPORT)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/legacy_migration_csv_mapping_lab_v15.py'
+      - 'backend/services/legacy_migration_csv_preview_v15.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/services/legacy_sql_mapping_v15.py'
+      - 'backend/tests/test_migration_057c_csv_mapping_dryrun_fue.py'
+      - '.github/workflows/v15-05-7c-csv-mapping-dryrun-fue.yml'
+      - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-mapping-fue:
+    name: Explicit CSV mapping + 44 fake FUE — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact commit and standalone static compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile backend/services/legacy_sql_inspector_v15.py backend/services/legacy_sql_mapping_v15.py backend/services/legacy_migration_csv_preview_v15.py backend/services/legacy_migration_csv_mapping_lab_v15.py backend/tests/test_migration_057c_csv_mapping_dryrun_fue.py
+      - name: Execute 44 fake-only mapping and count-only simulation FUE
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_migration_057c_csv_mapping_dryrun_fue.py -v 2>&1 | tee lot05-7c-c-fue.log
+          grep -q 'Ran 44 tests' lot05-7c-c-fue.log
+          grep -q '^OK' lot05-7c-c-fue.log
+          echo 'LOT05_7C_C_44_FAKE_ONLY_EXPLICIT_MAPPING_COUNT_ONLY_NO_DB_NO_IMPORT'
