@@ -419,3 +419,52 @@ def test_wrong_case_or_missing_clinician_audits_never_promotes_diagnosis(tmp_pat
     assert "WRONG_PATIENT_UNVERIFIED_DIAGNOSIS" not in text
     assert "WRONG_PATIENT_UNVERIFIED_PLAN" not in text
     assert "NON SIGNÉ" in text
+
+
+
+def test_a4_diagnosis_and_treatment_stay_together_after_full_media_gallery(tmp_path: Path):
+    from backend.services.cephalo_pdf_clinician_evidence import (
+        project_audited_clinician_evidence,
+    )
+
+    graph, case_id = _clinician_audited_graph()
+    clinical = project_audited_clinician_evidence(
+        graph, patient_id=1, case_id=case_id, analysis_id=867, revision=4,
+    )
+    source = _projection()
+    source.update({
+        "patient_id": 1,
+        "analysis_id": 867,
+        "analysis_revision": 4,
+        "evidence_graph_present": True,
+        "clinician_evidence": clinical,
+    })
+    photos = []
+    for index, slot in enumerate((
+        "EXTRA_FRONTAL_REPOSE", "EXTRA_PROFILE", "EXTRA_SMILE",
+        "INTRA_FRONTAL", "INTRA_RIGHT", "INTRA_LEFT",
+        "INTRA_OCCLUSAL_MAXILLARY", "INTRA_OCCLUSAL_MANDIBULAR",
+    )):
+        photos.append({
+            "slot_id": slot,
+            "asset_id": 40000 + index,
+            "group": "Extra-buccales" if slot.startswith("EXTRA_") else "Intra-buccales",
+            "timepoint": "T0",
+            "captured_at": "06/11/2026",
+            "label": slot,
+            "jpeg": _synthetic_photo_bytes(),
+        })
+    gen = BilanOrthoPDFGenerator(str(tmp_path))
+    file = gen.generate(
+        _vm().model_copy(update={"patient_id": 1}),
+        filename="audited-page-coherence.pdf",
+        projection=source, media={"photos": photos, "radio_jpeg": None},
+    )
+    with fitz.open(file) as document:
+        assert len(document) >= 2
+        last_page = document[-1].get_text("text")
+        assert "BILAN DIAGNOSTIQUE ET DIAGNOSTIC FINAL" in last_page
+        assert "PLAN DE TRAITEMENT" in last_page
+        assert "Synthetic diagnosis used only to test graph integrity." in last_page
+        assert "Synthetic phase" in last_page
+        assert "NON SIGNÉ" in document[0].get_text("text")
