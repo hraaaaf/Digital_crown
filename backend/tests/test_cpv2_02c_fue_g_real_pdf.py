@@ -8,6 +8,8 @@ from pathlib import Path
 import fitz
 from backend import models
 from backend.routers.mobile import _create_mobile_jwt
+# Registers the opt-in receipt schema for this isolated SQLite fixture only.
+from backend.services.mobile_document_archive_receipts import MobileDocumentArchiveReceipt
 from backend.security import get_password_hash
 
 def paired(db, user):
@@ -66,6 +68,8 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     db.refresh(patient)
     token, device_id = paired(db, dentiste)
     auth = {"Authorization": "Bearer " + token}
+    intent_key = str(uuid.uuid4())
+    archive_auth = {**auth, "Idempotency-Key": intent_key}
     payload = {"patient_id": patient.id, "type": "certificat",
                "data": {"reason": "Certificat de Présence", "doc_date": "2026-11-06"}}
     records = []
@@ -126,7 +130,7 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     assert lack.status_code == 403, lack.text
     passed("no_patient_grant_denied", 403)
 
-    note = client.post("/api/mobile/documents/archive", headers=auth,
+    note = client.post("/api/mobile/documents/archive", headers=archive_auth,
                        json={**payload, "type": "note", "data": {
                            "payments": [{"acte": "Acte fictif FUE-G", "montant": 100,
                                          "date": "2026-11-06"}],
@@ -134,13 +138,13 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
                            "installments": [], "is_global_note": False}})
     assert note.status_code == 403, note.text
     passed("honoraires_archive_denied", 403)
-    paid = client.post("/api/mobile/documents/archive", headers=auth,
+    paid = client.post("/api/mobile/documents/archive", headers=archive_auth,
                        json={**payload, "payment_status": "PAYE"})
     assert paid.status_code == 403, paid.text
     assert db.query(models.DocumentArchive).count() == before
     passed("payment_mutation_denied", 403)
 
-    archive = client.post("/api/mobile/documents/archive", headers=auth, json=payload)
+    archive = client.post("/api/mobile/documents/archive", headers=archive_auth, json=payload)
     assert archive.status_code == 200, archive.text
     assert archive.headers["content-type"].startswith("application/pdf")
     assert archive.headers["cache-control"] == "no-store, private"
@@ -152,6 +156,15 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     file = media / row.file_path[len("static/"):]
     assert file.is_file() and file.read_bytes() == archive.content
     assert db.query(models.DocumentArchive).count() == before + 1
+    replay = client.post("/api/mobile/documents/archive", headers=archive_auth, json=payload)
+    assert replay.status_code == 200, replay.text
+    assert replay.content == archive.content
+    assert replay.headers["x-document-id"] == str(doc_id)
+    assert replay.headers["x-idempotent-replay"] == "true"
+    recovered = client.get(f"/api/mobile/documents/archive/receipt/{intent_key}", headers=auth)
+    assert recovered.status_code == 200, recovered.text
+    assert recovered.content == archive.content
+    assert db.query(models.DocumentArchive).count() == before + 1
     passed("real_archive_db_and_pdf_bytes_verified", 200, id=doc_id,
            pdf_bytes=len(archive.content))
     passed("real_archived_pdf_rendered", 200,
@@ -160,8 +173,10 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     device = db.query(models.MobilePairedDevice).filter_by(device_id=device_id).one()
     device.revoked_at = datetime.utcnow()
     db.commit()
-    revoked = client.post("/api/mobile/documents/archive", headers=auth, json=payload)
+    revoked = client.post("/api/mobile/documents/archive", headers=archive_auth, json=payload)
     assert revoked.status_code == 401, revoked.text
+    revoked_get = client.get(f"/api/mobile/documents/archive/receipt/{intent_key}", headers=auth)
+    assert revoked_get.status_code == 401, revoked_get.text
     assert db.query(models.DocumentArchive).count() == before + 1
     passed("revoked_paired_device_denied", 401)
 
