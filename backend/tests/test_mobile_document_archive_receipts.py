@@ -41,3 +41,28 @@ def test_uuid_version_gate():
     with pytest.raises(HTTPException) as e:
         normalize_intent_key(str(uuid.uuid1()))
     assert e.value.status_code == 422
+
+def test_atomic_completion_and_restart(isolated_receipts):
+    from types import SimpleNamespace
+    key = str(uuid.uuid4())
+    with isolated_receipts() as db:
+        receipt, _ = claim_archive_intent(db, **_args(key))
+        db.info["_mobile_document_archive_receipt_id"] = receipt.id
+        fake = SimpleNamespace(id=900, patient_id=104, uploaded_by_id=102, file_hash="c" * 64)
+        complete_archive_in_current_transaction(db, archive=fake)
+        db.rollback()
+        pending = read_scoped_receipt(db, tenant_id=101, actor_id=102, device_id="device-103", key=key)
+        assert pending.state == "PROCESSING" and pending.archive_id is None
+        complete_archive_in_current_transaction(db, archive=fake)
+        db.commit()
+    with isolated_receipts() as db:
+        saved = read_scoped_receipt(db, tenant_id=101, actor_id=102, device_id="device-103", key=key)
+        assert saved.state == "COMPLETED" and saved.archive_id == 900
+        assert saved.archive_sha256 == "c" * 64
+
+def test_receipt_is_scoped_to_device_and_cabinet(isolated_receipts):
+    key = str(uuid.uuid4())
+    with isolated_receipts() as db:
+        claim_archive_intent(db, **_args(key))
+        assert read_scoped_receipt(db, tenant_id=101, actor_id=102, device_id="other", key=key) is None
+        assert read_scoped_receipt(db, tenant_id=999, actor_id=102, device_id="device-103", key=key) is None
