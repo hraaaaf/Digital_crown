@@ -25,6 +25,8 @@ describe('MobileQuickDocumentSheet', () => {
     expect(component).toContain('bg-modal-scrim');
     expect(component).toContain('bg-success-surface');
     expect(component).toContain('bg-danger-surface');
+    expect(component).toContain('text-on-primary');
+    expect(component).not.toContain('text-primary-foreground');
     expect(theme).toContain('--color-success: var(--status-success)');
     expect(theme).toContain('--color-danger: var(--status-danger)');
     expect(theme).toContain('--color-modal-scrim: var(--modal-scrim)');
