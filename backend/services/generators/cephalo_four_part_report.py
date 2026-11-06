@@ -280,9 +280,20 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
                 name = str(phase.get("title") or "").strip()
                 if name:
                     elements.append(Paragraph("• " + escape(name[:600]), body))
-                for field in ("monitoring", "reassessment_criteria"):
+                for field in ("procedures", "mechanics_or_appliances", "monitoring", "reassessment_criteria"):
                     for item in (phase.get(field) or [])[:8]:
                         elements.append(Paragraph("  " + escape(str(item)[:500]), muted))
+        option_context = plan.get("option_context") if isinstance(plan.get("option_context"), dict) else {}
+        for field, label in (
+            ("benefits", "Bénéfices documentés"),
+            ("limits", "Limites documentées"),
+            ("risks", "Risques documentés"),
+        ):
+            values = option_context.get(field) or []
+            if values:
+                elements.append(Paragraph(label, subhead))
+                for value in values[:8]:
+                    elements.append(Paragraph("• " + escape(str(value)[:500]), body))
         if plan.get("retention"):
             elements.append(Paragraph("Contention", subhead))
             for item in plan["retention"][:8]:
