@@ -33,9 +33,9 @@ jobs:
       - name: Verify exact HEAD and NO DEPLOY
         shell: bash
         run: |
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           test "$(node -e 'const v=require("./vercel.json"); process.stdout.write(String(v.git?.deploymentEnabled))')" = false
-          echo "FUE_SHA=$(git rev-parse HEAD)" >> "$GITHUB_ENV"
+          echo "FUE_SHA=$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse HEAD)" >> "$GITHUB_ENV"
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
