@@ -135,6 +135,42 @@ jobs:
               for n, page in enumerate(pdf, 1):
                   page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
                       root / f'audited-draft-page-{n:02d}.png')
+          # Shared cabinet letterhead proof with an in-run synthetic logo.
+          # These are fixture palettes from the cabinet configuration, never
+          # product-specific colors embedded in the PDF renderer.
+          logo_dir = Path('backend/static/uploads')
+          logo_dir.mkdir(parents=True, exist_ok=True)
+          logo_name = 'ceph-fourpart-ci-synthetic-logo.png'
+          Image.new('RGB', (96, 96), (35, 110, 147)).save(logo_dir / logo_name)
+          branding = (
+              ('swiss', '#9B2C88', '#51676F', '#198C70'),
+              ('clinical', '#1A566F', '#596873', '#B66A16'),
+          )
+          for template, primary, secondary, accent in branding:
+              vm = _vm().model_copy(update={'cabinet_config': {
+                  **_vm().cabinet_config,
+                  'selected_template': template,
+                  'primary_color': primary,
+                  'secondary_color': secondary,
+                  'accent_color': accent,
+                  'logo_path': logo_name,
+                  'header_lines_fr': ['Dr Test Cabinet', 'Orthodontie de demonstration'],
+                  'footer_address': 'Adresse fictive de test, 10000',
+                  'footer_phones': '05 00 00 00 00',
+              }})
+              pdf_file = generator.generate(
+                  vm, filename=f'branding-{template}-unsigned.pdf',
+                  projection=_projection())
+              with fitz.open(pdf_file) as pdf:
+                  assert len(pdf) >= 1
+                  for n, page in enumerate(pdf, 1):
+                      txt = page.get_text()
+                      assert 'Dr Test Cabinet' in txt and 'Adresse fictive de test' in txt
+                      assert '05 00 00 00 00' in txt and 'BROUILLON' in txt
+                      assert page.get_images(full=True), 'Configured cabinet logo absent'
+                      page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
+                          root / f'branding-{template}-page-{n:02d}.png')
+          print('FOUR_PART_A4_TWO_SYNTHETIC_BRANDED_THEMES_VERIFIED_NO_CLINICAL_APPROVAL')
           print('FOUR_PART_A4_SYNTHETIC_DATED_MEDIA_AND_AUDITED_DRAFT_RENDERED_NONCLINICAL')
           PY
       - name: Upload A4 rendered pages (NOT human clinical approval)
