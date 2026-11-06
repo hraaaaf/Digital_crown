@@ -267,3 +267,22 @@ def test_four_part_a4_prints_only_dated_canonical_photos_and_no_asset_identifier
         assert "BROUILLON" in content and "NON SIGNÉ" in content
         assert all(590 <= page.rect.width <= 600 for page in pdf)
         assert all(840 <= page.rect.height <= 850 for page in pdf)
+
+
+
+def test_four_part_a4_displays_only_verified_study_and_revision(tmp_path: Path):
+    generator = BilanOrthoPDFGenerator(str(tmp_path))
+    projection = _projection()
+    projection["analysis_id"] = 867
+    projection["analysis_revision"] = 4
+    good = generator.generate(_vm(), filename="study-verified.pdf", projection=projection)
+    with fitz.open(good) as doc:
+        text = chr(10).join(page.get_text() for page in doc)
+    assert "867" in text and "Révision 4" in text
+
+    projection["active_runtime_chain_verified"] = False
+    blocked = generator.generate(_vm(), filename="study-unverified.pdf", projection=projection)
+    with fitz.open(blocked) as doc:
+        text = chr(10).join(page.get_text() for page in doc)
+    assert "Révision 4" not in text
+    assert "BROUILLON" in text and "NON SIGNÉ" in text
