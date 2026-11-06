@@ -66,3 +66,31 @@ def test_receipt_is_scoped_to_device_and_cabinet(isolated_receipts):
         claim_archive_intent(db, **_args(key))
         assert read_scoped_receipt(db, tenant_id=101, actor_id=102, device_id="other", key=key) is None
         assert read_scoped_receipt(db, tenant_id=999, actor_id=102, device_id="device-103", key=key) is None
+
+def test_concurrent_same_key_has_only_one_claim(isolated_receipts):
+    from concurrent.futures import ThreadPoolExecutor
+    from threading import Barrier
+    key = str(uuid.uuid4())
+    gate = Barrier(2)
+    def worker(_index):
+        with isolated_receipts() as db:
+            gate.wait(timeout=5)
+            receipt, created = claim_archive_intent(db, **_args(key))
+            return receipt.id, created
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        results = list(pool.map(worker, (0, 1)))
+    assert [created for _id, created in results].count(True) == 1
+    assert results[0][0] == results[1][0]
+    with isolated_receipts() as db:
+        assert db.query(func.count(MobileDocumentArchiveReceipt.id)).scalar() == 1
+
+def test_missing_schema_never_creates_cabinet_table(tmp_path):
+    from sqlalchemy import inspect
+    from backend.services.mobile_document_archive_receipts import assert_receipt_schema
+    engine = create_engine("sqlite:///" + str(tmp_path / "without-migration.db"))
+    with sessionmaker(bind=engine)() as db:
+        with pytest.raises(HTTPException) as error:
+            assert_receipt_schema(db)
+        assert error.value.status_code == 503
+        assert not inspect(engine).has_table("mobile_document_archive_receipts")
+    engine.dispose()
