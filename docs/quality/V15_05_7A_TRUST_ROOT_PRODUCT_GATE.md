@@ -1,5 +1,18 @@
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
+## POST FUSION — 2026-11-06 — LOT05.7C-B PR #1217 MERGED (LAB ONLY / CLINICAL NO-GO)
+
+**Propriétaire :** après question explicite de fusion de PR #1217 pour le laboratoire uniquement, réponse « Vas y go ». Cette approbation couvre la **fusion de code laboratoire uniquement**, et non un déploiement, une certification d'import clinique ou un accès patient.
+
+**Fusion GitHub vérifiée :** [PR #1217](https://github.com/hraaaaf/Digital_crown/pull/1217) CLOSED/MERGED, branche source pré-fusion HEAD `b6d0c41e62a1d4e87dbe792105edefb8952a7d7d`, bascule Draft → Ready sans changement de HEAD, squash avec protection `expected_head_sha`, commit fusion `a01a43e70e82a81f530bd3d824848ec3469bb6f2`. GitHub a confirmé master à `a01a43e70e82a81f530bd3d824848ec3469bb6f2` avant ce commit documentaire.
+
+**Proof exact source SHA (laboratoire) :** [05.7A Windows SCM trust-root #42241357014](https://github.com/hraaaaf/Digital_crown/actions/runs/42241357014) SUCCESS 6/6; [05.7B cold-copy #42241356846](https://github.com/hraaaaf/Digital_crown/actions/runs/42241356846) SUCCESS; [05.7C-A metadata-only inventory #42241356506](https://github.com/hraaaaf/Digital_crown/actions/runs/42241356506) SUCCESS; [05.7C-B fake patient CSV #42241356941](https://github.com/hraaaaf/Digital_crown/actions/runs/42241356941) SUCCESS (32 FAKE FUE Windows + 32 Ubuntu); [Scope #42241356723](https://github.com/hraaaaf/Digital_crown/actions/runs/42241356723) SUCCESS; [Cabinet CODE_CERTIFIED candidate #42241356708](https://github.com/hraaaaf/Digital_crown/actions/runs/42241356708) SUCCESS 3/3 jobs. Overall source SHA GitHub Actions 15 SUCCESS, 1 SKIPPED experimental, 1 FAILURE on unrelated workflow, 0 running. **Do not call overall PR matrix 100% green; lab-only acceptance established by relevant gates.**
+
+**Post-merge master check before documentary commit :** [Cabinet Upgrade PostgreSQL Certification #42247089029](https://github.com/hraaaaf/Digital_crown/actions/runs/42247089029) QUEUED on merge SHA `a01a43e...`; its future outcome not yet known. This POST update to **same single canonical LOT05 file** will create a new master HEAD and its own push CI. Do not claim latest master exact-head CI passed before completion.
+
+**Code/product boundary unchanged :** 05.7C-B is a *synthetic-only CSV patient administrative preview* returning aggregate counts/digest; a versioned clinical import, vendor-specific Orthalis adapter, human mapping, real patient data, real restore, UI, production installation, target writes and deployment have **not** been authorized or certified. Keep `import_permitted=false`, `full_schema_certified=false`, clinical/product **NO-GO**. Forbid credentials and direct vendor live DB access.
+
+**NEXT :** verify the master exact-head post-fusion CI, then continue LOT05.7C-C explicit mapping preview + synthetic dry-run with audit trails, without import writes; plan a separate clinical validation and authorization gate before any real clinic activation. **GOAL :** reliable, vendor-neutral migration/onboarding that remains reversible and safe.
 ## POST — 2026-11-06 — LOT05.7C-B CSV preview code + 05.7A FUE (PENDING FINAL CI)
 
 **GitHub PR :** Draft #1217 remains open, based on master 2cc743e3708621a027a794bdb17c8446ca3073df. Code HEAD immediately before this documentation-only POST: 2124552ff4418ba382cf740164fd93b69615aee0. This POST generates another candidate HEAD and must be checked independently. No merge, deploy, patients or clinical activation authorized.
