@@ -68,7 +68,10 @@ def _create_new_under_checked_parent(
 
     # On Windows, wchar_t is UTF-16. The name contains one path component only.
     name_buffer = ctypes.create_unicode_buffer(leaf)
-    name = _UnicodeString(len(encoded), len(encoded) + 2, name_buffer)
+    name = _UnicodeString(
+        len(encoded), len(encoded) + 2,
+        ctypes.cast(name_buffer, wintypes.LPWSTR),
+    )
     attrs = _ObjectAttributes(
         ctypes.sizeof(_ObjectAttributes),
         wintypes.HANDLE(parent_handle),
