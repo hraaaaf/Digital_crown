@@ -51,7 +51,12 @@ def _read_fake_source(source: Path) -> dict[str, tuple[tuple[str, ...], ...]]:
     if (not source.is_file() or source.is_symlink() or source.stat().st_nlink != 1
             or source.stat().st_size > 16 * 1024 * 1024):
         raise LabRefused("SYNTHETIC_SOURCE_REQUIRED")
-    if any(source.with_name(source.name + ext).exists() for ext in ("-wal", "-shm", "-journal")):
+    with source.open("rb") as stream:
+        header = stream.read(20)
+    if (not header.startswith(b"SQLite format 3\x00")
+            or header[18:20] != b"\x01\x01"
+            or any(source.with_name(source.name + ext).exists()
+                   for ext in ("-wal", "-shm", "-journal"))):
         raise LabRefused("COLD_SYNTHETIC_SOURCE_REQUIRED")
     try:
         with closing(sqlite3.connect(
