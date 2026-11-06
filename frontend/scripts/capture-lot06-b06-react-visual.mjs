@@ -183,7 +183,7 @@ try {
     const submit=region.getByRole('button',{name:'Ajouter l’image au dossier'});
     if(await birth.getAttribute('type')!=='text'
         || await birth.getAttribute('placeholder')!=='JJ/MM/AAAA'
-        || await region.getByText(/Naissance : 04\\/03\\/2000/).count()!==1)
+        || await region.getByText('Dossier : TEST-42 — Naissance : 04/03/2000',{exact:true}).count()!==1)
       throw new Error('B06_VISUAL_FRENCH_DATE_DISPLAY_OR_INPUT_INVALID');
     if(await dossier.inputValue() || await birth.inputValue() || await submit.isEnabled())
       throw new Error('B06_VISUAL_TWO_MARKERS_MUST_START_EMPTY_AND_DENIED');
