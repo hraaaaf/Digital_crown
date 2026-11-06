@@ -14,6 +14,8 @@ on:
       - 'backend/tests/test_admin_normalize_docs_cephalo_guard.py'
       - 'frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs'
       - 'frontend/scripts/fue-ceph-p2ter-first-value.mjs'
+      - 'frontend/src/features/ortho/hooks/useCephaloPersistence.ts'
+      - 'backend/tests/test_cephalo_unsigned_archive_entrypoints_contract.py'
       - '.github/workflows/ceph-p2ter-master-bridge-real-cabinet.yml'
       - 'frontend/src/features/ortho/components/Step4Documents.tsx'
       - 'frontend/src/features/ortho/components/Step4Documents.g4Interactive.test.tsx'
@@ -67,6 +69,7 @@ jobs:
             backend/tests/test_admin_normalize_docs_security.py \
             backend/tests/test_admin_normalize_docs_cephalo_guard.py \
             backend/tests/test_admin_router.py
+            backend/tests/test_cephalo_unsigned_archive_entrypoints_contract.py
 
   unsigned-archive-ui:
     name: Desktop archive affordance and draft export
