@@ -7,6 +7,7 @@ backend/__init__.py or backend.database.
 """
 from __future__ import annotations
 
+from contextlib import closing
 from dataclasses import replace
 import importlib.util
 import os
@@ -62,7 +63,7 @@ class ColdSourceCase(unittest.TestCase):
 
     def write_db(self):
         self.source.unlink(missing_ok=True)
-        with sqlite3.connect(self.source) as connection:
+        with closing(sqlite3.connect(self.source)) as connection:
             connection.execute("PRAGMA journal_mode=DELETE")
             connection.execute(
                 "CREATE TABLE legacy_patients (legacy_id TEXT, first_name TEXT,"
@@ -190,7 +191,7 @@ class ColdSourceCase(unittest.TestCase):
 
     def test_04_real_source_byte_change_invalidates_profile(self):
         kw = self.kwargs()
-        with sqlite3.connect(self.source) as db:
+        with closing(sqlite3.connect(self.source)) as db:
             db.execute("INSERT INTO legacy_patients VALUES (?,?,?,?)",
                        ("1000", "SYNTHETIC_ONLY_NEW", "SYNTHETIC_ONLY_NEW", "FAKE_PWD"))
             db.commit()
@@ -283,7 +284,7 @@ class ColdSourceCase(unittest.TestCase):
 
     def test_18_invalid_and_wal_sqlite_copy_refused(self):
         kw = self.kwargs()
-        with sqlite3.connect(self.source) as db:
+        with closing(sqlite3.connect(self.source)) as db:
             db.execute("PRAGMA journal_mode=WAL")
             db.commit()
         # The existing cold-inspector requires rollback-journal copies.
