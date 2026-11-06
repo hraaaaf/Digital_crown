@@ -1,5 +1,13 @@
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
+## POST-MERGE CI GREEN #42195273143 — 2026-11-06 — exact SHA c0f6711 (LAB ONLY)
+
+**Evidence:** [Cabinet Upgrade PostgreSQL Certification #42195273143](https://github.com/hraaaaf/Digital_crown/actions/runs/42195273143), `event=push`, head SHA `c0f6711d0a49a7bada07ca9f1d6ed1eb786bc1f9`, `status=completed`, `conclusion=success` at `2026-11-06T09:46:34Z`. Both 2/2 jobs SUCCESS: **PostgreSQL 18 + immutable release invariants** (job `127816864434`) and **Windows PowerShell 5.1 release guards** (job `127816864820`). GitHub checked after user said “Green”; this is directly verified, not inferred from the statement. Prior intermediate squash push run [#42195035576](https://github.com/hraaaaf/Digital_crown/actions/runs/42195035576) was CANCELLED by a later push; do not count it SUCCESS or a regression.
+
+**Scope:** PR #1214 LAB-ONLY merge is now supported by a successful post-merge *cabinet upgrade release-guard workflow*. This is not the same as a full rerun of all original PR FUE workflows against `master`, nor a proof of clinic SQL importer, clinical acceptance, authorized patient data processing, physical release/trust-root or backup/restore. Product/clinical gates remain OPEN/NO-GO. Keep `import_permitted=false`, `full_schema_certified=false`. The next candidate 05.7C is read-only vendor inventory and clinician-reviewed deterministic mapping design, not an approved implementation/rollout.
+
+**Important exact-HEAD rule:** This paragraph is a subsequent **documentation-only commit**. Its newly created `master` SHA is *not* `c0f6711...`; the SUCCESS assertion above is deliberately bound only to `c0f6711...`. Any further push workflow triggered by this document commit must be checked independently. No deploy, no cabinet install, no real patient data.
+
 ## POST — 2026-11-06 — PR #1214 LAB MERGED; LOT05 product/clinical NO-GO
 
 **Human gate:** propriétaire a explicitement autorisé dans la conversation le merge de la PR #1214 pour **LAB uniquement**. Draft => Ready for review (GitHub merge endpoint refuse Draft), puis squash merge à `master`, succès 2026-11-06T09:26:11Z. [PR #1214](https://github.com/hraaaaf/Digital_crown/pull/1214) CLOSED/MERGED; [squash commit `130a22ae3f376d3f92611eef0edb04b264410cc9`](https://github.com/hraaaaf/Digital_crown/commit/130a22ae3f376d3f92611eef0edb04b264410cc9), source HEAD `0f4b7f6c97a2ded34d7553f9be21caa6c9734b6f`. Merge verrouillé avec le SHA source exact.
