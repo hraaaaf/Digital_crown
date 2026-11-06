@@ -2224,3 +2224,77 @@ GOAL : distinguer plage centrale, compensation, hors compensation, puis hypothè
 **Baseline** : PR #1213 OPEN/DRAFT ; branche `test/ceph-v1-facad-two-public-radios-20261105` ; HEAD avant cette passe `d52ac327380f2f14d8c93b4ba410ad177bb6b8aa`. Contrat du §69 Step3 = liste de problèmes + diagnostic et résumé éditables ; §64–68 DDM clinique/céphalo/réelle et décisions incisives sont documentés ; §71 type squelettique proposé seulement et mapping adulte non approuvé. Aucun nouveau FUE COM exécuté.
 
 **GOAL observable** : établir exactement ce que Step4 reçoit de Step1/2/3, ce qui reste à confirmer par le praticien, la séparation décision diagnostique versus thérapeutique, le flux `Plan → Créer bilan → Aperçu → Valider/archiver`, l'invalidation et une batterie FUE vérifiable. **STOP** : ne pas générer un plan à partir du seul type I/II/III ni forcer un diagnostic final par défaut. **GATE** : SPEC_CANDIDATE / HUMAN_APPROVAL_REQUIRED / NO_RUNTIME / NO_MERGE / NO_DEPLOY / FUE_NOT_RUN.
+
+
+### 72. POST — 2026-11-06 — Step4 Plan de traitement et Bilan : contrat de bout en bout (SPEC ONLY)
+
+**Verdict atelier** : Step4 peut être **conçu** sans prescrire automatiquement. Il est alimenté par des objets cliniques versionnés et des constats identifiés, mais il ne transforme jamais une catégorie squelettique COM, un ANB, une DDM ou une classe dentaire en décision thérapeutique. La confirmation Step3, la validation du plan et l'approbation du document sont **trois actions distinctes**, imputables au praticien, non à un calcul automatisé. Ceci est une **proposition de fonctionnement, pas une approval propriétaire du design**.
+
+#### 72-A — Entrées et restrictions
+
+| Source | Ce que Step4 peut afficher | Ce qui est interdit ou demeure conditionnel |
+|---|---|---|
+| **Step1 — téléradiographie et mesures** | Cliché/étude et date, analyse choisie (duo V1 **COM Digital Crown** / **Steiner 1953/1959**), points/mesures fiables, unités, calibration, corrections et provenance ; valeurs non calculables explicitées | Aucun mm à partir de JPEG non étalonné, aucune norme d'âge implicite, aucun « normal » pour donnée absente ; ne pas appeler « analyses complètes » des profils à mesures manquantes |
+| **Step2 — moulages / examen occlusal** | Denture, arcade, ED/EN, encombrement, Spee, DDM **clinique / correction céphalo / réelle**, statut estimé versus mesuré, côté droit/gauche, observations fonctionnelles réellement relevées | Pas de DDM réelle chiffrée si composante / unité / signe / méthode / objectif incisif requis manque ; pas de double compte Spee ou du leeway ; pas de conversion classe dentaire → type osseux |
+| **Step3 — diagnostic** | Liste de problèmes ordonnable, constats sourcés, hypothèses distinguées, diagnostic et résumé explicitement **confirmés** par clinicien, auteur/date/version et éventuels conflits | Une suggestion COM A'B' de type II ne devient **jamais** un diagnostic confirmé sans action praticien ; mapping adulte I/II/III reste science-lock pending ; âge non couvert = référence non établie |
+| **Décision humaine** | Objectifs, options, arbitrages, étapes, risques, besoins interdisciplinaires, contrôle et contention **saisis ou approuvés par le praticien** | Ne pas autopréconiser extraction, stripping, expansion, distalisation, chirurgie, appareillage, indication radiologique, objectifs incisifs ou durée sur un seuil céphalo |
+
+**Contrat de provenance minimal** pour toute donnée diagnostique affichée : ID d'étude, date de cliché, version de la mesure et du tracé, méthode/formule, calibration/unité/signe, référence normative (source/version/âge/population/applicabilité), état de vérification, état de validation humaine, lien vers la construction ou observation originelle. Si élément critique manque : champ **NON ÉVALUABLE**, **NON CALCULABLE**, **REFERENCE NON ETABLIE** ou **À REVALIDER** ; ne jamais afficher « zéro » comme remplacement d'absence.
+
+#### 72-B — Plan de traitement : édition clinique (pas recommandations cachées)
+
+**Proposition d'écran, trois blocs** :
+
+1. **Problèmes retenus** — reprendre uniquement les constats et diagnostics confirmés depuis Step3, avec possibilité de consulter les suggestions séparément sans les promouvoir automatiquement. Priorisation, résumé et source restent consultables et modifiables par un praticien autorisé ; toute modification du diagnostic est tracée.
+2. **Objectifs définis par le praticien** — par problème retenu : objectif clinique formulé par le praticien, contexte biologique/croissance si connu, limitations et préférence du patient documentée lorsqu'elle existe. Aucun objectif prérempli comme vérité médicale par le moteur.
+3. **Stratégie et suivi** — options/alternative(s), choix raisonné par le praticien, séquence thérapeutique, gestion des risques et des incertitudes, coopérations interdisciplinaires/avis externes quand documentés, contention/suivi à décider, information et consentement dans leur propre état. Aucun mode de traitement n'est choisi par défaut en fonction d'une typologie ou d'une DDM.
+
+**Actions** : Enregistrer brouillon ; Retour au diagnostic ; Ajouter/modifier objectif ; Documenter alternative ou risque ; **Valider le plan** (action nominative distincte, horodatée et auditée). Un diagnostic confirmé **n'autorise pas** à déduire une signature du plan. Un plan peut rester **NON DÉCIDÉ** sans empêcher de sauvegarder les constats diagnostiques.
+
+#### 72-C — Bilan orthodontique et documents
+
+**Parcours fonctionnel candidat** :
+\`Données sources Step1/2 → Step3 liste de problèmes et résumé → Step4 Plan (brouillon ou validé) → Créer bilan → Aperçu → Vérification des éléments → Valider/signature clinique → Archiver une version\`.
+
+**Sections proposées du Bilan** : (a) identification patient dans stockage cabinet seulement ; date et motif documentés, (b) examens cliniques réellement renseignés et examens non effectués explicités, (c) examen d'imagerie et qualité/calibration, (d) mesures retenues et profils normatifs versionnés avec limites, (e) occlusion et modèles avec DDM clinique/céphalo/réelle par arcade quand calculables, (f) problèmes, éléments discordants et diagnostic confirmé par praticien, (g) plan thérapeutique **uniquement si décidé/validé**, sinon libellé « plan non arrêté », (h) date/version/auteur/signature et mentions de statut. Le résumé lisible n'efface jamais les réserves nécessaires.
+
+**Deux rendus conditionnels, sans se contredire** : dossier détaillé cabinet avec provenance des calculs et incertitudes ; bilan communicable signé par praticien, qui omet par défaut les hypothèses non validées et les suggestions de classe. Un **brouillon PDF** est clairement estampillé *BROUILLON — NON VALIDÉ*. L'aperçu n'est ni signature ni archivage. Un bilan diagnostique peut être validé séparément si le praticien n'a pas encore décidé le plan : il porte alors explicitement **« plan non arrêté »**, jamais un plan vide présenté comme thérapeutique approuvée.
+
+**Version et invalidation** : modifier photo/tracé, point, calibration, âge/profil de norme, DDM, objectif incisif ou observation entraîne un recalcul **transitif ciblé** des mesures, constats, propositions et bilans **dépendants** et leur passage à \`A_REVALIDER\`; l'ancien document signé reste **archive historique immuable** avec état \`REMPLACE / RÉVISION REQUISE\` selon le motif, jamais réécrit silencieusement. Un nouveau bilan nécessite un nouvel aperçu et une nouvelle signature. Les mesures indépendantes ne sont pas invalidées sans raison. Historique utilisateur/date/ancienne et nouvelle version requis.
+
+**Interdits transversaux** : aucune donnée patient dans GitHub, Notion, artefacts CI ou moteur distant ; application local-first et ZERO LLM runtime ; permissions cabinet/clinicien applicables à chaque lecture, modification, signature et export. UI : tokens sémantiques du thème uniquement, pas de couleurs codées en dur.
+
+#### 72-D — Écran fictif de cohérence (aucune donnée réelle)
+
+**Mesures synthétiques d'un adulte** : A/N-verticale = +7 mm, B/N-verticale = −8 mm, même cliché, même plan Francfort, étalonnage crédible, points corrects ⇒ A'B' = +15 mm. Une ligne Step3 peut montrer **« type squelettique II suggéré selon grille adulte pédagogique CRANIOM — mapping adulte à confirmer scientifiquement »**, **NON VALIDÉ**. Le plan Step4 **reste vide** tant que le praticien ne saisit pas ses décisions. Si les seuils adultes ne sont pas approuvés, **aucune classe II ne doit transiter comme diagnostic confirmé**, même en présence de +15 mm ; la mesure sagittale peut figurer parmi les données avec sa réserve. Classe molaire observée sur moulages demeure un champ différent. Un PDF de diagnostic non validé est un brouillon, non un document clinique signé.
+
+#### 72-E — Machine d'états proposée, à valider fonctionnellement
+
+| Élément | États autorisés candidats | Transition protégée |
+|---|---|---|
+| Constat mesuré | \`VERIFIED_TECH\` / \`NON_CALCULABLE\` / \`A_CONTROLER\` | seulement après contrôle de sa provenance et métrologie ; techniquement fiable ≠ validé cliniquement |
+| Hypothèse typologique | \`SUGGERE\` / \`REJETE\` / \`A_REVALIDER\` | source/population approuvées et acceptation humaine avant diagnostic |
+| Diagnostic Step3 | \`BROUILLON\` / \`CONFIRME_PRATICIEN\` / \`A_REVALIDER\` | signature nominative ; changements amont rebasculent le dépendant |
+| Plan | \`NON_DECIDE\` / \`BROUILLON\` / \`VALIDE_PRATICIEN\` / \`A_REVALIDER\` | aucune transition automatique depuis le diagnostic |
+| Bilan / PDF | \`BROUILLON\` / \`APERCU\` / \`SIGNE_ARCHIVE\` / \`REMPLACE\` | signature et snapshot des preuves ; jamais transformer aperçu en final automatiquement |
+
+Les noms de ces états sont **spécification indicative**, à réconcilier avec les types/API/DB réels avant tout code. **Décision design à soumettre au propriétaire** : privilégier « liste de problèmes → objectifs de traitement manuels → choix de stratégie → bilan prévisualisé » plutôt qu'un générateur de plan à partir des classes COM.
+
+#### 72-F — Batterie FUE Step4 (à exécuter, NON RUN)
+
+1. **PT-01** : typologie COM 9 ans proposée et non confirmée ⇒ Step4 ne renseigne **aucune** thérapeutique et bilan final n'affirme pas « diagnostic confirmé ».
+2. **PT-02** : adulte A'B' +15, mapping adulte non approuvé ⇒ mesure conservée, type II **non promu** à diagnostic signé.
+3. **PT-03** : denture mixte 12 ans sans norme source ⇒ \`REFERENCE_NON_ETABLIE\` visible dans Step3, aperçu et bilan.
+4. **PT-04** : DDM clinique présente mais correction céphalo inconnue ⇒ DDM réelle **NON CALCULABLE**, pas de zéro ni simple copie clinique.
+5. **PT-05** : classes molaire gauche/droite discordantes et hypothèse osseuse différente ⇒ domaines séparés, ni erreur forcée ni traitement auto.
+6. **PT-06** : confirmer diagnostic puis enregistrer plan non décidé ⇒ diagnostic signé distinct, plan \`NON_DECIDE\`, bilan diagnostique possible avec mention explicite.
+7. **PT-07** : créer et modifier un plan brouillon ⇒ objectifs, alternative et risques manuels conservés ; aucun protocole d'extraction/expansion/stripping préchoisi.
+8. **PT-08** : changement de calibration, Po/Or/A/B ou référentiel COM après signature ⇒ descendants seulement \`A_REVALIDER\`, archive signée immuable, nouvel aperçu/signature requis.
+9. **PT-09** : aperçu du PDF ≠ validé ; export final sans autorisation ou sans signature ⇒ refus, pas d'artefact clinique final.
+10. **PT-10** : parité valeur/unité/source/statut entre UI, API, stockage local et PDF ; source absente = refus explicite.
+11. **PT-11** : cabinet/utilisateur non autorisé ne peut lire, valider ni exporter le bilan d'autrui ; aucune PHI dans logs/CI/Notion/GitHub.
+12. **PT-12** : parcours à 390/430/768/1280, zoom 200 %, clavier/focus, thèmes à tokens hérités ; captures BEFORE/AFTER authentiques et validation humaine de l'UX si implémentée.
+
+**GATE réel** : **SPEC_ONLY / STEP3_DIRECTION_UNAPPROVED / ADULT_COM_MAPPING_UNAPPROVED / HUMAN_CLINICAL_APPROVAL_REQUIRED / FUE 0/12 EXECUTED / NO_RUNTIME / NO_MERGE / NO_VERCEL**. La spécification ne prouve pas l'existence en production de ces états, écrans, signaux ni documents. Même des tests futurs verts ne constitueraient pas une validation clinique. L'activation dépendra d'un lot d'implémentation séparé, d'oracles indépendants, d'une revue clinique et de la décision du praticien.
+
+**NEXT exact** : faire valider les deux choix fonctionnels « Step3 liste de problèmes + résumé éditable » et « Step4 objectifs/stratégie manuels, bilan diagnostique possible sans plan », puis seulement établir les contrats API/UI/DB/PDF et sélectionner un FUE-I/G exécutable. **Dernière MAJ canonique : 06/11/2026 — POST §72, Step4 Plan et Bilan candidat.**
