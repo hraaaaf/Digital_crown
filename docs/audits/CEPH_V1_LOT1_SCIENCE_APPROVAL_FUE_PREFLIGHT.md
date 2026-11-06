@@ -2117,3 +2117,10 @@ Revue https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/e
 **Question prochaine pour propriétaire, non bloquante** : confirmer que Step3 présente **la liste de problèmes priorisés, puis un résumé final éditable**, plutôt qu'un paragraphe diagnostic généré automatiquement. Les problèmes peuvent être réordonnés, avec preuve et statut ; aucun LLM runtime.
 
 **Résultat/gate** : seule la **direction Step2/mode préselectionné** vient d'être explicitement validée. Cette nouvelle Step3 est `DRAFT_SPEC_NOT_APPROVED`. Les dix FUE-DX sont **à exécuter plus tard**, non certifiés. Pas de code, patient réel, merge, Vercel ou traitement automatique. **Dernière mise à jour canonique : 06/11/2026 — POST §69, Step3 Diagnostic candidat.**
+
+
+### 70. PRE — 2026-11-06 — COM: conclusions conditionnelles (SPEC ONLY)
+
+Demande praticien : utiliser la fiche photographiée « Fiche de mesures céphalométriques du C.O.M. » pour proposer des règles déterministes du type si A et B, alors constat C. Ne pas utiliser des chiffres manuscrits comme vérité patient. Baseline : PR #1213 DRAFT, HEAD `e93faa81eaba85a021ff83bb7dddf529dbdc6e00`, §69 POST relu, Notion PRE73 enregistré.
+
+GOAL : distinguer plage centrale, compensation, hors compensation, puis hypothèses combinées et signature clinique ; tenir compte de l'âge, des unités, constructions et sources. Extrait de la fiche : surplomb et recouvrement 1,5–3 mm ; i/mandibulaire 90±5, compensation 80–100° ; I/Francfort 107±5, compensation 97–120° ; angle Tweed 26±4 ; A/N verticale, B/N verticale et A’B’ avec références 9 ans et adulte. Le seuil central de l'angle interincisif est illisible : ne pas l'activer. Source extérieure de contexte : Bonnefont et al. 2010/2011, cohorte 83 jeunes adultes classe I ; ne pas généraliser les normes. Aucun code, merge, déploiement ou FUE exécuté.
