@@ -51,7 +51,8 @@ jobs:
         working-directory: frontend
         run: |
           npm run dev -- --host 127.0.0.1 --port 5174 --strictPort > /tmp/cpv2-02c-vite.log 2>&1 &
-          for i in {1..60}; do
+          # POSIX sh in Playwright's job container does not expand Bash {1..60}.
+          for i in $(seq 1 60); do
             curl -fsS 'http://127.0.0.1:5174/mobile/demo?demo=1' >/dev/null && exit 0
             sleep 1
           done
