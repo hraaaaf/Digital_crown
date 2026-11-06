@@ -1,11 +1,8 @@
-"""J4 security REVIEW FUE: intermediate-ancestor rename+junction race.
+"""J4 native Windows adversarial FUE: real ancestor rename + junction races.
 
-This is an independently structured adversarial test, NOT a clinical approval.
-It exercises REAL production restore_new_private_file and triggers a separately
-executing attacker process at the exact Windows CreateFileW parent-open boundary.
-It must FAIL if restore writes into a trap outside the previously verified chain.
-
-No patient data, production keys, external drive or actual cabinet paths.
+Exercise the ACTUAL restore AND secure reader, with a separate attacker process
+triggered at a real native NtCreateFile relative directory-open boundary.
+No patients, production material, artificial PASS, or clinic activation.
 """
 from __future__ import annotations
 
@@ -47,6 +44,7 @@ def main() -> None:
         raise RuntimeError("DC06_J4_ANCESTOR_REVIEW_WINDOWS_CI_ONLY")
 
     recovery, restore, _ = modules()
+    probe = sys.modules["backend.services.windows_keyring_handle_probe"]
     data = {
         "active_media_id": "media2", "active_locator_id": "loc2",
         "media_keys": {"media1": "11" * 32, "media2": "22" * 32},
@@ -60,9 +58,10 @@ def main() -> None:
         (trusted / "child").mkdir(parents=True)
         (trap / "child").mkdir(parents=True)
         target = trusted / "child" / "recovered.json"
-        armed = {"triggered": False}
+        scenario = {"triggered": False, "trusted": trusted,
+                    "moved": moved, "trap": trap}
 
-        class CreateFileInterceptor:
+        class NtCreateInterceptor:
             def __init__(self, original):
                 object.__setattr__(self, "_original", original)
 
@@ -75,28 +74,36 @@ def main() -> None:
                 else:
                     setattr(self._original, key, value)
 
-            def __call__(self, name, *args):
-                # Trigger ONLY before opening the final directory child.
-                # Production has already checked and retained a handle for its
-                # ancestor 'trusted'. The attacker now replaces its PATH.
-                if (str(name).casefold() == str(target.parent).casefold()
-                        and not armed["triggered"]):
-                    armed["triggered"] = True
-                    _attacker_rename_and_junction(trusted, moved, trap)
-                return self._original(name, *args)
+            def __call__(self, *args):
+                # Only the one-component "child" opening below the already
+                # verified trusted ANCESTOR, never the final new file.
+                attrs = ctypes.cast(
+                    args[2], ctypes.POINTER(probe._ObjectAttributes)).contents
+                if attrs.object_name:
+                    u = attrs.object_name.contents
+                    leaf = ctypes.wstring_at(u.buffer, u.length // 2)
+                    if leaf.casefold() == "child" and not scenario["triggered"]:
+                        if not attrs.root_directory:
+                            raise AssertionError("DC06_J4_RELATIVE_PARENT_HANDLE_MISSING")
+                        scenario["triggered"] = True
+                        _attacker_rename_and_junction(
+                            scenario["trusted"], scenario["moved"], scenario["trap"])
+                return self._original(*args)
 
-        class KernelProxy:
+        class NtdllProxy:
             def __init__(self, dll):
                 self._dll = dll
-                self._hook = CreateFileInterceptor(dll.CreateFileW)
+                self._hook = NtCreateInterceptor(dll.NtCreateFile)
 
             def __getattr__(self, key):
-                return self._hook if key == "CreateFileW" else getattr(self._dll, key)
+                return self._hook if key == "NtCreateFile" else getattr(self._dll, key)
 
         def intercept(name, *args, **kwargs):
             dll = real_dll(name, *args, **kwargs)
-            return KernelProxy(dll) if str(name).lower() == "kernel32" else dll
+            return NtdllProxy(dll) if str(name).lower() == "ntdll" else dll
 
+        # WRITE: the adversary swaps the ancestor after its original handle
+        # was obtained, before "child" is opened using NtCreateFile.
         ctypes.WinDLL = intercept
         denied = False
         try:
@@ -106,8 +113,8 @@ def main() -> None:
         finally:
             ctypes.WinDLL = real_dll
 
-        if not armed["triggered"]:
-            raise AssertionError("DC06_J4_ANCESTOR_REVIEW_NOT_EXERCISED")
+        if not scenario["triggered"]:
+            raise AssertionError("DC06_J4_WRITE_ANCESTOR_ATTACK_NOT_EXERCISED")
         outside = trap / "child" / "recovered.json"
         original = moved / "child" / "recovered.json"
         if outside.is_file():
@@ -116,8 +123,47 @@ def main() -> None:
             raise AssertionError("DC06_J4_UPSTREAM_ANCESTOR_ISOLATION_BROKEN")
         if not denied and not original.is_file():
             raise AssertionError("DC06_J4_ANCESTOR_REVIEW_UNEXPECTED_DESTINATION")
+        if original.exists() and original.read_bytes() != raw:
+            raise AssertionError("DC06_J4_ORIGINAL_KEYRING_CONTENT_MISMATCH")
         print("DC06_J4_UPSTREAM_ANCESTOR_NO_ESCAPE_PASS",
               "FAIL_CLOSED" if denied else "ORIGINAL_HANDLE", flush=True)
+
+        # READ: create two DIFFERENT, valid private keyrings on separate
+        # directories. The attacker switches the ancestor name to the trap,
+        # then the actual native product reader must never read the trap.
+        read_trusted, read_moved, read_trap = (
+            root / x for x in ("read-trusted", "read-moved", "read-trap"))
+        (read_trusted / "child").mkdir(parents=True)
+        (read_trap / "child").mkdir(parents=True)
+        alternate = dict(data)
+        alternate["media_keys"] = dict(data["media_keys"])
+        alternate["media_keys"]["media1"] = "55" * 32
+        false_raw = recovery._canonical(alternate)
+        reader_target = read_trusted / "child" / "keyring.json"
+        restore.restore_new_private_file(str(reader_target), raw)
+        restore.restore_new_private_file(str(read_trap / "child" / "keyring.json"),
+                                         false_raw)
+        scenario.update({"triggered": False, "trusted": read_trusted,
+                         "moved": read_moved, "trap": read_trap})
+        ctypes.WinDLL = intercept
+        read_denied = False
+        actual = None
+        try:
+            actual = probe.read_no_reparse_file(str(reader_target))
+        except probe.WindowsKeyringHandleDenied:
+            read_denied = True
+        finally:
+            ctypes.WinDLL = real_dll
+
+        if not scenario["triggered"]:
+            raise AssertionError("DC06_J4_READ_ANCESTOR_ATTACK_NOT_EXERCISED")
+        if actual == false_raw:
+            print("DC06_J4_READ_ANCESTOR_SPOOF_REPRODUCED_P1", flush=True)
+            raise AssertionError("DC06_J4_READ_ANCESTOR_ISOLATION_BROKEN")
+        if not read_denied and actual != raw:
+            raise AssertionError("DC06_J4_READ_UNEXPECTED_CONTENT")
+        print("DC06_J4_READ_UPSTREAM_ANCESTOR_NO_SPOOF_PASS",
+              "FAIL_CLOSED" if read_denied else "ORIGINAL_HANDLE", flush=True)
     finally:
         ctypes.WinDLL = real_dll
         shutil.rmtree(root, ignore_errors=True)
