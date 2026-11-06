@@ -85,6 +85,23 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
   const [previewPayload, setPreviewPayload] = useState<Record<string, unknown> | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
   const [archived, setArchived] = useState(false);
+  const [uncertainArchive, setUncertainArchive] = useState(false);
+  const [pendingArchiveKey, setPendingArchiveKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (preview) return;
+    let active = true;
+    void MobileStorage.getPendingDocumentArchive().then((pending) => {
+      if (!active || !pending || pending.patientId !== patient.id) return;
+      setPendingArchiveKey(pending.intentKey);
+      setType(pending.documentType);
+      setUncertainArchive(true);
+      setError('Archivage à vérifier : ne renvoyez pas le document avant confirmation du reçu.');
+    }).catch(() => {
+      if (active) setError('Impossible de vérifier un archivage local en attente.');
+    });
+    return () => { active = false; };
+  }, [patient.id, preview]);
   useEffect(() => () => {
     if (previewPdfUrl?.startsWith('blob:') && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(previewPdfUrl);
   }, [previewPdfUrl]);
@@ -183,13 +200,17 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     throw new Error('Choisissez un type de document.');
   };
 
-  const requestDocument = async (payload: Record<string, unknown>, archive: boolean) => {
+  const requestDocument = async (payload: Record<string, unknown>, archive: boolean, intentKey?: string) => {
     const creds = await MobileStorage.getCredentials();
     if (!creds) throw new Error('Session mobile indisponible.');
     const baseUrl = resolveApiBaseUrl(creds.api_base_url);
     const response = await mobileFetch(`${baseUrl}/api/mobile/documents/${archive ? 'archive' : 'preview'}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${creds.access_token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${creds.access_token}`,
+        'Content-Type': 'application/json',
+        ...(archive && intentKey ? { 'Idempotency-Key': intentKey } : {}),
+      },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(20000),
     });
