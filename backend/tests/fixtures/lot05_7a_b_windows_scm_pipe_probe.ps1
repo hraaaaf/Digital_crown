@@ -43,6 +43,27 @@ function AwaitReady([string]$file) {
     }
     throw ('05B_SCM_PIPE_NOT_READY '+$file)
 }
+function AwaitPeerEvidence([string]$file,[string]$clientSid) {
+    # The synthetic server sends and flushes DENY_PEER before it appends proof.
+    # Never accept a response alone: wait a bounded time for *all* OS-token
+    # attestations, and fail closed if any marker is absent.
+    for ($try = 0; $try -lt 40; $try++) {
+        if (Test-Path -LiteralPath $file -PathType Leaf) {
+            $body = Get-Content -LiteralPath $file -Raw
+            if ($body.Contains('DENY_SERVER_ERROR')) {
+                throw '05B_PEER_EVIDENCE_SERVER_ERROR'
+            }
+            if ($body.Contains('SERVICE_SID_PRESENT=True') -and
+                $body.Contains('PEER_FROM_OS='+$clientSid) -and
+                $body.Contains('PEER_MATCH=False') -and
+                $body.Contains('RESPONSE=DENY_PEER')) {
+                return $body
+            }
+        }
+        Start-Sleep -Milliseconds 125
+    }
+    throw '05B_PEER_EVIDENCE_TIMEOUT_OR_INCOMPLETE'
+}
 function Send([string]$pipeName,[string]$request) {
     $pipe = [IO.Pipes.NamedPipeClientStream]::new(
         '.', $pipeName, [IO.Pipes.PipeDirection]::InOut,
@@ -126,11 +147,12 @@ try {
     Strict 'sc.exe' @('start',$badName) | Out-Null
     AwaitReady $badProof
     $wrong = Send $badPipe 'SYNTHETIC_NOOP_V1'
-    $badLog = Get-Content -LiteralPath $badProof -Raw
+    $badLog = AwaitPeerEvidence $badProof $callerSid
     if ($wrong -ne 'DENY_PEER' -or
         -not $badLog.Contains('PEER_FROM_OS='+$callerSid) -or
         -not $badLog.Contains('PEER_MATCH=False') -or
-        -not $badLog.Contains('SERVICE_SID_PRESENT=True')) {
+        -not $badLog.Contains('SERVICE_SID_PRESENT=True') -or
+        -not $badLog.Contains('RESPONSE=DENY_PEER')) {
         throw ('05B_WRONG_OS_PEER_NOT_DENIED '+$wrong+' '+$badLog)
     }
     Write-Output '05B_SAME_REAL_CLIENT_WRONG_ALLOWED_IDENTITY_DENIED'
