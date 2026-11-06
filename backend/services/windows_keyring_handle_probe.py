@@ -88,8 +88,8 @@ def _open_relative_component(parent_handle: int, leaf: str, *, directory: bool) 
         (0x00000080 | 0x00000020 | 0x00020000 | 0x00100000
          if directory else 0x80000000 | 0x00020000 | 0x00100000),
         ctypes.byref(attrs), ctypes.byref(io), None,
-        0x00000080, (0x00000005 if directory else 0x00000001), 1,
-        # normal; directories share READ|DELETE deliberately so rename races
+        0x00000080, (0x00000007 if directory else 0x00000001), 1,
+        # normal; directories share READ|WRITE|DELETE deliberately so rename races
         # remain possible, while handle-relative lineage stays immutable.
         # Files share READ only. FILE_OPEN never creates a missing component.
         0x00200000 | 0x00000020 | (0x00000001 if directory else 0x00000040),
@@ -112,7 +112,7 @@ def _open_checked_directory_chain(kernel, parts: tuple[str, ...], opened: list[i
     if not parts:
         raise WindowsKeyringHandleDenied("KEYRING_PATH_UNSUPPORTED")
     handle = kernel.CreateFileW(parts[0], 0x00000080 | 0x00020000,
-                                0x00000001, None, 3,
+                                0x00000007, None, 3,
                                 0x00200000 | 0x02000000, None)
     if handle is None or handle == ctypes.c_void_p(-1).value:
         raise WindowsKeyringHandleDenied("KEYRING_OPEN_DENIED")
