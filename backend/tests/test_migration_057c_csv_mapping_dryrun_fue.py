@@ -107,6 +107,7 @@ class SyntheticCsvMappingFUE(unittest.TestCase):
         self.assertEqual(r.critical_count, 0)
         self.assertEqual(r.unmapped_columns, 1)
         self.assertEqual(r.ignored, 0)
+        self.assertIsNone(r.collisions)  # No target DB = unknown, never a false zero
         self.assertEqual(r.target_rows_written, 0)
         self.assertFalse(r.import_permitted)
         self.assertFalse(r.mapping_approved)
