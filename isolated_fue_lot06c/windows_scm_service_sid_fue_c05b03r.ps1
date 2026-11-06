@@ -64,7 +64,8 @@ function Invoke-Child([string]$Username, [string]$Password,
                        [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
                        [switch]$ProbeB05Package,
                        [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
-                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06MediaStatus='None') {
+                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06MediaStatus='None',
+                       [switch]$ProbeServerPid, [int]$ExpectedServerPid=0) {
     $cred=[System.Management.Automation.PSCredential]::new(
         ('.' + [char]92 + $Username), (ConvertTo-SecureString $Password -AsPlainText -Force)
     )
@@ -74,6 +75,7 @@ function Invoke-Child([string]$Username, [string]$Password,
         '" -ParentPid ' + $PID + ' -ExpectedOpen ' + $ExpectedOpen +
         ' -ExpectedCreateInstance ' + $ExpectedCreate
     if ($ProbeQueueReadOnly) { $arguments += ' -ProbeQueueReadOnly' }
+    if ($ProbeServerPid) { $arguments += ' -ProbeServerPid -ExpectedServerPid ' + $ExpectedServerPid }
     if ($B03Status -ne 'None') { $arguments += ' -B03Status ' + $B03Status }
     if ($B06InventoryStatus -ne 'None') { $arguments += ' -B06InventoryStatus ' + $B06InventoryStatus }
     if ($B06MediaStatus -ne 'None') { $arguments += ' -B06MediaStatus ' + $B06MediaStatus }
@@ -107,6 +109,20 @@ function Invoke-Child([string]$Username, [string]$Password,
             if ($diagnostic.Length -gt 600) { $diagnostic=$diagnostic.Substring(0,600) }
             throw ('C05B03R_CHILD_OS_PROBE_FAILED_' + $child.ExitCode +
                 '_CHILD_STDERR_' + $diagnostic)
+        }
+        if ($ProbeServerPid) {
+            # Read actual separate-OS-account output; a successful exit with
+            # no positive and negative markers is NOT a passing identity FUE.
+            $proven=@(Get-Content -LiteralPath $outFile -ErrorAction Stop)
+            foreach ($marker in @(
+                'DC06_B06_BS2_PIPE_SERVER_PID_BOUND_PASS',
+                'DC06_B06_BS2_FORGED_SERVER_PID_DENIED_PASS'
+            )) {
+                if ($proven -notcontains $marker) {
+                    throw ('DC06_BS2_CHILD_PID_ORACLE_MISSING_' + $marker)
+                }
+                Write-Output $marker
+            }
         }
     }
     finally {
@@ -307,6 +323,14 @@ try {
             Write-Output ('DC06_B06_BOOTSTRAP_FORGED_' + $fault + '_DENIED_PASS')
         }
         Write-Output 'DC06_B06_BOOTSTRAP_LAB_ONLY_NO_RUNTIME_ACTIVATION_PASS'
+        $live=Get-CimInstance Win32_Service -Filter ("Name='" + $serviceName + "'") -ErrorAction Stop
+        if ($null -eq $live -or $live.State -ne 'Running' -or
+            [int]$live.ProcessId -le 0) {
+            throw 'DC06_BS2_SCM_PROCESS_NOT_RUNNING'
+        }
+        # Parent's PID comes from trusted OS SCM. Child opens the exact pipe
+        # under a distinct allowed OS user and queries its LIVE server PID.
+        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -ProbeServerPid -ExpectedServerPid ([int]$live.ProcessId)
     }
 
     Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5
