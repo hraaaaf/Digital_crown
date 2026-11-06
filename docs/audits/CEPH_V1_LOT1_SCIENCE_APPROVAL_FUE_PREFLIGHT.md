@@ -1987,3 +1987,14 @@ Revue https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/e
 **Une seule question de clarification clinique pour le prochain tour** : dans la formation, les `2,5` étaient-ils des **millimètres d'espace gagnés pour un millimètre d'avancée**, ou des **degrés de bascule incisive pour un millimètre d'avancée** ? Si doute, demander la diapo/support du cours et ne pas inventer attribution.
 
 **GATE / RESULT** : origine plausible retrouvée et limitée, aucune règle V1 modifiée, aucune intervention frontend/backend, no merge/deploy/clinical validation, FUE_NOT_RUN. **Dernière mise à jour canonique : 05/11/2026 — POST §67, étude 2,5/1 SPEC_ONLY.**
+
+
+### 68. PRE — 2026-11-06 — onboarding mixte : modèle DDM par défaut + adaptations (SPEC ONLY)
+
+**Instruction propriétaire** : « Tu me proposes quoi alors !? On valide un modele par défaut et on propose des modifs !? Continuons notre onboarding on doit detziller un peu ». Cadrer le choix d'un modèle clinique candidat par défaut, les corrections humaines auditables et un parcours **précis** denture mixte, sans code. La proposition n'est PAS une approbation explicite du propriétaire d'un coefficient déjà opérationnel.
+
+**Baseline** : PR #1213 OPEN/DRAFT sur `test/ceph-v1-facad-two-public-radios-20261105`, HEAD avant passe `3d909ef0124adb502f4d8d30fc49740ef2e807bf` ; canonique §67 POST relu ; Notion PRE71 ajouté. Deux analyses V1 seules verrouillées : COM Digital Crown + Steiner 1953/1959. La comparaison 2,5°/mm d'espace issue des modèles Mutinelli n'est pas une équation universelle.
+
+**Preuves consultées** : Mutinelli et al., *Eur J Orthod* 2000, https://pubmed.ncbi.nlm.nih.gov/10822884/ (gain d'arcade sensible à la forme et au mouvement) ; étude de validation Moyers/Tanaka-Johnston sur denture mixte, 2025, https://pmc.ncbi.nlm.nih.gov/articles/PMC12724357/ (variabilité individuelle), synthèse https://pmc.ncbi.nlm.nih.gov/articles/PMC12034339/ (limites des références de population), source historique Steiner 1960 https://orthodonticatheneum.com/wp-content/uploads/2023/04/1960_Steiner-Use-of-cephalometrics-in-planning-orthodontic-treatment.pdf (forme d'arcade, relocation et boîte clinique). Les sources doivent être distinguées des choix ergonomiques conçus ici.
+
+**GOAL/SUCCESS** : proposer modèle par défaut explicite, changement de méthode versionné, espace clinique/prediction d'éruption/Spee/leeway et repositionnement incisif toujours distincts, garde-fous des données manquantes, 6 à 7 sections conditionnelles de la Step2 existante et passage Step3, exemples non patients, FUE futures. **Gate** : SPEC_DISCOVERY / HUMAN_APPROVAL_PENDING / NO_CODE / no merge/Vercel.
