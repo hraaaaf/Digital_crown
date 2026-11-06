@@ -1,5 +1,15 @@
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
+## POST — 2026-11-06 — LOT05.7C-A PR #1216 MERGED — LAB ONLY / CLINICAL NO-GO
+
+**Owner approval / merge proof:** owner explicitly said "Oui fusionne" after the offer to merge [PR #1216](https://github.com/hraaaaf/Digital_crown/pull/1216) **LAB ONLY**. PR was Draft then set Ready without any source-code changes; merge GitHub used `expected_head_sha=9bad269f5ce5d529248ba96a4051538007c02615` to prevent stale-head merge. GitHub reports `merged=true`, `closed`, at `2026-11-06T14:09:21Z`. Squash commit [`c934554f7deaf3a09541924b4629a69fe38a0291`](https://github.com/hraaaaf/Digital_crown/commit/c934554f7deaf3a09541924b4629a69fe38a0291) was confirmed as `master` HEAD immediately after merge.
+
+**Pre-merge exact-HEAD evidence:** 16 workflows at `9bad269f` => **15 SUCCESS / 1 SKIPPED (experimental M6-I) / 0 failed / 0 active**. [05.7C-A vendor schema inventory #42225833745](https://github.com/hraaaaf/Digital_crown/actions/runs/42225833745) SUCCESS Linux+Windows, 22 synthetic checks per OS; [05.7A #42225833801](https://github.com/hraaaaf/Digital_crown/actions/runs/42225833801), [05.7B #42225833826](https://github.com/hraaaaf/Digital_crown/actions/runs/42225833826), [CODE_CERTIFIED #42225834021](https://github.com/hraaaaf/Digital_crown/actions/runs/42225834021) and [Scope #42225833872](https://github.com/hraaaaf/Digital_crown/actions/runs/42225833872) SUCCESS. A skipped experimental run is not a PASS.
+
+**Post-merge master evidence:** [Cabinet Upgrade PostgreSQL #42231399860](https://github.com/hraaaaf/Digital_crown/actions/runs/42231399860), `push` on `c934554f...`, was **QUEUED** at initial check. Do not claim product certification or run PASS until final status. This **documentation-only commit** will establish an additional `master` HEAD with its own required CI proof; run outcomes cannot transfer across SHA.
+
+**Product bounds:** 05.7C-A is a vendor-neutral, operator-declared **metadata-only** inventory over attested cold SQLite or bounded text DDL. No source vendor verified, native vendor row adapter, patient finance/medical-media reconciliation, clinician-approved semantic map, authenticated tenant/consent issuance, physical cabinet signed installer, real cabinet backup/restore or clinical import. Strict `import_permitted=false`, `full_schema_certified=false`. No PHI, no install, no deployment/Vercel, no clinical activation. **NEXT:** check new post-documentation master CI exact SHA; separately identify actual dental source/version and backup/export format; real import needs a new explicit human decision.
+
 ## PRE — 2026-11-06 — LOT05.7C-A vendor source inventory (READ-ONLY / DRAFT)
 
 **Basis:** `master@ffa5361ab261b1d02e2fee8b13f628131b831972` (Cabinet Upgrade PostgreSQL run #42199047086 SUCCESS 2/2). Owner `Go` authorizes this *read-only lab preparation*, not source patient data access, merging, deploying, installing, or real import. Source vendor/version/export format **unknown** in available evidence; do NOT invent one. Work on branch `test/lot05-7c-a-source-inventory-readonly-20261106` with separate Draft PR.
