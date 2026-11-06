@@ -20,7 +20,7 @@ from .legacy_sql_inspector_v15 import (
     UnsafeSource, _copy_path, _hash, inspect_staged_copy,
 )
 from .legacy_sql_mapping_v15 import (
-    MappingDraft, MappingRejected, TargetSnapshot, revalidate_mapping_draft,
+    MappingDraft, MappingRejected, TargetSnapshot, revalidate_mapping_draft, _is_secret,
 )
 
 
@@ -203,10 +203,14 @@ def assess_cold_sqlite_copy(
     for table, id_col in source_id_columns.items():
         _identifier(table, set(chosen))
         _identifier(id_col, inventory[table])
+        if _is_secret(id_col):
+            raise OfflinePlanRefused("SENSITIVE_SOURCE_ID_FORBIDDEN")
     for rule in reference_rules:
         _identifier(rule.child_source_table, set(chosen))
         _identifier(rule.parent_source_table, set(chosen))
         _identifier(rule.reference_column, inventory[rule.child_source_table])
+        if _is_secret(rule.reference_column):
+            raise OfflinePlanRefused("SENSITIVE_REFERENCE_COLUMN_FORBIDDEN")
         if rule.child_source_table == rule.parent_source_table:
             raise OfflinePlanRefused("SELF_REFERENCE_REQUIRES_SEPARATE_REVIEW")
     # Appointment-to-patient reference evidence is mandatory if appointments
