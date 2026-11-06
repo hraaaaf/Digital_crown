@@ -22,6 +22,25 @@ type Review = {
   durable_commit_available?: boolean;
 };
 
+/** French display/entry only; clinical API continues to use canonical ISO dates. */
+const formatBirthDateFr = (iso: string): string => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso);
+  return match ? match[3] + '/' + match[2] + '/' + match[1] : '';
+};
+
+const parseBirthDateFr = (value: string): string | null => {
+  const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
+  if (!match) return null;
+  const day = Number(match[1]);
+  const month = Number(match[2]);
+  const year = Number(match[3]);
+  if (year < 1 || month < 1 || month > 12) return null;
+  const leap = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const days = [31, leap ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (day < 1 || day > days[month - 1]) return null;
+  return match[3] + '-' + match[2] + '-' + match[1];
+};
+
 const safeCapture = (c: Capture) => Number.isSafeInteger(c.id) && c.id > 0 &&
   Number.isSafeInteger(c.size) && c.size > 0 && c.size <= 16384 &&
   c.mime === 'image/png' && /^[a-f0-9]{64}$/.test(c.digest);
@@ -163,10 +182,11 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
     }
   };
 
+  const birthDateIso = parseBirthDateFr(birthDate);
   const canConfirm = !!review && !!capture && safeReview(review, capture, patientId) &&
     verified?.key === context && loadedKey === context &&
     dossier.trim() === review.numero_dossier &&
-    birthDate === review.date_naissance &&
+    birthDateIso !== null && birthDateIso === review.date_naissance &&
     checked && !busy && result !== 'confirmed' && result !== 'persisted';
 
   const confirm = async () => {
@@ -178,7 +198,7 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
         (review.durable_commit_available === true ? '/commit' : '/confirm');
       const { data } = await api.post(endpoint, {
         challenge: review.challenge, selected_patient_id: patientId,
-        dossier: dossier.trim(), date_naissance: birthDate,
+        dossier: dossier.trim(), date_naissance: review.date_naissance,
         capture_digest: review.capture_digest, explicit_confirmation: true,
       });
       if (current !== epoch.current) return;
@@ -222,7 +242,7 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
   if (!capture && result !== 'unavailable') return null;
   return (
     <section aria-label="Revue d'acquisition non attribuée"
-      className="mx-1 mb-4 rounded-2xl border border-border-main bg-card p-4 text-text-main shadow-sm sm:p-5 lg:p-6">
+      className="mx-0 mb-4 min-w-0 rounded-2xl border border-border-main bg-card p-3 text-text-main shadow-sm sm:mx-1 sm:p-5 lg:p-6">
       <div className="mb-4 flex flex-wrap items-start justify-between gap-2">
         <div className="space-y-1">
           <h3 className="text-base font-bold sm:text-lg">Capture en attente de vérification</h3>
@@ -251,10 +271,10 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
         </div>
       )}
       {review && capture && (
-        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
+        <div className="grid min-w-0 grid-cols-1 gap-3 sm:gap-5 lg:grid-cols-2 lg:gap-6">
           <div className="min-w-0 space-y-3" aria-label="Étape 1 : contrôle de l'image">
             <h4 className="text-sm font-semibold sm:text-base">1. Contrôler l'image</h4>
-            <div className="overflow-hidden rounded-xl border border-border-main bg-background p-3 sm:p-4">
+            <div className="min-w-0 overflow-hidden rounded-xl border border-border-main bg-background p-2 sm:p-4">
               {verified?.key === context && (
                 <img src={verified.url} alt="Aperçu sécurisé de la capture"
                   className="mx-auto block max-h-[480px] w-full object-contain"
@@ -271,15 +291,15 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
               Vérifiez visuellement que cette image correspond au patient sélectionné.
             </p>
           </div>
-          <div className="min-w-0 space-y-4" aria-label="Étape 2 : vérification d'identité">
+          <div className="min-w-0 space-y-3 sm:space-y-4" aria-label="Étape 2 : vérification d'identité">
             <h4 className="text-sm font-semibold sm:text-base">2. Vérifier l'identité du patient</h4>
-            <div className="rounded-xl border border-border-main bg-background p-4">
+            <div className="min-w-0 rounded-xl border border-border-main bg-background p-3 sm:p-4">
               <p className="font-semibold text-text-main">{review.prenom} {review.nom}</p>
               <p className="mt-1 text-sm text-text-muted">
-                Dossier : {review.numero_dossier} — Naissance : {review.date_naissance}
+                Dossier : {review.numero_dossier} — Naissance : {formatBirthDateFr(review.date_naissance)}
               </p>
             </div>
-            <div className="space-y-3">
+            <div className="min-w-0 space-y-3">
               <p className="text-sm text-text-muted">
                 Pour éviter une erreur d'attribution, ressaisissez ces deux informations.
               </p>
@@ -291,26 +311,28 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
               </label>
               <label className="block text-sm font-medium">
                 Ressaisir la date de naissance
-                <input type="date" autoComplete="off" value={birthDate}
-                  onChange={event => setBirthDate(event.target.value)}
-                  className="mt-1.5 min-h-11 w-full rounded-lg border border-border-main bg-card p-3 text-text-main focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+                <input type="text" inputMode="numeric" autoComplete="off"
+                  placeholder="JJ/MM/AAAA" maxLength={10} spellCheck={false}
+                  value={birthDate} onChange={event => setBirthDate(event.target.value)}
+                  className="mt-1.5 min-h-11 w-full min-w-0 rounded-lg border border-border-main bg-card p-3 text-text-main focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
+                <span className="mt-1 block text-xs text-text-muted">Format : JJ/MM/AAAA</span>
               </label>
             </div>
-            <label className="flex items-start gap-3 rounded-xl border border-border-main bg-background p-3 text-sm">
+            <label className="flex min-w-0 items-start gap-2 rounded-xl border border-border-main bg-background p-2 text-sm sm:gap-3 sm:p-3">
               <input type="checkbox" checked={checked}
                 onChange={event => setChecked(event.target.checked)}
                 className="mt-0.5 h-5 w-5 shrink-0 accent-primary" />
-              <span>{review.durable_commit_available === true
+              <span className="min-w-0 break-words leading-relaxed">{review.durable_commit_available === true
                 ? "J'ai vérifié l'image et les deux identifiants du patient. L'image sera enregistrée dans ce dossier."
                 : "J'ai vérifié l'image et les deux identifiants du patient. Cette image ne sera pas ajoutée au dossier."}</span>
             </label>
             <div className="flex flex-col-reverse gap-2 border-t border-border-main pt-4 sm:flex-row sm:flex-wrap sm:justify-end">
               <button type="button" disabled={busy} onClick={() => void cancel()}
-                className="min-h-11 rounded-lg border border-border-main bg-card px-5 py-3 text-sm font-medium text-text-main transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40">
+                className="min-h-11 min-w-0 whitespace-normal break-words rounded-lg border border-border-main bg-card px-3 py-3 text-sm font-medium leading-snug text-text-main transition-colors hover:bg-background focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 sm:px-5">
                 Annuler
               </button>
               <button type="button" disabled={!canConfirm} onClick={() => void confirm()}
-                className="min-h-11 rounded-lg bg-primary px-5 py-3 text-sm font-semibold text-on-primary transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40">
+                className="min-h-11 min-w-0 whitespace-normal break-words rounded-lg bg-primary px-3 py-3 text-sm font-semibold leading-snug text-on-primary transition-colors hover:bg-secondary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary disabled:cursor-not-allowed disabled:opacity-40 sm:px-5">
                 {busy ? 'Contrôle…' : review.durable_commit_available === true
                   ? 'Ajouter l’image au dossier' : 'Terminer la vérification'}
               </button>
