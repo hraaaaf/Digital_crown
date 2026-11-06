@@ -18,10 +18,16 @@ import types
 import unittest
 
 BACKEND = Path(__file__).resolve().parents[1]
+LAB_PACKAGE = "_lot05b_offline_readonly"
+if LAB_PACKAGE not in sys.modules:
+    namespace = types.ModuleType(LAB_PACKAGE)
+    namespace.__path__ = [str(BACKEND / "services")]
+    sys.modules[LAB_PACKAGE] = namespace
 
 
 def load(name: str):
-    fullname = "backend.services." + name
+    # Private module namespace: never replace backend.* in global sys.modules.
+    fullname = LAB_PACKAGE + "." + name
     spec = importlib.util.spec_from_file_location(
         fullname, BACKEND / "services" / (name + ".py")
     )
@@ -30,13 +36,6 @@ def load(name: str):
     spec.loader.exec_module(mod)
     return mod
 
-
-# Avoid implicit real DB or app bootstrap. These are *existing source files*.
-for package, directory in (("backend", BACKEND), ("backend.services", BACKEND / "services")):
-    if package not in sys.modules:
-        module = types.ModuleType(package)
-        module.__path__ = [str(directory)]
-        sys.modules[package] = module
 
 inspector = load("legacy_sql_inspector_v15")
 mapping = load("legacy_sql_mapping_v15")
