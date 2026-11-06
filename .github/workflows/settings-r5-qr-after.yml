@@ -29,7 +29,20 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          test "$(git hash-object backend/services/base_template_core.py)" = "5ecbd105e2dd31fe06204b9d71812f98d38c5e41"
+          # R5 preservation: only audited full-file blobs may enter this QR
+          # screenshot gate. CPV2-02C corrects an unrelated fictitious
+          # practitioner header; its complete new blob is explicitly reviewed,
+          # rather than disabling or weakening the hash guard.
+          header_core_sha="$(git hash-object backend/services/base_template_core.py)"
+          case "$header_core_sha" in
+            5ecbd105e2dd31fe06204b9d71812f98d38c5e41|6dc3524aca1c4b3086fe0e06bbc070438c3e5b14) ;;
+            *) echo "Unexpected PDF core blob in R5 QR source truth: $header_core_sha" >&2; exit 1 ;;
+          esac
+          # Never reintroduce the sample signer's placeholder in a generated PDF.
+          if grep -Fq '["Dr. Nom Prénom", "Chirurgien Dentiste"]' backend/services/base_template_core.py; then
+            echo "Fictitious practitioner header is forbidden" >&2
+            exit 1
+          fi
           test "$(git hash-object frontend/src/features/admin/Settings/tabs/branding/StudioControlsCore.tsx)" = "08e1374ce5c55f682a3a7b21f613cbe14c928ef6"
           grep -n "Vérification du document" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
           grep -n "Suivi du paiement" frontend/src/features/admin/Settings/tabs/branding/StudioControls.tsx
