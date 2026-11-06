@@ -41,7 +41,7 @@ const entrySource = [
   ");",
 ].join('\n');
 
-const syntheticApi = String.raw\`
+const syntheticApi = String.raw`
   let promise;
   const fixture = () => {
     promise ||= (async () => {
@@ -91,7 +91,7 @@ const syntheticApi = String.raw\`
     },
     async delete() { return { status:204 }; },
   };
-\`;
+`;
 const plugin = {
   name: 'b06-synthetic-api-only-for-product-review',
   enforce: 'pre',
