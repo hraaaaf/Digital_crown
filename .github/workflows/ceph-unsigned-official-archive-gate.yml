@@ -9,6 +9,8 @@ on:
       - 'backend/tests/test_cephalo_p2ter_archive_adversarial.py'
       - 'backend/tests/test_cephalo_p2ter_identity_bound_pdf.py'
       - 'backend/tests/test_cephalo_p2ter_crash_recovery.py'
+      - 'frontend/src/features/ortho/components/Step4Documents.tsx'
+      - 'frontend/src/features/ortho/components/Step4Documents.g4Interactive.test.tsx'
       - '.github/workflows/ceph-unsigned-official-archive-gate.yml'
   workflow_dispatch:
 
@@ -55,3 +57,84 @@ jobs:
             backend/tests/test_cephalo_p2ter_identity_bound_pdf.py \
             backend/tests/test_cephalo_p2ter_crash_recovery.py \
             backend/tests/test_cephalo_four_part_report.py
+
+  unsigned-archive-ui:
+    name: Desktop archive affordance and draft export
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Pin exact PR head
+        if: github.event_name == 'pull_request'
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Verify archive disabled and draft still operational
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/components/Step4Documents.g4Interactive.test.tsx src/features/ortho/cephaloArchiveGate.test.ts src/features/ortho/cephaloRepository.document.test.ts
+      - name: Check TypeScript without running or deploying desktop application
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+
+  native-windows-sqlcipher:
+    name: Native Windows SQLCipher P2ter crash and replay
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DATABASE_URL: 'sqlite:///:memory:'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Pin exact PR head
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:PRODUCT_HEAD) {
+            throw 'Product HEAD mismatch: refuse evidence'
+          }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+      - name: Install native Windows SQLCipher and isolated archive dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --only-binary=:all: sqlcipher3==0.6.2
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows SQLCipher unavailable' }
+          python -m pip install SQLAlchemy==2.0.28 pytest==9.0.3 fastapi==0.115.6 pydantic==2.6.3 passlib==1.7.4 python-dotenv==1.2.1 email-validator==2.3.0 python-multipart==0.0.31 pillow==12.2.0 numpy==2.4.3
+          if ($LASTEXITCODE -ne 0) { throw 'Native archive deps failed' }
+          python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'Native archive dependencies incompatible' }
+      - name: Native encrypted DB crash/replay with hard process termination
+        shell: pwsh
+        run: |
+          python -m pytest --noconftest backend/tests/test_cephalo_p2ter_windows_sqlcipher_native.py -vv -s 2>&1 | Tee-Object -FilePath unsigned-archive-windows-sqlcipher.log
+          if ($LASTEXITCODE -ne 0) { throw 'Native SQLCipher archive recovery failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ceph-unsigned-a4-windows-sqlcipher-${{ github.event.pull_request.head.sha || github.sha }}
+          path: unsigned-archive-windows-sqlcipher.log
+          retention-days: 30
+          if-no-files-found: warn
