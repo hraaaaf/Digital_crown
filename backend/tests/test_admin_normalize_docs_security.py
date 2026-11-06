@@ -13,6 +13,8 @@ def test_normalize_docs_is_post_and_tenant_scoped():
     assert '@router.get("/normalize-docs")' not in source
     assert 'current_user.get_employer_id()' in block
     assert 'patient_id IN (SELECT id FROM patients WHERE employer_id = :employer_id)' in block
-    assert block.count('{"employer_id": employer_id}') >= 2
+    assert block.count('{"employer_id": employer_id}') >= 1
+    assert "document_type = 'RAPPORT_CEPHALO'" not in block
+    assert "HELD_UNVERIFIED_SIGNATURE" in block
     assert 'detail="Échec de normalisation des documents"' in block
     assert '"message": str(e)' not in block

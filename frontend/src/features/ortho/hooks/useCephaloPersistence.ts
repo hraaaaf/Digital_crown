@@ -219,7 +219,7 @@ export const useCephaloPersistence = (
 
   const allLandmarksPlaced = tracingPct === 1;
 
-  const generateDocumentData = useCallback(async (preview: boolean) => {
+  const generateDocumentData = useCallback(async () => {
     if (!analysisId) throw Error("Étude Céphalo non sélectionnée");
     const stillSelected = () => latestSelection.current.analysisId === analysisId
       && latestSelection.current.patientId === patientId;
@@ -247,7 +247,9 @@ export const useCephaloPersistence = (
         denture_type: etape3Data.denture_type,
         preference_technique: etape3Data.preference_technique,
       },
-      archive: !preview,
+      // This compatibility hook is not an official-signature entrypoint.
+      // Printing a draft must never mint an official clinical archive.
+      archive: false,
     });
   }, [patientId, analysisId, ddm, diag, etape3Data, silentSave]);
 
@@ -256,7 +258,7 @@ export const useCephaloPersistence = (
     setIsPreviewLoading(true);
     setPreviewPdfUrl(null);
     try {
-      const data = await generateDocumentData(true);
+      const data = await generateDocumentData();
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       setPreviewPdfUrl(url);
@@ -270,12 +272,12 @@ export const useCephaloPersistence = (
     if (!analysisId || !allLandmarksPlaced) return;
     setIsPrinting(true);
     try {
-      const data = await generateDocumentData(false);
+      const data = await generateDocumentData();
       const blob = new Blob([data], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
 
       const userChoice = window.confirm(
-        'Le PDF a été généré avec succès.\n\n' +
+        'Brouillon PDF non signé généré — aucune archive officielle créée.\n\n' +
         '• OK = Ouvrir dans un nouvel onglet (pour imprimer)\n' +
         '• Annuler = Télécharger le fichier'
       );
@@ -285,7 +287,7 @@ export const useCephaloPersistence = (
       } else {
         const link = document.createElement('a');
         link.href = url;
-        link.download = `Bilan_COM_${patientName.replace(/\s+/g, '_')}.pdf`;
+        link.download = `Brouillon_Bilan_COM_${patientName.replace(/\s+/g, '_')}.pdf`;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
