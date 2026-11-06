@@ -91,7 +91,7 @@ async function createCase(engine, viewport, options = {}) {
   });
   await page.route('**/api/mobile/documents/archive', route => {
     counters.archiveHits++;
-    return route.fulfill({ status: 200, contentType: 'application/pdf', body: '%PDF-1.4\n% synthetic archive only\n' });
+    return route.fulfill({ status: 200, contentType: 'application/pdf', headers: { 'X-Document-Id': '42' }, body: '%PDF-1.4\n% synthetic archive only\n' });
   });
   const label = engine.name() + '-' + viewport.width + 'x' + viewport.height + (options.zoom ? '-zoom200' : '') +
     (options.none ? '-deny' : options.invalidPdf ? '-invalidpdf' : options.honoraires ? '-honoraires' : '');
@@ -127,7 +127,7 @@ async function createCase(engine, viewport, options = {}) {
           if (!disabled) throw Error('Honoraires archival button not disabled');
         } else {
           await page.getByRole('button', { name: /Archiver le document/i }).click();
-          await page.getByText(/Document généré et archivé/i).waitFor();
+          await page.getByText(/Document archivé et reçu confirmé/i).waitFor();
           if (!(await page.getByRole('button', { name: /Déjà archivé/i }).isDisabled())) throw Error('Duplicate archive button enabled');
           await page.screenshot({ path: path.join(out, label + '-04-after.png') });
         }
