@@ -141,13 +141,30 @@ async function createCase(engine, viewport, options = {}) {
       background: getComputedStyle(el).backgroundColor,
     }));
     if (geometry.scrollWidth > geometry.clientWidth + 2) throw Error('Horizontal overflow in document sheet');
+    // A green scroll-width check alone missed clipped labels at CSS zoom 200%.
+    const visibleText = await page.locator('[data-mobile-quick-document]').evaluate(el => {
+      const heading = el.querySelector('h2');
+      const action = [...el.querySelectorAll('button')].find(button =>
+        /Archiver le document|Déjà archivé|Archivage indisponible/.test(button.textContent || ''));
+      const bounds = node => node ? {
+        clientWidth: node.clientWidth, scrollWidth: node.scrollWidth,
+        clientHeight: node.clientHeight, scrollHeight: node.scrollHeight,
+      } : null;
+      return { heading: bounds(heading), archiveAction: bounds(action) };
+    });
+    for (const [name, bounds] of Object.entries(visibleText)) {
+      if (bounds && (bounds.scrollWidth > bounds.clientWidth + 2 ||
+        bounds.scrollHeight > bounds.clientHeight + 2)) {
+        throw Error(name + ' text clipped at ' + label + ': ' + JSON.stringify(bounds));
+      }
+    }
     if (counters.capabilityHits !== 1) throw Error('Missing / duplicate capabilities read');
     if (options.none && (counters.previewHits || counters.archiveHits)) throw Error('Unauthorized server action');
     if (options.invalidPdf && (counters.previewHits !== 1 || counters.archiveHits)) throw Error('Invalid PDF progressed');
     if (options.honoraires && counters.archiveHits) throw Error('Unauthorized honoraires archive');
     if (!options.none && !options.invalidPdf && !options.honoraires && (counters.previewHits !== 1 || counters.archiveHits !== 1)) throw Error('Missing preview/archive action');
     if (errors.length) throw Error('JS runtime errors: ' + errors.join(' | '));
-    evidence.push({ engine: engine.name(), viewport, zoom200CssSimulation: !!options.zoom, case: options.none ? 'deny' : options.invalidPdf ? 'invalid-pdf' : options.honoraires ? 'honoraires' : 'preview-archive', counts: counters, geometry, passed: true, mocks: true });
+    evidence.push({ engine: engine.name(), viewport, zoom200CssSimulation: !!options.zoom, case: options.none ? 'deny' : options.invalidPdf ? 'invalid-pdf' : options.honoraires ? 'honoraires' : 'preview-archive', counts: counters, geometry, visibleText, passed: true, mocks: true });
   } catch (e) {
     await page.screenshot({ path: path.join(out, label + '-FAIL.png'), fullPage: true }).catch(() => {});
     evidence.push({ engine: engine.name(), viewport, case: label, passed: false, error: String(e), counts: counters, mocks: true });
