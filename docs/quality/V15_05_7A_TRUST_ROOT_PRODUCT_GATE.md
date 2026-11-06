@@ -1,5 +1,16 @@
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
+## POST — 2026-11-06 — LOT05.7C-B CSV preview code + 05.7A FUE (PENDING FINAL CI)
+
+**GitHub PR :** Draft #1217 remains open, based on master 2cc743e3708621a027a794bdb17c8446ca3073df. Code HEAD immediately before this documentation-only POST: 2124552ff4418ba382cf740164fd93b69615aee0. This POST generates another candidate HEAD and must be checked independently. No merge, deploy, patients or clinical activation authorized.
+
+**Safety FUE 05.7A :** Changed exclusively backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_probe.ps1. Previously #42237579820 native Windows pipe FUE failed on a proof-read race (DENY_PEER returned correctly, OS SID evidence not yet appended). The synthetic server flushes response before appending its proof log. The new AwaitPeerEvidence polls a maximum of 40 x 125ms and requires every original service SID, actual OS client SID, peer mismatch and explicit DENY_PEER response; missing proof, timeout or server error still FAIL. All other guard checks retained; no product service logic changed. Only native Windows CI run can demonstrate success.
+
+**Synthetic CSV 05.7C-B :** New standalone backend/services/legacy_migration_csv_preview_v15.py with no API or target DB handle. Only fake and attested offline copies under staging root, reuse 05.1 symlink/hardlink/root and size guard, immutable sha+stat, strict UTF-8 CSV, administrative patient ID/given_name/family_name with optional ISO birth_date, duplicate/unknown source IDs, control chars and formulas denied, max 10k rows; returns digest, counts, static warnings and status flags hard false. No raw names, rows or dates in public response. Not a vendor adapter nor a migration dry-run.
+
+**FUE/CI:** backend/tests/test_migration_057c_csv_patients_fue.py implements 32 synthetic only cases; new .github/workflows/v15-05-7c-csv-patient-preview-fue.yml runs tests on Ubuntu+Windows at exact PR SHA; existing 05.7A, 05.7B, 05.7C-A, CI Scope regressions re-run automatically. At PRE/POST authoring the new workflows had started/queued; do NOT claim PASS without terminal evidence on final SHA. Expected UI, actual migration, clinician approval, true restore and vendor-specific Orthalis export format remain NOT IMPLEMENTED.
+
+**Product gates:** import_permitted=false ; full_schema_certified=false ; no target DB write ; no invoice/patient merge ; no cabinet backup ; no licensed vendor DB access ; no deployment. NEXT: validate final-HEAD Windows native SID FUE and 32 CSV synthetic FUE on both OS; report any failure without suppressing it and keep Draft. GOAL: vendor-neutral clinic onboarding with deterministic, auditable acceptance under future human-controlled migration.
 ## PRE — 2026-11-06 — LOT05.7C-B CSV synthétique + 05.7A IPC : SCOPE FAIL-CLOSED
 
 **Instruction :** GO pour un adaptateur de prévisualisation CSV patients administratif multi-logiciels, FAKE-only, sans importer des lignes dans Digital Crown, et pour diagnostiquer le gate de sécurité 05.7A lié au test Windows. Aucun GO de merge/déploiement. Branche PR Draft #1217, base master 2cc743e3708621a027a794bdb17c8446ca3073df.
