@@ -2150,3 +2150,16 @@ GOAL : distinguer plage centrale, compensation, hors compensation, puis hypothè
 **FUE futurs (NON RUN)** : R01–R02 valeurs frontières normale/compensation ; R03 surplomb >3 ; R04 33° au-dessus de Tweed ; R05 A7 et B−8 avec adulte applicable ⇒ 2 constats et hypothèse pas « Type II » autonome ; R06 âge non couvert (ex. 12 ans) ⇒ pas de norme inventée ; R07 défaut mm/landmarks ⇒ NC ; R08 correction ⇒ `A_REVALIDER` ; R09 interincisal centrale illisible ⇒ blocage ; R10 COM distinct Steiner, thème, zoom 200%, captures BEFORE/AFTER et signature clinicien.
 
 **STATUT** : CANDIDATE / SCIENTIFIC_SOURCE_LOCK_PENDING / NO_CODE / NO_MERGE / NO_DEPLOY / NO_FUE_RUN. **NEXT** : approuver cette architecture de suggestions et obtenir la page de la fiche contenant les critères originaux de classification des décalages osseux types I, II et III ; puis finaliser Step3 et passer à Step4. **Dernière mise à jour canonique : 06/11/2026 — POST §70 règles COM.**
+
+
+### 71. PRE — 2026-11-06 — Recherche source COM/CRANIOM : types osseux I, II, III par A'B' (SPEC ONLY)
+
+**Mission** : « Okay go » après demande de retrouver la règle de classification squelettique A'B' puis approfondir le diagnostic COM. Le choix deux analyses COM Digital Crown + Steiner 1953/1959 ne change pas ; aucun code ni GO clinique.
+
+**Baseline** : PR #1213 OPEN/DRAFT, HEAD avant PRE `9e5651e168a04ae0e02ea198393009a1fddadef8`, présent canonique §70 POST relu. Notion PRE74 enregistré. L'ancien statut `TYPE_I_II_III_DISABLED_UNTIL_SCIENCE_LOCK` provenait d'un manque de sources de typologie, pas d'une impossibilité fondamentale.
+
+**Nouvelles sources documentaires** : TP SLOT « Téléradiographie, céphalométrie et DDM », p.27 https://www.slot-concept.com/bases/slot_communication_pdf/7/fichier.pdf, mesure A'B' = A et B projetés orthogonalement sur Francfort, intervalles 9 ans [1 ; 7,4] mm, adultes [-0,8 ; 5,4] mm ; et transcription d'un exposé de méthode CRANIOM https://fr.scribd.com/document/795096178/Fi-Chier (section classification osseuse, environ lignes 1000–1042) explicitant : type I entre +1 et +7,4 mm à 9 ans, type II si >+7,4, type III si <+1 à 9 ans ; type III si <-0,8 adulte. Adulte >+5,4 = type II par extension symétrique du tableau, à marquer `INTERPRETATION_A_CONFIRM` tant que seuil adulte explicite en toutes lettres n'est pas trouvé. Convention + = A antérieur à B, - = inverse.
+
+**Limites preuves** : screenshot PDF via web tenté p.26 et 31 → erreurs cache miss, donc source PDF uniquement par texte indexé ; Scribd est une reproduction tierce, non la publication éditeur authentifiée. Les normes de la fiche COM photographiée ne sont pas identiques à tous les tableaux CRANIOM pédagogiques : stocker profil/version par source, ne pas écraser 90°±5 et compensation 80–100 par extrêmes CRANIOM 78–114. Publication Bonnefont 2010/2011 = cohorte de 83 jeunes adultes Classe I ; ni norme universelle ni population marocaine validée.
+
+**GOAL** : matrice explicite des seuils, états `TYPE_PROPOSE` vs `CONFIRME`, retenue proche des bornes, conventions, absence de calibration, âge/interpolation, classification dent vs os et règles causales A/B prudentes. FUE ciblées définies NON RUN. **GATE** : SPEC_ONLY, no code, merge, Vercel, patient, ni activation de diagnostic autonome.
