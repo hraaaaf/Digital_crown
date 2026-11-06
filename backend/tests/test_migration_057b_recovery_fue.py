@@ -1,6 +1,7 @@
 """LOT05.7B+ — physical temp SQLite checkpoint/replay/rollback: FAKE ONLY."""
 from __future__ import annotations
 
+from contextlib import closing
 import importlib.util
 from pathlib import Path
 import sqlite3
@@ -30,7 +31,7 @@ class RecoveryTest(unittest.TestCase):
 
     def _write(self):
         self.source.unlink(missing_ok=True)
-        with sqlite3.connect(self.source) as db:
+        with closing(sqlite3.connect(self.source)) as db:
             db.execute("PRAGMA journal_mode=DELETE")
             db.execute("CREATE TABLE lot05_synthetic_marker (marker TEXT)")
             db.execute("INSERT INTO lot05_synthetic_marker VALUES (?)", (self.marker,))
@@ -107,7 +108,7 @@ class RecoveryTest(unittest.TestCase):
         self.assertEqual(before, lab._file_digest(self.source))
 
     def test_10_wal_state_even_without_sidecars_denied(self):
-        with sqlite3.connect(self.source) as db:
+        with closing(sqlite3.connect(self.source)) as db:
             db.execute("PRAGMA journal_mode=WAL")
             db.commit()
         self.deny("COLD_SYNTHETIC_SOURCE_REQUIRED")
