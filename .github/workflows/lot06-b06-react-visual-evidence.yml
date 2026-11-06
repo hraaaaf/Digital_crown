@@ -32,6 +32,7 @@ jobs:
       - name: Checkout exact branch HEAD (no credentials persisted)
         uses: actions/checkout@v4
         with:
+          ref: ${{ github.sha }}
           persist-credentials: false
       - name: Attest no release, exact HEAD, isolated synthetic-only test
         shell: bash
@@ -66,5 +67,5 @@ jobs:
         with:
           name: lot06-b06-actual-react-chromium-visual
           path: artifacts/lot06-b06-react-visual/
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 14
