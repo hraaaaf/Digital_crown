@@ -147,7 +147,8 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
       fireEvent.change(date, { target: { value: candidate } });
       expect(button).toBeDisabled();
     }
-    fireEvent.change(date, { target: { value: '04/03/2000' } });
+    fireEvent.change(date, { target: { value: '04032000' } });
+    expect(date).toHaveValue('04/03/2000');
     expect(button).toBeEnabled();
     fireEvent.click(button);
     await waitFor(() => expect(post).toHaveBeenCalledWith(confirm, {
