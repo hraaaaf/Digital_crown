@@ -129,6 +129,21 @@ def operator(escrow_raw: str, verdict_raw: str) -> None:
             raise
     else:
         raise AssertionError("DC06_J4_ARTIFACT_TAMPER_FALSE_ACCEPT")
+    # Adversarial forged custody receipt: the attacker alters BOTH ciphertext
+    # and its receipt digest/length. A receipt-local hash check would pass,
+    # but the independently precommitted oracle must deny restoration.
+    forged_receipt = dict(receipt)
+    forged_receipt["encrypted_backup_sha256"] = hashlib.sha256(corrupted).hexdigest()
+    forged_receipt["encrypted_backup_bytes"] = len(corrupted)
+    try:
+        _validate_encrypted_transfer(corrupted, forged_receipt, oracle, expected_backup)
+    except RuntimeError as exc:
+        if str(exc) != "DC06_J4_BACKUP_PIN_OR_TRANSFER_DENIED":
+            raise
+    else:
+        raise AssertionError("DC06_J4_FORGED_RECEIPT_FALSE_ACCEPT")
+    print("DC06_J4_VM2_FORGED_RECEIPT_PREWRITE_DENIED_PASS")
+
     print("DC06_J4_VM2_ARTIFACT_SHA_AND_PRECOMMITTED_ORACLE_PASS")
     print("DC06_J4_VM2_TAMPERED_TRANSFER_PREWRITE_DENIED_PASS")
 
