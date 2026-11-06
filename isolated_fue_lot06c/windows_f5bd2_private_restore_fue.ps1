@@ -124,9 +124,11 @@ print("DC06_F5BD2_PARENT_JUNCTION_DENIED_PASS")
 '@ | python -
   if ($LASTEXITCODE -ne 0) { throw 'F5BD2_JUNCTION_FAILED' }
 
-  # J4: a separate process attempts a live namespace mutation while a parent
-  # directory handle has EXACTLY the no-write/no-delete sharing used by restore.
-  # This is a bounded share-mode adversarial FUE, NOT a full concurrent race proof.
+  # J4/F5B-D4d: Windows actually allows a held parent's name to be
+  # renamed. A safe restore MUST create relative to the VERIFIED parent
+  # HANDLE, even when an attacker replaces the old name with a junction.
+  # Only publicly synthetic key material, on the ephemeral Windows runner.
+  $env:DC06_J4_CURRENT_SID = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value
   @'
 import ctypes
 import importlib.util
@@ -150,112 +152,114 @@ def load(name, filename):
     spec.loader.exec_module(module)
     return module
 
-load("backend.services.windows_keyring_handle_probe",
-     "backend/services/windows_keyring_handle_probe.py")
+probe = load("backend.services.windows_keyring_handle_probe",
+             "backend/services/windows_keyring_handle_probe.py")
 load("backend.services.clinical_media_keyring_recovery",
      "backend/services/clinical_media_keyring_recovery.py")
 restore = load("backend.services.windows_keyring_restore",
                "backend/services/windows_keyring_restore.py")
 
-parent = Path(os.environ["DC06_F5BD2_ROOT"]) / "held-parent"
-moved = Path(os.environ["DC06_F5BD2_ROOT"]) / "attacker-moved"
+root = Path(os.environ["DC06_F5BD2_ROOT"])
+parent, moved, trap = (root / name for name in
+                       ("held-parent", "moved-parent", "trap-outside"))
 parent.mkdir()
+trap.mkdir()
 kernel = ctypes.WinDLL("kernel32", use_last_error=True)
 kernel.CreateFileW.argtypes = [
-    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
-    wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
+    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+    ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
 ]
 kernel.CreateFileW.restype = wintypes.HANDLE
 kernel.CloseHandle.argtypes = [wintypes.HANDLE]
 kernel.CloseHandle.restype = wintypes.BOOL
+kernel.WriteFile.argtypes = [
+    wintypes.HANDLE, ctypes.c_void_p, wintypes.DWORD,
+    ctypes.POINTER(wintypes.DWORD), ctypes.c_void_p,
+]
+kernel.WriteFile.restype = wintypes.BOOL
+kernel.FlushFileBuffers.argtypes = [wintypes.HANDLE]
+kernel.FlushFileBuffers.restype = wintypes.BOOL
+kernel.LocalFree.argtypes = [ctypes.c_void_p]
+kernel.LocalFree.restype = ctypes.c_void_p
 INVALID = ctypes.c_void_p(-1).value
-# FILE_READ_ATTRIBUTES | READ_CONTROL, FILE_SHARE_READ, OPEN_EXISTING,
-# FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_BACKUP_SEMANTICS.
-handle = kernel.CreateFileW(str(parent), 0x00000080 | 0x00020000,
-                            0x00000001, None, 3, 0x00200000 | 0x02000000, None)
-if handle is None or handle == INVALID:
+# Exact same parent access/share/flags as the product's ancestor validation.
+parent_handle = kernel.CreateFileW(
+    str(parent), 0x00000080 | 0x00020000, 0x00000001,
+    None, 3, 0x00200000 | 0x02000000, None,
+)
+if parent_handle is None or parent_handle == INVALID:
     raise AssertionError("J4_PARENT_HANDLE_UNAVAILABLE")
-
+descriptor = ctypes.c_void_p()
 try:
-    attacker = r"""
-import ctypes
-import os
-from pathlib import Path
-import sys
-from ctypes import wintypes
-parent = Path(sys.argv[1])
-moved = Path(sys.argv[2])
-try:
-    os.rename(parent, moved)
-except OSError as exc:
-    if getattr(exc, "winerror", None) not in (5, 32, 33):
-        raise
-    print("DC06_J4_PARENT_RENAME_DENIED_PASS")
-else:
-    raise AssertionError("PARENT_SWAP_RENAME_ALLOWED")
-
-kernel = ctypes.WinDLL("kernel32", use_last_error=True)
-kernel.CreateFileW.argtypes = [
-    wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD, ctypes.c_void_p,
-    wintypes.DWORD, wintypes.DWORD, wintypes.HANDLE,
-]
-kernel.CreateFileW.restype = wintypes.HANDLE
-kernel.CloseHandle.argtypes = [wintypes.HANDLE]
-kernel.CloseHandle.restype = wintypes.BOOL
-# A write-attributes handle is required to modify the directory reparse data;
-# its open must conflict with the restore-held read-only share contract.
-write_handle = kernel.CreateFileW(str(parent), 0x00000100, 0x00000007,
-                                  None, 3, 0x00200000 | 0x02000000, None)
-if write_handle is not None and write_handle != ctypes.c_void_p(-1).value:
-    kernel.CloseHandle(write_handle)
-    raise AssertionError("PARENT_WRITE_ATTRIBUTES_ALLOWED")
-if ctypes.get_last_error() not in (5, 32, 33):
-    raise AssertionError("PARENT_WRITE_ATTRIBUTES_UNEXPECTED_WINERROR")
-print("DC06_J4_PARENT_WRITE_ATTRIBUTES_DENIED_PASS")
-"""
-    attack = subprocess.run(
-        [sys.executable, "-c", attacker, str(parent), str(moved)],
-        check=False, capture_output=True, text=True, timeout=20,
+    # Run the attacker in its own process; the former security assumption that
+    # a READ-only shared handle blocks rename has been empirically disproved.
+    rename = subprocess.run(
+        [sys.executable, "-c",
+         "import os,sys;os.rename(sys.argv[1],sys.argv[2])",
+         str(parent), str(moved)],
+        capture_output=True, text=True, timeout=20,
     )
-    if attack.returncode != 0:
-        # The previous check=True hid the actual attacker result from CI logs.
-        # Only fixed marker names and the last exception CLASS are reported:
-        # never print paths, stdout/stderr bodies or synthetic keyring bytes.
-        last = attack.stderr.strip().splitlines()
-        detail = last[-1] if last else ""
-        reasons = (
-            "PARENT_SWAP_RENAME_ALLOWED",
-            "PARENT_WRITE_ATTRIBUTES_ALLOWED",
-            "PARENT_WRITE_ATTRIBUTES_UNEXPECTED_WINERROR",
-        )
-        reason = next((token for token in reasons if token in detail), "")
-        if not reason:
-            reason = detail.split(":", 1)[0][:64] if detail else "CHILD_EXIT_NO_STDERR"
-        print("DC06_J4_ATTACKER_DIAGNOSTIC_" + reason, flush=True)
-        print("DC06_J4_RENAME_DENIAL_OBSERVED_" +
-              str("DC06_J4_PARENT_RENAME_DENIED_PASS" in attack.stdout), flush=True)
-        print("DC06_J4_WRITE_DENIAL_OBSERVED_" +
-              str("DC06_J4_PARENT_WRITE_ATTRIBUTES_DENIED_PASS" in attack.stdout),
-              flush=True)
-        raise AssertionError("J4_CHILD_PROBE_FAILED")
-    assert "DC06_J4_PARENT_RENAME_DENIED_PASS" in attack.stdout
-    assert "DC06_J4_PARENT_WRITE_ATTRIBUTES_DENIED_PASS" in attack.stdout
-    assert parent.is_dir() and not moved.exists()
-    data = {
+    if rename.returncode != 0:
+        raise AssertionError("J4_RENAME_REPRO_NOT_OBSERVED")
+    assert moved.is_dir() and not parent.exists()
+    print("DC06_J4_PARENT_RENAME_CONFIRMED_PASS")
+
+    # Attacker supplies an alternative filesystem target at the stale path.
+    # Old CreateFileW(str(path)) would follow this junction into trap-outside.
+    junction = subprocess.run(
+        ["cmd", "/c", "mklink", "/J", str(parent), str(trap)],
+        capture_output=True, text=True, timeout=20,
+    )
+    if junction.returncode != 0 or not parent.is_junction():
+        raise AssertionError("J4_ATTACK_JUNCTION_SETUP_FAILED")
+    print("DC06_J4_ATTACKER_REPLACEMENT_JUNCTION_CONFIRMED_PASS")
+
+    # Same user-owner+SYSTEM protected SDDL as the production restore.
+    sid = os.environ["DC06_J4_CURRENT_SID"]
+    if not sid.startswith("S-1-"):
+        raise AssertionError("J4_WINDOWS_SID_UNAVAILABLE")
+    sddl = "O:" + sid + "D:P(A;;GA;;;" + sid + ")(A;;GA;;;SY)"
+    adv = ctypes.WinDLL("advapi32", use_last_error=True)
+    adv.ConvertStringSecurityDescriptorToSecurityDescriptorW.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD,
+        ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.DWORD),
+    ]
+    adv.ConvertStringSecurityDescriptorToSecurityDescriptorW.restype = wintypes.BOOL
+    if not adv.ConvertStringSecurityDescriptorToSecurityDescriptorW(
+            sddl, 1, ctypes.byref(descriptor), None):
+        raise AssertionError("J4_PRIVATE_DACL_UNAVAILABLE")
+
+    payload = {
         "active_media_id": "media2", "active_locator_id": "loc2",
         "media_keys": {"media1": "11" * 32, "media2": "22" * 32},
         "locator_keys": {"loc1": "33" * 32, "loc2": "44" * 32},
     }
-    target = parent / "restored.json"
-    restore.restore_new_private_file(str(target), json.dumps(data).encode("utf-8"))
-    assert target.is_file() and not moved.exists()
-    assert json.loads(target.read_text(encoding="utf-8")) == data
-    print(attack.stdout.strip())
-    print("DC06_J4_PARENT_NAMESPACE_AND_RESTORE_PASS")
+    raw = json.dumps(payload).encode("utf-8")
+    # This is the exact production helper, no test-time hook or alternate writer.
+    new_file = restore._create_new_under_checked_parent(
+        parent_handle, "recovered.json", descriptor)
+    try:
+        written = wintypes.DWORD()
+        buffer = ctypes.create_string_buffer(raw)
+        if not kernel.WriteFile(new_file, buffer, len(raw),
+                                ctypes.byref(written), None):
+            raise AssertionError("J4_NATIVE_WRITE_DENIED")
+        if written.value != len(raw) or not kernel.FlushFileBuffers(new_file):
+            raise AssertionError("J4_NATIVE_WRITE_FLUSH_DENIED")
+    finally:
+        kernel.CloseHandle(new_file)
+
+    genuine = moved / "recovered.json"
+    injected = trap / "recovered.json"
+    assert genuine.is_file() and not injected.exists()
+    assert probe.read_no_reparse_file(str(genuine)) == raw
+    print("DC06_J4_HANDLE_RELATIVE_PARENT_ISOLATION_PASS")
 finally:
-    kernel.CloseHandle(handle)
+    if descriptor.value:
+        kernel.LocalFree(descriptor)
+    kernel.CloseHandle(parent_handle)
 '@ | python -
-  if ($LASTEXITCODE -ne 0) { throw 'F5BD2_J4_PARENT_SHARE_BARRIER_FAILED' }
+  if ($LASTEXITCODE -ne 0) { throw 'F5BD2_J4_HANDLE_RELATIVE_PARENT_ISOLATION_FAILED' }
 
 } finally {
   Remove-Item -LiteralPath $root -Recurse -Force -ErrorAction SilentlyContinue
