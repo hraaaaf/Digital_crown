@@ -299,7 +299,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
       if (activeAnalysis !== 'all' && !isGhost) {
         const analysis = activeAnalysis.toLowerCase();
-        if (analysis === 'steiner' && !['sn', 'na', 'nb'].includes(lineKey)) return null;
+        if (analysis === 'steiner' && !['sn', 'na', 'nb', 'u1', 'l1'].includes(lineKey)) return null;
         if (analysis === 'tweed' && !['fh', 'mp', 'u1', 'l1', 'zprofile'].includes(lineKey)) return null;
         if (analysis === 'mcnamara' && !['fh', 'mcnamara_perp', 'coa', 'cogn', 'ansme'].includes(lineKey)) return null;
         if (analysis === 'wits' && !['occ'].includes(lineKey)) return null;
@@ -369,7 +369,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
     const occAnt = getPoint(finalPts, 'Occ_Ant');
     const occPost = getPoint(finalPts, 'Occ_Post');
 
-    const showSteiner = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'steiner';
+    // Native Steiner must show its own source points/planes; "all" keeps the
+    // historic research overlays without modifying their underlying geometry.
+    const steinerOnly = activeAnalysis.toLowerCase() === 'steiner';
+    const showSteiner = activeAnalysis === 'all' || steinerOnly;
     const showTweed = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'tweed';
     const showMcNamara = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'mcnamara';
     const showWits = activeAnalysis === 'all' || activeAnalysis.toLowerCase() === 'wits';
@@ -407,6 +410,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
             {seg(s, n, 'sn', P.sn)}
             {seg(n, a, 'na', P.na)}
             {seg(n, b, 'nb', P.nb)}
+            {/* Source-to-source finite incisor axes replace Steiner's infinite
+                local-coordinate tooth decoration; no synthetic extensions. */}
+            {seg(u1a, u1i, 'u1', P.u1)}
+            {seg(l1a, l1i, 'l1', P.l1)}
             {seg(a, b, 'ab', P.ab, { dash: isGhost ? '6,4' : '2,3', op: 0.50 })}
           </>
         )}
@@ -421,7 +428,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
 
         {showWits && seg(occPost, occAnt, 'occ', cephaloGeometryColor('occ'), { dash: '4,4' })}
 
-        {!referenceHold && vto.showSoftTissue && isLayerVisible('soft_tissue') && !isGhost && (() => {
+        {!referenceHold && !steinerOnly && vto.showSoftTissue && isLayerVisible('soft_tissue') && !isGhost && (() => {
           const ls2 = getPoint(finalPts, 'Ls2') || getPoint(finalPts, 'ls2');
           const li2 = getPoint(finalPts, 'Li2') || getPoint(finalPts, 'li2');
           const profilePoints = [gSoft, nSoft, prn, cm, sn, aSoft, ls, ls2, st, li2, li, bSoft, pogSoft, meSoft].filter(Boolean) as Landmark[];
@@ -494,7 +501,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           );
         })()}
 
-        {isLayerVisible('plans') && prn && pogSoft && (
+        {!steinerOnly && isLayerVisible('plans') && prn && pogSoft && (
           <g opacity={layerOpacityFor('plans')} data-ortho-layer="plans">
             <line
               x1={prn.x} y1={prn.y} x2={pogSoft.x} y2={pogSoft.y}
@@ -526,14 +533,14 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {isLayerVisible('measurements') && wedgeCompPath && (
+        {!steinerOnly && isLayerVisible('measurements') && wedgeCompPath && (
           <path data-ortho-layer="measurements" opacity={layerOpacityFor('measurements')} d={wedgeCompPath} fill={wComp} fillOpacity="0.10" stroke={wComp} strokeWidth="0.9" strokeDasharray="4,2" vectorEffect="non-scaling-stroke" className="pointer-events-none" />
         )}
-        {isLayerVisible('measurements') && wedgeNormPath && (
+        {!steinerOnly && isLayerVisible('measurements') && wedgeNormPath && (
           <path data-ortho-layer="measurements" opacity={layerOpacityFor('measurements')} d={wedgeNormPath} fill={wNorm} fillOpacity="0.20" stroke={wNorm} strokeWidth="1.1" vectorEffect="non-scaling-stroke" className="pointer-events-none" />
         )}
 
-        {!referenceHold && isLayerVisible('teeth') && u1i && u1a && (
+        {!referenceHold && !steinerOnly && isLayerVisible('teeth') && u1i && u1a && (
           <AnatomicalTooth
             incisalPoint={u1i}
             apexPoint={u1a}
@@ -545,7 +552,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
             glowFilter={u1Glow}
           />
         )}
-        {!referenceHold && isLayerVisible('teeth') && l1i && l1a && (
+        {!referenceHold && !steinerOnly && isLayerVisible('teeth') && l1i && l1a && (
           <AnatomicalTooth
             incisalPoint={l1i}
             apexPoint={l1a}
@@ -565,9 +572,14 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const poAnatomic = getPoint(landmarks, 'Po_anatomic') ?? (tweedPoAnatomicCertified ? po : undefined);
   const or_ = getPoint(landmarks, 'Or');
   const activeAnalysisKey = activeAnalysis.toLowerCase();
+  // Display-only protocol guards: Steiner must never inherit Frankfort or
+  // McNamara extensions, which can reach far outside the real radiograph.
+  const showFrankfortReference = ['all', 'tweed', 'mcnamara'].includes(activeAnalysisKey);
+  const showMcNamaraReference = ['all', 'mcnamara'].includes(activeAnalysisKey);
+  const showTweedIncisorZones = ['all', 'tweed'].includes(activeAnalysisKey);
   const activeFrankfortPo = activeAnalysisKey === 'tweed' ? poAnatomic : po;
   let francfortLineExtended: { x1: number; y1: number; x2: number; y2: number } | null = null;
-  if (activeFrankfortPo && or_) {
+  if (showFrankfortReference && activeFrankfortPo && or_) {
     const dx = or_.x - activeFrankfortPo.x;
     const dy = or_.y - activeFrankfortPo.y;
     francfortLineExtended = {
@@ -585,7 +597,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const bPrime = (activeFrankfortPo && or_ && ptB) ? projectPointOnLine(ptB.x, ptB.y, activeFrankfortPo.x, activeFrankfortPo.y, or_.x, or_.y) : null;
 
   let mcNamaraLine: { x1: number; y1: number; x2: number; y2: number } | null = null;
-  if (n0 && nPrime) {
+  if (showMcNamaraReference && n0 && nPrime) {
     const dx = nPrime.x - n0.x;
     const dy = nPrime.y - n0.y;
     mcNamaraLine = {
@@ -611,8 +623,8 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
   const wOr = (u1Dragged || frkDragged) ? getPoint(landmarks, 'Or') : null;
   const wGo = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Go') : null;
   const wMe = (l1Dragged || mandDragged) ? getPoint(landmarks, 'Me') : null;
-  const showIMPA = !referenceHold && !!(wL1i && wL1a && wGo && wMe);
-  const showIF = !referenceHold && !!(wU1i && wU1a && wPo && wOr);
+  const showIMPA = !referenceHold && showTweedIncisorZones && !!(wL1i && wL1a && wGo && wMe);
+  const showIF = !referenceHold && showTweedIncisorZones && !!(wU1i && wU1a && wPo && wOr);
   const skeletalOp = activeDragId ? P.isolationDim : baseOpacity;
 
   if (imageWidth === 0 || imageHeight === 0) return null;
@@ -676,8 +688,9 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
                 className="pointer-events-none"
               />
             ))}
-            {!referenceHold && isLayerVisible('plans') && francfortLineExtended && (
+            {!referenceHold && showFrankfortReference && isLayerVisible('plans') && francfortLineExtended && (
               <line
+                data-cephalo-reference-line="frankfort-extended"
                 x1={francfortLineExtended.x1} y1={francfortLineExtended.y1}
                 x2={francfortLineExtended.x2} y2={francfortLineExtended.y2}
                 stroke={cephaloGeometryColor('fh')}
@@ -690,9 +703,10 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         </motion.g>
 
-        {!referenceHold && isLayerVisible('plans') && mcNamaraLine && nPrime && nPrimeTick && (
+        {!referenceHold && showMcNamaraReference && isLayerVisible('plans') && mcNamaraLine && nPrime && nPrimeTick && (
           <g opacity={layerOpacityFor('plans')} data-ortho-layer="plans">
             <line
+              data-cephalo-reference-line="mcnamara-perpendicular"
               x1={mcNamaraLine.x1} y1={mcNamaraLine.y1}
               x2={mcNamaraLine.x2} y2={mcNamaraLine.y2}
               stroke={cephaloGeometryColor('mcnamara_perp')}
@@ -721,7 +735,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {!referenceHold && isLayerVisible('measurements') && aPrime && ptA && aPrimeTick && (
+        {!referenceHold && showMcNamaraReference && isLayerVisible('measurements') && aPrime && ptA && aPrimeTick && (
           <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptA.x} y1={ptA.y}
@@ -752,7 +766,7 @@ export const CephaloTracingLayer: React.FC<CephaloTracingLayerProps> = ({
           </g>
         )}
 
-        {!referenceHold && isLayerVisible('measurements') && bPrime && ptB && bPrimeTick && (
+        {!referenceHold && showMcNamaraReference && isLayerVisible('measurements') && bPrime && ptB && bPrimeTick && (
           <g opacity={layerOpacityFor('measurements')} data-ortho-layer="measurements">
             <line
               x1={ptB.x} y1={ptB.y}

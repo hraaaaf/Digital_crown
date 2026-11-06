@@ -1,0 +1,184 @@
+name: CEPH Four-Part A4 Clinical Draft Gate (NO DEPLOY)
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/generators/cephalo_four_part_report.py'
+      - 'backend/services/generators/bilan_ortho_gen.py'
+      - 'backend/services/cephalo_pdf_projection.py'
+      - 'backend/services/cephalo_pdf_clinician_evidence.py'
+      - 'backend/services/cephalo_pdf_media.py'
+      - 'backend/tests/test_cephalo_four_part_report.py'
+      - 'frontend/src/features/patients/PatientDetailsInner.tsx'
+      - '.github/workflows/ceph-fourpart-a4-targeted.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  a4-draft-and-regression:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SECRET_KEY: ceph-fourpart-disposable-test-key-000001
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify exact HEAD
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-fourpart-deps.txt
+          python -m pip install -r /tmp/ceph-fourpart-deps.txt
+          python -m pip check
+      - name: Verify four-part A4 PDF and preserve existing R17 gates
+        run: |
+          python -m pytest \
+            backend/tests/test_cephalo_four_part_report.py \
+            backend/tests/test_cephalo_r17_pdf_projection.py \
+            backend/tests/test_cephalo_r17_pdf_certification.py \
+            backend/tests/test_cephalo_r17_pdf_renderer_contract.py -q
+      - name: Render authentic synthetic A4 pages for visual review
+        run: |
+          mkdir -p artifacts/ceph-fourpart-a4
+          python - <<'PY'
+          import fitz
+          from pathlib import Path
+          from backend.tests.test_cephalo_four_part_report import _vm, _projection
+          from io import BytesIO
+          from PIL import Image
+          from backend.services.generators.bilan_ortho_gen import BilanOrthoPDFGenerator
+          root = Path('artifacts/ceph-fourpart-a4')
+          generator = BilanOrthoPDFGenerator(str(root))
+          filename = generator.generate(
+              _vm(), filename='synthetic-unsigned.pdf', projection=_projection())
+          with fitz.open(filename) as pdf:
+              assert len(pdf) >= 1
+              text = chr(10).join(p.get_text() for p in pdf)
+              assert 'BROUILLON' in text and 'IV' in text
+              for n, page in enumerate(pdf, 1):
+                  page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
+                      root / f'page-{n:02d}.png')
+
+          # Separate reproducible photo/layout fixture: images are generated
+          # rectangles, not real clinical radiographs or an asserted diagnosis.
+          photo_slots = [
+              ('EXTRA_FRONTAL_REPOSE', 'Frontal', 'Extra-buccales'),
+              ('EXTRA_PROFILE', 'Profil', 'Extra-buccales'),
+              ('EXTRA_SMILE', 'Sourire', 'Extra-buccales'),
+              ('INTRA_FRONTAL', 'Intra frontal', 'Intra-buccales'),
+              ('INTRA_RIGHT', 'Intra droit', 'Intra-buccales'),
+              ('INTRA_LEFT', 'Intra gauche', 'Intra-buccales'),
+              ('INTRA_OCCLUSAL_MAXILLARY', 'Occlusal maxillaire', 'Intra-buccales'),
+              ('INTRA_OCCLUSAL_MANDIBULAR', 'Occlusal mandibulaire', 'Intra-buccales'),
+          ]
+          photos = []
+          for index, (slot, label, group) in enumerate(photo_slots):
+              buffer = BytesIO()
+              Image.new('RGB', (220, 150), (
+                  120 + index * 11, 154 + index * 6, 175 + index * 4,
+              )).save(buffer, format='JPEG')
+              photos.append({
+                  'slot_id': slot, 'asset_id': 3000 + index,
+                  'group': group, 'label': label,
+                  'timepoint': 'T0', 'captured_at': '06/11/2026',
+                  'jpeg': buffer.getvalue(),
+              })
+          gallery_file = generator.generate(
+              _vm(), filename='synthetic-with-dated-photos-unsigned.pdf',
+              projection=_projection(), media={'photos': photos, 'radio_jpeg': None},
+          )
+          with fitz.open(gallery_file) as pdf:
+              content = chr(10).join(p.get_text() for p in pdf)
+              assert '06/11/2026' in content and 'BROUILLON' in content
+              assert 'IV' in content
+              for n, page in enumerate(pdf, 1):
+                  page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
+                      root / f'with-dated-photos-page-{n:02d}.png')
+          # Clinician-audited synthetic graph: verify that source-backed
+          # diagnoses/objectives/phases appear, but the A4 stays unsigned.
+          from backend.tests.test_cephalo_four_part_report import _clinician_audited_graph
+          from backend.services.cephalo_pdf_clinician_evidence import (
+              project_audited_clinician_evidence,
+          )
+          graph, case_id = _clinician_audited_graph()
+          audited = project_audited_clinician_evidence(
+              graph, patient_id=1, case_id=case_id, analysis_id=867, revision=4,
+          )
+          clinical_projection = _projection()
+          clinical_projection.update({
+              'patient_id': 1, 'analysis_id': 867, 'analysis_revision': 4,
+              'evidence_graph_present': True,
+              'clinician_evidence': audited,
+          })
+          clinical_vm = _vm().model_copy(update={'patient_id': 1})
+          clinical_file = generator.generate(
+              clinical_vm, filename='synthetic-audited-unsigned.pdf',
+              projection=clinical_projection, media={'photos': photos, 'radio_jpeg': None},
+          )
+          with fitz.open(clinical_file) as pdf:
+              body = chr(10).join(p.get_text() for p in pdf)
+              assert 'Synthetic diagnosis used only to test graph integrity.' in body
+              assert 'Synthetic phase' in body and 'BROUILLON' in body
+              for n, page in enumerate(pdf, 1):
+                  page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
+                      root / f'audited-draft-page-{n:02d}.png')
+          # Shared cabinet letterhead proof with an in-run synthetic logo.
+          # These are fixture palettes from the cabinet configuration, never
+          # product-specific colors embedded in the PDF renderer.
+          logo_dir = Path('backend/static/uploads')
+          logo_dir.mkdir(parents=True, exist_ok=True)
+          logo_name = 'ceph-fourpart-ci-synthetic-logo.png'
+          Image.new('RGB', (96, 96), (35, 110, 147)).save(logo_dir / logo_name)
+          branding = (
+              ('swiss', '#9B2C88', '#51676F', '#198C70'),
+              ('clinical', '#1A566F', '#596873', '#B66A16'),
+          )
+          for template, primary, secondary, accent in branding:
+              vm = _vm().model_copy(update={'cabinet_config': {
+                  **_vm().cabinet_config,
+                  'selected_template': template,
+                  'primary_color': primary,
+                  'secondary_color': secondary,
+                  'accent_color': accent,
+                  'logo_path': logo_name,
+                  'header_lines_fr': ['Dr Test Cabinet', 'Orthodontie de demonstration'],
+                  'footer_address': 'Adresse fictive de test, 10000',
+                  'footer_phones': '05 00 00 00 00',
+              }})
+              pdf_file = generator.generate(
+                  vm, filename=f'branding-{template}-unsigned.pdf',
+                  projection=_projection())
+              with fitz.open(pdf_file) as pdf:
+                  assert len(pdf) >= 1
+                  assert 'BROUILLON' in chr(10).join(p.get_text() for p in pdf)
+                  for n, page in enumerate(pdf, 1):
+                      txt = page.get_text()
+                      assert 'Dr Test Cabinet' in txt and 'Adresse fictive de test' in txt
+                      assert '05 00 00 00 00' in txt
+                      assert page.get_images(full=True), 'Configured cabinet logo absent'
+                      page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
+                          root / f'branding-{template}-page-{n:02d}.png')
+          print('FOUR_PART_A4_TWO_SYNTHETIC_BRANDED_THEMES_VERIFIED_NO_CLINICAL_APPROVAL')
+          print('FOUR_PART_A4_SYNTHETIC_DATED_MEDIA_AND_AUDITED_DRAFT_RENDERED_NONCLINICAL')
+          PY
+      - name: Upload A4 rendered pages (NOT human clinical approval)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-fourpart-a4-${{ github.event.pull_request.head.sha }}
+          path: artifacts/ceph-fourpart-a4/
+          if-no-files-found: warn
+          retention-days: 30

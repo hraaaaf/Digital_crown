@@ -24,7 +24,8 @@ const dir=process.env.CEPH_PUBLIC_SOURCE_DIR||'/tmp/ceph-public-originals';
 const out=path.resolve('../artifacts/ceph-r23h-first-use');
 await fs.mkdir(out,{recursive:true});
 const report={head,clinical_release:false,scientific_goldset:false,patient_real:false,
- case_ids:[],checks:[],errors:[],screenshots:[],overall:'NOT_TESTED'};
+ case_ids:[],checks:[],errors:[],screenshots:[],svg_screenshots:[],react_steiner:[],fullfilm_review:[],overall:'NOT_TESTED'};
+const sourceLockedSnapshots=[];
 const browser=await chromium.launch({headless:true});
 const api=await request.newContext({baseURL:'http://127.0.0.1:8005'});
 let page,ctx,token;
@@ -114,6 +115,18 @@ try {
        &&stored.mm_per_pixel==null&&stored.landmarks_data?.length===38
        &&stored.angles_data?.vision_metadata?.mode_inference==='SOTA_ONNX_38',
        'Persistence or actual source/model provenance mismatch');
+     // Independently persisted, authenticated GET snapshot — never invent landmarks.
+     const persistedPoints=stored.landmarks_data.map(p=>({id:p.id,x:p.x,y:p.y}));
+     ensure(persistedPoints.length===38&&new Set(persistedPoints.map(p=>p.id)).size===38
+       &&persistedPoints.every(p=>typeof p.id==='string'&&Number.isFinite(p.x)&&Number.isFinite(p.y)
+         &&p.x>=0&&p.x<spec.width&&p.y>=0&&p.y<spec.height),
+       'Cannot audit 38 complete landmarks in native-image coordinates');
+     sourceLockedSnapshots.push({
+       radio:spec.name,source_image_sha256:spec.hash,source_name:spec.file,
+       source_width:spec.width,source_height:spec.height,study_id:payload.analysis_id,
+       inference_mode:'SOTA_ONNX_38',is_calibrated:false,mm_per_pixel:null,
+       landmarks:persistedPoints,
+     });
      const displayed=await visibleImage(spec);
      await shot('02-real-upload-'+spec.name);
      return {study_id:payload.analysis_id,actual_onnx_landmarks:38,displayed_hash:displayed.hash,calibration_verified:false};
@@ -179,10 +192,123 @@ try {
      await page.locator('[data-cephalo-history-analysis-id="'+report.case_ids[i]+'"]').click();
      await page.locator('[data-cephalo-selected-analysis-id="'+report.case_ids[i]+'"]').waitFor({state:'visible'});
      await visibleImage(specs[i]);
+     const fresh=await api.get('/api/ia/analyses/'+report.case_ids[i],{headers:{Authorization:'Bearer '+token}});
+     ensure(fresh.status()===200,'Reopened study not independently readable by authenticated GET');
+     const persisted=await fresh.json();
+     const locked=sourceLockedSnapshots.find(p=>p.radio===specs[i].name);
+     ensure(locked&&JSON.stringify(persisted.landmarks_data.map(p=>({id:p.id,x:p.x,y:p.y})))
+       ===JSON.stringify(locked.landmarks)&&persisted.is_calibrated===false
+       &&persisted.mm_per_pixel==null,'Full-film source points changed during reopen');
      await shot('03-reopen-'+specs[i].name);
+     // Actual Digital Crown SVG screenshot. Kept separately from the audited
+     // pixel-accurate full-film board to prevent conflating UI and audit views.
+     const svg=page.locator('svg[data-cephalo-viewport="base"]');
+     await svg.waitFor({state:'visible',timeout:20000});
+     const uiFile='04-ui-svg-'+specs[i].name+'.png';
+     await svg.screenshot({path:path.join(out,uiFile),animations:'disabled',timeout:20000});
+     report.svg_screenshots.push(uiFile);
+     // This is the REAL native React SVG, using persisted GET landmarks,
+     // not the external Python drawing or a synthetic feature-point overlay.
+     const selector=page.locator('#cephalo-ready-analysis');
+     await selector.waitFor({state:'visible'});
+     const selectable=await selector.locator('option').evaluateAll(nodes=>
+       nodes.filter(n=>!n.disabled).map(n=>n.value));
+     ensure(JSON.stringify(selectable)===JSON.stringify(['com','steiner']),
+       'Unexpected V1 selectable modes: '+JSON.stringify(selectable));
+     await selector.selectOption('steiner');
+     await page.locator('[data-cephalo-analysis="steiner"]').waitFor({state:'visible'});
+     for(const id of ['sn','na','nb','u1','l1'])
+       await svg.locator('[data-cephalo-line-key="'+id+'"]').first()
+         .waitFor({state:'attached',timeout:20000});
+     // Real clinical protocol selection: Steiner is NOT an excuse to draw
+     // historic extended Frankfort/McNamara or lines outside source pixels.
+     ensure(await svg.locator('[data-cephalo-reference-line]').count()===0,
+       'Steiner leaked off-protocol Frankfort/McNamara long-line overlay');
+     ensure(await svg.getByText('McNamara',{exact:true}).count()===0,
+       'Steiner leaked an unrelated McNamara label');
+     const unbounded=await svg.locator('line').evaluateAll((nodes,frame)=>
+       nodes.map(node=>{
+         const names=['x1','y1','x2','y2'];
+         const values=names.map(key=>Number(node.getAttribute(key)));
+         return {key:node.getAttribute('data-cephalo-line-key')||node.getAttribute('data-cephalo-reference-line'),
+           values};
+       }).filter(({values})=>values.some((value,index)=>
+         !Number.isFinite(value)||value<0||value>(index%2===0?frame.width:frame.height))),
+       {width:specs[i].width,height:specs[i].height});
+     ensure(unbounded.length===0,'Steiner SVG contains out-of-frame construction lines '+JSON.stringify(unbounded));
+     const rendered=await svg.locator('[data-cephalo-line-key]').evaluateAll(nodes=>
+       nodes.map(node=>({id:node.getAttribute('data-cephalo-line-key'),
+         x1:Number(node.getAttribute('x1')),y1:Number(node.getAttribute('y1')),
+         x2:Number(node.getAttribute('x2')),y2:Number(node.getAttribute('y2'))})));
+     const originalPoints=new Map(locked.landmarks.map(p=>[p.id.toLowerCase(),p]));
+     const near=(line,p,q)=>Math.hypot(line.x1-p.x,line.y1-p.y)<0.05
+       &&Math.hypot(line.x2-q.x,line.y2-q.y)<0.05;
+     const segments=[];
+     for(const [id,from,to] of [['sn','s','n'],['na','n','a'],['nb','n','b'],['u1','u1_apex','u1_incisal'],['l1','l1_apex','l1_incisal']]){
+       const p=originalPoints.get(from),q=originalPoints.get(to);
+       ensure(p&&q,'Source GET points missing for '+id);
+       const line=rendered.find(l=>l.id===id&&near(l,p,q));
+       ensure(line,'Native React SVG line differs from source GET for '+id);
+       segments.push({...line,from,to});
+     }
+     const whole='05-real-react-steiner-'+specs[i].name+'.png';
+     const native='06-real-react-steiner-svg-'+specs[i].name+'.png';
+     await page.screenshot({path:path.join(out,whole),animations:'disabled'});
+     await svg.screenshot({path:path.join(out,native),animations:'disabled',timeout:20000});
+     report.screenshots.push(whole);
+     report.svg_screenshots.push(native);
+     report.react_steiner.push({radio:specs[i].name,study_id:report.case_ids[i],
+       source_image_sha256:specs[i].hash,renderer:'DIGITAL_CROWN_AUTHENTICATED_REACT_SVG',
+       source_lock:'AUTHENTICATED_GET_AFTER_REAL_UI_UPLOAD',model:'SOTA_ONNX_38',
+       uncalibrated:true,expert_verified:false,off_protocol_lines:0,
+       out_of_image_lines:unbounded.length,line_segments:segments,
+       screenshot:whole,svg_screenshot:native});
+     console.log('R23H_NATIVE_REACT_STEINER',specs[i].name,
+       'SEGMENTS_SN_NA_NB_U1_L1_SOURCE_LOCKED_NONCLINICAL');
    }
-   return {new_browser:true,studies:report.case_ids.slice().reverse()};
+   return {new_browser:true,studies:report.case_ids.slice().reverse(),
+     native_react_steiner:report.react_steiner.map(v=>v.radio)};
  });
+ await check('STEINER_15_READPATH_COVERAGE',async()=>{
+   const ids=['M_SNA_DEG_V1','M_SNB_DEG_V1','M_ANB_DEG_V1','M_U1_NA_DEG_V1','M_U1_NA_MM_V1','M_L1_NB_DEG_V1','M_L1_NB_MM_V1','M_INTERINCISAL_DEG_V1','M_OCCLUSAL_PLANE_SN_DEG_V1','M_SN_GOGN_DEG_V1','M_L1_GOGN_DEG_V1','M_SND_DEG_V1','M_POG_NB_MM_V1','M_L1_DLINE_MM_V1','M_L1_DLINE_DEG_V1'];
+   const cases=[];
+   for(let i=0;i<specs.length;i++){
+     const response=await api.get('/api/ia/analyses/'+report.case_ids[i],{headers:{Authorization:'Bearer '+token}});
+     ensure(response.status()===200,'Steiner GET refused');
+     const study=await response.json();
+     ensure(study.is_calibrated===false&&study.mm_per_pixel==null,'Unexpected calibration');
+     const s=study.angles_data?.scientific_read_path;
+     ensure(s?.authority==='EVIDENCE_GRAPH_V1'&&s?.active_chain==='VERIFIED','Unverified scientific chain');
+     const p=s.protocol_profiles?.steiner;
+     ensure(p?.protocol_profile_id==='STEINER_STATIC_PROTOCOL_PROFILE_V1'&&p?.source_lock_gate?.status==='SATISFIED'&&p?.norm_set?.authority==='REFERENCE_DISPLAY_ONLY','Wrong Steiner source');
+     ensure(Array.isArray(p.rows)&&p.rows.length===15&&p.rows.every((r,j)=>r.canonical_measurement_id===ids[j]),'Steiner membership drift');
+     const rows=p.rows.map(r=>{
+       const available=r.availability_status==='AVAILABLE';
+       ensure(typeof r.availability_status==='string'&&r.classification_authority===false&&r.interpretation_status==='REFERENCE_DISPLAY_ONLY_NO_CLASSIFICATION','Unsafe Steiner metadata');
+       ensure(available?(Number.isFinite(r.value)&&r.measurement_refs?.length>0&&typeof r.value_authority_method_id==='string'):r.value==null,'Incoherent Steiner row '+r.canonical_measurement_id);
+       ensure(!available||!r.canonical_measurement_id.includes('_MM_'),'Uncalibrated mm forbidden '+r.canonical_measurement_id);
+       return {id:r.canonical_measurement_id,label:r.label,layer:r.layer,status:r.availability_status,value:available?r.value:null,unit:r.unit??null,method:available?r.value_authority_method_id:null,measurement_refs:available?r.measurement_refs:[],nc_context:available?[]:(r.canonical_measurement_id.includes('_MM_')?['CALIBRATION_UNVERIFIED','SOURCE_LANDMARKS_NOT_INFERRED']:['SOURCE_EVIDENCE_NOT_AVAILABLE']),classification_authority:false};
+     });
+     const available=rows.filter(r=>r.status==='AVAILABLE').length;
+     cases.push({radio:specs[i].name,study_id:report.case_ids[i],source_image_sha256:specs[i].hash,model:'SOTA_ONNX_38',source:'AUTHENTICATED_GET_ACTIVE_CHAIN_VERIFIED',calibration_verified:false,clinical_authority:false,available_count:available,nc_count:15-available,total:15,rows});
+     console.log('R23H_STEINER_15_COVERAGE',specs[i].name,JSON.stringify({available,total:15,clinical:false}));
+   }
+   report.steiner_15_coverage={schema:'CEPH_STEINER_15_NONCLINICAL_V1',head,clinical_release:false,source:'AUTHENTICATED_GET',cases};
+   await fs.writeFile(path.join(out,'steiner-15-coverage.json'),JSON.stringify(report.steiner_15_coverage,null,2));
+   return cases.map(c=>({radio:c.radio,available:c.available_count,total:c.total}));
+ });
+ ensure(sourceLockedSnapshots.length===2&&report.svg_screenshots.length===4
+   &&report.react_steiner.length===2,
+   'Missing source-locked real-landmark data or genuine native Steiner screenshots');
+ await fs.writeFile(path.join(out,'source-locked-38-points.json'),
+   JSON.stringify({
+     head,clinical_authority:false,model_sha256:'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb',
+     source:'EXACT_SHA_AUTHENTICATED_GET_AFTER_REAL_UI_IMPORT',cases:sourceLockedSnapshots,
+   },null,2));
+ report.fullfilm_review=sourceLockedSnapshots.map(p=>({
+   radio:p.radio,landmark_count:p.landmarks.length,source_image_sha256:p.source_image_sha256,
+   study_id:p.study_id,source:'AUTHENTICATED_GET',clinical_accuracy_evaluated:false,
+ }));
  report.overall='FUE_H_REAL_UI_ONNX_PERSISTENCE_SECURITY_PASS_NONCLINICAL';
 }catch(e){report.overall='FUE_H_FAILED';if(!report.errors.some(x=>x.includes(String(e))))report.errors.push(String(e))}
 finally{
