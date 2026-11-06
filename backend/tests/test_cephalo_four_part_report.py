@@ -489,8 +489,7 @@ def test_four_part_a4_inherits_cabinet_theme_tokens(tmp_path: Path):
     def has_color(text, rgb):
         return any(text in span["text"] and span["color"] == rgb for span in spans)
     assert has_color("BILAN ORTHODONTIQUE", 0x9B2C88)
-    # PDF text extractors split accented headings across font spans.
-    assert has_color("Analyse", 0x198C70)
+    assert has_color("Analyse dento-alvéolaire", 0x198C70)
     assert any("BROUILLON" in span["text"] and span["color"] == 0x51676F for span in spans)
 
 
