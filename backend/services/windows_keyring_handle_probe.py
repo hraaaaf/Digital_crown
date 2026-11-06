@@ -88,7 +88,10 @@ def _open_relative_component(parent_handle: int, leaf: str, *, directory: bool) 
         (0x00000080 | 0x00000020 | 0x00020000 | 0x00100000
          if directory else 0x80000000 | 0x00020000 | 0x00100000),
         ctypes.byref(attrs), ctypes.byref(io), None,
-        0x00000080, 0x00000001, 1,  # normal, share READ, FILE_OPEN
+        0x00000080, (0x00000005 if directory else 0x00000001), 1,
+        # normal; directories share READ|DELETE deliberately so rename races
+        # remain possible, while handle-relative lineage stays immutable.
+        # Files share READ only. FILE_OPEN never creates a missing component.
         0x00200000 | 0x00000020 | (0x00000001 if directory else 0x00000040),
         None, 0,
     )
