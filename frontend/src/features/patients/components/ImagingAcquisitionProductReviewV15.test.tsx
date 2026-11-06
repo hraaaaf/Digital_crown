@@ -94,8 +94,8 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
     expect(button).toBeDisabled();
     expect(button.className).toContain('bg-primary');
     expect(button.className).toContain('text-on-primary');
-    expect(screen.getByRole('heading', { name: /1\\. Contrôler l'image/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: /2\\. Vérifier l'identité du patient/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /1\. Contrôler l'image/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /2\. Vérifier l'identité du patient/ })).toBeInTheDocument();
     expect(screen.getByLabelText(/Ressaisir le numéro de dossier/)).toHaveValue('');
     expect(screen.getByLabelText(/Ressaisir la date de naissance/)).toHaveValue('');
     expect(screen.queryByText(/SHA-256|Reçu durable|LAB uniquement|Activation cabinet non autorisée/)).toBeNull();
