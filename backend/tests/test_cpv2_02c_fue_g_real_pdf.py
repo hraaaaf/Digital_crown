@@ -114,7 +114,11 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     passed("no_patient_grant_denied", 403)
 
     note = client.post("/api/mobile/documents/archive", headers=auth,
-                       json={**payload, "type": "note"})
+                       json={**payload, "type": "note", "data": {
+                           "payments": [{"acte": "Acte fictif FUE-G", "montant": 100,
+                                         "date": "2026-11-06"}],
+                           "doc_date": "2026-11-06", "teeth_data": [],
+                           "installments": [], "is_global_note": False}})
     assert note.status_code == 403, note.text
     passed("honoraires_archive_denied", 403)
     paid = client.post("/api/mobile/documents/archive", headers=auth,
