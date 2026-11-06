@@ -26,6 +26,10 @@ def render_pdf(content, path):
         assert pdf.page_count > 0
         page = pdf[0]
         assert page.get_text().strip()
+        # Header must be the configured clinician, not a sample placeholder.
+        header = ' '.join(str(block[4]) for block in page.get_text('blocks') if block[1] < 110)
+        assert 'Dr Test FUE-G' in header, header
+        assert 'Nom Prénom' not in page.get_text()
         pix = page.get_pixmap(matrix=fitz.Matrix(1.75, 1.75), alpha=False)
         pix.save(str(path))
         return {"pages": pdf.page_count, "width": pix.width, "height": pix.height}
@@ -37,7 +41,9 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     assert os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "true"
     assert os.environ.get("DATABASE_URL") == "sqlite:///:memory:"
     assert os.environ.get("ENVIRONMENT") == "test"
-    output = Path(os.environ["CPV2_FUE_G_ARTIFACT_DIR"])
+    # Dedicated FUE-G uploads to the configured artifact directory; the full
+    # regression suite uses a disposable test directory without that CI env var.
+    output = Path(os.environ.get("CPV2_FUE_G_ARTIFACT_DIR") or (tmp_path / "fue-g-artifacts"))
     output.mkdir(parents=True, exist_ok=True)
     media = tmp_path / "fue-g-media"
     media.mkdir()
@@ -67,8 +73,15 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
         records.append({"case": label, "passed": True, "status": status, **evidence})
 
     no_auth = client.post("/api/mobile/documents/preview", json=payload)
-    assert no_auth.status_code in (401, 403, 422), no_auth.text
-    passed("no_token_denied", no_auth.status_code)
+    assert no_auth.status_code == 422, no_auth.text
+    assert any(item.get("loc") == ["header", "authorization"]
+               for item in no_auth.json().get("detail", [])), no_auth.text
+    invalid_bearer = client.post("/api/mobile/documents/preview",
+                                 headers={"Authorization": "Bearer invalid-pocket-token"},
+                                 json=payload)
+    assert invalid_bearer.status_code == 401, invalid_bearer.text
+    passed("no_token_denied", no_auth.status_code,
+           invalid_bearer_status=invalid_bearer.status_code)
     before = db.query(models.DocumentArchive).count()
     preview = client.post("/api/mobile/documents/preview", headers=auth, json=payload)
     assert preview.status_code == 200, preview.text
@@ -153,7 +166,7 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     passed("revoked_paired_device_denied", 401)
 
     assert len(records) == 10
-    data = {"head": os.environ["CPV2_FUE_G_SHA"], "type": "FUE-G",
+    data = {"head": os.environ.get("CPV2_FUE_G_SHA", "full-regression-unscoped"), "type": "FUE-G",
             "backend": "actual FastAPI TestClient + ReportLab generator, no PDF mocks",
             "database": "isolated SQLite in-memory; synthetic identities only",
             "cases": records, "all_passed": True,
