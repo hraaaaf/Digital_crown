@@ -320,6 +320,15 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
       if (existing) {
         throw new Error('Une archive précédente doit être vérifiée avant une nouvelle écriture.');
       }
+      const creds = await MobileStorage.getCredentials();
+      if (!creds) throw new Error('Session Pocket non appairée.');
+      // Read-only gate BEFORE recording an intent: no speculative archive
+      // attempt when the explicit cabinet SQL migration is still absent.
+      const ready = await mobileFetch(
+        `${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/documents/archive/ready`,
+        { method: 'GET', headers: { Authorization: `Bearer ${creds.access_token}` }, signal: AbortSignal.timeout(5000) },
+      );
+      if (!ready.ok) throw new Error('Archivage Pocket non activé dans ce cabinet.');
       const intentKey = crypto.randomUUID();
       // Persist the opaque key BEFORE any network write. This is not an offline replay queue.
       await MobileStorage.savePendingDocumentArchive(intentKey, patient.id, type);
