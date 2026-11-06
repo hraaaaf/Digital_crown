@@ -305,5 +305,18 @@ class ColdSourceCase(unittest.TestCase):
         self.deny("EXPLICIT_SOURCE_IDENTIFIER_REQUIRED", kw)
 
 
+    def test_21_password_column_never_accepted_as_identity(self):
+        kw = self.kwargs()
+        kw["source_id_columns"]["legacy_patients"] = "password_hash"
+        self.deny("SENSITIVE_SOURCE_ID_FORBIDDEN", kw)
+
+    def test_22_password_column_never_accepted_as_reference(self):
+        kw = self.kwargs()
+        kw["reference_rules"] = (
+            planner.ReferenceRule("legacy_patients", "password_hash", "legacy_visits"),
+        ) + kw["reference_rules"]
+        self.deny("SENSITIVE_REFERENCE_COLUMN_FORBIDDEN", kw)
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)
