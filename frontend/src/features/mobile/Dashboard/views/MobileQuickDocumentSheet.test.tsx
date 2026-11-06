@@ -135,6 +135,40 @@ describe('MobileQuickDocumentSheet', () => {
     vi.unstubAllGlobals();
   });
 
+  it('does not create an archive intent if cabinet receipt schema is not enabled', async () => {
+    mockedCredentials.mockResolvedValue({
+      publicId: '0123456789abcdef', masterKey: 'a'.repeat(64),
+      access_token: 'mobile-token', device_id: 'paired-device', api_base_url: 'http://127.0.0.1:8005',
+    });
+    vi.stubGlobal('URL', Object.assign(URL, {
+      createObjectURL: vi.fn(() => 'blob:preview'), revokeObjectURL: vi.fn(),
+    }));
+    mockedFetch.mockImplementation(async (input) => {
+      const url = String(input);
+      if (url.includes('/quick-actions/capabilities')) {
+        return new Response(JSON.stringify({
+          can_create_prescription: false, can_create_certificate: true,
+          can_create_devis: false, can_create_honoraires: false, can_create_free_document: false,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+      }
+      if (url.endsWith('/api/mobile/documents/archive/ready')) {
+        return new Response(JSON.stringify({ detail: 'not activated' }), { status: 503 });
+      }
+      return new Response(new Blob(['%PDF-1.4'], { type: 'application/pdf' }), {
+        status: 200, headers: { 'Content-Type': 'application/pdf' },
+      });
+    });
+    render(<MobileQuickDocumentSheet patient={{ id: 101, name: 'Patient Démo' }} onClose={() => undefined} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Certificat/i }));
+    fireEvent.click(screen.getByRole('button', { name: /Prévisualiser/i }));
+    await screen.findByText(/Aperçu validé/i);
+    fireEvent.click(screen.getByRole('button', { name: /Archiver le document/i }));
+    await screen.findByText(/Archivage Pocket non activé/i);
+    expect(MobileStorage.savePendingDocumentArchive).not.toHaveBeenCalled();
+    expect(mockedFetch.mock.calls.filter(([u]) => String(u).endsWith('/api/mobile/documents/archive'))).toHaveLength(0);
+    vi.unstubAllGlobals();
+  });
+
   it('never sends a second archive POST after an uncertain network result', async () => {
     mockedCredentials.mockResolvedValue({
       publicId: '0123456789abcdef', masterKey: 'a'.repeat(64),
