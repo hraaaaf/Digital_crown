@@ -111,7 +111,7 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
       target: { value: 'LAB-42' },
     });
     fireEvent.change(screen.getByLabelText(/Ressaisir la date de naissance/), {
-      target: { value: '2000-03-04' },
+      target: { value: '04/03/2000' },
     });
     expect(button).toBeDisabled();
     fireEvent.click(screen.getByRole('checkbox'));
@@ -125,6 +125,36 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
     expect(await screen.findByRole('status')).toHaveTextContent(/capture n'a pas été ajoutée au dossier/i);
     expect(screen.queryByRole('img')).toBeNull();
     expect(post).toHaveBeenCalledTimes(2);
+  });
+
+  it('renders the reference birth date in French and rejects impossible, ISO and ambiguous entry dates', async () => {
+    render(<ImagingAcquisitionProductReviewV15 patientId={42} />);
+    fireEvent.click(await screen.findByRole('button', { name: /Examiner/ }));
+    const button = await screen.findByRole('button', { name: /Terminer la vérification/ });
+    fireEvent.load(await screen.findByRole('img', { name: /Aperçu sécurisé/ }));
+    expect(screen.getByText(/Naissance : 04\/03\/2000/)).toBeInTheDocument();
+    const date = screen.getByLabelText(/Ressaisir la date de naissance/) as HTMLInputElement;
+    expect(date.type).toBe('text');
+    expect(date.placeholder).toBe('JJ/MM/AAAA');
+    fireEvent.change(screen.getByLabelText(/Ressaisir le numéro de dossier/), {
+      target: { value: 'LAB-42' },
+    });
+    fireEvent.click(screen.getByRole('checkbox'));
+    for (const candidate of [
+      '2000-03-04', '03/04/2000', '31/02/2000', '29/02/2001',
+      '00/03/2000', '04/13/2000', '4/3/2000', '04/03/0000',
+    ]) {
+      fireEvent.change(date, { target: { value: candidate } });
+      expect(button).toBeDisabled();
+    }
+    fireEvent.change(date, { target: { value: '04/03/2000' } });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => expect(post).toHaveBeenCalledWith(confirm, {
+      challenge: review.challenge, selected_patient_id: 42,
+      dossier: 'LAB-42', date_naissance: '2000-03-04',
+      capture_digest: review.capture_digest, explicit_confirmation: true,
+    }));
   });
 
   it('denies malformed, wrong patient, expired or remote preview context', async () => {
@@ -192,7 +222,7 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
       target: { value: 'LAB-42' },
     });
     fireEvent.change(screen.getByLabelText(/Ressaisir la date de naissance/), {
-      target: { value: '2000-03-04' },
+      target: { value: '04/03/2000' },
     });
     fireEvent.click(screen.getByRole('checkbox'));
     expect(button).toBeEnabled();
@@ -235,7 +265,7 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
       target: { value: 'LAB-42' },
     });
     fireEvent.change(screen.getByLabelText(/Ressaisir la date de naissance/), {
-      target: { value: '2000-03-04' },
+      target: { value: '04/03/2000' },
     });
     fireEvent.click(screen.getByRole('checkbox'));
     fireEvent.click(screen.getByRole('button', { name: /Ajouter l’image au dossier/ }));
