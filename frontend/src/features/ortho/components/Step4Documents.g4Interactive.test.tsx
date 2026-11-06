@@ -125,36 +125,28 @@ describe('Cephalo Step4 G4 document controls',()=>{
     expect(state.handlePrint).not.toHaveBeenCalled();
   });
 
-  it('revalidates immediately before archive and archives only when no fatal remains',async()=>{
-    vi.mocked(api.get)
-      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:[]}} as never)
-      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:['Avertissement']}} as never);
-
+  it('holds official archive even when scientific validation is valid', async () => {
     render(<Step4Documents P={P}/>);
-    await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
-
-    const archive=screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement;
-    await waitFor(()=>expect(archive.disabled).toBe(false));
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    const archive = screen.getByRole('button', { name: /Archivage suspendu/i }) as HTMLButtonElement;
+    expect(archive.disabled).toBe(true);
+    expect(screen.getByTestId('unsigned-cephalo-archive-hold').textContent)
+      .toMatch(/brouillon non signé/i);
     fireEvent.click(archive);
-
-    await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(2));
-    await waitFor(()=>expect(state.handlePrint).toHaveBeenCalledWith({analysis_id:99,expected_revision:3}));
+    expect(state.handlePrint).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+    expect(api.get).toHaveBeenCalledTimes(1);
   });
 
-  it('blocks archive when the just-in-time backend validation returns a fatal',async()=>{
-    vi.mocked(api.get)
-      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:true,fatals:[],warnings:[]}} as never)
-      .mockResolvedValueOnce({data:{analysis_id:99,analysis_revision:3,valid:false,fatals:['Landmarks incohérents'],warnings:[]}} as never);
-
+  it('keeps draft available even if official archive is suspended', async () => {
     render(<Step4Documents P={P}/>);
-    await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
-
-    const archive=screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement;
-    await waitFor(()=>expect(archive.disabled).toBe(false));
-    fireEvent.click(archive);
-    await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(2));
-    expect(state.handlePrint).not.toHaveBeenCalled();
-    expect(await screen.findByText('Landmarks incohérents')).toBeTruthy();
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    const draft = screen.getByRole('button', { name: /Brouillon PDF/i }) as HTMLButtonElement;
+    const official = screen.getByRole('button', { name: /Archivage suspendu/i }) as HTMLButtonElement;
+    expect(official.disabled).toBe(true);
+    expect(draft.disabled).toBe(false);
+    expect(screen.getByTestId('unsigned-cephalo-archive-hold').textContent)
+      .toMatch(/signature vérifiable du document exact/i);
   });
 
   it('refreshes coherence validation only when explicitly requested',async()=>{
