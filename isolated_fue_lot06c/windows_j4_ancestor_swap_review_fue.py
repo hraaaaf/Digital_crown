@@ -25,7 +25,11 @@ def _attacker_rename_and_junction(trusted: Path, moved: Path, trap: Path) -> Non
         capture_output=True, text=True, timeout=20,
     )
     if rename.returncode != 0 or trusted.exists() or not moved.is_dir():
-        raise AssertionError("DC06_J4_ANCESTOR_ATTACK_RENAME_NOT_REPRODUCED")
+        raise AssertionError(
+            "DC06_J4_ANCESTOR_ATTACK_RENAME_NOT_REPRODUCED "
+            f"code={rename.returncode} stderr={rename.stderr[-240:]!r} "
+            f"original_exists={trusted.exists()} moved_exists={moved.is_dir()}"
+        )
     junction = subprocess.run(
         ["cmd", "/c", "mklink", "/J", str(trusted), str(trap)],
         capture_output=True, text=True, timeout=20,
