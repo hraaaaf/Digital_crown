@@ -151,3 +151,119 @@ def test_never_promotes_unverified_final_status(tmp_path: Path):
     assert "BROUILLON" in text and "NON SIGNÉ" in text
     assert "FAKE_DIAGNOSIS" not in text
     assert "FAKE_PLAN" not in text
+
+
+def _synthetic_photo_bytes() -> bytes:
+    from io import BytesIO
+    from PIL import Image
+
+    output = BytesIO()
+    Image.new("RGB", (128, 96), (165, 184, 201)).save(output, format="JPEG")
+    return output.getvalue()
+
+
+def test_media_core_photo_provenance_is_preserved_without_new_storage(monkeypatch):
+    from datetime import datetime
+    from backend.services import cephalo_pdf_media as media_loader
+    from backend.services.ortho_media_record import ORTHO_MEDIA_SCHEMA_VERSION
+
+    recorded = []
+    monkeypatch.setattr(media_loader, "build_ortho_media_record", lambda db, **kwargs: {
+        "patient_id": kwargs["patient_id"],
+        "timepoint": "T0",
+        "photo_slots": [{
+            "slot_id": "EXTRA_PROFILE",
+            "state": "FILLED",
+            "asset": {
+                "slot_id": "EXTRA_PROFILE",
+                "asset_id": 24680,
+                "source_kind": "UPLOAD",
+                "timepoint": "T0",
+                "provenance_schema_version": ORTHO_MEDIA_SCHEMA_VERSION,
+                "mime_type": "image/jpeg",
+                "captured_at": datetime(2026, 11, 6, 9, 30),
+            },
+        }],
+    })
+
+    def verified_read(db, **kwargs):
+        recorded.append(kwargs)
+        return _synthetic_photo_bytes()
+
+    monkeypatch.setattr(media_loader, "read_clinical_asset_bytes", verified_read)
+    evidence = media_loader.load_cephalo_pdf_media(
+        None, employer_id=19, patient_id=1213, image_original_path=None,
+    )
+    assert evidence["media_unavailable"] == []
+    assert recorded == [{"employer_id": 19, "patient_id": 1213, "asset_id": 24680}]
+    assert len(evidence["photos"]) == 1
+    image = evidence["photos"][0]
+    assert (image["asset_id"], image["timepoint"], image["captured_at"]) == (
+        24680, "T0", "06/11/2026",
+    )
+    assert image["group"] == "Extra-buccales"
+    assert image["jpeg"].startswith(b"\\xff\\xd8")
+
+
+def test_media_core_photo_loader_rejects_wrong_patient_or_unverified_provenance(monkeypatch):
+    import pytest
+    from datetime import datetime
+    from backend.services import cephalo_pdf_media as media_loader
+    from backend.services.ortho_media_record import ORTHO_MEDIA_SCHEMA_VERSION
+
+    record = {
+        "patient_id": 9999,
+        "timepoint": "T0",
+        "photo_slots": [],
+    }
+    monkeypatch.setattr(media_loader, "build_ortho_media_record", lambda *a, **k: record)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("Unverified asset bytes must never be loaded")
+    monkeypatch.setattr(media_loader, "read_clinical_asset_bytes", forbidden)
+    with pytest.raises(ValueError, match="identity mismatch"):
+        media_loader.load_cephalo_pdf_media(None, employer_id=19, patient_id=1213, image_original_path=None)
+
+    record["patient_id"] = 1213
+    record["photo_slots"] = [{
+        "slot_id": "INTRA_RIGHT",
+        "state": "FILLED",
+        "asset": {
+            "slot_id": "INTRA_RIGHT",
+            "asset_id": 11,
+            "source_kind": "UPLOAD",
+            "timepoint": "T0",
+            "provenance_schema_version": ORTHO_MEDIA_SCHEMA_VERSION,
+            "mime_type": "image/png",
+            "captured_at": datetime(2026, 11, 6),
+        },
+    }]
+    record["photo_slots"][0]["asset"]["provenance_schema_version"] = "UNVERIFIED"
+    evidence = media_loader.load_cephalo_pdf_media(None, employer_id=19, patient_id=1213, image_original_path=None)
+    assert evidence["photos"] == []
+    assert "INTRA_RIGHT" in evidence["media_unavailable"]
+
+
+def test_four_part_a4_prints_only_dated_canonical_photos_and_no_asset_identifiers(tmp_path: Path):
+    photo = {
+        "asset_id": 24680,
+        "slot_id": "EXTRA_PROFILE",
+        "group": "Extra-buccales",
+        "label": "Profil",
+        "timepoint": "T0",
+        "captured_at": "06/11/2026",
+        "jpeg": _synthetic_photo_bytes(),
+    }
+    generator = BilanOrthoPDFGenerator(str(tmp_path))
+    pdf_path = generator.generate(
+        _vm(), filename="with-dated-photos.pdf", projection=_projection(),
+        media={"radio_jpeg": None, "photos": [photo]},
+    )
+    with fitz.open(pdf_path) as pdf:
+        content = "\\n".join(page.get_text() for page in pdf)
+        assert "Profil" in content
+        assert "06/11/2026" in content
+        assert "T0" in content
+        assert "24680" not in content
+        assert "BROUILLON" in content and "NON SIGNÉ" in content
+        assert all(590 <= page.rect.width <= 600 for page in pdf)
+        assert all(840 <= page.rect.height <= 850 for page in pdf)
