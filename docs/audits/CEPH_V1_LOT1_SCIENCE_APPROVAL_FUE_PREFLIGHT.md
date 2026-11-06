@@ -2163,3 +2163,55 @@ GOAL : distinguer plage centrale, compensation, hors compensation, puis hypothè
 **Limites preuves** : screenshot PDF via web tenté p.26 et 31 → erreurs cache miss, donc source PDF uniquement par texte indexé ; Scribd est une reproduction tierce, non la publication éditeur authentifiée. Les normes de la fiche COM photographiée ne sont pas identiques à tous les tableaux CRANIOM pédagogiques : stocker profil/version par source, ne pas écraser 90°±5 et compensation 80–100 par extrêmes CRANIOM 78–114. Publication Bonnefont 2010/2011 = cohorte de 83 jeunes adultes Classe I ; ni norme universelle ni population marocaine validée.
 
 **GOAL** : matrice explicite des seuils, états `TYPE_PROPOSE` vs `CONFIRME`, retenue proche des bornes, conventions, absence de calibration, âge/interpolation, classification dent vs os et règles causales A/B prudentes. FUE ciblées définies NON RUN. **GATE** : SPEC_ONLY, no code, merge, Vercel, patient, ni activation de diagnostic autonome.
+
+
+### 71. POST — 2026-11-06 — CLASSIFICATION CRANIOM/COM A'B' sourcée : type osseux I / II / III (SPEC ONLY)
+
+**Résultat RECHERCHE / MAJ du verdict §70** : une source pédagogique spécifique CRANIOM décrivant explicitement la typologie I/II/III a été retrouvée, et corroborée par un second support présentant les normes par âge. Il n'est plus correct de dire que la source de **toute** classification manque : les critères **9 ans** sont explicites. Cette découverte constitue **une avancée de couverture documentaire**, pas une approbation clinique de toutes les populations ni une preuve que l'implémentation actuelle sait mesurer A'B' en mm.
+
+**Sources et niveau de preuve** :
+- TP SLOT « Téléradiographie, repérage de structures, céphalométrie et DDM », support CRANIOM p.27, https://www.slot-concept.com/bases/slot_communication_pdf/7/fichier.pdf, texte indexé lignes 878–889 : `A'B'` est la projection orthogonale des points **A et B** sur le plan de **Francfort (Po–Or)** ; à **9 ans** moyenne +4,2 ±3,2 et plage **[+1 ; +7,4] mm** ; **adulte** moyenne +2,3 ±3,1 et plage **[−0,8 ; +5,4] mm** ; rubrique « Type I ; Type II Type III ».
+- Document pédagogique CRANIOM détaillé reproduit sur Scribd « Méthode innovante en céphalométrie orthodontique », https://fr.scribd.com/document/795096178/Fi-Chier, texte lignes ~1000–1040 : si A en AVANT B, `A'B'` positif ; **à 9 ans** type I pour +1 à +7,4 ; type II au-delà de +7,4 ; type III en deçà de +1. Le texte cite aussi `−0,8` comme limite inférieure adulte, mais le seuil `>+5,4` du type II adulte est **inféré de la plage du TP**, non confirmé explicitement en prose dans le passage cité. Scribd est reproduction tierce, à ne pas présenter comme original éditeur authentifié.
+- Contexte scientifique : Bonnefont, Casteigt, Ernoult, Sorel (2010/2011), https://www.cambridge.org/core/journals/journal-of-dentofacial-anomalies-and-orthodontics/article/abs/new-method-for-the-utilization-of-cephalometric-measurements-in-orthodontics-or-how-standard-deviations-can-sometimes-be-the-practitioners-false-friends-part-1/ACEE13FF9BD566F6577CAC9E151C4265, cohorte de **83 jeunes adultes Classe I**, présentation osseuse comme **typologie** et non anomalie pathologique. Attention : les références à **9 ans** des supports pédagogiques ne doivent pas être attribuées sans preuve à cette cohorte de jeunes adultes.
+- Les appels `web.run screenshot` du PDF TP aux pages 26 et 31 ont échoué `cache miss`; le contenu texte/index a été consulté, **aucune capture originale de ces pages n'est revendiquée**. La photo COM fournie par praticien reste une source spécifique et non la garantie de version CRANIOM exhaustive.
+
+#### 71-A — Tableau de règles pédagogiques candidates, référentiel versionné obligatoire
+
+| Profil normatif choisi | `A'B'` calculable, même plan/cliché, mm signés | Résultat typologique `PROPOSE` |
+|---|---|---|
+| **référence 9 ans explicitement justifiée** | `A'B' < +1 mm` | `TYPE_III_PROPOSE` |
+| idem | `+1 <= A'B' <= +7,4 mm` | `TYPE_I_PROPOSE` |
+| idem | `A'B' > +7,4 mm` | `TYPE_II_PROPOSE` |
+| **référence adulte explicitement justifiée** | `A'B' < -0,8 mm` | `TYPE_III_PROPOSE` par grille du TP et texte Scribd |
+| idem | `−0,8 <= A'B' <= +5,4 mm` | `TYPE_I_PROPOSE` via plage adulte, **mapping de type** à valider cliniquement |
+| idem | `A'B' > +5,4 mm` | `TYPE_II_PROPOSE` par extrapolation explicite du seuil supérieur du tableau adulte, **règle en attente de validation clinique** |
+| **âge/référentiel intermédiaire NON SOUCÉ (ex. denture mixte 12 ans)** | toutes valeurs | `REFERENCE_AGE_NON_ETABLIE` : pas de classification chiffrée produite silencieusement. |
+
+**Convention géométrique et test de cohérence source** : choisir `x` antérieur positif sur le vecteur unitaire Francfort, points A et B anatomiquement certifiés : `A'B' = dot(A−B, unit_Frankfort) × scale_mm`. Si les distances séparées **A/N-verticale** et **B/N-verticale** ont effectivement été mesurées comme coordonnées sagittales sur **la même verticale de Nasion perpendiculaire à Francfort**, alors `A'B' = A_NVERT - B_NVERT` au même facteur d'échelle. Ne **jamais** déduire l'identité à partir de deux valeurs provenant de clichés/repères/signaux différents ; la comparaison direct/indirect est un **contrôle de cohérence**, pas un bypass de calibration. Po–Or, A/B et étalonnage mm sont nécessaires et indépendamment source-verrouillés.
+
+**Exemple SYNTHÉTIQUE adulte et préconditions satisfaites** : `A_NVERT=+7 mm` et `B_NVERT=−8 mm` (même cliché, référentiel et signe) ⇒ `A'B'=+15 mm`, valeur > +5,4 ; **TYPE II SQUELETTIQUE PROPOSÉ** selon grille adulte pédagogique, **non diagnostic confirmé**. Les deux contributions positionnelles A et B sont également hors de leurs intervalles adultes respectifs, ce qui justifie **une revue des deux positions maxillo-mandibulaires** ; ne pas assigner automatiquement « rétrognathie causale mandibulaire » ou thérapie, le référentiel crânien et l'examen facial doivent être analysés. Un A'B' de +15 mesuré directement doit concorder avec la recomposition, sinon bloquer.
+
+**Attention mesures proches des seuils** : le texte CRANIOM discute une imprécision possible de l'ordre de 2 mm sur les distances linéaires et 3° sur les mesures angulaires, **ce qui est une assertion des auteurs et non une tolérance validée par notre ONNX/métrologie**. Digital Crown doit paramétrer un `REVIEW_BORDERLINE` à partir de l'incertitude réelle qualifiée et d'un profil source-versionné ; **ne pas hardcoder ±2 mm sans étude de précision**. Les états d'intervalle/arrondi doivent respecter les valeurs non arrondies et afficher les valeurs de mesure.
+
+#### 71-B — Conclusion fonctionnelle Step3 : moteur à trois niveaux
+
+1. **AUTO_FACT** : A'B' signé en mm et référence/qualité visibles ; code de plage et distance à la borne ; si hors âge/calibration/sources/points indisponibles, `NON_CALCULABLE` ou `REFERENCE_NON_ETABLIE`.
+2. **RULE_SUGGESTION** : typologie I/II/III issue de la table **si source et profil d'âge approuvés**, marquée `SUGGESTION_TYPLOGIQUE` + bouton « Pourquoi ? » montrant la ligne sourcée et le tracé Po–Or/A/B. Bords/incertitude = `A_CONTROLER`, jamais classification silencieuse.
+3. **CLINICIAN_SIGNOFF** : praticien accepte, modifie ou rejette, après examen occlusal, facial, fonctionnel et autres mesures. **TYPE SQUELETTIQUE** distinct de la **CLASSE DENTAIRE** ; aucune conclusion thérapeutique automatiquement dérivée. Seul le résumé diagnostique signé affiche `diagnostic confirmé`.
+4. **Règles combinées COM** : quand A'B' propose II et positions A/B hors bornes compatibles, proposer une **synthèse nuancée** (« décalage sagittal de type II avec positions maxillaire/mandibulaire à analyser ») et montrer les deux facteurs ; si données discordantes, alerter, pas classer un type sur la seule annotation manuscrite. Si des éléments cliniques sont absents, conserver `HYPOTHESE`, non un diagnostic définitif.
+5. **Versions normatives distinctes** : le tableau COM utilisateur (ex. i/mandibulaire 90±5 et compensation 80–100) **diffère** de références CRANIOM plus tardives (extrêmes 78–114 pour incisive inférieure, 97,5–130,1 pour supérieure). Ne pas fusionner ces plages : profil `COM_FICHE_PRATICIEN` vs référence pédagogique `CRANIOM_COURSE` identifiables, sélection/version explicites ; ne pas activer 9 ans comme norme générale des enfants.
+
+#### 71-C — Batterie FUE de décision/QA (NON RUN)
+
+- `COM-TYP01` 9 ans `0,9/1,0/7,4/7,5` mm ⇒ III/I/I/II sous tolérances strictement documentaires, jusqu'à revue des limites frontières.
+- `COM-TYP02` adulte `−0,9/−0,8/5,4/5,5` mm ⇒ III/I/I/II **candidat mapping adulte soumis validation scientifique/clinique**.
+- `COM-TYP03` 12 ans denture mixte sans modèle d'âge adapté ⇒ `REFERENCE_NON_ETABLIE`, pas de classe auto.
+- `COM-TYP04` A +7, B −8, même référentiel ⇒ A'B' +15 ; si mesure directe diverge hors incertitude qualifiée ⇒ `CONFLICT`, diagnostic bloqué.
+- `COM-TYP05` photo/radio sans mm, Po/Or/A/B incorrects, interpolation pixel sans métrologie ou visage tourné ⇒ `NON_CALCULABLE` avec explication.
+- `COM-TYP06` seuil très voisin, erreur de repères/inférence non quantifiée ⇒ `A_CONTROLER`, pas de validation silencieuse.
+- `COM-TYP07` même classe molaire / type osseux discordants ⇒ champs séparés, pas de diagnostic harmonisé automatiquement.
+- `COM-TYP08` changer normes/version/âge/point/calibration ⇒ invalidation transitivement correcte, conservation historique, résumé PDF `A_REVALIDER`.
+- `COM-TYP09` différences de profils incisifs de la photo COM vs tables CRANIOM : blocage mélange de sources, jamais remplacement de normes.
+- `COM-TYP10` textes explicables, sources et état humain, accessibilité 390/430/768/1280 + zoom 200%, token thème global, aucun LLM/runtime patient dans les FUE; captures BEFORE/AFTER et accord utilisateur requis.
+
+**VERDICT/GATE** : la règle **9 ans** est désormais **SOURCE_FOUND / CANDIDATE**, sa qualification clinique et métrologique reste **NON APPROUVÉE**. Mapping **adulte** logique d'après les bornes, mais **SOURCE_EXPLICITNESS_GAP** pour la borne supérieure de type II et validations cliniques. Le choix « COM Digital Crown + Steiner 1953/1959 » reste intact, aucune nouvelle norme actée par défaut ni implémentation. **NEXT** : proposer au praticien ce moteur de typologie COM en suggestion avec critères visibles, puis finir Step3 et commencer Step4 Plan/Bilan après décision. **Dernière mise à jour canonique : 06/11/2026 — POST §71, typologie osseuse COM sourcée.**
