@@ -16,7 +16,7 @@ from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.lib.units import cm
-from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
+from reportlab.platypus import CondPageBreak, Image, KeepTogether, Paragraph, SimpleDocTemplate, Spacer, Table, TableStyle
 
 LAYOUT_VERSION = "CLINICAL_FOUR_PART_A4_V1"
 _AUTHORITY = "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO"
@@ -237,6 +237,10 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     diagnoses = clinician.get("diagnoses") or []
     plan = clinician.get("plan")
 
+    # Keep the diagnosis and the first lines of the treatment strategy on a
+    # coherent sheet whenever the photo gallery nearly fills the first page.
+    # Remaining long clinician text remains naturally multipage.
+    elements.append(CondPageBreak(8.5 * cm))
     elements.append(Paragraph("III — BILAN DIAGNOSTIQUE ET DIAGNOSTIC FINAL", section))
     if diagnoses:
         elements.append(Paragraph(
