@@ -43,6 +43,8 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - name: Verify mobile backend facade syntax
+        run: python -m py_compile backend/routers/mobile.py
       - name: Install isolated backend dependencies
         run: |
           python -m pip install --upgrade pip
@@ -56,6 +58,9 @@ jobs:
   certify:
     name: Real MobileDashboard roles + Pocket V1 routes
     runs-on: ubuntu-latest
+    # Pinned browsers + system libraries avoid flaky Ubuntu apt mirrors in CI.
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
     timeout-minutes: 35
     steps:
       - uses: actions/checkout@v4
@@ -63,10 +68,8 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Record exact candidate
         run: |
-          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -c safe.directory=\"$GITHUB_WORKSPACE\" rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           echo "candidate=${{ github.event.pull_request.head.sha || github.sha }}"
-      - name: Verify mobile backend facade syntax
-        run: python -m py_compile backend/routers/mobile.py
       - uses: actions/setup-node@v4
         with:
           node-version: "20"
@@ -112,14 +115,15 @@ jobs:
         working-directory: frontend
         run: |
           npm install --no-save --package-lock=false playwright@1.55.0
-          npx playwright install --with-deps chromium webkit
+          node -e "const { chromium, webkit } = require('playwright'); const fs=require('node:fs'); for (const browser of [chromium, webkit]) { if (!fs.existsSync(browser.executablePath())) throw Error('Pinned Playwright browser missing: ' + browser.executablePath()); }"
       - name: Start production-built application runtime
         working-directory: frontend
         run: |
           # Certify the production-built PWA and its shipped Workbox lifecycle,
           # not Vite's development modules/development service worker.
           npm run preview -- --host 127.0.0.1 --port 5173 --strictPort >/tmp/mobile-pocket-runtime-vite.log 2>&1 &
-          for i in {1..60}; do
+          # POSIX sh in this container: Bash brace expansion does not work here.
+          for i in $(seq 1 60); do
             curl -fsS 'http://127.0.0.1:5173/landing' >/dev/null && exit 0
             sleep 1
           done
@@ -140,53 +144,49 @@ jobs:
         run: node scripts/capture-mobile-pocket-runtime-after.mjs
       - name: Verify real-runtime evidence
         run: |
-          python - <<'PY'
-          import json
-          import struct
-          from pathlib import Path
-          for engine in ('mobile-pocket-runtime', 'mobile-pocket-webkit'):
-              root = Path('artifacts') / engine
-              roles = ('dentiste', 'secretaire')
-              viewports = ((390, 844), (430, 932), (768, 1024), (1280, 800))
-              for role in roles:
-                  for width, height in viewports:
-                      for state in ('today', 'agenda', 'plus', 'frontdesk', 'stock', 'library', 'finance', 'lab', 'dentists', 'marketplace', 'bot', 'securite'):
-                          name = f'runtime-{role}-{state}-{width}x{height}.png'
-                          data = (root / name).read_bytes()
-                          if data[:8] != b'\x89PNG\r\n\x1a\n':
-                              raise SystemExit(f'{name}: not PNG')
-                          got = struct.unpack('>II', data[16:24])
-                          if got != (width, height):
-                              raise SystemExit(f'{name}: got {got}, expected {(width, height)}')
-              evidence = json.loads((root / 'runtime-evidence.json').read_text())
-              if len(evidence) != 8:
-                  raise SystemExit(f'expected 8 role/viewport records, got {len(evidence)}')
-              if {row['role'] for row in evidence} != {'DENTISTE', 'SECRETAIRE'}:
-                  raise SystemExit('role coverage incomplete')
-              for row in evidence:
-                  if row['preview'] is not False:
-                      raise SystemExit('preview runtime leaked into canonical evidence')
-                  if row['stockRoutable'] is not True or row['libraryRoutable'] is not True:
-                      raise SystemExit('Pocket V1 Stock/Library real-runtime routing failed')
-                  if row.get('readCapabilityHits', 0) < 1:
-                      raise SystemExit('Pocket read-capability fixture was not consumed')
-                  if row['restoredModulesRoutable'] is not True or row['roleGuardsVerified'] is not True:
-                      raise SystemExit('restored Pocket modules or role guards failed')
-                  if row['horizontalOverflow'] or row['runtimeErrors']:
-                      raise SystemExit(f"runtime defect: {row}")
-              themes = json.loads((root / 'theme-evidence.json').read_text())
-              required = {'emerald', 'rose', 'prestige', 'ocean', 'graphite', 'dark', 'high-contrast'}
-              if {row['id'] for row in themes} != required or len(themes) != len(required):
-                  raise SystemExit('Pocket cabinet-selected theme coverage incomplete')
-              for row in themes:
-                  if row['horizontalOverflow'] or row['preview'] or not row['primaryActionText']:
-                      raise SystemExit(f"invalid Pocket theme runtime evidence: {row}")
-                  for state in ('today', 'plus', 'stock', 'securite'):
-                      name = f"theme-{row['id']}-{state}-430x932.png"
-                      data = (root / name).read_bytes()
-                      if data[:8] != b'\x89PNG\r\n\x1a\n' or struct.unpack('>II', data[16:24]) != (430, 932):
-                          raise SystemExit(f"invalid themed screenshot: {name}")
-          PY
+          node <<'NODE'
+          const fs = require('node:fs');
+          const path = require('node:path');
+          function check(ok, message) { if (!ok) throw new Error(message); }
+          function json(file) { return JSON.parse(fs.readFileSync(file, 'utf8')); }
+          function png(file, width, height) {
+            const data = fs.readFileSync(file);
+            const signature = Buffer.from([137,80,78,71,13,10,26,10]);
+            check(data.subarray(0, 8).equals(signature), `${file}: not PNG`);
+            check(data.readUInt32BE(16) === width && data.readUInt32BE(20) === height, `${file}: invalid dimensions`);
+          }
+          const viewports = [[390,844],[430,932],[768,1024],[1280,800]];
+          const states = ['today','agenda','plus','frontdesk','stock','library','finance','lab','dentists','marketplace','bot','securite'];
+          for (const engine of ['mobile-pocket-runtime','mobile-pocket-webkit']) {
+            const root = path.join('artifacts', engine);
+            for (const role of ['dentiste','secretaire']) {
+              for (const [width,height] of viewports) {
+                for (const state of states) {
+                  png(path.join(root, `runtime-${role}-${state}-${width}x${height}.png`), width, height);
+                }
+              }
+            }
+            const evidence = json(path.join(root, 'runtime-evidence.json'));
+            check(evidence.length === 8, `expected 8 role/viewport records in ${engine}`);
+            check(new Set(evidence.map(r => r.role)).size === 2 && ['DENTISTE','SECRETAIRE'].every(role => evidence.some(r => r.role === role)), 'role coverage incomplete');
+            for (const row of evidence) {
+              check(row.preview === false, 'preview runtime leaked into canonical evidence');
+              check(row.stockRoutable === true && row.libraryRoutable === true, 'Stock/Library real runtime routing failed');
+              check(row.readCapabilityHits >= 1, 'Pocket read-capability fixture not consumed');
+              check(row.restoredModulesRoutable === true && row.roleGuardsVerified === true, 'Pocket modules/role guards failed');
+              check(!row.horizontalOverflow && !row.runtimeErrors, `runtime defect: ${JSON.stringify(row)}`);
+            }
+            const themes = json(path.join(root, 'theme-evidence.json'));
+            const required = ['emerald','rose','prestige','ocean','graphite','dark','high-contrast'];
+            check(themes.length === required.length && required.every(id => themes.some(row => row.id === id)), 'Pocket cabinet-selected theme coverage incomplete');
+            for (const row of themes) {
+              check(!row.horizontalOverflow && !row.preview && row.primaryActionText, `invalid theme evidence: ${JSON.stringify(row)}`);
+              for (const state of ['today','plus','stock','securite']) {
+                png(path.join(root, `theme-${row.id}-${state}-430x932.png`), 430, 932);
+              }
+            }
+          }
+          NODE
           printf 'head=%s\nruntime=MobileDashboard\npreview=false\nroles=DENTISTE,SECRETAIRE\nviewports=390x844,430x932,768x1024,1280x800\nstock=real-runtime-routable\nlibrary=real-runtime-routable-rbac\nrestored_modules=real-runtime-routable\nrole_guards=verified\ntouch_targets=date+plus-close>=44\ndeployment=none\n' '${{ github.event.pull_request.head.sha || github.sha }}' > artifacts/mobile-pocket-runtime/result.txt
           cp /tmp/mobile-pocket-runtime-vite.log artifacts/mobile-pocket-runtime/vite.log
       - uses: actions/upload-artifact@v4
