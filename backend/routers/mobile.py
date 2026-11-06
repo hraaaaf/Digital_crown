@@ -910,6 +910,9 @@ async def archive_mobile_document(
         db, tenant_id=tenant_id, actor_id=mobile_user.id, device_id=device_id,
         key=key, patient_id=patient.id, document_type=req.type, request_sha256=digest,
     )[0]
+    if completed.state != "COMPLETED":
+        mark_unresolved_for_manual_review(db, receipt.id)
+        raise HTTPException(status_code=503, detail="Archive non confirmée par le reçu SQL.")
     return _archive_receipt_pdf(db, completed, replay=False)
 
 
