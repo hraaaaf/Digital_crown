@@ -2298,3 +2298,67 @@ Les noms de ces états sont **spécification indicative**, à réconcilier avec 
 **GATE réel** : **SPEC_ONLY / STEP3_DIRECTION_UNAPPROVED / ADULT_COM_MAPPING_UNAPPROVED / HUMAN_CLINICAL_APPROVAL_REQUIRED / FUE 0/12 EXECUTED / NO_RUNTIME / NO_MERGE / NO_VERCEL**. La spécification ne prouve pas l'existence en production de ces états, écrans, signaux ni documents. Même des tests futurs verts ne constitueraient pas une validation clinique. L'activation dépendra d'un lot d'implémentation séparé, d'oracles indépendants, d'une revue clinique et de la décision du praticien.
 
 **NEXT exact** : faire valider les deux choix fonctionnels « Step3 liste de problèmes + résumé éditable » et « Step4 objectifs/stratégie manuels, bilan diagnostique possible sans plan », puis seulement établir les contrats API/UI/DB/PDF et sélectionner un FUE-I/G exécutable. **Dernière MAJ canonique : 06/11/2026 — POST §72, Step4 Plan et Bilan candidat.**
+
+
+### 73. PRE/POST — 2026-11-06 — Nouveau contrat PDF Bilan orthodontique professionnel (SPEC ONLY)
+
+**Instruction clinique propriétaire** : « Le PDF doit être professionnel et scientifiquement correct ; il ne doit pas montrer ce qui ne marche pas, plutôt ce qu'on a fait pour arriver à ce diagnostic et à ce plan de traitement. » La demande impose de **séparer un rapport clinique lisible du journal technique**, mais ne justifie **jamais** de masquer une incertitude **déterminante** pour la sécurité d'une conclusion.
+
+**PRE baseline vérifiée** : PR #1213 OPEN/DRAFT à HEAD \`576528ccd9a08814d8cfe69eefc0de31f6658fd7\`, §72 POST ; Notion PRE78. Document FUE-P2 réel : \`15_Bilan_Synthetique_Brouillon_Non_Signe.pdf\`, **quatre pages**, format A4 ; page 1 affiche identité « Dr. Nom Prénom », patient synthétique, « document incomplet », tracé absent, puis liste brute ; pages 1-3 contiennent COM DC legacy / Tweed / Steiner / McNamara / Ricketts / Downs, valeurs non qualifiées, doublons, « méthode non précisée » et « non calculable ». Page 4 : examen des moulages / diagnostic / plan tous non validés. Ceci est **un artefact de smoke-test technique**, **pas** un document clinique professionnel acceptable. \`backend/services/cephalo_pdf_projection.py\` comporte une projection typée avec contrôle fail-closed ; l'UI renderer doit impérativement filtrer et hiérarchiser plutôt que vider indistinctement sa payload brute dans le PDF.
+
+**Références d'organisation (benchmark, pas normes marocaines obligatoires)** : AAPD, Management of the Developing Dentition and Occlusion in Pediatric Dentistry, révision 2024 : examen clinique, enregistrements diagnostiques, synthèse de problèmes, objectifs et plan séquentiel ; https://www.aapd.org/research/oral-health-policies--recommendations/management-of-the-developing-dentition-and-occlusion-in-pediatric-dentistry/ ; AAPD, Recordkeeping, mise à jour 2026 : https://www.aapd.org/research/oral-health-policies--recommendations/record-keeping/ ; British Orthodontic Society, Orthodontic Records: Collection and Management (2022), section 5, consultation et décisions reconstructibles, alternatives/risques, plan et auteur : https://bos.org.uk/wp-content/uploads/2023/06/Records-Advice-Sheet-new-version-30-11-2022-2.pdf.pagespeed.ce.eCe2jfeSmq.pdf. La copie PDF BOS a pu être consultée textuellement mais le screenshot distant a retourné un cache miss : pas de certification de la mise en page de la source.
+
+#### 73-A — Deux sorties distinctes, aucune vérité inventée
+
+| Flux | Destinataire et objectif | Contenu | Statut |
+|---|---|---|---|
+| **BILAN CLINIQUE** (document final) | Patient/correspondant et archive cabinet : exposer **comment les observations conduisent au diagnostic puis aux objectifs et au traitement choisi** | Données confirmées pertinentes ; méthodes et mesures **sélectionnées**, diagnostic signé, raisons des objectifs, options/risques pertinents, stratégie décidée et suivi, identité/date/version/signature | Générable uniquement sur gate clinique et autorisation ; zéro moteur prescripteur |
+| **ANNEXE CLINIQUE DE PREUVES** (interne, option export professionnel ciblé) | Clinicien / audit du dossier : pouvoir reconstruire ce qui a fondé une décision | Référence à étude, clichés, points, méthodes et versions, âge/population/calibration, mesures source retenues, corrections, alternatives, désaccords, historisation, décisions signées | RBAC ; ne pas exposer par défaut au patient ni aux artefacts CI |
+| **JOURNAL TECHNIQUE** (local) | Diagnostic du logiciel, QA et support | Erreurs d'upload, pointeurs manquants, chemins internes, IDs legacy, listes de méthode bloquées, statut réseau, logs, CI | Jamais introduit dans le bilan clinique ; confidentialité et accès contrôlés |
+
+#### 73-B — Ordre du bilan patient cible
+
+**Page 1 — Bilan diagnostique argumenté** :
+1. En-tête cabinet authentique/configurable, identité patient, date et praticien. Aucun placeholder « Dr Nom Prénom » dans un document signé.
+2. Motif et contexte cliniquement documentés, concis.
+3. **Éléments de preuve retenus** sous 3 à 4 blocs : examen clinique facial/intraoral/fonctionnel, modèles/occlusion et DDM par arcade si applicables, imagerie, 2 à 5 mesures de l'analyse V1 **explicitement sélectionnée** (COM Digital Crown **ou** Steiner 1953/1959). Conserver nom de mesure, valeur, unité et une méthode/reference brève quand utile ; jamais un dump multidiscipline ni une série brute par défaut.
+4. **Raisonnement** : constat 1 + constat 2 + correspondance ou divergence pertinente ⇒ interprétation prudente, documentée, éditable/confirmée par praticien. Ne pas présenter corrélation comme causalité.
+5. **Diagnostic retenu** : description osseuse / dento-alvéolaire / occlusale / fonctionnelle suivant preuves et disponibilité, problème principal et problèmes associés hiérarchisés ; signature clinique requise. Typologie COM adult I/II/III non approuvée ne peut y entrer automatiquement.
+
+**Page 2 — Plan thérapeutique justifié** (uniquement si plan clinique **validé distinctement**) :
+6. Tableau compact **problème confirmé → objectif du praticien → critère clinique de suivi**.
+7. Technique/option retenue **rédigée et validée par le praticien** avec raison explicite, contraintes/préférences pertinentes, alternatives effectivement discutées, bénéfices/risques et réserves déterminantes.
+8. Séquence par phases **réelles** seulement (préparation, active, finition, contention et contrôles si effectivement décidées), indicateurs de suivi, adaptation si nécessaire.
+9. Information/consentement selon processus cabinet, auteur, date, version, signature. Signature d'un bilan **≠** consentement au traitement si consentement requis séparément.
+
+**Ne jamais forcer deux pages** si le contenu justifié ne tient pas lisiblement ; pagination A4 automatique sans tableau coupé ni taille microscopique. Les sections optionnelles non pertinentes sont omises plutôt que remplies de « non calculable ». Le gabarit et les accents visuels **héritent de tokens globaux de thème** dans l'implémentation, jamais de couleurs de module codées en dur. Le prototype autonome joint à la conversation est uniquement une **maquette illustratrice** ; il n'implémente pas les tokens de Digital Crown.
+
+#### 73-C — Filtrage scientifique fail-closed (règle de priorité)
+
+1. **Mesure valide et pertinente** : afficher uniquement si image/repères/calibration quand nécessaire, méthode/signature/unité, profil normatif, version et plausibilité/contradictions sont vérifiés **au niveau nécessaire pour soutenir la conclusion** ; sélection et autorité cliniques tracées. Pas d'angle ou de mm « legacy » sans méthode ni de valeur invraisemblable utilisée comme preuve.
+2. **Élément facultatif indisponible et non utilisé pour diagnostiquer** : omission du PDF patient (pas « non calculable »/« méthode non précisée ») ; traçabilité dans l'annexe ou le dossier interne.
+3. **Élément indispensable au diagnostic/plan mais non fiable ou source absente** : **bloquer l'émission/signature du bilan final correspondant**, identifier le besoin de réévaluation dans l'UI praticien ; ne pas fabriquer une mesure ou une conclusion pour remplir le PDF.
+4. **Incertitude clinique réellement pertinente** (par ex. diagnostic différentiel non résolu, risque/limite anatomique qui change la stratégie) : doit rester mentionnée de manière clinique intelligible dans le document concerné, ou rendre sa signature impossible jusqu'à résolution. **« Ne pas montrer ce qui ne marche pas » ne signifie pas cacher un risque clinique.**
+5. **Diagnostic confirmé, mais plan non arrêté** : seul un **bilan diagnostique signé** peut être généré, **sans** section « plan validé » ni stratégie fictive. Le document « bilan + plan » requiert signature **distincte** du plan et indication des alternatives/risques si pertinents.
+6. **Dossier draft** : rester dans l'UI ; si export de travail autorisé, filigrane **BROUILLON / NON SIGNÉ** lisible ; jamais archivé ou transmis comme clinique final. Aucun PDF réel n'est généré silencieusement.
+7. Les valeurs et positions osseuses COM / classes dentaires sont deux domaines distincts ; la DDM clinique/céphalo/réelle ne devient pas un plan d'extractions ; aucune classe de traitement générée depuis un angle ou A'B' isolé.
+
+**Chaîne de traçabilité pour chaque assertion du rapport** : \`étude/média → observation ou mesure validée → constat retenu → interprétation / diagnostic confirmé → problème → objectif choisi → option décidée avec justification → étape thérapeutique → identité et date des signatures\`. Les IDs, sources détaillées, comparaisons alternatives, dérogations et erreurs éventuelles restent dans le dossier local pour audit. L'archivage signe un **snapshot immuable** ; toute donnée critique modifiée entraîne une nouvelle révision, jamais la réécriture cachée du PDF signé.
+
+#### 73-D — Modèle tangible et vérification
+
+**Prototype illustratif A4, deux pages, créé hors application** : \`DigitalCrown_BilanOrthodontique_Cible_SPECIMEN.pdf\` (conversation), avec sections « Motif », « Éléments retenus pour le diagnostic », « Synthèse diagnostique argumentée », « Objectifs », « Stratégie et justification », « Séquence / contrôle », « Information / signature ». **Champs volontairement génériques**, aucune valeur de patient, aucun diagnostic ni traitement fabriqué ; preuve de **cible typographique** seulement. Le rendu des deux pages a été inspecté visuellement après correction d'un problème de marge sur la seconde page. Pas de revendication de test moteur ni de validation du workflow produit.
+
+**Batterie FUE documentaire de passage à l'implémentation, TOUS NOT RUN** :
+- \`PDF-PRO01\` : un cas avec diagnostic/praticien/plan signés et preuves cohérentes → bilan orienté « justification », pas de dump brut.
+- \`PDF-PRO02\` : 200 métriques techniques dont seulement 4 pertinentes qualifiées → 4 max dans le corps, autres en dossier/annexe pertinente.
+- \`PDF-PRO03\` : valeur non calculable **optionnelle** → aucune ligne d'erreur technique dans le document patient, preuve conservée localement.
+- \`PDF-PRO04\` : donnée **essentielle** absente/non calibrée → export final bloqué, erreur visible uniquement dans UI praticien, pas de diagnostic ou plan inventé.
+- \`PDF-PRO05\` : erreur source/valeur suspecte/contradiction → ne pas utiliser pour soutenir le diagnostic, passage en revue clinique.
+- \`PDF-PRO06\` : diagnostic validé, plan non décidé → bilan diagnostique possible si conditions remplies, sans plan fictif.
+- \`PDF-PRO07\` : plan signé, justification/alternatives/risques déterminants absents → bloquer version « plan final » si éléments requis par dossier non attestés.
+- \`PDF-PRO08\` : révision après signature → snapshot ancien immuable, nouvelle version/revalidation, parité UI/API/PDF.
+- \`PDF-PRO09\` : sélection V1 COM **ou** Steiner ; aucun mélange Ricketts/McNamara/Tweed ou source normative « legacy » implicite, quel que soit le format des données entrantes.
+- \`PDF-PRO10\` : A4, pagination, lisibilité, signature, thèmes hérités, 200% UX aperçu, permissions d'export et vérification des clichés/cas synthétiques en FUE-I/G.
+
+**POST / verdict** : **DIRECTION CLINIQUE DU FORMAT REÇUE** (non validation visuelle du prototype ni GO de mise en production), **SPEC_ONLY**, aucun changement de code PDF/runtime, aucun patient, aucun merge ni déploiement. **PR #1213** reste DRAFT ; toute modification documentaire du HEAD exige un nouveau contrôle CI exact-HEAD et une approbation visuelle à renouveler ; anciens PASS ne se transportent pas à un nouveau SHA. **NEXT** : arbitrage du prototype, puis lot séparé d'implémentation PDF avec test de projection/renderer et FUE sur données synthétiques, sans activation scientifique non approuvée. **Dernière MAJ canonique : 06/11/2026 — POST §73, architecture PDF « raisonnement clinique → plan décidé ».**
