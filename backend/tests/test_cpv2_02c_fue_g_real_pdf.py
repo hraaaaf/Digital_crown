@@ -144,6 +144,9 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     assert db.query(models.DocumentArchive).count() == before
     passed("payment_mutation_denied", 403)
 
+    readiness = client.get("/api/mobile/documents/archive/ready", headers=auth)
+    assert readiness.status_code == 200, readiness.text
+    assert readiness.json() == {"ready": True}
     archive = client.post("/api/mobile/documents/archive", headers=archive_auth, json=payload)
     assert archive.status_code == 200, archive.text
     assert archive.headers["content-type"].startswith("application/pdf")
