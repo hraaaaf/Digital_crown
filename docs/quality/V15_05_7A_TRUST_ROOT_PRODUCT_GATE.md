@@ -1,5 +1,14 @@
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
+## PRE — 2026-11-06 — LOT05.7C-B CSV synthétique + 05.7A IPC : SCOPE FAIL-CLOSED
+
+**Instruction :** GO pour un adaptateur de prévisualisation CSV patients administratif multi-logiciels, FAKE-only, sans importer des lignes dans Digital Crown, et pour diagnostiquer le gate de sécurité 05.7A lié au test Windows. Aucun GO de merge/déploiement. Branche PR Draft #1217, base master 2cc743e3708621a027a794bdb17c8446ca3073df.
+
+**05.7A evidence :** run #42237579820 FAILED sur source HEAD ad011d8 ; job Windows Native SCM named-pipe refus client non autorisé a renvoyé DENY_PEER mais le fichier bad_proof n'exposait que READY=YES à la lecture. Source C# write/flush réponse **avant** append des marqueurs OS. Correction ciblée TEST/HARNESS : attendre de façon bornée les métadonnées, conserver et renforcer les assertions DENY_PEER, PEER_FROM_OS, PEER_MATCH=False, SERVICE_SID_PRESENT=True. L'attente ne doit jamais convertir un vrai défaut SID en PASS ; timer atteint => FAILURE. Pas de changement serveur de sécurité, pas de code de migration produit.
+
+**05.7C-B gate :** inventaire source CSV admin uniquement depuis copie locale hors ligne attestée dans staging, utilisant les protections 05.1 contre symlink/hardlink/outside-root; en-tête de colonnes prédéfini, IDs source stricts/uniques, noms bornés, date ISO facultative, aucune formule ou champ inconnu ; hash et taille invariants ; sortie publique seulement digest, compteurs et flags false. Ne jamais retourner noms, lignes, téléphones, emails ou secrets. Tester de nombreuses variantes FAKE sur Windows/Ubuntu, aucun import/DB/API/UI ni Orthalis vendor adapter.
+
+**Acceptance :** CI sur HEAD exact; la PR #1217 reste Draft tant que gates rouges; ne jamais déclarer certification clinique. import_permitted=false, full_schema_certified=false.
 ## DECISION / PRE+POST — 2026-11-06 — LOT05 : migration produit multi-logiciels (CONTRAT CANDIDAT, NO IMPORT)
 
 **PRE — instruction corrected by owner.** LOT05 is a Digital Crown **product onboarding capability for incoming clinics switching from many other dental/orthodontic software applications**, **not** a one-off importer from a currently owned legacy clinic installation. User example: "Ortolis"; public candidate [Orthalis](https://www.orthalis.com/orthalis/) exists, but the literal vendor identity and especially export formats are **not proven compatible**. Do not require owner to provide a personal source software to develop the vendor-neutral framework. Record this change in the existing unique LOT05 canonical and the same Notion roadmap. Base `master@2cc743e3708621a027a794bdb17c8446ca3073df`; [post-merge Cabinet upgrade run #42231526823](https://github.com/hraaaaf/Digital_crown/actions/runs/42231526823) SUCCESS 2/2, unchanged by this source-document proposal.
