@@ -194,7 +194,11 @@ try {
       if(await submit.isEnabled())
         throw new Error('B06_VISUAL_INVALID_DATE_ENABLED_SUBMIT: '+invalid);
     }
-    await birth.fill('04/03/2000');
+    // Numeric mobile keyboards may not expose "/" on their first layer.
+    // The real controlled text input must add separators on its own.
+    await birth.fill('04032000');
+    if(await birth.inputValue()!=='04/03/2000')
+      throw new Error('B06_VISUAL_FRENCH_NUMERIC_KEYBOARD_AUTOFMT_FAILED');
     if(await submit.isEnabled()) throw new Error('B06_VISUAL_EXPLICIT_CHECKBOX_REQUIRED');
     await region.getByRole('checkbox').check();
     if(!(await submit.isEnabled())) throw new Error('B06_VISUAL_COMMIT_BUTTON_NOT_ENABLED');
@@ -229,6 +233,7 @@ try {
     results.push({width,height,theme,locale:'fr-FR',textScalePercent,
       previewLoaded:true,twoMarkersTyped:true,
       frenchDateInput:'JJ/MM/AAAA',frenchDatePreview:'04/03/2000',
+      mobileDigitsAutoFormatted:true,
       invalidDatesDenied:true,actionOverflow:qa.actionOverflow,
       explicitCheckbox:true,commitsExecuted:0,overflow:false,
       primaryTokenComputed:qa.backgroundColor});
