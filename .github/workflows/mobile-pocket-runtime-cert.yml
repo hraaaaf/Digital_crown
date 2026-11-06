@@ -68,7 +68,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
       - name: Record exact candidate
         run: |
-          test "$(git -c safe.directory=\"$GITHUB_WORKSPACE\" rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git -c safe.directory="$GITHUB_WORKSPACE" rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           echo "candidate=${{ github.event.pull_request.head.sha || github.sha }}"
       - uses: actions/setup-node@v4
         with:
