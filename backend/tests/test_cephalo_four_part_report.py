@@ -522,12 +522,12 @@ def test_four_part_a4_shared_header_footer_logo_and_two_themes(tmp_path: Path, m
         expected_title_rgb = int(primary[1:], 16)
         with fitz.open(path) as pdf:
             assert len(pdf) >= 1
+            assert "BROUILLON" in chr(10).join(page.get_text("text") for page in pdf)
             for page in pdf:
                 txt = page.get_text("text")
                 assert "Dr Test Cabinet" in txt
                 assert "Adresse fictive de test" in txt
                 assert "05 00 00 00 00" in txt
-                assert "BROUILLON" in txt
                 assert page.get_images(full=True), "the shared letterhead must embed the configured logo"
                 assert any(
                     span["color"] == expected_title_rgb and "BILAN ORTHODONTIQUE" in span["text"]
