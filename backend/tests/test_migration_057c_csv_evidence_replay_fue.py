@@ -167,11 +167,11 @@ class SyntheticReplayEvidenceFUE(unittest.TestCase):
         )
 
     def test_08_mutated_source_fails_closed(self):
-        b = self.build()
+        d = self.draft()
+        b = self.build(d)
         self.rows[1][1] = "FAKE_REWRITTEN_NAME"
         self.write()
-        self.denied("MAPPING_SOURCE_OR_TARGET_CHANGED", self.replay,
-                    b, self.draft_from_prior if False else None)
+        self.denied("MAPPING_SOURCE_OR_TARGET_CHANGED", self.replay, b, d)
 
     def test_09_bundle_digest_tamper_rejected(self):
         b = self.build()
