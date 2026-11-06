@@ -227,7 +227,60 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     return URL.createObjectURL(pdf);
   };
 
+  const reconcileArchive = async () => {
+    setError(''); setSuccess('');
+    setBusy(true);
+    try {
+      const pending = await MobileStorage.getPendingDocumentArchive();
+      if (!pending || pending.patientId !== patient.id || pending.intentKey !== pendingArchiveKey) {
+        throw new Error('Reçu local introuvable ou lié à un autre patient.');
+      }
+      const creds = await MobileStorage.getCredentials();
+      if (!creds) throw new Error('Session Pocket indisponible.');
+      const baseUrl = resolveApiBaseUrl(creds.api_base_url);
+      // Recovery is GET-only. Never repeat the clinical archive POST.
+      const response = await mobileFetch(`${baseUrl}/api/mobile/documents/archive/receipt/${pending.intentKey}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${creds.access_token}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.status === 202) {
+        setError('Archivage encore en cours. Vérifiez à nouveau sans réenvoyer le document.');
+        return;
+      }
+      if (response.status === 409) {
+        setError('Résultat à vérifier au cabinet : aucune nouvelle écriture ne sera envoyée.');
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Reçu indisponible (${response.status}). Conservez cette opération pour vérification.`);
+      }
+      if (!(response.headers.get('content-type') || '').includes('application/pdf')
+        || !response.headers.get('x-document-id')) {
+        throw new Error('Reçu PDF non authentifié par le serveur.');
+      }
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('Reçu PDF vide.');
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+      setType(pending.documentType);
+      setPreviewPayload({});
+      setArchived(true);
+      setUncertainArchive(false);
+      setPendingArchiveKey(null);
+      setSuccess('Archive retrouvée et confirmée par le registre du cabinet.');
+      await MobileStorage.clearPendingDocumentArchive(pending.intentKey);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Reçu indisponible. Vérifiez au cabinet.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const previewDocument = async () => {
+    if (uncertainArchive) {
+      setError('Une archive doit être vérifiée avant toute nouvelle préparation.');
+      return;
+    }
     setError(''); setSuccess('');
     let payload: Record<string, unknown>;
     try { payload = buildPayload(); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Document incomplet.'); return; }
