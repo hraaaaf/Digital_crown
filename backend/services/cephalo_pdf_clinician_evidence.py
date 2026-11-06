@@ -86,6 +86,11 @@ def project_audited_clinician_evidence(
             ]
             if len(objective_list) == len(plan.validated_objective_refs):
                 approved_plan = {
+                    "option_context": {
+                        "benefits": [str(v)[:500] for v in option.benefits[:8]],
+                        "limits": [str(v)[:500] for v in option.limits[:8]],
+                        "risks": [str(v)[:500] for v in option.risks[:8]],
+                    },
                     "objectives": [
                         {"target": obj.target[:1000],
                          "success_criterion": obj.success_criterion[:1000]}
@@ -94,6 +99,10 @@ def project_audited_clinician_evidence(
                     "phases": [
                         {
                             "title": phase.title[:600],
+                            "procedures": [str(v)[:500] for v in phase.procedures[:8]],
+                            "mechanics_or_appliances": [
+                                str(v)[:500] for v in phase.mechanics_or_appliances[:8]
+                            ],
                             "monitoring": [str(v)[:500] for v in phase.monitoring[:8]],
                             "reassessment_criteria": [
                                 str(v)[:500] for v in phase.reassessment_criteria[:8]
