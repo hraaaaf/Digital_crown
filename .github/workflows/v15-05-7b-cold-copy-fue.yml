@@ -1,0 +1,57 @@
+name: LOT05 05.7B Cold SQLite Copy-Only Reconciliation FUE (NO IMPORT)
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/legacy_sql_offline_plan_v15.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/services/legacy_sql_mapping_v15.py'
+      - 'backend/tests/test_migration_057b_offline_plan_fue.py'
+      - '.github/workflows/v15-05-7b-cold-copy-fue.yml'
+      - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cold-source-reconciliation:
+    name: Real cold-copy read-only FUE — ${{ matrix.os }} (NO patient import)
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert exact SHA and source isolation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile \
+            backend/services/legacy_sql_offline_plan_v15.py \
+            backend/tests/test_migration_057b_offline_plan_fue.py
+      - name: Run read-only synthetic 100x200 FUE with non-PHI evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_migration_057b_offline_plan_fue.py -v 2>&1 | tee lot05-7b-cold-source-fue.log
+          grep -q 'Ran 20 tests' lot05-7b-cold-source-fue.log
+          grep -q 'OK' lot05-7b-cold-source-fue.log
+          printf '05B_OFFLINE_COLD_SQLITE_COPY_ONLY_FUE_SUCCESS\n'
+          printf '05B_NO_REAL_TARGET_WRITES_NO_CLINICAL_IMPORT\n'
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7b-cold-copy-read-only-${{ matrix.os }}
+          path: lot05-7b-cold-source-fue.log
+          if-no-files-found: ignore
+          retention-days: 14
