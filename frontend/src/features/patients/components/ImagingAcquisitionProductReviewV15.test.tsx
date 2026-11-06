@@ -83,6 +83,8 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
   it('requires an explicit selection and verified image, two typed IDs and checkbox', async () => {
     render(<ImagingAcquisitionProductReviewV15 patientId={42} />);
     const examine = await screen.findByRole('button', { name: /Examiner cette capture/ });
+    expect(examine.className).toContain('bg-primary');
+    expect(examine.className).toContain('text-on-primary');
     expect(post).not.toHaveBeenCalled();
     fireEvent.click(examine);
     await waitFor(() => expect(post).toHaveBeenCalledWith('/imaging/acquisition/review', {
@@ -90,6 +92,13 @@ describe('LOT06 B06-2/3 actual product review and gated durable ACK', () => {
     }));
     const button = await screen.findByRole('button', { name: /Terminer la vérification/ });
     expect(button).toBeDisabled();
+    expect(button.className).toContain('bg-primary');
+    expect(button.className).toContain('text-on-primary');
+    expect(screen.getByRole('heading', { name: /1\\. Contrôler l'image/ })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /2\\. Vérifier l'identité du patient/ })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Ressaisir le numéro de dossier/)).toHaveValue('');
+    expect(screen.getByLabelText(/Ressaisir la date de naissance/)).toHaveValue('');
+    expect(screen.queryByText(/SHA-256|Reçu durable|LAB uniquement|Activation cabinet non autorisée/)).toBeNull();
     await waitFor(() => expect(get).toHaveBeenCalledWith(
       review.preview_url,
       { responseType: 'arraybuffer', headers: { 'X-DC-Review-Challenge': review.challenge } },
