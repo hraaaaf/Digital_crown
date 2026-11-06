@@ -7,6 +7,8 @@ on:
       - 'backend/services/legacy_sql_inspector_v15.py'
       - 'backend/services/legacy_sql_mapping_v15.py'
       - 'backend/tests/test_migration_057b_offline_plan_fue.py'
+      - 'backend/tests/fixtures/lot05_7b_resume_recovery_lab.py'
+      - 'backend/tests/test_migration_057b_recovery_fue.py'
       - '.github/workflows/v15-05-7b-cold-copy-fue.yml'
       - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
   workflow_dispatch:
@@ -38,7 +40,9 @@ jobs:
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           python -m py_compile \
             backend/services/legacy_sql_offline_plan_v15.py \
-            backend/tests/test_migration_057b_offline_plan_fue.py
+            backend/tests/test_migration_057b_offline_plan_fue.py \
+            backend/tests/fixtures/lot05_7b_resume_recovery_lab.py \
+            backend/tests/test_migration_057b_recovery_fue.py
       - name: Run read-only synthetic 100x200 FUE with non-PHI evidence
         shell: bash
         run: |
@@ -46,12 +50,19 @@ jobs:
           python backend/tests/test_migration_057b_offline_plan_fue.py -v 2>&1 | tee lot05-7b-cold-source-fue.log
           grep -q 'Ran 22 tests' lot05-7b-cold-source-fue.log
           grep -q 'OK' lot05-7b-cold-source-fue.log
+          python backend/tests/test_migration_057b_recovery_fue.py -v 2>&1 | tee lot05-7b-recovery-fue.log
+          grep -q 'Ran 12 tests' lot05-7b-recovery-fue.log
+          grep -q 'OK' lot05-7b-recovery-fue.log
+          printf '05B_SYNTHETIC_SCRATCH_TRANSACTION_REPLAY_AND_ROLLBACK_PASS\n'
+          printf '05B_NO_CLINICAL_TARGET_BACKUP_OR_IMPORT_CLAIM\n'
           printf '05B_OFFLINE_COLD_SQLITE_COPY_ONLY_FUE_SUCCESS\n'
           printf '05B_NO_REAL_TARGET_WRITES_NO_CLINICAL_IMPORT\n'
       - uses: actions/upload-artifact@v4
         if: always()
         with:
           name: lot05-7b-cold-copy-read-only-${{ matrix.os }}
-          path: lot05-7b-cold-source-fue.log
+          path: |
+            lot05-7b-cold-source-fue.log
+            lot05-7b-recovery-fue.log
           if-no-files-found: ignore
           retention-days: 14
