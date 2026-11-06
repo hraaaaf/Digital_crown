@@ -1,5 +1,6 @@
 """Tests routers/mobile.py — ping, auth guard, canonical handoff, and mobile JWT operations."""
 import uuid
+import hashlib
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from unittest.mock import patch
@@ -9,6 +10,10 @@ from jose import jwt
 
 from backend import models
 from backend.routers.mobile import _create_mobile_jwt
+# Registers receipt table in isolated pytest metadata; cabinet schema is never migrated here.
+from backend.services.mobile_document_archive_receipts import (
+    MobileDocumentArchiveReceipt, complete_archive_in_current_transaction,
+)
 from backend.security import SECRET_KEY, ALGORITHM, get_password_hash
 from backend.utils import rate_limit
 
@@ -738,16 +743,21 @@ class TestCPV202CMobileDocumentPreview:
             document_type=models.DocumentType.CERTIFICAT,
             document_group_id='cpv2-02c-synthetic-safe-pdf',
             filename='safe.pdf', original_filename='safe.pdf',
-            file_path=path, file_hash='abc', file_size=pdf.stat().st_size,
+            file_path=path, file_hash=hashlib.sha256(pdf.read_bytes()).hexdigest(), file_size=pdf.stat().st_size,
         )
         db.add(doc)
         db.commit()
-        mocked = AsyncMock(return_value={'pdf_url': path})
+        async def generated(*args, **kwargs):
+            # Model the canonical archive service's atomic receipt completion.
+            complete_archive_in_current_transaction(kwargs['db'], archive=doc)
+            kwargs['db'].commit()
+            return {'pdf_url': path}
+        mocked = AsyncMock(side_effect=generated)
         monkeypatch.setattr(documents, 'generate_document', mocked)
         token = _make_mobile_jwt(db, dentiste)
         response = client.post(
             '/api/mobile/documents/archive',
-            headers={'Authorization': f'Bearer {token}'},
+            headers={'Authorization': f'Bearer {token}', 'Idempotency-Key': str(uuid.uuid4())},
             json=self._payload(patient.id),
         )
         assert response.status_code == 200, response.text
@@ -771,7 +781,7 @@ class TestCPV202CMobileDocumentPreview:
         token = _make_mobile_jwt(db, dentiste)
         response = client.post(
             '/api/mobile/documents/archive',
-            headers={'Authorization': f'Bearer {token}'},
+            headers={'Authorization': f'Bearer {token}', 'Idempotency-Key': str(uuid.uuid4())},
             json=self._payload(patient.id),
         )
         assert response.status_code == 503, response.text
@@ -786,7 +796,7 @@ class TestCPV202CMobileDocumentPreview:
         monkeypatch.setattr(documents, 'generate_document', mocked)
         patient = self._patient(db, dentiste)
         token = _make_mobile_jwt(db, dentiste)
-        headers = {'Authorization': f'Bearer {token}'}
+        headers = {'Authorization': f'Bearer {token}', 'Idempotency-Key': str(uuid.uuid4())}
         note = client.post(
             '/api/mobile/documents/archive', headers=headers,
             json={
@@ -830,7 +840,7 @@ class TestCPV202CMobileDocumentPreview:
         db.commit()
         denied = client.post(
             '/api/mobile/documents/archive',
-            headers={'Authorization': f'Bearer {token}'},
+            headers={'Authorization': f'Bearer {token}', 'Idempotency-Key': str(uuid.uuid4())},
             json=self._payload(patient.id),
         )
         assert denied.status_code == 401, denied.text
