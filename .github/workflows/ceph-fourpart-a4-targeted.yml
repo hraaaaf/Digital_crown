@@ -6,6 +6,7 @@ on:
       - 'backend/services/generators/cephalo_four_part_report.py'
       - 'backend/services/generators/bilan_ortho_gen.py'
       - 'backend/services/cephalo_pdf_projection.py'
+      - 'backend/services/cephalo_pdf_clinician_evidence.py'
       - 'backend/services/cephalo_pdf_media.py'
       - 'backend/tests/test_cephalo_four_part_report.py'
       - 'frontend/src/features/patients/PatientDetailsInner.tsx'
