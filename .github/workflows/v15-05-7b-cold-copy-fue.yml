@@ -44,7 +44,7 @@ jobs:
         run: |
           set -euo pipefail
           python backend/tests/test_migration_057b_offline_plan_fue.py -v 2>&1 | tee lot05-7b-cold-source-fue.log
-          grep -q 'Ran 20 tests' lot05-7b-cold-source-fue.log
+          grep -q 'Ran 22 tests' lot05-7b-cold-source-fue.log
           grep -q 'OK' lot05-7b-cold-source-fue.log
           printf '05B_OFFLINE_COLD_SQLITE_COPY_ONLY_FUE_SUCCESS\n'
           printf '05B_NO_REAL_TARGET_WRITES_NO_CLINICAL_IMPORT\n'
