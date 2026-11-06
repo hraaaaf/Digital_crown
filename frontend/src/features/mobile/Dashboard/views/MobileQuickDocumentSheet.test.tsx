@@ -7,7 +7,14 @@ import { mobileFetch } from '../../../../services/zka/mobileFetch';
 import { MobileStorage } from '../../../../services/zka/MobileStorage';
 
 vi.mock('../../../../services/zka/mobileFetch', () => ({ mobileFetch: vi.fn() }));
-vi.mock('../../../../services/zka/MobileStorage', () => ({ MobileStorage: { getCredentials: vi.fn() } }));
+vi.mock('../../../../services/zka/MobileStorage', () => ({
+  MobileStorage: {
+    getCredentials: vi.fn(),
+    getPendingDocumentArchive: vi.fn().mockResolvedValue(null),
+    savePendingDocumentArchive: vi.fn().mockResolvedValue(undefined),
+    clearPendingDocumentArchive: vi.fn().mockResolvedValue(undefined),
+  },
+}));
 
 const mockedFetch = vi.mocked(mobileFetch);
 const mockedCredentials = vi.mocked(MobileStorage.getCredentials);
@@ -101,7 +108,10 @@ describe('MobileQuickDocumentSheet', () => {
         }), { headers: { 'Content-Type': 'application/json' } });
       }
       return new Response(new Blob(['%PDF-1.4'], { type: 'application/pdf' }), {
-        headers: { 'Content-Type': 'application/pdf' },
+        headers: {
+          'Content-Type': 'application/pdf',
+          'X-Document-Id': '42',
+        },
       });
     });
     render(<MobileQuickDocumentSheet patient={{ id: 101, name: 'Patient Démo' }} onClose={() => undefined} />);
@@ -109,11 +119,18 @@ describe('MobileQuickDocumentSheet', () => {
     fireEvent.click(screen.getByRole('button', { name: /Prévisualiser/i }));
     await waitFor(() => expect(screen.getByText(/Aperçu validé/i)).toBeTruthy());
     fireEvent.click(screen.getByRole('button', { name: /Archiver le document/i }));
-    await waitFor(() => expect(screen.getByText(/Document généré et archivé/i)).toBeTruthy());
+    await waitFor(() => expect(screen.getByText(/Document archivé et reçu confirmé/i)).toBeTruthy());
     const urls = mockedFetch.mock.calls.map(([input]) => String(input));
     expect(urls.some((url) => url.endsWith('/api/mobile/documents/preview'))).toBe(true);
     expect(urls.some((url) => url.endsWith('/api/mobile/documents/archive'))).toBe(true);
     expect(urls.some((url) => url.includes('/api/documents/generate'))).toBe(false);
+    const archiveCall = mockedFetch.mock.calls.find(([url]) => String(url).endsWith('/api/mobile/documents/archive'));
+    expect(archiveCall).toBeTruthy();
+    expect((archiveCall?.[1]?.headers as Record<string, string>)['Idempotency-Key']).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/,
+    );
+    expect(MobileStorage.savePendingDocumentArchive).toHaveBeenCalledTimes(1);
+    expect(MobileStorage.clearPendingDocumentArchive).toHaveBeenCalledTimes(1);
     expect((screen.getByRole('button', { name: /Déjà archivé/i }) as HTMLButtonElement).disabled).toBe(true);
     vi.unstubAllGlobals();
   });
