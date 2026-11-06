@@ -185,7 +185,7 @@ try {
       await page.screenshot({path:path.join(output,prefix+'-ready.png'),fullPage:true});
     }
     const qa=await page.evaluate(() => {
-      const panel=document.querySelector('[aria-label="Revue d\\'acquisition non attribuée"]');
+      const panel=document.querySelector('section[aria-label]');
       const button=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.includes('Ajouter l’image'));
       return {
         overflow:document.documentElement.scrollWidth>innerWidth+2,
