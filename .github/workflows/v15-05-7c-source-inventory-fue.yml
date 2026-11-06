@@ -1,0 +1,46 @@
+name: LOT05 05.7C-A Vendor Source Inventory FUE (READ-ONLY / NO IMPORT)
+
+on:
+  pull_request:
+    paths:
+      - 'backend/services/legacy_sql_vendor_inventory_v15.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/tests/test_migration_057c_vendor_inventory_fue.py'
+      - '.github/workflows/v15-05-7c-source-inventory-fue.yml'
+      - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  readonly-vendor-inventory:
+    name: Synthetic vendor-neutral source refusal FUE — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert exact SHA and compile standalone code
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile backend/services/legacy_sql_vendor_inventory_v15.py backend/tests/test_migration_057c_vendor_inventory_fue.py
+      - name: FUE — 22 synthetic, no clinic data, zero writes
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_migration_057c_vendor_inventory_fue.py -v 2>&1 | tee lot05-7c-vendor-inventory-fue.log
+          grep -q 'Ran 22 tests' lot05-7c-vendor-inventory-fue.log
+          grep -q '^OK' lot05-7c-vendor-inventory-fue.log
+          echo "LOT05C_ONLY_METADATA_READ_NO_IMPORT_NO_PATIENT_DATA"
