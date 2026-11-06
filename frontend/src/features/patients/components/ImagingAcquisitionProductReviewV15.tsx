@@ -28,6 +28,16 @@ const formatBirthDateFr = (iso: string): string => {
   return match ? match[3] + '/' + match[2] + '/' + match[1] : '';
 };
 
+/** Allow a numeric mobile keyboard: 04032000 becomes 04/03/2000. */
+const formatBirthDateInput = (raw: string): string => {
+  const digits = raw.replace(/\D/g, '').slice(0, 8);
+  if (digits.length > 4)
+    return digits.slice(0, 2) + '/' + digits.slice(2, 4) + '/' + digits.slice(4);
+  if (digits.length > 2)
+    return digits.slice(0, 2) + '/' + digits.slice(2);
+  return digits;
+};
+
 const parseBirthDateFr = (value: string): string | null => {
   const match = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(value);
   if (!match) return null;
@@ -313,7 +323,7 @@ export function ImagingAcquisitionProductReviewV15({ patientId }: { patientId: n
                 Ressaisir la date de naissance
                 <input type="text" inputMode="numeric" autoComplete="off"
                   placeholder="JJ/MM/AAAA" maxLength={10} spellCheck={false}
-                  value={birthDate} onChange={event => setBirthDate(event.target.value)}
+                  value={birthDate} onChange={event => setBirthDate(formatBirthDateInput(event.target.value))}
                   className="mt-1.5 min-h-11 w-full min-w-0 rounded-lg border border-border-main bg-card p-3 text-text-main focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary" />
                 <span className="mt-1 block text-xs text-text-muted">Format : JJ/MM/AAAA</span>
               </label>
