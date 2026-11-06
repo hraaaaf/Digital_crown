@@ -222,6 +222,7 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     if (!(response.headers.get('content-type') || '').includes('application/pdf')) {
       throw new Error('Réponse PDF invalide.');
     }
+    if (archive && !response.headers.get('x-document-id')) throw new Error('Confirmation serveur manquante.');
     const pdf = await response.blob();
     if (!pdf.size) throw new Error('PDF vide.');
     return URL.createObjectURL(pdf);
