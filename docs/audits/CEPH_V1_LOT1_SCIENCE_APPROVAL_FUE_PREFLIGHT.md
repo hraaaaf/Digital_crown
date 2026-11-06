@@ -2515,3 +2515,14 @@ Le PDF final signé est archivé via **DocumentArchive/versioning existant** pui
 **PRE/POST et preuves** : canonique unique lu avant la passe §77, mis à jour §78 après première implémentation, et nouveau POST §79 pour la correction visuelle ; Notion PRE86 et POST86 déjà réalisés. Dernier HEAD code AVANT cette annotation `5e8a71c3711c1b4de609a215d4e69e5affb1d19c`. Les runs de ce HEAD étaient encore QUEUED au moment du constat, donc **aucune affirmation « dernier SHA GREEN »**. Après ce commit documentaire, refaire les contrôles exact HEAD. PR reste OPEN/DRAFT, Human Visual Approval non donné, FUE transverses 0/10, aucun merge ni Vercel.
 
 **NEXT** : inspecter artifact et tests exact HEAD de ce changement de pagination, puis implémenter l'extraction de tracé certifié et le recueil des observations des moulages, un snapshot de validation finale humain et le verrou d'archive officielle, avant les 10 FUE et approbation. **GOAL** : récit clinique I→II→III→IV documenté et scientifiquement soutenu, signé par un praticien réel. **Dernière MAJ canonique : 06/11/2026 — POST §79 · Digital Crown Orthodontie / Lot V1 3/4 / Sous-lot PDF A4 clinique audité et pagination / PR #1213.**
+
+
+### 80. POST — 06/11/2026 — Harmonisation A4 sur les tokens du moteur documentaire commun
+
+**Demande utilisateur** : en-tête/pied de page identiques aux documents du cabinet, logo et identité issus de CabinetConfig, couleurs héritées du thème sélectionné, aucun thème A4 parallèle.
+
+**Audit** : `document_factory.py` transmet déjà toutes les colonnes `CabinetConfig` au `CephaloViewModel`; `cephalo_four_part_report.py` utilise déjà `BaseTemplate.draw_static_elements` sur chaque page pour logo, en-tête, pied de page et QR (désactivé sans validation). L'artefact synthétique précédent ne contient pas de vrai logo/coordonnées configurés : **ne pas le présenter comme une preuve de branding réel**.
+
+**Changement ciblé PR #1213** : `ecb0be2` retire le fallback local NAVY_BLUE et lit `primary_color`, `secondary_color`, `accent_color` par le même `generator._get_val` et les mêmes valeurs par défaut que `BaseTemplate.draw_static_elements`; sous-titres via accent, titre/tableaux via primary, texte secondaire via secondary. `9522e9d` ajoute un test PyMuPDF sur les couleurs effectivement rendues dans un PDF synthétique. **Pas de valeurs de palette clinique indépendantes**, pas de changement de signature ni de diagnostic.
+
+**Statut** : commits poussés sur la branche de la PR, **CI exact HEAD encore à contrôler** ; captures réelles du thème de cabinet/logo/footer à obtenir avant approbation visuelle. **Aucune fusion, aucun déploiement.** FUE multi-thèmes et logo/footer sur configuration réelle non validées. NEXT : vérifier CI et artefacts PDF exact HEAD, comparer deux thèmes avec branding réel, valider FUE puis approbation humaine. GOAL : document A4 conforme au système documentaire commun, sans divergence de thème.
