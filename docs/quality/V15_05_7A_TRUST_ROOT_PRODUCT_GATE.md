@@ -1,5 +1,18 @@
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
+## POST FUSION — 2026-11-06 — LOT05.7C-C PR #1218 MERGED (LAB ONLY / CLINICAL NO-GO)
+
+**Approbation explicite :** le propriétaire a répondu « Oui » à la question de fusion laboratoire seule de PR #1218. Aucun feu vert d'installation, de déploiement, de traitement de données patient réelles ni d'import clinique.
+
+**Preuve GitHub source :** [PR #1218](https://github.com/hraaaaf/Digital_crown/pull/1218) CLOSED/MERGED, passage Draft→Ready sans changer le HEAD, puis squash merge lié à `expected_head_sha=7fe787919b30c08ca850aa7c21168610c1c7d675`. GitHub a répondu `merged=true`, commit de fusion `e16c0f6c6416e6ce25ce5e46896c90cbeb2bcaa0`. `master` a été vérifié exactement sur ce SHA immédiatement après la fusion.
+
+**Contrôles exact source HEAD avant fusion :** total 18 workflows : 17 SUCCESS, 1 SKIPPED, 0 FAILURE, 0 actif. [05.7C-C mapping FAKE #42254805986](https://github.com/hraaaaf/Digital_crown/actions/runs/42254805986) SUCCESS avec 44 tests Windows et 44 Ubuntu ; [05.7A #42254806002](https://github.com/hraaaaf/Digital_crown/actions/runs/42254806002), [05.7B #42254806159](https://github.com/hraaaaf/Digital_crown/actions/runs/42254806159), [05.7C-A #42254805991](https://github.com/hraaaaf/Digital_crown/actions/runs/42254805991), [05.7C-B #42254805906](https://github.com/hraaaaf/Digital_crown/actions/runs/42254805906), [Scope #42254805914](https://github.com/hraaaaf/Digital_crown/actions/runs/42254805914) et [Cabinet CODE_CERTIFIED #42254806057](https://github.com/hraaaaf/Digital_crown/actions/runs/42254806057) SUCCESS. Le résultat 05.7C-C reste **limité au laboratoire**.
+
+**Contrôle postmerge :** [Cabinet Upgrade PostgreSQL Certification #42264304768](https://github.com/hraaaaf/Digital_crown/actions/runs/42264304768) démarré sur le commit squash `e16c0f6...`; il était encore IN_PROGRESS lors du premier contrôle. Le présent ajout au **même et unique canonique LOT05**, désormais sur master, produit un nouveau commit documentaire et sa propre vérification CI ; **ne pas annoncer de certification post-merge pour ce nouveau HEAD avant un résultat terminal**. Un précédent run annulé après un nouveau push documentaire ne doit pas être qualifié d'échec ou de réussite.
+
+**Produit / restrictions :** import_permitted=false, mapping_approved=false, full_schema_certified=false, target_rows_written=0 ; collisions avec la vraie base cible **inconnues/null**, jamais une valeur zéro fabriquée. Aucune lecture/écriture de base clinique, compatibilité de source Orthalis attestée, patient réel, transformation clinique, UI produit, installation cabinet ou Vercel. Aucune fusion d'autre lot.
+
+**NEXT :** vérifier CI master au HEAD post-documentation exact, consigner le résultat, puis continuer les tranches LOT05 vers la preuve de compatibilité d'un export vendeur autorisé et le plan de restauration, sous une nouvelle barrière clinique/humaine. **GOAL :** migration multi-logiciels locale, vérifiable et sans risque patient non contrôlé.
 ## PRE + CODE POST — 2026-11-06 — LOT05.7C-C explicit fake CSV field mapping + count-only dry-run (DRAFT)
 
 **PRE / owner direction :** latest status 05.7C-B PR #1217 successfully merged LAB ONLY; exact master `aa5afbee09328bbd94cb424f722187391fc268f8` and [Postmerge PostgreSQL 18/Windows Certification #42247220000](https://github.com/hraaaaf/Digital_crown/actions/runs/42247220000) SUCCESS 2/2. The next lot is **05.7C-C** only. No approval to merge, install, deploy, process real patient data, enable imported rows, or certify vendor Orthalis.
