@@ -161,6 +161,12 @@ def test_fue_g_real_preview_archive_isolated(client, db, dentiste, tmp_path, mon
     assert replay.content == archive.content
     assert replay.headers["x-document-id"] == str(doc_id)
     assert replay.headers["x-idempotent-replay"] == "true"
+    mismatched = client.post(
+        "/api/mobile/documents/archive", headers=archive_auth,
+        json={**payload, "data": {**payload["data"], "reason": "Different document"}},
+    )
+    assert mismatched.status_code == 409, mismatched.text
+    assert db.query(models.DocumentArchive).count() == before + 1
     recovered = client.get(f"/api/mobile/documents/archive/receipt/{intent_key}", headers=auth)
     assert recovered.status_code == 200, recovered.text
     assert recovered.content == archive.content
