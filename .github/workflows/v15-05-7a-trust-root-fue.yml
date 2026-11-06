@@ -1,0 +1,276 @@
+name: LOT05 05.7A Trust Root FUE (synthetic no-op)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/legacy_migration_trust_root_v15.py'
+      - 'backend/services/legacy_migration_install_attestation_v15.py'
+      - 'backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py'
+      - 'backend/tests/test_legacy_sql_057a_f_rollback_ledger_fue.py'
+      - 'backend/tests/fixtures/lot05_7a_f_rollback_ledger_lab.py'
+      - 'backend/tests/test_legacy_sql_057a_trust_root_fue.py'
+      - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
+      - '.github/workflows/v15-05-7a-trust-root-fue.yml'
+      - 'backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_noop.cs'
+      - 'backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_probe.ps1'
+      - 'backend/tests/fixtures/lot05_7a_c_signed_ipc_worker.py'
+      - 'backend/tests/fixtures/lot05_7a_c_make_tickets.py'
+      - 'backend/tests/fixtures/lot05_7a_c_windows_scm_signed_noop.cs'
+      - 'backend/tests/fixtures/lot05_7a_c_windows_signed_ipc_probe.ps1'
+      - 'backend/tests/fixtures/lot05_7a_e_windows_image_manifest_lab.py'
+      - 'backend/tests/fixtures/lot05_7a_e_windows_scm_image_probe.ps1'
+      - 'backend/scripts/verify_lot05_windows_publisher_preflight.ps1'
+      - 'backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  cryptographic-noop-fue:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install cryptographic FUE dependencies
+        run: python -m pip install --disable-pip-version-check pytest cryptography
+      - name: Compile verify-only trust-root modules
+        run: python -m py_compile backend/services/legacy_migration_trust_root_v15.py backend/services/legacy_migration_install_attestation_v15.py
+      - name: Stage verifier tests outside heavyweight backend package
+        run: >-
+          python -c "from pathlib import Path; from shutil import copy2;
+          dest=Path('isolated_fue_057a/backend');
+          (dest/'services').mkdir(parents=True, exist_ok=True);
+          (dest/'tests').mkdir(parents=True, exist_ok=True);
+          (dest/'tests'/'fixtures').mkdir(parents=True, exist_ok=True);
+          copy2('backend/services/legacy_migration_trust_root_v15.py', dest/'services');
+          copy2('backend/services/legacy_migration_install_attestation_v15.py', dest/'services');
+          copy2('backend/tests/test_legacy_sql_057a_trust_root_fue.py', dest/'tests');
+          copy2('backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py', dest/'tests');
+          copy2('backend/tests/test_legacy_sql_057a_f_rollback_ledger_fue.py', dest/'tests');
+          copy2('backend/tests/fixtures/lot05_7a_f_rollback_ledger_lab.py', dest/'tests'/'fixtures')"
+      - name: Execute FUE-G05.7A negative and positive no-op cases
+        run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_trust_root_fue.py -q --noconftest -ra
+      - name: Execute FUE-G05.7A-D signed manifest, swapped binary and downgrade denials
+        run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_d_install_attestation_fue.py -q --noconftest -ra
+      - name: Execute FUE-G05.7A-F independently witnessed rollback ledger lab
+        run: python -m pytest isolated_fue_057a/backend/tests/test_legacy_sql_057a_f_rollback_ledger_fue.py -q --noconftest -ra
+
+  windows-scm-native-pipe-fue:
+    name: Native SCM LocalService SID + authenticated named pipe (Windows)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      LOT05_7A_B_FAKE_ONLY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact PR head and PowerShell syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $actual=(git rev-parse HEAD).Trim()
+          if ($actual -ne "${{ github.event.pull_request.head.sha || github.sha }}") {throw '05B_HEAD_SHA_MISMATCH'}
+          $file='backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_probe.ps1'
+          $tokens=$null; $errors=$null
+          [Management.Automation.Language.Parser]::ParseFile((Resolve-Path $file),[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) {throw ('05B_POWERSHELL_PARSE_ERROR '+($errors -join ';'))}
+      - name: Execute native ephemeral Windows SCM named pipe adversarial FUE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05_7a_b_windows_scm_pipe_probe.ps1 2>&1 | Tee-Object -FilePath 05b-ipc-evidence.txt
+          if ($LASTEXITCODE -ne 0) {throw '05B_NATIVE_IPC_FUE_FAILED'}
+          $report=Get-Content -LiteralPath 05b-ipc-evidence.txt -Raw
+          foreach($evidence in @(
+            '05B_NATIVE_SCM_LOCALSERVICE_SID_VERIFIED',
+            '05B_NATIVE_NAMED_PIPE_OS_PEER_SID_AUTHENTICATED',
+            '05B_FORGED_CLAIM_AND_CLINICAL_COMMAND_DENIED',
+            '05B_SAME_REAL_CLIENT_WRONG_ALLOWED_IDENTITY_DENIED',
+            '05B_ALL_OPERATIONS_SYNTHETIC_NOOP_NO_CLINICAL_IMPORT',
+            '05B_DISPOSABLE_SCM_AND_FILES_CLEANED')) {
+            if (-not $report.Contains($evidence)) {throw ('05B_MISSING_EVIDENCE '+$evidence)}
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7a-b-native-scm-ipc-proof
+          path: 05b-ipc-evidence.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  windows-scm-signed-ipc-fue:
+    name: Native Windows SCM + Ed25519 signed IPC + restart replay (CI fake)
+    runs-on: windows-latest
+    timeout-minutes: 25
+    env:
+      LOT05_7A_C_FAKE_ONLY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install verifier-only crypto dependency
+        run: python -m pip install --disable-pip-version-check cryptography
+      - name: Exact HEAD and C-fixture syntax check
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne "${{ github.event.pull_request.head.sha || github.sha }}") {
+            throw '05C_EXACT_SOURCE_SHA_MISMATCH'
+          }
+          $script=Resolve-Path 'backend/tests/fixtures/lot05_7a_c_windows_signed_ipc_probe.ps1'
+          $tokens=$null; $parseErrors=$null
+          [Management.Automation.Language.Parser]::ParseFile($script,[ref]$tokens,[ref]$parseErrors) | Out-Null
+          if ($parseErrors.Count -ne 0) {throw ('05C_POWERSHELL_PARSE_ERROR '+($parseErrors -join ';'))}
+          python -m py_compile backend/tests/fixtures/lot05_7a_c_make_tickets.py backend/tests/fixtures/lot05_7a_c_signed_ipc_worker.py
+          if ($LASTEXITCODE -ne 0) {throw '05C_PYTHON_COMPILE_FAIL'}
+      - name: Native installed ephemeral SCM signed IPC FUE and negatives
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05_7a_c_windows_signed_ipc_probe.ps1 2>&1 | Tee-Object -FilePath 05c-signed-ipc-evidence.txt
+          if ($LASTEXITCODE -ne 0) {throw '05C_NATIVE_SIGNED_IPC_FUE_FAILED'}
+          $report=Get-Content -LiteralPath 05c-signed-ipc-evidence.txt -Raw
+          foreach ($marker in @(
+            '05C_SERVICE_SID_PROTECTED_PIN_AND_LEDGER',
+            '05C_SIGNED_ED25519_TICKET_ACCEPTED_VIA_OS_AUTHENTICATED_SCM_IPC',
+            '05C_REPLAY_AFTER_SCM_RESTART_DENIED',
+            '05C_SIGNED_CONTEXT_EXPIRY_TAMPER_FORGERY_AND_CLINICAL_DENIED',
+            '05C_VALID_SIGNATURE_WRONG_OS_PRINCIPAL_DENIED',
+            '05C_SYNTHETIC_NOOP_ONLY_NO_CLINICAL_IMPORT',
+            '05C_EPHEMERAL_SERVICES_AND_FILES_CLEANED')) {
+            if (-not $report.Contains($marker)) {throw ('05C_EVIDENCE_MISSING '+$marker)}
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7a-c-native-scm-signed-ipc
+          path: 05c-signed-ipc-evidence.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+  windows-scm-image-signed-manifest-fue:
+    name: Windows native SCM PID/image SHA256 + Ed25519 manifest (CI lab)
+    runs-on: windows-latest
+    timeout-minutes: 20
+    env:
+      LOT05_7A_E_FAKE_ONLY: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install signature verification dependency
+        run: python -m pip install --disable-pip-version-check cryptography
+      - name: Verify exact HEAD and static fixture syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne "${{ github.event.pull_request.head.sha || github.sha }}") {
+            throw '05E_EXACT_HEAD_REQUIRED'
+          }
+          $p=Resolve-Path 'backend/tests/fixtures/lot05_7a_e_windows_scm_image_probe.ps1'
+          $tokens=$null; $errors=$null
+          [Management.Automation.Language.Parser]::ParseFile($p,[ref]$tokens,[ref]$errors) | Out-Null
+          if ($errors.Count -ne 0) {throw ('05E_SCRIPT_PARSE_FAILED '+($errors -join ';'))}
+          python -m py_compile backend/tests/fixtures/lot05_7a_e_windows_image_manifest_lab.py backend/services/legacy_migration_install_attestation_v15.py
+          if ($LASTEXITCODE -ne 0) {throw '05E_PYTHON_STATIC_COMPILE_FAILED'}
+      - name: Run actual SCM PID and image-to-signed-manifest lab FUE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05_7a_e_windows_scm_image_probe.ps1 2>&1 | Tee-Object -FilePath 05e-loaded-image-proof.txt
+          if ($LASTEXITCODE -ne 0) {throw '05E_WINDOWS_NATIVE_IMAGE_FUE_FAILED'}
+          $proof=Get-Content -LiteralPath 05e-loaded-image-proof.txt -Raw
+          foreach($marker in @(
+            '05E_REAL_SCM_PID_MATCHES_OS_PROCESS_LOADED_EXE',
+            '05E_REAL_WINDOWS_LOADED_IMAGE_SHA256_MEASURED',
+            '05E_SIGNED_MANIFEST_MATCHES_SCM_PROCESS_IMAGE_SHA256_AND_SERVICE_SID',
+            '05E_REPLACED_IMAGE_SID_FORGERY_CLINICAL_AND_ROLLBACK_DENIED',
+            '05E_CI_EPHEMERAL_SIGNER_NOT_PRODUCT_PUBLISHER_NO_CLINICAL_IMPORT',
+            '05E_REAL_SERVICE_SID_AND_PEER_TOKEN_NOOP_ONLY',
+            '05E_DISPOSABLE_SCM_BINARY_AND_MANIFEST_LAB_CLEANED')) {
+            if (-not $proof.Contains($marker)) {throw ('05E_REQUIRED_PROOF_MISSING '+$marker)}
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7a-e-real-scm-image-signed-manifest-lab
+          path: 05e-loaded-image-proof.txt
+          if-no-files-found: ignore
+          retention-days: 14
+
+
+  windows-authenticode-publisher-negative-fue:
+    name: Windows Authenticode publisher external-pin reject-only FUE (NO product cert)
+    runs-on: windows-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exact SHA / syntax — product signature verifier and negative probe
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ((git rev-parse HEAD).Trim() -ne "${{ github.event.pull_request.head.sha || github.sha }}") {
+            throw '05G_EXACT_HEAD_REQUIRED'
+          }
+          foreach ($file in @(
+            'backend/scripts/verify_lot05_windows_publisher_preflight.ps1',
+            'backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1')) {
+            $tok=$null
+            $parseErrors=$null
+            [Management.Automation.Language.Parser]::ParseFile(
+              (Resolve-Path $file), [ref]$tok, [ref]$parseErrors
+            ) | Out-Null
+            if ($parseErrors.Count -ne 0) {
+              throw ('05G_POWERSHELL_PARSE_ERROR '+$file+': '+($parseErrors -join ';'))
+            }
+          }
+      - name: Native Windows denial proofs — no product keys and no signing
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          & pwsh -NoProfile -File backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1 2>&1 |
+            Tee-Object -FilePath 05g-authenticode-negative-evidence.txt
+          if ($LASTEXITCODE -ne 0) {throw '05G_AUTHENTICODE_NEGATIVE_FUE_FAILED'}
+          $report=Get-Content -LiteralPath 05g-authenticode-negative-evidence.txt -Raw
+          foreach ($marker in @(
+            '05G_DENIED_MISSING_EXTERNAL_PIN',
+            '05G_DENIED_UNVERIFIED_PIN',
+            '05G_DENIED_ARTIFACT_PROVIDED_PIN',
+            '05G_DENIED_NESTED_ARTIFACT_PIN',
+            '05G_DENIED_UNSIGNED_INSTALLER',
+            '05G_DENIED_WRONG_INSTALLER_NAME',
+            '05G_DENIED_MISSING_APP_BINARY',
+            '05G_DENIED_ONE_FILE_FOR_BOTH',
+            '05G_WINDOWS_NATIVE_UNSIGNED_AND_FAKE_PUBLISHER_REJECTIONS_CONFIRMED',
+            '05G_NO_CI_GENERATED_PUBLISHER_KEY_OR_SIGNED_PRODUCT_USED',
+            '05G_REAL_SIGNED_PRODUCT_AND_INDEPENDENT_ISSUER_REMAIN_NO_GO',
+            '05G_EPHEMERAL_NEGATIVE_FUE_FILES_CLEANED')) {
+            if (-not $report.Contains($marker)) {throw ('05G_REQUIRED_EVIDENCE_MISSING '+$marker)}
+          }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: lot05-7a-g-windows-authenticode-reject-only-proof
+          path: 05g-authenticode-negative-evidence.txt
+          if-no-files-found: ignore
+          retention-days: 14
