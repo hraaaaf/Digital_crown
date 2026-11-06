@@ -359,7 +359,9 @@ def test_unsigned_new_a4_official_archive_is_rejected_before_file_or_db_write(
     preview = client.post(endpoint, json={**payload, "archive": False}, headers=headers)
     assert preview.status_code == 200, preview.text[:400] if preview.status_code != 200 else ""
     assert preview.content.startswith(b"%PDF")
-    assert b"BROUILLON" not in preview.content  # compressed PDF stream, not raw UTF-8
+    import fitz
+    with fitz.open(stream=preview.content, filetype="pdf") as pdf:
+        assert "BROUILLON" in "\\n".join(page.get_text() for page in pdf)
     assert db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient.id,
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
