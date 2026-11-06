@@ -2062,3 +2062,58 @@ Revue https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/e
 **DECISION_LOCKED (fonction UX)** : Step2 denture mixte à sections conditionnelles, statut mesuré/estimé/non évalué, DDM clinique avec Spee sans double compte et leeway distinct ; contribution céphalométrique **mode Steiner présélectionné** avec changement de méthode ou correction humaine motivée. **NON VALIDÉ** : 2,5°→1 mm universel, type de dentition inféré automatiquement, méthodes prédictives sans population/version, choix de traitement, normes ou tous résultats en mm de 2 JPEG publics.
 
 **GOAL** : détailler Step3 Diagnostic, depuis sources Céphalométrie et Moulages jusqu'au diagnostic multi-axes structuré et résumé, avec lecture des contradictions, statut de DDM projetée, prudence sur croissance, tissus mous, fonctionnel, et explicite séparation constat / interprétation / décision humaine. **SUCCESS** : questions conditionnelles, champs exacts, preuve visible, brouillon possible, une liste de problèmes priorisés que le praticien confirme ; futurs FUE sans exécution. **GATE** : SPEC_ONLY / NO_CODE / NO_MERGE / NO_VERCEL / NOT_CLINICALLY_APPROVED.
+
+
+### 69. POST — 2026-11-06 — Step3 Diagnostic orthodontique : onboarding progressif structuré, NON AUTOMATIQUE (CANDIDATE)
+
+**Décision acquise / limite de sa portée** : approbation par « Okay je valide continuons » de la **direction UX Step2** + modèle de planification Steiner préselectionné et modifiable/traçable. Les calculs numériques, profils historiques, cibles, bibliothèques de normes, exactitude des repères et tests FUE restent soumis à validation séparée. **Ne pas traiter le diagnostic ci-dessous comme déjà approuvé** : cet atelier en donne une proposition fonctionnelle.
+
+**Rappel de l'étape 3 existante** : `Step3Clinical.tsx` contient observations et notes éditables ; `orthoExpertSystem.ts` et `bilan_ortho_engine.py` existent mais les déductions automatiques de plans/classes ont été désactivées. Le produit conserve un stepper à **quatre** étapes, Step3 n'est pas une duplication de Step1 et ne crée pas une 5e étape « IA ». Les modes COM Digital Crown et Steiner 1953/1959 restent ceux de Step1. Aucun LLM runtime.
+
+#### 69-A — Contrat clinique en trois couches
+
+1. **CONSTAT / MESURE** : référence source visible (photo, radio, modèle, examen clinique) ; valeur, unité, date, méthode/version/qualité, état `MESURE / ESTIME / NON_EVALUE / A_CONTROLER`. Ce niveau est **non interprétatif**.
+2. **INTERPRETATION CLINIQUE PROPOSEE PAR PRATICIEN** : hypothèse squelettique, dentaire, fonctionnelle ou esthétique, fondée sur plusieurs observations et limitations connues. Choix explicite `COMPATIBLE / A_CONFIRMER / NON_CONCLUANT`; ne pas automatiquement classer la base squelettique à partir d'ANB seul, la relation molaire à partir d'ANB, une cause d'occlusion croisée à partir d'une photo, ou une croissance à partir de l'âge.
+3. **DIAGNOSTIC ET RESUME VALIDES PAR PRATICIEN** : liste d'anomalies ou problèmes priorisés, phrases éditables et datées, source/raison/contradictions, action humaine de confirmation. Une hypothèse non vérifiée ne se transforme pas en diagnostic validé à la sauvegarde ou à l'export.
+
+#### 69-B — Parcours Step3 : six blocs visibles au bon moment
+
+| Bloc | Questions du praticien | Préremplissage proposé / condition | Sortie clinique |
+|---|---|---|---|
+| **D1. Dossier et fiabilité** | « Quelles données puis-je interpréter ? » | Afficher résumé Step1 Céphalo (COM/Steiner, couverture N attendues/valables, angles, mm si réellement calibrés) + Step2 (denture, ED/EN, DDM mesurée/estimée, Spee/leeway séparés, occlusion D/G), sans deviner normalités. Un avertissement précis si des données manquent ou se contredisent. | Sources révisables, données exploitées/non évaluées, pas de faux taux de complétude |
+| **D2. Base squelettique** | « Quel diagnostic squelettique sagittal et vertical retiens-tu ? » | Montre SNA/SNB/ANB et constructions propres à l'analyse sélectionnée **si source/verrouillage scientifique OK** ; montrer verticalité SN–GoGn ou autres mesures seulement si leur construction est qualifiée. Classes I/II/III osseuses ou non concluantes **saisies/confirmées** par praticien avec note; pas de déduction automatique d'un seuil ANB. | Interprétations sagittale et verticale, preuve, limites, contradictions possibles |
+| **D3. Dento-alvéolaire / DDM** | « Quels sont les problèmes d'espace, d'inclinaison incisive et leurs conséquences ? » | DDM d'encombrement, éventuelle correction Spee, leeway potentiel séparé, position incisive angulaire et linéaire si calculable ; mode Steiner préselectionné pour **simulation** de la correction céphalométrique. Reprendre `L1–NB initial mesuré`, `initial ajusté forme d'arcade`, `cible envisagée` et `cible retenue/praticien`, mode manuellement justifié ou méthodologie individualisée si choisie. L'état DDM réelle = `PROJETEE` seulement si toutes preuves compatibles ; sinon `NON_CALCULABLE`. | DDM réelle projetée **en mm signés** ou absence motivée ; diagnostic d'encombrement distinct de la stratégie de repositionnement |
+| **D4. Occlusion / rapports dentaires** | « Quelle synthèse occlusale retiens-tu ? » | Afficher rapports molaires et canins D/G, surplomb/recouvrement, sens des déviations de milieux, croisés/ciseaux/secteur ; si dent permanente non éruptée ou examen non disponible = `NON_EVALUE`, jamais classe I par défaut. Différencier `classe molaire` observée et `classe squelettique` interprétée, autoriser leur discordance sans auto-correction. | Diagnostic dentaire/occlusal documenté, avec asymétries et limites |
+| **D5. Fonction, croissance et esthétique** | « Quels éléments cliniques complémentaires sont documentés ? » | Question conditionnelle sur examen fonctionnel (décalage en fermeture, ventilation/respiration, habitudes, ATM si examiné), tissus mous/photos fiables et acceptées, hygiène/parodonte/contexte biologiques documentés ; éventuel stade de croissance **seulement si un examen/méthode dédiée a été réalisé**, ne pas inférer CVM depuis la denture mixte ni l'âge. Si non évalué, ne pas afficher une conclusion normale. | Observations et hypothèses séparées, problèmes fonctionnels/aesthétiques selon preuve, critères à vérifier |
+| **D6. Liste de problèmes et résumé** | « Quels problèmes sont retenus et dans quel ordre de priorité ? » | Synthèse modifiable : priorité clinique/urgence, hypothèse vs établie, source principale, éléments discordants, contexte de denture mixte et hypothèses prospectives, champ libre de conclusion praticien. Liste de problèmes préstructurée mais **sans diagnostic IA inféré** ; notes/phrases de catalogue neutres, jamais du texte libre génératif LLM. | Diagnostic détaillé + résumé concis signé (praticien/auteur/date/version), transfert vers Step4 en statut brouillon ou validé |
+
+**UX et décision manuelle** : `Réviser les données`, `Ajouter observation`, `Marquer non évalué`, `Confirmer hypothèse`, `Valider diagnostic`, `Continuer vers Plan/Bilan` (y compris brouillon partiel avec alerte). Ne pas confondre sauvegarder une note, confirmer un constat, ou valider le diagnostic. Le diagnostic validé ne vaut pas signature du plan thérapeutique. Aucune méthode de DDM (×2 Steiner ou méthode géométrique) ne détermine automatiquement extraction/stripping/expansion.
+
+**Dépendances et conflits à rendre visibles** :
+- Classe molaire II à droite / classe squelettique I possible dans un cas clinique donné : ce ne sont pas des sorties contradictoires nécessairement; elles décrivent des axes distincts. Signaler une **différence de domaines**, pas un « bug ».
+- Céphalo non calibrée : angles admissibles selon géométrie et points, distances L1–NB/RI/DMM réelle `NC`, sans bloquer le reste du diagnostic.
+- DDM denture mixte estimée : label `ESTIMATION`, source percentile/méthode, pas une DDM définitive ; leeway potentiel pas une quantité d'espace déjà acquise.
+- Les informations clinicien/parents ne se substituent pas aux observations. Déclarer `NON_EVALUE` si examen requis absent.
+- Un changement dans Step1 ou Step2 invalide uniquement les **hypothèses et bilans dépendants**, avec contexte historique ; jamais laisser un ancien diagnostic « confirmé » si les preuves de support ont été modifiées.
+
+#### 69-C — Scénario d'écran fictif (aucun patient)
+
+**Entrées fictives** : denture mixte, molaires permanentes observables droite et gauche ; canines permanentes non éruptées ; classe molaire I côté gauche, II côté droit **déclarées uniquement comme observation occlusale** ; articulé croisé postérieur droit **décrit cliniquement** ; EN d'une arcade **prédit** via méthode et percentile affichés, ED mesuré, courbe de Spee non évaluée ; radio JPEG sans calibration pertinente, donc `L1–NB mm NC`.
+**Rendu honnête** : panneau D1 signale data estimée et calibration manquante ; D2 sagittal squelettique `NON_CONCLUANT` si mesures/hypothèses insuffisantes, D3 affiche `DDM encombrement estimée` mais `DDM réelle NON CALCULABLE`, D4 garde rapports molaires G/D non symétriques et crossbite D ; D5 ne prétend pas à déviation fonctionnelle ni stade de croissance déterminé ; D6 propose une **liste de constats à vérifier par le praticien**, sans traitement. Cet exemple n'est ni un diagnostic clinique réel ni un conseil patient.
+
+#### 69-D — Batterie FUE-DX future (NOT RUN)
+
+- DX-01 Step1 sans mm, Step2 complet modèles : DDM réelle NC, diagnostic clinique partiel possible, aucune valeur zéro de secours.
+- DX-02 leeway estimé + Spee non évalué : ni espace inventé ni double compte ; étiquette de données estimées traverse résumé/PDF.
+- DX-03 rapports molaires asymétriques D=II, G=I et ANB compatible I : distinguer classe dentaire vs squelettique, aucune conversion automatique.
+- DX-04 canines permanentes absentes : aucune classification canine permanente assignée ni brouillon masquant cette lacune.
+- DX-05 source clinique fonctionnelle absente : déviation fonctionnelle `NON_EVALUE`, pas diagnostic automatique.
+- DX-06 croissance indéterminée en denture mixte : ni CVM ni croissance résiduelle numérique inventés.
+- DX-07 objectif incisif retenu puis modifié : recalcul de RI et DDM réelles dépendantes, rétrogradation des diagnostics validés dépendants vers `A_REVOIR`, historique auteur/date.
+- DX-08 résumé détaillé et court sont indépendamment éditables; sauvegarde `BROUILLON` ≠ `VALIDATION_PRATICIEN`, transfert Step4 préserve la nuance.
+- DX-09 unité, côté et provenance visibles pour chaque constat/diagnostic/PDF; résister à données source contradictoires, comparateurs Steiner/McNamara non fusionnés.
+- DX-10 a11y clavier/tactile, zoom 200%, viewports 390/430/768/1280, tokens thème global (zéro hex module), FUE screenshot BEFORE/AFTER avec approbation propriétaire ultérieure, 0 LLM et patient réel en artefacts.
+
+**Question prochaine pour propriétaire, non bloquante** : confirmer que Step3 présente **la liste de problèmes priorisés, puis un résumé final éditable**, plutôt qu'un paragraphe diagnostic généré automatiquement. Les problèmes peuvent être réordonnés, avec preuve et statut ; aucun LLM runtime.
+
+**Résultat/gate** : seule la **direction Step2/mode préselectionné** vient d'être explicitement validée. Cette nouvelle Step3 est `DRAFT_SPEC_NOT_APPROVED`. Les dix FUE-DX sont **à exécuter plus tard**, non certifiés. Pas de code, patient réel, merge, Vercel ou traitement automatique. **Dernière mise à jour canonique : 06/11/2026 — POST §69, Step3 Diagnostic candidat.**
