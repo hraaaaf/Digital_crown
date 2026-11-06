@@ -1,7 +1,7 @@
 """F5B-D2 Windows-only secure restore to a NEW file; never overwrite.
 
-Experimental operator primitive. Parent reparse traversal is rejected before
-creation, and ancestor handles remain open without write/delete sharing.
+Experimental operator primitive. Parent reparse traversal is rejected; file creation is relative to the
+verified parent handle so a concurrent parent rename cannot redirect the leaf.
 Only the current user and SYSTEM are granted access by the creation DACL.
 """
 from __future__ import annotations
@@ -19,6 +19,88 @@ from backend.services.windows_keyring_handle_probe import (
 
 class WindowsRestoreDenied(ValueError):
     pass
+
+
+class _UnicodeString(ctypes.Structure):
+    _fields_ = [
+        ("length", wintypes.USHORT),
+        ("maximum_length", wintypes.USHORT),
+        ("buffer", wintypes.LPWSTR),
+    ]
+
+
+class _ObjectAttributes(ctypes.Structure):
+    _fields_ = [
+        ("length", wintypes.ULONG),
+        ("root_directory", wintypes.HANDLE),
+        ("object_name", ctypes.POINTER(_UnicodeString)),
+        ("attributes", wintypes.ULONG),
+        ("security_descriptor", ctypes.c_void_p),
+        ("security_quality_of_service", ctypes.c_void_p),
+    ]
+
+
+class _IoStatusBlock(ctypes.Structure):
+    _fields_ = [("status", ctypes.c_void_p), ("information", ctypes.c_size_t)]
+
+
+def _create_new_under_checked_parent(
+    parent_handle: int, leaf: str, descriptor: ctypes.c_void_p
+) -> int:
+    """Exclusively create ONE leaf relative to a verified parent FILE handle.
+
+    Re-resolving the absolute pathname after checking directory handles is
+    unsafe: Windows can rename the parent despite denied FILE_SHARE_DELETE.
+    NtCreateFile RootDirectory binds creation to the actual checked object.
+    There is deliberately NO fallback to a pathname-based CreateFileW.
+    """
+    if (not isinstance(leaf, str) or not leaf or leaf in (".", "..")
+            or any(c in leaf for c in ("/", "\\", ":", "\x00"))
+            or leaf.endswith((" ", "."))):
+        raise WindowsRestoreDenied("RESTORE_PATH_DENIED")
+    encoded = leaf.encode("utf-16-le")
+    if not 0 < len(encoded) <= 32760:
+        raise WindowsRestoreDenied("RESTORE_PATH_DENIED")
+    if not isinstance(parent_handle, int) or parent_handle in (0, -1):
+        raise WindowsRestoreDenied("RESTORE_PARENT_OPEN_DENIED")
+    if not descriptor or not descriptor.value:
+        raise WindowsRestoreDenied("RESTORE_DACL_DENIED")
+
+    # On Windows, wchar_t is UTF-16. The name contains one path component only.
+    name_buffer = ctypes.create_unicode_buffer(leaf)
+    name = _UnicodeString(len(encoded), len(encoded) + 2, name_buffer)
+    attrs = _ObjectAttributes(
+        ctypes.sizeof(_ObjectAttributes),
+        wintypes.HANDLE(parent_handle),
+        ctypes.pointer(name),
+        0x00000040,  # OBJ_CASE_INSENSITIVE
+        descriptor,
+        None,
+    )
+    io = _IoStatusBlock()
+    handle = wintypes.HANDLE()
+    ntdll = ctypes.WinDLL("ntdll", use_last_error=True)
+    ntdll.NtCreateFile.argtypes = [
+        ctypes.POINTER(wintypes.HANDLE), wintypes.DWORD,
+        ctypes.POINTER(_ObjectAttributes), ctypes.POINTER(_IoStatusBlock),
+        ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
+        wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD,
+    ]
+    ntdll.NtCreateFile.restype = ctypes.c_long
+    status = ntdll.NtCreateFile(
+        ctypes.byref(handle),
+        0xC0120000,  # GENERIC_READ|GENERIC_WRITE|READ_CONTROL|SYNCHRONIZE
+        ctypes.byref(attrs), ctypes.byref(io),
+        None, 0x00000080, 0, 2,  # FILE_ATTRIBUTE_NORMAL, share=0, FILE_CREATE
+        0x00200060,  # OPEN_REPARSE_POINT|NON_DIRECTORY|SYNCHRONOUS_IO_NONALERT
+        None, 0,
+    )
+    if status != 0 or not handle.value or io.information != 2:
+        if handle.value:
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(handle)
+        raise WindowsRestoreDenied("RESTORE_CREATE_NEW_DENIED")
+    return handle.value
+
 
 
 class _SecurityAttributes(ctypes.Structure):
@@ -141,11 +223,9 @@ def restore_new_private_file(filename: str, raw: bytes) -> None:
             if (not kernel.GetFileInformationByHandle(handle, ctypes.byref(info))
                     or info.attributes & 0x400 or not info.attributes & 0x10):
                 raise WindowsRestoreDenied("RESTORE_PARENT_REPARSE_DENIED")
-        handle = kernel.CreateFileW(str(path), 0x40000000 | 0x80000000 | 0x00020000,
-                                    0, ctypes.byref(attributes), 1,
-                                    0x00200000, None)
-        if handle is None or handle == ctypes.c_void_p(-1).value:
-            raise WindowsRestoreDenied("RESTORE_CREATE_NEW_DENIED")
+        # Bind the leaf creation to the checked parent object, not its
+        # renameable pathname. Still use the private owner+SYSTEM descriptor.
+        handle = _create_new_under_checked_parent(opened[-1], path.name, descriptor)
         opened.append(handle)
         count = wintypes.DWORD()
         raw_buffer = ctypes.create_string_buffer(raw)
