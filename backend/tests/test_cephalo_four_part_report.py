@@ -468,3 +468,26 @@ def test_a4_diagnosis_and_treatment_stay_together_after_full_media_gallery(tmp_p
         assert "Synthetic diagnosis used only to test graph integrity." in last_page
         assert "Synthetic phase" in last_page
         assert "NON SIGNÉ" in document[0].get_text("text")
+
+
+def test_four_part_a4_inherits_cabinet_theme_tokens(tmp_path: Path):
+    """The A4 content uses the same primary/secondary/accent tokens as the letterhead."""
+    vm = _vm().model_copy(update={"cabinet_config": {
+        **_vm().cabinet_config,
+        "primary_color": "#9B2C88",
+        "secondary_color": "#51676F",
+        "accent_color": "#198C70",
+    }})
+    gen = BilanOrthoPDFGenerator(str(tmp_path))
+    path = gen.generate(vm, filename="theme-tokens.pdf", projection=_projection())
+    spans = []
+    with fitz.open(path) as pdf:
+        for page in pdf:
+            for block in page.get_text("dict")["blocks"]:
+                for line in block.get("lines", []):
+                    spans.extend(line.get("spans", []))
+    def has_color(text, rgb):
+        return any(text in span["text"] and span["color"] == rgb for span in spans)
+    assert has_color("BILAN ORTHODONTIQUE", 0x9B2C88)
+    assert has_color("Analyse dento-alvéolaire", 0x198C70)
+    assert any("BROUILLON" in span["text"] and span["color"] == 0x51676F for span in spans)
