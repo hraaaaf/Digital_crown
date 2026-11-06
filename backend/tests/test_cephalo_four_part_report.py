@@ -286,3 +286,120 @@ def test_four_part_a4_displays_only_verified_study_and_revision(tmp_path: Path):
         text = chr(10).join(page.get_text() for page in doc)
     assert "Révision 4" not in text
     assert "BROUILLON" in text and "NON SIGNÉ" in text
+
+
+
+def _clinician_audited_graph():
+    """Synthetic graph with individually audited decisions and exact case scope."""
+    from dataclasses import replace
+    from backend.schemas.cephalo_evidence import (
+        ClinicianValidationEvidence, ValidationAction,
+    )
+    from backend.tests.test_cephalo_evidence_graph import _valid_graph, NOW
+
+    case_id = "cephalo:fourpart-synthetic"
+    original = _valid_graph()
+    sources = [
+        source.model_copy(update={"metadata": {"case_id": case_id}})
+        for source in original.sources
+    ]
+    ids = [
+        ("diagnosis", "diagnosis:synthetic"),
+        ("problem", "problem:synthetic"),
+        ("objective", "objective:synthetic"),
+        ("treatment_option", "option:synthetic"),
+    ]
+    audits = [
+        ClinicianValidationEvidence(
+            validation_id="validation:extra:" + str(i),
+            clinician_id="clinician:1", validated_at=NOW,
+            action=ValidationAction.ACCEPT, target_type=kind, target_id=target,
+            before_snapshot_hash="synthetic-before",
+            after_snapshot_hash="synthetic-after",
+        )
+        for i, (kind, target) in enumerate(ids)
+    ]
+    graph = replace(
+        original, sources=sources,
+        validations=[*original.validations, *audits],
+    )
+    return graph, case_id
+
+
+def test_audited_graph_renders_real_confirmed_text_only_in_unsigned_a4(tmp_path: Path):
+    from backend.services.cephalo_pdf_clinician_evidence import (
+        project_audited_clinician_evidence,
+    )
+
+    graph, case_id = _clinician_audited_graph()
+    evidence = project_audited_clinician_evidence(
+        graph, patient_id=1, case_id=case_id, analysis_id=867, revision=4,
+    )
+    assert len(evidence["diagnoses"]) == 1
+    assert evidence["plan"]["phases"][0]["title"] == "Synthetic phase"
+    assert evidence["report_signed"] is False
+
+    source = _projection()
+    source.update({
+        "patient_id": 1,
+        "analysis_id": 867,
+        "analysis_revision": 4,
+        "evidence_graph_present": True,
+        "clinician_evidence": evidence,
+    })
+    vm = _vm().model_copy(update={"patient_id": 1})
+    gen = BilanOrthoPDFGenerator(str(tmp_path))
+    pdf = gen.generate(vm, filename="audited-evidence-unsigned.pdf", projection=source)
+    with fitz.open(pdf) as document:
+        text = chr(10).join(p.get_text() for p in document)
+    assert "Synthetic diagnosis used only to test graph integrity." in text
+    assert "Synthetic target" in text
+    assert "Synthetic phase" in text
+    assert "BROUILLON" in text and "NON SIGNÉ" in text
+
+
+def test_wrong_case_or_missing_clinician_audits_never_promotes_diagnosis(tmp_path: Path):
+    import pytest
+    from dataclasses import replace
+    from backend.services.cephalo_pdf_clinician_evidence import (
+        project_audited_clinician_evidence,
+    )
+
+    graph, case_id = _clinician_audited_graph()
+    with pytest.raises(ValueError):
+        project_audited_clinician_evidence(
+            graph, patient_id=2, case_id=case_id, analysis_id=867, revision=4,
+        )
+    with pytest.raises(ValueError):
+        project_audited_clinician_evidence(
+            graph, patient_id=1, case_id="cephalo:other", analysis_id=867, revision=4,
+        )
+    with pytest.raises(ValueError):
+        project_audited_clinician_evidence(
+            replace(graph, validations=graph.validations[:1]),
+            patient_id=1, case_id=case_id, analysis_id=867, revision=4,
+        )
+
+    source = _projection()
+    source.update({
+        "patient_id": 1213,
+        "analysis_id": 867,
+        "analysis_revision": 4,
+        "evidence_graph_present": True,
+        "clinician_evidence": {
+            "version": "CEPHALO_CLINICIAN_PDF_EVIDENCE_V1",
+            "patient_id": 2,
+            "analysis_id": 867,
+            "analysis_revision": 4,
+            "report_signed": False,
+            "diagnoses": [{"statement": "WRONG_PATIENT_UNVERIFIED_DIAGNOSIS"}],
+            "plan": {"phases": [{"title": "WRONG_PATIENT_UNVERIFIED_PLAN"}]},
+        },
+    })
+    gen = BilanOrthoPDFGenerator(str(tmp_path))
+    file = gen.generate(_vm(), filename="cross-patient-denied.pdf", projection=source)
+    with fitz.open(file) as document:
+        text = chr(10).join(p.get_text() for p in document)
+    assert "WRONG_PATIENT_UNVERIFIED_DIAGNOSIS" not in text
+    assert "WRONG_PATIENT_UNVERIFIED_PLAN" not in text
+    assert "NON SIGNÉ" in text
