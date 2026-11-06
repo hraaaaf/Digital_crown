@@ -11,6 +11,7 @@ from math import isfinite
 from xml.sax.saxutils import escape
 
 from reportlab.lib import colors
+from backend.services.base_template_core import NAVY_BLUE
 from reportlab.lib.enums import TA_CENTER
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
@@ -85,8 +86,9 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     registerFontFamily(generator.premium_font, normal=generator.premium_font,
                        bold=generator.premium_bold, italic=generator.premium_font,
                        boldItalic=generator.premium_bold)
-    primary = colors.HexColor(config.get("primary_color") or "#003380")
-    secondary = colors.HexColor(config.get("secondary_color") or "#64748B")
+    # Inherit the same cabinet configuration and master-theme fallback as BaseTemplate.
+    primary = colors.HexColor(config["primary_color"]) if config.get("primary_color") else NAVY_BLUE
+    secondary = colors.HexColor(config["secondary_color"]) if config.get("secondary_color") else primary
     width = A4[0]
     top, bottom, left, right = generator.get_document_margins(config, width)
     doc = SimpleDocTemplate(file_path, pagesize=A4, rightMargin=right,
