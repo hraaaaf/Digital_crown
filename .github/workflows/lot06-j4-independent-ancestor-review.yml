@@ -1,0 +1,47 @@
+name: LOT06 J4 security review - ancestor rename junction isolation (adversarial, NO CLINICAL GO)
+on:
+  push:
+    branches: [feat/lot06-phase2-b06-product-integration-20261104]
+    paths:
+      - .github/workflows/lot06-j4-independent-ancestor-review.yml
+      - isolated_fue_lot06c/windows_j4_ancestor_swap_review_fue.py
+      - isolated_fue_lot06c/f5bd4_fixed_recovery_windows_fue.py
+      - backend/services/windows_keyring_restore.py
+      - backend/services/windows_keyring_handle_probe.py
+      - backend/services/clinical_media_keyring_recovery.py
+      - docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot06-j4-ancestor-review-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ancestor_review:
+    name: Native Windows intermediate ancestor TOCTOU adversarial review (FAIL if redirected)
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install synthetic cryptography dependency
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check cryptography==46.0.3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Independent source-targeted parent ancestor race with real subprocess
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_J4_ANCESTOR_SOURCE_SHA_MISMATCH' }
+          python isolated_fue_lot06c/windows_j4_ancestor_swap_review_fue.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
