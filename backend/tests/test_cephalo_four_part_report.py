@@ -331,12 +331,24 @@ def test_audited_graph_renders_real_confirmed_text_only_in_unsigned_a4(tmp_path:
         project_audited_clinician_evidence,
     )
 
+    from dataclasses import replace
     graph, case_id = _clinician_audited_graph()
+    option = graph.treatment_options[0].model_copy(update={
+        "risks": ["SYNTHETIC_RISK_FROM_SELECTED_OPTION"],
+        "limits": ["SYNTHETIC_LIMIT_FROM_SELECTED_OPTION"],
+        "benefits": ["SYNTHETIC_BENEFIT_FROM_SELECTED_OPTION"],
+    })
+    phase = graph.final_plans[0].phases[0].model_copy(update={
+        "procedures": ["SYNTHETIC_PROCEDURE_FROM_PLAN"],
+    })
+    plan = graph.final_plans[0].model_copy(update={"phases": [phase]})
+    graph = replace(graph, treatment_options=[option], final_plans=[plan])
     evidence = project_audited_clinician_evidence(
         graph, patient_id=1, case_id=case_id, analysis_id=867, revision=4,
     )
     assert len(evidence["diagnoses"]) == 1
     assert evidence["plan"]["phases"][0]["title"] == "Synthetic phase"
+    assert evidence["plan"]["option_context"]["risks"] == ["SYNTHETIC_RISK_FROM_SELECTED_OPTION"]
     assert evidence["report_signed"] is False
 
     source = _projection()
@@ -355,6 +367,10 @@ def test_audited_graph_renders_real_confirmed_text_only_in_unsigned_a4(tmp_path:
     assert "Synthetic diagnosis used only to test graph integrity." in text
     assert "Synthetic target" in text
     assert "Synthetic phase" in text
+    assert "SYNTHETIC_RISK_FROM_SELECTED_OPTION" in text
+    assert "SYNTHETIC_LIMIT_FROM_SELECTED_OPTION" in text
+    assert "SYNTHETIC_BENEFIT_FROM_SELECTED_OPTION" in text
+    assert "SYNTHETIC_PROCEDURE_FROM_PLAN" in text
     assert "BROUILLON" in text and "NON SIGNÉ" in text
 
 
