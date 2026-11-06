@@ -847,6 +847,20 @@ def _authorize_mobile_archive_receipt(db: Session, receipt, user: models.User) -
         raise HTTPException(status_code=404, detail="Patient indisponible dans ce cabinet.")
 
 
+@router.get('/documents/archive/ready', summary="Disponibilité du registre Pocket sans écriture")
+async def pocket_archive_receipt_ready(
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    from backend.services.mobile_document_archive_receipts import assert_receipt_schema
+    from fastapi.responses import JSONResponse
+    assert_receipt_schema(db)
+    return JSONResponse(
+        {"ready": True},
+        headers={"Cache-Control": "no-store, private"},
+    )
+
+
 # Clinical archive mutation remains narrower than Desktop: NO honoraires,
 # payment collection or change of an existing archive.
 @router.post('/documents/archive', summary="Archivage Pocket PDF idempotent, reçu durable")
