@@ -61,6 +61,9 @@ internal static class Program
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern IntPtr LocalFree(IntPtr descriptor);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool FlushFileBuffers(SafeFileHandle handle);
+
     [DllImport("kernel32.dll", EntryPoint = "CreateNamedPipeW",
         CharSet = CharSet.Unicode, SetLastError = true)]
     static extern SafeFileHandle CreatePipe(string path, uint openMode, uint mode,
@@ -375,7 +378,15 @@ internal static class Program
                 if (readOk && received == 1 && buffer[0] == (byte)'Q')
                 {
                     var response = new byte[] { (byte)'U' };
-                    _ = WriteFile(pipe, response, 1, out _, IntPtr.Zero);
+                    if (!WriteFile(pipe, response, 1, out uint written, IntPtr.Zero)
+                        || written != 1)
+                        throw new InvalidOperationException("DC06_BS2_Q_REPLY_WRITE_FAILED");
+                    // The client must consume 'U' BEFORE DisconnectNamedPipe:
+                    // Windows drops unread pipe bytes on disconnect. Unlike
+                    // a delay, FlushFileBuffers provides an OS-backed drain
+                    // boundary for this synchronous, disposable lab fixture.
+                    if (!FlushFileBuffers(pipe))
+                        throw new InvalidOperationException("DC06_BS2_Q_REPLY_DRAIN_FAILED");
                 }
                 else if (readOk && received == 1 && buffer[0] == (byte)'S')
                 {
