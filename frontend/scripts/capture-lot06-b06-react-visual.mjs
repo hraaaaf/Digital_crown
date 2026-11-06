@@ -146,10 +146,12 @@ try {
     {width:390,height:844,theme:'default'},
     {width:430,height:932,theme:'default'},
     {width:1280,height:900,theme:'default'},
+    {width:768,height:1024,theme:'default'},
     {width:390,height:844,theme:'dark'},
+    {width:390,height:844,theme:'default',textScalePercent:200},
   ]) {
-    const {width,height,theme}=variant;
-    const context = await browser.newContext({viewport:{width,height}});
+    const {width,height,theme,textScalePercent=100}=variant;
+    const context = await browser.newContext({viewport:{width,height},locale:'fr-FR'});
     const page = await context.newPage();
     const errors = [];
     page.on('pageerror', error => errors.push(String(error)));
@@ -158,11 +160,17 @@ try {
     await page.goto('http://127.0.0.1:5186/lot06-b06-react-visual.html?theme='+theme, {
       waitUntil:'domcontentloaded',timeout:60000,
     });
+    if (!(await page.evaluate(() => navigator.language.toLowerCase().startsWith('fr'))))
+      throw new Error('B06_VISUAL_FRENCH_BROWSER_LOCALE_REQUIRED');
+    if (textScalePercent === 200) {
+      // Explicit 200% root-text scaling probe, not a claim of full WCAG certification.
+      await page.addStyleTag({content:'html { font-size: 200% !important; }'});
+    }
     const region = page.getByRole('region', {name:"Revue d'acquisition non attribuée"});
     const examine = region.getByRole('button',{name:'Examiner cette capture pour ce patient'});
     await examine.waitFor({state:'visible',timeout:40000});
-    const prefix=theme+'-'+width;
-    if(theme==='default' && (width===390||width===1280)) {
+    const prefix=theme+'-'+width+(textScalePercent===200?'-text200':'');
+    if(theme==='default' && textScalePercent===100 && (width===390||width===1280)) {
       await page.screenshot({path:path.join(output,prefix+'-pending.png'),fullPage:true});
     }
     await examine.click();
@@ -191,19 +199,24 @@ try {
         overflow:document.documentElement.scrollWidth>innerWidth+2,
         panelOverflow:!!panel && panel.scrollWidth>panel.clientWidth+2,
         backgroundColor:button?getComputedStyle(button).backgroundColor:null,
+        rootFontSize:getComputedStyle(document.documentElement).fontSize,
         text:document.body.innerText,
       };
     });
     if(qa.overflow || qa.panelOverflow) throw new Error('B06_VISUAL_RESPONSIVE_OVERFLOW: '+prefix);
+    if(textScalePercent===200 && parseFloat(qa.rootFontSize)<31.5)
+      throw new Error('B06_VISUAL_200_PERCENT_TEXT_SCALE_NOT_APPLIED');
     if(/SHA-256|Reçu durable|Activation cabinet non autorisée|LAB uniquement/.test(qa.text))
       throw new Error('B06_VISUAL_DEV_COPY_LEAK: '+prefix);
     if(errors.length) throw new Error('B06_VISUAL_PAGE_ERROR: '+errors.join('; '));
-    results.push({width,height,theme,previewLoaded:true,twoMarkersTyped:true,
+    results.push({width,height,theme,locale:'fr-FR',textScalePercent,
+      previewLoaded:true,twoMarkersTyped:true,
       explicitCheckbox:true,commitsExecuted:0,overflow:false,
       primaryTokenComputed:qa.backgroundColor});
     await context.close();
   }
-  if(results[0].primaryTokenComputed===results[3].primaryTokenComputed)
+  const darkVariant = results.find(v=>v.theme==='dark' && v.width===390);
+  if(!darkVariant || results[0].primaryTokenComputed===darkVariant.primaryTokenComputed)
     throw new Error('B06_VISUAL_THEME_TOKENS_NOT_SWITCHING');
   await fs.writeFile(path.join(output,'summary.json'),JSON.stringify({
     sourceHead:head, type:'ACTUAL_REACT_COMPONENT_WITH_SYNTHETIC_API',
