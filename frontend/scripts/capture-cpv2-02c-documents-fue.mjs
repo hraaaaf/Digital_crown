@@ -55,7 +55,11 @@ async function mountRealComponent(page) {
     const target = document.createElement('div');
     target.id = 'cpv2-02c-browser-evidence';
     document.body.appendChild(target);
-    ReactDOM.createRoot(target).render(React.createElement(mod.MobileQuickDocumentSheet, {
+    // Vite's optimized CommonJS ReactDOM/client exposes createRoot on default.
+    // Use the same React modules as the real component instead of inventing a mock.
+    const react = React.default ?? React;
+    const reactDomClient = ReactDOM.default ?? ReactDOM;
+    reactDomClient.createRoot(target).render(react.createElement(mod.MobileQuickDocumentSheet, {
       patient: { id: 101, name: 'Patient Fictif CPV2', medicalAlert: 'Alerte médicale fictive' },
       preview: false,
       onClose: () => {},
