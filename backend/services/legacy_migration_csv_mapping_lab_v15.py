@@ -11,7 +11,7 @@ from dataclasses import asdict, dataclass
 from datetime import date
 from pathlib import Path
 
-from .legacy_migration_csv_preview_v15 import _ID, _ISO_DATE, _MAX_FIELD, _MAX_ROWS, _safe_cell
+from .legacy_migration_csv_preview_v15 import _ID, _ISO_DATE, _MAX_ROWS, _safe_cell
 from .legacy_sql_inspector_v15 import (
     ColumnInventory, InspectionReport, TableInventory, UnsafeSource, _copy_path, _hash,
 )
@@ -44,7 +44,7 @@ class SyntheticCsvDryRun:
     anomalies: dict[str, int]
     duplicates: int
     ignored: int
-    collisions: int
+    collisions: int | None
     unmapped_columns: int
     ambiguous_dates: int
     critical_count: int
@@ -265,7 +265,7 @@ def simulate_synthetic_patient_csv(
         },
         duplicates=duplicates,
         ignored=0,
-        collisions=0,  # Target DB not inspected; NOT a claim of no target collisions.
+        collisions=None,  # Target DB is not inspected; collision count is UNKNOWN.
         unmapped_columns=sum(choice.target_column is None for choice in choices),
         ambiguous_dates=ambiguous_dates,
         critical_count=critical_rows,
