@@ -117,6 +117,48 @@ function Invoke-Child([string]$Username, [string]$Password,
         $cred=$null
     }
 }
+# LAB-only pre-bootstrap OS evidence. It does NOT attach a bridge to the
+# product app, establish publisher trust or authorize durable clinical writes.
+function Assert-B06LabScmIdentity(
+    [string]$Name, [string]$ExpectedCommandLine, [string]$ExpectedRunner,
+    [string]$ExpectedDll, [string]$ExpectedDllHash,
+    [string]$ExpectedServiceSid, [string]$ExpectedPipe
+) {
+    if ($env:ENVIRONMENT -ne 'test' -or
+        $env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true' -or
+        $env:GITHUB_ACTIONS -ne 'true' -or
+        $env:RUNNER_OS -ne 'Windows' -or
+        $env:DC06B06_NATIVE_MEDIA -ne '1') {
+        throw 'DC06_B06_BOOTSTRAP_RUNTIME_DENIED'
+    }
+    $svc=Get-CimInstance Win32_Service -Filter ("Name='" + $Name + "'") -ErrorAction Stop
+    if ($null -eq $svc -or $svc.State -ne 'Running' -or
+        $svc.StartName -ne 'NT AUTHORITY\\LocalService' -or
+        [int]$svc.ProcessId -le 0 -or
+        $svc.PathName -ne $ExpectedCommandLine -or
+        -not $svc.PathName.Contains($ExpectedPipe)) {
+        throw 'DC06_B06_BOOTSTRAP_SCM_IDENTITY_DENIED'
+    }
+    $proc=Get-CimInstance Win32_Process -Filter ('ProcessId=' + [int]$svc.ProcessId) -ErrorAction Stop
+    if ($null -eq $proc -or $proc.ExecutablePath -ne $ExpectedRunner -or
+        [string]::IsNullOrEmpty($proc.CommandLine) -or
+        -not $proc.CommandLine.Contains($ExpectedDll) -or
+        -not $proc.CommandLine.Contains($ExpectedPipe)) {
+        throw 'DC06_B06_BOOTSTRAP_PROCESS_IDENTITY_DENIED'
+    }
+    $sid=Invoke-ScChecked -Params @('showsid',$Name)
+    $sidType=Invoke-ScChecked -Params @('qsidtype',$Name)
+    if (-not $sid.Contains($ExpectedServiceSid) -or
+        $sidType -notmatch 'RESTRICTED') {
+        throw 'DC06_B06_BOOTSTRAP_SERVICE_SID_DENIED'
+    }
+    $dllHash=(Get-FileHash -LiteralPath $ExpectedDll -Algorithm SHA256 -ErrorAction Stop).Hash
+    if ($dllHash -ne $ExpectedDllHash) {
+        throw 'DC06_B06_BOOTSTRAP_PACKAGE_PIN_DENIED'
+    }
+    return $true
+}
+
 try {
     New-Item -Path $root -ItemType Directory -Force -ErrorAction Stop | Out-Null
     $createdDir=$true
@@ -235,6 +277,37 @@ try {
     $b05Phase='RUNNING_WAIT'
     Wait-ServiceState $serviceName 'RUNNING' 20
     Write-Output 'C05B03R_REAL_SCM_LOCAL_SERVICE_RESTRICTED_SERVICE_SID_AND_PIPE_RUNNING_PASS'
+
+    if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+        # An actually RUNNING Windows SCM service and process are required;
+        # a plausible filename, pipe, SID or hash alone is not authority.
+        $dllHash=(Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+        $null=Assert-B06LabScmIdentity $serviceName $binPath $dotnet $dll $dllHash $serviceSid $pipeName
+        Write-Output 'DC06_B06_BOOTSTRAP_LIVE_SCM_IDENTITY_PASS'
+        foreach ($fault in @('HASH','PIPE','SID','SERVICE')) {
+            $claimName=$serviceName
+            $claimPipe=$pipeName
+            $claimSid=$serviceSid
+            $claimHash=$dllHash
+            $expectedDenial=''
+            switch ($fault) {
+                'HASH' { $claimHash='0' * 64; $expectedDenial='DC06_B06_BOOTSTRAP_PACKAGE_PIN_DENIED' }
+                'PIPE' { $claimPipe=$pipeName + '-forged'; $expectedDenial='DC06_B06_BOOTSTRAP_SCM_IDENTITY_DENIED' }
+                'SID' { $claimSid='S-1-5-80-0-0-0-0-0'; $expectedDenial='DC06_B06_BOOTSTRAP_SERVICE_SID_DENIED' }
+                'SERVICE' { $claimName=$serviceName + 'forged'; $expectedDenial='DC06_B06_BOOTSTRAP_SCM_IDENTITY_DENIED' }
+            }
+            $denied=$false
+            try {
+                $null=Assert-B06LabScmIdentity $claimName $binPath $dotnet $dll $claimHash $claimSid $claimPipe
+            } catch {
+                if ($_.Exception.Message -ne $expectedDenial) { throw }
+                $denied=$true
+            }
+            if (-not $denied) { throw ('DC06_B06_BOOTSTRAP_FALSE_ACCEPT_' + $fault) }
+            Write-Output ('DC06_B06_BOOTSTRAP_FORGED_' + $fault + '_DENIED_PASS')
+        }
+        Write-Output 'DC06_B06_BOOTSTRAP_LAB_ONLY_NO_RUNTIME_ACTIVATION_PASS'
+    }
 
     Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5
     Write-Output 'C05B03R_REAL_APPROVED_OTHER_USER_PROCESS_DATA_RW_ALLOWED_CREATE_INSTANCE_DENIED_PASS'
