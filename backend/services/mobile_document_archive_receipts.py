@@ -14,12 +14,15 @@ from datetime import datetime
 from fastapi import HTTPException
 from sqlalchemy import DateTime, Integer, String, UniqueConstraint, inspect
 from sqlalchemy.exc import IntegrityError, SQLAlchemyError
-from sqlalchemy.orm import Mapped, Session, mapped_column
-
-from backend.models_base import Base
+from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 
-class MobileDocumentArchiveReceipt(Base):
+class PocketReceiptBase(DeclarativeBase):
+    """Separate metadata: cabinet Base.metadata.create_all cannot migrate it."""
+    pass
+
+
+class MobileDocumentArchiveReceipt(PocketReceiptBase):
     __tablename__ = "mobile_document_archive_receipts"
     __table_args__ = (
         UniqueConstraint(
