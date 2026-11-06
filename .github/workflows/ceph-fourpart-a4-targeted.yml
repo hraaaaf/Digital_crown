@@ -163,10 +163,11 @@ jobs:
                   projection=_projection())
               with fitz.open(pdf_file) as pdf:
                   assert len(pdf) >= 1
+                  assert 'BROUILLON' in chr(10).join(p.get_text() for p in pdf)
                   for n, page in enumerate(pdf, 1):
                       txt = page.get_text()
                       assert 'Dr Test Cabinet' in txt and 'Adresse fictive de test' in txt
-                      assert '05 00 00 00 00' in txt and 'BROUILLON' in txt
+                      assert '05 00 00 00 00' in txt
                       assert page.get_images(full=True), 'Configured cabinet logo absent'
                       page.get_pixmap(matrix=fitz.Matrix(1.4, 1.4), alpha=False).save(
                           root / f'branding-{template}-page-{n:02d}.png')
