@@ -128,6 +128,8 @@ def build_cephalo_pdf_projection(
 
     return {
         "contract_version": CEPHALO_PDF_PROJECTION_VERSION,
+        # The actual cabinet PDF uses one four-part A4 layout; scientific gates unchanged.
+        "layout_version": "CLINICAL_FOUR_PART_A4_V1",
         "patient_id": patient_id,
         "analysis_id": analysis_id,
         "analysis_revision": source_revision if type(source_revision) is int and source_revision > 0 else None,
