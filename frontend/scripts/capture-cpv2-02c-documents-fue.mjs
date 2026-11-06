@@ -89,6 +89,7 @@ async function createCase(engine, viewport, options = {}) {
     if (options.invalidPdf) return jsonRoute(route, { error: 'invalid type' });
     return route.fulfill({ status: 200, contentType: 'application/pdf', body: '%PDF-1.4\n% synthetic PDF preview only\n' });
   });
+  await page.route('**/api/mobile/documents/archive/ready', route => jsonRoute(route, { ready: true }));
   await page.route('**/api/mobile/documents/archive', route => {
     counters.archiveHits++;
     return route.fulfill({ status: 200, contentType: 'application/pdf', headers: { 'X-Document-Id': '42' }, body: '%PDF-1.4\n% synthetic archive only\n' });
