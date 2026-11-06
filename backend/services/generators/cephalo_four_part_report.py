@@ -125,7 +125,7 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
         fontName=generator.premium_bold, fontSize=11.5, leading=15,
         textColor=primary, spaceBefore=12, spaceAfter=6, keepWithNext=True)
     subhead = ParagraphStyle("DCCeph4Subhead", parent=base_styles["Heading3"],
-        fontName=generator.premium_bold, fontSize=9.6, leading=13, textColor=primary,
+        fontName=generator.premium_bold, fontSize=9.6, leading=13, textColor=accent,
         spaceBefore=6, spaceAfter=4, keepWithNext=True)
     body = ParagraphStyle("DCCeph4Body", parent=base_styles["Normal"],
         fontName=generator.premium_font, fontSize=9.0, leading=13, spaceAfter=6)
