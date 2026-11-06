@@ -26,7 +26,7 @@ def test_authenticated_browser_scripts_assert_both_unsigned_http_denial_and_ui_h
         assert "Archivage suspendu" in source
         assert "BROUILLON NON SIGNÉ" in source
         assert "archive:true" in source
-        assert "archive:false" in source or "archive!==false" in source
+        assert any(token in source for token in ("archive:false", "archive!==false", "archive===false"))
         assert "OFFICIAL_ARCHIVE_REPLAY" not in source
         assert "Archiver le bilan" not in source
 
