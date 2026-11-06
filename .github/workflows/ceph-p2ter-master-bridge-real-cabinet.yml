@@ -1,13 +1,15 @@
 name: CEPH P2ter master bridge authenticated real Cabinet FUE-I (experimental)
 on:
   pull_request:
-    branches: [master]
+    branches: [master, test/ceph-v1-facad-two-public-radios-20261105]
     paths:
       - 'backend/**'
       - 'frontend/**'
       - 'scripts/ceph_p2ter_seed_t2.py'
       - 'scripts/t2_runtime_server.py'
       - '.github/workflows/ceph-p2ter-master-bridge-*.yml'
+      - 'frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs'
+      - 'frontend/scripts/fue-ceph-p2ter-first-value.mjs'
 permissions:
   contents: read
 jobs:
@@ -118,7 +120,7 @@ jobs:
           done
           tail -100 /tmp/p2ter-frontend.log
           exit 1
-      - name: REAL UI login, history study A/B, JWT PDF at two desktops
+      - name: REAL UI login, history study A/B, unsigned A4 JWT PDF at two desktops
         working-directory: frontend
         run: node scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
       - name: Verify A4 PDF identity and rendered nonclinical pages
@@ -149,29 +151,33 @@ jobs:
                           if index<8:
                               page.get_pixmap(matrix=fitz.Matrix(1,1),alpha=False).save(root/(label+'-'+kind+'-page-'+str(index+1)+'.png'))
           PY
-      - name: Verify clicked archives persisted same old study and scientific revision
+      - name: Verify unsigned A4 requests never created an official archived row
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          import fitz
           from backend import database, models
-          source=json.loads(Path('artifacts/ceph-p2ter-authenticated-desktop/report.json').read_text())
+          root=Path('artifacts/ceph-p2ter-authenticated-desktop')
+          report=json.loads((root/'report.json').read_text())
           studied=json.loads(next(line.split('=',1)[1] for line in Path('/tmp/p2ter-seed.log').read_text().splitlines() if line.startswith('P2TER_SYNTHETIC_STUDIES=')))
           with database.SessionLocal() as db:
-              rows=db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id==studied['patient_id'], models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO).all()
-              assert len(rows)==2, f"Idempotency requires exactly one archive for A and B rev2, got {len(rows)}"
-              assert {row.analysis_id for row in rows}=={studied['older_id'],studied['latest_id']}
-              assert all(row.clinical_data.get('cephalo_analysis_revision')==2 for row in rows)
-              assert len({(row.analysis_id,row.clinical_data['cephalo_analysis_revision']) for row in rows})==2
-          for viewport in source['viewports']:
-              assert any('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_' in check for check in viewport['checks'])
-              pdf=Path('artifacts/ceph-p2ter-authenticated-desktop')/(viewport['viewport']+'-older-click-archived.pdf')
-              with fitz.open(pdf) as doc:
-                  assert len(doc)>=2 and all(590 < page.rect.width < 600 and 838 < page.rect.height < 845 for page in doc)
-          print('P2TER_CLICK_ARCHIVE_DB_FK_REVISION_AND_A4_PASS')
+              rows=db.query(models.DocumentArchive).filter(
+                  models.DocumentArchive.patient_id==studied['patient_id'],
+                  models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
+              ).all()
+              assert len(rows)==0, f"Unsigned A4 created {len(rows)} official archived row(s)"
+          for viewport in report['viewports']:
+              assert viewport['valid'], viewport
+              checks=set(viewport['checks'])
+              assert 'REAL_CABINET_UNSIGNED_ARCHIVE_DISABLED_AND_DRAFT_AVAILABLE' in checks
+              assert 'REAL_JWT_UNSIGNED_NEW_OFFICIAL_ARCHIVE_HTTP_409' in checks
+              assert 'TWO_AUTHENTICATED_TABS_SAME_STUDY_UNSIGNED_ARCHIVE_BOTH_409' in checks
+              assert viewport['sameRevisionArchive']['creation_refused'] is True
+              assert viewport['sameRevisionArchive']['responses']==[409,409]
+              assert (root/(viewport['viewport']+'-archive-suspended-explained.png')).is_file()
+          print('P2TER_UNSIGNED_A4_NO_OFFICIAL_ARCHIVE_AND_DRAFT_PROOF_PASS')
           PY
-      - name: EXPERIMENTAL FUE-I first useful PDF on two supported desktop viewports
+      - name: EXPERIMENTAL FUE-I unsigned first PDF on two desktop viewports
         working-directory: frontend
         run: node scripts/fue-ceph-p2ter-first-value.mjs
       - name: Verify FUE-I report and same-viewport before-after captures
@@ -187,23 +193,21 @@ jobs:
           required_checks={
               "CLEAN_BROWSER_LOGIN","DASHBOARD_PATIENT_SEARCH","ENTER_IMAGING",
               "OPEN_CEPHALO","SELECT_OLDER_STUDY","DESKTOP_STEPPER",
-              "NO_HORIZONTAL_VIEWPORT_OVERFLOW","DRAFT_PDF_FIRST_VALUE","OFFICIAL_ARCHIVE_REPLAY",
+              "NO_HORIZONTAL_VIEWPORT_OVERFLOW","DRAFT_PDF_FIRST_VALUE","UNSIGNED_OFFICIAL_ARCHIVE_HOLD",
           }
           for r in report["viewports"]:
               assert r["valid"] and all(c["status"] == "PASS" for c in r["matrix"])
               assert {c["id"] for c in r["matrix"]} == required_checks, "Missing real UI discovery or first-value check"
-              # Native Chromium window.confirm is not present in AFTER screenshots:
-              # verify the actual dialog text, tied to the replayed selected study.
-              feedback=r.get("archiveUiFeedback") or {}
-              assert feedback.get("kind") == "native-window.confirm"
-              assert "Archive existante réutilisée sans modification" in feedback.get("message","")
-              assert "étude "+str(r["firstValue"]["analysis_id"]) in feedback.get("message","")
+              hold=r.get("archiveHoldEvidence") or {}
+              assert hold.get("server_status")==409 and hold.get("archive_created") is False
+              assert hold.get("clinical_release") is False
+              assert "brouillon non signé" in hold.get("reason","").lower()
               for label in ("before-hub", "after-login", "before-patient-search",
                             "patient-search-result","after-patient-opened",
                             "after-imaging-opened","before-select-study",
                             "before-first-value","before-first-value-actions",
-                            "after-first-value","before-official-archive-replay",
-                            "after-official-archive-replay"):
+                            "after-first-value","before-unsigned-archive-hold",
+                            "after-unsigned-archive-hold"):
                   filename=r["viewport"]+"-"+label+".png"
                   assert (report_path.parent/filename).is_file(), filename
           print("P2TER_FUE_I_AUTOMATED_EVIDENCE_VERIFIED")
