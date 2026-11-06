@@ -189,19 +189,30 @@ try {
       throw new Error('B06_VISUAL_TWO_MARKERS_MUST_START_EMPTY_AND_DENIED');
     await page.screenshot({path:path.join(output,prefix+'-review.png'),fullPage:true});
     await dossier.fill('TEST-42');
-    for(const invalid of ['2000-03-04','03/04/2000','31/02/2000','29/02/2001']) {
-      await birth.fill(invalid);
-      if(await submit.isEnabled())
-        throw new Error('B06_VISUAL_INVALID_DATE_ENABLED_SUBMIT: '+invalid);
-    }
-    // Numeric mobile keyboards may not expose "/" on their first layer.
-    // The real controlled text input must add separators on its own.
+    // Numeric-only iPhone entry must format automatically and STILL require
+    // explicit checkbox acceptance before the action becomes enabled.
     await birth.fill('04032000');
     if(await birth.inputValue()!=='04/03/2000')
       throw new Error('B06_VISUAL_FRENCH_NUMERIC_KEYBOARD_AUTOFMT_FAILED');
     if(await submit.isEnabled()) throw new Error('B06_VISUAL_EXPLICIT_CHECKBOX_REQUIRED');
     await region.getByRole('checkbox').check();
     if(!(await submit.isEnabled())) throw new Error('B06_VISUAL_COMMIT_BUTTON_NOT_ENABLED');
+    // NEGATIVES WITH CHECKBOX ALREADY CHECKED: otherwise the checkbox alone
+    // can mask a wrongly accepted date and produce a false GREEN.
+    for(const invalid of ['2000-03-04','03/04/2000','31/02/2000','29/02/2001']) {
+      await birth.fill(invalid);
+      if(await submit.isEnabled())
+        throw new Error('B06_VISUAL_INVALID_DATE_ENABLED_SUBMIT: '+invalid);
+    }
+    await birth.fill('04032000');
+    if(await birth.inputValue()!=='04/03/2000' || !(await submit.isEnabled()))
+      throw new Error('B06_VISUAL_VALID_DATE_RECOVERY_DENIED');
+    await dossier.fill('OTHER-PATIENT');
+    if(await submit.isEnabled())
+      throw new Error('B06_VISUAL_WRONG_DOSSIER_ENABLED_SUBMIT');
+    await dossier.fill('TEST-42');
+    if(!(await submit.isEnabled()))
+      throw new Error('B06_VISUAL_VALID_TWO_MARKERS_RECOVERY_DENIED');
     if(theme==='default' && (width===390 || width===1280)) {
       await page.screenshot({path:path.join(output,prefix+'-ready.png'),fullPage:true});
     }
