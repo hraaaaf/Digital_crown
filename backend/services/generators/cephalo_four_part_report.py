@@ -20,6 +20,7 @@ from reportlab.platypus import Image, KeepTogether, Paragraph, SimpleDocTemplate
 
 LAYOUT_VERSION = "CLINICAL_FOUR_PART_A4_V1"
 _AUTHORITY = "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO"
+_CLINICIAN_EVIDENCE_VERSION = "CEPHALO_CLINICIAN_PDF_EVIDENCE_V1"
 _DENTAL = ("U1", "L1", "IMPA", "INCIS", "SURPLOMB", "RECOUVREMENT", "OVERJET", "OVERBITE")
 _SKELETAL = ("SNA", "SNB", "ANB", "WITS", "FMA", "GO-GN", "S-N", "A_B", "ABP", "SITUATION_A", "SITUATION_B")
 
@@ -54,6 +55,27 @@ def select_verified_measurements(projection: dict, *, max_per_group: int = 5) ->
             output[group].append((label, f"{number:g} {unit}"))
             seen.add(raw_id)
     return output
+
+
+def _scoped_clinician_evidence(projection: dict, patient_id: object) -> dict:
+    """Display only the server-produced case/revision-bound clinical snapshot.
+
+    This is not document signing approval; every output remains BROUILLON.
+    """
+    evidence = projection.get("clinician_evidence")
+    if (
+        not isinstance(evidence, dict)
+        or evidence.get("version") != _CLINICIAN_EVIDENCE_VERSION
+        or not projection.get("active_runtime_chain_verified")
+        or not projection.get("evidence_graph_present")
+        or type(patient_id) is not int or patient_id <= 0
+        or evidence.get("patient_id") != patient_id
+        or evidence.get("analysis_id") != projection.get("analysis_id")
+        or evidence.get("analysis_revision") != projection.get("analysis_revision")
+        or evidence.get("report_signed") is not False
+    ):
+        return {"diagnoses": [], "plan": None}
+    return evidence
 
 
 def _verified_picture(raw: object, available_width: float, max_height_cm: float):
@@ -209,16 +231,66 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
                 ]))
                 elements.append(gallery)
 
+    # These fields are projected server-side only after a full typed-graph case
+    # validation and matching clinician audit. Free client text is ignored.
+    clinician = _scoped_clinician_evidence(projection, vm.patient_id)
+    diagnoses = clinician.get("diagnoses") or []
+    plan = clinician.get("plan")
+
     elements.append(Paragraph("III — BILAN DIAGNOSTIQUE ET DIAGNOSTIC FINAL", section))
-    elements.append(Paragraph(
-        "Synthèse des observations et diagnostic final à rédiger et confirmer "
-        "par le praticien sur les preuves des parties I et II.", body))
-    elements.append(Paragraph("Aucun diagnostic automatique n'est produit à partir des mesures.", muted))
+    if diagnoses:
+        elements.append(Paragraph(
+            "Diagnostics consignés dans l'étude avec preuve de validation praticien "
+            "— restitution en brouillon, hors signature de ce document.", muted,
+        ))
+        for item in diagnoses[:12]:
+            if not isinstance(item, dict):
+                continue
+            statement = str(item.get("statement") or "").strip()
+            if statement:
+                elements.append(Paragraph("• " + escape(statement[:1500]), body))
+    else:
+        elements.append(Paragraph(
+            "Synthèse des observations et diagnostic final à rédiger et confirmer "
+            "par le praticien sur les preuves des parties I et II.", body))
+        elements.append(Paragraph(
+            "Aucun diagnostic automatique n'est produit à partir des mesures.", muted))
 
     elements.append(Paragraph("IV — PLAN DE TRAITEMENT", section))
-    elements.append(Paragraph(
-        "Objectifs, stratégie choisie, justification, alternatives et suivi : "
-        "à renseigner et valider distinctement par le praticien.", body))
+    if isinstance(plan, dict) and diagnoses:
+        elements.append(Paragraph(
+            "Séquence consignée et auditée dans l'étude, reproduite comme brouillon "
+            "sans signature du présent bilan.", muted,
+        ))
+        objectives = [o for o in plan.get("objectives", []) if isinstance(o, dict)]
+        if objectives:
+            elements.append(Paragraph("Objectifs cliniques", subhead))
+            for objective in objectives[:12]:
+                target = str(objective.get("target") or "").strip()
+                criterion = str(objective.get("success_criterion") or "").strip()
+                if target and criterion:
+                    elements.append(Paragraph(
+                        "• " + escape(target[:1000]) + " — " +
+                        escape(criterion[:1000]), body,
+                    ))
+        phases = [p for p in plan.get("phases", []) if isinstance(p, dict)]
+        if phases:
+            elements.append(Paragraph("Phases et surveillance", subhead))
+            for phase in phases[:12]:
+                name = str(phase.get("title") or "").strip()
+                if name:
+                    elements.append(Paragraph("• " + escape(name[:600]), body))
+                for field in ("monitoring", "reassessment_criteria"):
+                    for item in (phase.get(field) or [])[:8]:
+                        elements.append(Paragraph("  " + escape(str(item)[:500]), muted))
+        if plan.get("retention"):
+            elements.append(Paragraph("Contention", subhead))
+            for item in plan["retention"][:8]:
+                elements.append(Paragraph("• " + escape(str(item)[:500]), body))
+    else:
+        elements.append(Paragraph(
+            "Objectifs, stratégie choisie, justification, alternatives et suivi : "
+            "à renseigner et valider distinctement par le praticien.", body))
     elements.append(Spacer(1, 0.3 * cm))
     elements.append(Paragraph("Praticien responsable : " +
         escape(str(vm.doctor_name or "À renseigner")) +
