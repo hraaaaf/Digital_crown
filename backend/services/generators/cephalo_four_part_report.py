@@ -158,15 +158,43 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     elements.append(Paragraph(
         "L'examen des arcades, des rapports occlusaux et de la DDM par arcade "
         "sera consigné ici après validation clinique des moulages ou scans.", muted))
+    # Only the authorized Media Core loader supplies these dated photo records.
+    # Their metadata remains attached to the image in the PDF without exposing
+    # opaque asset IDs, blob keys, or a second copy of the clinical media.
     photos = images.get("photos") or []
     if isinstance(photos, list):
-        for photo in photos[:8]:
-            if not isinstance(photo, dict):
+        for group in ("Extra-buccales", "Intra-buccales"):
+            cells = []
+            for photo in photos[:8]:
+                if not isinstance(photo, dict) or photo.get("group") != group:
+                    continue
+                if photo.get("timepoint") != "T0" or type(photo.get("asset_id")) is not int:
+                    continue
+                date = str(photo.get("captured_at") or "")
+                if len(date) != 10 or date[2:3] != "/" or date[5:6] != "/":
+                    continue
+                picture = _verified_picture(photo.get("jpeg"), available / 4 - 0.2 * cm, 2.1)
+                if picture is None:
+                    continue
+                label = escape(str(photo.get("label") or "Photographie clinique")[:65])
+                caption = Paragraph(label + " · T0 · " + escape(date), muted)
+                cells.append([picture, caption])
+            if not cells:
                 continue
-            picture = _verified_picture(photo.get("jpeg"), available * 0.5, 2.1)
-            if picture is not None:
-                label = escape(str(photo.get("label") or "Photographie clinique"))
-                elements.append(KeepTogether([picture, Paragraph(label, muted)]))
+            elements.append(Paragraph("Photographies " + group.lower(), subhead))
+            column_width = available / 4
+            for start in range(0, len(cells), 4):
+                row = cells[start:start + 4]
+                row.extend([""] * (4 - len(row)))
+                gallery = Table([row], colWidths=[column_width] * 4)
+                gallery.setStyle(TableStyle([
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 2),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 2),
+                    ("TOPPADDING", (0, 0), (-1, -1), 4),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 4),
+                ]))
+                elements.append(gallery)
 
     elements.append(Paragraph("III — BILAN DIAGNOSTIQUE ET DIAGNOSTIC FINAL", section))
     elements.append(Paragraph(
