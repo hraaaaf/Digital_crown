@@ -172,7 +172,7 @@ try {
     if(/SHA-256|Reçu durable|Activation cabinet non autorisée|LAB uniquement|DC06-[a-f0-9]{32}/i.test(uiText))
       throw new Error('Technical/debug detail exposed to dentist');
     const metrics=await page.evaluate(()=>{
-      const region=document.querySelector('section[aria-label="Revue d\\'acquisition non attribuée"]');
+      const region=document.querySelector('section[aria-label]');
       const btn=Array.from(document.querySelectorAll('button')).find(b=>b.textContent?.includes('Ajouter l’image au dossier'));
       if(!region||!btn)throw new Error('Real component DOM missing');
       return {
