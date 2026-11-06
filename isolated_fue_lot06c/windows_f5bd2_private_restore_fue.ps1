@@ -215,8 +215,29 @@ print("DC06_J4_PARENT_WRITE_ATTRIBUTES_DENIED_PASS")
 """
     attack = subprocess.run(
         [sys.executable, "-c", attacker, str(parent), str(moved)],
-        check=True, capture_output=True, text=True, timeout=20,
+        check=False, capture_output=True, text=True, timeout=20,
     )
+    if attack.returncode != 0:
+        # The previous check=True hid the actual attacker result from CI logs.
+        # Only fixed marker names and the last exception CLASS are reported:
+        # never print paths, stdout/stderr bodies or synthetic keyring bytes.
+        last = attack.stderr.strip().splitlines()
+        detail = last[-1] if last else ""
+        reasons = (
+            "PARENT_SWAP_RENAME_ALLOWED",
+            "PARENT_WRITE_ATTRIBUTES_ALLOWED",
+            "PARENT_WRITE_ATTRIBUTES_UNEXPECTED_WINERROR",
+        )
+        reason = next((token for token in reasons if token in detail), "")
+        if not reason:
+            reason = detail.split(":", 1)[0][:64] if detail else "CHILD_EXIT_NO_STDERR"
+        print("DC06_J4_ATTACKER_DIAGNOSTIC_" + reason, flush=True)
+        print("DC06_J4_RENAME_DENIAL_OBSERVED_" +
+              str("DC06_J4_PARENT_RENAME_DENIED_PASS" in attack.stdout), flush=True)
+        print("DC06_J4_WRITE_DENIAL_OBSERVED_" +
+              str("DC06_J4_PARENT_WRITE_ATTRIBUTES_DENIED_PASS" in attack.stdout),
+              flush=True)
+        raise AssertionError("J4_CHILD_PROBE_FAILED")
     assert "DC06_J4_PARENT_RENAME_DENIED_PASS" in attack.stdout
     assert "DC06_J4_PARENT_WRITE_ATTRIBUTES_DENIED_PASS" in attack.stdout
     assert parent.is_dir() and not moved.exists()
