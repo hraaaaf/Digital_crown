@@ -301,7 +301,7 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
   };
 
   const archiveDocument = async () => {
-    if (!previewPayload || archived || busy) return;
+    if (!previewPayload || archived || busy || uncertainArchive) return;
     setError(''); setSuccess('');
     if (preview) {
       setSuccess('Aperçu isolé : archivage simulé sans réseau.');
@@ -311,13 +311,33 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
       setError('Archivage des notes d’honoraires indisponible sur Pocket : validation comptable requise.');
       return;
     }
+    if (!type) return;
     setBusy(true);
+    let archiveAttempted = false;
     try {
-      const url = await requestDocument(previewPayload, true);
+      const existing = await MobileStorage.getPendingDocumentArchive();
+      if (existing) {
+        throw new Error('Une archive précédente doit être vérifiée avant une nouvelle écriture.');
+      }
+      const intentKey = crypto.randomUUID();
+      // Persist the opaque key BEFORE any network write. This is not an offline replay queue.
+      await MobileStorage.savePendingDocumentArchive(intentKey, patient.id, type);
+      setPendingArchiveKey(intentKey);
+      archiveAttempted = true;
+      const url = await requestDocument(previewPayload, true, intentKey);
       setPreviewPdfUrl(url);
       setArchived(true);
-      setSuccess('Document généré et archivé dans le dossier patient.');
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Impossible d’archiver le document.'); } finally { setBusy(false); }
+      setSuccess('Document archivé et reçu confirmé.');
+      await MobileStorage.clearPendingDocumentArchive(intentKey);
+      setPendingArchiveKey(null);
+    } catch (failure) {
+      if (archiveAttempted) {
+        setUncertainArchive(true);
+        setError('Résultat incertain : vérifiez le reçu, ne renvoyez pas le document.');
+      } else {
+        setError(failure instanceof Error ? failure.message : 'Impossible de préparer un archivage sûr.');
+      }
+    } finally { setBusy(false); }
   };
 
   return <div data-mobile-quick-document className="fixed inset-0 z-[80] bg-modal-scrim backdrop-blur-sm flex items-end sm:items-center justify-center">
