@@ -1,0 +1,57 @@
+name: CEPH Unsigned Official Archive Guard (NO DEPLOY)
+
+on:
+  pull_request:
+    paths:
+      - 'backend/routers/patients.py'
+      - 'backend/tests/p2ter_bridge_synthetic_support.py'
+      - 'backend/tests/test_cephalo_p2ter_atomic_archive.py'
+      - 'backend/tests/test_cephalo_p2ter_archive_adversarial.py'
+      - 'backend/tests/test_cephalo_p2ter_identity_bound_pdf.py'
+      - 'backend/tests/test_cephalo_p2ter_crash_recovery.py'
+      - '.github/workflows/ceph-unsigned-official-archive-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned-official-archive:
+    name: HTTP archive and historic replay safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SECRET_KEY: ceph-unsigned-archive-test-key-000001
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Pin exact PR head
+        if: github.event_name == 'pull_request'
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-unsigned-archive-deps.txt
+          python -m pip install -r /tmp/ceph-unsigned-archive-deps.txt
+          python -m pip check
+      - name: Verify route refusal and historical archive integrity
+        run: |
+          python -m pytest -q \
+            backend/tests/test_cephalo_p2ter_atomic_archive.py \
+            backend/tests/test_cephalo_p2ter_archive_adversarial.py \
+            backend/tests/test_cephalo_p2ter_identity_bound_pdf.py \
+            backend/tests/test_cephalo_p2ter_crash_recovery.py \
+            backend/tests/test_cephalo_four_part_report.py
