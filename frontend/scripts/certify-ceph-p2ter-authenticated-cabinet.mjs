@@ -112,6 +112,7 @@ async function viewportRun(viewport){
 
   await shot('before-history');
   const clinicalSentinel='P2TER_SENTINEL_A_ONLY';
+  const draftRevisions={};
   for(const [label,study] of [['older',identities.older_id],['newer',identities.latest_id]]){
    await page.getByRole('button',{name:'Historique',exact:true}).click();
    const card=page.locator('[data-cephalo-history-analysis-id="'+study+'"]');
@@ -143,6 +144,7 @@ async function viewportRun(viewport){
    if((label==='older' && !sentInPDF) || (label==='newer' && sentInPDF))
      throw Error('CLINICAL_CROSS_STUDY_LEAK: wrong clinical sentinel in '+label+' PDF POST');
    if(label==='newer') record.checks.push('CABINET_A_TO_B_CLINICAL_SENTINEL_ISOLATED_IN_FORM_AND_PDF_POST');
+   draftRevisions[label]=body.expected_revision;
    if(body.analysis_id!==study || !Number.isSafeInteger(body.expected_revision) ||
        body.expected_revision<=0 || body.archive!==false)
      throw Error('Wrong analysis request identity from Cabinet UI '+label);
@@ -157,81 +159,35 @@ async function viewportRun(viewport){
    await shot(label+'-pdf-finished');
    record.checks.push('REAL_JWT_HTTP_PDF_'+label.toUpperCase()+'_STUDY_'+study+'_REV_'+body.expected_revision);
   }
-  // The archive is exercised through the actual rendered Cabinet button and JWT,
-  // not a direct API substitute. All data and the database are disposable T2.
+  // The four-part A4 renderer produces an UNSIGNED draft even when science is
+  // valid. The Cabinet must never offer an official archive creation button.
   await page.getByRole('button',{name:'Historique',exact:true}).click();
   await page.locator('[data-cephalo-history-analysis-id="'+identities.older_id+'"]').click();
   await page.locator('[data-cephalo-selected-analysis-id="'+identities.older_id+'"]').waitFor({state:'visible'});
   await page.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
-  const archiveButton=page.getByRole('button',{name:'Archiver le bilan'});
-  await archiveButton.waitFor({state:'visible'});
-  try {
-    await page.waitForFunction(()=>{
-      const b=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Archiver le bilan'));
-      return Boolean(b && !b.disabled);
-    },null,{timeout:20000});
-  } catch(e) {
-    const diagnosis=await page.evaluate(()=>{
-      const btn=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Archiver le bilan'));
-      return {disabled:btn?.disabled, title:btn?.outerHTML.slice(0,700),
-        checklist:document.body.innerText.match(/Landmarks complets[^\\n]*/)?.[0]||null,
-        validation:document.body.innerText.match(/Cohérence des mesures[^\\n]*/)?.[0]||null,
-        image:document.body.innerText.match(/Image céphalométrique chargée[^\\n]*/)?.[0]||null};
-    });
-    record.archiveGateDiagnostics.push(diagnosis);
-    throw Error('Archive gate disabled '+JSON.stringify(diagnosis)+' / '+String(e));
-  }
-  const archiveResponsePromise=page.waitForResponse(r=>
-    new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
-    r.request().method()==='POST' && r.request().postDataJSON()?.archive===true,
-    {timeout:45000});
-  page.once('dialog',dialog=>dialog.dismiss());
-  const archivePosts=[];
-  const auditArchiveRequest=req=>{
-    if(req.method()==='POST' && new URL(req.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
-        req.postDataJSON()?.archive===true) archivePosts.push(req.postDataJSON());
-  };
-  page.on('request',auditArchiveRequest);
-  await shot('archive-before');
-  await archiveButton.dblclick(); // actual Chromium pointer double click: one logical archive request
-  const archivedResponse=await archiveResponsePromise;
-  await page.waitForTimeout(250);
-  page.off('request',auditArchiveRequest);
-  if(archivePosts.length!==1)throw Error('Double click created '+archivePosts.length+' archive requests instead of one');
-  const archivedPayload=archivedResponse.request().postDataJSON();
-  if(archivedResponse.status()!==200 ||
-      archivedPayload.analysis_id!==identities.older_id ||
-      archivedResponse.headers()['x-cephalo-analysis-id']!==String(identities.older_id) ||
-      archivedResponse.headers()['x-cephalo-revision']!==String(archivedPayload.expected_revision))
-    throw Error('Authenticated archive did not retain selected OLDER study identity, revision and HTTP 200: '+archivedResponse.status());
-  await fs.writeFile(path.join(output,record.viewport+'-older-click-archived.pdf'),await archivedResponse.body());
-  await shot('archive-after');
-  record.checks.push('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_'+identities.older_id+'_REV_'+archivedPayload.expected_revision);
-  record.checks.push('POINTER_DOUBLE_CLICK_SINGLE_ARCHIVE_POST');
-  // UI transport regression only: mock a synthetic 422 response on the real
-  // authenticated button. Backend 422 and zero archive are asserted in pytest.
-  const clinicalRefusal='Discordance structurelle synthétique';
-  const deny422=async route=>{
-    const payload=route.request().postDataJSON();
-    if(payload?.archive!==true || payload.analysis_id!==identities.older_id)
-      throw Error('Unexpected intercepted clinical refusal request');
-    await route.fulfill({status:422,contentType:'application/json',
-      body:JSON.stringify({detail:{message:'Archivage refusé',fatals:[clinicalRefusal],warnings:[]}})});
-  };
-  await page.route('**/api/patients/*/pdf',deny422);
-  try {
-    const refusalResponse=page.waitForResponse(r=>
-      new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf' &&
-      r.request().postDataJSON()?.archive===true,{timeout:30000});
-    await archiveButton.click();
-    const refusal=await refusalResponse;
-    if(refusal.status()!==422)throw Error('Clinical refusal response expected 422');
-    await page.getByText(new RegExp(clinicalRefusal)).first().waitFor({state:'visible',timeout:10000});
-    await shot('synthetic-clinical-422-refusal-visible');
-    record.checks.push('SIMULATED_422_BLOB_REFUSAL_VISIBLE_NO_SERVER_ARCHIVE');
-  } finally {
-    await page.unroute('**/api/patients/*/pdf',deny422);
-  }
+  const suspended=page.getByRole('button',{name:'Archivage suspendu'});
+  await suspended.waitFor({state:'visible'});
+  if(!await suspended.isDisabled()) throw Error('Unsigned official archive is clickable');
+  if(!await page.getByRole('button',{name:'Brouillon PDF'}).isEnabled())
+    throw Error('Draft should remain available with official archive suspended');
+  const reason=await page.getByTestId('unsigned-cephalo-archive-hold').innerText();
+  if(!/brouillon non signé/i.test(reason) || !/signature vérifiable/i.test(reason))
+    throw Error('Unsigned archive suspension is not explained to clinician');
+  await suspended.scrollIntoViewIfNeeded();
+  await shot('archive-suspended-explained');
+  record.checks.push('REAL_CABINET_UNSIGNED_ARCHIVE_DISABLED_AND_DRAFT_AVAILABLE');
+
+  // Direct authenticated POST (outside disabled UI) must fail closed, too:
+  // a forged client cannot convert an unsigned A4 draft into official evidence.
+  const denied=await api.post('/api/patients/'+identities.patient_id+'/pdf',{
+    headers:{Authorization:'Bearer '+token},
+    data:{analysis_id:identities.older_id,expected_revision:draftRevisions.older,archive:true},
+  });
+  const detail=(await denied.json().catch(()=>({}))).detail||'';
+  if(denied.status()!==409 || !String(detail).includes('BROUILLON NON SIGNÉ'))
+    throw Error('Unsigned archive HTTP must be 409, got '+denied.status()+': '+String(detail));
+  record.checks.push('REAL_JWT_UNSIGNED_NEW_OFFICIAL_ARCHIVE_HTTP_409');
+
   // Concurrent authenticated tabs must retain different selected study identities.
   const tabB=await context.newPage();
   await tabB.goto(root+'/patients/'+identities.patient_id+'?tab=radiology&radioTab=cephalo',
@@ -262,39 +218,31 @@ async function viewportRun(viewport){
   await tabB.screenshot({path:path.join(output,record.viewport+'-two-tabs-B-after.png'),animations:'disabled'});
   record.shots.push(record.viewport+'-two-tabs-B-after.png');
 
-  // Real TWO BROWSER TABS, authenticated under the same Cabinet session, race
-  // creation of the exact B revision 2 archive via native fetch in each tab.
-  const concurrentPayload={analysis_id:identities.latest_id,expected_revision:2,archive:true};
+  // Concurrency: two independent authenticated tabs must not race into
+  // creating an official unsigned archive, even on the same exact revision.
+  const concurrentPayload={
+    analysis_id:identities.latest_id,
+    expected_revision:draftRevisions.newer,
+    archive:true,
+  };
   const archiveURL=backend+'/api/patients/'+identities.patient_id+'/pdf';
   const archiveFromTab=tab=>tab.evaluate(async ({url,payload})=>{
     const token=localStorage.getItem('token');
-    if(!token)throw Error('Authenticated archive tab missing token');
+    if(!token)throw Error('Authenticated tab missing Cabinet token');
     const response=await fetch(url,{method:'POST',credentials:'include',
       headers:{Authorization:'Bearer '+token,'Content-Type':'application/json'},
       body:JSON.stringify(payload)});
-    const bytes=new Uint8Array(await response.arrayBuffer());
-    const hash=await crypto.subtle.digest('SHA-256',bytes);
-    return {status:response.status,sha:[...new Uint8Array(hash)].map(b=>b.toString(16).padStart(2,'0')).join(''),
-      size:bytes.byteLength,looksPDF:bytes[0]===37&&bytes[1]===80&&bytes[2]===68&&bytes[3]===70,
-      study:response.headers.get('x-cephalo-analysis-id'),
-      revision:response.headers.get('x-cephalo-revision'),
-      replay:response.headers.get('x-cephalo-archive-replayed')==='true'};
+    const result=await response.json().catch(()=>({}));
+    return {status:response.status,detail:result.detail||'',body:result};
   },{url:archiveURL,payload:concurrentPayload});
   const [sameA,sameB]=await Promise.all([archiveFromTab(page),archiveFromTab(tabB)]);
-  if(sameA.status!==200||sameB.status!==200||!sameA.looksPDF||!sameB.looksPDF||
-    sameA.sha!==sameB.sha||sameA.size!==sameB.size||
-    sameA.study!==String(identities.latest_id)||sameB.study!==String(identities.latest_id)||
-    sameA.revision!=='2'||sameB.revision!=='2')
-    throw Error('Two real Cabinet tabs failed same-revision archive identity: '+
-      JSON.stringify({sameA,sameB}));
-  const replayCount=Number(sameA.replay)+Number(sameB.replay);
-  if(viewport.width===1280&&replayCount!==1)
-    throw Error('First concurrent archive pair must create once then replay once: '+replayCount);
-  if(viewport.width===1600&&replayCount!==2)
-    throw Error('Later concurrent archive pair must replay both: '+replayCount);
-  record.checks.push('TWO_AUTHENTICATED_BROWSER_TABS_SAME_STUDY_REVISION_ONE_ARCHIVE');
-  record.sameRevisionArchive={analysis_id:identities.latest_id,revision:2,
-    sha256:sameA.sha,replayCount};
+  for(const response of [sameA,sameB]){
+    if(response.status!==409 || !String(response.detail).includes('BROUILLON NON SIGNÉ'))
+      throw Error('Concurrent unsigned archive must be 409: '+JSON.stringify(response));
+  }
+  record.checks.push('TWO_AUTHENTICATED_TABS_SAME_STUDY_UNSIGNED_ARCHIVE_BOTH_409');
+  record.sameRevisionArchive={analysis_id:identities.latest_id,
+    revision:draftRevisions.newer,creation_refused:true,responses:[sameA.status,sameB.status]};
   await tabB.close();
   // Hold an actual PDF request while switching old A -> newer B in the same tab.
   // A late A response must never be downloaded or re-select the wrong study.
@@ -336,73 +284,20 @@ async function viewportRun(viewport){
     throw Error('Late old-A PDF overwrote B selection or triggered stale download');
   record.checks.push('SWITCH_A_TO_B_WHILE_OLDER_PDF_IN_FLIGHT_REFUSES_STALE_DOWNLOAD');
   await shot('late-old-A-response-B-still-selected');
-  // Revalidation TOCTOU: pause archive POST after its real successful prevalidation,
-  // edit synthetic study B through authenticated FastAPI, then demand HTTP 409
-  // and a comprehensible refusal toast; no archive may be persisted.
+  // Revision safety stays enforced independently of the unsigned-draft guard.
+  // A stale expected_revision must not be accepted by any authenticated client.
   if(viewport.width===1600){
     await page.getByRole('button',{name:'4. Documents & stratégie',exact:true}).click();
-    const staleArchiveButton=page.getByRole('button',{name:'Archiver le bilan'});
-    await page.waitForFunction(()=>{
-      const b=[...document.querySelectorAll('button')].find(b=>b.textContent?.includes('Archiver le bilan'));
-      return Boolean(b && !b.disabled);
-    },null,{timeout:25000});
-    let releaseStale;
-    let heldStale;
-    let requestRevision;
-    const staleHeld=new Promise(resolve=>{heldStale=resolve});
-    const staleGate=new Promise(resolve=>{releaseStale=resolve});
-    const staleRoute=async route=>{
-      const payload=route.request().postDataJSON();
-      if(payload?.archive===true && payload?.analysis_id===identities.latest_id){
-        requestRevision=payload.expected_revision;
-        heldStale();
-        await staleGate;
-      }
-      await route.continue();
-    };
-    await page.route('**/api/patients/*/pdf',staleRoute);
-    const staleValidation=page.waitForResponse(r=>
-      new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/cephalo-validation'
-      && r.request().method()==='GET' && r.status()===200,{timeout:45000});
-    const staleResponse=page.waitForResponse(r=>
-      new URL(r.url()).pathname==='/api/patients/'+identities.patient_id+'/pdf'
-      && r.request().method()==='POST' && r.request().postDataJSON()?.archive===true,
-      {timeout:45000});
-    try {
-      await staleArchiveButton.click();
-      await staleHeld;
-      const prevalidated=await staleValidation;
-      const params=new URL(prevalidated.url()).searchParams;
-      if(Number(params.get('analysis_id'))!==identities.latest_id ||
-        Number(params.get('expected_revision'))!==requestRevision)
-        throw Error('Prevalidation identity mismatch for TOCTOU test');
-      const update=await page.evaluate(async ({apiRoot,study})=>{
-        const token=localStorage.getItem('token');
-        if(!token)throw Error('No Cabinet auth in revision-race test');
-        const headers={Authorization:'Bearer '+token,'Content-Type':'application/json'};
-        const get=await fetch(apiRoot+'/api/ia/analyses/'+study,{headers,credentials:'include'});
-        if(!get.ok)throw Error('Revision setup GET HTTP '+get.status);
-        const record=await get.json();
-        const points=record.landmarks_data||record.landmarks;
-        if(!Array.isArray(points)||points.length===0)throw Error('No editable synthetic landmarks');
-        const edited=points.map((p,i)=>i===0?{...p,x:p.x+1}:p);
-        const put=await fetch(apiRoot+'/api/ia/analyses/'+study,
-          {method:'PUT',headers,credentials:'include',body:JSON.stringify({landmarks:edited})});
-        if(!put.ok)throw Error('Revision mutation HTTP '+put.status+' '+(await put.text()).slice(0,300));
-        const newer=await fetch(apiRoot+'/api/ia/analyses/'+study,{headers,credentials:'include'});
-        return {status:put.status,revision:(await newer.json()).angles_data?.scientific_read_path?.revision};
-      },{apiRoot:backend,study:identities.latest_id});
-      if(!(Number.isSafeInteger(update.revision) && update.revision>requestRevision))
-        throw Error('Revision did not increment before delayed archive '+JSON.stringify(update));
-    } finally {
-      releaseStale();
-    }
-    const stale=await staleResponse;
-    await page.unroute('**/api/patients/*/pdf',staleRoute);
-    if(stale.status()!==409)throw Error('Stale post-prevalidation archive did not fail-closed: '+stale.status());
-    await page.getByText(/modifiée|changé|périmée/i).first().waitFor({state:'visible',timeout:10000});
-    await shot('stale-revision-archive-refusal-visible');
-    record.checks.push('REVISION_CHANGED_AFTER_PREVALIDATION_ARCHIVE_409_TOAST_VISIBLE');
+    if(!await page.getByRole('button',{name:'Archivage suspendu'}).isDisabled())
+      throw Error('Unsigned archive UI became enabled after study switching');
+    const stale=await api.post('/api/patients/'+identities.patient_id+'/pdf',{
+      headers:{Authorization:'Bearer '+token},
+      data:{analysis_id:identities.latest_id,expected_revision:1,archive:true},
+    });
+    if(stale.status()!==409)
+      throw Error('Stale / unsigned archive must fail closed: '+stale.status());
+    record.checks.push('STALE_REVISION_OR_UNSIGNED_ARCHIVE_FAIL_CLOSED_409');
+    await shot('stale-unsigned-archive-suspended');
   }
   // The normal end-to-end flow must not report unreachable backend on a
   // canceled obsolete study-image request.
