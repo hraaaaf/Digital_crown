@@ -2215,3 +2215,12 @@ GOAL : distinguer plage centrale, compensation, hors compensation, puis hypothè
 - `COM-TYP10` textes explicables, sources et état humain, accessibilité 390/430/768/1280 + zoom 200%, token thème global, aucun LLM/runtime patient dans les FUE; captures BEFORE/AFTER et accord utilisateur requis.
 
 **VERDICT/GATE** : la règle **9 ans** est désormais **SOURCE_FOUND / CANDIDATE**, sa qualification clinique et métrologique reste **NON APPROUVÉE**. Mapping **adulte** logique d'après les bornes, mais **SOURCE_EXPLICITNESS_GAP** pour la borne supérieure de type II et validations cliniques. Le choix « COM Digital Crown + Steiner 1953/1959 » reste intact, aucune nouvelle norme actée par défaut ni implémentation. **NEXT** : proposer au praticien ce moteur de typologie COM en suggestion avec critères visibles, puis finir Step3 et commencer Step4 Plan/Bilan après décision. **Dernière mise à jour canonique : 06/11/2026 — POST §71, typologie osseuse COM sourcée.**
+
+
+### 72. PRE — 2026-11-06 — Step4 Plan de traitement et Bilan : contrat fonctionnel (SPEC ONLY)
+
+**Reprise** : suite au §71 POST CRANIOM/COM, l'utilisateur demande de poursuivre. Le périmètre demeure **atelier de spécification**, sans nouvelle approbation de seuil clinique, ni code produit, ni données patient. Notion **PRE75** enregistré avant cette passe.
+
+**Baseline** : PR #1213 OPEN/DRAFT ; branche `test/ceph-v1-facad-two-public-radios-20261105` ; HEAD avant cette passe `d52ac327380f2f14d8c93b4ba410ad177bb6b8aa`. Contrat du §69 Step3 = liste de problèmes + diagnostic et résumé éditables ; §64–68 DDM clinique/céphalo/réelle et décisions incisives sont documentés ; §71 type squelettique proposé seulement et mapping adulte non approuvé. Aucun nouveau FUE COM exécuté.
+
+**GOAL observable** : établir exactement ce que Step4 reçoit de Step1/2/3, ce qui reste à confirmer par le praticien, la séparation décision diagnostique versus thérapeutique, le flux `Plan → Créer bilan → Aperçu → Valider/archiver`, l'invalidation et une batterie FUE vérifiable. **STOP** : ne pas générer un plan à partir du seul type I/II/III ni forcer un diagnostic final par défaut. **GATE** : SPEC_CANDIDATE / HUMAN_APPROVAL_REQUIRED / NO_RUNTIME / NO_MERGE / NO_DEPLOY / FUE_NOT_RUN.
