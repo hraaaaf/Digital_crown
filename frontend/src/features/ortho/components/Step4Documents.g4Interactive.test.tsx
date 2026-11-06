@@ -86,7 +86,7 @@ describe('Cephalo Step4 G4 document controls',()=>{
       params:{analysis_id:99,expected_revision:3},
     }));
 
-    expect((screen.getByRole('button',{name:/Archiver le bilan/i}) as HTMLButtonElement).disabled).toBe(true);
+    expect((screen.getByRole('button',{name:/Archivage suspendu/i}) as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/Aucune image uploadée/i)).toBeTruthy();
     expect(screen.getByText(/0% des points requis placés/i)).toBeTruthy();
   });
