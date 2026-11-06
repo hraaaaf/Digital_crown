@@ -13,7 +13,7 @@ from datetime import datetime
 
 from fastapi import HTTPException
 from sqlalchemy import DateTime, Integer, String, UniqueConstraint, inspect
-from sqlalchemy.exc import IntegrityError, SQLAlchemyError
+from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import DeclarativeBase, Mapped, Session, mapped_column
 
 
@@ -88,39 +88,42 @@ def claim_archive_intent(
     db: Session, *, tenant_id: int, actor_id: int, device_id: str,
     key: str, patient_id: int, document_type: str, request_sha256: str,
 ) -> tuple[MobileDocumentArchiveReceipt, bool]:
-    """Durable first claim; unique SQL constraint rejects concurrent same-key claims.
+    """INSERT-first durable claim: DB UNIQUE constraint elects one writer.
 
-    PROCESSING is deliberately NOT released by a timeout. Replaying the same
-    POST cannot ever create a second archive; manual review is required if the
-    worker died before the transactional completion.
+    Starting with SELECT would allow both SQLite sessions to acquire read
+    snapshots and deadlock when upgrading to a write. INSERT ON CONFLICT is
+    atomic on SQLite/SQLCipher and PostgreSQL, then we read after commit.
     """
+    assert_receipt_schema(db)
+    dialect = db.get_bind().dialect.name
+    if dialect == "sqlite":
+        from sqlalchemy.dialects.sqlite import insert
+    elif dialect == "postgresql":
+        from sqlalchemy.dialects.postgresql import insert
+    else:
+        raise HTTPException(status_code=503, detail="Dialecte de reçu non certifié.")
+
+    values = dict(
+        id=str(uuid.uuid4()), tenant_id=tenant_id, actor_id=actor_id,
+        device_id=device_id, idempotency_key=key, patient_id=patient_id,
+        document_type=document_type, request_sha256=request_sha256,
+        state="PROCESSING", created_at=datetime.utcnow(),
+    )
+    statement = insert(MobileDocumentArchiveReceipt).values(**values)
+    statement = statement.on_conflict_do_nothing(
+        index_elements=["tenant_id", "actor_id", "device_id", "idempotency_key"],
+    )
+    try:
+        outcome = db.execute(statement)
+        created = outcome.rowcount == 1
+        db.commit()
+    except SQLAlchemyError as exc:
+        db.rollback()
+        raise HTTPException(status_code=503, detail="Registre d'archivage momentanément indisponible.") from exc
+
     existing = read_scoped_receipt(
         db, tenant_id=tenant_id, actor_id=actor_id, device_id=device_id, key=key,
     )
-    if existing is None:
-        receipt = MobileDocumentArchiveReceipt(
-            id=str(uuid.uuid4()), tenant_id=tenant_id, actor_id=actor_id,
-            device_id=device_id, idempotency_key=key, patient_id=patient_id,
-            document_type=document_type, request_sha256=request_sha256,
-            state="PROCESSING", created_at=datetime.utcnow(),
-        )
-        try:
-            # SAVEPOINT isolates a raced UNIQUE violation without committing
-            # or accidentally rolling back a successful archive from another worker.
-            with db.begin_nested():
-                db.add(receipt)
-                db.flush()
-            db.commit()
-            return receipt, True
-        except IntegrityError:
-            db.rollback()
-            existing = read_scoped_receipt(
-                db, tenant_id=tenant_id, actor_id=actor_id, device_id=device_id, key=key,
-            )
-        except SQLAlchemyError as exc:
-            db.rollback()
-            raise HTTPException(status_code=503, detail="Registre d'archivage momentanément indisponible.") from exc
-
     if existing is None:
         raise HTTPException(status_code=503, detail="Reçu d'archivage non récupérable.")
     if (
@@ -129,8 +132,7 @@ def claim_archive_intent(
         or existing.request_sha256 != request_sha256
     ):
         raise HTTPException(status_code=409, detail="Clé d'archivage déjà liée à un contenu différent.")
-    return existing, False
-
+    return existing, created
 
 def complete_archive_in_current_transaction(
     db: Session, *, archive: object,
