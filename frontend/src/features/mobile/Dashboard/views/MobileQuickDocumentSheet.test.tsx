@@ -1,4 +1,5 @@
 import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { MobileQuickDocumentSheet } from './MobileQuickDocumentSheet';
@@ -17,8 +18,8 @@ describe('MobileQuickDocumentSheet', () => {
   });
 
   it('consumes shared desktop theme status and overlay tokens, never fixed palette classes', () => {
-    const component = readFileSync(new URL('./MobileQuickDocumentSheet.tsx', import.meta.url), 'utf8');
-    const theme = readFileSync(new URL('../../../../index.css', import.meta.url), 'utf8');
+    const component = readFileSync(resolve(process.cwd(), 'src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.tsx'), 'utf8');
+    const theme = readFileSync(resolve(process.cwd(), 'src/index.css'), 'utf8');
     expect(component).not.toMatch(/\b(?:bg|text|border)-(?:rose|emerald|red|green|black|white)(?:-\d+)?(?:\/\d+)?\b/);
     expect(component).not.toMatch(/#[0-9a-fA-F]{3,8}\b|rgba?\s*\(/);
     expect(component).toContain('bg-modal-scrim');
