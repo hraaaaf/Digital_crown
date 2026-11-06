@@ -1,7 +1,9 @@
 """F5B-D2 Windows-only secure restore to a NEW file; never overwrite.
 
-Experimental operator primitive. Parent reparse traversal is rejected; file creation is relative to the
-verified parent handle so a concurrent parent rename cannot redirect the leaf.
+Experimental operator primitive. Every directory component is opened relative
+to its verified ancestor HANDLE and reparse traversal is rejected. Final file
+creation is relative to the verified parent HANDLE, so rename/junction races
+cannot change the object chain after the volume-root open.
 Only the current user and SYSTEM are granted access by the creation DACL.
 """
 from __future__ import annotations
@@ -13,7 +15,7 @@ from ctypes import wintypes
 from pathlib import Path
 
 from backend.services.windows_keyring_handle_probe import (
-    _FileInfo,
+    WindowsKeyringHandleDenied, _open_checked_directory_chain,
 )
 
 
@@ -214,18 +216,16 @@ def restore_new_private_file(filename: str, raw: bytes) -> None:
         attributes = _SecurityAttributes(
             ctypes.sizeof(_SecurityAttributes), descriptor, False
         )
-        for depth in range(1, len(path.parts)):
-            parent = str(Path(*path.parts[:depth]))
-            handle = kernel.CreateFileW(parent, 0x00000080 | 0x00020000,
-                                        0x00000001, None, 3,
-                                        0x00200000 | 0x02000000, None)
-            if handle is None or handle == ctypes.c_void_p(-1).value:
-                raise WindowsRestoreDenied("RESTORE_PARENT_OPEN_DENIED")
-            opened.append(handle)
-            info = _FileInfo()
-            if (not kernel.GetFileInformationByHandle(handle, ctypes.byref(info))
-                    or info.attributes & 0x400 or not info.attributes & 0x10):
-                raise WindowsRestoreDenied("RESTORE_PARENT_REPARSE_DENIED")
+        # Resolve EVERY directory component through its already validated
+        # parent handle. Absolute paths are used only for the volume root.
+        # In particular, an ancestor rename + junction replacement cannot
+        # silently redirect a later child open into an attacker's trap.
+        try:
+            _open_checked_directory_chain(kernel, path.parts[:-1], opened)
+        except WindowsKeyringHandleDenied as exc:
+            if str(exc) in ("KEYRING_REPARSE_DENIED", "KEYRING_FILE_TYPE_DENIED"):
+                raise WindowsRestoreDenied("RESTORE_PARENT_REPARSE_DENIED") from exc
+            raise WindowsRestoreDenied("RESTORE_PARENT_OPEN_DENIED") from exc
         # Bind the leaf creation to the checked parent object, not its
         # renameable pathname. Still use the private owner+SYSTEM descriptor.
         handle = _create_new_under_checked_parent(opened[-1], path.name, descriptor)
