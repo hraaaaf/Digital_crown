@@ -181,11 +181,20 @@ try {
     const dossier=region.getByLabel('Ressaisir le numéro de dossier');
     const birth=region.getByLabel('Ressaisir la date de naissance');
     const submit=region.getByRole('button',{name:'Ajouter l’image au dossier'});
+    if(await birth.getAttribute('type')!=='text'
+        || await birth.getAttribute('placeholder')!=='JJ/MM/AAAA'
+        || await region.getByText(/Naissance : 04\\/03\\/2000/).count()!==1)
+      throw new Error('B06_VISUAL_FRENCH_DATE_DISPLAY_OR_INPUT_INVALID');
     if(await dossier.inputValue() || await birth.inputValue() || await submit.isEnabled())
       throw new Error('B06_VISUAL_TWO_MARKERS_MUST_START_EMPTY_AND_DENIED');
     await page.screenshot({path:path.join(output,prefix+'-review.png'),fullPage:true});
     await dossier.fill('TEST-42');
-    await birth.fill('2000-03-04');
+    for(const invalid of ['2000-03-04','03/04/2000','31/02/2000','29/02/2001']) {
+      await birth.fill(invalid);
+      if(await submit.isEnabled())
+        throw new Error('B06_VISUAL_INVALID_DATE_ENABLED_SUBMIT: '+invalid);
+    }
+    await birth.fill('04/03/2000');
     if(await submit.isEnabled()) throw new Error('B06_VISUAL_EXPLICIT_CHECKBOX_REQUIRED');
     await region.getByRole('checkbox').check();
     if(!(await submit.isEnabled())) throw new Error('B06_VISUAL_COMMIT_BUTTON_NOT_ENABLED');
@@ -198,12 +207,20 @@ try {
       return {
         overflow:document.documentElement.scrollWidth>innerWidth+2,
         panelOverflow:!!panel && panel.scrollWidth>panel.clientWidth+2,
+        // At 200% ensure every action stays visible and its label wraps
+        // INSIDE its own focusable element, not just within the document.
+        actionOverflow:Array.from(document.querySelectorAll('button'))
+          .filter(el => {
+            const box=el.getBoundingClientRect();
+            return box.left < -2 || box.right > innerWidth + 2
+              || el.scrollWidth > el.clientWidth + 2;
+          }).length,
         backgroundColor:button?getComputedStyle(button).backgroundColor:null,
         rootFontSize:getComputedStyle(document.documentElement).fontSize,
         text:document.body.innerText,
       };
     });
-    if(qa.overflow || qa.panelOverflow) throw new Error('B06_VISUAL_RESPONSIVE_OVERFLOW: '+prefix);
+    if(qa.overflow || qa.panelOverflow || qa.actionOverflow) throw new Error('B06_VISUAL_RESPONSIVE_OVERFLOW: '+prefix+' actions='+qa.actionOverflow);
     if(textScalePercent===200 && parseFloat(qa.rootFontSize)<31.5)
       throw new Error('B06_VISUAL_200_PERCENT_TEXT_SCALE_NOT_APPLIED');
     if(/SHA-256|Reçu durable|Activation cabinet non autorisée|LAB uniquement/.test(qa.text))
@@ -211,6 +228,8 @@ try {
     if(errors.length) throw new Error('B06_VISUAL_PAGE_ERROR: '+errors.join('; '));
     results.push({width,height,theme,locale:'fr-FR',textScalePercent,
       previewLoaded:true,twoMarkersTyped:true,
+      frenchDateInput:'JJ/MM/AAAA',frenchDatePreview:'04/03/2000',
+      invalidDatesDenied:true,actionOverflow:qa.actionOverflow,
       explicitCheckbox:true,commitsExecuted:0,overflow:false,
       primaryTokenComputed:qa.backgroundColor});
     await context.close();
