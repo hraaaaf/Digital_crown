@@ -1,4 +1,14 @@
-# V1.5-05.7A — Product trust-root security gate (DRAFT / NO-GO)
+# V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
+
+## POST — 2026-11-06 — PR #1214 LAB MERGED; LOT05 product/clinical NO-GO
+
+**Human gate:** propriétaire a explicitement autorisé dans la conversation le merge de la PR #1214 pour **LAB uniquement**. Draft => Ready for review (GitHub merge endpoint refuse Draft), puis squash merge à `master`, succès 2026-11-06T09:26:11Z. [PR #1214](https://github.com/hraaaaf/Digital_crown/pull/1214) CLOSED/MERGED; [squash commit `130a22ae3f376d3f92611eef0edb04b264410cc9`](https://github.com/hraaaaf/Digital_crown/commit/130a22ae3f376d3f92611eef0edb04b264410cc9), source HEAD `0f4b7f6c97a2ded34d7553f9be21caa6c9734b6f`. Merge verrouillé avec le SHA source exact.
+
+**Pre-merge exact-HEAD evidence:** 15 GitHub workflows PR-triggered : 14 SUCCESS, 1 experimental M6-I SKIPPED, 0 FAIL; [05.7B cold-copy #42188746822](https://github.com/hraaaaf/Digital_crown/actions/runs/42188746822) SUCCESS Windows/Ubuntu (22+12 synthetic FUE par OS); [05.7A trust-root #42188746806](https://github.com/hraaaaf/Digital_crown/actions/runs/42188746806) SUCCESS 6/6 jobs; [Cabinet CODE_CERTIFIED #42188746767](https://github.com/hraaaaf/Digital_crown/actions/runs/42188746767) SUCCESS 3/3 jobs, backend 5504 passed / 22 skipped / 20 subtests passed. **Post-merge/master CI: not yet confirmed** at time of this entry. This canonical-only update creates an additional documentation commit after the squash; it is not a clinical product certification.
+
+**Strict unchanged boundary:** LAB tests/verification/read-only copy planner merged; no real vendor SQL import, no clinical patient/media/finance reconciliation, no real JWT/tenant/consent issuer, no human-approved mapping, no cabinet DB backup/restore, no physical LOT10 proof, no product-signed installer or independent rollback authority. `import_permitted=false` and `full_schema_certified=false`; **LOT05 actual clinical import OPEN/NO-GO**. No patient real data, no Vercel deployment, no cabinet installation, no production activation. Existing Guided Restore remains a separate workflow and should not be conflated with LOT05 SQL migration.
+
+**NEXT:** verify any genuine post-merge required CI and reported HEAD; keep release/import gates closed; define in a new authorized workstream the vendor-specific, human-clinician validated real clinical import and recovery strategy. Record this POST in the existing Notion V1.5 roadmap only; do not create another LOT05 canonical file.
 
 Date: 2026-11-05. Canonical authority: Notion V1.5 roadmap, LOT05; product contract `docs/quality/V15_05_SQL_MIGRATION_CONTRACT.md`. This is a **security decision and acceptance contract**, not implementation or authorization to import clinical data.
 
