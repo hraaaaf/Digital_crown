@@ -80,9 +80,13 @@ public static class DC06RClient {
                     || written != 1u)
                 throw new InvalidOperationException("DC06_BS2_PEER_PROBE_WRITE_DENIED");
             byte[] reply = new byte[1]; uint read;
-            if (!ReadFile(handle, reply, 1u, out read, IntPtr.Zero) ||
-                    read != 1u || reply[0] != (byte)'U')
-                throw new InvalidOperationException("DC06_BS2_PEER_PROBE_REPLY_DENIED");
+            if (!ReadFile(handle, reply, 1u, out read, IntPtr.Zero))
+                throw new InvalidOperationException(
+                    "DC06_BS2_PEER_PROBE_READ_WIN32_" + Marshal.GetLastWin32Error());
+            if (read != 1u)
+                throw new InvalidOperationException("DC06_BS2_PEER_PROBE_REPLY_SHORT_" + read);
+            if (reply[0] != (byte)'U')
+                throw new InvalidOperationException("DC06_BS2_PEER_PROBE_REPLY_INVALID");
             return pid;
         }
     }
@@ -96,8 +100,9 @@ public static class DC06RClient {
                     || wrote != 1u) return -2000;
             byte[] answer = new byte[1];
             uint read;
-            if (!ReadFile(handle, answer, 1u, out read, IntPtr.Zero)
-                    || read != 1u) return -3000;
+            if (!ReadFile(handle, answer, 1u, out read, IntPtr.Zero))
+                return -3000 - Marshal.GetLastWin32Error();
+            if (read != 1u) return -3900 - (int)read;
             return (int)answer[0];
         }
     }
@@ -149,7 +154,11 @@ public static class DC06RClient {
         throw 'DC06_BS2_PIPE_PEER_PID_MISMATCH'
       }
     }
-    Assert-BS2ServerPid ([uint32]$ExpectedServerPid)
+    # Rapid consecutive same-handle Q probes exercise reply-drain and
+    # disconnect sequencing under a genuinely separate Windows account.
+    for ($i=0; $i -lt 12; $i++) {
+      Assert-BS2ServerPid ([uint32]$ExpectedServerPid)
+    }
     Write-Output 'DC06_B06_BS2_PIPE_SERVER_PID_BOUND_PASS'
     # An attacker changes the claimed service PID while retaining the real
     # pipe handle; the SAME native peer PID oracle must deny the mismatch.
