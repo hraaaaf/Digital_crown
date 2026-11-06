@@ -125,8 +125,11 @@ def build_cephalo_pdf_projection(
                 analysis_id=analysis_id,
                 revision=source_revision,
             )
-        except (ValueError, TypeError, KeyError):
-            projection_blockers.append("clinician_audit_projection_incoherent")
+        except (ValueError, TypeError, KeyError, AttributeError):
+            # Optional human narrative is fail-closed, not a new gate on the
+            # separately verified scientific measurement chain. No untrusted
+            # diagnosis or plan can be rendered if its audit cannot be read.
+            clinician_evidence = None
 
     blockers = sorted(
         set(studio.get("blocking_gates") or []) | set(projection_blockers)
