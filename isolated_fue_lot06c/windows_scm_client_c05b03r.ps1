@@ -7,6 +7,8 @@ param(
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedOpen,
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedCreateInstance,
   [switch]$ProbeQueueReadOnly,
+  [switch]$ProbeServerPid,
+  [int]$ExpectedServerPid=0,
   [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
   [switch]$ProbeB05Package,
   [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
@@ -61,6 +63,30 @@ public static class DC06RClient {
     public static extern bool ReadFile(SafeFileHandle file,
         [Out] byte[] buffer, uint count, out uint read, IntPtr overlapped);
 
+    [DllImport("kernel32.dll", EntryPoint="GetNamedPipeServerProcessId", SetLastError=true)]
+    public static extern bool GetNamedPipeServerProcessId(SafeFileHandle pipe, out uint pid);
+
+    public static uint PeerPidWithReadOnlyProbe(string path) {
+        // Query server identity for the SAME opened handle used for this Q.
+        // No client-selected PID or service name is trusted by this native API.
+        using (var handle = CreateFile(path, 0x00100183u, 0u, IntPtr.Zero,
+                                       3u, 0u, IntPtr.Zero)) {
+            if (handle.IsInvalid) throw new InvalidOperationException("DC06_BS2_PIPE_OPEN_DENIED");
+            uint pid;
+            if (!GetNamedPipeServerProcessId(handle, out pid) || pid == 0u)
+                throw new InvalidOperationException("DC06_BS2_PEER_PID_UNAVAILABLE");
+            uint written;
+            if (!WriteFile(handle, new byte[]{(byte)'Q'}, 1u, out written, IntPtr.Zero)
+                    || written != 1u)
+                throw new InvalidOperationException("DC06_BS2_PEER_PROBE_WRITE_DENIED");
+            byte[] reply = new byte[1]; uint read;
+            if (!ReadFile(handle, reply, 1u, out read, IntPtr.Zero) ||
+                    read != 1u || reply[0] != (byte)'U')
+                throw new InvalidOperationException("DC06_BS2_PEER_PROBE_REPLY_DENIED");
+            return pid;
+        }
+    }
+
     public static int ReadOnlyStatus(string path) {
         using (var handle = CreateFile(path, 0x00100183u, 0u, IntPtr.Zero,
                                        3u, 0u, IntPtr.Zero)) {
@@ -109,6 +135,36 @@ public static class DC06RClient {
   if ($created -ne $ExpectedCreateInstance) {
     throw ('C05B03R_CHILD_CREATE_INSTANCE_EXPECT_' + $ExpectedCreateInstance +
         '_GOT_' + $created)
+  }
+  if ($ProbeServerPid) {
+    if ($ExpectedOpen -ne 0 -or $ExpectedServerPid -le 0 -or
+        $env:GITHUB_ACTIONS -ne 'true' -or
+        $env:ENVIRONMENT -ne 'test' -or
+        $env:DC06B06_NATIVE_MEDIA -ne '1') {
+      throw 'DC06_BS2_PID_PROBE_SCOPE_DENIED'
+    }
+    function Assert-BS2ServerPid([uint32]$Expected) {
+      $actual=[DC06RClient]::PeerPidWithReadOnlyProbe($PipeName)
+      if ($actual -ne $Expected) {
+        throw 'DC06_BS2_PIPE_PEER_PID_MISMATCH'
+      }
+    }
+    Assert-BS2ServerPid ([uint32]$ExpectedServerPid)
+    Write-Output 'DC06_B06_BS2_PIPE_SERVER_PID_BOUND_PASS'
+    # An attacker changes the claimed service PID while retaining the real
+    # pipe handle; the SAME native peer PID oracle must deny the mismatch.
+    $forgedPid=if ($ExpectedServerPid -eq [int]::MaxValue) {
+      [uint32]($ExpectedServerPid - 1)
+    } else { [uint32]($ExpectedServerPid + 1) }
+    $denied=$false
+    try {
+      Assert-BS2ServerPid $forgedPid
+    } catch {
+      if ($_.Exception.Message -ne 'DC06_BS2_PIPE_PEER_PID_MISMATCH') { throw }
+      $denied=$true
+    }
+    if (-not $denied) { throw 'DC06_BS2_FORGED_PEER_PID_FALSE_ACCEPT' }
+    Write-Output 'DC06_B06_BS2_FORGED_SERVER_PID_DENIED_PASS'
   }
   if ($ProbeB05Package) {
     if ($ExpectedOpen -ne 0 -or -not $B05KeyFile -or
