@@ -174,7 +174,7 @@ jobs:
               check(row.stockRoutable === true && row.libraryRoutable === true, 'Stock/Library real runtime routing failed');
               check(row.readCapabilityHits >= 1, 'Pocket read-capability fixture not consumed');
               check(row.restoredModulesRoutable === true && row.roleGuardsVerified === true, 'Pocket modules/role guards failed');
-              check(!row.horizontalOverflow && !row.runtimeErrors, `runtime defect: ${JSON.stringify(row)}`);
+              check(!row.horizontalOverflow && Array.isArray(row.runtimeErrors) && row.runtimeErrors.length === 0, `runtime defect: ${JSON.stringify(row)}`);
             }
             const themes = json(path.join(root, 'theme-evidence.json'));
             const required = ['emerald','rose','prestige','ocean','graphite','dark','high-contrast'];
