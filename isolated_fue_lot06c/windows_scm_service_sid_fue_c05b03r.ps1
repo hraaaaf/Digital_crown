@@ -133,7 +133,7 @@ function Assert-B06LabScmIdentity(
     }
     $svc=Get-CimInstance Win32_Service -Filter ("Name='" + $Name + "'") -ErrorAction Stop
     if ($null -eq $svc -or $svc.State -ne 'Running' -or
-        $svc.StartName -ne 'NT AUTHORITY\\LocalService' -or
+        $svc.StartName -ne 'NT AUTHORITY\LocalService' -or
         [int]$svc.ProcessId -le 0 -or
         $svc.PathName -ne $ExpectedCommandLine -or
         -not $svc.PathName.Contains($ExpectedPipe)) {
