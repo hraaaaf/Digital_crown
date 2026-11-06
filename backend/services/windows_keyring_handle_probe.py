@@ -1,7 +1,7 @@
 """Native Windows private-keyring read security probe (not activated in product).
 
-Read from a single checked handle. Keep every ancestor directory handle open
-without FILE_SHARE_WRITE or FILE_SHARE_DELETE while traversing a local drive.
+Read from a single checked file handle. Traverse descendants RELATIVE to an
+open verified root and keep the original directory handles until read completes.
 Verify security descriptor owner and protected DACL from the opened file handle.
 """
 from __future__ import annotations
@@ -28,6 +28,106 @@ class _FileInfo(ctypes.Structure):
         ("size_low", wintypes.DWORD), ("links", wintypes.DWORD),
         ("index_high", wintypes.DWORD), ("index_low", wintypes.DWORD),
     ]
+
+
+
+class _UnicodeString(ctypes.Structure):
+    _fields_ = [
+        ("length", wintypes.USHORT), ("maximum_length", wintypes.USHORT),
+        ("buffer", wintypes.LPWSTR),
+    ]
+
+
+class _ObjectAttributes(ctypes.Structure):
+    _fields_ = [
+        ("length", wintypes.ULONG), ("root_directory", wintypes.HANDLE),
+        ("object_name", ctypes.POINTER(_UnicodeString)),
+        ("attributes", wintypes.ULONG), ("security_descriptor", ctypes.c_void_p),
+        ("security_quality_of_service", ctypes.c_void_p),
+    ]
+
+
+class _IoStatusBlock(ctypes.Structure):
+    _fields_ = [("status", ctypes.c_void_p), ("information", ctypes.c_size_t)]
+
+
+def _open_relative_component(parent_handle: int, leaf: str, *, directory: bool) -> int:
+    """Open exactly ONE child relative to the verified parent handle (never its path).
+
+    FILE_OPEN_REPARSE_POINT + OBJ_DONT_REPARSE disallows following a junction
+    or a symbolic link. The caller must check file attributes on this handle.
+    """
+    if (not isinstance(parent_handle, int) or parent_handle in (0, -1)
+            or not isinstance(leaf, str) or not leaf or leaf in (".", "..")
+            or any(ch in leaf for ch in ("/", "\\", ":", "\x00"))
+            or leaf.endswith((" ", "."))):
+        raise WindowsKeyringHandleDenied("KEYRING_PATH_UNSUPPORTED")
+    encoded = leaf.encode("utf-16-le")
+    if not 0 < len(encoded) <= 32760:
+        raise WindowsKeyringHandleDenied("KEYRING_PATH_UNSUPPORTED")
+    name_buffer = ctypes.create_unicode_buffer(leaf)
+    name = _UnicodeString(len(encoded), len(encoded) + 2,
+                          ctypes.cast(name_buffer, wintypes.LPWSTR))
+    attrs = _ObjectAttributes(
+        ctypes.sizeof(_ObjectAttributes), wintypes.HANDLE(parent_handle),
+        ctypes.pointer(name), 0x00000040 | 0x00001000,  # CASE_INSENSITIVE | DONT_REPARSE
+        None, None,
+    )
+    io = _IoStatusBlock()
+    handle = wintypes.HANDLE()
+    ntdll = ctypes.WinDLL("ntdll", use_last_error=True)
+    ntdll.NtCreateFile.argtypes = [
+        ctypes.POINTER(wintypes.HANDLE), wintypes.DWORD,
+        ctypes.POINTER(_ObjectAttributes), ctypes.POINTER(_IoStatusBlock),
+        ctypes.c_void_p, wintypes.DWORD, wintypes.DWORD, wintypes.DWORD,
+        wintypes.DWORD, ctypes.c_void_p, wintypes.DWORD,
+    ]
+    ntdll.NtCreateFile.restype = ctypes.c_long
+    status = ntdll.NtCreateFile(
+        ctypes.byref(handle),
+        (0x00000080 | 0x00000020 | 0x00020000 | 0x00100000
+         if directory else 0x80000000 | 0x00020000 | 0x00100000),
+        ctypes.byref(attrs), ctypes.byref(io), None,
+        0x00000080, 0x00000001, 1,  # normal, share READ, FILE_OPEN
+        0x00200000 | 0x00000020 | (0x00000001 if directory else 0x00000040),
+        None, 0,
+    )
+    if status != 0 or not handle.value or io.information != 1:
+        if handle.value:
+            ctypes.WinDLL("kernel32", use_last_error=True).CloseHandle(handle)
+        raise WindowsKeyringHandleDenied("KEYRING_OPEN_DENIED")
+    return handle.value
+
+
+def _open_checked_directory_chain(kernel, parts: tuple[str, ...], opened: list[int]) -> int:
+    """One volume root path open, then strictly relative one-component opens.
+
+    Keeping verified handles open protects object identity even when their
+    names change concurrently; later opens cannot traverse a replacement path.
+    Caller owns and closes every handle (including on error).
+    """
+    if not parts:
+        raise WindowsKeyringHandleDenied("KEYRING_PATH_UNSUPPORTED")
+    handle = kernel.CreateFileW(parts[0], 0x00000080 | 0x00020000,
+                                0x00000001, None, 3,
+                                0x00200000 | 0x02000000, None)
+    if handle is None or handle == ctypes.c_void_p(-1).value:
+        raise WindowsKeyringHandleDenied("KEYRING_OPEN_DENIED")
+    opened.append(handle)
+    for i in range(len(parts)):
+        if i:
+            handle = _open_relative_component(opened[-1], parts[i], directory=True)
+            opened.append(handle)
+        info = _FileInfo()
+        if not kernel.GetFileInformationByHandle(handle, ctypes.byref(info)):
+            raise WindowsKeyringHandleDenied("KEYRING_HANDLE_INFO_DENIED")
+        if info.attributes & 0x400:
+            raise WindowsKeyringHandleDenied("KEYRING_REPARSE_DENIED")
+        if not info.attributes & 0x10:
+            raise WindowsKeyringHandleDenied("KEYRING_FILE_TYPE_DENIED")
+    return opened[-1]
+
+
 
 
 class _Acl(ctypes.Structure):
@@ -196,40 +296,30 @@ def read_no_reparse_file(path: str, *, max_bytes: int = 16384) -> bytes:
     kernel.CloseHandle.restype = wintypes.BOOL
     opened = []
     try:
-        # Retain all parent handles with READ-only sharing: each ancestor cannot
-        # be renamed, deleted, or opened for reparse mutation while the read runs.
-        for depth in range(1, len(parts) + 1):
-            is_file = depth == len(parts)
-            current_path = str(Path(*parts[:depth]))
-            flags = 0x00200000 | (0 if is_file else 0x02000000)
-            access = (0x80000000 if is_file else 0x00000080) | 0x00020000
-            handle = kernel.CreateFileW(current_path, access, 0x00000001,
-                                        None, 3, flags, None)
-            if handle is None or handle == ctypes.c_void_p(-1).value:
-                raise WindowsKeyringHandleDenied("KEYRING_OPEN_DENIED")
-            opened.append(handle)
-            info = _FileInfo()
-            if not kernel.GetFileInformationByHandle(handle, ctypes.byref(info)):
-                raise WindowsKeyringHandleDenied("KEYRING_HANDLE_INFO_DENIED")
-            if info.attributes & 0x400:
-                raise WindowsKeyringHandleDenied("KEYRING_REPARSE_DENIED")
-            is_directory = bool(info.attributes & 0x10)
-            if is_directory == is_file:
-                raise WindowsKeyringHandleDenied("KEYRING_FILE_TYPE_DENIED")
-            if is_file:
-                size = (info.size_high << 32) | info.size_low
-                if size > max_bytes:
-                    raise WindowsKeyringHandleDenied("KEYRING_FILE_TOO_LARGE")
-                _require_private_acl(handle)
-                buffer = ctypes.create_string_buffer(max_bytes + 1)
-                received = wintypes.DWORD()
-                if not kernel.ReadFile(handle, buffer, max_bytes + 1,
-                                       ctypes.byref(received), None):
-                    raise WindowsKeyringHandleDenied("KEYRING_READ_DENIED")
-                if received.value > max_bytes:
-                    raise WindowsKeyringHandleDenied("KEYRING_FILE_TOO_LARGE")
-                return buffer.raw[:received.value]
-        raise WindowsKeyringHandleDenied("KEYRING_FILE_TYPE_DENIED")
+        _open_checked_directory_chain(kernel, parts[:-1], opened)
+        # The file itself is resolved against the previously verified parent
+        # HANDLE; do not independently resolve the full path for a last time.
+        handle = _open_relative_component(opened[-1], parts[-1], directory=False)
+        opened.append(handle)
+        info = _FileInfo()
+        if not kernel.GetFileInformationByHandle(handle, ctypes.byref(info)):
+            raise WindowsKeyringHandleDenied("KEYRING_HANDLE_INFO_DENIED")
+        if info.attributes & 0x400:
+            raise WindowsKeyringHandleDenied("KEYRING_REPARSE_DENIED")
+        if info.attributes & 0x10:
+            raise WindowsKeyringHandleDenied("KEYRING_FILE_TYPE_DENIED")
+        size = (info.size_high << 32) | info.size_low
+        if size > max_bytes:
+            raise WindowsKeyringHandleDenied("KEYRING_FILE_TOO_LARGE")
+        _require_private_acl(handle)
+        buffer = ctypes.create_string_buffer(max_bytes + 1)
+        received = wintypes.DWORD()
+        if not kernel.ReadFile(handle, buffer, max_bytes + 1,
+                               ctypes.byref(received), None):
+            raise WindowsKeyringHandleDenied("KEYRING_READ_DENIED")
+        if received.value > max_bytes:
+            raise WindowsKeyringHandleDenied("KEYRING_FILE_TOO_LARGE")
+        return buffer.raw[:received.value]
     finally:
         for handle in reversed(opened):
             kernel.CloseHandle(handle)
