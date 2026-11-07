@@ -50,7 +50,8 @@ STATUS_OBJECT_NAME_NOT_FOUND = 0xC0000034
 STATUS_REPARSE_POINT_ENCOUNTERED = 0xC000050B
 ERROR_FILE_EXISTS = 80
 ERROR_ALREADY_EXISTS = 183
-FILE_LINK_INFO_CLASS = 11
+FILE_LINK_INFORMATION_CLASS = 11  # NtSetInformationFile, not kernel32 class
+STATUS_OBJECT_NAME_COLLISION = 0xC0000035
 FILE_DISPOSITION_INFO_CLASS = 4
 
 
@@ -121,6 +122,11 @@ def _apis():
                                wintypes.ULONG, wintypes.ULONG, wintypes.ULONG,
                                wintypes.ULONG, ctypes.c_void_p, wintypes.ULONG]
     nt.NtCreateFile.restype = ctypes.c_long
+    nt.NtSetInformationFile.argtypes = [
+        wintypes.HANDLE, ctypes.POINTER(_IO_STATUS_BLOCK),
+        ctypes.c_void_p, wintypes.ULONG, ctypes.c_int,
+    ]
+    nt.NtSetInformationFile.restype = ctypes.c_long
     return kernel, nt
 
 
@@ -261,7 +267,8 @@ def _file_with_same_id(nt, kernel, directory_handle, name, original_handle):
         kernel.CloseHandle(wintypes.HANDLE(handle))
 
 
-def _link_from_handle(kernel, source_handle, parent_handle, name):
+def _link_from_handle(nt, source_handle, parent_handle, name):
+    """NtSetInformationFile FileLinkInformation: no-clobber relative link."""
     class FILE_LINK_INFO(ctypes.Structure):
         _fields_ = [("ReplaceIfExists", wintypes.BOOLEAN),
                     ("RootDirectory", wintypes.HANDLE),
@@ -272,9 +279,13 @@ def _link_from_handle(kernel, source_handle, parent_handle, name):
     info.RootDirectory = wintypes.HANDLE(parent_handle)
     info.FileNameLength = len(name.encode("utf-16-le"))
     info.FileName = name
-    if not kernel.SetFileInformationByHandle(wintypes.HANDLE(source_handle), FILE_LINK_INFO_CLASS,
-                                              ctypes.byref(info), ctypes.sizeof(info)):
-        raise ctypes.WinError(ctypes.get_last_error())
+    ios = _IO_STATUS_BLOCK()
+    status = nt.NtSetInformationFile(
+        wintypes.HANDLE(source_handle), ctypes.byref(ios),
+        ctypes.byref(info), ctypes.sizeof(info), FILE_LINK_INFORMATION_CLASS,
+    )
+    if ctypes.c_int32(status).value < 0:
+        raise NativeStatusError(status)
 
 
 def _remove_temporary_by_handle(kernel, temp_handle):
@@ -370,13 +381,17 @@ def copy_one_win32(source: Path, expected_checksum: str, dest_dir: Path):
                             if not _same_path(dest_dir, directory_handle, kernel, nt):
                                 return False, "DEST_DIRECTORY_UNSAFE", "Destination substituée"
                             try:
-                                _link_from_handle(kernel, temp_handle, directory_handle, source.name)
+                                _link_from_handle(nt, temp_handle, directory_handle, source.name)
                             except OSError as exc:
-                                if getattr(exc, "winerror", None) not in (ERROR_FILE_EXISTS, ERROR_ALREADY_EXISTS):
-                                    # Numeric error only: no file path or patient data.
+                                known_collision = (
+                                    isinstance(exc, NativeStatusError)
+                                    and exc.status == STATUS_OBJECT_NAME_COLLISION
+                                ) or getattr(exc, "winerror", None) in (ERROR_FILE_EXISTS, ERROR_ALREADY_EXISTS)
+                                if not known_collision:
+                                    # Numeric status only: no file path or patient data.
+                                    diagnostic = getattr(exc, "status", getattr(exc, "winerror", None))
                                     return False, "ATOMIC_PUBLICATION_UNAVAILABLE", (
-                                        f"Publication Win32 sans écrasement refusée : "
-                                        f"{type(exc).__name__} winerror={getattr(exc, 'winerror', None)}"
+                                        f"Lien NT no-clobber refusé : {type(exc).__name__} status={diagnostic}"
                                     )
                                 try:
                                     if _read_existing_digest(nt, kernel, directory_handle, source.name) != expected_checksum:
