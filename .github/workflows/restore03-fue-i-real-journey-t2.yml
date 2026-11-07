@@ -1,0 +1,155 @@
+name: RESTORE-03 FUE-I real Cabinet backup to preflight and cancel (synthetic only)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/restore03-fue-i-real-journey-t2.yml'
+      - 'frontend/scripts/fue-restore03-real-journey-t2.mjs'
+      - 'frontend/scripts/t2-workstation-session.mjs'
+      - 'frontend/src/features/admin/Settings/tabs/SecurityTab.tsx'
+      - 'backend/routers/admin.py'
+      - 'backend/services/guided_restore.py'
+      - 'backend/services/backup_service.py'
+      - 'scripts/t2_runtime_server.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-react-fastapi-fue:
+    name: Real backup/export, restore preflight, prepare, deny apply and cancel
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      FUE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      ENVIRONMENT: test
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      SECRET_KEY: restore03-fue-t2-disposable-only-not-production
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+      PYTHONDONTWRITEBYTECODE: '1'
+    steps:
+      - name: Checkout exact immutable PR HEAD, no deploy permissions
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.FUE_HEAD }}
+          persist-credentials: false
+
+      - name: Enforce real isolated T2 test scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$FUE_HEAD"
+          test "$ENVIRONMENT" = test
+          test "$DATABASE_URL" = sqlite:///./t2-runtime-cert.db
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test ! -f t2-runtime-cert.db
+          test -z "${DIGITALCROWN_USER_DATA_DIR:-}"
+          test -z "${CABINET_MASTER_KEY_HEX:-}"
+          test -z "${SQLCIPHER_KEY_HEX:-}"
+          test -z "${MEDIA_ROOT:-}"
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.11.1'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Generate disposable masked T2-only password
+        shell: bash
+        run: |
+          set -euo pipefail
+          password="$(python -c 'import secrets;print(secrets.token_urlsafe(28))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+
+      - name: Install actual FastAPI backend dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/restore03-real-fue-deps.txt
+          python -m pip install -r /tmp/restore03-real-fue-deps.txt
+          python -m pip check
+
+      - name: Install actual React/Playwright Chromium (no mocks)
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+          node --check scripts/fue-restore03-real-journey-t2.mjs
+
+      - name: Boot actual FastAPI with disposable synthetic T2 DB
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/t2_runtime_server.py >/tmp/restore03-fue-backend-private.log 2>&1 &
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then
+              echo 'REAL_FUE_BACKEND_HEALTH_GREEN'
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'REAL_FUE_BACKEND_HEALTH_FAILED'
+          exit 1
+
+      - name: Boot actual React Cabinet frontend
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm run dev -- --host 127.0.0.1 --port 5173 >/tmp/restore03-fue-react-private.log 2>&1 &
+          for i in {1..60}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then
+              echo 'REAL_FUE_REACT_GREEN'
+              exit 0
+            fi
+            sleep 1
+          done
+          echo 'REAL_FUE_REACT_FAILED'
+          exit 1
+
+      - name: Run real-user journey: export, preflight, prepare, 409 apply, cancel, RBAC
+        working-directory: frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          node scripts/fue-restore03-real-journey-t2.mjs
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          report=json.loads(Path('../artifacts/restore03-fue-i/report.json').read_text())
+          assert report['head']==os.environ['FUE_HEAD'] and report['pass'] is True
+          assert report['actualReact'] is True and report['actualFastAPI'] is True
+          assert report['backendMocked'] is False and report['routeIntercepted'] is False
+          assert report['syntheticOnly'] is True and report['frozenExe'] is False
+          assert report['fullRestoreApplied'] is False and report['clinicalGo'] is False
+          assert report['deployed'] is False and report['humanVisualApproval'] is False
+          assert len(report['checks'])>=19 and len(report['screenshots'])==10
+          assert all(c['status']=='PASS' for c in report['checks'])
+          print('RESTORE03_REAL_UI_FASTAPI_FUE_I_CI_VERIFIED',len(report['checks']),len(report['screenshots']))
+          PY
+
+      - name: Evidence: synthetic screenshots and non-sensitive assertion report only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: restore03-real-frontend-backend-fue-i-${{ env.FUE_HEAD }}
+          path: artifacts/restore03-fue-i/
+          retention-days: 7
+          if-no-files-found: warn
