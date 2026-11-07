@@ -373,7 +373,11 @@ def copy_one_win32(source: Path, expected_checksum: str, dest_dir: Path):
                                 _link_from_handle(kernel, temp_handle, directory_handle, source.name)
                             except OSError as exc:
                                 if getattr(exc, "winerror", None) not in (ERROR_FILE_EXISTS, ERROR_ALREADY_EXISTS):
-                                    return False, "ATOMIC_PUBLICATION_UNAVAILABLE", f"Publication non-écrasante indisponible : {type(exc).__name__}"
+                                    # Numeric error only: no file path or patient data.
+                                    return False, "ATOMIC_PUBLICATION_UNAVAILABLE", (
+                                        f"Publication Win32 sans écrasement refusée : "
+                                        f"{type(exc).__name__} winerror={getattr(exc, 'winerror', None)}"
+                                    )
                                 try:
                                     if _read_existing_digest(nt, kernel, directory_handle, source.name) != expected_checksum:
                                         return False, "DESTINATION_NAME_COLLISION", "Destination existante différente"
