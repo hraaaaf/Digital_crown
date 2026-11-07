@@ -29,12 +29,26 @@ def inspect_archive_receipt_read_only(
     db: Session, *, tenant_id: int, actor_id: int, device_id: str,
     key: str, media_root: Path,
 ) -> dict[str, str | bool]:
-    """Produce a privacy-minimal verdict for an already authorized local scope.
+    """Forensic-only entrypoint: isolated DB, clean session, no autoflush."""
+    from backend.core.runtime_safety import is_explicitly_isolated
 
-    The caller must authorize its own access to the specified cabinet and
-    work on an isolated copy. No HTTP route exposes this helper. Patient names,
-    file paths, file bytes and clinical contents never leave this function.
-    """
+    if not is_explicitly_isolated(str(db.get_bind().url)):
+        raise RuntimeError("Inspection refusée : la base n'est pas explicitement isolée.")
+    if db.new or db.dirty or db.deleted:
+        raise RuntimeError("Inspection refusée : session SQL avec mutations en attente.")
+    with db.no_autoflush:
+        return _inspect_receipt_snapshot(
+            db, tenant_id=tenant_id, actor_id=actor_id, device_id=device_id,
+            key=key, media_root=media_root,
+        )
+
+
+def _inspect_receipt_snapshot(
+    db: Session, *, tenant_id: int, actor_id: int, device_id: str,
+    key: str, media_root: Path,
+) -> dict[str, str | bool]:
+    """Read-only minimum-necessary verdict, no PHI, path or PDF exported."""
+
     receipt = read_scoped_receipt(
         db, tenant_id=tenant_id, actor_id=actor_id, device_id=device_id, key=key,
     )
