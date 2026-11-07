@@ -1,0 +1,83 @@
+name: RESTORE-03 INSTALLABLE Source and Model Readiness Audit (No Release)
+on:
+  pull_request:
+    paths:
+      - 'scripts/restore03_installable_readiness_audit.py'
+      - '.github/workflows/restore03-installable-readiness-audit.yml'
+      - 'backend/scientific_assets.json'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  pinned-asset-and-master-cert-readiness:
+    name: External SRPose38 SHA + exact-master CODE artifact discovery (NO GO)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      RESTORE03_AUDIT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - name: Checkout immutable PR HEAD, never write to master
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact checkout and freeze current master SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$RESTORE03_AUDIT_HEAD"
+          git fetch --no-tags origin master
+          master_sha="$(git rev-parse origin/master)"
+          test "${#master_sha}" -eq 40
+          echo "RESTORE03_AUDIT_MASTER=$master_sha" >> "$GITHUB_ENV"
+      - name: Fetch previously published external SRPose38 artifact, no patient data
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/restore03-source-model"
+          gh run download 34281082926 --repo "$GITHUB_REPOSITORY" --name cephalo-srpose38-onnx-parity --dir "$RUNNER_TEMP/restore03-source-model"
+          test -s "$RUNNER_TEMP/restore03-source-model/srpose38-tta-1024.onnx"
+      - name: Discover current master official CODE_CERTIFIED runs read-only
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/workflows/cabinet-release-certification.yml/runs?branch=master&per_page=100" > "$RUNNER_TEMP/restore03-master-code-runs.json"
+          test -s "$RUNNER_TEMP/restore03-master-code-runs.json"
+      - name: Verify scientific model size+SHA and report cert blockers without bypass
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python scripts/restore03_installable_readiness_audit.py \
+            --download "$RUNNER_TEMP/restore03-source-model" \
+            --code-runs "$RUNNER_TEMP/restore03-master-code-runs.json" \
+            --output "$RUNNER_TEMP/restore03-installable-readiness-evidence.json"
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          report=json.loads((Path(os.environ['RUNNER_TEMP'])/'restore03-installable-readiness-evidence.json').read_text())
+          assert report['clinical_go'] is False and report['installable_ready'] is False
+          assert report['srpose38_external_artifact']['master_scientific_pin']=='MATCH'
+          assert report['srpose38_external_artifact']['pr_scientific_pin']=='MATCH'
+          assert report['pyinstaller_build']=='NOT_RUN'
+          assert report['runtime_assets_certification']=='NOT_RUN'
+          assert report['github_sigstore_attestation_verification']=='NOT_RUN'
+          print('RESTORE03_INSTALLABLE_PIN_AUDIT_PASS_NO_RELEASE_CREATED')
+          PY
+      - name: Upload only manifest readout, never model or secrets
+        uses: actions/upload-artifact@v4
+        with:
+          name: restore03-installable-readiness-evidence-only
+          path: ${{ runner.temp }}/restore03-installable-readiness-evidence.json
+          retention-days: 7
+          if-no-files-found: error
