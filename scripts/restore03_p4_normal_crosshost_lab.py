@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import importlib
+from contextlib import closing
 import json
 import os
 import shutil
@@ -105,7 +106,7 @@ def source(output: Path) -> None:
     finally:
         engine.dispose()
     assert read_db_marker(db) == (AFTER_MARKER, 63)
-    with sqlite3.connect(str(db)) as check:
+    with closing(sqlite3.connect(str(db))) as check:
         names = {row[0] for row in check.execute(
             "SELECT name FROM sqlite_master WHERE type='table'")}
         assert set(TABLES).issubset(names)
@@ -250,7 +251,7 @@ def target(input_dir: Path, output: Path) -> None:
     assert (media / "documents" / "SYNTHETIC.txt").read_bytes() == DOC_MEDIA
     assert not (media / "before.txt").exists()
     assert not vault.exists(), "DESTINATION_LICENSE_VAULT_NOT_REMOVED"
-    with sqlite3.connect(str(db)) as check:
+    with closing(sqlite3.connect(str(db))) as check:
         assert check.execute("PRAGMA integrity_check").fetchone() == ("ok",)
         owner = check.execute(
             "SELECT is_licensed, license_expires_at FROM users WHERE id=?", (OWNER_ID,)
