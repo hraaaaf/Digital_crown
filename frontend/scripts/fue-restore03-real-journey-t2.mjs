@@ -218,8 +218,7 @@ try {
   await setup.dispose().catch(() => {});
   await browser.close();
   await fs.writeFile(path.join(output, 'report.json'),
-    JSON.stringify(report, null, 2) + '
-', 'utf8');
+    JSON.stringify(report, null, 2) + '\n', 'utf8');
 }
 if (!report.pass || report.checks.length < 19 || report.screenshots.length !== 10) {
   throw new Error('RESTORE03_FUE_INCOMPLETE');
