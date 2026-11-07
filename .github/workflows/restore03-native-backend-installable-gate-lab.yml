@@ -47,14 +47,27 @@ jobs:
           foreach ($name in @('DATABASE_URL','DIGITALCROWN_USER_DATA_DIR','DIGITALCROWN_ENV_FILE','SQLCIPHER_KEY_HEX','CABINET_MASTER_KEY_HEX','MEDIA_ROOT')) {
             if ([Environment]::GetEnvironmentVariable($name)) { throw 'RESTORE03_NATIVE_INHERITED_CABINET_ENV' }
           }
+      - name: Create dedicated Windows Python 3.12 venv to isolate host runner packages
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $venv = Join-Path $env:RUNNER_TEMP 'restore03-native-python-venv'
+          if (Test-Path -LiteralPath $venv) { throw 'RESTORE03_PREEXISTING_VENV_REFUSED' }
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_VENV_CREATE_FAILED' }
+          $venvPython = Join-Path $venv 'Scripts/python.exe'
+          if (-not (Test-Path -LiteralPath $venvPython -PathType Leaf)) { throw 'RESTORE03_VENV_PYTHON_MISSING' }
+          & $venvPython -c "import sys,site; assert sys.prefix != sys.base_prefix and not site.ENABLE_USER_SITE"
+          if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_VENV_ISOLATION_FAILED' }
+          "RESTORE03_VENV_PYTHON=$venvPython" >> $env:GITHUB_ENV
       - name: Install canonical Windows build/runtime dependency contract
         shell: pwsh
         run: |
-          python -m pip install --upgrade pip==26.0.1
+          & $env:RESTORE03_VENV_PYTHON -m pip install --upgrade pip==26.0.1
           if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_NATIVE_PIP_UPDATE_FAILED' }
-          python -m pip install -r backend/requirements-windows-build.txt
+          & $env:RESTORE03_VENV_PYTHON -m pip install -r backend/requirements-windows-build.txt
           if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_NATIVE_INSTALL_DEPS_FAILED' }
-          python -m pip check
+          & $env:RESTORE03_VENV_PYTHON -m pip check
           if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_NATIVE_DEPS_NOT_COHERENT' }
       - name: Windows native app process and P4 persistence with fail-closed packaging
         shell: pwsh
@@ -62,7 +75,7 @@ jobs:
           EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
         run: |
           $ErrorActionPreference = 'Stop'
-          python scripts/restore03_windows_native_runtime_lab.py --output "$env:RUNNER_TEMP/restore03-native-evidence"
+          & $env:RESTORE03_VENV_PYTHON scripts/restore03_windows_native_runtime_lab.py --output "$env:RUNNER_TEMP/restore03-native-evidence"
           if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_NATIVE_REHEARSAL_FAILED' }
           $proofPath = Join-Path $env:RUNNER_TEMP 'restore03-native-evidence/restore03-windows-source-runtime-lab-evidence.json'
           if (-not (Test-Path -LiteralPath $proofPath -PathType Leaf)) { throw 'RESTORE03_NATIVE_PROOF_MISSING' }
