@@ -20,6 +20,7 @@ from tools.imaging_gateway.native_inventory_protocol_v15 import (
 )
 from tools.imaging_gateway.native_inventory_windows_v15 import read_native_unassigned
 from tools.imaging_gateway.native_media_protocol_v15 import DENIED, encode_request
+from tools.imaging_gateway import native_media_windows_v15 as media_transport
 from tools.imaging_gateway.native_media_windows_v15 import read_native_capture_bytes
 from tools.imaging_gateway.native_product_bridge_v15 import windows_native_bridge
 
@@ -69,11 +70,16 @@ def direct_lab_probe(pipe: str, request: bytes) -> bytes | None:
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2 or argv[1] not in {
+    if len(argv) != 3 or argv[1] not in {
         "Valid", "WrongKey", "Tampered", "Unauthorized",
     }:
         return 64
-    pipe, mode = argv
+    pipe, mode, pid_text = argv
+    if not pid_text.isdecimal():
+        return 64
+    expected_pid = int(pid_text)
+    if not 0 < expected_pid <= 0xFFFFFFFF:
+        return 64
     os.environ["DC06_B06_NATIVE_INVENTORY_LAB"] = "1"
     os.environ["DC06_B06_NATIVE_MEDIA_LAB"] = "1"
     expected = UnassignedCapture(
@@ -86,7 +92,7 @@ def main(argv: list[str]) -> int:
             # inventory boundary uses THIS Win32 SCM restricted pipe.
             native = windows_native_bridge(
                 tenant_id=1, workstation_id="DC06B06_LAB_STATION",
-                pipe_name=pipe,
+                pipe_name=pipe, expected_server_pid=expected_pid,
             )
             capture = native.inventory(
                 tenant_id=1, workstation_id="DC06B06_LAB_STATION",
@@ -98,9 +104,67 @@ def main(argv: list[str]) -> int:
                 return 72
             except NativeInventoryDenied:
                 pass
-            result = read_native_capture_bytes(pipe, capture)
+            # Real Win32 media transfer: monitor each opened M handle check.
+            original_check = media_transport._check_pipe_server_pid
+            checks = []
+            def observed_check(kernel, handle, pin):
+                original_check(kernel, handle, pin)
+                checks.append(pin)
+            media_transport._check_pipe_server_pid = observed_check
+            try:
+                result = native.read_verified_media(
+                    capture, tenant_id=1, workstation_id="DC06B06_LAB_STATION",
+                )
+            finally:
+                media_transport._check_pipe_server_pid = original_check
             if len(PNG) <= 3 * 2048 or result != PNG:
                 return 66
+            if len(checks) < 4 or any(pid != expected_pid for pid in checks):
+                return 75
+            print("DC06_B06_BS2_EVERY_MEDIA_FRAGMENT_SERVER_PID_PINNED_PASS")
+
+            # Live inventory I negative: forged expected PID rejects before I.
+            forged = windows_native_bridge(
+                tenant_id=1, workstation_id="DC06B06_LAB_STATION",
+                pipe_name=pipe, expected_server_pid=expected_pid + 1,
+            )
+            try:
+                forged.inventory(tenant_id=1, workstation_id="DC06B06_LAB_STATION")
+            except NativeInventoryDenied as exc:
+                if str(exc) != "NATIVE_PIPE_SERVER_PID_MISMATCH":
+                    return 78
+            else:
+                return 79
+            print("DC06_B06_BS2_LIVE_INVENTORY_HANDLE_FORGED_PID_PREWRITE_DENIED_PASS")
+
+            # Synthetic fault injection is confined to THIS test process:
+            # test bypasses the preflight I to reach two actual M pipe handles.
+            # It intentionally changes the expected PID on the second M
+            # before WriteFile; there must be no partial media return.
+            original_inventory = media_transport.read_native_unassigned
+            seen = [0]
+            def simulated_second_handle_swap(kernel, handle, pin):
+                seen[0] += 1
+                return original_check(kernel, handle, pin if seen[0] == 1 else pin + 1)
+            media_transport.read_native_unassigned = (
+                lambda name, *, expected_server_pid: capture
+            )
+            media_transport._check_pipe_server_pid = simulated_second_handle_swap
+            refused = False
+            try:
+                read_native_capture_bytes(
+                    pipe, capture, expected_server_pid=expected_pid,
+                )
+            except NativeInventoryDenied as exc:
+                if str(exc) != "NATIVE_PIPE_SERVER_PID_MISMATCH":
+                    return 76
+                refused = True
+            finally:
+                media_transport.read_native_unassigned = original_inventory
+                media_transport._check_pipe_server_pid = original_check
+            if not refused or seen[0] != 2:
+                return 77
+            print("DC06_B06_BS2_SIMULATED_SECOND_M_HANDLE_PID_SWAP_PREWRITE_DENIED_PASS")
             print("DC06_B06_PRODUCT_NATIVE_BRIDGE_REAL_SCM_SCOPED_INVENTORY_PASS")
             print("DC06_B06_NATIVE_REAL_WINDOWS_BINARY_AES_MEDIA_SHA256_PASS")
             print("DC06_B06_NATIVE_REAL_WINDOWS_MULTI_FRAGMENT_MIN_FOUR_PASS")
@@ -145,6 +209,9 @@ def main(argv: list[str]) -> int:
                 "NATIVE_INVENTORY_REPLY_DENIED",
                 "NATIVE_INVENTORY_REPLY_LENGTH",
                 "NATIVE_INVENTORY_FRAME_DENIED",
+                "NATIVE_PIPE_SERVER_PID_REQUIRED",
+                "NATIVE_PIPE_SERVER_PID_UNAVAILABLE",
+                "NATIVE_PIPE_SERVER_PID_MISMATCH",
             }
             print("DC06_B06_MEDIA_CLIENT_FAIL_" + (code if code in codes else "UNKNOWN"))
             return 69
