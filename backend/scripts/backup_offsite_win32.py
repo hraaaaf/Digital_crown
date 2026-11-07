@@ -22,6 +22,9 @@ if os.name == "nt":
     import msvcrt
 
 FILE_SHARE_ALL = 0x7
+# Deny rename/delete of pinned destination directories while copying. New
+# handles remain compatible with normal READ and WRITE sharing.
+FILE_SHARE_DIRECTORY = 0x3
 SYNCHRONIZE = 0x00100000
 FILE_READ_ATTRIBUTES = 0x80
 FILE_LIST_DIRECTORY = 0x1
@@ -162,8 +165,9 @@ def _open_child(nt, parent, component, *, access, disposition, options, attribut
                                None, None)
     ios = _IO_STATUS_BLOCK()
     result_handle = wintypes.HANDLE()
+    share_access = FILE_SHARE_DIRECTORY if options & FILE_DIRECTORY_FILE else FILE_SHARE_ALL
     status = nt.NtCreateFile(ctypes.byref(result_handle), access, ctypes.byref(attrs),
-                             ctypes.byref(ios), None, attributes, FILE_SHARE_ALL,
+                             ctypes.byref(ios), None, attributes, share_access,
                              disposition, options, None, 0)
     status_int = ctypes.c_int32(status).value
     if status_int < 0:
@@ -186,7 +190,7 @@ def _walk_directory(directory, kernel, nt, *, create, writable_final=True):
         raise OSError(errno.EPERM, "Missing volume/share anchor")
     components = target.parts[1:]
     root_access = DIRECTORY_WRITE_ACCESS if not components and writable_final else DIRECTORY_READ_ACCESS
-    handle = kernel.CreateFileW(root, root_access, FILE_SHARE_ALL, None, OPEN_EXISTING,
+    handle = kernel.CreateFileW(root, root_access, FILE_SHARE_DIRECTORY, None, OPEN_EXISTING,
                                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, None)
     if handle is None or int(handle) == ctypes.c_void_p(-1).value:
         error = ctypes.WinError(ctypes.get_last_error())

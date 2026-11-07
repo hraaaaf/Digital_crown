@@ -535,7 +535,8 @@ def test_win32_native_temp_swap_cannot_publish_injected_file(tmp_path, monkeypat
     assert good is False
     assert code == "TEMP_PATH_TAMPERED"
     assert not (remote / source.name).exists()
-    assert (remote / ".tmp_injected_name").exists() is False
+    assert not (remote / source.name).exists()
+    assert (remote / "moved_original.tmp").exists() is False
 
 
 def test_win32_native_directory_swap_cannot_redirect_into_external_root(tmp_path, monkeypatch):
@@ -570,9 +571,9 @@ def test_win32_native_directory_swap_cannot_redirect_into_external_root(tmp_path
     good, code, _msg = native.copy_one_win32(source, digest, remote)
     assert switch["done"]
     assert list(outside.iterdir()) == []
-    if switch["denied"]:
-        assert good is True
-    else:
-        assert good is False
-        assert code == "DEST_DIRECTORY_UNSAFE"
-        assert not (outside / source.name).exists()
+    # A Windows destination HANDLE held without FILE_SHARE_DELETE must deny
+    # a rename from another actor. This protects the directory identity for
+    # the duration of copying, not just at publication time.
+    assert switch["denied"] is True, "Pinned Windows directory was renameable during copy"
+    assert good is True
+    assert code is None
