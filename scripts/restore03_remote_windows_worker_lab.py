@@ -125,7 +125,7 @@ def only_nonportable_fixture(portable_archive: Path, destination: Path) -> None:
 
 
 def assert_state(db: Path, media: Path, value: str, media_name: str, data: bytes) -> None:
-    assert read_db_marker(db) == (value, 63 if value.startswith("RESTORE03_SYNTHETIC_") else 0)
+    assert read_db_marker(db) == (value, 63)
     assert (media / media_name).read_bytes() == data
     if media_name.startswith("radios/"):
         assert not (media / "before.txt").exists()
