@@ -76,7 +76,9 @@ def test_legacy_mirror_collision_preserves_both_distinct_pdfs(tmp_path):
 
 @pytest.mark.parametrize(
     "risk",
-    ["legacy_missing_pdf", "legacy_complete", "trash_valid", "processing_orphan", "unlinked_orphan"],
+    ["legacy_missing_pdf", "legacy_complete", "legacy_direct_historical",
+     "legacy_direct_corrupted", "legacy_archived", "legacy_extra_orphan",
+     "trash_valid", "processing_orphan", "unlinked_orphan"],
 )
 def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, risk):
     """No-pocket legacy integrity, trashed docs, PROCESSING, orphan PDF inventory."""
@@ -102,10 +104,14 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
     canonical = media / CANON
     mirror.parent.mkdir(parents=True)
     mirror.write_bytes(PDF)
-    if risk != "legacy_missing_pdf":
+    if risk not in {"legacy_missing_pdf", "legacy_direct_historical", "legacy_direct_corrupted"}:
         canonical.parent.mkdir(parents=True)
         canonical.write_bytes(PDF)
-    if risk == "unlinked_orphan":
+    if risk == "legacy_direct_corrupted":
+        altered = PDF.replace(b"Catalog", b"Catxlog")
+        assert len(altered) == len(PDF)
+        mirror.write_bytes(altered)
+    if risk in {"unlinked_orphan", "legacy_extra_orphan"}:
         other = media / "archives" / "99999" / "CERTIFICAT" / "2026" / "11" / "unlinked.pdf"
         other.parent.mkdir(parents=True)
         other.write_bytes(PDF)
@@ -122,7 +128,11 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
         ))
         db.commit()
         if risk != "processing_orphan":
-            status = models.DocumentStatus.SUPPRIME if risk == "trash_valid" else models.DocumentStatus.ACTIF
+            status = (
+                models.DocumentStatus.SUPPRIME if risk == "trash_valid"
+                else models.DocumentStatus.ARCHIVE if risk == "legacy_archived"
+                else models.DocumentStatus.ACTIF
+            )
             doc = models.DocumentArchive(
                 patient_id=PATIENT, uploaded_by_id=OWNER,
                 document_type=models.DocumentType.CERTIFICAT,
@@ -130,7 +140,10 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
                 document_group_id=str(uuid.uuid4()),
                 version_number=1, is_latest_version=True,
                 file_hash=hashlib.sha256(PDF).hexdigest(), file_size=len(PDF),
-                file_path="static/" + CANON,
+                file_path="static/" + (
+                    MIRROR if risk in {"legacy_direct_historical", "legacy_direct_corrupted"}
+                    else CANON
+                ),
                 status=status, tags=[], clinical_data={},
             )
             if status == models.DocumentStatus.SUPPRIME:
@@ -174,7 +187,7 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
         guided, original_name="synthetic-guided.zip",
         active_engine=("sqlite", "pysqlcipher"), owner_employer_id=OWNER,
     )
-    if risk in {"legacy_complete", "trash_valid"}:
+    if risk in {"legacy_complete", "legacy_direct_historical", "legacy_archived", "trash_valid"}:
         assert verdict["status"] == "preflight_ready"
         assert verdict["compatible"] is True
         assert not verdict["errors"]
@@ -183,8 +196,12 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
         assert verdict["compatible"] is False
         assert verdict["errors"] == [ERROR]
     assert GuidedRestoreService.runtime_apply_supported() is False
-    assert mirror.read_bytes() == PDF
-    assert canonical.exists() == (risk != "legacy_missing_pdf")
+    assert mirror.read_bytes() == (
+        PDF.replace(b"Catalog", b"Catxlog") if risk == "legacy_direct_corrupted" else PDF
+    )
+    assert canonical.exists() == (
+        risk not in {"legacy_missing_pdf", "legacy_direct_historical", "legacy_direct_corrupted"}
+    )
 
 
 @pytest.mark.parametrize("entries", [
