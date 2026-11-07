@@ -252,3 +252,125 @@ def test_atomic_no_clobber_unavailable_never_uses_unsafe_replace(tmp_path, monke
     assert result["error_code"] == "ATOMIC_PUBLICATION_UNAVAILABLE"
     assert not (remote / "db" / source.name).exists()
     assert list((remote / "db").glob(".tmp_*")) == []
+
+
+def test_media_only_copy_is_never_complete_success(tmp_path):
+    media = tmp_path / "local" / "media_backup.zip.enc"
+    digest = _write(media, b"MEDIA")
+    result = copy_to_offsite(None, None, media, digest, tmp_path / "nas")
+    assert result["status"] == "PARTIAL"
+    assert result["media_copied"] is True
+    assert result["db_copied"] is False
+    assert result["error_code"] == "INCOMPLETE_BACKUP_PAIR"
+
+
+def test_db_only_copy_is_never_complete_success(tmp_path):
+    db = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(db, b"DB")
+    result = copy_to_offsite(db, digest, None, None, tmp_path / "nas")
+    assert result["status"] == "PARTIAL"
+    assert result["media_copied"] is False
+    assert result["db_copied"] is True
+    assert result["error_code"] == "INCOMPLETE_BACKUP_PAIR"
+
+
+def _make_symlink_or_skip(target, link, *, is_dir=True):
+    import os
+    import pytest
+    try:
+        os.symlink(target, link, target_is_directory=is_dir)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"OS cannot create synthetic symlink: {type(exc).__name__}")
+
+
+def test_symlink_destination_root_does_not_escape_configured_storage(tmp_path):
+    real_outside = tmp_path / "outside"
+    real_outside.mkdir()
+    redirect = tmp_path / "offsite_alias"
+    _make_symlink_or_skip(real_outside, redirect)
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"DB")
+    result = copy_to_offsite(source, digest, None, None, redirect)
+    assert result["status"] != "SUCCESS"
+    assert result["error_code"] == "DEST_DIRECTORY_UNSAFE"
+    assert list(real_outside.iterdir()) == []
+
+
+def test_symlink_destination_subdir_does_not_publish_outside_root(tmp_path):
+    remote = tmp_path / "nas"
+    remote.mkdir()
+    real_outside = tmp_path / "outside"
+    real_outside.mkdir()
+    _make_symlink_or_skip(real_outside, remote / "db")
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"DB")
+    result = copy_to_offsite(source, digest, None, None, remote)
+    assert result["status"] == "FAILED"
+    assert result["error_code"] == "DEST_DIRECTORY_UNSAFE"
+    assert result["db_copied"] is False
+    assert list(real_outside.iterdir()) == []
+
+
+def test_symlinked_parent_ancestor_does_not_create_outside(tmp_path):
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    alias = tmp_path / "alias"
+    _make_symlink_or_skip(outside, alias)
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"DB")
+    result = copy_to_offsite(source, digest, None, None, alias / "nas")
+    assert result["status"] != "SUCCESS"
+    assert result["error_code"] == "DEST_DIRECTORY_UNSAFE"
+    assert not (outside / "nas").exists()
+
+
+def _run_fifo_case_in_separate_process(source, checksum, remote, queue):
+    result = copy_to_offsite(source, checksum, None, None, remote)
+    queue.put((result["status"], result["error_code"]))
+
+
+def _assert_fifo_case_nonblocking(source, checksum, remote):
+    import multiprocessing
+    import os
+    import pytest
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("FIFO-specific regression requires POSIX filesystem")
+    context = multiprocessing.get_context("fork")
+    queue = context.Queue()
+    process = context.Process(target=_run_fifo_case_in_separate_process, args=(source, checksum, remote, queue))
+    process.start()
+    process.join(timeout=4)
+    if process.is_alive():
+        process.terminate()
+        process.join(timeout=3)
+        pytest.fail("NC-03: FIFO path caused unbounded blocking")
+    assert process.exitcode == 0
+    status, reason = queue.get(timeout=1)
+    assert status == "FAILED"
+    assert reason in {"EXISTING_BACKUP_UNSAFE_FILE_TYPE", "SOURCE_UNSAFE_FILE_TYPE"}
+
+
+def test_existing_fifo_at_final_destination_does_not_block(tmp_path):
+    import os
+    import pytest
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("FIFO-specific regression requires POSIX")
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"DB")
+    remote = tmp_path / "nas"
+    (remote / "db").mkdir(parents=True)
+    fifo = remote / "db" / source.name
+    os.mkfifo(fifo)
+    _assert_fifo_case_nonblocking(source, digest, remote)
+    assert fifo.exists()
+
+
+def test_fifo_source_does_not_block_or_copy(tmp_path):
+    import os
+    import pytest
+    if not hasattr(os, "mkfifo"):
+        pytest.skip("FIFO-specific regression requires POSIX")
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    source.parent.mkdir(parents=True)
+    os.mkfifo(source)
+    _assert_fifo_case_nonblocking(source, "0" * 64, tmp_path / "nas")
