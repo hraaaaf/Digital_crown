@@ -2,6 +2,7 @@
 # ARCHIVE SERVICE - Gestion intelligente des documents
 # ==============================================================================
 import hashlib
+import hmac
 import os
 import uuid
 from datetime import datetime, timedelta
@@ -50,6 +51,34 @@ def _validate_archive_filename(filename: str) -> None:
         len(base) == 4 and base[:3] in {"COM", "LPT"} and base[3] in "123456789"
     ):
         raise ValueError("Nom de fichier Windows réservé")
+
+
+def _mirror_pdf_without_overwrite(canonical: Path, historical: Path) -> None:
+    """Exclusive-create historical mirror, refusing any conflicting PDF bytes.
+
+    The legacy generator may already have produced the *same* PDF at this
+    destination; that is safe to retain. A different existing file, including
+    a symlink, must NEVER be overwritten or 'fixed' by patient-name guessing.
+    A crash during exclusive create leaves an orphan for manual review.
+    """
+    if historical.is_symlink():
+        raise RuntimeError("Copie historique ambiguë : revue manuelle requise")
+    try:
+        with historical.open("xb") as dest, canonical.open("rb") as src:
+            shutil.copyfileobj(src, dest, length=1024 * 1024)
+    except FileExistsError:
+        if historical.is_symlink() or not historical.is_file():
+            raise RuntimeError("Copie historique ambiguë : revue manuelle requise")
+        if historical.stat().st_size != canonical.stat().st_size:
+            raise RuntimeError("Collision de fichier historique : revue manuelle requise")
+        old_sha = hashlib.sha256()
+        new_sha = hashlib.sha256()
+        for source, dig in ((historical, old_sha), (canonical, new_sha)):
+            with source.open("rb") as f:
+                for chunk in iter(lambda: f.read(1024 * 1024), b""):
+                    dig.update(chunk)
+        if not hmac.compare_digest(old_sha.digest(), new_sha.digest()):
+            raise RuntimeError("Collision de fichier historique : revue manuelle requise")
 
 
 class ArchiveService:
@@ -452,7 +481,7 @@ class ArchiveService:
             
             # Consiste à utiliser le même nommage que l'ancien générateur
             legacy_path = legacy_dir / storage_path.name
-            shutil.copy2(storage_path, legacy_path)
+            _mirror_pdf_without_overwrite(storage_path, legacy_path)
 
         # Créer l'entrée en base
         doc = models.DocumentArchive(

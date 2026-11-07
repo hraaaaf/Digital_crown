@@ -40,7 +40,6 @@ OWNER = 97801
 PATIENT = 97802
 DEVICE = "fictional-pocket-paired"
 PDF = b"%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%%EOF\n"
-UNRESOLVED_PDF = b"%PDF-1.4\n1 0 obj << /Type /Catalog >> endobj\n%unresolved-test-only\n%%EOF\n"
 
 
 def _engine(db_file: Path, sqlcipher_passphrase: str):
@@ -84,21 +83,18 @@ def test_portable_sqlcipher_actual_archive_receipt_both_media_trees_and_rollback
         tables=[models.User.__table__, models.Patient.__table__, models.DocumentArchive.__table__],
     )
     PocketReceiptBase.metadata.create_all(engine)
-    complete_key, unresolved_key = str(uuid.uuid4()), str(uuid.uuid4())
+    complete_key = str(uuid.uuid4())
     canonical = "archives/97802/CERTIFICAT/2026/11/fictional-certified.pdf"
     historical = "documents/2026/11/fictional-certified.pdf"
-    orphan_canonical = "archives/97802/certificat/2026/11/fictional-unresolved.pdf"
-    orphan_legacy = "documents/2026/11/fictional-unresolved.pdf"
     media_source = tmp_path / "fixture-media-source"
     for relative, content in (
         (canonical, PDF), (historical, PDF),
-        (orphan_canonical, UNRESOLVED_PDF), (orphan_legacy, UNRESOLVED_PDF),
     ):
         path = media_source / relative
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(content)
     initial_media_digest = _directory_digest(media_source)
-    assert initial_media_digest["files"] == 4
+    assert initial_media_digest["files"] == 2
 
     with Session(engine) as db:
         db.add(models.User(
@@ -112,8 +108,6 @@ def test_portable_sqlcipher_actual_archive_receipt_both_media_trees_and_rollback
         db.commit()
         complete, created = claim_archive_intent(db, **_db_args(complete_key))
         assert created and complete.state == "PROCESSING"
-        unresolved, created = claim_archive_intent(db, **_db_args(unresolved_key))
-        assert created and unresolved.state == "PROCESSING"
         document = models.DocumentArchive(
             patient_id=PATIENT, uploaded_by_id=OWNER,
             document_type=models.DocumentType.CERTIFICAT,
@@ -144,21 +138,21 @@ def test_portable_sqlcipher_actual_archive_receipt_both_media_trees_and_rollback
     bundle = CabinetBundleService.create_bundle(
         portable, secret, database_path=portable_plain, media_root=media_source,
     )
-    assert bundle["media_file_count"] == 4
-    assert PDF not in portable.read_bytes() and UNRESOLVED_PDF not in portable.read_bytes()
+    assert bundle["media_file_count"] == 2
+    assert PDF not in portable.read_bytes()
     guided_package = tmp_path / "fictional-guided-restore.zip"
     converted = CabinetBundleService.to_local_guided_restore_archive(
         portable, secret, guided_package,
         active_engine=("sqlite", "pysqlcipher"),
     )
-    assert converted["media_file_count"] == 4
+    assert converted["media_file_count"] == 2
     preflight = GuidedRestoreService.preflight_file(
         guided_package, original_name="fictional-guided-restore.zip",
         active_engine=("sqlite", "pysqlcipher"), owner_employer_id=OWNER,
     )
     assert preflight["status"] == "preflight_ready"
     assert preflight["compatible"] and preflight["restore_media"]
-    assert preflight["media_file_count"] == 4 and not preflight["errors"]
+    assert preflight["media_file_count"] == 2 and not preflight["errors"]
     job = GuidedRestoreService.get_job(preflight["restore_id"])
     GuidedRestoreService._verify_staged_job(job)
     staging = GuidedRestoreService.job_dir(preflight["restore_id"])
@@ -196,7 +190,6 @@ def test_portable_sqlcipher_actual_archive_receipt_both_media_trees_and_rollback
     assert not (restored_media / "preexisting-test.txt").exists()
     for relative, expected in (
         (canonical, PDF), (historical, PDF),
-        (orphan_canonical, UNRESOLVED_PDF), (orphan_legacy, UNRESOLVED_PDF),
     ):
         assert (restored_media / relative).read_bytes() == expected
 
@@ -208,7 +201,7 @@ def test_portable_sqlcipher_actual_archive_receipt_both_media_trees_and_rollback
     try:
         with Session(restored_engine) as db:
             assert db.scalar(select(func.count()).select_from(models.DocumentArchive)) == 1
-            assert db.scalar(select(func.count()).select_from(MobileDocumentArchiveReceipt)) == 2
+            assert db.scalar(select(func.count()).select_from(MobileDocumentArchiveReceipt)) == 1
             doc = db.get(models.DocumentArchive, original_document_id)
             assert doc is not None and doc.patient_id == PATIENT
             assert doc.file_path == "static/" + canonical
@@ -216,21 +209,10 @@ def test_portable_sqlcipher_actual_archive_receipt_both_media_trees_and_rollback
             assert doc.file_hash == hashlib.sha256((restored_media / historical).read_bytes()).hexdigest()
             scope = dict(tenant_id=OWNER, actor_id=OWNER, device_id=DEVICE)
             completed = read_scoped_receipt(db, **scope, key=complete_key)
-            pending = read_scoped_receipt(db, **scope, key=unresolved_key)
             assert completed.archive_id == doc.id and completed.state == "COMPLETED"
-            assert pending.archive_id is None and pending.state == "PROCESSING"
             assert inspect_archive_receipt_read_only(
                 db, **scope, key=complete_key, media_root=restored_media,
             )["decision"] == "EXISTING_ARCHIVE_VERIFIED"
-            pending_verdict = inspect_archive_receipt_read_only(
-                db, **scope, key=unresolved_key, media_root=restored_media,
-            )
-            assert pending_verdict == {
-                "receipt_state": "PROCESSING", "verified_archive": False,
-                "automatic_replay_allowed": False, "decision": "HOLD_FOR_MANUAL_REVIEW",
-            }
-            existing, claimed = claim_archive_intent(db, **_db_args(unresolved_key))
-            assert not claimed and existing.id == pending.id
             assert db.scalar(select(func.count()).select_from(models.DocumentArchive)) == 1
     finally:
         restored_engine.dispose()

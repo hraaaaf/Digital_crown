@@ -92,9 +92,18 @@ def _validate_zip_infos(infos: list[zipfile.ZipInfo], *, max_entries: int = MAX_
     if not infos or len(infos) > max_entries:
         raise ValueError("Archive non reconnue ou trop complexe")
     total = 0
+    normalized: set[str] = set()
     for info in infos:
         if not _safe_zip_member(info.filename):
             raise ValueError("Archive refusée : chemin interne non sûr")
+        # ZIP duplicates/aliases must never be resolved by first-vs-last
+        # match or mapped differently by Windows case-insensitive storage.
+        canonical = PurePosixPath(info.filename.rstrip("/")).as_posix()
+        if (canonical != info.filename.rstrip("/")
+                or any(":" in part for part in PurePosixPath(canonical).parts)
+                or canonical.casefold() in normalized):
+            raise ValueError("Archive refusée : noms de fichiers ambigus")
+        normalized.add(canonical.casefold())
         mode = (info.external_attr >> 16) & 0o170000
         if mode == 0o120000:
             raise ValueError("Archive refusée : lien symbolique interdit")
