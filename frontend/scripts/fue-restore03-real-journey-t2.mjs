@@ -115,6 +115,11 @@ try {
       page.getByRole('button', { name: 'Créer et télécharger la sauvegarde' }).click(),
     ]);
     assert.equal(exportResponse.status(), 200);
+    const exposed = String(exportResponse.headers()['access-control-expose-headers'] || '')
+      .toLowerCase().split(',').map(value => value.trim());
+    assert.ok(exposed.includes('content-disposition'),
+      'Browser must be allowed to read authentic backup filename from CORS');
+    check('real-CORS-content-disposition-exposed-' + label, label);
     const encrypted = await downloadBytes(download);
     check('real-UI-encrypted-backup-export-' + label, label);
 
