@@ -61,10 +61,12 @@ jobs:
           $badHash = '0' * 64
           $negative = @(& powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/restore03_second_pc_preflight.ps1 -BundlePath $bundle -ExpectedSha256 $badHash -SyntheticOnly 2>&1)
           if ($LASTEXITCODE -eq 0) { throw "RESTORE03_B_BAD_HASH_ACCEPTED" }
+          if (($negative -join ' ') -notmatch 'RESTORE03_PRECHECK_BLOCKED:BUNDLE_SHA256_MISMATCH') { throw "RESTORE03_B_BAD_HASH_WRONG_REJECTION" }
           $env:DATABASE_URL = 'sqlite:///synthetic-must-not-be-used'
           try {
             $envNegative = @(& powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/restore03_second_pc_preflight.ps1 -BundlePath $bundle -ExpectedSha256 $expected -SyntheticOnly 2>&1)
             if ($LASTEXITCODE -eq 0) { throw "RESTORE03_B_ACTIVE_DB_ENV_ACCEPTED" }
+            if (($envNegative -join ' ') -notmatch 'RESTORE03_PRECHECK_BLOCKED:DATABASE_ENV_PRESENT') { throw "RESTORE03_B_DB_ENV_WRONG_REJECTION" }
           } finally {
             Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
           }
@@ -72,6 +74,8 @@ jobs:
           if ($afterHash -ne $originalHash) { throw "RESTORE03_B_INPUT_CHANGED" }
           Copy-Item -LiteralPath $proofPath -Destination (Join-Path $env:RUNNER_TEMP 'restore03-b-readiness-evidence.json')
           Write-Output 'RESTORE03_B_PREFLIGHT_CI_WINDOWS_PASS_NO_PHYSICAL_DR_GO'
+          # Clear the nonzero native exit code from deliberately rejected inputs.
+          exit 0
       - uses: actions/upload-artifact@v4
         with:
           name: restore03-b-synthetic-readiness-evidence-only
