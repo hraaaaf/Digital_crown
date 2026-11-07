@@ -130,3 +130,80 @@ def test_fresh_process_after_worker_death_keeps_processing_lock(isolated_receipt
         assert reopened.query(func.count(MobileDocumentArchiveReceipt.id)).scalar() == 1
         # An inspector can identify the incident but must never delete the
         # receipt, unlock the intent or guess whether an orphan PDF exists.
+
+def test_present_but_unverified_receipt_schema_rejected(tmp_path):
+    """Name-only table must not enable clinical archive writes."""
+    from sqlalchemy import text, inspect
+    from backend.services.mobile_document_archive_receipts import assert_receipt_schema
+    engine = create_engine("sqlite:///" + str(tmp_path / "fake-receipt-schema.db"))
+    with engine.begin() as conn:
+        conn.execute(text(
+            "CREATE TABLE mobile_document_archive_receipts "
+            "(id VARCHAR(36) PRIMARY KEY, tenant_id INTEGER NOT NULL, "
+            "actor_id INTEGER NOT NULL, device_id VARCHAR(128) NOT NULL, "
+            "idempotency_key VARCHAR(36) NOT NULL)"
+        ))
+    with sessionmaker(bind=engine)() as db:
+        with pytest.raises(HTTPException) as error:
+            assert_receipt_schema(db)
+        assert error.value.status_code == 503
+        assert inspect(engine).has_table("mobile_document_archive_receipts")
+    engine.dispose()
+
+
+def test_full_columns_without_unique_claim_scope_rejected(tmp_path):
+    """An apparently complete schema without the atomic constraint is unsafe."""
+    from sqlalchemy import Column, MetaData, Table
+    from backend.services.mobile_document_archive_receipts import assert_receipt_schema
+    engine = create_engine("sqlite:///" + str(tmp_path / "no-unique-claim.db"))
+    original = MobileDocumentArchiveReceipt.__table__
+    meta = MetaData()
+    Table(
+        original.name, meta,
+        *[Column(col.name, col.type, nullable=col.nullable) for col in original.columns],
+    )
+    meta.create_all(engine)
+    with sessionmaker(bind=engine)() as db:
+        with pytest.raises(HTTPException) as error:
+            assert_receipt_schema(db)
+        assert error.value.status_code == 503
+    engine.dispose()
+
+
+def test_review_required_is_never_reclaimed_as_new_intent(isolated_receipts):
+    from backend.services.mobile_document_archive_receipts import (
+        mark_unresolved_for_manual_review,
+    )
+    key = str(uuid.uuid4())
+    with isolated_receipts() as db:
+        receipt, created = claim_archive_intent(db, **_args(key))
+        assert created
+        mark_unresolved_for_manual_review(db, receipt.id)
+    with isolated_receipts() as db:
+        old, created = claim_archive_intent(db, **_args(key))
+        assert not created and old.state == "REVIEW_REQUIRED"
+        assert old.archive_id is None
+        assert db.query(func.count(MobileDocumentArchiveReceipt.id)).scalar() == 1
+
+
+def test_completed_receipt_is_not_demoted_by_late_failure(isolated_receipts):
+    from types import SimpleNamespace
+    from backend.services.mobile_document_archive_receipts import (
+        mark_unresolved_for_manual_review,
+    )
+    key = str(uuid.uuid4())
+    with isolated_receipts() as db:
+        receipt, _ = claim_archive_intent(db, **_args(key))
+        db.info["_mobile_document_archive_receipt_id"] = receipt.id
+        complete_archive_in_current_transaction(
+            db, archive=SimpleNamespace(
+                id=70, patient_id=104, uploaded_by_id=102, file_hash="c" * 64,
+            ),
+        )
+        db.commit()
+        mark_unresolved_for_manual_review(db, receipt.id)
+    with isolated_receipts() as db:
+        row = read_scoped_receipt(
+            db, tenant_id=101, actor_id=102, device_id="device-103", key=key,
+        )
+        assert row.state == "COMPLETED" and row.archive_id == 70
