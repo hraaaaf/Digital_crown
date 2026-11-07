@@ -124,7 +124,7 @@ jobs:
           echo 'REAL_FUE_REACT_FAILED'
           exit 1
 
-      - name: Run real-user journey: export, preflight, prepare, 409 apply, cancel, RBAC
+      - name: 'Run real-user journey: export, preflight, prepare, 409 apply, cancel, RBAC'
         working-directory: frontend
         shell: bash
         run: |
@@ -145,7 +145,7 @@ jobs:
           print('RESTORE03_REAL_UI_FASTAPI_FUE_I_CI_VERIFIED',len(report['checks']),len(report['screenshots']))
           PY
 
-      - name: Evidence: synthetic screenshots and non-sensitive assertion report only
+      - name: 'Evidence: synthetic screenshots and non-sensitive assertion report only'
         if: always()
         uses: actions/upload-artifact@v4
         with:
