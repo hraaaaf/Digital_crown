@@ -7,8 +7,12 @@ param(
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedOpen,
   [Parameter(Mandatory)][ValidateSet(0,5)][int]$ExpectedCreateInstance,
   [switch]$ProbeQueueReadOnly,
+  [switch]$ProbeServerPid,
+  [int]$ExpectedServerPid=0,
   [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
   [switch]$ProbeB05Package,
+  [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
+  [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized','StalePid')][string]$B06MediaStatus='None',
   [string]$B05KeyFile='',
   [string]$B05ServiceDll='',
   [string]$B05BinDirectory=''
@@ -59,6 +63,34 @@ public static class DC06RClient {
     public static extern bool ReadFile(SafeFileHandle file,
         [Out] byte[] buffer, uint count, out uint read, IntPtr overlapped);
 
+    [DllImport("kernel32.dll", EntryPoint="GetNamedPipeServerProcessId", SetLastError=true)]
+    public static extern bool GetNamedPipeServerProcessId(SafeFileHandle pipe, out uint pid);
+
+    public static uint PeerPidWithReadOnlyProbe(string path) {
+        // Query server identity for the SAME opened handle used for this Q.
+        // No client-selected PID or service name is trusted by this native API.
+        using (var handle = CreateFile(path, 0x00100183u, 0u, IntPtr.Zero,
+                                       3u, 0u, IntPtr.Zero)) {
+            if (handle.IsInvalid) throw new InvalidOperationException("DC06_BS2_PIPE_OPEN_DENIED");
+            uint pid;
+            if (!GetNamedPipeServerProcessId(handle, out pid) || pid == 0u)
+                throw new InvalidOperationException("DC06_BS2_PEER_PID_UNAVAILABLE");
+            uint written;
+            if (!WriteFile(handle, new byte[]{(byte)'Q'}, 1u, out written, IntPtr.Zero)
+                    || written != 1u)
+                throw new InvalidOperationException("DC06_BS2_PEER_PROBE_WRITE_DENIED");
+            byte[] reply = new byte[1]; uint read;
+            if (!ReadFile(handle, reply, 1u, out read, IntPtr.Zero))
+                throw new InvalidOperationException(
+                    "DC06_BS2_PEER_PROBE_READ_WIN32_" + Marshal.GetLastWin32Error());
+            if (read != 1u)
+                throw new InvalidOperationException("DC06_BS2_PEER_PROBE_REPLY_SHORT_" + read);
+            if (reply[0] != (byte)'U')
+                throw new InvalidOperationException("DC06_BS2_PEER_PROBE_REPLY_INVALID");
+            return pid;
+        }
+    }
+
     public static int ReadOnlyStatus(string path) {
         using (var handle = CreateFile(path, 0x00100183u, 0u, IntPtr.Zero,
                                        3u, 0u, IntPtr.Zero)) {
@@ -68,8 +100,9 @@ public static class DC06RClient {
                     || wrote != 1u) return -2000;
             byte[] answer = new byte[1];
             uint read;
-            if (!ReadFile(handle, answer, 1u, out read, IntPtr.Zero)
-                    || read != 1u) return -3000;
+            if (!ReadFile(handle, answer, 1u, out read, IntPtr.Zero))
+                return -3000 - Marshal.GetLastWin32Error();
+            if (read != 1u) return -3900 - (int)read;
             return (int)answer[0];
         }
     }
@@ -107,6 +140,40 @@ public static class DC06RClient {
   if ($created -ne $ExpectedCreateInstance) {
     throw ('C05B03R_CHILD_CREATE_INSTANCE_EXPECT_' + $ExpectedCreateInstance +
         '_GOT_' + $created)
+  }
+  if ($ProbeServerPid) {
+    if ($ExpectedOpen -ne 0 -or $ExpectedServerPid -le 0 -or
+        $env:GITHUB_ACTIONS -ne 'true' -or
+        $env:ENVIRONMENT -ne 'test' -or
+        $env:DC06B06_NATIVE_MEDIA -ne '1') {
+      throw 'DC06_BS2_PID_PROBE_SCOPE_DENIED'
+    }
+    function Assert-BS2ServerPid([uint32]$Expected) {
+      $actual=[DC06RClient]::PeerPidWithReadOnlyProbe($PipeName)
+      if ($actual -ne $Expected) {
+        throw 'DC06_BS2_PIPE_PEER_PID_MISMATCH'
+      }
+    }
+    # Rapid consecutive same-handle Q probes exercise reply-drain and
+    # disconnect sequencing under a genuinely separate Windows account.
+    for ($i=0; $i -lt 12; $i++) {
+      Assert-BS2ServerPid ([uint32]$ExpectedServerPid)
+    }
+    Write-Output 'DC06_B06_BS2_PIPE_SERVER_PID_BOUND_PASS'
+    # An attacker changes the claimed service PID while retaining the real
+    # pipe handle; the SAME native peer PID oracle must deny the mismatch.
+    $forgedPid=if ($ExpectedServerPid -eq [int]::MaxValue) {
+      [uint32]($ExpectedServerPid - 1)
+    } else { [uint32]($ExpectedServerPid + 1) }
+    $denied=$false
+    try {
+      Assert-BS2ServerPid $forgedPid
+    } catch {
+      if ($_.Exception.Message -ne 'DC06_BS2_PIPE_PEER_PID_MISMATCH') { throw }
+      $denied=$true
+    }
+    if (-not $denied) { throw 'DC06_BS2_FORGED_PEER_PID_FALSE_ACCEPT' }
+    Write-Output 'DC06_B06_BS2_FORGED_SERVER_PID_DENIED_PASS'
   }
   if ($ProbeB05Package) {
     if ($ExpectedOpen -ne 0 -or -not $B05KeyFile -or
@@ -163,6 +230,68 @@ public static class DC06RClient {
     }
     Write-Output ('DC06B03_NATIVE_REAL_AES_SPOOL_' +
         $B03Status.ToUpperInvariant() + '_RETURN_' + $actual + '_PASS')
+  }
+  if ($B06InventoryStatus -ne 'None') {
+    if ($B06InventoryStatus -eq 'Unauthorized' -and $ExpectedOpen -ne 5) {
+      throw 'DC06_B06_DENIED_USER_EXPECTED'
+    }
+    if ($B06InventoryStatus -ne 'Unauthorized' -and $ExpectedOpen -ne 0) {
+      throw 'DC06_B06_APPROVED_USER_EXPECTED'
+    }
+    $env:DC06_B06_NATIVE_INVENTORY_LAB='1'
+    if ($ExpectedServerPid -le 0) { throw 'DC06_B06_BS2_INVENTORY_PIN_MISSING' }
+    $python=(Get-Command python -ErrorAction Stop).Source
+    & $python -I (Join-Path $PSScriptRoot 'windows_b06_native_inventory_client.py') $PipeName $B06InventoryStatus $ExpectedServerPid
+    if ($LASTEXITCODE -ne 0) { throw ('DC06_B06_NATIVE_ADAPTER_FAILED_'+$LASTEXITCODE) }
+  }
+  if ($B06MediaStatus -ne 'None') {
+    if ($B06MediaStatus -eq 'Unauthorized' -and $ExpectedOpen -ne 5) {
+      throw 'DC06_B06_MEDIA_DENIED_USER_EXPECTED'
+    }
+    if ($B06MediaStatus -ne 'Unauthorized' -and $ExpectedOpen -ne 0) {
+      throw 'DC06_B06_MEDIA_APPROVED_USER_EXPECTED'
+    }
+    $env:DC06_B06_NATIVE_INVENTORY_LAB='1'
+    $env:DC06_B06_NATIVE_MEDIA_LAB='1'
+    if ($ExpectedServerPid -le 0) { throw 'DC06_B06_BS2_MEDIA_PIN_MISSING' }
+    $python=(Get-Command python -ErrorAction Stop).Source
+    $mediaProbeOutput=@(& $python -I (Join-Path $PSScriptRoot 'windows_b06_native_media_client.py') $PipeName $B06MediaStatus $ExpectedServerPid)
+    if ($LASTEXITCODE -ne 0) {
+      # Whitelist-only diagnostic: never echo child output, media, path or SHA.
+      $reason='UNCLASSIFIED'
+      $allowed=@('NATIVE_MEDIA_LAB_DISABLED','NATIVE_MEDIA_INVENTORY_CHANGED',
+        'NATIVE_MEDIA_REQUEST_DENIED','NATIVE_MEDIA_PIPE_UNAVAILABLE','NATIVE_MEDIA_PEER_DENIED',
+        'NATIVE_MEDIA_SEND_DENIED','NATIVE_MEDIA_TRUNCATED','NATIVE_MEDIA_DRAIN_FAILED','NATIVE_MEDIA_SERVICE_REFUSED',
+        'NATIVE_MEDIA_LENGTH_MISMATCH','NATIVE_MEDIA_RESPONSE_DENIED',
+        'NATIVE_MEDIA_FINAL_INTEGRITY_DENIED','NATIVE_INVENTORY_LAB_DISABLED',
+        'NATIVE_INVENTORY_PIPE_UNAVAILABLE','NATIVE_INVENTORY_PEER_DENIED',
+        'NATIVE_INVENTORY_REQUEST_DENIED','NATIVE_INVENTORY_REPLY_DENIED',
+        'NATIVE_INVENTORY_REPLY_LENGTH','NATIVE_INVENTORY_FRAME_DENIED',
+        'NATIVE_PIPE_SERVER_PID_REQUIRED','NATIVE_PIPE_SERVER_PID_UNAVAILABLE',
+        'NATIVE_PIPE_SERVER_PID_MISMATCH','UNKNOWN')
+      foreach ($item in $allowed) {
+        if (@($mediaProbeOutput) -contains ('DC06_B06_MEDIA_CLIENT_FAIL_' + $item)) {
+          $reason=$item
+          break
+        }
+      }
+      throw ('DC06_B06_NATIVE_MEDIA_FAILED_'+$LASTEXITCODE+'_'+$reason)
+    }
+    if ($B06MediaStatus -eq 'Valid' -or $B06MediaStatus -eq 'StalePid') {
+      $expectedMarkers=if ($B06MediaStatus -eq 'StalePid') {
+        @('DC06_B06_BS2_STALE_SCM_PID_AFTER_RESTART_PREWRITE_DENIED_PASS')
+      } else {
+        @('DC06_B06_BS2_EVERY_MEDIA_FRAGMENT_SERVER_PID_PINNED_PASS',
+          'DC06_B06_BS2_LIVE_INVENTORY_HANDLE_FORGED_PID_PREWRITE_DENIED_PASS',
+          'DC06_B06_BS2_SIMULATED_SECOND_M_HANDLE_PID_SWAP_PREWRITE_DENIED_PASS')
+      }
+      foreach ($marker in $expectedMarkers) {
+        if (@($mediaProbeOutput) -notcontains $marker) {
+          throw ('DC06_B06_BS2_PYTHON_NATIVE_ORACLE_MISSING_' + $marker)
+        }
+        Write-Output $marker
+      }
+    }
   }
   if ($ExpectedOpen -eq 0) {
     Write-Output 'C05B03R_ALLOWED_USER_READ_WRITE_ALLOWED_INSTANCE_CREATION_DENIED'

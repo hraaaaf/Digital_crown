@@ -20,6 +20,7 @@ from dataclasses import dataclass
 from datetime import datetime
 import hashlib
 import hmac
+import re
 import os
 from pathlib import Path, PurePosixPath
 import uuid
@@ -37,9 +38,11 @@ from backend.models_media_core import (
     ClinicalAsset,
 )
 from backend.services.clinical_asset_service import get_clinical_asset_for_patient
+from backend.services.clinical_media_crypto_v2 import configured_keyring, MediaCryptoV2Denied
 
 
 _MAGIC = b"DCM1"
+_V2_FORMAT = "AESGCM_V2"
 _NONCE_SIZE = 12
 _STORAGE_PREFIX = "clinical-assets"
 _KEY_INFO = b"digital-crown-clinical-media-aesgcm-v1"
@@ -112,19 +115,44 @@ def _storage_key(employer_id: int, digest: str) -> str:
     return f"{_STORAGE_PREFIX}/t-{tenant_token}/{blob_token[:2]}/{blob_token}.dcm"
 
 
-def _validate_storage_key_for_tenant(storage_key: str, employer_id: int) -> None:
+def _storage_key_v2(employer_id: int, digest: str, ring, locator_id: str) -> str:
+    tenant_token = hmac.new(
+        ring.locator_keys[locator_id], f"dc06-v2-tenant:{employer_id}".encode("ascii"), hashlib.sha256,
+    ).hexdigest()[:24]
+    blob_token = ring.locator(tenant=employer_id, digest=digest, locator_key_id=locator_id)
+    return f"{_STORAGE_PREFIX}/v2-{locator_id}-t-{tenant_token}/{blob_token[:2]}/{blob_token}.dcm"
+
+
+def _validate_storage_key_for_tenant(storage_key: str, employer_id: int, *, digest: str | None = None, v2: bool = False) -> None:
     if not storage_key or "\x00" in storage_key or "\\" in storage_key:
         raise ClinicalAssetStorageError("invalid clinical media storage key")
     pure = PurePosixPath(storage_key)
     if pure.is_absolute() or any(part in ("", ".", "..") for part in pure.parts):
         raise ClinicalAssetStorageError("invalid clinical media storage key")
+    if v2:
+        if digest is None:
+            raise ClinicalAssetStorageError("missing v2 digest")
+        try:
+            ring, _media_id, _active_locator_id = configured_keyring()
+            match = re.fullmatch(r"v2-([a-z][a-z0-9_-]{0,31})-t-[0-9a-f]{24}", pure.parts[1]) if len(pure.parts) == 4 else None
+            if match is None:
+                raise ClinicalAssetStorageError("v2 storage locator mismatch")
+            locator_id = match.group(1)
+            if locator_id not in ring.locator_keys:
+                raise ClinicalAssetStorageError("v2 historical locator key unavailable")
+            expected_key = _storage_key_v2(employer_id, digest, ring, locator_id)
+        except MediaCryptoV2Denied as exc:
+            raise ClinicalAssetStorageError("v2 media key unavailable") from exc
+        if not hmac.compare_digest(storage_key, expected_key):
+            raise ClinicalAssetStorageError("v2 storage locator mismatch")
+        return
     expected = (_STORAGE_PREFIX, f"t-{_tenant_storage_token(employer_id)}")
     if len(pure.parts) != 4 or tuple(pure.parts[:2]) != expected:
         raise ClinicalAssetStorageError("clinical media storage key is outside tenant namespace")
 
 
-def _resolve_storage_path(storage_key: str, employer_id: int, media_root: Optional[Path]) -> tuple[Path, Path]:
-    _validate_storage_key_for_tenant(storage_key, employer_id)
+def _resolve_storage_path(storage_key: str, employer_id: int, media_root: Optional[Path], *, digest: str | None = None, v2: bool = False) -> tuple[Path, Path]:
+    _validate_storage_key_for_tenant(storage_key, employer_id, digest=digest, v2=v2)
     root = Path(media_root) if media_root is not None else get_media_root()
     root = root.expanduser().resolve(strict=False)
     target = root.joinpath(*PurePosixPath(storage_key).parts).resolve(strict=False)
@@ -198,12 +226,19 @@ def _atomic_write(target: Path, payload: bytes) -> None:
             temp_path.unlink()
 
 
-def _read_verified_path(path: Path, *, employer_id: int, digest: str, byte_size: int) -> bytes:
+def _read_verified_path(path: Path, *, employer_id: int, digest: str, byte_size: int, v2: bool = False) -> bytes:
     if path.is_symlink():
         raise ClinicalAssetIntegrityError("clinical media blob cannot be a symlink")
     if not path.is_file():
         raise ClinicalAssetIntegrityError("clinical media blob is missing")
-    plaintext = _decrypt_payload(path.read_bytes(), employer_id, digest)
+    if v2:
+        try:
+            ring, _media_id, _locator_id = configured_keyring()
+            plaintext = ring.decrypt(tenant=employer_id, digest=digest, envelope=path.read_bytes())
+        except MediaCryptoV2Denied as exc:
+            raise ClinicalAssetIntegrityError("v2 media authentication denied") from exc
+    else:
+        plaintext = _decrypt_payload(path.read_bytes(), employer_id, digest)
     actual_digest = hashlib.sha256(plaintext).hexdigest()
     if actual_digest != digest or len(plaintext) != int(byte_size):
         raise ClinicalAssetIntegrityError("clinical media plaintext integrity check failed")
@@ -245,8 +280,16 @@ def store_clinical_asset_bytes(
 
     digest = hashlib.sha256(content).hexdigest()
     byte_size = len(content)
-    storage_key = _storage_key(employer_id, digest)
-    root, target = _resolve_storage_path(storage_key, employer_id, media_root)
+    v2 = os.environ.get("DC_MEDIA_V2_OPT_IN") == "true"
+    if v2:
+        try:
+            ring, media_id, locator_id = configured_keyring()
+            storage_key = _storage_key_v2(employer_id, digest, ring, locator_id)
+        except MediaCryptoV2Denied as exc:
+            raise ClinicalAssetStorageError("v2 media configuration denied") from exc
+    else:
+        storage_key = _storage_key(employer_id, digest)
+    root, target = _resolve_storage_path(storage_key, employer_id, media_root, digest=digest, v2=v2)
     _prepare_parent_directory(root, target)
 
     deduplicated = target.exists()
@@ -258,18 +301,19 @@ def store_clinical_asset_bytes(
             target,
             employer_id=employer_id,
             digest=digest,
-            byte_size=byte_size,
+            byte_size=byte_size, v2=v2,
         )
         if existing != content:
             # Defensive collision/corruption guard beyond the SHA-256 comparison.
             raise ClinicalAssetIntegrityError("clinical media dedupe candidate does not match source bytes")
     else:
-        _atomic_write(target, _encrypt_payload(content, employer_id, digest))
+        payload = ring.encrypt(tenant=employer_id, digest=digest, plaintext=content, media_key_id=media_id) if v2 else _encrypt_payload(content, employer_id, digest)
+        _atomic_write(target, payload)
         stored = _read_verified_path(
             target,
             employer_id=employer_id,
             digest=digest,
-            byte_size=byte_size,
+            byte_size=byte_size, v2=v2,
         )
         if stored != content:
             raise ClinicalAssetIntegrityError("clinical media write verification failed")
@@ -279,7 +323,7 @@ def store_clinical_asset_bytes(
     asset.sha256 = digest
     asset.byte_size = byte_size
     asset.storage_key = storage_key
-    asset.storage_format = CLINICAL_ASSET_STORAGE_FORMAT_AESGCM_V1
+    asset.storage_format = _V2_FORMAT if v2 else CLINICAL_ASSET_STORAGE_FORMAT_AESGCM_V1
     asset.stored_at = datetime.utcnow()
     db.flush()
 
@@ -306,18 +350,19 @@ def read_clinical_asset_bytes(
         raise ClinicalAssetStorageError("clinical asset not found in tenant/patient scope")
     if (
         not asset.storage_key
-        or asset.storage_format != CLINICAL_ASSET_STORAGE_FORMAT_AESGCM_V1
+        or asset.storage_format not in (CLINICAL_ASSET_STORAGE_FORMAT_AESGCM_V1, _V2_FORMAT)
         or not asset.sha256
         or asset.byte_size is None
     ):
         raise ClinicalAssetStorageError("clinical asset has no complete C2 storage binding")
 
-    _root, target = _resolve_storage_path(asset.storage_key, employer_id, media_root)
+    v2 = asset.storage_format == _V2_FORMAT
+    _root, target = _resolve_storage_path(asset.storage_key, employer_id, media_root, digest=asset.sha256, v2=v2)
     return _read_verified_path(
         target,
         employer_id=employer_id,
         digest=asset.sha256,
-        byte_size=asset.byte_size,
+        byte_size=asset.byte_size, v2=v2,
     )
 
 

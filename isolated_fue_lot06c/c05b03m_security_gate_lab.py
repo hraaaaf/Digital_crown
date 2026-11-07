@@ -91,6 +91,48 @@ def _signed_payload(claim, challenge: str) -> bytes:
     ).encode("ascii")
 
 
+
+def verify_pending_device_capture_proof(
+    db: Session, claim, signature: str,
+) -> None:
+    """Independent LAB device proof BEFORE preview/staff confirmation.
+
+    Validate the registered pinned Ed25519 public key against the immutable
+    capture claim and private device challenge already stored in SQLCipher.
+    Browser JWT or review challenge alone cannot stand in for this proof.
+    This deliberately does NOT authorize a real scanner or clinical upload.
+    """
+    _guard(db)
+    if not isinstance(signature, str) or re.fullmatch(r"[a-f0-9]{128}", signature) is None:
+        raise BridgeRejected("C05B03M_PENDING_DEVICE_PROOF_REQUIRED")
+    dev = db.execute(select(identity).where(
+        identity.c.tenant == claim.tenant,
+        identity.c.device == claim.device,
+    )).mappings().one_or_none()
+    pending = db.execute(select(review).where(
+        review.c.tenant == claim.tenant,
+        review.c.device == claim.device,
+        review.c.capture == claim.capture,
+    )).mappings().one_or_none()
+    if (dev is None or dev["active"] != 1
+            or dev["station"] != claim.station
+            or dev["generation"] != claim.generation
+            or pending is None or pending["consumed"] != 0
+            or pending["approved_at"] is not None
+            or pending["expires_at"] <= int(time.time())
+            or any(pending[k] != value for k, value in _claim_values(claim).items())):
+        raise BridgeRejected("C05B03M_PENDING_DEVICE_OR_CAPTURE_REVOKED")
+    try:
+        Ed25519PublicKey.from_public_bytes(
+            bytes.fromhex(dev["public_key_hex"])
+        ).verify(
+            bytes.fromhex(signature),
+            _signed_payload(claim, pending["challenge"]),
+        )
+    except (InvalidSignature, ValueError, TypeError):
+        raise BridgeRejected("C05B03M_PENDING_DEVICE_SIGNATURE_DENIED") from None
+
+
 def provision_test_device(db: Session, claim, *, public_key: Ed25519PublicKey) -> str:
     """ADMIN-ONLY fixture, never exposed on an HTTP route or called by client."""
     _guard(db)

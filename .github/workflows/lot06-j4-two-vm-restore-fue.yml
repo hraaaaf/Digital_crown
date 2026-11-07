@@ -1,0 +1,93 @@
+name: LOT06 J4 two Windows VM synthetic escrow and recovery FUE (NO CLINICAL GO)
+on:
+  push:
+    branches: [feat/lot06-phase2-b06-product-integration-20261104]
+    paths:
+      - .github/workflows/lot06-j4-two-vm-restore-fue.yml
+      - isolated_fue_lot06c/f5bd4_two_vm_restore_lab.py
+      - isolated_fue_lot06c/f5bd4_fixed_recovery_windows_fue.py
+      - isolated_fue_lot06c/f5bd4_fixed_synthetic_oracle.json
+      - backend/services/windows_keyring_restore.py
+      - backend/services/windows_keyring_handle_probe.py
+      - backend/services/clinical_media_keyring_recovery.py
+      - backend/services/clinical_media_crypto_v2.py
+      - docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot06-j4-two-vm-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  custodian:
+    name: VM1 synthetic custody - prepare precommitted encrypted backup
+    runs-on: windows-2022
+    timeout-minutes: 12
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: VM1 verify immutable synthetic fixture and stage escrow
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_J4_VM1_SOURCE_SHA_MISMATCH' }
+          python isolated_fue_lot06c/f5bd4_two_vm_restore_lab.py stage "${{ runner.temp }}\dc06-j4-escrow"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: VM1 upload encrypted synthetic ciphertext and non-secret receipt
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc06-j4-two-vm-synthetic-escrow
+          path: |
+            ${{ runner.temp }}\dc06-j4-escrow\encrypted_backup.dcm2rec
+            ${{ runner.temp }}\dc06-j4-escrow\custody_receipt.json
+          if-no-files-found: error
+          retention-days: 1
+          compression-level: 0
+
+  operator:
+    name: VM2 independent runner - restore staged ciphertext with fixed oracle
+    needs: custodian
+    runs-on: windows-2022
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: VM2 install exact synthetic cryptographic library
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check cryptography==46.0.3
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: VM2 download VM1 escrow from GitHub Actions artifact storage
+        uses: actions/download-artifact@v4
+        with:
+          name: dc06-j4-two-vm-synthetic-escrow
+          path: ${{ runner.temp }}\dc06-j4-incoming
+      - name: VM2 independently pin encrypted transfer and run real Windows D4b
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_J4_VM2_SOURCE_SHA_MISMATCH' }
+          python isolated_fue_lot06c/f5bd4_two_vm_restore_lab.py operator "${{ runner.temp }}\dc06-j4-incoming" "${{ runner.temp }}\dc06-j4-two-vm-verdict.json"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: VM2 publish only non-secret lab verdict (NO HUMAN SIGNOFF)
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc06-j4-two-vm-synthetic-verdict
+          path: ${{ runner.temp }}\dc06-j4-two-vm-verdict.json
+          if-no-files-found: error
+          retention-days: 7

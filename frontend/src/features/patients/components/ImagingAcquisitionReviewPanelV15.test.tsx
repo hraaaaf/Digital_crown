@@ -1,6 +1,11 @@
 import React from 'react';
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { api } from '../../../services/api';
+
+vi.mock('../../../services/api', () => ({ api: { get: vi.fn() }, API_BASE: '' }));
+const get = vi.mocked(api.get);
+
 import {
   ImagingAcquisitionReviewPanelV15,
   type LabAcquisitionReview,
@@ -20,7 +25,30 @@ const base: LabAcquisitionReview = {
   numero_dossier: 'SYN-42',
   date_naissance: '2000-03-04',
   expires_at: Math.floor(Date.now() / 1000) + 120,
-  preview_url: '/isolated/lab/preview.png',
+  preview_url: '/isolated/lot06-phase2/preview/synthetic-capture-2026',
+};
+
+beforeEach(() => {
+  vi.resetAllMocks();
+  vi.stubGlobal('crypto', { subtle: {
+    digest: vi.fn().mockResolvedValue(new Uint8Array(32).fill(0xaa).buffer),
+  } });
+  Object.defineProperty(URL, 'createObjectURL', {
+    configurable: true, value: vi.fn().mockReturnValue('blob:lab-preview-verified'),
+  });
+  Object.defineProperty(URL, 'revokeObjectURL', {
+    configurable: true, value: vi.fn(),
+  });
+  get.mockResolvedValue({
+    data: new Uint8Array(1234).buffer,
+    headers: { 'content-type': 'image/png' },
+  });
+});
+afterEach(() => vi.unstubAllGlobals());
+
+const loadPreview = async () => {
+  await waitFor(() => expect(screen.getByRole('img')).toBeInTheDocument());
+  fireEvent.load(screen.getByRole('img'));
 };
 
 const fill = () => {
@@ -32,20 +60,28 @@ const fill = () => {
 describe('ImagingAcquisitionReviewPanelV15 isolated LAB patient-safety UI', () => {
   it('stays fail-closed without BOTH identity checks and explicit staff action', async () => {
     const onConfirm = vi.fn().mockResolvedValue(undefined);
-    render(<ImagingAcquisitionReviewPanelV15 review={base} previewUrl="/fixture.png"
+    render(<ImagingAcquisitionReviewPanelV15 review={base} previewUrl={base.preview_url}
       onConfirm={onConfirm} onCancel={vi.fn()} />);
 
     const submit = screen.getByRole('button', { name: /Confirmer la revue/ });
     expect(submit).toBeDisabled();
     expect(screen.getByText('SYN-42')).toBeInTheDocument();
     expect(screen.getByText('2000-03-04')).toBeInTheDocument();
-    expect(screen.getByAltText(/Aperçu de la capture/)).toHaveAttribute('src', '/fixture.png');
+    await waitFor(() => expect(get).toHaveBeenCalledWith(base.preview_url, {
+      responseType: 'arraybuffer',
+      headers: { 'X-DC-Review-Challenge': base.challenge },
+    }));
+    await waitFor(() => expect(screen.getByRole('img')).toHaveAttribute('src', 'blob:lab-preview-verified'));
+    expect(screen.getByRole('alert')).toHaveTextContent(/Aperçu sécurisé/);
 
     fireEvent.change(screen.getByLabelText(/Ressaisir le numéro de dossier/), { target: { value: 'WRONG' } });
     fireEvent.change(screen.getByLabelText(/Ressaisir la date de naissance/), { target: { value: '2000-03-04' } });
     fireEvent.click(screen.getByRole('checkbox'));
     expect(submit).toBeDisabled();
     fireEvent.change(screen.getByLabelText(/Ressaisir le numéro de dossier/), { target: { value: 'SYN-42' } });
+    // Dual ID alone is insufficient: the exact preview must have rendered.
+    expect(submit).toBeDisabled();
+    await loadPreview();
     expect(submit).toBeEnabled();
     fireEvent.click(submit);
 
@@ -62,17 +98,20 @@ describe('ImagingAcquisitionReviewPanelV15 isolated LAB patient-safety UI', () =
     expect(screen.queryByRole('button', { name: /Confirmer la revue/ })).toBeNull();
   });
 
-  it('resets staff inputs when a DIFFERENT patient or media arrives', () => {
+  it('resets staff inputs when a DIFFERENT patient or media arrives', async () => {
     const fn = vi.fn().mockResolvedValue(undefined);
-    const view = render(<ImagingAcquisitionReviewPanelV15 review={base} previewUrl="/fixture.png"
+    const view = render(<ImagingAcquisitionReviewPanelV15 review={base} previewUrl={base.preview_url}
       onConfirm={fn} onCancel={vi.fn()} />);
     fill();
+    expect(screen.getByRole('button', { name: /Confirmer la revue/ })).toBeDisabled();
+    await loadPreview();
     expect(screen.getByRole('button', { name: /Confirmer la revue/ })).toBeEnabled();
 
     view.rerender(<ImagingAcquisitionReviewPanelV15 review={{
       ...base, patient_id: 43, numero_dossier: 'SYN-43',
       capture_digest: 'b'.repeat(64), challenge: 'new-synthetic-challenge-123',
-    }} previewUrl="/fixture2.png" onConfirm={fn} onCancel={vi.fn()} />);
+      preview_url: '/isolated/lot06-phase2/preview/synthetic-capture-2026',
+    }} previewUrl={base.preview_url} onConfirm={fn} onCancel={vi.fn()} />);
     expect(screen.getByRole('button', { name: /Confirmer la revue/ })).toBeDisabled();
     expect((screen.getByLabelText(/Ressaisir le numéro de dossier/) as HTMLInputElement).value).toBe('');
     expect(screen.getByRole('checkbox')).not.toBeChecked();
@@ -82,25 +121,90 @@ describe('ImagingAcquisitionReviewPanelV15 isolated LAB patient-safety UI', () =
     const fn = vi.fn();
     const view = render(<ImagingAcquisitionReviewPanelV15 review={{
       ...base, expires_at: Math.floor(Date.now() / 1000) - 1,
-    }} previewUrl="/fixture.png" onConfirm={fn} onCancel={vi.fn()} />);
+    }} previewUrl={base.preview_url} onConfirm={fn} onCancel={vi.fn()} />);
     fill();
     expect(screen.getByRole('button', { name: /Confirmer la revue/ })).toBeDisabled();
 
     view.rerender(<ImagingAcquisitionReviewPanelV15 review={{
       ...base, lab_only: false,
-    } as unknown as LabAcquisitionReview} previewUrl="/fixture.png" onConfirm={fn} onCancel={vi.fn()} />);
+    } as unknown as LabAcquisitionReview} previewUrl={base.preview_url} onConfirm={fn} onCancel={vi.fn()} />);
     expect(screen.getByRole('alert')).toHaveTextContent(/Capture indisponible/);
     expect(fn).not.toHaveBeenCalled();
   });
 
   it('does not signal success when the server rejects confirmation', async () => {
     const fn = vi.fn().mockRejectedValue(new Error('Patient name private server details'));
-    render(<ImagingAcquisitionReviewPanelV15 review={base} previewUrl="/fixture.png"
+    render(<ImagingAcquisitionReviewPanelV15 review={base} previewUrl={base.preview_url}
       onConfirm={fn} onCancel={vi.fn()} />);
     fill();
+    await loadPreview();
     fireEvent.click(screen.getByRole('button', { name: /Confirmer la revue/ }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/refusée/));
     expect(screen.queryByText(/Patient name private server details/)).toBeNull();
     expect(screen.queryByRole('status')).toBeNull();
   });
+  it('rejects an external, mismatched or failed preview even with both identifiers', async () => {
+    const confirm = vi.fn();
+    const view = render(<ImagingAcquisitionReviewPanelV15 review={base}
+      previewUrl="https://external.invalid/patient.png" onConfirm={confirm} onCancel={vi.fn()} />);
+    expect(screen.getByRole('alert')).toHaveTextContent(/Capture indisponible/);
+    expect(screen.queryByRole('img')).toBeNull();
+
+    view.rerender(<ImagingAcquisitionReviewPanelV15 review={base}
+      previewUrl={base.preview_url} onConfirm={confirm} onCancel={vi.fn()} />);
+    fill();
+    const button = screen.getByRole('button', { name: /Confirmer la revue/ });
+    expect(button).toBeDisabled();
+    await loadPreview();
+    const image = screen.getByAltText(/Aperçu de la capture/);
+    expect(button).toBeEnabled();
+    fireEvent.error(image);
+    expect(button).toBeDisabled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('invalidates a prior loaded image when the review challenge rotates', async () => {
+    const confirm = vi.fn();
+    const view = render(<ImagingAcquisitionReviewPanelV15 review={base}
+      previewUrl={base.preview_url} onConfirm={confirm} onCancel={vi.fn()} />);
+    await loadPreview();
+    fill();
+    expect(screen.getByRole('button', { name: /Confirmer la revue/ })).toBeEnabled();
+
+    view.rerender(<ImagingAcquisitionReviewPanelV15 review={{
+      ...base, challenge: 'rotated-challenge-test-000001',
+    }} previewUrl={base.preview_url} onConfirm={confirm} onCancel={vi.fn()} />);
+    expect(screen.getByRole('button', { name: /Confirmer la revue/ })).toBeDisabled();
+    expect(screen.getByRole('alert')).toHaveTextContent(/Aperçu sécurisé/);
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
+  it('denies confirmation if the authenticated binary is the wrong size or digest', async () => {
+    const confirm = vi.fn();
+    get.mockResolvedValueOnce({
+      data: new Uint8Array(3).buffer, headers: { 'content-type': 'image/png' },
+    });
+    const view = render(<ImagingAcquisitionReviewPanelV15 review={base}
+      previewUrl={base.preview_url} onConfirm={confirm} onCancel={vi.fn()} />);
+    fill();
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(1));
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByRole('button', { name: /Confirmer la revue/ })).toBeDisabled();
+
+    view.unmount();
+    get.mockResolvedValueOnce({
+      data: new Uint8Array(1234).buffer, headers: { 'content-type': 'image/png' },
+    });
+    vi.stubGlobal('crypto', { subtle: {
+      digest: vi.fn().mockResolvedValue(new Uint8Array(32).fill(0x00).buffer),
+    } });
+    render(<ImagingAcquisitionReviewPanelV15 review={base}
+      previewUrl={base.preview_url} onConfirm={confirm} onCancel={vi.fn()} />);
+    fill();
+    await waitFor(() => expect(get).toHaveBeenCalledTimes(2));
+    expect(screen.queryByRole('img')).toBeNull();
+    expect(screen.getByRole('button', { name: /Confirmer la revue/ })).toBeDisabled();
+    expect(confirm).not.toHaveBeenCalled();
+  });
+
 });

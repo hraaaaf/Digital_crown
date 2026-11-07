@@ -14,6 +14,15 @@ if ($env:DC06B04_RESTART_KEY_TEST -eq '1' -and
     $env:DC06B03_SERVICE_SPOOL -ne '1') {
     throw 'DC06B04_REQUIRES_B03_REAL_SERVICE_SPOOL'
 }
+if ($env:DC06B06_NATIVE_INVENTORY -eq '1' -and $env:DC06B03_SERVICE_SPOOL -ne '1') {
+    throw 'DC06_B06_REQUIRES_B03_ENCRYPTED_SPOOL'
+}
+if ($env:DC06B06_NATIVE_MEDIA -eq '1' -and
+    ($env:DC06B03_SERVICE_SPOOL -ne '1' -or
+     $env:DC06B06_NATIVE_INVENTORY -ne '1' -or
+     $env:DC06B04_RESTART_KEY_TEST -ne '1')) {
+    throw 'DC06_B06_MEDIA_REQUIRES_SERVICE_SPOOL_INVENTORY_AND_RESTART_FUE'
+}
 if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1' -and
     ($env:DC06B03_SERVICE_SPOOL -ne '1' -or $env:DC06B04_RESTART_KEY_TEST -ne '1')) {
     throw 'DC06B05_REQUIRES_B04_SCOPED_WINDOWS_LAB'
@@ -31,6 +40,7 @@ $createdService=$false
 $createdUsers=@()
 $createdDir=$false
 $b05Phase='PRE_CONFIG'
+$script:b06ScmPid=0
 function Invoke-ScChecked([string[]]$Params) {
     $result=@(& sc.exe @Params)
     if ($LASTEXITCODE -ne 0) {
@@ -53,7 +63,11 @@ function Invoke-Child([string]$Username, [string]$Password,
                        [string]$ExpectedSid, [int]$ExpectedOpen,
                        [int]$ExpectedCreate, [switch]$ProbeQueueReadOnly,
                        [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
-                       [switch]$ProbeB05Package) {
+                       [switch]$ProbeB05Package,
+                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
+                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized','StalePid')][string]$B06MediaStatus='None',
+                       [switch]$ProbeServerPid, [int]$ExpectedServerPid=0,
+                       [int]$NativePidOverride=0) {
     $cred=[System.Management.Automation.PSCredential]::new(
         ('.' + [char]92 + $Username), (ConvertTo-SecureString $Password -AsPlainText -Force)
     )
@@ -63,7 +77,15 @@ function Invoke-Child([string]$Username, [string]$Password,
         '" -ParentPid ' + $PID + ' -ExpectedOpen ' + $ExpectedOpen +
         ' -ExpectedCreateInstance ' + $ExpectedCreate
     if ($ProbeQueueReadOnly) { $arguments += ' -ProbeQueueReadOnly' }
+    if ($ProbeServerPid) { $arguments += ' -ProbeServerPid -ExpectedServerPid ' + $ExpectedServerPid }
     if ($B03Status -ne 'None') { $arguments += ' -B03Status ' + $B03Status }
+    if ($B06InventoryStatus -ne 'None') { $arguments += ' -B06InventoryStatus ' + $B06InventoryStatus }
+    if ($B06MediaStatus -ne 'None') { $arguments += ' -B06MediaStatus ' + $B06MediaStatus }
+    if ($B06InventoryStatus -ne 'None' -or $B06MediaStatus -ne 'None') {
+        $nativePin=if ($NativePidOverride -gt 0) { $NativePidOverride } else { $script:b06ScmPid }
+        if ($nativePin -le 0) { throw 'DC06_B06_BS2_SCM_PID_NOT_ATTESTED' }
+        $arguments += ' -ExpectedServerPid ' + $nativePin
+    }
     if ($ProbeB05Package) {
         $arguments += ' -ProbeB05Package -B05KeyFile "' + $keyPath +
             '" -B05ServiceDll "' + $dll + '" -B05BinDirectory "' + $bin + '"'
@@ -79,9 +101,12 @@ function Invoke-Child([string]$Username, [string]$Password,
         if ($null -eq $child -or $child.Id -eq $PID) {
             throw 'C05B03R_CHILD_NOT_REAL_PROCESS'
         }
-        if (-not $child.WaitForExit(15000)) {
+        # A Windows hosted runner may cold-start the secondary OS account.
+        # Still strictly bounded, fail-closed and NO automatic retry: a
+        # child stalled beyond 30s is an explicit failed security FUE.
+        if (-not $child.WaitForExit(30000)) {
             $child.Kill($true)
-            throw 'C05B03R_CHILD_15S_TIMEOUT'
+            throw 'C05B03R_CHILD_30S_TIMEOUT'
         }
         if ($child.ExitCode -ne 0) {
             $diagnostic=''
@@ -92,6 +117,38 @@ function Invoke-Child([string]$Username, [string]$Password,
             throw ('C05B03R_CHILD_OS_PROBE_FAILED_' + $child.ExitCode +
                 '_CHILD_STDERR_' + $diagnostic)
         }
+        if ($B06MediaStatus -eq 'Valid' -or $B06MediaStatus -eq 'StalePid') {
+            # The child runs real Win32 per-handle tests. Exit status alone
+            # cannot prove the expected negative/positive oracle occurred.
+            $proven=@(Get-Content -LiteralPath $outFile -ErrorAction Stop)
+            $required=if ($B06MediaStatus -eq 'StalePid') {
+                @('DC06_B06_BS2_STALE_SCM_PID_AFTER_RESTART_PREWRITE_DENIED_PASS')
+            } else {
+                @('DC06_B06_BS2_EVERY_MEDIA_FRAGMENT_SERVER_PID_PINNED_PASS',
+                  'DC06_B06_BS2_LIVE_INVENTORY_HANDLE_FORGED_PID_PREWRITE_DENIED_PASS',
+                  'DC06_B06_BS2_SIMULATED_SECOND_M_HANDLE_PID_SWAP_PREWRITE_DENIED_PASS')
+            }
+            foreach ($marker in $required) {
+                if ($proven -notcontains $marker) {
+                    throw ('DC06_B06_BS2_NATIVE_CHILD_ORACLE_MISSING_' + $marker)
+                }
+                Write-Output $marker
+            }
+        }
+        if ($ProbeServerPid) {
+            # Read actual separate-OS-account output; a successful exit with
+            # no positive and negative markers is NOT a passing identity FUE.
+            $proven=@(Get-Content -LiteralPath $outFile -ErrorAction Stop)
+            foreach ($marker in @(
+                'DC06_B06_BS2_PIPE_SERVER_PID_BOUND_PASS',
+                'DC06_B06_BS2_FORGED_SERVER_PID_DENIED_PASS'
+            )) {
+                if ($proven -notcontains $marker) {
+                    throw ('DC06_BS2_CHILD_PID_ORACLE_MISSING_' + $marker)
+                }
+                Write-Output $marker
+            }
+        }
     }
     finally {
         if ($null -ne $child) {
@@ -101,6 +158,48 @@ function Invoke-Child([string]$Username, [string]$Password,
         $cred=$null
     }
 }
+# LAB-only pre-bootstrap OS evidence. It does NOT attach a bridge to the
+# product app, establish publisher trust or authorize durable clinical writes.
+function Assert-B06LabScmIdentity(
+    [string]$Name, [string]$ExpectedCommandLine, [string]$ExpectedRunner,
+    [string]$ExpectedDll, [string]$ExpectedDllHash,
+    [string]$ExpectedServiceSid, [string]$ExpectedPipe
+) {
+    if ($env:ENVIRONMENT -ne 'test' -or
+        $env:DIGITALCROWN_ISOLATED_RUNTIME -ne 'true' -or
+        $env:GITHUB_ACTIONS -ne 'true' -or
+        $env:RUNNER_OS -ne 'Windows' -or
+        $env:DC06B06_NATIVE_MEDIA -ne '1') {
+        throw 'DC06_B06_BOOTSTRAP_RUNTIME_DENIED'
+    }
+    $svc=Get-CimInstance Win32_Service -Filter ("Name='" + $Name + "'") -ErrorAction Stop
+    if ($null -eq $svc -or $svc.State -ne 'Running' -or
+        $svc.StartName -ne 'NT AUTHORITY\LocalService' -or
+        [int]$svc.ProcessId -le 0 -or
+        $svc.PathName -ne $ExpectedCommandLine -or
+        -not $svc.PathName.Contains($ExpectedPipe)) {
+        throw 'DC06_B06_BOOTSTRAP_SCM_IDENTITY_DENIED'
+    }
+    $proc=Get-CimInstance Win32_Process -Filter ('ProcessId=' + [int]$svc.ProcessId) -ErrorAction Stop
+    if ($null -eq $proc -or $proc.ExecutablePath -ne $ExpectedRunner -or
+        [string]::IsNullOrEmpty($proc.CommandLine) -or
+        -not $proc.CommandLine.Contains($ExpectedDll) -or
+        -not $proc.CommandLine.Contains($ExpectedPipe)) {
+        throw 'DC06_B06_BOOTSTRAP_PROCESS_IDENTITY_DENIED'
+    }
+    $sid=Invoke-ScChecked -Params @('showsid',$Name)
+    $sidType=Invoke-ScChecked -Params @('qsidtype',$Name)
+    if (-not $sid.Contains($ExpectedServiceSid) -or
+        $sidType -notmatch 'RESTRICTED') {
+        throw 'DC06_B06_BOOTSTRAP_SERVICE_SID_DENIED'
+    }
+    $dllHash=(Get-FileHash -LiteralPath $ExpectedDll -Algorithm SHA256 -ErrorAction Stop).Hash
+    if ($dllHash -ne $ExpectedDllHash) {
+        throw 'DC06_B06_BOOTSTRAP_PACKAGE_PIN_DENIED'
+    }
+    return $true
+}
+
 try {
     New-Item -Path $root -ItemType Directory -Force -ErrorAction Stop | Out-Null
     $createdDir=$true
@@ -220,6 +319,55 @@ try {
     Wait-ServiceState $serviceName 'RUNNING' 20
     Write-Output 'C05B03R_REAL_SCM_LOCAL_SERVICE_RESTRICTED_SERVICE_SID_AND_PIPE_RUNNING_PASS'
 
+    if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+        # This value comes from local SCM, never a device, URL or HTTP user.
+        $actualScm=Get-CimInstance Win32_Service -Filter ("Name='" + $serviceName + "'") -ErrorAction Stop
+        if ($null -eq $actualScm -or $actualScm.State -ne 'Running' -or
+            [int]$actualScm.ProcessId -le 0) {
+            throw 'DC06_B06_BS2_SCM_PID_UNAVAILABLE'
+        }
+        $script:b06ScmPid=[int]$actualScm.ProcessId
+    }
+
+    if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+        # An actually RUNNING Windows SCM service and process are required;
+        # a plausible filename, pipe, SID or hash alone is not authority.
+        $dllHash=(Get-FileHash -LiteralPath $dll -Algorithm SHA256).Hash
+        $null=Assert-B06LabScmIdentity $serviceName $binPath $dotnet $dll $dllHash $serviceSid $pipeName
+        Write-Output 'DC06_B06_BOOTSTRAP_LIVE_SCM_IDENTITY_PASS'
+        foreach ($fault in @('HASH','PIPE','SID','SERVICE')) {
+            $claimName=$serviceName
+            $claimPipe=$pipeName
+            $claimSid=$serviceSid
+            $claimHash=$dllHash
+            $expectedDenial=''
+            switch ($fault) {
+                'HASH' { $claimHash='0' * 64; $expectedDenial='DC06_B06_BOOTSTRAP_PACKAGE_PIN_DENIED' }
+                'PIPE' { $claimPipe=$pipeName + '-forged'; $expectedDenial='DC06_B06_BOOTSTRAP_SCM_IDENTITY_DENIED' }
+                'SID' { $claimSid='S-1-5-80-0-0-0-0-0'; $expectedDenial='DC06_B06_BOOTSTRAP_SERVICE_SID_DENIED' }
+                'SERVICE' { $claimName=$serviceName + 'forged'; $expectedDenial='DC06_B06_BOOTSTRAP_SCM_IDENTITY_DENIED' }
+            }
+            $denied=$false
+            try {
+                $null=Assert-B06LabScmIdentity $claimName $binPath $dotnet $dll $claimHash $claimSid $claimPipe
+            } catch {
+                if ($_.Exception.Message -ne $expectedDenial) { throw }
+                $denied=$true
+            }
+            if (-not $denied) { throw ('DC06_B06_BOOTSTRAP_FALSE_ACCEPT_' + $fault) }
+            Write-Output ('DC06_B06_BOOTSTRAP_FORGED_' + $fault + '_DENIED_PASS')
+        }
+        Write-Output 'DC06_B06_BOOTSTRAP_LAB_ONLY_NO_RUNTIME_ACTIVATION_PASS'
+        $live=Get-CimInstance Win32_Service -Filter ("Name='" + $serviceName + "'") -ErrorAction Stop
+        if ($null -eq $live -or $live.State -ne 'Running' -or
+            [int]$live.ProcessId -le 0) {
+            throw 'DC06_BS2_SCM_PROCESS_NOT_RUNNING'
+        }
+        # Parent's PID comes from trusted OS SCM. Child opens the exact pipe
+        # under a distinct allowed OS user and queries its LIVE server PID.
+        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -ProbeServerPid -ExpectedServerPid ([int]$live.ProcessId)
+    }
+
     Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5
     Write-Output 'C05B03R_REAL_APPROVED_OTHER_USER_PROCESS_DATA_RW_ALLOWED_CREATE_INSTANCE_DENIED_PASS'
     if ($env:DC06B02_PROBE -eq '1') {
@@ -229,6 +377,17 @@ try {
     if ($env:DC06B03_SERVICE_SPOOL -eq '1') {
         Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
         Write-Output 'DC06B03_SCM_LOCAL_SERVICE_REALLY_READ_ENCRYPTED_SPOOL_PASS'
+        if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+            Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06InventoryStatus Valid
+            Write-Output 'DC06_B06_NATIVE_SCM_APPROVED_USER_PER_CAPTURE_PASS'
+            if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus Valid
+                # Valid child also executed the actual product bridge
+                # against the restricted SCM pipe with cross-tenant denial.
+                Write-Output 'DC06_B06_PRODUCT_NATIVE_BRIDGE_REAL_SCM_SCOPED_INVENTORY_PASS'
+                Write-Output 'DC06_B06_NATIVE_MEDIA_REAL_WINDOWS_AES_BYTES_PASS'
+            }
+        }
         if ($env:DC06B05_PACKAGE_ACL_TEST -eq '1') {
             # The same approved Windows user that can query the pipe
             # must NOT be able to read fixture key, overwrite DLL or drop
@@ -254,12 +413,36 @@ try {
             Write-Output 'DC06B04_REAL_SCM_STOP_CONFIRMED_PASS'
             $null=Invoke-ScChecked -Params @('start',$serviceName)
             Wait-ServiceState $serviceName 'RUNNING' 20
+            if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+                $oldNativePid=$script:b06ScmPid
+                $afterRestart=Get-CimInstance Win32_Service -Filter ("Name='" + $serviceName + "'") -ErrorAction Stop
+                if ($null -eq $afterRestart -or $afterRestart.State -ne 'Running' -or
+                    [int]$afterRestart.ProcessId -le 0) {
+                    throw 'DC06_B06_BS2_SCM_PID_AFTER_RESTART_UNAVAILABLE'
+                }
+                $script:b06ScmPid=[int]$afterRestart.ProcessId
+                if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                    if ($oldNativePid -eq $script:b06ScmPid) {
+                        throw 'DC06_B06_BS2_SCMPID_REUSE_PREVENTS_STALE_NEGATIVE'
+                    }
+                    Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus StalePid -NativePidOverride $oldNativePid
+                }
+                Write-Output 'DC06_B06_BS2_SCM_PID_REFRESHED_AFTER_RESTART_PASS'
+            }
             Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
             $cipherHashAfter=(Get-FileHash -LiteralPath $originalCipher[0].FullName -Algorithm SHA256).Hash
             if ($cipherHashBefore -ne $cipherHashAfter) {
                 throw 'DC06B04_CIPHERTEXT_CHANGED_DURING_SCM_RESTART'
             }
             Write-Output 'DC06B04_RESTART_SAME_CIPHERTEXT_S1_PASS'
+            if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+                Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06InventoryStatus Valid
+                Write-Output 'DC06_B06_NATIVE_INVENTORY_RESTART_STABLE_PASS'
+                if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                    Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus Valid
+                    Write-Output 'DC06_B06_NATIVE_MEDIA_RESTART_SHA_STABLE_PASS'
+                }
+            }
 
             # A different 256-bit synthetic key must be rejected at the AES-GCM
             # authentication stage, not confused with S0 (empty queue).
@@ -270,6 +453,14 @@ try {
                 [System.IO.File]::WriteAllBytes($keyPath,$badKey)
                 Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status WrongKey
                 Write-Output 'DC06B04_WRONG_KEY_AES_AUTH_FAIL_CLOSED_PASS'
+                if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+                    Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06InventoryStatus WrongKey
+                    Write-Output 'DC06_B06_NATIVE_WRONG_KEY_DENIED_PASS'
+                    if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                        Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus WrongKey
+                        Write-Output 'DC06_B06_NATIVE_MEDIA_WRONG_KEY_DENIED_PASS'
+                    }
+                }
             }
             finally {
                 [System.IO.File]::WriteAllBytes($keyPath,$keyBytes)
@@ -288,8 +479,24 @@ try {
         Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Tampered
         # No silent count=0 or any valid queue when ciphertext is damaged.
         Write-Output 'DC06B03_SCM_CORRUPTED_REAL_AES_SPOOL_FAIL_CLOSED_PASS'
+        if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+            Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06InventoryStatus Tampered
+            Write-Output 'DC06_B06_NATIVE_TAMPER_DENIED_PASS'
+            if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus Tampered
+                Write-Output 'DC06_B06_NATIVE_MEDIA_TAMPER_DENIED_PASS'
+            }
+        }
     }
     Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5
+    if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+        Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5 -B06InventoryStatus Unauthorized
+        Write-Output 'DC06_B06_NATIVE_SECOND_USER_DENIED_PASS'
+        if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+            Invoke-Child $deniedUser $newPasswordB $deniedSid 5 5 -B06MediaStatus Unauthorized
+            Write-Output 'DC06_B06_NATIVE_MEDIA_SECOND_USER_DENIED_PASS'
+        }
+    }
     Write-Output 'C05B03R_REAL_UNAUTHORIZED_OTHER_USER_PROCESS_ALL_DENIED_PASS'
     Write-Output 'C05B03R_REAL_HOSTED_WINDOWS_SERVICE_LEAST_PRIVILEGE_PASS'
     Write-Output 'C05B03R_REMOTE_SECOND_HOST_TPM_PHYSICAL_CABINET_NOT_TESTED'
