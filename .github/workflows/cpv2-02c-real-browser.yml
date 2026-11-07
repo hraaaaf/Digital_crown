@@ -103,7 +103,7 @@ jobs:
           assert any(d['lostResponse'] and d['safeRecovery'] and d['receiptGetsInBrowser'] == 1 for d in x['documents'])
           for name in x['screenshots']:
               b = (root / name).read_bytes()
-              assert b[:8] == b'\\x89PNG\\r\\n\\x1a\\n' and len(b) > 5000
+              assert b[:8] == bytes([137,80,78,71,13,10,26,10]) and len(b) > 5000
           print('REAL browser / FastAPI evidence certified at exact HEAD; no mocks, no deploy')
           PY
       - name: Upload real browser evidence for review (synthetic only)
