@@ -277,6 +277,21 @@ public static class DC06RClient {
       }
       throw ('DC06_B06_NATIVE_MEDIA_FAILED_'+$LASTEXITCODE+'_'+$reason)
     }
+    if ($B06MediaStatus -eq 'Valid' -or $B06MediaStatus -eq 'StalePid') {
+      $expectedMarkers=if ($B06MediaStatus -eq 'StalePid') {
+        @('DC06_B06_BS2_STALE_SCM_PID_AFTER_RESTART_PREWRITE_DENIED_PASS')
+      } else {
+        @('DC06_B06_BS2_EVERY_MEDIA_FRAGMENT_SERVER_PID_PINNED_PASS',
+          'DC06_B06_BS2_LIVE_INVENTORY_HANDLE_FORGED_PID_PREWRITE_DENIED_PASS',
+          'DC06_B06_BS2_SIMULATED_SECOND_M_HANDLE_PID_SWAP_PREWRITE_DENIED_PASS')
+      }
+      foreach ($marker in $expectedMarkers) {
+        if (@($mediaProbeOutput) -notcontains $marker) {
+          throw ('DC06_B06_BS2_PYTHON_NATIVE_ORACLE_MISSING_' + $marker)
+        }
+        Write-Output $marker
+      }
+    }
   }
   if ($ExpectedOpen -eq 0) {
     Write-Output 'C05B03R_ALLOWED_USER_READ_WRITE_ALLOWED_INSTANCE_CREATION_DENIED'
