@@ -223,7 +223,12 @@ def main() -> int:
         nonlocal launch_count
         launch_count += 1
         force_failure = phase == "rollback" and launch_count == 1
-        expected = before_marker if (phase == "rollback" and launch_count > 1) else marker_after
+        expected = (
+            before_marker if (
+                (phase == "rollback" and launch_count > 1)
+                or phase == "portable_rebind_rollback"
+            ) else marker_after
+        )
         media_name, media_bytes = (
             ("before.txt", before_media)
             if expected == before_marker
@@ -242,13 +247,21 @@ def main() -> int:
 
     results = {}
     try:
-        for scenario in ("success", "rollback"):
+        for scenario in ("success", "rollback", "portable_rebind_rollback"):
             phase = scenario
             launch_count = 0
             reset_to_before()
             assert_state(db, media, before_marker, "before.txt", before_media)
+            portable_failure = scenario == "portable_rebind_rollback"
+            vault_path = appdata / "license_vault.bin"
+            vault_sentinel = b"SYNTHETIC_PRE_EXISTING_LICENSE_VAULT_NOT_CLINICAL"
+            if portable_failure:
+                vault_path.write_bytes(vault_sentinel)
+            else:
+                vault_path.unlink(missing_ok=True)
             candidate = service.preflight_file(
-                nonportable, original_name="synthetic-DB-media.zip", active_engine=("sqlite", "pysqlite")
+                portable_archive if portable_failure else nonportable,
+                original_name="synthetic-DB-media.zip", active_engine=("sqlite", "pysqlite")
             )
             assert candidate["compatible"] is True and candidate["restore_media"] is True
             prepared = service.prepare(candidate["restore_id"])
@@ -261,21 +274,52 @@ def main() -> int:
             # the backend parent to exit. CI calls the real worker directly here.
             persisted["status"] = "scheduled"
             service._write_job(persisted)
-            return_code = worker.run(
-                candidate["restore_id"], parent_pid=999999,
-                executable="SYNTHETIC_NOT_A_REAL_DIGITALCROWN_EXE",
-            )
+            # Inject a deterministic failure ONLY at the real portable
+            # license rebind boundary, AFTER worker applied DB/media and
+            # removed the destination-local license vault. The worker's
+            # real rollback logic must restore all three, not merely emit
+            # a rollback status. No production or actual P4 GO is claimed.
+            p4_calls = {"count": 0}
+            if portable_failure:
+                from backend.services import portability_license_rebind as rebind_mod
+                real_rebind = rebind_mod.rebind_portable_restore
+
+                def injected_p4_failure():
+                    p4_calls["count"] += 1
+                    assert read_db_marker(db) == (marker_after, 63), "DB_NOT_APPLIED_BEFORE_REBIND"
+                    assert (media / "radios" / "SYNTHETIC.txt").is_file(), "MEDIA_NOT_APPLIED_BEFORE_REBIND"
+                    assert not vault_path.exists(), "OLD_MACHINE_VAULT_NOT_REVOKED"
+                    raise RuntimeError("SYNTHETIC_PORTABLE_REBIND_FAILURE_INJECTED")
+
+                rebind_mod.rebind_portable_restore = injected_p4_failure
+            try:
+                return_code = worker.run(
+                    candidate["restore_id"], parent_pid=999999,
+                    executable="SYNTHETIC_NOT_A_REAL_DIGITALCROWN_EXE",
+                )
+            finally:
+                if portable_failure:
+                    rebind_mod.rebind_portable_restore = real_rebind
             final = service.get_job(candidate["restore_id"])
             if scenario == "success":
                 assert return_code == 0 and final["status"] == "success"
                 assert final["smoke_check"] == "passed" and final["rollback"] == "not_needed"
                 assert_state(db, media, marker_after, "radios/SYNTHETIC.txt", b"SYNTHETIC_RADIO_NOT_CLINICAL")
                 assert (media / "documents" / "SYNTHETIC.txt").read_bytes() == b"SYNTHETIC_DOCUMENT_NOT_CLINICAL"
-            else:
+            elif scenario == "rollback":
                 assert return_code == 2 and final["status"] == "rolled_back"
                 assert final["smoke_check"] == "failed" and final["rollback"] == "passed"
                 assert_state(db, media, before_marker, "before.txt", before_media)
                 assert launch_count == 2
+            else:
+                assert portable_failure and p4_calls["count"] == 1, "PORTABLE_REBIND_INJECTION_NOT_REACHED"
+                assert return_code == 2 and final["status"] == "rolled_back"
+                assert final["smoke_check"] == "failed" and final["rollback"] == "passed"
+                assert final.get("portability_bundle") is True, "PORTABLE_MANIFEST_NOT_RECOGNIZED"
+                assert final.get("rescue_license_vault") == "present", "VAULT_RESCUE_NOT_CREATED"
+                assert_state(db, media, before_marker, "before.txt", before_media)
+                assert vault_path.read_bytes() == vault_sentinel, "LICENSE_VAULT_ROLLBACK_FAILED"
+                assert launch_count == 1, "PORTABLE_FAILURE_MUST_ONLY_RELAUNCH_ROLLBACK"
             results[scenario] = {
                 "status": final["status"],
                 "smoke_check": final["smoke_check"],
@@ -284,6 +328,9 @@ def main() -> int:
                 "media_oracle": "PASS",
                 "loopback_http_health_checked": True,
                 "health_server_is_stand_in": True,
+                "portable_bundle_detected": portable_failure,
+                "p4_rebind_failure_injected": portable_failure,
+                "license_vault_rollback_oracle": "PASS" if portable_failure else "NOT_APPLICABLE",
             }
             for proc in processes:
                 if proc.poll() is None:
@@ -307,7 +354,9 @@ def main() -> int:
         "real_guided_restore_service_preflight_prepare_worker": True,
         "test_only_nonportable_manifest_for_worker": True,
         "portable_bundle_decryption_and_rekey_at_B": True,
-        "portable_license_rebind": "NOT_RUN",
+        "portable_license_rebind": "REAL_SUCCESS_NOT_RUN; INJECTED_FAILURE_ROLLBACK_PASS",
+        "portable_rebind_failure_test": "REAL_WORKER_DB_MEDIA_VAULT_ROLLBACK",
+        "no_clinical_or_installed_runtime_assertion": True,
         "frozen_cabinet_exe_installed": False,
         "actual_cabinet_backend_health": "NOT_RUN",
         "parent_process_shutdown": "SIMULATED",
@@ -323,7 +372,7 @@ def main() -> int:
         shutil.rmtree(appdata)
     (args.output / EVIDENCE_NAME).write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
     assert {x.name for x in args.output.iterdir()} == {EVIDENCE_NAME}
-    print("RESTORE03_REMOTE_WINDOWS_WORKER_SUCCESS_AND_ROLLBACK_PASS_SYNTHETIC_NO_CLINICAL_GO")
+    print("RESTORE03_REMOTE_WINDOWS_WORKER_SUCCESS_ROLLBACK_AND_PORTABLE_P4_FAILURE_ROLLBACK_PASS_SYNTHETIC_NO_CLINICAL_GO")
     return 0
 
 
