@@ -46,6 +46,7 @@ os.environ.update({
     "ALLOWED_ORIGINS": "http://127.0.0.1:5174,http://localhost:5174",
     "SECRET_KEY": "cpv2-real-browser-isolated-synthetic-secret-32chars",
     "MOBILE_PAIRING_KEY_HEX": "22" * 32,
+    "CABINET_MASTER_KEY_HEX": "00" * 32,
     "TELEMETRY_ENABLED": "false",
     "CLOUD_AI_ENABLED": "false",
     "DEBUG": "false",
