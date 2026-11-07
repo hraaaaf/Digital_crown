@@ -36,4 +36,7 @@ def reserve_generated_pdf_path(directory: str | os.PathLike[str], filename: str)
     root.mkdir(parents=True, exist_ok=True)
     fd, path = tempfile.mkstemp(prefix=stem + "_", suffix=".pdf", dir=str(root))
     os.close(fd)
-    return path
+    # mkstemp returns an absolute path even when the caller supplied a
+    # relative directory. Preserve legacy DocumentFactory/static URL
+    # expectations: return a path with the caller's original path form.
+    return str(root / Path(path).name)

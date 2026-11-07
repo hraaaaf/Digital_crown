@@ -83,6 +83,19 @@ def test_exclusive_paths_sanitize_unsafe_names_without_touching_old_content(tmp_
     assert new_path.exists() and new_path.stat().st_size == 0
 
 
+def test_relative_output_path_keeps_legacy_static_documents_convention(tmp_path, monkeypatch):
+    monkeypatch.chdir(tmp_path)
+    result = reserve_generated_pdf_path(
+        "static/documents/2026/11",
+        "CERTIFICAT_SYNTHETIQUE_20261107_120000.pdf",
+    )
+    path = Path(result)
+    assert not path.is_absolute()
+    assert path.parts[:2] == ("static", "documents")
+    assert path.is_file() and path.stat().st_size == 0
+    assert path.resolve().is_relative_to(tmp_path.resolve())
+
+
 def test_reportlab_can_render_to_exclusively_reserved_filename(tmp_path):
     from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.platypus import Paragraph, SimpleDocTemplate

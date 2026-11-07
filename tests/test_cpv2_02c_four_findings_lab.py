@@ -78,6 +78,7 @@ def test_legacy_mirror_collision_preserves_both_distinct_pdfs(tmp_path):
     "risk",
     ["legacy_missing_pdf", "legacy_complete", "legacy_direct_historical",
      "legacy_direct_corrupted", "legacy_archived", "legacy_extra_orphan",
+     "legacy_pre_pocket_without_receipt_table",
      "trash_valid", "processing_orphan", "unlinked_orphan"],
 )
 def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, risk):
@@ -98,13 +99,15 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
         engine,
         tables=[models.User.__table__, models.Patient.__table__, models.DocumentArchive.__table__],
     )
-    PocketReceiptBase.metadata.create_all(engine)
+    if risk != "legacy_pre_pocket_without_receipt_table":
+        PocketReceiptBase.metadata.create_all(engine)
     media = tmp_path / "synthetic-media"
     mirror = media / MIRROR
     canonical = media / CANON
     mirror.parent.mkdir(parents=True)
     mirror.write_bytes(PDF)
-    if risk not in {"legacy_missing_pdf", "legacy_direct_historical", "legacy_direct_corrupted"}:
+    if risk not in {"legacy_missing_pdf", "legacy_direct_historical",
+                    "legacy_direct_corrupted", "legacy_pre_pocket_without_receipt_table"}:
         canonical.parent.mkdir(parents=True)
         canonical.write_bytes(PDF)
     if risk == "legacy_direct_corrupted":
@@ -141,7 +144,8 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
                 version_number=1, is_latest_version=True,
                 file_hash=hashlib.sha256(PDF).hexdigest(), file_size=len(PDF),
                 file_path="static/" + (
-                    MIRROR if risk in {"legacy_direct_historical", "legacy_direct_corrupted"}
+                    MIRROR if risk in {"legacy_direct_historical", "legacy_direct_corrupted",
+                                       "legacy_pre_pocket_without_receipt_table"}
                     else CANON
                 ),
                 status=status, tags=[], clinical_data={},
@@ -187,7 +191,8 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
         guided, original_name="synthetic-guided.zip",
         active_engine=("sqlite", "pysqlcipher"), owner_employer_id=OWNER,
     )
-    if risk in {"legacy_complete", "legacy_direct_historical", "legacy_archived", "trash_valid"}:
+    if risk in {"legacy_complete", "legacy_direct_historical", "legacy_archived",
+                "legacy_pre_pocket_without_receipt_table", "trash_valid"}:
         assert verdict["status"] == "preflight_ready"
         assert verdict["compatible"] is True
         assert not verdict["errors"]
@@ -200,7 +205,8 @@ def test_real_encrypted_preflight_four_pre_audit_risks(tmp_path, monkeypatch, ri
         PDF.replace(b"Catalog", b"Catxlog") if risk == "legacy_direct_corrupted" else PDF
     )
     assert canonical.exists() == (
-        risk not in {"legacy_missing_pdf", "legacy_direct_historical", "legacy_direct_corrupted"}
+        risk not in {"legacy_missing_pdf", "legacy_direct_historical",
+                     "legacy_direct_corrupted", "legacy_pre_pocket_without_receipt_table"}
     )
 
 
