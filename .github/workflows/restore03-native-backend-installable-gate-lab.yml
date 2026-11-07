@@ -1,0 +1,82 @@
+name: RESTORE-03 Windows Native Backend and Installable Gate LAB
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/restore03-native-backend-installable-gate-lab.yml'
+      - 'scripts/restore03_windows_native_runtime_lab.py'
+      - 'run.py'
+      - 'DigitalCrown.spec'
+      - 'backend/release_certification.py'
+      - 'backend/runtime_asset_certification.py'
+      - 'backend/core/runtime_safety.py'
+      - 'backend/services/portability_license_rebind.py'
+      - 'backend/security.py'
+      - 'backend/requirements-windows-build.txt'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  TELEMETRY_ENABLED: 'false'
+  CLOUD_AI_ENABLED: 'false'
+
+jobs:
+  windows-native-test:
+    name: Windows actual run.py HTTP / SQLCipher P4 / strict PyInstaller refusal
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout immutable PR HEAD, no credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify checkout identity and absence of inherited cabinet paths
+        shell: pwsh
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:EXACT_HEAD) { throw 'RESTORE03_NATIVE_HEAD_MISMATCH' }
+          foreach ($name in @('DATABASE_URL','DIGITALCROWN_USER_DATA_DIR','DIGITALCROWN_ENV_FILE','SQLCIPHER_KEY_HEX','CABINET_MASTER_KEY_HEX','MEDIA_ROOT')) {
+            if ([Environment]::GetEnvironmentVariable($name)) { throw 'RESTORE03_NATIVE_INHERITED_CABINET_ENV' }
+          }
+      - name: Install canonical Windows build/runtime dependency contract
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip==26.0.1
+          if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_NATIVE_PIP_UPDATE_FAILED' }
+          python -m pip install -r backend/requirements-windows-build.txt
+          if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_NATIVE_INSTALL_DEPS_FAILED' }
+          python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_NATIVE_DEPS_NOT_COHERENT' }
+      - name: Windows native app process and P4 persistence with fail-closed packaging
+        shell: pwsh
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python scripts/restore03_windows_native_runtime_lab.py --output "$env:RUNNER_TEMP/restore03-native-evidence"
+          if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_NATIVE_REHEARSAL_FAILED' }
+          $proofPath = Join-Path $env:RUNNER_TEMP 'restore03-native-evidence/restore03-windows-source-runtime-lab-evidence.json'
+          if (-not (Test-Path -LiteralPath $proofPath -PathType Leaf)) { throw 'RESTORE03_NATIVE_PROOF_MISSING' }
+          $proof = Get-Content -LiteralPath $proofPath -Raw | ConvertFrom-Json
+          if ($proof.tested_sha -ne $env:EXACT_HEAD) { throw 'RESTORE03_NATIVE_PROOF_SHA_MISMATCH' }
+          if ($proof.clinical_go -ne $false -or $proof.production_executable_installed -ne $false) { throw 'RESTORE03_NATIVE_FALSE_GO' }
+          if ($proof.portable_license_rebind -ne 'REAL_SQLALCHEMY_COMMITTED_AND_REOPENED') { throw 'RESTORE03_NATIVE_P4_NOT_PROVEN' }
+          if ($proof.pyinstaller_uncertified_executable -ne 'REFUSED_BY_INSTALLABLE_GATE') { throw 'RESTORE03_NATIVE_CERT_GATE_NOT_PROVEN' }
+          if ($proof.health_before_rebind -ne 'HTTP_200_STATUS_OK_DB_OK' -or $proof.health_after_rebind -ne 'HTTP_200_STATUS_OK_DB_OK') { throw 'RESTORE03_NATIVE_REAL_HEALTH_NOT_PROVEN' }
+          Write-Output 'RESTORE03_WINDOWS_REAL_SOURCE_BACKEND_P4_AND_INSTALLABLE_GATE_GREEN_NO_CLINICAL_GO'
+      - name: Publish non-sensitive proof only
+        uses: actions/upload-artifact@v4
+        with:
+          name: restore03-windows-native-rehearsal-evidence-only
+          path: ${{ runner.temp }}/restore03-native-evidence/restore03-windows-source-runtime-lab-evidence.json
+          retention-days: 7
+          if-no-files-found: error
