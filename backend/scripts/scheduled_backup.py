@@ -216,18 +216,25 @@ def _apply_retention_all(dry_run: bool) -> list:
 
 
 def _apply_retention_all_offsite(offsite_dir_str: str, dry_run: bool) -> list:
-    """Rétention hors-site, symétrique à _apply_retention_all mais sur la
-    destination réseau -- jamais mélangée aux dossiers locaux. Ne lève jamais (appelé
-    depuis run() dans son propre try/except, un incident réseau ici ne doit jamais
-    empêcher l'écriture du manifeste d'un run par ailleurs réussi)."""
+    """Fail closed: NEVER enumerate or delete remote backup paths before an
+    audited handle-relative NAS/SMB deletion gate.
+
+    The offsite copy's pinned directory handles do not protect a later
+    glob/stat/unlink from symlink swaps. This is a no-I/O policy sentinel,
+    including if called directly with dry_run=False.
+    """
     offsite_root = Path(offsite_dir_str)
+    if not dry_run:
+        logger.warning("Remote retention disabled pending audited NAS/SMB path-race safety")
     return [
-        _apply_retention(
-            offsite_root / "db", "db_backup_", ".sql.enc", OFFSITE_DB_RETENTION_DAYS, dry_run,
-        ),
-        _apply_retention(
-            offsite_root / "media", "media_backup_", ".zip.enc", OFFSITE_MEDIA_RETENTION_DAYS, dry_run,
-        ),
+        {
+            "dir": str(offsite_root / folder),
+            "dry_run": True,
+            "candidates": [],
+            "deleted": [],
+            "status": "BLOCKED_UNCERTIFIED_REMOTE_DELETE",
+        }
+        for folder in ("db", "media")
     ]
 
 
@@ -314,6 +321,7 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
         "offsite_status": "NOT_CONFIGURED", "offsite_db_copied": False, "offsite_media_copied": False,
         "offsite_error_code": None, "offsite_error_message": None, "offsite_duration_seconds": 0.0,
         "offsite_retention_candidates": [],
+        "offsite_retention_status": "NOT_CONFIGURED",
         "retention_dry_run": not apply_retention,
         "retention_candidates": [],
         "error_code": None, "error_message": None,
@@ -406,9 +414,12 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
             and manifest["offsite_media_copied"]
         ):
             try:
+                # A complete copy does not authorize an unvalidated remote deletion.
+                # The callee also fails closed when invoked with dry_run=False.
                 manifest["offsite_retention_candidates"] = _apply_retention_all_offsite(
-                    OFFSITE_DIR, dry_run=not apply_retention,
+                    OFFSITE_DIR, dry_run=True,
                 )
+                manifest["offsite_retention_status"] = "BLOCKED_UNCERTIFIED_REMOTE_DELETE"
             except Exception as e:
                 logger.warning(
                     "Rétention hors-site : échec, sans impact sur le backup principal (%s).",
@@ -427,7 +438,7 @@ def main():
     parser = argparse.ArgumentParser(description="Orchestrated PostgreSQL + media backup for Task Scheduler.")
     parser.add_argument(
         "--apply-retention", action="store_true",
-        help="Actually delete old scheduled backups beyond retention. Default: dry-run only, deletes nothing.",
+        help="Apply retention to LOCAL scheduled backups only. Remote deletion is blocked pending NAS/SMB certification.",
     )
     parser.add_argument(
         "--dry-run", action="store_true",
