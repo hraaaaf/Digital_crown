@@ -28,6 +28,19 @@ function Assert-Lab([bool] $Condition, [string] $Code) {
     if (-not $Condition) { throw "RESTORE03_PRECHECK_BLOCKED:$Code" }
 }
 
+function Assert-NoReparseAncestors([string] $AbsolutePath, [string] $Prefix) {
+    # A seemingly local path can traverse an NTFS junction or symlink to a
+    # remote share. Reject each ancestor rather than checking the final item.
+    $current = [IO.Path]::GetFullPath($AbsolutePath)
+    while ($true) {
+        $node = Get-Item -LiteralPath $current -Force -ErrorAction Stop
+        Assert-Lab (($node.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) ($Prefix + '_REPARSE_PATH')
+        $parent = [IO.Directory]::GetParent($current)
+        if ($null -eq $parent) { break }
+        $current = $parent.FullName
+    }
+}
+
 # No side effects on the clinical installation are permitted.
 Assert-Lab ($PSVersionTable.PSEdition -eq 'Desktop' -or $PSVersionTable.PSEdition -eq 'Core') 'UNSUPPORTED_SHELL'
 Assert-Lab ([Environment]::OSVersion.Platform -eq [PlatformID]::Win32NT) 'WINDOWS_REQUIRED'
@@ -42,6 +55,7 @@ Assert-Lab ($env:ENVIRONMENT -ne 'cabinet') 'LIVE_CABINET_RUNTIME_ENV_PRESENT'
 Assert-Lab ([IO.Path]::IsPathRooted($BundlePath)) 'ABSOLUTE_BUNDLE_PATH_REQUIRED'
 $fullPath = [IO.Path]::GetFullPath($BundlePath)
 Assert-Lab (-not $fullPath.StartsWith('\\')) 'NETWORK_BUNDLE_PATH_NOT_ALLOWED'
+Assert-NoReparseAncestors $fullPath 'BUNDLE'
 $file = Get-Item -LiteralPath $fullPath -ErrorAction Stop
 Assert-Lab (-not $file.PSIsContainer) 'BUNDLE_NOT_FILE'
 Assert-Lab (($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) 'BUNDLE_REPARSE_POINT'
@@ -85,6 +99,7 @@ if ($CabinetExecutablePath) {
     Assert-Lab ([IO.Path]::IsPathRooted($CabinetExecutablePath)) 'EXE_ABSOLUTE_PATH_REQUIRED'
     $exePath = [IO.Path]::GetFullPath($CabinetExecutablePath)
     Assert-Lab (-not $exePath.StartsWith('\\')) 'EXE_NETWORK_PATH_NOT_ALLOWED'
+    Assert-NoReparseAncestors $exePath 'EXE'
     $exeFile = Get-Item -LiteralPath $exePath -ErrorAction Stop
     Assert-Lab (-not $exeFile.PSIsContainer) 'EXE_NOT_FILE'
     Assert-Lab (($exeFile.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) 'EXE_REPARSE_POINT'
@@ -101,12 +116,13 @@ if ($CabinetExecutablePath) {
 $temporaryRoot = [IO.Path]::GetTempPath()
 $tempDrive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($temporaryRoot))
 Assert-Lab ($tempDrive.DriveType -eq [IO.DriveType]::Fixed) 'TEMP_NOT_LOCAL_FIXED_DRIVE'
+Assert-NoReparseAncestors $temporaryRoot 'TEMP'
 $evidenceDirectory = Join-Path $temporaryRoot ('DigitalCrown-RESTORE03-B-PREFLIGHT-' + [Guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($evidenceDirectory)
 
 $evidence = [ordered]@{
     marker = 'RESTORE03_NONDESTRUCTIVE_PREFLIGHT_ONLY'
-    verdict = 'PASS_FOR_MANIFEST_AND_LOCAL_READINESS_ONLY'
+    verdict = 'PASS_FOR_BUNDLE_METADATA_AND_HASH_ONLY'
     created_at_utc = [DateTimeOffset]::UtcNow.ToString('o')
     head_expected = 'OPERATOR_MUST_RECORD_EXACT_BUILD_HEAD'
     execution_context = $(if ($env:GITHUB_ACTIONS -eq 'true') { 'GITHUB_CI_RUNNER_NOT_PHYSICAL_PC_ATTESTATION' } else { 'LOCAL_WINDOWS_UNATTESTED' })
@@ -118,7 +134,8 @@ $evidence = [ordered]@{
         sha256 = $actualSha
         source_os = $manifest.source.os
         encrypted = $true
-        has_required_secret_exclusions = $true
+        # This verifies a declaration in the outer manifest, NOT encrypted payload content.
+        manifest_declares_machine_secret_exclusions = $true
     }
     executable = $exeEvidence
     independent_physical_pc_verified = $false
