@@ -167,6 +167,15 @@ def _copy_one_pinned_posix(
     temp_name = f".tmp_{uuid.uuid4().hex}_{source.name}"
     temp_inode = None
     try:
+        # Preserve the structured SOURCE_UNSAFE_FILE_TYPE contract for an
+        # already-present FIFO, socket, directory or symlink. The fd-based
+        # _open_regular_readonly below independently rechecks against races.
+        try:
+            source_metadata = source.lstat()
+        except OSError as e:
+            return False, "COPY_FAILED", f"Source indisponible : {type(e).__name__}"
+        if not _regular_nonreparse(source_metadata):
+            return False, "SOURCE_UNSAFE_FILE_TYPE", "La source n'est pas un fichier régulier"
         try:
             with _open_regular_readonly(source) as reader:
                 flags = (os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
