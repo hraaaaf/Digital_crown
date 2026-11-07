@@ -78,12 +78,13 @@ def _crash_worker(db_file: str, media_dir: str, receipt_id: str, stage: str, fic
     os._exit(99)
 
 
+@pytest.mark.parametrize("pre_generated_legacy", [False, True])
 @pytest.mark.parametrize(
     ("stage", "exit_code", "expected_legacy"),
     [("before_mirror", 97, False), ("after_mirror", 98, True)],
 )
 def test_real_abrupt_death_never_replays_or_loses_orphan_evidence(
-    tmp_path, monkeypatch, stage, exit_code, expected_legacy,
+    tmp_path, monkeypatch, stage, exit_code, expected_legacy, pre_generated_legacy,
 ):
     """Fresh-process durable receipt + real primary/mirror files, no cleanup."""
     db_file = tmp_path / "fixture-only-persistent.db"
@@ -118,6 +119,15 @@ def test_real_abrupt_death_never_replays_or_loses_orphan_evidence(
     engine.dispose()
     fictional_pdf = _fictional_pdf_bytes()
     fictional_digest = hashlib.sha256(fictional_pdf).hexdigest()
+    if pre_generated_legacy:
+        # Real document generation writes into this historical directory before
+        # ArchiveService is called. Cover that separate earlier crash window.
+        now = datetime.now()
+        original = (media / "documents" / str(now.year) / f"{now.month:02d}"
+                    / "fictional-certificate.pdf")
+        original.parent.mkdir(parents=True, exist_ok=True)
+        original.write_bytes(fictional_pdf)
+    expected_legacy_count = int(expected_legacy or pre_generated_legacy)
     child = multiprocessing.get_context("spawn").Process(
         target=_crash_worker,
         args=(str(db_file), str(media), receipt_id, stage, fictional_pdf),
@@ -134,7 +144,7 @@ def test_real_abrupt_death_never_replays_or_loses_orphan_evidence(
     primary_files = list((media / "archives").rglob("*.pdf"))
     legacy_files = list((media / "documents").rglob("*.pdf"))
     assert len(primary_files) == 1
-    assert len(legacy_files) == int(expected_legacy)
+    assert len(legacy_files) == expected_legacy_count
     assert hashlib.sha256(primary_files[0].read_bytes()).hexdigest() == fictional_digest
     if expected_legacy:
         assert hashlib.sha256(legacy_files[0].read_bytes()).hexdigest() == fictional_digest
@@ -171,4 +181,4 @@ def test_real_abrupt_death_never_replays_or_loses_orphan_evidence(
     # Read-only forensics must neither unlink nor misclassify these clinical
     # remnants. A later owner-reviewed quarantine/recovery gate owns cleanup.
     assert len(list((media / "archives").rglob("*.pdf"))) == 1
-    assert len(list((media / "documents").rglob("*.pdf"))) == int(expected_legacy)
+    assert len(list((media / "documents").rglob("*.pdf"))) == expected_legacy_count

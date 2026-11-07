@@ -22,6 +22,16 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact isolated source and NO Vercel
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+          test "$(node -e 'const c=require("./vercel.json");process.stdout.write(String(c.git?.deploymentEnabled))')" = false
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -67,5 +77,15 @@ jobs:
           firebase-admin==7.5.0 jwcrypto==1.6.1 sentry-sdk qrcode reportlab psutil
           uvicorn websockets requests PyPDF2 arabic-reshaper python-bidi pywebpush
           fido2 pyotp beautifulsoup4 PyMuPDF==1.27.2.3 jinja2 pytest-asyncio
+      - name: Pocket real crash windows — 4 fictional cases on Windows and Ubuntu
+        env:
+          DATABASE_URL: 'sqlite:///:memory:'
+          ENVIRONMENT: test
+          DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+          SECRET_KEY: 'fixture-only-pocket-crash-lab-secret-minimum-32-chars'
+          CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+          TELEMETRY_ENABLED: 'false'
+          CLOUD_AI_ENABLED: 'false'
+        run: python -B -m pytest backend/tests/test_mobile_document_archive_mirror_crash.py -q -p no:cacheprovider --maxfail=1
       - name: Actual mobile API permission, ECDH, revocation and failure regressions
         run: python -B scripts/ci/run_fue_g04_mobile_security.py
