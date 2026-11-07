@@ -267,9 +267,23 @@ def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[boo
     """
     if _posix_descriptor_backend_available():
         return _copy_one_pinned_posix(source, expected_checksum, dest_dir)
-    # A native Windows directory-handle implementation is still required
-    # to make the active-adversary guarantee portable. Never advertise the
-    # lexical fallback below as Windows TOCTOU-safe.
+    if os.name == "nt":
+        # Load without importing the heavy backend package. The isolated LAB
+        # suite dynamically imports this production module in the same way.
+        import importlib.util
+        module_path = Path(__file__).with_name("backup_offsite_win32.py")
+        spec = importlib.util.spec_from_file_location("_dc_offsite_win32_native", module_path)
+        if spec is None or spec.loader is None:
+            return False, "ATOMIC_PUBLICATION_UNAVAILABLE", "Native Win32 backend unavailable"
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+        except (OSError, ImportError, AttributeError):
+            return False, "ATOMIC_PUBLICATION_UNAVAILABLE", "Native Win32 backend failed to initialize"
+        return module.copy_one_win32(source, expected_checksum, dest_dir)
+    # Fail closed on unsupported OS; never activate an unsafe lexical fallback.
+    return False, "ATOMIC_PUBLICATION_UNAVAILABLE", "No audited handle-relative storage backend"
+    # Legacy lexical code below is intentionally unreachable and pending removal.
     directory_failure = _directory_chain_failure(dest_dir)
     if directory_failure is not None:
         return False, directory_failure, "Destination non sûre ou inaccessible"
@@ -396,8 +410,15 @@ def copy_to_offsite(
         if _posix_descriptor_backend_available():
             root_fd = _open_pinned_directory(dest_root)
             os.close(root_fd)
+        elif os.name == "nt":
+            # Native Win32 path walker performs anchor-relative creation in
+            # _copy_one; never mkdir through the lexical fallback here.
+            pass
         else:
-            dest_root.mkdir(parents=True, exist_ok=True)
+            return {
+                **result, "error_code": "ATOMIC_PUBLICATION_UNAVAILABLE",
+                "error_message": "Unsupported storage backend",
+            }
     except (OSError, PermissionError) as e:
         logger.warning("Backup hors-site : destination injoignable (%s).", type(e).__name__)
         result["status"] = "UNREACHABLE"

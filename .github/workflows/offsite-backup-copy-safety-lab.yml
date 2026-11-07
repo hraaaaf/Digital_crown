@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - backend/scripts/backup_offsite.py
+      - backend/scripts/backup_offsite_win32.py
       - backend/tests/test_backup_offsite.py
       - offsite_backup_fue/**
       - .github/workflows/offsite-backup-copy-safety-lab.yml
