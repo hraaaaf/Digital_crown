@@ -71,15 +71,23 @@ class LocalNativeCaptureBridge:
 
 
 def windows_native_bridge(*, tenant_id: int, workstation_id: str,
-                          pipe_name: str) -> LocalNativeCaptureBridge:
+                          pipe_name: str,
+                          expected_server_pid: int) -> LocalNativeCaptureBridge:
     """Uses actual Win32 SCM transport; its existing OS+LAB guards remain.
 
     An installer/SCM attestation must provide the trusted pipe at runtime.
     This function never accepts a pipe from an HTTP request.
     """
+    if (type(expected_server_pid) is not int
+            or not 0 < expected_server_pid <= 0xFFFFFFFF):
+        raise NativeInventoryDenied("NATIVE_BRIDGE_SERVER_PID_REQUIRED")
     return LocalNativeCaptureBridge(
         tenant_id=tenant_id,
         workstation_id=workstation_id,
-        inventory_reader=lambda: read_native_unassigned(pipe_name),
-        media_reader=lambda capture: read_native_capture_bytes(pipe_name, capture),
+        inventory_reader=lambda: read_native_unassigned(
+            pipe_name, expected_server_pid=expected_server_pid,
+        ),
+        media_reader=lambda capture: read_native_capture_bytes(
+            pipe_name, capture, expected_server_pid=expected_server_pid,
+        ),
     )
