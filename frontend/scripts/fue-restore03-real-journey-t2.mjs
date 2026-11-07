@@ -209,13 +209,19 @@ try {
     code: String(error?.code || 'FUE_ASSERTION'), /* never write credentials or API response */ };
   throw error;
 } finally {
-  for (const c of contexts.reverse()) await c.close().catch(() => {});
+  for (const c of contexts.reverse()) {
+    try {
+      if (typeof c.close === 'function') await c.close();
+      else if (typeof c.dispose === 'function') await c.dispose();
+    } catch { /* disposable T2 cleanup; report persists */ }
+  }
   await setup.dispose().catch(() => {});
   await browser.close();
   await fs.writeFile(path.join(output, 'report.json'),
-    JSON.stringify(report, null, 2) + '\n', 'utf8');
+    JSON.stringify(report, null, 2) + '
+', 'utf8');
 }
-if (!report.pass || report.checks.length < 19 || report.screenshots.length !== 8) {
+if (!report.pass || report.checks.length < 19 || report.screenshots.length !== 10) {
   throw new Error('RESTORE03_FUE_INCOMPLETE');
 }
 console.log('RESTORE03_REAL_UI_FASTAPI_FUE_I_NONDESTRUCTIVE_PASS ' +
