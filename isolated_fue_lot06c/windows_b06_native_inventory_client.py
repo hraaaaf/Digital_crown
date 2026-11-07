@@ -18,11 +18,18 @@ from isolated_fue_lot06c.scm_spool_read_b03 import PNG
 
 
 def main(argv: list[str]) -> int:
-    if len(argv) != 2 or argv[1] not in {"Valid", "Tampered", "WrongKey", "Unauthorized"}:
+    if len(argv) != 3 or argv[1] not in {"Valid", "Tampered", "WrongKey", "Unauthorized"}:
         return 64
-    pipe, expected = argv
+    pipe, expected, pid_text = argv
+    if not pid_text.isdecimal():
+        return 64
+    expected_pid = int(pid_text)
+    if not 0 < expected_pid <= 0xFFFFFFFF:
+        return 64
     try:
-        capture = read_native_unassigned(pipe)
+        capture = read_native_unassigned(
+            pipe, expected_server_pid=expected_pid,
+        )
     except NativeInventoryDenied:
         if expected == "Valid":
             return 65
