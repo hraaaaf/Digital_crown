@@ -147,6 +147,11 @@ def inspect_completed_pocket_receipts_in_backup(
             ):
                 _deny()
             path = _safe_canonical(file_path)
+            # ArchiveService stores each document under
+            # archives/<patient_id>/<DocumentType>/<YYYY>/<M>/filename.pdf.
+            # A valid hash cannot authorize crossing a patient's directory.
+            if path.parts[1] != str(doc_patient) or path.parts[2] != str(doc_type):
+                _deny()
             if path.as_posix() in seen_paths:
                 _deny()
             seen_paths.add(path.as_posix())

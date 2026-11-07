@@ -85,7 +85,7 @@ def test_portable_sqlcipher_actual_archive_receipt_both_media_trees_and_rollback
     )
     PocketReceiptBase.metadata.create_all(engine)
     complete_key, unresolved_key = str(uuid.uuid4()), str(uuid.uuid4())
-    canonical = "archives/97802/certificat/2026/11/fictional-certified.pdf"
+    canonical = "archives/97802/CERTIFICAT/2026/11/fictional-certified.pdf"
     historical = "documents/2026/11/fictional-certified.pdf"
     orphan_canonical = "archives/97802/certificat/2026/11/fictional-unresolved.pdf"
     orphan_legacy = "documents/2026/11/fictional-unresolved.pdf"

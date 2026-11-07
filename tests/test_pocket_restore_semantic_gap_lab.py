@@ -44,7 +44,7 @@ def _engine(path, passphrase):
     return create_engine("sqlite:///" + str(path), creator=connect, poolclass=NullPool)
 
 
-@pytest.mark.parametrize("clinical_fault", ["missing_canonical", "wrong_hash", "missing_mirror", "wrong_mirror"])
+@pytest.mark.parametrize("clinical_fault", ["missing_canonical", "wrong_hash", "missing_mirror", "wrong_mirror", "wrong_patient_path"])
 def test_valid_encryption_does_not_mean_complete_pocket_document(tmp_path, monkeypatch, clinical_fault):
     """Fail-closed guard: all four defects must BLOCK a valid encrypted bundle."""
     private = tmp_path / "ephemeral-keys-only"
@@ -100,7 +100,7 @@ def test_valid_encryption_does_not_mean_complete_pocket_document(tmp_path, monke
             document_group_id=str(uuid.uuid4()),
             version_number=1, is_latest_version=True,
             file_hash=hashlib.sha256(PDF).hexdigest(), file_size=len(PDF),
-            file_path="static/" + CANONICAL,
+            file_path="static/" + (CANONICAL.replace("/97902/", "/97903/") if clinical_fault == "wrong_patient_path" else CANONICAL),
             status=models.DocumentStatus.ACTIF, tags=[], clinical_data={},
         )
         db.add(document)
@@ -117,14 +117,19 @@ def test_valid_encryption_does_not_mean_complete_pocket_document(tmp_path, monke
     mirror = media / HISTORICAL
     mirror.parent.mkdir(parents=True)
     mirror.write_bytes(PDF)
-    canonical_file = media / CANONICAL
-    if clinical_fault in {"wrong_hash", "missing_mirror", "wrong_mirror"}:
+    # Change bytes without changing length: this isolates SHA-256 from size.
+    tampered = PDF.replace(b"Catalog", b"Catxlog")
+    assert len(tampered) == len(PDF) and hashlib.sha256(tampered).digest() != hashlib.sha256(PDF).digest()
+    expected_canonical_path = (CANONICAL.replace("/97902/", "/97903/")
+                               if clinical_fault == "wrong_patient_path" else CANONICAL)
+    canonical_file = media / expected_canonical_path
+    if clinical_fault in {"wrong_hash", "missing_mirror", "wrong_mirror", "wrong_patient_path"}:
         canonical_file.parent.mkdir(parents=True)
-        canonical_file.write_bytes(PDF if clinical_fault != "wrong_hash" else PDF + b"damaged-content")
+        canonical_file.write_bytes(tampered if clinical_fault == "wrong_hash" else PDF)
     if clinical_fault == "missing_mirror":
         mirror.unlink()
     if clinical_fault == "wrong_mirror":
-        mirror.write_bytes(PDF + b"tampered-mirror")
+        mirror.write_bytes(tampered)
     assert canonical_file.exists() == (clinical_fault != "missing_canonical")
     portable_db = tmp_path / "plaintext-transit-from-fixture.sqlite"
     _export_sqlcipher_plaintext(source, portable_db, passphrase)
