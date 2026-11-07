@@ -94,3 +94,51 @@ La table contient des métadonnées médicales (patient_id, type, acteur) :
 La création de la table dans une **SQLite de test jetable** est la seule
 opération autorisée dans cette PR jusqu'à ce gate. Le dossier canonique de
 reprise reste la page Notion CROWN POCKET V2 unique.
+
+## Procédure de reprise sûre — reçu PROCESSING après interruption
+
+Cette section est une **procédure d'investigation**, pas un outil de
+déblocage automatique et pas une autorisation de modifier une DB cabinet.
+
+1. **Geler la nouvelle écriture clinique** pour la même intention UUID.
+   Pocket doit afficher `Archivage non confirmé`, conserver l'UUID associé
+   au cabinet/appareil/patient et n'autoriser que la requête GET du reçu.
+2. Vérifier que la session et l'appareil sont encore appairés et autorisés.
+   Aucun contournement des permissions ou de la révocation n'est autorisé
+   pour consulter un PDF ou une archive.
+3. Sur une **copie isolée et restaurable** de la base chiffrée, relever
+   l'UUID, `tenant_id`, `actor_id`, `device_id`, `patient_id`,
+   `request_sha256`, `state`, `archive_id`, `archive_sha256`
+   et les horodatages. Ne jamais inscrire le contenu médical ou les clés
+   secrètes dans les logs de CI ou les tickets.
+4. `COMPLETED` : exiger une ligne DocumentArchive active, rattachée au
+   patient et à l'acteur attendus. Vérifier les octets PDF et leur SHA-256
+   avant de conclure « archivé » ; la simple présence d'un fichier est
+   insuffisante.
+5. `PROCESSING` après crash : le reçu est un **verrou durable**.
+   L'absence d'archive liée ne prouve pas l'absence de PDF orphelin ;
+   un fichier orphelin ne prouve pas que la transaction SQL fut validée.
+   Ne ni effacer le reçu, ni rendre la clé réutilisable, ni régénérer le
+   document avant revue du dossier et résolution d'intégrité.
+6. `REVIEW_REQUIRED` : conserver l'incident et les preuves, vérifier
+   les archives et médias locaux selon la procédure de sauvegarde.
+   Ne jamais transformer cet état en `COMPLETED` sans ligne active et
+   empreinte PDF concordantes.
+7. Toute procédure future de réparation doit être **un outil distinct**,
+   audité, journalisé, soumis à une autorisation humaine et testé
+   avec destruction du processus, base SQLCipher sur disque, course entre
+   appareils et restauration de sauvegarde avant activation cabinet.
+
+**Preuve machine disponible :**
+`backend/tests/test_mobile_document_archive_receipts.py` contient
+`test_fresh_process_after_worker_death_keeps_processing_lock` :
+un second processus Python quitte réellement après commit du claim ;
+une nouvelle session vérifie qu'un POST identique n'acquiert plus le
+droit d'écrire (created=false), que l'état est `PROCESSING` et
+qu'aucune archive_id n'est inventée. Ce test protège le refus de
+rejeu, **pas** une réparation automatique des fichiers non référencés.
+
+**GO/NO-GO :** garder l'archive inactive sur la DB réelle tant que
+les essais d'intégration et la procédure de réparation avec reprise
+sont non certifiés. Le praticien peut poursuivre l'aperçu PDF sans
+activer l'archivage Pocket.
