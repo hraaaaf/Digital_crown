@@ -361,9 +361,12 @@ def copy_one_win32(source: Path, expected_checksum: str, dest_dir: Path):
                     options=FILE_NON_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT,
                 )
                 temp_fd = None
+                transferred_to_fd = False
+                temp_cleanup_attempted = False
                 try:
                     _information(kernel, temp_handle, directory=False)
                     temp_fd = msvcrt.open_osfhandle(temp_handle, os.O_BINARY | os.O_RDWR)
+                    transferred_to_fd = True
                     with os.fdopen(temp_fd, "w+b", buffering=0) as temp:
                         temp_fd = None
                         temp_handle = int(msvcrt.get_osfhandle(temp.fileno()))
@@ -406,18 +409,28 @@ def copy_one_win32(source: Path, expected_checksum: str, dest_dir: Path):
                                 return False, "DEST_DIRECTORY_UNSAFE", "Destination déplacée après publication"
                             return True, None, None
                         finally:
-                            # Remove this exact owned temp file by HANDLE, not by
-                            # attacker-substitutable pathname.
+                            # Delete only our owned temp FILE HANDLE, even if
+                            # its original pathname has been replaced.
+                            temp_cleanup_attempted = True
                             try:
                                 _remove_temporary_by_handle(kernel, temp_handle)
                             except OSError:
                                 pass
                 finally:
-                    # Once open_osfhandle takes ownership, fdopen owns the
-                    # native handle. Do not CloseHandle it a second time.
+                    if not temp_cleanup_attempted:
+                        # Validation can fail before fdopen, e.g. an injected
+                        # invalid type. Clean the *owned* native HANDLE before
+                        # closing it, never a potentially swapped pathname.
+                        try:
+                            _remove_temporary_by_handle(kernel, temp_handle)
+                        except OSError:
+                            pass
+                    # open_osfhandle transfers native handle ownership; fdopen
+                    # closes it on normal paths. On early validation failure,
+                    # close the original handle exactly once.
                     if temp_fd is not None:
                         os.close(temp_fd)
-                    elif temp_handle is not None and not isinstance(temp_handle, int):
+                    elif not transferred_to_fd:
                         kernel.CloseHandle(wintypes.HANDLE(temp_handle))
         except OSError as exc:
             return False, "COPY_FAILED", f"Copie Windows par handle refusée : {type(exc).__name__}"

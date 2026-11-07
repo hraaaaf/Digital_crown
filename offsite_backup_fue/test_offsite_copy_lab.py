@@ -577,3 +577,32 @@ def test_win32_native_directory_swap_cannot_redirect_into_external_root(tmp_path
     assert switch["denied"] is True, "Pinned Windows directory was renameable during copy"
     assert good is True
     assert code is None
+
+
+def test_win32_native_temp_validation_failure_closes_handle_and_cleans(tmp_path, monkeypatch):
+    """Synthetic failure before fdopen must not leak temporary recovery bytes."""
+    import os
+    import pytest
+    if os.name != "nt":
+        pytest.skip("Windows native handle error path")
+    native = _win32_native_for_lab()
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"VALID-ENCRYPTED-DB")
+    dest = tmp_path / "nas" / "db"
+    original_info = native._information
+    count = {"file": 0}
+
+    def deny_temp_info(kernel, handle, *, directory):
+        if not directory:
+            count["file"] += 1
+            if count["file"] == 2:
+                raise OSError("injected invalid temporary FILE HANDLE metadata")
+        return original_info(kernel, handle, directory=directory)
+
+    monkeypatch.setattr(native, "_information", deny_temp_info)
+    success, code, _reason = native.copy_one_win32(source, digest, dest)
+    assert count["file"] >= 2
+    assert success is False
+    assert code == "COPY_FAILED"
+    assert not (dest / source.name).exists()
+    assert list(dest.glob(".tmp_*")) == []
