@@ -182,11 +182,15 @@ def _walk_directory(directory, kernel, nt, *, create, writable_final=True):
     handle = kernel.CreateFileW(root, root_access, FILE_SHARE_ALL, None, FILE_OPEN,
                                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, None)
     if handle is None or int(handle) == ctypes.c_void_p(-1).value:
-        raise ctypes.WinError(ctypes.get_last_error())
+        error = ctypes.WinError(ctypes.get_last_error())
+        error.walk_phase = "volume_root_open"
+        raise error
     current = int(handle)
+    phase = "volume_root_attributes"
     try:
         _information(kernel, current, directory=True)
         for index, component in enumerate(components):
+            phase = f"child_{index}_relative_open"
             final = index == len(components) - 1
             child_access = DIRECTORY_WRITE_ACCESS if final and writable_final else DIRECTORY_READ_ACCESS
             try:
@@ -210,6 +214,7 @@ def _walk_directory(directory, kernel, nt, *, create, writable_final=True):
                                         attributes=FILE_ATTRIBUTE_DIRECTORY)
                 finally:
                     kernel.CloseHandle(wintypes.HANDLE(parent_write))
+            phase = f"child_{index}_attributes"
             try:
                 _information(kernel, child, directory=True)
             except BaseException:
@@ -218,7 +223,9 @@ def _walk_directory(directory, kernel, nt, *, create, writable_final=True):
             kernel.CloseHandle(wintypes.HANDLE(current))
             current = child
         return current
-    except BaseException:
+    except BaseException as exc:
+        if isinstance(exc, OSError) and not getattr(exc, "walk_phase", None):
+            exc.walk_phase = phase
         kernel.CloseHandle(wintypes.HANDLE(current))
         raise
 
@@ -318,7 +325,15 @@ def copy_one_win32(source: Path, expected_checksum: str, dest_dir: Path):
         kernel, nt = _apis()
         directory_handle = _walk_directory(dest_dir, kernel, nt, create=True)
     except OSError as exc:
-        return False, "DEST_DIRECTORY_UNSAFE", f"Destination non sécurisable : {type(exc).__name__}"
+        # Deliberately exclude path contents and clinical identifiers.
+        detail = getattr(exc, "status", None)
+        if detail is None:
+            detail = getattr(exc, "winerror", None)
+        phase = getattr(exc, "walk_phase", "initialization")
+        return False, "DEST_DIRECTORY_UNSAFE", (
+            f"Destination native indisponible : {type(exc).__name__}"
+            f" phase={phase} error={detail}"
+        )
 
     try:
         temp_name = f".tmp_{uuid.uuid4().hex}_{source.name}"
