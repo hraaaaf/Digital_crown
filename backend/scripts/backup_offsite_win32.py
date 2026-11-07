@@ -33,8 +33,9 @@ DIRECTORY_WRITE_ACCESS = (DIRECTORY_READ_ACCESS | FILE_ADD_FILE | FILE_ADD_SUBDI
 GENERIC_READ = 0x80000000
 GENERIC_WRITE = 0x40000000
 DELETE = 0x00010000
-FILE_OPEN = 0x1
+FILE_OPEN = 0x1  # NT create disposition, *not* Win32 CreateFileW
 FILE_CREATE = 0x2
+OPEN_EXISTING = 0x3  # Win32 CreateFileW disposition
 FILE_SYNCHRONOUS_IO_NONALERT = 0x20
 FILE_DIRECTORY_FILE = 0x1
 FILE_NON_DIRECTORY_FILE = 0x40
@@ -179,7 +180,7 @@ def _walk_directory(directory, kernel, nt, *, create, writable_final=True):
         raise OSError(errno.EPERM, "Missing volume/share anchor")
     components = target.parts[1:]
     root_access = DIRECTORY_WRITE_ACCESS if not components and writable_final else DIRECTORY_READ_ACCESS
-    handle = kernel.CreateFileW(root, root_access, FILE_SHARE_ALL, None, FILE_OPEN,
+    handle = kernel.CreateFileW(root, root_access, FILE_SHARE_ALL, None, OPEN_EXISTING,
                                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, None)
     if handle is None or int(handle) == ctypes.c_void_p(-1).value:
         error = ctypes.WinError(ctypes.get_last_error())
@@ -284,7 +285,7 @@ def _remove_temporary_by_handle(kernel, temp_handle):
 
 
 def _source_reader(source, kernel):
-    handle = kernel.CreateFileW(str(source), GENERIC_READ, FILE_SHARE_ALL, None, FILE_OPEN,
+    handle = kernel.CreateFileW(str(source), GENERIC_READ, FILE_SHARE_ALL, None, OPEN_EXISTING,
                                 FILE_FLAG_OPEN_REPARSE_POINT, None)
     if handle is None or int(handle) == ctypes.c_void_p(-1).value:
         raise ctypes.WinError(ctypes.get_last_error())
