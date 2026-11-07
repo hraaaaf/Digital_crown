@@ -13,24 +13,32 @@ from tools.imaging_gateway.media_validation import validated_mime
 from tools.imaging_gateway.native_inventory_protocol_v15 import (
     NativeInventoryDenied, UnassignedCapture,
 )
-from tools.imaging_gateway.native_inventory_windows_v15 import read_native_unassigned
+from tools.imaging_gateway.native_inventory_windows_v15 import (
+    _check_pipe_server_pid, _require_server_pid, read_native_unassigned,
+)
 from tools.imaging_gateway.native_media_protocol_v15 import (
     DENIED, LAB_MEDIA_MAX, MAX_CHUNK,
     decode_response, encode_request,
 )
 
 
-def read_native_capture_bytes(pipe_name: str, capture: UnassignedCapture) -> bytes:
+def read_native_capture_bytes(
+    pipe_name: str, capture: UnassignedCapture, *,
+    expected_server_pid: int | None = None,
+) -> bytes:
     if (os.getenv("DC06_B06_NATIVE_MEDIA_LAB") != "1"
             or not isinstance(capture, UnassignedCapture)
             or capture.mime != "image/png"
             or type(capture.size) is not int
             or not 0 < capture.size <= LAB_MEDIA_MAX):
         raise NativeInventoryDenied("NATIVE_MEDIA_LAB_DISABLED")
+    _require_server_pid(expected_server_pid)
 
     # This call verifies the OS and CI scope, opens native pipe through Win32,
     # and requires identical freshly AES-validated, unassigned inventory.
-    if read_native_unassigned(pipe_name) != capture:
+    if read_native_unassigned(
+        pipe_name, expected_server_pid=expected_server_pid,
+    ) != capture:
         raise NativeInventoryDenied("NATIVE_MEDIA_INVENTORY_CHANGED")
 
     import ctypes
@@ -80,6 +88,8 @@ def read_native_capture_bytes(pipe_name: str, capture: UnassignedCapture) -> byt
         if handle is None or handle == ctypes.c_void_p(-1).value:
             raise NativeInventoryDenied("NATIVE_MEDIA_PEER_DENIED")
         try:
+            # Check peer of THIS M handle, never only a previous Q/I probe.
+            _check_pipe_server_pid(kernel, handle, expected_server_pid)
             message = ctypes.create_string_buffer(frame, len(frame))
             written = wintypes.DWORD(0)
             if (not kernel.WriteFile(
@@ -108,6 +118,8 @@ def read_native_capture_bytes(pipe_name: str, capture: UnassignedCapture) -> byt
     if (len(data) != capture.size
             or hashlib.sha256(data).hexdigest() != capture.digest
             or not validated_mime(bytes(data), capture.mime)
-            or read_native_unassigned(pipe_name) != capture):
+            or read_native_unassigned(
+                pipe_name, expected_server_pid=expected_server_pid,
+            ) != capture):
         raise NativeInventoryDenied("NATIVE_MEDIA_FINAL_INTEGRITY_DENIED")
     return bytes(data)
