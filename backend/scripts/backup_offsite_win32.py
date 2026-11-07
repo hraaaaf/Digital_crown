@@ -28,8 +28,8 @@ FILE_LIST_DIRECTORY = 0x1
 FILE_ADD_FILE = 0x2
 FILE_ADD_SUBDIRECTORY = 0x4
 FILE_TRAVERSE = 0x20
-DIRECTORY_ACCESS = (SYNCHRONIZE | FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY
-                    | FILE_TRAVERSE | FILE_ADD_FILE | FILE_ADD_SUBDIRECTORY)
+DIRECTORY_READ_ACCESS = (SYNCHRONIZE | FILE_READ_ATTRIBUTES | FILE_LIST_DIRECTORY | FILE_TRAVERSE)
+DIRECTORY_WRITE_ACCESS = (DIRECTORY_READ_ACCESS | FILE_ADD_FILE | FILE_ADD_SUBDIRECTORY)
 GENERIC_READ = 0x80000000
 GENERIC_WRITE = 0x40000000
 DELETE = 0x00010000
@@ -164,32 +164,52 @@ def _open_child(nt, parent, component, *, access, disposition, options, attribut
     return int(result_handle.value)
 
 
-def _walk_directory(directory, kernel, nt, *, create):
+def _walk_directory(directory, kernel, nt, *, create, writable_final=True):
+    """Read-only ancestor walk; request add-file rights only on target folder.
+
+    Missing components are created relative to a separately re-walked writable
+    parent HANDLE. Every reopen uses OBJ_DONT_REPARSE, never the legacy path
+    open. This avoids requesting write access to protected C:\\ / Users.
+    """
     target = Path(directory)
     if not target.is_absolute() or ".." in target.parts:
         raise OSError(errno.EPERM, "Relative or parent-traversing destination refused")
     root = target.anchor
     if not root:
         raise OSError(errno.EPERM, "Missing volume/share anchor")
-    handle = kernel.CreateFileW(root, DIRECTORY_ACCESS, FILE_SHARE_ALL, None, FILE_OPEN,
+    components = target.parts[1:]
+    root_access = DIRECTORY_WRITE_ACCESS if not components and writable_final else DIRECTORY_READ_ACCESS
+    handle = kernel.CreateFileW(root, root_access, FILE_SHARE_ALL, None, FILE_OPEN,
                                 FILE_FLAG_BACKUP_SEMANTICS | FILE_FLAG_OPEN_REPARSE_POINT, None)
     if handle is None or int(handle) == ctypes.c_void_p(-1).value:
         raise ctypes.WinError(ctypes.get_last_error())
     current = int(handle)
     try:
         _information(kernel, current, directory=True)
-        for component in target.parts[1:]:
+        for index, component in enumerate(components):
+            final = index == len(components) - 1
+            child_access = DIRECTORY_WRITE_ACCESS if final and writable_final else DIRECTORY_READ_ACCESS
             try:
-                child = _open_child(nt, current, component, access=DIRECTORY_ACCESS,
+                child = _open_child(nt, current, component, access=child_access,
                                     disposition=FILE_OPEN,
                                     options=FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT)
             except NativeStatusError as exc:
                 if not create or exc.status != STATUS_OBJECT_NAME_NOT_FOUND:
                     raise
-                child = _open_child(nt, current, component, access=DIRECTORY_ACCESS,
-                                    disposition=FILE_CREATE,
-                                    options=FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT,
-                                    attributes=FILE_ATTRIBUTE_DIRECTORY)
+                # The current directory HANDLE was acquired with READ-only
+                # traverse rights. Reopen that *specific ancestor* with child
+                # creation rights, walking each component no-follow.
+                parent_path = Path(root).joinpath(*components[:index])
+                parent_write = _walk_directory(
+                    parent_path, kernel, nt, create=False, writable_final=True,
+                )
+                try:
+                    child = _open_child(nt, parent_write, component,
+                                        access=child_access, disposition=FILE_CREATE,
+                                        options=FILE_DIRECTORY_FILE | FILE_SYNCHRONOUS_IO_NONALERT,
+                                        attributes=FILE_ATTRIBUTE_DIRECTORY)
+                finally:
+                    kernel.CloseHandle(wintypes.HANDLE(parent_write))
             try:
                 _information(kernel, child, directory=True)
             except BaseException:
@@ -205,7 +225,7 @@ def _walk_directory(directory, kernel, nt, *, create):
 
 def _same_path(directory, original_handle, kernel, nt):
     try:
-        current = _walk_directory(directory, kernel, nt, create=False)
+        current = _walk_directory(directory, kernel, nt, create=False, writable_final=False)
     except OSError:
         return False
     try:
