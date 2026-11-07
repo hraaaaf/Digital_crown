@@ -157,7 +157,11 @@ Résultat volontairement minimal : `receipt_state`, `verified_archive`,
 identifiante, aucun chemin, aucun octet clinique ni hash médical n'est
 publié dans l'objet de preuve. Le traitement effectue uniquement SELECT,
 stat et lecture des fichiers bornés, jamais de COMMIT, UPDATE, DELETE,
-unlink, rename, ni POST.
+unlink, rename, ni POST. Il refuse explicitement toute cible de DB
+non attestée isolée via le garde runtime et toute session SQL contenant
+des objets en attente (new, dirty ou deleted) ; les SELECT sont exécutés
+sans autoflush. Ce refus vaut aussi pour les copies de DB sans attestation
+d'isolation : aucune voie de contournement n'est ajoutée.
 
 Les décisions sont **distinctes** :
 
