@@ -71,7 +71,7 @@ def direct_lab_probe(pipe: str, request: bytes) -> bytes | None:
 
 def main(argv: list[str]) -> int:
     if len(argv) != 3 or argv[1] not in {
-        "Valid", "WrongKey", "Tampered", "Unauthorized",
+        "Valid", "WrongKey", "Tampered", "Unauthorized", "StalePid",
     }:
         return 64
     pipe, mode, pid_text = argv
@@ -86,6 +86,15 @@ def main(argv: list[str]) -> int:
         id=1, digest=hashlib.sha256(PNG).hexdigest(),
         size=len(PNG), mime="image/png", category="PHOTO",
     )
+    if mode == "StalePid":
+        try:
+            read_native_unassigned(pipe, expected_server_pid=expected_pid)
+        except NativeInventoryDenied as exc:
+            if str(exc) != "NATIVE_PIPE_SERVER_PID_MISMATCH":
+                return 81
+            print("DC06_B06_BS2_STALE_SCM_PID_AFTER_RESTART_PREWRITE_DENIED_PASS")
+            return 0
+        return 80
     if mode == "Valid":
         try:
             # The same provider invoked by the actual backend product
