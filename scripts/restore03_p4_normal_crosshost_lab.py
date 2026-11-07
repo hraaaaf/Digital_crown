@@ -278,7 +278,7 @@ def target(input_dir: Path, output: Path) -> None:
 
     result = {
         "marker": "RESTORE03_P4_NORMAL_REAL_FUNCTION_SYNTHETIC_ONLY",
-        "tested_head": os.environ.get("GITHUB_SHA"),
+        "tested_head": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
         "source_os": "Windows", "target_os": "Windows",
         "distinct_runners_by_machine_pseudonym": True,
         "bundle_integrity": "PASS",
