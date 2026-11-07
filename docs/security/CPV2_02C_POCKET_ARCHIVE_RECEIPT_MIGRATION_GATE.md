@@ -197,3 +197,51 @@ sans archive liée ne démontre **pas** qu'aucun PDF n'a déjà été produit.
 Le code et les tests de cette PR ne fournissent pas de mécanisme de
 réparation automatique : ce gate reste explicitement ouvert.
 
+
+## Répétition de sauvegarde/restauration SQLCipher + PDF fictif
+
+Test dédié `tests/test_fue_g04_pocket_archive_backup_restore.py`,
+exécuté automatiquement dans la matrice Windows+Ubuntu par
+`.github/workflows/fue-g04-persistence.yml` (glob `tests/test_fue_g04*.py`).
+
+**Périmètre exact de la preuve machine :**
+
+1. Créer une nouvelle SQLCipher sur disque sous `tmp_path` avec
+   `MobileDocumentArchiveReceipt`, une table **synthétique** de liens
+   d'archive (elle ne simule pas toute la base clinique) et un certificat
+   PDF entièrement fictif ; deux reçus : `COMPLETED` et `PROCESSING`.
+2. Créer un snapshot SQLCipher par la vraie
+   `BackupService._export_sqlcipher_snapshot`, puis la sauvegarde
+   chiffrée par `BackupService._encrypt_file_atomic`.
+3. Chiffrer **séparément** un ZIP média fictif par le mécanisme
+   `guided_restore_archive._encrypt_streaming_media_archive`.
+   `BackupService.backup_active_database` ne sauvegarde **pas** les
+   médias PDF : il faut un bundle/manifest de médias séparé pour garantir
+   la cohérence d'un dossier clinique complet.
+4. Détruire seulement les originaux fictifs après snapshots, restaurer
+   le fichier SQLCipher par la vraie `BackupService.restore_backup`
+   avec validation `PRAGMA integrity_check`, et extraire le PDF par
+   `guided_restore_archive._extract_encrypted_media`.
+5. Exiger que le reçu `COMPLETED` retrouve son archive liée et
+   l'empreinte SHA-256 des octets du PDF restauré. Exiger que le
+   `PROCESSING` reste sans archive et non réclamable (aucun rejeu),
+   et qu'il existe exactement une ligne d'archive fictive.
+6. Avec mauvaise clé SQLCipher, sauvegarde DB altérée ou archive média
+   altérée, exiger le **refus**, la préservation d'une destination
+   préexistante et l'absence d'extraction partielle de médias.
+7. La base doit être réellement chiffrée : conducteur `sqlite3`
+   standard ne peut pas lire le snapshot, et les en-têtes ne sont pas
+   `SQLite format 3`. Mots de passe de test générés localement sans
+   exposition des secrets dans les logs.
+
+**Limites non couvertes :** ce test réutilise les primitives du produit
+mais ne constitue **ni** une restauration de cabinet sur vraie
+SQLCipher patient, **ni** une répétition complète du service
+`GuidedRestoreService` avec arbitrage des médias existants, **ni**
+une sauvegarde multi-fichiers atomique. En utilisation réelle, le
+dossier doit démontrer la mise en quiescence des écritures pendant
+la capture cohérente DB+médias, un manifeste de hashes sur toutes les
+archives actives, un contrôle de destination hors cabinet, le rollback
+et une restauration vérifiée depuis un emplacement protégé.
+Le gate clinique et humain reste NO-GO sans ces éléments.
+
