@@ -94,3 +94,39 @@ def test_missing_schema_never_creates_cabinet_table(tmp_path):
         assert error.value.status_code == 503
         assert not inspect(engine).has_table("mobile_document_archive_receipts")
     engine.dispose()
+
+def test_fresh_process_after_worker_death_keeps_processing_lock(isolated_receipts):
+    """Real process exit after durable claim; nobody may silently replay it."""
+    import os
+    import subprocess
+    import sys
+
+    key = str(uuid.uuid4())
+    with isolated_receipts() as db:
+        database_path = db.bind.url.database
+    code = (
+        "import os\n"
+        "from sqlalchemy import create_engine\n"
+        "from sqlalchemy.orm import sessionmaker\n"
+        "from backend.services.mobile_document_archive_receipts import claim_archive_intent\n"
+        "engine=create_engine('sqlite:///'+os.environ['CPV2_RECEIPT_DB'])\n"
+        "with sessionmaker(bind=engine)() as db:\n"
+        "    receipt, created = claim_archive_intent(db, tenant_id=101, actor_id=102, "
+        "device_id='device-103', key=os.environ['CPV2_RECEIPT_KEY'], patient_id=104, "
+        "document_type='certificat', request_sha256='a'*64)\n"
+        "    assert created and receipt.state=='PROCESSING'\n"
+        "os._exit(73)\n"
+    )
+    env = {**os.environ, "CPV2_RECEIPT_DB": database_path, "CPV2_RECEIPT_KEY": key}
+    crashed = subprocess.run(
+        [sys.executable, "-c", code],
+        env=env, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert crashed.returncode == 73, crashed.stderr[-1000:]
+    with isolated_receipts() as reopened:
+        old, created = claim_archive_intent(reopened, **_args(key))
+        assert not created
+        assert old.state == "PROCESSING" and old.archive_id is None
+        assert reopened.query(func.count(MobileDocumentArchiveReceipt.id)).scalar() == 1
+        # An inspector can identify the incident but must never delete the
+        # receipt, unlock the intent or guess whether an orphan PDF exists.
