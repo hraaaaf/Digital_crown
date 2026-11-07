@@ -81,11 +81,16 @@ def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
     generator = BilanOrthoPDFGenerator(str(tmp_path))
     pdf_path = tmp_path / "r17-reportlab-after.pdf"
     generator._generate_reportlab(_vm(), str(pdf_path), projection=_projection())
-    assert pdf_path.exists() and pdf_path.stat().st_size > 5_000
+    # No arbitrary byte-size gate: removing fictitious headers / unused embedded
+    # fonts makes a real, readable and semantically complete PDF much smaller.
+    assert pdf_path.is_file()
+    assert pdf_path.read_bytes().startswith(b"%PDF-")
     doc = fitz.open(pdf_path)
     assert len(doc) >= 1
     full_text = "\n".join(page.get_text("text") for page in doc)
     _assert_semantics(full_text)
+    # Missing configuration must not insert a fictitious clinician identity.
+    assert "Nom Prénom" not in full_text
     assert "INCOMPLETE" in full_text
     for page in doc:
         rect = page.rect
