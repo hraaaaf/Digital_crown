@@ -466,6 +466,61 @@ def test_worker_smoke_failure_triggers_proven_rollback(tmp_path, monkeypatch):
     assert final["smoke_check"] == "failed"
 
 
+def test_worker_smoke_failure_rolls_back_both_db_and_media(tmp_path, monkeypatch):
+    """Synthetic FULL-pair worker rollback; no real patient data or app restart."""
+    appdata = tmp_path / "isolated_appdata"
+    _patch_appdata(monkeypatch, appdata)
+    media = appdata / "media"
+    media.mkdir(parents=True)
+    (media / "old.txt").write_bytes(b"original-media")
+    target = _make_plain_sqlite(appdata / "clinical_vault.db", "before")
+
+    bundle = _manifest_bundle(
+        tmp_path, monkeypatch, db_value="after",
+        media={"radios/new.txt": b"synthetic-new-media"},
+    )
+    preflight = GuidedRestoreService.preflight_file(
+        bundle, original_name="synthetic-full-pair.zip",
+        active_engine=("sqlite", "pysqlite"),
+    )
+    job = GuidedRestoreService.get_job(preflight["restore_id"])
+    job.update(
+        status="scheduled",
+        target_db_path=str(target),
+        prepared_media_digest=archive_mod._directory_digest(media),
+    )
+    GuidedRestoreService._write_job(job)
+
+    monkeypatch.setattr(worker_mod, "get_media_root", lambda: media)
+    monkeypatch.setattr(
+        GuidedRestoreWorker, "_wait_parent_exit",
+        classmethod(lambda cls, pid, timeout=20: None),
+    )
+    monkeypatch.setattr(
+        GuidedRestoreWorker, "_launch_app",
+        staticmethod(lambda executable: DummyProcess()),
+    )
+    smoke_results = iter([False, True])
+    monkeypatch.setattr(
+        GuidedRestoreWorker, "_smoke_check",
+        staticmethod(lambda timeout=60: next(smoke_results)),
+    )
+
+    result = GuidedRestoreWorker.run(
+        preflight["restore_id"], parent_pid=999,
+        executable="SyntheticDigitalCrown.exe",
+    )
+    final = GuidedRestoreService.get_job(preflight["restore_id"])
+
+    assert result == 2
+    assert _read_truth(target) == "before"
+    assert (media / "old.txt").read_bytes() == b"original-media"
+    assert not (media / "radios" / "new.txt").exists()
+    assert final["status"] == "rolled_back"
+    assert final["rollback"] == "passed"
+    assert final["smoke_check"] == "failed"
+
+
 def test_lot05_sql_import_stays_forbidden_independent_of_guided_restore():
     """LOT05 clinical SQL import and existing Guided Restore are separate gates."""
     from dataclasses import fields

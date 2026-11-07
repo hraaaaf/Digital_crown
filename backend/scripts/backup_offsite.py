@@ -13,46 +13,277 @@ structuré, jamais par une exception qui remonterait à l'appelant.
 import hashlib
 import logging
 import os
+import errno
 import shutil
+import stat
 import time
+import uuid
 from pathlib import Path
 
 logger = logging.getLogger("backup_offsite")
 
 
-def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[bool, str | None, str | None]:
-    """Copie un seul fichier de backup déjà produit vers dest_dir, vérifie son
-    intégrité par re-hash de la copie (jamais du fichier source -- garde ce module
-    découplé de la forme interne des résultats de backup local). Ne lève jamais.
-    Retourne (copied, error_code, error_message).
+def _regular_nonreparse(mode_stat) -> bool:
+    """Reject FIFO, symlink, socket, directory and Windows reparse handles."""
+    return stat.S_ISREG(mode_stat.st_mode) and not (
+        getattr(mode_stat, "st_file_attributes", 0)
+        & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+    )
+
+
+def _directory_chain_failure(target: Path) -> str | None:
+    """Return a stable denial code; None means no unsafe ancestor was observed.
+
+    Symlink/junction/reparse redirects are security failures. Ordinary blocking
+    files and unreachable parents preserve the historical UNREACHABLE status.
+    This lexical check alone does not solve concurrent path-swap attacks.
+    """
+    if not target.is_absolute() or ".." in target.parts:
+        return "DEST_DIRECTORY_UNSAFE"
+    for entry in (target, *target.parents):
+        try:
+            metadata = entry.lstat()
+        except FileNotFoundError:
+            continue
+        except OSError:
+            return "DEST_UNREACHABLE"
+        if stat.S_ISLNK(metadata.st_mode) or (
+            getattr(metadata, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+        ):
+            return "DEST_DIRECTORY_UNSAFE"
+        if not stat.S_ISDIR(metadata.st_mode):
+            return "DEST_UNREACHABLE"
+    return None
+
+
+def _open_regular_readonly(path: Path):
+    """Open nonblocking to avoid hanging on FIFO; O_NOFOLLOW when supported."""
+    flags = os.O_RDONLY | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_NOFOLLOW", 0)
+    fd = os.open(path, flags)
+    try:
+        if not _regular_nonreparse(os.fstat(fd)):
+            raise OSError(errno.EPERM, "Not a regular non-reparse file")
+        return os.fdopen(fd, "rb")
+    except BaseException:
+        os.close(fd)
+        raise
+
+
+def _posix_descriptor_backend_available() -> bool:
+    """Whether Python can anchor path operations to an already-open directory.
+
+    Windows needs a native, independently tested handle-relative backend:
+    the lexical fallback below remains a **non-approved** candidate there.
+    """
+    return (
+        os.name == "posix"
+        and hasattr(os, "O_DIRECTORY")
+        and hasattr(os, "O_NOFOLLOW")
+        and os.open in os.supports_dir_fd
+        and os.mkdir in os.supports_dir_fd
+        and os.stat in os.supports_dir_fd
+        and os.unlink in os.supports_dir_fd
+        and os.link in os.supports_dir_fd
+    )
+
+
+def _open_pinned_directory(directory: Path, *, create: bool = True) -> int:
+    """Safely walk/create ancestors without following a path component symlink.
+
+    Caller owns returned fd. Each child is opened relative to its parent fd,
+    so replacing a path with a symlink cannot redirect subsequent operations
+    to the injected target. Does not establish Windows SMB/ACL semantics.
+    """
+    if not directory.is_absolute() or ".." in directory.parts:
+        raise OSError(errno.EPERM, "Unsafe target directory path")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    current = os.open(os.path.sep, flags)
+    try:
+        for part in directory.parts:
+            if part in ("", os.path.sep):
+                continue
+            try:
+                child = os.open(part, flags, dir_fd=current)
+            except FileNotFoundError:
+                if not create:
+                    raise
+                try:
+                    os.mkdir(part, 0o700, dir_fd=current)
+                except FileExistsError:
+                    pass
+                child = os.open(part, flags, dir_fd=current)
+            except NotADirectoryError as e:
+                # Linux returns ENOTDIR (not ELOOP) for O_NOFOLLOW +
+                # O_DIRECTORY on a symbolic link. Distinguish it from a
+                # regular-file ancestor, which remains DEST_UNREACHABLE.
+                try:
+                    entry = os.stat(part, dir_fd=current, follow_symlinks=False)
+                except OSError:
+                    raise e
+                if stat.S_ISLNK(entry.st_mode):
+                    raise OSError(errno.ELOOP, "Symlink ancestor denied") from e
+                raise
+            os.close(current)
+            current = child
+        return current
+    except BaseException:
+        os.close(current)
+        raise
+
+
+def _pinned_directory_matches_path(directory: Path, pinned_fd: int) -> bool:
+    """Reject path replacement/remapping even when a pinned fd stays valid."""
+    try:
+        check_fd = _open_pinned_directory(directory, create=False)
+    except OSError:
+        return False
+    try:
+        expected = os.fstat(pinned_fd)
+        observed = os.fstat(check_fd)
+        return (expected.st_dev, expected.st_ino) == (observed.st_dev, observed.st_ino)
+    finally:
+        os.close(check_fd)
+
+
+def _copy_one_pinned_posix(
+    source: Path, expected_checksum: str, dest_dir: Path,
+) -> tuple[bool, str | None, str | None]:
+    """Copy, hash and publish via pinned directory and file descriptors.
+
+    No source, temp or existing-target pathname is reopened for blocking I/O.
+    The /proc/self/fd link source ties publication to the already-validated
+    temporary *inode*, even if its directory entry is replaced concurrently.
+    No destructive rename fallback is permitted.
     """
     try:
-        dest_dir.mkdir(parents=True, exist_ok=True)
-    except (OSError, PermissionError) as e:
-        return False, "DEST_UNREACHABLE", f"Destination inaccessible : {type(e).__name__}"
+        directory_fd = _open_pinned_directory(dest_dir)
+    except OSError as e:
+        code = "DEST_DIRECTORY_UNSAFE" if e.errno in (
+            errno.ELOOP, errno.EPERM, errno.EACCES,
+        ) else "DEST_UNREACHABLE"
+        return False, code, f"Ouverture ancrée impossible : {type(e).__name__}"
 
-    dest_path = dest_dir / source.name
-    temp_path = dest_dir / f".tmp_{source.name}"
+    temp_name = f".tmp_{uuid.uuid4().hex}_{source.name}"
+    temp_inode = None
     try:
-        shutil.copy2(source, temp_path)
-    except (OSError, PermissionError) as e:
-        return False, "COPY_FAILED", f"Échec de la copie : {type(e).__name__}"
-
-    try:
-        actual_checksum = hashlib.sha256(temp_path.read_bytes()).hexdigest()
-        if actual_checksum != expected_checksum:
-            return False, "CHECKSUM_MISMATCH", "Le fichier copié ne correspond pas au checksum attendu"
-        os.replace(temp_path, dest_path)
-    except (OSError, PermissionError) as e:
-        return False, "VERIFY_FAILED", f"Échec de vérification/finalisation : {type(e).__name__}"
+        # Preserve the structured SOURCE_UNSAFE_FILE_TYPE contract for an
+        # already-present FIFO, socket, directory or symlink. The fd-based
+        # _open_regular_readonly below independently rechecks against races.
+        try:
+            source_metadata = source.lstat()
+        except OSError as e:
+            return False, "COPY_FAILED", f"Source indisponible : {type(e).__name__}"
+        if not _regular_nonreparse(source_metadata):
+            return False, "SOURCE_UNSAFE_FILE_TYPE", "La source n'est pas un fichier régulier"
+        try:
+            with _open_regular_readonly(source) as reader:
+                flags = (os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+                         | getattr(os, "O_CLOEXEC", 0))
+                temp_fd = os.open(temp_name, flags, 0o600, dir_fd=directory_fd)
+                with os.fdopen(temp_fd, "w+b", buffering=0) as temp:
+                    st = os.fstat(temp.fileno())
+                    temp_inode = (st.st_dev, st.st_ino)
+                    shutil.copyfileobj(reader, temp, length=1024 * 1024)
+                    temp.flush()
+                    os.fsync(temp.fileno())
+                    temp.seek(0)
+                    digest = hashlib.sha256()
+                    while True:
+                        chunk = temp.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        digest.update(chunk)
+                    if digest.hexdigest() != expected_checksum:
+                        return False, "CHECKSUM_MISMATCH", "La copie chiffrée ne correspond pas au SHA-256"
+                    # The name can be swapped by another actor while the fd
+                    # stays pinned. Never link or open the replacement entry.
+                    temp_entry = os.stat(
+                        temp_name, dir_fd=directory_fd, follow_symlinks=False,
+                    )
+                    if (temp_entry.st_dev, temp_entry.st_ino) != temp_inode or not _regular_nonreparse(temp_entry):
+                        return False, "TEMP_PATH_TAMPERED", "Fichier temporaire substitué"
+                    if not _pinned_directory_matches_path(dest_dir, directory_fd):
+                        return False, "DEST_DIRECTORY_UNSAFE", "Répertoire remplacé pendant la copie"
+                    # Linux proc-fd is a trusted kernel path to the open inode.
+                    # Without it, fail closed rather than re-linking by a
+                    # potentially attacker-controlled temp pathname.
+                    proc_source = f"/proc/self/fd/{temp.fileno()}"
+                    if not os.path.exists(proc_source):
+                        return False, "ATOMIC_PUBLICATION_UNAVAILABLE", "Lien fd atomique indisponible"
+                    try:
+                        os.link(
+                            proc_source, source.name,
+                            dst_dir_fd=directory_fd, follow_symlinks=True,
+                        )
+                    except FileExistsError:
+                        existing_flags = (os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW
+                                          | getattr(os, "O_CLOEXEC", 0))
+                        try:
+                            existing_fd = os.open(
+                                source.name, existing_flags, dir_fd=directory_fd,
+                            )
+                            with os.fdopen(existing_fd, "rb") as existing:
+                                if not _regular_nonreparse(os.fstat(existing.fileno())):
+                                    return False, "EXISTING_BACKUP_UNSAFE_FILE_TYPE", "Destination finale non régulière"
+                                existing_digest = hashlib.sha256()
+                                while True:
+                                    piece = existing.read(1024 * 1024)
+                                    if not piece:
+                                        break
+                                    existing_digest.update(piece)
+                        except OSError:
+                            return False, "EXISTING_BACKUP_UNREADABLE", "Destination existante non lisible"
+                        if existing_digest.hexdigest() != expected_checksum:
+                            return False, "DESTINATION_NAME_COLLISION", "Nom final déjà utilisé par une archive différente"
+                    except OSError as e:
+                        return False, "ATOMIC_PUBLICATION_UNAVAILABLE", f"Publication sûre impossible : {type(e).__name__}"
+                    if not _pinned_directory_matches_path(dest_dir, directory_fd):
+                        return False, "DEST_DIRECTORY_UNSAFE", "Répertoire modifié après publication"
+                    return True, None, None
+        except OSError as e:
+            return False, "COPY_FAILED", f"Copie ou validation ancrée impossible : {type(e).__name__}"
     finally:
-        if temp_path.exists():
+        # Never unlink an injected FIFO/symlink/alternate inode. Cleanup only
+        # the exact temporary inode created by this invocation.
+        if temp_inode is not None:
             try:
-                temp_path.unlink()
+                candidate = os.stat(temp_name, dir_fd=directory_fd, follow_symlinks=False)
+                if (candidate.st_dev, candidate.st_ino) == temp_inode:
+                    os.unlink(temp_name, dir_fd=directory_fd)
             except OSError:
                 pass
+        os.close(directory_fd)
 
-    return True, None, None
+
+def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[bool, str | None, str | None]:
+    """Copie atomiquement une sauvegarde déjà chiffrée vers le hors-site.
+
+    Temporaire unique, créé en mode exclusif : aucune troncature d'un autre
+    transfert simultané (ni d'un ancien .tmp_*). Lecture et re-hash par blocs
+    pour ne jamais charger une grosse archive médicale entière en mémoire.
+    Le fichier final n'est remplacé qu'après vérification SHA-256.
+    Ne lève pas d'erreur d'E/S : la sauvegarde locale reste indépendante.
+    """
+    if _posix_descriptor_backend_available():
+        return _copy_one_pinned_posix(source, expected_checksum, dest_dir)
+    if os.name == "nt":
+        # Load without importing the heavy backend package. The isolated LAB
+        # suite dynamically imports this production module in the same way.
+        import importlib.util
+        module_path = Path(__file__).with_name("backup_offsite_win32.py")
+        spec = importlib.util.spec_from_file_location("_dc_offsite_win32_native", module_path)
+        if spec is None or spec.loader is None:
+            return False, "ATOMIC_PUBLICATION_UNAVAILABLE", "Native Win32 backend unavailable"
+        module = importlib.util.module_from_spec(spec)
+        try:
+            spec.loader.exec_module(module)
+        except (OSError, ImportError, AttributeError):
+            return False, "ATOMIC_PUBLICATION_UNAVAILABLE", "Native Win32 backend failed to initialize"
+        return module.copy_one_win32(source, expected_checksum, dest_dir)
+    # Fail closed on unsupported OS; never activate an unsafe lexical fallback.
+    return False, "ATOMIC_PUBLICATION_UNAVAILABLE", "No audited handle-relative storage backend"
+
 
 
 def copy_to_offsite(
@@ -86,8 +317,27 @@ def copy_to_offsite(
             result["error_code"] = code
             result["error_message"] = message
 
+    directory_failure = _directory_chain_failure(dest_root)
+    if directory_failure is not None:
+        result["status"] = "UNREACHABLE" if directory_failure == "DEST_UNREACHABLE" else "FAILED"
+        result["error_code"] = directory_failure
+        result["error_message"] = "Destination hors-site non sûre ou inaccessible"
+        result["duration_seconds"] = round(time.monotonic() - started, 3)
+        return result
+
     try:
-        dest_root.mkdir(parents=True, exist_ok=True)
+        if _posix_descriptor_backend_available():
+            root_fd = _open_pinned_directory(dest_root)
+            os.close(root_fd)
+        elif os.name == "nt":
+            # Native Win32 path walker performs anchor-relative creation in
+            # _copy_one; never mkdir through the lexical fallback here.
+            pass
+        else:
+            return {
+                **result, "error_code": "ATOMIC_PUBLICATION_UNAVAILABLE",
+                "error_message": "Unsupported storage backend",
+            }
     except (OSError, PermissionError) as e:
         logger.warning("Backup hors-site : destination injoignable (%s).", type(e).__name__)
         result["status"] = "UNREACHABLE"
@@ -96,11 +346,21 @@ def copy_to_offsite(
         result["duration_seconds"] = round(time.monotonic() - started, 3)
         return result
 
+    directory_failure = _directory_chain_failure(dest_root)
+    if directory_failure is not None:
+        result["status"] = "UNREACHABLE" if directory_failure == "DEST_UNREACHABLE" else "FAILED"
+        result["error_code"] = directory_failure
+        result["error_message"] = "Destination modifiée ou inaccessible"
+        result["duration_seconds"] = round(time.monotonic() - started, 3)
+        return result
+
     attempted = 0
 
-    if db_source is not None and db_checksum is not None:
+    if db_source is not None:
         attempted += 1
-        if not db_source.exists():
+        if db_checksum is None:
+            _record_error("DB_CHECKSUM_MISSING", "Empreinte du backup DB absente, copie refusée")
+        elif not db_source.exists():
             _record_error("DB_SOURCE_MISSING", "Fichier de backup DB local introuvable")
             logger.warning("Backup hors-site : source DB introuvable (%s).", db_source)
         else:
@@ -110,9 +370,11 @@ def copy_to_offsite(
                 _record_error(code, msg)
                 logger.warning("Backup hors-site : copie DB échouée (%s : %s).", code, msg)
 
-    if media_source is not None and media_checksum is not None:
+    if media_source is not None:
         attempted += 1
-        if not media_source.exists():
+        if media_checksum is None:
+            _record_error("MEDIA_CHECKSUM_MISSING", "Empreinte du backup médias absente, copie refusée")
+        elif not media_source.exists():
             _record_error("MEDIA_SOURCE_MISSING", "Fichier de backup médias local introuvable")
             logger.warning("Backup hors-site : source médias introuvable (%s).", media_source)
         else:
@@ -126,13 +388,15 @@ def copy_to_offsite(
     if attempted == 0:
         result["status"] = "FAILED"
         _record_error("NOTHING_TO_COPY", "Aucun fichier de backup local à copier")
-    elif copied_count == attempted:
+    elif result["db_copied"] and result["media_copied"]:
         result["status"] = "SUCCESS"
-        logger.info("Backup hors-site : copie réussie (%d fichier(s)).", copied_count)
+        logger.info("Backup hors-site : copie DB + médias réussie (paire complète)")
     elif copied_count == 0:
         result["status"] = "FAILED"
     else:
         result["status"] = "PARTIAL"
+        if attempted < 2:
+            _record_error("INCOMPLETE_BACKUP_PAIR", "Succès partiel : base DB et médias requis")
 
     result["duration_seconds"] = round(time.monotonic() - started, 3)
     return result

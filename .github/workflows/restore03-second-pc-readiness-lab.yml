@@ -1,0 +1,84 @@
+name: RESTORE-03 Second-PC Windows Readiness LAB
+on:
+  pull_request:
+    paths:
+      - 'scripts/restore03_second_pc_preflight.ps1'
+      - 'scripts/restore03_cross_host_lab.py'
+      - '.github/workflows/restore03-second-pc-readiness-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  # Public test-only phrase: never used with a real patient or clinic.
+  RESTORE03_TEST_MIGRATION_SECRET: 'SYNTHETIC_ONLY_NOT_A_REAL_CABINET_PASSPHRASE_v1'
+
+jobs:
+  windows-b-preflight:
+    name: Windows 5.1 non-destructive hash + manifest fail-closed gates
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install synthetic-only crypto dependency
+        run: python -m pip install cryptography==44.0.3
+      - name: Make an encrypted synthetic DB + media bundle
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expected = "${{ github.event.pull_request.head.sha || github.sha }}"
+          $actual = (git rev-parse HEAD).Trim()
+          if ($actual -ne $expected) { throw "RESTORE03_B_PREFLIGHT_HEAD_MISMATCH" }
+          python scripts/restore03_cross_host_lab.py source --output "$env:RUNNER_TEMP/restore03-b-source"
+          if ($LASTEXITCODE -ne 0) { throw "RESTORE03_B_SOURCE_FAILED" }
+      - name: Verify PowerShell 5.1 preflight and negative safety gates
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $folder = Join-Path $env:RUNNER_TEMP 'restore03-b-source'
+          $bundle = Join-Path $folder 'restore03-SYNTHETIC.dcbundle'
+          $fixture = Get-Content -LiteralPath (Join-Path $folder 'restore03-source-evidence.json') -Raw | ConvertFrom-Json
+          $expected = [string]$fixture.bundle_sha256
+          $originalHash = (Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($originalHash -ne $expected) { throw "RESTORE03_B_BAD_FIXTURE_HASH" }
+          $positive = @(& powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/restore03_second_pc_preflight.ps1 -BundlePath $bundle -ExpectedSha256 $expected -SyntheticOnly 2>&1)
+          if ($LASTEXITCODE -ne 0) { throw "RESTORE03_B_PREFLIGHT_POSITIVE_FAILED: $($positive -join ' ')" }
+          if (-not ($positive -contains 'RESTORE03_B_PREFLIGHT_PASS_MANIFEST_ONLY')) { throw "RESTORE03_B_PREFLIGHT_MARKER_MISSING" }
+          $proofLine = @($positive | Where-Object { $_ -like 'RESTORE03_B_EVIDENCE=*' }) | Select-Object -First 1
+          if (-not $proofLine) { throw "RESTORE03_B_EVIDENCE_MISSING" }
+          $proofPath = ([string]$proofLine).Substring('RESTORE03_B_EVIDENCE='.Length)
+          $proof = Get-Content -LiteralPath $proofPath -Raw | ConvertFrom-Json
+          if ($proof.clinical_go -ne $false) { throw "RESTORE03_B_UNSAFE_CLINICAL_VERDICT" }
+          if ($proof.execution_context -ne 'GITHUB_CI_RUNNER_NOT_PHYSICAL_PC_ATTESTATION') { throw "RESTORE03_B_FALSE_PHYSICAL_PROOF" }
+          if ($proof.bundle.sha256 -ne $expected) { throw "RESTORE03_B_BAD_PROOF_HASH" }
+          if ($proof.packaged_app_guided_restore_apply -ne 'NOT_RUN') { throw "RESTORE03_B_FALSE_APPLY_CLAIM" }
+          $badHash = '0' * 64
+          $negative = @(& powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/restore03_second_pc_preflight.ps1 -BundlePath $bundle -ExpectedSha256 $badHash -SyntheticOnly 2>&1)
+          if ($LASTEXITCODE -eq 0) { throw "RESTORE03_B_BAD_HASH_ACCEPTED" }
+          if (($negative -join ' ') -notmatch 'RESTORE03_PRECHECK_BLOCKED:BUNDLE_SHA256_MISMATCH') { throw "RESTORE03_B_BAD_HASH_WRONG_REJECTION" }
+          $env:DATABASE_URL = 'sqlite:///synthetic-must-not-be-used'
+          try {
+            $envNegative = @(& powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -File scripts/restore03_second_pc_preflight.ps1 -BundlePath $bundle -ExpectedSha256 $expected -SyntheticOnly 2>&1)
+            if ($LASTEXITCODE -eq 0) { throw "RESTORE03_B_ACTIVE_DB_ENV_ACCEPTED" }
+            if (($envNegative -join ' ') -notmatch 'RESTORE03_PRECHECK_BLOCKED:DATABASE_ENV_PRESENT') { throw "RESTORE03_B_DB_ENV_WRONG_REJECTION" }
+          } finally {
+            Remove-Item Env:DATABASE_URL -ErrorAction SilentlyContinue
+          }
+          $afterHash = (Get-FileHash -LiteralPath $bundle -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($afterHash -ne $originalHash) { throw "RESTORE03_B_INPUT_CHANGED" }
+          Copy-Item -LiteralPath $proofPath -Destination (Join-Path $env:RUNNER_TEMP 'restore03-b-readiness-evidence.json')
+          Write-Output 'RESTORE03_B_PREFLIGHT_CI_WINDOWS_PASS_NO_PHYSICAL_DR_GO'
+          # Clear the nonzero native exit code from deliberately rejected inputs.
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: restore03-b-synthetic-readiness-evidence-only
+          path: ${{ runner.temp }}/restore03-b-readiness-evidence.json
+          retention-days: 7
+          if-no-files-found: error
