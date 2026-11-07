@@ -374,3 +374,80 @@ def test_fifo_source_does_not_block_or_copy(tmp_path):
     source.parent.mkdir(parents=True)
     os.mkfifo(source)
     _assert_fifo_case_nonblocking(source, "0" * 64, tmp_path / "nas")
+
+
+def test_rev02_directory_swap_after_guard_cannot_write_outside_root(tmp_path, monkeypatch):
+    """NC-02: swap the db directory after preflight, before the temp is opened."""
+    import os
+    import pytest
+    if os.name != "posix":
+        pytest.skip("POSIX pinned directory-fd implementation; Windows requires native handle audit")
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    checksum = _write(source, b"SYNTHETIC-ENCRYPTED-DB")
+    root = tmp_path / "nas"
+    (root / "db").mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    moved = root / "db_original"
+    original_open = _SOURCE_MODULE._open_regular_readonly
+    switched = {"done": False}
+
+    def intervene(path):
+        if not switched["done"]:
+            switched["done"] = True
+            (root / "db").rename(moved)
+            os.symlink(outside, root / "db", target_is_directory=True)
+        return original_open(path)
+
+    monkeypatch.setattr(_SOURCE_MODULE, "_open_regular_readonly", intervene)
+    result = copy_to_offsite(source, checksum, None, None, root)
+    assert switched["done"] is True
+    assert result["status"] == "FAILED"
+    assert result["error_code"] == "DEST_DIRECTORY_UNSAFE"
+    assert list(outside.iterdir()) == []
+    assert list(moved.glob(".tmp_*")) == []
+
+
+def _rev02_fifo_swap_worker(source, checksum, root, queue):
+    """Separate process: old code would block reopening the swapped FIFO."""
+    import os
+    original = _SOURCE_MODULE.shutil.copyfileobj
+
+    def substitute_fifo(reader, writer, length):
+        original(reader, writer, length=length)
+        temp_path = next((root / "db").glob(".tmp_*"))
+        os.unlink(temp_path)
+        os.mkfifo(temp_path)
+
+    _SOURCE_MODULE.shutil.copyfileobj = substitute_fifo
+    try:
+        result = copy_to_offsite(source, checksum, None, None, root)
+        queue.put((result["status"], result["error_code"]))
+    finally:
+        _SOURCE_MODULE.shutil.copyfileobj = original
+
+
+def test_rev02_temp_path_replaced_by_fifo_does_not_block(tmp_path):
+    """NC-03: hard timeout and no final publication after temp-path sabotage."""
+    import multiprocessing
+    import os
+    import pytest
+    if os.name != "posix" or not hasattr(os, "mkfifo"):
+        pytest.skip("POSIX-only FIFO race; Windows has a separate residual risk")
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    checksum = _write(source, b"SYNTHETIC-ENCRYPTED-DB")
+    root = tmp_path / "nas"
+    ctx = multiprocessing.get_context("fork")
+    queue = ctx.Queue()
+    process = ctx.Process(target=_rev02_fifo_swap_worker, args=(source, checksum, root, queue))
+    process.start()
+    process.join(timeout=3)
+    if process.is_alive():
+        process.terminate()
+        process.join(timeout=3)
+        pytest.fail("REV-02 NC-03: relire le temporaire par chemin provoque un FIFO bloquant")
+    assert process.exitcode == 0
+    status, reason = queue.get(timeout=1)
+    assert status == "FAILED"
+    assert reason == "TEMP_PATH_TAMPERED"
+    assert not (root / "db" / source.name).exists()

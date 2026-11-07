@@ -70,6 +70,170 @@ def _open_regular_readonly(path: Path):
         raise
 
 
+def _posix_descriptor_backend_available() -> bool:
+    """Whether Python can anchor path operations to an already-open directory.
+
+    Windows needs a native, independently tested handle-relative backend:
+    the lexical fallback below remains a **non-approved** candidate there.
+    """
+    return (
+        os.name == "posix"
+        and hasattr(os, "O_DIRECTORY")
+        and hasattr(os, "O_NOFOLLOW")
+        and os.open in os.supports_dir_fd
+        and os.mkdir in os.supports_dir_fd
+        and os.stat in os.supports_dir_fd
+        and os.unlink in os.supports_dir_fd
+        and os.link in os.supports_dir_fd
+    )
+
+
+def _open_pinned_directory(directory: Path) -> int:
+    """Safely walk/create ancestors without following a path component symlink.
+
+    Caller owns returned fd. Each child is opened relative to its parent fd,
+    so replacing a path with a symlink cannot redirect subsequent operations
+    to the injected target. Does not establish Windows SMB/ACL semantics.
+    """
+    if not directory.is_absolute() or ".." in directory.parts:
+        raise OSError(errno.EPERM, "Unsafe target directory path")
+    flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
+    current = os.open(os.path.sep, flags)
+    try:
+        for part in directory.parts:
+            if part in ("", os.path.sep):
+                continue
+            try:
+                child = os.open(part, flags, dir_fd=current)
+            except FileNotFoundError:
+                try:
+                    os.mkdir(part, 0o700, dir_fd=current)
+                except FileExistsError:
+                    pass
+                child = os.open(part, flags, dir_fd=current)
+            os.close(current)
+            current = child
+        return current
+    except BaseException:
+        os.close(current)
+        raise
+
+
+def _pinned_directory_matches_path(directory: Path, pinned_fd: int) -> bool:
+    """Reject path replacement/remapping even when a pinned fd stays valid."""
+    try:
+        check_fd = _open_pinned_directory(directory)
+    except OSError:
+        return False
+    try:
+        expected = os.fstat(pinned_fd)
+        observed = os.fstat(check_fd)
+        return (expected.st_dev, expected.st_ino) == (observed.st_dev, observed.st_ino)
+    finally:
+        os.close(check_fd)
+
+
+def _copy_one_pinned_posix(
+    source: Path, expected_checksum: str, dest_dir: Path,
+) -> tuple[bool, str | None, str | None]:
+    """Copy, hash and publish via pinned directory and file descriptors.
+
+    No source, temp or existing-target pathname is reopened for blocking I/O.
+    The /proc/self/fd link source ties publication to the already-validated
+    temporary *inode*, even if its directory entry is replaced concurrently.
+    No destructive rename fallback is permitted.
+    """
+    try:
+        directory_fd = _open_pinned_directory(dest_dir)
+    except OSError as e:
+        code = "DEST_DIRECTORY_UNSAFE" if e.errno in (
+            errno.ELOOP, errno.EPERM, errno.EACCES,
+        ) else "DEST_UNREACHABLE"
+        return False, code, f"Ouverture ancrée impossible : {type(e).__name__}"
+
+    temp_name = f".tmp_{uuid.uuid4().hex}_{source.name}"
+    temp_inode = None
+    try:
+        try:
+            with _open_regular_readonly(source) as reader:
+                flags = (os.O_RDWR | os.O_CREAT | os.O_EXCL | os.O_NOFOLLOW
+                         | getattr(os, "O_CLOEXEC", 0))
+                temp_fd = os.open(temp_name, flags, 0o600, dir_fd=directory_fd)
+                with os.fdopen(temp_fd, "w+b", buffering=0) as temp:
+                    st = os.fstat(temp.fileno())
+                    temp_inode = (st.st_dev, st.st_ino)
+                    shutil.copyfileobj(reader, temp, length=1024 * 1024)
+                    temp.flush()
+                    os.fsync(temp.fileno())
+                    temp.seek(0)
+                    digest = hashlib.sha256()
+                    while True:
+                        chunk = temp.read(1024 * 1024)
+                        if not chunk:
+                            break
+                        digest.update(chunk)
+                    if digest.hexdigest() != expected_checksum:
+                        return False, "CHECKSUM_MISMATCH", "La copie chiffrée ne correspond pas au SHA-256"
+                    # The name can be swapped by another actor while the fd
+                    # stays pinned. Never link or open the replacement entry.
+                    temp_entry = os.stat(
+                        temp_name, dir_fd=directory_fd, follow_symlinks=False,
+                    )
+                    if (temp_entry.st_dev, temp_entry.st_ino) != temp_inode or not _regular_nonreparse(temp_entry):
+                        return False, "TEMP_PATH_TAMPERED", "Fichier temporaire substitué"
+                    if not _pinned_directory_matches_path(dest_dir, directory_fd):
+                        return False, "DEST_DIRECTORY_UNSAFE", "Répertoire remplacé pendant la copie"
+                    # Linux proc-fd is a trusted kernel path to the open inode.
+                    # Without it, fail closed rather than re-linking by a
+                    # potentially attacker-controlled temp pathname.
+                    proc_source = f"/proc/self/fd/{temp.fileno()}"
+                    if not os.path.exists(proc_source):
+                        return False, "ATOMIC_PUBLICATION_UNAVAILABLE", "Lien fd atomique indisponible"
+                    try:
+                        os.link(
+                            proc_source, source.name,
+                            dst_dir_fd=directory_fd, follow_symlinks=True,
+                        )
+                    except FileExistsError:
+                        existing_flags = (os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW
+                                          | getattr(os, "O_CLOEXEC", 0))
+                        try:
+                            existing_fd = os.open(
+                                source.name, existing_flags, dir_fd=directory_fd,
+                            )
+                            with os.fdopen(existing_fd, "rb") as existing:
+                                if not _regular_nonreparse(os.fstat(existing.fileno())):
+                                    return False, "EXISTING_BACKUP_UNSAFE_FILE_TYPE", "Destination finale non régulière"
+                                existing_digest = hashlib.sha256()
+                                while True:
+                                    piece = existing.read(1024 * 1024)
+                                    if not piece:
+                                        break
+                                    existing_digest.update(piece)
+                        except OSError:
+                            return False, "EXISTING_BACKUP_UNREADABLE", "Destination existante non lisible"
+                        if existing_digest.hexdigest() != expected_checksum:
+                            return False, "DESTINATION_NAME_COLLISION", "Nom final déjà utilisé par une archive différente"
+                    except OSError as e:
+                        return False, "ATOMIC_PUBLICATION_UNAVAILABLE", f"Publication sûre impossible : {type(e).__name__}"
+                    if not _pinned_directory_matches_path(dest_dir, directory_fd):
+                        return False, "DEST_DIRECTORY_UNSAFE", "Répertoire modifié après publication"
+                    return True, None, None
+        except OSError as e:
+            return False, "COPY_FAILED", f"Copie ou validation ancrée impossible : {type(e).__name__}"
+    finally:
+        # Never unlink an injected FIFO/symlink/alternate inode. Cleanup only
+        # the exact temporary inode created by this invocation.
+        if temp_inode is not None:
+            try:
+                candidate = os.stat(temp_name, dir_fd=directory_fd, follow_symlinks=False)
+                if (candidate.st_dev, candidate.st_ino) == temp_inode:
+                    os.unlink(temp_name, dir_fd=directory_fd)
+            except OSError:
+                pass
+        os.close(directory_fd)
+
+
 def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[bool, str | None, str | None]:
     """Copie atomiquement une sauvegarde déjà chiffrée vers le hors-site.
 
@@ -79,6 +243,11 @@ def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[boo
     Le fichier final n'est remplacé qu'après vérification SHA-256.
     Ne lève pas d'erreur d'E/S : la sauvegarde locale reste indépendante.
     """
+    if _posix_descriptor_backend_available():
+        return _copy_one_pinned_posix(source, expected_checksum, dest_dir)
+    # A native Windows directory-handle implementation is still required
+    # to make the active-adversary guarantee portable. Never advertise the
+    # lexical fallback below as Windows TOCTOU-safe.
     directory_failure = _directory_chain_failure(dest_dir)
     if directory_failure is not None:
         return False, directory_failure, "Destination non sûre ou inaccessible"
@@ -202,7 +371,11 @@ def copy_to_offsite(
         return result
 
     try:
-        dest_root.mkdir(parents=True, exist_ok=True)
+        if _posix_descriptor_backend_available():
+            root_fd = _open_pinned_directory(dest_root)
+            os.close(root_fd)
+        else:
+            dest_root.mkdir(parents=True, exist_ok=True)
     except (OSError, PermissionError) as e:
         logger.warning("Backup hors-site : destination injoignable (%s).", type(e).__name__)
         result["status"] = "UNREACHABLE"
