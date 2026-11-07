@@ -15,44 +15,58 @@ import logging
 import os
 import shutil
 import time
+import uuid
 from pathlib import Path
 
 logger = logging.getLogger("backup_offsite")
 
 
 def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[bool, str | None, str | None]:
-    """Copie un seul fichier de backup déjà produit vers dest_dir, vérifie son
-    intégrité par re-hash de la copie (jamais du fichier source -- garde ce module
-    découplé de la forme interne des résultats de backup local). Ne lève jamais.
-    Retourne (copied, error_code, error_message).
+    """Copie atomiquement une sauvegarde déjà chiffrée vers le hors-site.
+
+    Temporaire unique, créé en mode exclusif : aucune troncature d'un autre
+    transfert simultané (ni d'un ancien .tmp_*). Lecture et re-hash par blocs
+    pour ne jamais charger une grosse archive médicale entière en mémoire.
+    Le fichier final n'est remplacé qu'après vérification SHA-256.
+    Ne lève pas d'erreur d'E/S : la sauvegarde locale reste indépendante.
     """
     try:
         dest_dir.mkdir(parents=True, exist_ok=True)
-    except (OSError, PermissionError) as e:
+    except OSError as e:
         return False, "DEST_UNREACHABLE", f"Destination inaccessible : {type(e).__name__}"
 
     dest_path = dest_dir / source.name
-    temp_path = dest_dir / f".tmp_{source.name}"
+    temp_path = dest_dir / f".tmp_{uuid.uuid4().hex}_{source.name}"
     try:
-        shutil.copy2(source, temp_path)
-    except (OSError, PermissionError) as e:
-        return False, "COPY_FAILED", f"Échec de la copie : {type(e).__name__}"
+        try:
+            with source.open("rb") as reader, temp_path.open("xb") as writer:
+                shutil.copyfileobj(reader, writer, length=1024 * 1024)
+            # copy2's historical metadata behavior, without reopening the
+            # uniquely created destination for writing.
+            shutil.copystat(source, temp_path)
+        except OSError as e:
+            return False, "COPY_FAILED", f"Échec de la copie : {type(e).__name__}"
 
-    try:
-        actual_checksum = hashlib.sha256(temp_path.read_bytes()).hexdigest()
-        if actual_checksum != expected_checksum:
-            return False, "CHECKSUM_MISMATCH", "Le fichier copié ne correspond pas au checksum attendu"
-        os.replace(temp_path, dest_path)
-    except (OSError, PermissionError) as e:
-        return False, "VERIFY_FAILED", f"Échec de vérification/finalisation : {type(e).__name__}"
+        try:
+            digest = hashlib.sha256()
+            with temp_path.open("rb") as copied:
+                while True:
+                    block = copied.read(1024 * 1024)
+                    if not block:
+                        break
+                    digest.update(block)
+            if digest.hexdigest() != expected_checksum:
+                return False, "CHECKSUM_MISMATCH", "Le fichier copié ne correspond pas au checksum attendu"
+            os.replace(temp_path, dest_path)
+        except OSError as e:
+            return False, "VERIFY_FAILED", f"Échec de vérification/finalisation : {type(e).__name__}"
+
+        return True, None, None
     finally:
-        if temp_path.exists():
-            try:
-                temp_path.unlink()
-            except OSError:
-                pass
-
-    return True, None, None
+        try:
+            temp_path.unlink(missing_ok=True)
+        except OSError:
+            pass
 
 
 def copy_to_offsite(

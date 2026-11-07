@@ -103,3 +103,60 @@ def test_never_raises_on_unexpected_source_type(tmp_path):
 
     assert result["status"] == "FAILED"
     assert result["db_copied"] is False
+
+
+
+def test_legacy_fixed_temp_filename_is_not_overwritten(tmp_path):
+    """A preexisting legacy temp file must not be truncated by a new copy."""
+    db_source = tmp_path / "local" / "db_backup_x.sql.enc"
+    checksum = _write(db_source, b"encrypted-backup")
+    db_dest = tmp_path / "nas" / "db"
+    db_dest.mkdir(parents=True)
+    legacy_temp = db_dest / ".tmp_db_backup_x.sql.enc"
+    legacy_temp.write_bytes(b"OTHER-COPY-IN-PROGRESS")
+
+    result = copy_to_offsite(db_source, checksum, None, None, tmp_path / "nas")
+
+    assert result["status"] == "SUCCESS"
+    assert legacy_temp.read_bytes() == b"OTHER-COPY-IN-PROGRESS"
+    assert (db_dest / db_source.name).read_bytes() == b"encrypted-backup"
+    assert sorted(p.name for p in db_dest.iterdir() if p.name.startswith(".tmp_")) == [legacy_temp.name]
+
+
+def test_bad_checksum_preserves_existing_valid_offsite_backup(tmp_path):
+    """Never publish an invalid copy or erase a previously verified archive."""
+    source = tmp_path / "local" / "db_backup_x.sql.enc"
+    original_checksum = _write(source, b"original-valid-encrypted-backup")
+    destination = tmp_path / "nas"
+    assert copy_to_offsite(source, original_checksum, None, None, destination)["status"] == "SUCCESS"
+
+    source.write_bytes(b"CHANGED-SOURCE")
+    result = copy_to_offsite(source, original_checksum, None, None, destination)
+
+    assert result["status"] == "FAILED"
+    assert result["error_code"] == "CHECKSUM_MISMATCH"
+    assert (destination / "db" / source.name).read_bytes() == b"original-valid-encrypted-backup"
+    assert list((destination / "db").glob(".tmp_*")) == []
+
+
+def test_large_offsite_copy_rehashes_by_blocks(tmp_path, monkeypatch):
+    """Do not call Path.read_bytes() on the temporary copy: bounded-memory hash."""
+    from pathlib import Path
+
+    source = tmp_path / "local" / "media_backup_x.zip.enc"
+    payload = b"backup-blob" * 650000
+    checksum = _write(source, payload)
+    dest = tmp_path / "nas"
+    original_read_bytes = Path.read_bytes
+
+    def refuse_read_all(self):
+        if self.name.startswith(".tmp_"):
+            raise AssertionError("temporary offsite copy must be hashed in chunks")
+        return original_read_bytes(self)
+
+    monkeypatch.setattr(Path, "read_bytes", refuse_read_all)
+    result = copy_to_offsite(None, None, source, checksum, dest)
+
+    assert result["status"] == "SUCCESS"
+    assert (dest / "media" / source.name).read_bytes() == payload
+    assert list((dest / "media").glob(".tmp_*")) == []

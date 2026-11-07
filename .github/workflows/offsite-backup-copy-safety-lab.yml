@@ -1,0 +1,42 @@
+name: Offsite Encrypted Backup Copy Safety LAB
+on:
+  pull_request:
+    paths:
+      - backend/scripts/backup_offsite.py
+      - backend/tests/test_backup_offsite.py
+      - .github/workflows/offsite-backup-copy-safety-lab.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offsite-copy-safety:
+    name: Encrypted offsite copy safety (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    env:
+      EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ env.EXPECTED_SHA }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Enforce exact HEAD before testing
+        shell: pwsh
+        run: |
+          $head = (git rev-parse HEAD).Trim()
+          if ($head -ne $env:EXPECTED_SHA) { throw "OFFSITE_COPY_EXACT_HEAD_MISMATCH" }
+          Write-Output "OFFSITE_COPY_TEST_HEAD=$head"
+      - name: Install standalone test dependency
+        run: python -m pip install pytest==8.4.2
+      - name: Test encrypted offsite copy (no clinical DB/media)
+        run: python -m pytest backend/tests/test_backup_offsite.py -q --maxfail=1
+      - name: Read-only synthetic gate marker
+        run: python -c "print('OFFSITE_COPY_SYNTHETIC_ONLY_NO_REAL_ESCROW_OR_RESTORE_GO')"
