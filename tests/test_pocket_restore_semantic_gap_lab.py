@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import hashlib
 import secrets
+import pytest
 import sqlite3
 import uuid
 from datetime import datetime
@@ -43,8 +44,9 @@ def _engine(path, passphrase):
     return create_engine("sqlite:///" + str(path), creator=connect, poolclass=NullPool)
 
 
-def test_valid_encryption_does_not_mean_complete_pocket_document(tmp_path, monkeypatch):
-    """Characterization: current preflight ACCEPTS missing linked canonical PDF."""
+@pytest.mark.parametrize("clinical_fault", ["missing_canonical", "wrong_hash", "missing_mirror", "wrong_mirror"])
+def test_valid_encryption_does_not_mean_complete_pocket_document(tmp_path, monkeypatch, clinical_fault):
+    """Fail-closed guard: all four defects must BLOCK a valid encrypted bundle."""
     private = tmp_path / "ephemeral-keys-only"
     private.mkdir(mode=0o700)
     monkeypatch.setattr(
@@ -111,7 +113,15 @@ def test_valid_encryption_does_not_mean_complete_pocket_document(tmp_path, monke
     mirror = media / HISTORICAL
     mirror.parent.mkdir(parents=True)
     mirror.write_bytes(PDF)
-    assert not (media / CANONICAL).exists()
+    canonical_file = media / CANONICAL
+    if clinical_fault in {"wrong_hash", "missing_mirror", "wrong_mirror"}:
+        canonical_file.parent.mkdir(parents=True)
+        canonical_file.write_bytes(PDF if clinical_fault != "wrong_hash" else PDF + b"damaged-content")
+    if clinical_fault == "missing_mirror":
+        mirror.unlink()
+    if clinical_fault == "wrong_mirror":
+        mirror.write_bytes(PDF + b"tampered-mirror")
+    assert canonical_file.exists() == (clinical_fault != "missing_canonical")
     portable_db = tmp_path / "plaintext-transit-from-fixture.sqlite"
     _export_sqlcipher_plaintext(source, portable_db, passphrase)
     portable_bundle = tmp_path / "fictional-valid-crypto-invalid-clinical.dcbundle"
@@ -120,27 +130,27 @@ def test_valid_encryption_does_not_mean_complete_pocket_document(tmp_path, monke
         portable_bundle, migration_secret,
         database_path=portable_db, media_root=media,
     )
-    assert package["media_file_count"] == 1
+    assert package["media_file_count"] == (1 if clinical_fault in {"missing_canonical", "missing_mirror"} else 2)
     guided_zip = tmp_path / "converted-guided-only.zip"
     conversion = CabinetBundleService.to_local_guided_restore_archive(
         portable_bundle, migration_secret, guided_zip,
         active_engine=("sqlite", "pysqlcipher"),
     )
-    assert conversion["media_file_count"] == 1
+    assert conversion["media_file_count"] == (1 if clinical_fault in {"missing_canonical", "missing_mirror"} else 2)
 
     preflight = GuidedRestoreService.preflight_file(
         guided_zip, original_name="fictional-bundle.zip",
         active_engine=("sqlite", "pysqlcipher"), owner_employer_id=OWNER,
     )
-    assert preflight["compatible"] is True
+    assert preflight["compatible"] is False
     assert preflight["restore_media"] is True
-    assert preflight["media_file_count"] == 1
-    # KNOWN MAJOR GAP: passes despite COMPLETED receipt and DocumentArchive
-    # referencing an absent canonical PDF. Keep this explicit characterization
-    # until a reviewed, fail-closed semantic validator is implemented.
-    assert preflight["status"] == "preflight_ready"
-    assert not preflight["errors"]
+    assert preflight["media_file_count"] == (1 if clinical_fault in {"missing_canonical", "missing_mirror"} else 2)
+    assert preflight["status"] == "blocked"
+    assert preflight["errors"] == [
+        "Archive clinique Pocket non vérifiable : revue manuelle requise."
+    ]
     assert document_id > 0
-    assert not (media / CANONICAL).exists()
-    assert mirror.read_bytes() == PDF
     assert GuidedRestoreService.runtime_apply_supported() is False
+    # A rejected fixture never changes the user-controlled source media.
+    assert canonical_file.exists() == (clinical_fault != "missing_canonical")
+    assert mirror.exists() == (clinical_fault != "missing_mirror")
