@@ -7,8 +7,6 @@ These tests exercise EXISTING BackupService and GuidedRestoreArchive APIs.
 from __future__ import annotations
 
 import hashlib
-import io
-import os
 import secrets
 import sqlite3
 import uuid
@@ -21,6 +19,7 @@ from sqlalchemy import Column, Integer, MetaData, String, Table, create_engine, 
 from sqlalchemy.orm import Session
 from sqlalchemy.pool import NullPool
 from sqlcipher3 import dbapi2 as cipher
+from cryptography.fernet import InvalidToken
 
 from backend.core.paths import AppPaths
 from backend.services.backup_service import BackupService
@@ -120,7 +119,7 @@ def synthetic_lab(tmp_path, monkeypatch):
         session.commit()
 
     # Verify source is genuinely encrypted (not a renamed SQLite plaintext DB).
-    assert source.read_bytes()[:16] != b"SQLite format 3\\x00"
+    assert source.read_bytes()[:16] != b"SQLite format 3\x00"
     with pytest.raises(sqlite3.DatabaseError):
         with sqlite3.connect(source) as plain:
             plain.execute("SELECT name FROM sqlite_master").fetchall()
@@ -168,7 +167,7 @@ def test_restored_sqlcipher_receipt_keeps_exactly_one_archive_and_processing_loc
         passphrase=lab["passphrase"],
     )
     assert restored.is_file()
-    assert restored.read_bytes()[:16] != b"SQLite format 3\\x00"
+    assert restored.read_bytes()[:16] != b"SQLite format 3\x00"
 
     # SQLCipher integrity on a fresh native connection.
     with _open_cipher(restored, lab["passphrase"]) as raw:
@@ -214,7 +213,7 @@ def test_wrong_key_or_corrupt_encrypted_backup_never_overwrites_destination(synt
     existing = lab["root"] / "never-overwrite.db"
     original_marker = b"EXISTING_SYNTHETIC_DESTINATION_MUST_BE_PRESERVED"
     existing.write_bytes(original_marker)
-    with pytest.raises(Exception):
+    with pytest.raises((cipher.DatabaseError, RuntimeError)):
         BackupService.restore_backup(
             lab["db_backup"], existing, verify_sqlcipher=True,
             passphrase="definitely-the-wrong-sqlcipher-passphrase",
@@ -225,7 +224,7 @@ def test_wrong_key_or_corrupt_encrypted_backup_never_overwrites_destination(synt
     encrypted = bytearray(lab["db_backup"].read_bytes())
     encrypted[len(encrypted) // 2] ^= 0x01
     damaged.write_bytes(bytes(encrypted))
-    with pytest.raises(Exception):
+    with pytest.raises(InvalidToken):
         BackupService.restore_backup(
             damaged, existing, verify_sqlcipher=True,
             passphrase=lab["passphrase"],
@@ -237,6 +236,6 @@ def test_wrong_key_or_corrupt_encrypted_backup_never_overwrites_destination(synt
     ciphertext[len(ciphertext) // 2] ^= 0x01
     corrupt_media.write_bytes(bytes(ciphertext))
     media_target = lab["root"] / "never-extract-corrupt-media"
-    with pytest.raises(Exception):
+    with pytest.raises((ValueError, RuntimeError)):
         _extract_encrypted_media(corrupt_media, media_target)
     assert not media_target.exists()
