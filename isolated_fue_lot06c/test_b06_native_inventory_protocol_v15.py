@@ -72,3 +72,31 @@ def test_b06_adapter_disabled_outside_disposable_windows_vm(monkeypatch):
     with pytest.raises(NativeInventoryDenied, match="LAB_DISABLED"):
         read_native_unassigned(r"\\evil\pipe\DigitalCrown-LAB-R-" + "0" * 32)
     print("DC06_B06_NATIVE_ADAPTER_NO_CABINET_PASS")
+
+
+@pytest.mark.parametrize("invalid", [None, 0, -1, True, "123", 0x100000000])
+def test_b06_bs2_native_bridge_requires_trusted_scm_pid(invalid):
+    from tools.imaging_gateway.native_product_bridge_v15 import windows_native_bridge
+    from tools.imaging_gateway.native_inventory_windows_v15 import _require_server_pid
+
+    with pytest.raises(NativeInventoryDenied, match="NATIVE_PIPE_SERVER_PID_REQUIRED"):
+        _require_server_pid(invalid)
+    with pytest.raises(NativeInventoryDenied, match="NATIVE_BRIDGE_SERVER_PID_REQUIRED"):
+        windows_native_bridge(
+            tenant_id=1, workstation_id="DC06B06_LAB_STATION",
+            pipe_name=r"\\\\.\\pipe\\DigitalCrown-LAB-R-" + "0" * 32,
+            expected_server_pid=invalid,
+        )
+
+
+def test_b06_bs2_native_bridge_constructor_preserves_server_pin():
+    from tools.imaging_gateway.native_product_bridge_v15 import windows_native_bridge
+
+    native = windows_native_bridge(
+        tenant_id=1, workstation_id="DC06B06_LAB_STATION",
+        pipe_name=r"\\\\.\\pipe\\DigitalCrown-LAB-R-" + "0" * 32,
+        expected_server_pid=34567,
+    )
+    assert native.tenant_id == 1
+    assert native.workstation_id == "DC06B06_LAB_STATION"
+    print("DC06_B06_BS2_BRIDGE_TRUSTED_PID_REQUIRED_FAIL_CLOSED_PASS")
