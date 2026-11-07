@@ -244,6 +244,10 @@ def test_atomic_no_clobber_unavailable_never_uses_unsafe_replace(tmp_path, monke
     source = tmp_path / "local" / "db_backup.sql.enc"
     digest = _write(source, b"VALID-DB")
     remote = tmp_path / "nas"
+    import os
+    import pytest
+    if os.name == "nt":
+        pytest.skip("POSIX os.link injection; native Win32 link failure tested separately")
     def deny_link(*args, **kwargs):
         raise OSError("hard links unavailable on target share")
     monkeypatch.setattr(_SOURCE_MODULE.os, "link", deny_link)
@@ -468,3 +472,107 @@ def test_rev02_pinned_directory_recheck_never_creates_missing_path(tmp_path):
         assert not root.exists()
     finally:
         os.close(original_fd)
+
+
+def _win32_native_for_lab():
+    """Dynamically import only the standalone Win32 backend; no backend fixtures."""
+    import importlib.util
+    from pathlib import Path
+    path = Path(__file__).resolve().parents[1] / "backend" / "scripts" / "backup_offsite_win32.py"
+    spec = importlib.util.spec_from_file_location("_dc_win32_adversarial_lab", path)
+    assert spec is not None and spec.loader is not None
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_win32_native_link_unavailable_fails_closed_and_preserves_original(tmp_path, monkeypatch):
+    """No fallback to unsafe rename when native link operation is unavailable."""
+    import os
+    import pytest
+    if os.name != "nt":
+        pytest.skip("Windows native handle-only operation")
+    native = _win32_native_for_lab()
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"VALID-ENCRYPTED-DB")
+    remote = tmp_path / "nas" / "db"
+    def unavailable(*args, **kwargs):
+        raise OSError("injected target filesystem does not support links")
+    monkeypatch.setattr(native, "_link_from_handle", unavailable)
+    good, code, _msg = native.copy_one_win32(source, digest, remote)
+    assert good is False
+    assert code == "ATOMIC_PUBLICATION_UNAVAILABLE"
+    assert not (remote / source.name).exists()
+    assert list(remote.glob(".tmp_*")) == []
+
+
+def test_win32_native_temp_swap_cannot_publish_injected_file(tmp_path, monkeypatch):
+    """Switch temp pathname after bytes copied; publication must stay fd-bound."""
+    import os
+    import pytest
+    if os.name != "nt":
+        pytest.skip("Windows native handle-only operation")
+    native = _win32_native_for_lab()
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"VALID-ENCRYPTED-DB")
+    remote = tmp_path / "nas" / "db"
+    original_copy = native.shutil.copyfileobj
+    tampered = {"yes": False}
+
+    def substitute(reader, writer, length):
+        original_copy(reader, writer, length=length)
+        tempfile = next(remote.glob(".tmp_*"))
+        try:
+            tempfile.rename(remote / "moved_original.tmp")
+        except OSError:
+            pytest.skip("Windows filesystem denied rename of open temp, already guarded")
+        tempfile.write_bytes(b"INJECTED-EVIL")
+        tampered["yes"] = True
+
+    monkeypatch.setattr(native.shutil, "copyfileobj", substitute)
+    good, code, _msg = native.copy_one_win32(source, digest, remote)
+    assert tampered["yes"]
+    assert good is False
+    assert code == "TEMP_PATH_TAMPERED"
+    assert not (remote / source.name).exists()
+    assert (remote / ".tmp_injected_name").exists() is False
+
+
+def test_win32_native_directory_swap_cannot_redirect_into_external_root(tmp_path, monkeypatch):
+    """Swap the db directory after a safe parent handle is pinned."""
+    import os
+    import pytest
+    if os.name != "nt":
+        pytest.skip("Windows native handle-relative test")
+    native = _win32_native_for_lab()
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"VALID-ENCRYPTED-DB")
+    root = tmp_path / "nas"
+    remote = root / "db"
+    remote.mkdir(parents=True)
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    original_source = native._source_reader
+    switch = {"done": False, "denied": False}
+
+    def intervene(path, kernel):
+        if not switch["done"]:
+            switch["done"] = True
+            try:
+                remote.rename(root / "db_moved")
+            except OSError:
+                switch["denied"] = True
+            else:
+                os.symlink(outside, remote, target_is_directory=True)
+        return original_source(path, kernel)
+
+    monkeypatch.setattr(native, "_source_reader", intervene)
+    good, code, _msg = native.copy_one_win32(source, digest, remote)
+    assert switch["done"]
+    assert list(outside.iterdir()) == []
+    if switch["denied"]:
+        assert good is True
+    else:
+        assert good is False
+        assert code == "DEST_DIRECTORY_UNSAFE"
+        assert not (outside / source.name).exists()
