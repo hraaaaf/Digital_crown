@@ -113,6 +113,17 @@ def _open_pinned_directory(directory: Path, *, create: bool = True) -> int:
                 except FileExistsError:
                     pass
                 child = os.open(part, flags, dir_fd=current)
+            except NotADirectoryError as e:
+                # Linux returns ENOTDIR (not ELOOP) for O_NOFOLLOW +
+                # O_DIRECTORY on a symbolic link. Distinguish it from a
+                # regular-file ancestor, which remains DEST_UNREACHABLE.
+                try:
+                    entry = os.stat(part, dir_fd=current, follow_symlinks=False)
+                except OSError:
+                    raise e
+                if stat.S_ISLNK(entry.st_mode):
+                    raise OSError(errno.ELOOP, "Symlink ancestor denied") from e
+                raise
             os.close(current)
             current = child
         return current
