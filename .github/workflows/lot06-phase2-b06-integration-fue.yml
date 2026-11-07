@@ -52,6 +52,8 @@ on:
       - tools/imaging_gateway/native_product_bridge_v15.py
       - backend/routers/imaging_acquisition_unassigned_v15.py
       - backend/main.py
+      - backend/scripts/verify_lot05_windows_publisher_preflight.ps1
+      - backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1
       - docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
   workflow_dispatch:
 permissions:
@@ -278,6 +280,13 @@ jobs:
           if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
           python isolated_fue_lot06c/f5bd4_fixed_recovery_windows_fue.py
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: BS2-03 inherited LOT05.7A-G Windows publisher preflight (negative-only, no real issuer)
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_BS203_05G_SHA_MISMATCH' }
+          ./backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Write-Output 'DC06_BS203_05G_SYNTHETIC_NEGATIVE_ONLY_PUBLISHER_NOT_ATTESTED'
       - name: Windows bounded Authenticode + closed ZIP + wrong signer FUE
         shell: pwsh
         run: |
