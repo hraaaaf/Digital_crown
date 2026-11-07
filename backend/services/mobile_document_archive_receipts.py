@@ -65,13 +65,32 @@ def payload_sha256(payload: dict) -> str:
 def assert_receipt_schema(db: Session) -> None:
     """Never create tables in a request or migrate a cabinet implicitly."""
     try:
-        exists = inspect(db.get_bind()).has_table(MobileDocumentArchiveReceipt.__tablename__)
+        inspector = inspect(db.get_bind())
+        table = MobileDocumentArchiveReceipt.__tablename__
+        if not inspector.has_table(table):
+            raise HTTPException(
+                status_code=503,
+                detail="Archivage Pocket désactivé : migration du registre non autorisée.",
+            )
+        # A table by this name is NOT proof of the approved migration.
+        # An absent UNIQUE(scope, UUID) could create two clinical documents
+        # when concurrent devices or network retries arrive.
+        columns = {column["name"] for column in inspector.get_columns(table)}
+        required = {column.name for column in MobileDocumentArchiveReceipt.__table__.columns}
+        unique_scope = {"tenant_id", "actor_id", "device_id", "idempotency_key"}
+        constraints = inspector.get_unique_constraints(table)
+        indexes = inspector.get_indexes(table)
+        enforce_unique = any(
+            set(item.get("column_names") or ()) == unique_scope
+            for item in (*constraints, *indexes)
+            if item.get("unique", True)
+        )
     except SQLAlchemyError as exc:
         raise HTTPException(status_code=503, detail="Registre d'archivage indisponible.") from exc
-    if not exists:
+    if not required.issubset(columns) or not enforce_unique:
         raise HTTPException(
             status_code=503,
-            detail="Archivage Pocket désactivé : migration du registre non autorisée.",
+            detail="Registre d'archivage incomplet : activation refusée.",
         )
 
 
