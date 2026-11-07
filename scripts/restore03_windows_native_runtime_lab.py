@@ -25,6 +25,9 @@ from pathlib import Path
 from urllib.request import urlopen
 
 ROOT = Path(__file__).resolve().parents[1]
+# Direct script entrypoints have scripts/ as sys.path[0]; explicitly add checkout.
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 MARKER = "RESTORE03_WINDOWS_NATIVE_SOURCE_RUNTIME_NOT_INSTALLABLE_NO_CLINICAL_GO"
 PROOF = "restore03-windows-source-runtime-lab-evidence.json"
 
@@ -248,7 +251,7 @@ def main() -> int:
         _real_http_health(env, work, port)
         report = {
             "marker": MARKER,
-            "tested_sha": os.environ.get("GITHUB_SHA"),
+            "tested_sha": os.environ.get("EXACT_HEAD"),
             "os": "windows",
             "runtime": "real run.py FastAPI process, NOT frozen EXE",
             "schema_migration": "alembic-upgrade-head-on-disposable-db",
