@@ -1,0 +1,116 @@
+name: CPV2-02C Real Browser ↔ FastAPI Archive FUE (isolated, NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cpv2-02c-real-browser.yml'
+      - 'scripts/ci/cpv2_02c_real_browser_lab.py'
+      - 'frontend/scripts/certify-cpv2-02c-real-browser.mjs'
+      - 'backend/main.py'
+      - 'backend/routers/mobile.py'
+      - 'backend/services/mobile_document_archive_receipts.py'
+      - 'backend/services/archive_service.py'
+      - 'frontend/src/features/mobile/Dashboard/views/MobileQuickDocumentSheet.tsx'
+      - 'frontend/src/services/zka/MobileStorage.ts'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cpv2-02c-real-browser-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-browser:
+    name: Genuine Chromium + JWT Pocket + FastAPI + disposable local DB
+    runs-on: ubuntu-latest
+    timeout-minutes: 55
+    container:
+      image: mcr.microsoft.com/playwright:v1.55.0-noble
+    env:
+      GITHUB_ACTIONS: 'true'
+      CPV2_02C_REAL_BROWSER_LAB: '1'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      CPV2_REAL_BROWSER_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DEBUG: 'false'
+    steps:
+      - name: Immutable source checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ env.CPV2_REAL_BROWSER_SHA }}
+      - name: Attest exact SHA / isolated CI / NO DEPLOY
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          test "$(git rev-parse HEAD)" = "$CPV2_REAL_BROWSER_SHA"
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = true
+          test "$ENVIRONMENT" = test
+          test "$CPV2_02C_REAL_BROWSER_LAB" = 1
+          test "$(node -e 'const v=require("./vercel.json");process.stdout.write(String(v.git?.deploymentEnabled))')" = false
+          test ! -e "$RUNNER_TEMP/cpv2-02c-real-browser-$GITHUB_RUN_ID"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated FastAPI and real PDF generator dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install torch==2.12.0 torchvision==0.27.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision)([<=>].*)?$' requirements.txt > /tmp/cpv2-real-browser-req.txt
+          pip install -r /tmp/cpv2-real-browser-req.txt
+          pip install 'httpx==0.27.2' 'pytest' 'pytest-asyncio'
+      - name: Install React and pinned Chromium harness
+        shell: bash
+        working-directory: frontend
+        run: |
+          set -euo pipefail
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          node -e "const fs=require('node:fs'); const {chromium}=require('playwright'); if(!fs.existsSync(chromium.executablePath())) throw Error('Pinned Chromium missing')"
+      - name: Real browser interaction, post-commit network loss and SQL receipt evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B scripts/ci/cpv2_02c_real_browser_lab.py
+      - name: Verify evidence exact source and absence of mocks
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          root = Path('artifacts/cpv2-02c-real-browser')
+          x = json.loads((root / 'evidence.json').read_text())
+          assert x['sourceHead'] == os.environ['CPV2_REAL_BROWSER_SHA']
+          assert x['mocks'] is False and x['allPassed'] is True
+          assert x['postconditions']['uniqueDocumentRows'] == 2
+          assert x['postconditions']['uniqueCompletedReceipts'] == 2
+          assert x['postconditions']['allArchivedSha256Match']
+          assert x['postconditions']['revokedDeviceGet'] == 401
+          assert len(x['documents']) == 2
+          assert all(d['actualRequestsToBackend'] == 1 and d['replayStatus'] == 200
+              and d['collisionStatus'] == 409 for d in x['documents'])
+          assert any(d['lostResponse'] and d['safeRecovery'] and d['receiptGetsInBrowser'] == 1 for d in x['documents'])
+          for name in x['screenshots']:
+              b = (root / name).read_bytes()
+              assert b[:8] == bytes([137,80,78,71,13,10,26,10]) and len(b) > 5000
+          print('REAL browser / FastAPI evidence certified at exact HEAD; no mocks, no deploy')
+          PY
+      - name: Upload real browser evidence for review (synthetic only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: cpv2-02c-real-browser-${{ env.CPV2_REAL_BROWSER_SHA }}
+          path: artifacts/cpv2-02c-real-browser/
+          if-no-files-found: warn
+          retention-days: 30

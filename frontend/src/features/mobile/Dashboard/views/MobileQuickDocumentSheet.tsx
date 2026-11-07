@@ -50,14 +50,6 @@ function resolveApiBaseUrl(stored: string): string {
   return stored.replace(/\/$/, '');
 }
 
-function resolvePdfUrl(baseUrl: string, value: string): string {
-  const raw = value.trim();
-  if (/^https?:\/\//i.test(raw)) return raw;
-  if (raw.startsWith('/')) return `${baseUrl}${raw}`;
-  if (raw.startsWith('api/')) return `${baseUrl}/${raw}`;
-  return `${baseUrl}/api/${raw}`;
-}
-
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
 }
@@ -92,6 +84,27 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
   const [success, setSuccess] = useState('');
   const [previewPayload, setPreviewPayload] = useState<Record<string, unknown> | null>(null);
   const [previewPdfUrl, setPreviewPdfUrl] = useState<string | null>(null);
+  const [archived, setArchived] = useState(false);
+  const [uncertainArchive, setUncertainArchive] = useState(false);
+  const [pendingArchiveKey, setPendingArchiveKey] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (preview) return;
+    let active = true;
+    void MobileStorage.getPendingDocumentArchive().then((pending) => {
+      if (!active || !pending || pending.patientId !== patient.id) return;
+      setPendingArchiveKey(pending.intentKey);
+      setType(pending.documentType);
+      setUncertainArchive(true);
+      setError('Archivage à vérifier : ne renvoyez pas le document avant confirmation du reçu.');
+    }).catch(() => {
+      if (active) setError('Impossible de vérifier un archivage local en attente.');
+    });
+    return () => { active = false; };
+  }, [patient.id, preview]);
+  useEffect(() => () => {
+    if (previewPdfUrl?.startsWith('blob:') && typeof URL.revokeObjectURL === 'function') URL.revokeObjectURL(previewPdfUrl);
+  }, [previewPdfUrl]);
 
   useEffect(() => {
     if (preview) return;
@@ -187,25 +200,88 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     throw new Error('Choisissez un type de document.');
   };
 
-  const requestDocument = async (payload: Record<string, unknown>, archive: boolean) => {
+  const requestDocument = async (payload: Record<string, unknown>, archive: boolean, intentKey?: string) => {
     const creds = await MobileStorage.getCredentials();
     if (!creds) throw new Error('Session mobile indisponible.');
     const baseUrl = resolveApiBaseUrl(creds.api_base_url);
-    const response = await mobileFetch(`${baseUrl}/api/documents/generate?archive=${archive ? 'true' : 'false'}&preview=${archive ? 'false' : 'true'}&force=false`, {
+    const response = await mobileFetch(`${baseUrl}/api/mobile/documents/${archive ? 'archive' : 'preview'}`, {
       method: 'POST',
-      headers: { Authorization: `Bearer ${creds.access_token}`, 'Content-Type': 'application/json' },
+      headers: {
+        Authorization: `Bearer ${creds.access_token}`,
+        'Content-Type': 'application/json',
+        ...(archive && intentKey ? { 'Idempotency-Key': intentKey } : {}),
+      },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(20000),
     });
-    const body = await response.json().catch(() => ({}));
     if (!response.ok) {
+      const body = await response.json().catch(() => ({}));
       const detail = body?.detail;
       throw new Error((typeof detail === 'string' ? detail : detail?.message) || `Génération indisponible (${response.status}).`);
     }
-    return { body, baseUrl };
+    if (!(response.headers.get('content-type') || '').includes('application/pdf')) {
+      throw new Error('Réponse PDF invalide.');
+    }
+    if (archive && !response.headers.get('x-document-id')) throw new Error('Confirmation serveur manquante.');
+    const pdf = await response.blob();
+    if (!pdf.size) throw new Error('PDF vide.');
+    return URL.createObjectURL(pdf);
+  };
+
+  const reconcileArchive = async () => {
+    setError(''); setSuccess('');
+    setBusy(true);
+    try {
+      const pending = await MobileStorage.getPendingDocumentArchive();
+      if (!pending || pending.patientId !== patient.id || pending.intentKey !== pendingArchiveKey) {
+        throw new Error('Reçu local introuvable ou lié à un autre patient.');
+      }
+      const creds = await MobileStorage.getCredentials();
+      if (!creds) throw new Error('Session Pocket indisponible.');
+      const baseUrl = resolveApiBaseUrl(creds.api_base_url);
+      // Recovery is GET-only. Never repeat the clinical archive POST.
+      const response = await mobileFetch(`${baseUrl}/api/mobile/documents/archive/receipt/${pending.intentKey}`, {
+        method: 'GET',
+        headers: { Authorization: `Bearer ${creds.access_token}` },
+        signal: AbortSignal.timeout(10000),
+      });
+      if (response.status === 202) {
+        setError('Archivage encore en cours. Vérifiez à nouveau sans réenvoyer le document.');
+        return;
+      }
+      if (response.status === 409) {
+        setError('Résultat à vérifier au cabinet : aucune nouvelle écriture ne sera envoyée.');
+        return;
+      }
+      if (!response.ok) {
+        throw new Error(`Reçu indisponible (${response.status}). Conservez cette opération pour vérification.`);
+      }
+      if (!(response.headers.get('content-type') || '').includes('application/pdf')
+        || !response.headers.get('x-document-id')) {
+        throw new Error('Reçu PDF non authentifié par le serveur.');
+      }
+      const blob = await response.blob();
+      if (!blob.size) throw new Error('Reçu PDF vide.');
+      setPreviewPdfUrl(URL.createObjectURL(blob));
+      setType(pending.documentType);
+      setPreviewPayload({});
+      setArchived(true);
+      setUncertainArchive(false);
+      setPendingArchiveKey(null);
+      setSuccess('Archive retrouvée et confirmée par le registre du cabinet.');
+      await MobileStorage.clearPendingDocumentArchive(pending.intentKey);
+    } catch (failure) {
+      setError(failure instanceof Error ? failure.message : 'Reçu indisponible. Vérifiez au cabinet.');
+    } finally {
+      setBusy(false);
+    }
   };
 
   const previewDocument = async () => {
+    if (uncertainArchive) {
+      setError('Une archive doit être vérifiée avant toute nouvelle préparation.');
+      return;
+    }
     setError(''); setSuccess('');
     let payload: Record<string, unknown>;
     try { payload = buildPayload(); } catch (failure) { setError(failure instanceof Error ? failure.message : 'Document incomplet.'); return; }
@@ -217,55 +293,99 @@ export function MobileQuickDocumentSheet({ patient, preview = false, onClose }: 
     }
     setBusy(true);
     try {
-      const { body, baseUrl } = await requestDocument(payload, false);
+      const url = await requestDocument(payload, false);
       setPreviewPayload(payload);
-      setPreviewPdfUrl(body?.pdf_url ? resolvePdfUrl(baseUrl, String(body.pdf_url)) : null);
+      setArchived(false);
+      setPreviewPdfUrl(url);
       setSuccess('Aperçu validé. Vérifiez puis archivez.');
     } catch (failure) { setError(failure instanceof Error ? failure.message : 'Impossible de prévisualiser le document.'); } finally { setBusy(false); }
   };
 
   const archiveDocument = async () => {
-    if (!previewPayload) return;
+    if (!previewPayload || archived || busy || uncertainArchive) return;
     setError(''); setSuccess('');
     if (preview) {
       setSuccess('Aperçu isolé : archivage simulé sans réseau.');
       return;
     }
+    if (type === 'honoraires') {
+      setError('Archivage des notes d’honoraires indisponible sur Pocket : validation comptable requise.');
+      return;
+    }
+    if (!type) return;
     setBusy(true);
+    let archiveAttempted = false;
     try {
-      const { body, baseUrl } = await requestDocument(previewPayload, true);
-      setSuccess('Document généré et archivé dans le dossier patient.');
-      if (body?.pdf_url) window.open(resolvePdfUrl(baseUrl, String(body.pdf_url)), '_blank', 'noopener,noreferrer');
-    } catch (failure) { setError(failure instanceof Error ? failure.message : 'Impossible d’archiver le document.'); } finally { setBusy(false); }
+      const existing = await MobileStorage.getPendingDocumentArchive();
+      if (existing) {
+        throw new Error('Une archive précédente doit être vérifiée avant une nouvelle écriture.');
+      }
+      const creds = await MobileStorage.getCredentials();
+      if (!creds) throw new Error('Session Pocket non appairée.');
+      // Read-only gate BEFORE recording an intent: no speculative archive
+      // attempt when the explicit cabinet SQL migration is still absent.
+      const ready = await mobileFetch(
+        `${resolveApiBaseUrl(creds.api_base_url)}/api/mobile/documents/archive/ready`,
+        { method: 'GET', headers: { Authorization: `Bearer ${creds.access_token}` }, signal: AbortSignal.timeout(5000) },
+      );
+      if (!ready.ok) throw new Error('Archivage Pocket non activé dans ce cabinet.');
+      const intentKey = crypto.randomUUID();
+      // Persist the opaque key BEFORE any network write. This is not an offline replay queue.
+      await MobileStorage.savePendingDocumentArchive(intentKey, patient.id, type);
+      setPendingArchiveKey(intentKey);
+      archiveAttempted = true;
+      const url = await requestDocument(previewPayload, true, intentKey);
+      setPreviewPdfUrl(url);
+      setArchived(true);
+      setSuccess('Document archivé et reçu confirmé.');
+      await MobileStorage.clearPendingDocumentArchive(intentKey);
+      setPendingArchiveKey(null);
+    } catch (failure) {
+      if (archiveAttempted) {
+        setUncertainArchive(true);
+        setError('Résultat incertain : vérifiez le reçu, ne renvoyez pas le document.');
+      } else {
+        setError(failure instanceof Error ? failure.message : 'Impossible de préparer un archivage sûr.');
+      }
+    } finally { setBusy(false); }
   };
 
-  return <div data-mobile-quick-document className="fixed inset-0 z-[80] bg-black/35 backdrop-blur-sm flex items-end sm:items-center justify-center">
+  return <div data-mobile-quick-document className="fixed inset-0 z-[80] bg-modal-scrim backdrop-blur-sm flex items-end sm:items-center justify-center">
     <section className="w-full max-w-2xl max-h-[92dvh] overflow-y-auto rounded-t-[30px] sm:rounded-[30px] border border-glass-border bg-card p-4 sm:p-5 shadow-2xl" style={{ backgroundColor: 'var(--glass-bg)' }}>
-      <div className="sticky top-0 z-10 -mx-1 mb-4 flex items-center gap-3 rounded-[20px] bg-card/95 px-1 py-2 backdrop-blur" style={{ backgroundColor: 'var(--glass-bg)' }}>
-        {type ? <button type="button" onClick={() => { setType(null); setPreviewPayload(null); setPreviewPdfUrl(null); setError(''); setSuccess(''); }} className="h-11 w-11 rounded-[14px] border border-glass-border flex items-center justify-center text-primary" aria-label="Retour aux types"><ArrowLeft size={18} /></button> : <div className="h-11 w-11 rounded-[14px] bg-primary/10 text-primary flex items-center justify-center"><FileText size={19} /></div>}
-        <div className="min-w-0 flex-1"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Document rapide</p><h2 className="truncate text-lg font-black text-text-main">{selected?.label || patient.name}</h2></div>
-        <button type="button" onClick={onClose} className="h-11 w-11 rounded-[14px] border border-glass-border flex items-center justify-center text-text-muted" aria-label="Fermer"><X size={18} /></button>
+      <div className="sticky top-0 z-10 -mx-1 mb-4 flex flex-wrap items-center gap-3 rounded-[20px] bg-card/95 px-1 py-2 backdrop-blur sm:flex-nowrap" style={{ backgroundColor: 'var(--glass-bg)' }}>
+        {type ? <button type="button" onClick={() => { if (uncertainArchive) return; setType(null); setPreviewPayload(null); setPreviewPdfUrl(null); setArchived(false); setError(''); setSuccess(''); }} disabled={uncertainArchive} className="h-11 w-11 rounded-[14px] border border-glass-border flex items-center justify-center text-primary" aria-label="Retour aux types"><ArrowLeft size={18} /></button> : <div className="h-11 w-11 rounded-[14px] bg-primary/10 text-primary flex items-center justify-center"><FileText size={19} /></div>}
+        <div className="order-3 w-full min-w-0 sm:order-none sm:w-auto sm:flex-1"><p className="text-[10px] font-black uppercase tracking-[0.16em] text-text-muted">Document rapide</p><h2 className="break-words text-lg font-black leading-snug text-text-main">{selected?.label || patient.name}</h2></div>
+        <button type="button" onClick={onClose} className="ml-auto h-11 w-11 shrink-0 rounded-[14px] border border-glass-border flex items-center justify-center text-text-muted sm:ml-0" aria-label="Fermer"><X size={18} /></button>
       </div>
 
+      {uncertainArchive && <div role="status" className="mb-4 rounded-[16px] border border-danger-border bg-danger-surface p-3 text-xs text-danger">
+        <p className="font-black">Archivage non confirmé</p>
+        <p className="mt-1">Ne relancez pas la création : une réponse perdue peut cacher un document déjà archivé.</p>
+        <button type="button" disabled={busy || !pendingArchiveKey} onClick={() => void reconcileArchive()}
+          className="mt-3 min-h-11 rounded-[12px] border border-glass-border bg-background px-4 font-black text-text-main disabled:opacity-50">
+          {busy ? 'Vérification…' : 'Vérifier le reçu'}
+        </button>
+      </div>}
       {!type ? <div className="space-y-2">
         {!capabilities && <div className="min-h-28 flex items-center justify-center"><Loader2 size={22} className="animate-spin text-primary" /></div>}
         {capabilities && availableTypes.length === 0 && <div className="rounded-[18px] border border-glass-border bg-background p-4 text-xs font-bold text-text-muted">Aucun type documentaire autorisé pour cette session.</div>}
         {availableTypes.map((entry) => <button key={entry.value} type="button" onClick={() => { setType(entry.value); setError(''); setSuccess(''); }} className="w-full min-h-16 rounded-[20px] border border-glass-border bg-background px-4 py-3 text-left active:scale-[0.99] transition-transform"><p className="text-sm font-black text-text-main">{entry.label}</p><p className="mt-1 text-[11px] font-bold text-text-muted">{entry.hint}</p></button>)}
-        {error && <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-bold text-rose-700">{error}</div>}
+        {error && <div className="rounded-[16px] border border-danger-border bg-danger-surface p-3 text-xs font-bold text-danger">{error}</div>}
       </div> : previewPayload ? <div className="space-y-4">
-        <div className="rounded-[20px] border border-primary/20 bg-primary/5 p-4"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">Aperçu prêt</p><p className="mt-1 text-base font-black text-text-main">{selected?.label} · {patient.name}</p><p className="mt-1 text-xs font-bold text-text-muted">Contenu verrouillé pour cette confirmation. Modifiez pour régénérer un aperçu.</p></div>
-        {previewPdfUrl && <a href={previewPdfUrl} target="_blank" rel="noreferrer" className="w-full min-h-12 rounded-[16px] border border-glass-border bg-background text-primary flex items-center justify-center gap-2 text-xs font-black"><ExternalLink size={16} /> Ouvrir l’aperçu PDF</a>}
-        {success && <div className="rounded-[16px] border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs font-bold text-emerald-700 flex items-center gap-2"><CheckCircle2 size={16} /> {success}</div>}
-        {error && <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-bold text-rose-700">{error}</div>}
-        <div className="grid grid-cols-2 gap-2"><button type="button" onClick={() => { setPreviewPayload(null); setPreviewPdfUrl(null); setSuccess(''); setError(''); }} className="min-h-14 rounded-[18px] border border-glass-border bg-background text-xs font-black text-text-main">Modifier</button><button type="button" onClick={() => void archiveDocument()} disabled={busy} className="min-h-14 rounded-[18px] bg-primary text-primary-foreground text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} Archiver le document</button></div>
+        <div className="rounded-[20px] border border-primary/20 bg-primary/5 p-4"><p className="text-[10px] font-black uppercase tracking-[0.14em] text-primary">{archived ? 'Archive confirmée' : 'Aperçu prêt'}</p><p className="mt-1 text-base font-black text-text-main">{selected?.label} · {patient.name}</p><p className="mt-1 text-xs font-bold text-text-muted">Contenu verrouillé pour cette confirmation. Modifiez pour régénérer un aperçu.</p></div>
+        {previewPdfUrl && <a href={previewPdfUrl} target="_blank" rel="noreferrer" className="w-full min-h-12 rounded-[16px] border border-glass-border bg-background text-primary flex items-center justify-center gap-2 text-xs font-black"><ExternalLink size={16} /> {archived ? 'Ouvrir le PDF archivé' : 'Ouvrir l’aperçu PDF'}</a>}
+        {success && <div className="rounded-[16px] border border-success-border bg-success-surface p-3 text-xs font-bold text-success flex items-center gap-2"><CheckCircle2 size={16} /> {success}</div>}
+        {error && <div className="rounded-[16px] border border-danger-border bg-danger-surface p-3 text-xs font-bold text-danger">{error}</div>}
+        {type === 'honoraires' && !preview && <p className="text-xs text-text-muted">Archivage des honoraires non disponible sur Pocket avant certification du contrat comptable.</p>}
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2"><button type="button" onClick={() => { if (uncertainArchive) return; setPreviewPayload(null); setPreviewPdfUrl(null); setArchived(false); setSuccess(''); setError(''); }} disabled={uncertainArchive} className="min-h-14 rounded-[18px] border border-glass-border bg-background text-xs font-black text-text-main">Modifier</button><button type="button" onClick={() => void archiveDocument()} disabled={busy || archived || uncertainArchive || (type === 'honoraires' && !preview)} className="min-h-14 rounded-[18px] bg-primary text-on-primary text-xs font-black flex items-center justify-center gap-2 disabled:opacity-50">{busy ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />} {archived ? 'Déjà archivé' : type === 'honoraires' && !preview ? 'Archivage indisponible' : 'Archiver le document'}</button></div>
       </div> : <div className="space-y-4">
-        {type === 'ordonnance' && medicalAlert && <div className="rounded-[18px] border border-rose-500/20 bg-rose-500/5 p-3 flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 shrink-0 text-rose-600" /><div><p className="text-[10px] font-black uppercase tracking-[0.12em] text-rose-600">Alerte médicale</p><p className="mt-1 text-xs font-bold leading-relaxed text-text-main">{medicalAlert}</p></div></div>}
+        {type === 'ordonnance' && medicalAlert && <div className="rounded-[18px] border border-danger-border bg-danger-surface p-3 flex items-start gap-2"><AlertTriangle size={16} className="mt-0.5 shrink-0 text-danger" /><div><p className="text-[10px] font-black uppercase tracking-[0.12em] text-danger">Alerte médicale</p><p className="mt-1 text-xs font-bold leading-relaxed text-text-main">{medicalAlert}</p></div></div>}
         {type === 'certificat' && <><label className="block"><span className="text-[11px] font-black text-text-muted">Nature</span><select value={certificateType} onChange={(event) => setCertificateType(event.target.value)} className="mt-1 w-full min-h-12 rounded-[16px] border border-glass-border bg-background px-3 text-sm font-bold text-text-main"><option>Certificat de Présence</option><option>Arrêt de travail</option><option>Certificat médical</option></select></label>{certificateType === 'Arrêt de travail' && <label className="block"><span className="text-[11px] font-black text-text-muted">Durée (jours)</span><input inputMode="numeric" value={certificateDays} onChange={(event) => setCertificateDays(event.target.value)} className="mt-1 w-full min-h-12 rounded-[16px] border border-glass-border bg-background px-3 text-sm font-bold text-text-main" /></label>}</>}
         {type === 'libre' && <label className="block"><span className="text-[11px] font-black text-text-muted">Titre</span><input value={title} onChange={(event) => setTitle(event.target.value)} placeholder="Courrier d’orientation" className="mt-1 w-full min-h-12 rounded-[16px] border border-glass-border bg-background px-3 text-sm font-bold text-text-main" /></label>}
-        {(type === 'ordonnance' || type === 'devis' || type === 'honoraires') && <div className="space-y-2"><div className="flex items-center justify-between"><span className="text-[11px] font-black text-text-muted">{type === 'ordonnance' ? 'Médicaments' : 'Actes'}</span><button type="button" onClick={addLine} className="min-h-10 px-3 rounded-[13px] bg-primary/10 text-primary text-[11px] font-black flex items-center gap-1.5"><Plus size={14} /> Ajouter</button></div>{lines.map((line) => <div key={line.id} className="rounded-[18px] border border-glass-border bg-background p-3 space-y-2"><input value={line.label} onChange={(event) => updateLine(line.id, { label: event.target.value })} placeholder={type === 'ordonnance' ? 'Médicament' : 'Acte'} className="w-full min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" /><div className="grid grid-cols-[1fr_auto] gap-2"><input value={line.detail} onChange={(event) => updateLine(line.id, { detail: event.target.value })} placeholder={type === 'ordonnance' ? 'Dosage' : 'Dent (optionnel)'} className="min-w-0 min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" />{(type === 'devis' || type === 'honoraires') && <input inputMode="decimal" value={line.amount} onChange={(event) => updateLine(line.id, { amount: event.target.value })} placeholder="MAD" className="w-24 min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" />}{lines.length > 1 && <button type="button" onClick={() => removeLine(line.id)} className="h-11 w-11 rounded-[13px] border border-rose-500/20 text-rose-600 flex items-center justify-center" aria-label="Supprimer la ligne"><Trash2 size={16} /></button>}</div></div>)}</div>}
+        {(type === 'ordonnance' || type === 'devis' || type === 'honoraires') && <div className="space-y-2"><div className="flex items-center justify-between"><span className="text-[11px] font-black text-text-muted">{type === 'ordonnance' ? 'Médicaments' : 'Actes'}</span><button type="button" onClick={addLine} className="min-h-10 px-3 rounded-[13px] bg-primary/10 text-primary text-[11px] font-black flex items-center gap-1.5"><Plus size={14} /> Ajouter</button></div>{lines.map((line) => <div key={line.id} className="rounded-[18px] border border-glass-border bg-background p-3 space-y-2"><input value={line.label} onChange={(event) => updateLine(line.id, { label: event.target.value })} placeholder={type === 'ordonnance' ? 'Médicament' : 'Acte'} className="w-full min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" /><div className="grid grid-cols-[1fr_auto] gap-2"><input value={line.detail} onChange={(event) => updateLine(line.id, { detail: event.target.value })} placeholder={type === 'ordonnance' ? 'Dosage' : 'Dent (optionnel)'} className="min-w-0 min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" />{(type === 'devis' || type === 'honoraires') && <input inputMode="decimal" value={line.amount} onChange={(event) => updateLine(line.id, { amount: event.target.value })} placeholder="MAD" className="w-24 min-h-11 rounded-[13px] border border-glass-border bg-card px-3 text-sm font-bold text-text-main" />}{lines.length > 1 && <button type="button" onClick={() => removeLine(line.id)} className="h-11 w-11 rounded-[13px] border border-danger-border text-danger flex items-center justify-center" aria-label="Supprimer la ligne"><Trash2 size={16} /></button>}</div></div>)}</div>}
         {(type === 'ordonnance' || type === 'libre' || (type === 'certificat' && certificateType === 'Certificat médical')) && <label className="block"><span className="text-[11px] font-black text-text-muted">{type === 'ordonnance' ? 'Posologie' : 'Contenu'}</span><textarea value={content} onChange={(event) => setContent(event.target.value)} rows={5} placeholder={type === 'ordonnance' ? 'Ex. 1 comprimé matin et soir pendant 5 jours' : 'Saisir le contenu du document'} className="mt-1 w-full rounded-[16px] border border-glass-border bg-background p-3 text-sm font-bold leading-relaxed text-text-main resize-none" /></label>}
-        {error && <div className="rounded-[16px] border border-rose-500/20 bg-rose-500/5 p-3 text-xs font-bold text-rose-700">{error}</div>}{success && <div className="rounded-[16px] border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs font-bold text-emerald-700 flex items-center gap-2"><CheckCircle2 size={16} /> {success}</div>}
-        <button type="button" onClick={() => void previewDocument()} disabled={busy} className="w-full min-h-14 rounded-[18px] bg-primary text-primary-foreground text-sm font-black flex items-center justify-center gap-2 disabled:opacity-50">{busy ? <Loader2 size={17} className="animate-spin" /> : <FileText size={17} />} Prévisualiser</button>
+        {error && <div className="rounded-[16px] border border-danger-border bg-danger-surface p-3 text-xs font-bold text-danger">{error}</div>}{success && <div className="rounded-[16px] border border-success-border bg-success-surface p-3 text-xs font-bold text-success flex items-center gap-2"><CheckCircle2 size={16} /> {success}</div>}
+        <button type="button" onClick={() => void previewDocument()} disabled={busy || uncertainArchive} className="w-full min-h-14 rounded-[18px] bg-primary text-on-primary text-sm font-black flex items-center justify-center gap-2 disabled:opacity-50">{busy ? <Loader2 size={17} className="animate-spin" /> : <FileText size={17} />} Prévisualiser</button>
         <p className="text-center text-[10px] font-bold leading-relaxed text-text-muted">Même moteur documentaire, mêmes permissions et même dossier patient que sur desktop.</p>
       </div>}
     </section>
