@@ -81,12 +81,13 @@ def test_medium_retention_skipped_when_local_db_failed(tmp_path):
     retention.assert_not_called()
 
 
-def test_medium_retention_allowed_only_after_complete_local_and_offsite_success(tmp_path):
+def test_complete_local_offsite_copy_still_never_authorizes_remote_deletion(tmp_path):
     run, retention, _manifest = _load_run_in_lab(tmp_path)
     result = run(apply_retention=True)
     assert result["overall_status"] == "SUCCESS"
     assert result["offsite_status"] == "SUCCESS"
-    retention.assert_called_once_with(str(tmp_path / "fake_remote"), dry_run=False)
+    assert result["offsite_retention_status"] == "BLOCKED_UNCERTIFIED_REMOTE_DELETE"
+    retention.assert_called_once_with(str(tmp_path / "fake_remote"), dry_run=True)
 
 
 def test_medium_retention_dry_run_never_deletes(tmp_path):
@@ -94,3 +95,42 @@ def test_medium_retention_dry_run_never_deletes(tmp_path):
     result = run(apply_retention=False)
     assert result["overall_status"] == "SUCCESS"
     retention.assert_called_once_with(str(tmp_path / "fake_remote"), dry_run=True)
+
+
+def test_direct_remote_retention_cannot_enumerate_or_delete_even_when_apply_requested(tmp_path):
+    """A changed NAS path cannot redirect post-copy glob/stat/unlink onto other files.
+
+    Test the actual helper body in isolation: no database, scheduler, clinical
+    data, GitHub secrets or remote share required.
+    """
+    tree = ast.parse(_SCHEDULED_SRC.read_text(encoding="utf-8"), filename=str(_SCHEDULED_SRC))
+    nodes = [node for node in tree.body if isinstance(node, ast.FunctionDef)
+             and node.name == "_apply_retention_all_offsite"]
+    assert len(nodes) == 1
+    module = ast.fix_missing_locations(ast.Module(body=nodes, type_ignores=[]))
+    spy = Mock(side_effect=AssertionError("Remote deletion/enumeration must not run"))
+    warning = Mock()
+    namespace = {
+        "Path": Path,
+        "_apply_retention": spy,
+        "logger": SimpleNamespace(warning=warning),
+    }
+    exec(compile(module, str(_SCHEDULED_SRC), "exec"), namespace)
+
+    outside = tmp_path / "other_directory"
+    (outside / "db").mkdir(parents=True)
+    (outside / "media").mkdir()
+    sentinel = outside / "db" / "db_backup_old.sql.enc"
+    sentinel.write_bytes(b"DO_NOT_TOUCH_EXTERNAL_DATA")
+
+    # Both explicit destructive intent and ordinary dry-run are non-I/O.
+    for dry_run in (False, True):
+        reports = namespace["_apply_retention_all_offsite"](str(outside), dry_run=dry_run)
+        assert len(reports) == 2
+        assert all(r["dry_run"] is True for r in reports)
+        assert all(r["status"] == "BLOCKED_UNCERTIFIED_REMOTE_DELETE" for r in reports)
+        assert all(r["deleted"] == [] and r["candidates"] == [] for r in reports)
+        assert sentinel.read_bytes() == b"DO_NOT_TOUCH_EXTERNAL_DATA"
+
+    spy.assert_not_called()
+    warning.assert_called_once()
