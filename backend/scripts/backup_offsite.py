@@ -88,7 +88,7 @@ def _posix_descriptor_backend_available() -> bool:
     )
 
 
-def _open_pinned_directory(directory: Path) -> int:
+def _open_pinned_directory(directory: Path, *, create: bool = True) -> int:
     """Safely walk/create ancestors without following a path component symlink.
 
     Caller owns returned fd. Each child is opened relative to its parent fd,
@@ -106,6 +106,8 @@ def _open_pinned_directory(directory: Path) -> int:
             try:
                 child = os.open(part, flags, dir_fd=current)
             except FileNotFoundError:
+                if not create:
+                    raise
                 try:
                     os.mkdir(part, 0o700, dir_fd=current)
                 except FileExistsError:
@@ -122,7 +124,7 @@ def _open_pinned_directory(directory: Path) -> int:
 def _pinned_directory_matches_path(directory: Path, pinned_fd: int) -> bool:
     """Reject path replacement/remapping even when a pinned fd stays valid."""
     try:
-        check_fd = _open_pinned_directory(directory)
+        check_fd = _open_pinned_directory(directory, create=False)
     except OSError:
         return False
     try:

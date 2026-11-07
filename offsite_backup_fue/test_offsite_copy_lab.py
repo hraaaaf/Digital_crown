@@ -451,3 +451,20 @@ def test_rev02_temp_path_replaced_by_fifo_does_not_block(tmp_path):
     assert status == "FAILED"
     assert reason == "TEMP_PATH_TAMPERED"
     assert not (root / "db" / source.name).exists()
+
+
+def test_rev02_pinned_directory_recheck_never_creates_missing_path(tmp_path):
+    """Read-only remap verification must not recreate an attacker-removed directory."""
+    import os
+    import pytest
+    if not _SOURCE_MODULE._posix_descriptor_backend_available():
+        pytest.skip("Directory descriptor backend is not available")
+    root = tmp_path / "safe"
+    root.mkdir()
+    original_fd = _SOURCE_MODULE._open_pinned_directory(root)
+    try:
+        root.rename(tmp_path / "moved_original")
+        assert _SOURCE_MODULE._pinned_directory_matches_path(root, original_fd) is False
+        assert not root.exists()
+    finally:
+        os.close(original_fd)
