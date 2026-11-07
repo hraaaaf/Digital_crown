@@ -53,15 +53,18 @@ def _crash_worker(db_file: str, media_dir: str, receipt_id: str, stage: str, fic
     archive_service.MEDIA_DIR = media
     archive_service.ARCHIVE_BASE_DIR = media / "archives"
     archive_service.LEGACY_DOCS_DIR = media / "documents"
-    real_copy = archive_service.shutil.copy2
+    # Keep the hard-death checkpoint attached to the actual production
+    # mirror boundary. The implementation no longer uses shutil.copy2,
+    # because that could overwrite another patient's historical PDF.
+    real_mirror = archive_service._mirror_pdf_without_overwrite
 
-    def crash_at_mirror(source, destination, *args, **kwargs):
+    def crash_at_mirror(source, destination):
         if stage == "before_mirror":
             os._exit(97)
-        real_copy(source, destination, *args, **kwargs)
+        real_mirror(source, destination)
         os._exit(98)
 
-    archive_service.shutil.copy2 = crash_at_mirror
+    archive_service._mirror_pdf_without_overwrite = crash_at_mirror
     engine = create_engine("sqlite:///" + db_file)
     with Session(engine) as db:
         db.info["_mobile_document_archive_receipt_id"] = receipt_id
