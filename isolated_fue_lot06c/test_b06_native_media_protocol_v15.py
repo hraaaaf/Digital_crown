@@ -91,3 +91,19 @@ def test_b06_media_adapter_refuses_without_explicit_disposable_lab_flag(monkeypa
     with pytest.raises(NativeInventoryDenied, match="LAB_DISABLED"):
         read_native_capture_bytes(r"\\.\pipe\DigitalCrown-LAB-R-" + "0" * 32, capture)
     print("DC06_B06_NATIVE_MEDIA_NO_CABINET_ACCESS_PASS")
+
+
+def test_b06_bs2_media_requires_server_pid_before_native_io(monkeypatch, capture):
+    from tools.imaging_gateway import native_media_windows_v15 as transport
+    from tools.imaging_gateway.native_inventory_windows_v15 import _require_server_pid
+
+    monkeypatch.setenv("DC06_B06_NATIVE_MEDIA_LAB", "1")
+    for invalid in (None, 0, -99, True, "42", 0x100000000):
+        with pytest.raises(NativeInventoryDenied, match="NATIVE_PIPE_SERVER_PID_REQUIRED"):
+            _require_server_pid(invalid)
+        with pytest.raises(NativeInventoryDenied, match="NATIVE_PIPE_SERVER_PID_REQUIRED"):
+            transport.read_native_capture_bytes(
+                r"\\\\.\\pipe\\DigitalCrown-LAB-R-" + "0" * 32,
+                capture, expected_server_pid=invalid,
+            )
+    print("DC06_B06_BS2_MEDIA_MISSING_PIN_PREWRITE_DENIED_PASS")
