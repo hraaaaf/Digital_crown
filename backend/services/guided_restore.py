@@ -17,6 +17,9 @@ from backend.core.media_paths import get_media_root
 from backend.core.paths import AppPaths
 from backend.core.platform import get_platform_adapter
 from backend.services.backup_service import BackupService
+from backend.services.guided_restore_pocket_integrity import (
+    inspect_completed_pocket_receipts_in_backup,
+)
 from backend.services.guided_restore_archive import (
     _decrypt_backup_key,
     _directory_digest,
@@ -252,14 +255,26 @@ class GuidedRestoreService:
                 else:
                     raise ValueError("Format DB chiffré non supporté pour le runtime cabinet SQLite")
                 _validate_database_file(decrypted_db, driver)
+
+                if media_source:
+                    if media_encryption != "master_key":
+                        raise ValueError("Format de chiffrement média non supporté")
+                    media_file_count = _inspect_encrypted_media(media_source)
+
+                # Fail closed before marking a staged Pocket restore as ready.
+                # This is read-only, only uses disposable staged files and
+                # reports no patient identity, clinical content or file paths.
+                try:
+                    inspect_completed_pocket_receipts_in_backup(
+                        decrypted_db, driver, media_source,
+                    )
+                except ValueError:
+                    errors.append(
+                        "Archive clinique Pocket non vérifiable : revue manuelle requise."
+                    )
             finally:
                 if decrypted_db.exists():
                     decrypted_db.unlink()
-
-            if media_source:
-                if media_encryption != "master_key":
-                    raise ValueError("Format de chiffrement média non supporté")
-                media_file_count = _inspect_encrypted_media(media_source)
 
         target_db_path = None
         if dialect == "sqlite" and detected_runtime_engine:

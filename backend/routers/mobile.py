@@ -717,3 +717,233 @@ async def mobile_frontdesk_action(
     if handler is None:
         raise HTTPException(status_code=404, detail="Action Accueil inconnue.")
     return await handler(appointment_id=appointment_id, db=db, current_user=mobile_user)
+
+# CPV2-02C: real PDF preview under a paired Pocket session. The canonical
+# generator remains Desktop-only as an HTTP API; this facade explicitly checks
+# the mobile device/JWT, patient/tenant and per-document permissions first.
+# Archive/financial writes are NOT enabled by this preview endpoint.
+@router.post('/documents/preview', summary='Prévisualisation PDF Pocket sans archivage')
+async def preview_mobile_document(
+    req: schemas.DocumentRequest,
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission('patients')),
+):
+    from pathlib import Path
+    from fastapi import Response
+    from backend.routers import documents as _documents
+
+    if req.type not in {'ordonnance', 'certificat', 'devis', 'note', 'libre'}:
+        raise HTTPException(status_code=403, detail='Type documentaire non disponible sur Pocket.')
+    if req.payment_status != 'EN_ATTENTE':
+        raise HTTPException(status_code=403, detail='Aucune mutation financière autorisée dans cet aperçu.')
+
+    _documents.require_document_permission(req.type, mobile_user)
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == req.patient_id,
+        models.Patient.employer_id == mobile_user.get_employer_id(),
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail='Patient indisponible dans ce cabinet.')
+
+    result = await _documents.generate_document(
+        req, archive=False, preview=True, force=False, db=db, current_user=mobile_user,
+    )
+    # Never hand a raw static path or a desktop-auth URL to a paired device.
+    # Return the PDF from an explicitly bounded media root, authenticated for
+    # THIS mobile request, with no browser/shared intermediary cache.
+    url = str(result.get('pdf_url') or '').split('?', 1)[0]
+    prefix = 'static/documents/'
+    if not url.startswith(prefix):
+        raise HTTPException(status_code=503, detail='Aperçu PDF indisponible.')
+    root = (Path(_documents.MEDIA_DIR) / 'documents').resolve()
+    pdf = (root / url[len(prefix):]).resolve()
+    if not pdf.is_relative_to(root) or not pdf.is_file():
+        raise HTTPException(status_code=503, detail='Aperçu PDF indisponible.')
+    if pdf.stat().st_size > 12 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail='Aperçu PDF trop volumineux.')
+    content = pdf.read_bytes()
+    if not content.startswith(b'%PDF-'):
+        raise HTTPException(status_code=503, detail='Fichier PDF invalide.')
+    return Response(
+        content=content,
+        media_type='application/pdf',
+        headers={'Cache-Control': 'no-store, private', 'X-Content-Type-Options': 'nosniff'},
+    )
+
+# Pocket archive receipts are local to the cabinet and unavailable until
+# their additive SQL schema has been explicitly approved and installed.
+# A missing table is a 503, never an automatic migration or unsafe fallback.
+def _archive_receipt_identity(authorization: str, db: Session, user: models.User):
+    _decoded_user, tenant_id, payload = _legacy._decode_mobile_identity(authorization, db)
+    if _decoded_user.id != user.id or tenant_id != user.get_employer_id():
+        raise HTTPException(status_code=401, detail="Identité Pocket non concordante.")
+    return tenant_id, str(payload["device_id"])
+
+
+def _archive_receipt_pdf(db: Session, receipt, *, replay: bool):
+    import hashlib
+    from pathlib import Path
+    from fastapi import Response
+    from fastapi.responses import JSONResponse
+    from backend.routers import documents as _documents
+
+    if receipt.state == "PROCESSING":
+        return JSONResponse(
+            {"state": "PROCESSING", "detail": "Archivage en cours, vérifiez le reçu sans répéter l'écriture."},
+            status_code=202,
+            headers={"Cache-Control": "no-store, private", "Retry-After": "3"},
+        )
+    if receipt.state != "COMPLETED":
+        return JSONResponse(
+            {"state": "REVIEW_REQUIRED", "detail": "Résultat incertain : revue du dossier au cabinet nécessaire."},
+            status_code=409, headers={"Cache-Control": "no-store, private"},
+        )
+
+    doc = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.id == receipt.archive_id,
+        models.DocumentArchive.patient_id == receipt.patient_id,
+        models.DocumentArchive.uploaded_by_id == receipt.actor_id,
+        models.DocumentArchive.status == models.DocumentStatus.ACTIF,
+    ).first()
+    if doc is None or doc.file_hash != receipt.archive_sha256:
+        raise HTTPException(status_code=503, detail="Archive non vérifiable dans le dossier patient.")
+    path = str(doc.file_path or "")
+    if not path.startswith("static/archives/"):
+        raise HTTPException(status_code=503, detail="Chemin d'archive non conforme.")
+    root = (Path(_documents.MEDIA_DIR) / "archives").resolve()
+    pdf = (root / path[len("static/archives/"):]).resolve()
+    if not pdf.is_relative_to(root) or not pdf.is_file():
+        raise HTTPException(status_code=503, detail="PDF archivé absent ou hors du cabinet.")
+    if pdf.stat().st_size > 12 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="PDF archivé trop volumineux.")
+    content = pdf.read_bytes()
+    if not content.startswith(b"%PDF-") or hashlib.sha256(content).hexdigest() != receipt.archive_sha256:
+        raise HTTPException(status_code=503, detail="Intégrité du PDF archivé non vérifiée.")
+    return Response(
+        content=content, media_type="application/pdf",
+        headers={
+            "Cache-Control": "no-store, private",
+            "X-Content-Type-Options": "nosniff",
+            "X-Document-Id": str(doc.id),
+            "X-Idempotent-Replay": "true" if replay else "false",
+        },
+    )
+
+
+def _authorize_mobile_archive_receipt(db: Session, receipt, user: models.User) -> None:
+    from backend.routers import documents as _documents
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="Reçu d'archivage introuvable.")
+    # A receipt key is not an authorization capability. Current permissions and
+    # patient soft-delete/tenant isolation are checked on EVERY read/replay.
+    _documents.require_document_permission(receipt.document_type, user)
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == receipt.patient_id,
+        models.Patient.employer_id == user.get_employer_id(),
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient indisponible dans ce cabinet.")
+
+
+@router.get('/documents/archive/ready', summary="Disponibilité du registre Pocket sans écriture")
+async def pocket_archive_receipt_ready(
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    from backend.services.mobile_document_archive_receipts import assert_receipt_schema
+    from fastapi.responses import JSONResponse
+    assert_receipt_schema(db)
+    return JSONResponse(
+        {"ready": True},
+        headers={"Cache-Control": "no-store, private"},
+    )
+
+
+# Clinical archive mutation remains narrower than Desktop: NO honoraires,
+# payment collection or change of an existing archive.
+@router.post('/documents/archive', summary="Archivage Pocket PDF idempotent, reçu durable")
+async def archive_mobile_document(
+    req: schemas.DocumentRequest,
+    idempotency_key: str = Header(..., alias="Idempotency-Key"),
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    from backend.routers import documents as _documents
+    from backend.services.mobile_document_archive_receipts import (
+        claim_archive_intent, normalize_intent_key, payload_sha256,
+        mark_unresolved_for_manual_review,
+    )
+
+    if req.type not in {"ordonnance", "certificat", "devis", "libre"}:
+        raise HTTPException(status_code=403, detail="Archivage de ce type indisponible sur Pocket.")
+    if req.payment_status != "EN_ATTENTE":
+        raise HTTPException(status_code=403, detail="Encaissement interdit sur Pocket.")
+    if not isinstance(req.data, dict) or any(str(k).startswith("_") for k in req.data):
+        raise HTTPException(status_code=403, detail="Modification d'archive existante interdite sur Pocket.")
+
+    _documents.require_document_permission(req.type, mobile_user)
+    patient = db.query(models.Patient).filter(
+        models.Patient.id == req.patient_id,
+        models.Patient.employer_id == mobile_user.get_employer_id(),
+        models.Patient.deleted_at.is_(None),
+    ).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient indisponible dans ce cabinet.")
+
+    tenant_id, device_id = _archive_receipt_identity(authorization, db, mobile_user)
+    key = normalize_intent_key(idempotency_key)
+    digest = payload_sha256(req.model_dump(mode="json"))
+    receipt, is_new = claim_archive_intent(
+        db, tenant_id=tenant_id, actor_id=mobile_user.id, device_id=device_id,
+        key=key, patient_id=patient.id, document_type=req.type, request_sha256=digest,
+    )
+    if not is_new:
+        _authorize_mobile_archive_receipt(db, receipt, mobile_user)
+        return _archive_receipt_pdf(db, receipt, replay=True)
+
+    # The canonical ArchiveService will finish the document row and receipt
+    # in one SQL transaction. A lost HTTP response is therefore recoverable
+    # with the receipt GET, without re-sending the POST.
+    db.info["_mobile_document_archive_receipt_id"] = receipt.id
+    try:
+        await _documents.generate_document(
+            req, archive=True, preview=False, force=False, db=db, current_user=mobile_user,
+        )
+    except Exception:
+        # Even a post-commit exception may occur. Only PROCESSING becomes
+        # REVIEW_REQUIRED; a completed atomic receipt stays completed.
+        mark_unresolved_for_manual_review(db, receipt.id)
+        raise
+    finally:
+        db.info.pop("_mobile_document_archive_receipt_id", None)
+    db.expire_all()
+    completed = claim_archive_intent(
+        db, tenant_id=tenant_id, actor_id=mobile_user.id, device_id=device_id,
+        key=key, patient_id=patient.id, document_type=req.type, request_sha256=digest,
+    )[0]
+    if completed.state != "COMPLETED":
+        mark_unresolved_for_manual_review(db, receipt.id)
+        raise HTTPException(status_code=503, detail="Archive non confirmée par le reçu SQL.")
+    return _archive_receipt_pdf(db, completed, replay=False)
+
+
+@router.get('/documents/archive/receipt/{intent_key}', summary="Reprendre un reçu d'archive Pocket")
+async def read_mobile_document_archive_receipt(
+    intent_key: str,
+    authorization: str = Header(...),
+    db: Session = Depends(database.get_db),
+    mobile_user: models.User = Depends(_legacy.require_mobile_permission("patients")),
+):
+    from backend.services.mobile_document_archive_receipts import (
+        normalize_intent_key, read_scoped_receipt,
+    )
+    tenant_id, device_id = _archive_receipt_identity(authorization, db, mobile_user)
+    receipt = read_scoped_receipt(
+        db, tenant_id=tenant_id, actor_id=mobile_user.id, device_id=device_id,
+        key=normalize_intent_key(intent_key),
+    )
+    _authorize_mobile_archive_receipt(db, receipt, mobile_user)
+    return _archive_receipt_pdf(db, receipt, replay=True)

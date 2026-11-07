@@ -479,6 +479,17 @@ class ArchiveService:
         )
         
         self.db.add(doc)
+        if self.db.info.get("_mobile_document_archive_receipt_id") is not None:
+            # Pocket archive is a clinical write. SQL receipt + document row
+            # must enter the SAME commit: a lost HTTP response remains
+            # recoverable without generating or archiving another document.
+            if not commit:
+                raise RuntimeError("Archivage Pocket : commit canonique obligatoire.")
+            self.db.flush()
+            from backend.services.mobile_document_archive_receipts import (
+                complete_archive_in_current_transaction,
+            )
+            complete_archive_in_current_transaction(self.db, archive=doc)
         if commit:
             try:
                 self.db.commit()
