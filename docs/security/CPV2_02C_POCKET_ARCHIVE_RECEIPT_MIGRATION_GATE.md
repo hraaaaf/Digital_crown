@@ -142,3 +142,54 @@ rejeu, **pas** une réparation automatique des fichiers non référencés.
 les essais d'intégration et la procédure de réparation avec reprise
 sont non certifiés. Le praticien peut poursuivre l'aperçu PDF sans
 activer l'archivage Pocket.
+
+## Inspection forensique déterministe sans mutation (PR DRAFT)
+
+Le module `backend/services/mobile_document_archive_forensics.py` fournit
+`inspect_archive_receipt_read_only(db, tenant_id, actor_id, device_id, key,
+media_root)`. **Ce n'est pas un endpoint Pocket ni une commande qui ouvre
+une DB de cabinet.** Seul un processus local autorisé peut lui fournir une
+**copie isolée** de la DB et du répertoire médias, sous un périmètre
+`cabinet + acteur + appareil + UUID` explicite.
+
+Résultat volontairement minimal : `receipt_state`, `verified_archive`,
+`automatic_replay_allowed=false`, et un code de décision. Aucune donnée
+identifiante, aucun chemin, aucun octet clinique ni hash médical n'est
+publié dans l'objet de preuve. Le traitement effectue uniquement SELECT,
+stat et lecture des fichiers bornés, jamais de COMMIT, UPDATE, DELETE,
+unlink, rename, ni POST.
+
+Les décisions sont **distinctes** :
+
+- `HOLD_FOR_MANUAL_REVIEW` : `PROCESSING` ou `REVIEW_REQUIRED` sans
+  archive SQL liée. Le helper n'affirme **jamais** l'absence d'un PDF
+  orphelin après un crash. Il conserve le verrou; pas de rejeu.
+- `EXISTING_ARCHIVE_VERIFIED` : `COMPLETED` avec patient du même
+  cabinet, type, acteur, ligne d'archive active, chemin borné,
+  fichier PDF et SHA-256 concordants. Il constate une archive existante,
+  **sans** accorder une nouvelle autorisation d'écriture.
+- `PATIENT_SCOPE_MISMATCH`, `ARCHIVE_ROW_MISMATCH`,
+  `INCONSISTENT_RECEIPT_MANUAL_REVIEW`, `UNSAFE_ARCHIVE_PATH`,
+  `MISSING_OR_INVALID_PDF` ou `PDF_HASH_MISMATCH` : anomalie
+  nécessitant une investigation humaine, jamais un effacement ou
+  une promotion automatique en `COMPLETED`.
+
+L'activation de l'archivage Pocket vérifie maintenant **le schéma complet
+et la contrainte SQL UNIQUE (cabinet, acteur, appareil, clé)**, pas
+seulement le nom de table. Un schéma incomplet ou sans contrainte reçoit
+HTTP 503; aucun fallback ni migration automatique. Tests négatifs :
+`backend/tests/test_mobile_document_archive_receipts.py` et
+`backend/tests/test_mobile_document_archive_forensics.py`.
+
+### Human gate de résolution réelle
+
+Même si un diagnostic sur copie est `HOLD_FOR_MANUAL_REVIEW`,
+**interdiction de recréer automatiquement** un certificat, une ordonnance
+ou un devis. Le propriétaire/administrateur doit approuver un dossier
+de résolution comprenant l'inventaire signé des archives et médias
+associés, les copies sauvegardées/restaurées testées, l'explication
+de l'état SQL et un plan réversible. Un processus `PROCESSING`
+sans archive liée ne démontre **pas** qu'aucun PDF n'a déjà été produit.
+Le code et les tests de cette PR ne fournissent pas de mécanisme de
+réparation automatique : ce gate reste explicitement ouvert.
+
