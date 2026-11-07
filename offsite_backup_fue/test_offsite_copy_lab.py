@@ -133,7 +133,7 @@ def test_legacy_fixed_temp_filename_is_not_overwritten(tmp_path):
 
     result = copy_to_offsite(db_source, checksum, None, None, tmp_path / "nas")
 
-    assert result["status"] == "SUCCESS"
+    assert result["status"] == "PARTIAL"
     assert legacy_temp.read_bytes() == b"OTHER-COPY-IN-PROGRESS"
     assert (db_dest / db_source.name).read_bytes() == b"encrypted-backup"
     assert sorted(p.name for p in db_dest.iterdir() if p.name.startswith(".tmp_")) == [legacy_temp.name]
@@ -144,7 +144,7 @@ def test_bad_checksum_preserves_existing_valid_offsite_backup(tmp_path):
     source = tmp_path / "local" / "db_backup_x.sql.enc"
     original_checksum = _write(source, b"original-valid-encrypted-backup")
     destination = tmp_path / "nas"
-    assert copy_to_offsite(source, original_checksum, None, None, destination)["status"] == "SUCCESS"
+    assert copy_to_offsite(source, original_checksum, None, None, destination)["status"] == "PARTIAL"
 
     source.write_bytes(b"CHANGED-SOURCE")
     result = copy_to_offsite(source, original_checksum, None, None, destination)
@@ -173,7 +173,7 @@ def test_large_offsite_copy_rehashes_by_blocks(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "read_bytes", refuse_read_all)
     result = copy_to_offsite(None, None, source, checksum, dest)
 
-    assert result["status"] == "SUCCESS"
+    assert result["status"] == "PARTIAL"
     assert (dest / "media" / source.name).read_bytes() == payload
     assert list((dest / "media").glob(".tmp_*")) == []
 
@@ -185,7 +185,7 @@ def test_second_valid_backup_same_name_cannot_overwrite_prior_verified_copy(tmp_
     first_sum = _write(first, b"VALID-ORIGINAL-DB")
     second_sum = _write(second, b"VALID-DIFFERENT-DB")
     remote = tmp_path / "nas"
-    assert copy_to_offsite(first, first_sum, None, None, remote)["status"] == "SUCCESS"
+    assert copy_to_offsite(first, first_sum, None, None, remote)["status"] == "PARTIAL"
     result = copy_to_offsite(second, second_sum, None, None, remote)
     assert result["status"] == "FAILED"
     assert result["error_code"] == "DESTINATION_NAME_COLLISION"
@@ -199,9 +199,9 @@ def test_second_identical_backup_is_idempotently_accepted(tmp_path):
     digest = _write(first, b"IDENTICAL-VALID-DB")
     _write(second, b"IDENTICAL-VALID-DB")
     remote = tmp_path / "nas"
-    assert copy_to_offsite(first, digest, None, None, remote)["status"] == "SUCCESS"
+    assert copy_to_offsite(first, digest, None, None, remote)["status"] == "PARTIAL"
     result = copy_to_offsite(second, digest, None, None, remote)
-    assert result["status"] == "SUCCESS"
+    assert result["status"] == "PARTIAL"
     assert (remote / "db" / first.name).read_bytes() == b"IDENTICAL-VALID-DB"
 
 
@@ -219,7 +219,7 @@ def test_parallel_same_filename_only_one_different_payload_may_publish(tmp_path)
             pool.submit(copy_to_offsite, src_b, hash_b, None, None, remote),
         ]
         results = [future.result() for future in futures]
-    assert sorted(x["status"] for x in results) == ["FAILED", "SUCCESS"]
+    assert sorted(x["status"] for x in results) == ["FAILED", "PARTIAL"]
     assert (remote / "db" / src_a.name).read_bytes() in {b"A-ENCRYPTED-BACKUP", b"B-ENCRYPTED-BACKUP"}
     assert list((remote / "db").glob(".tmp_*")) == []
 

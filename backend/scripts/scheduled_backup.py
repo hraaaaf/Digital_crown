@@ -395,7 +395,16 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
 
         manifest["retention_candidates"] = _apply_retention_all(dry_run=not apply_retention)
 
-        if OFFSITE_DIR:
+        # Retention of remote recovery points is forbidden unless this run
+        # published a complete new DB+media pair. Local retention remains
+        # separately governed by the existing local policy.
+        if (
+            OFFSITE_DIR
+            and manifest["overall_status"] == "SUCCESS"
+            and manifest["offsite_status"] == "SUCCESS"
+            and manifest["offsite_db_copied"]
+            and manifest["offsite_media_copied"]
+        ):
             try:
                 manifest["offsite_retention_candidates"] = _apply_retention_all_offsite(
                     OFFSITE_DIR, dry_run=not apply_retention,
