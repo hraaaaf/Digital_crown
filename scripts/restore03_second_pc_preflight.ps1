@@ -47,7 +47,7 @@ Assert-Lab (-not $file.PSIsContainer) 'BUNDLE_NOT_FILE'
 Assert-Lab (($file.Attributes -band [IO.FileAttributes]::ReparsePoint) -eq 0) 'BUNDLE_REPARSE_POINT'
 Assert-Lab ($file.Extension -eq '.dcbundle') 'PORTABLE_BUNDLE_REQUIRED'
 Assert-Lab ($file.Length -gt 0) 'EMPTY_BUNDLE'
-$drive = New-Object IO.DriveInfo($file.PSDrive.Root)
+$drive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($fullPath))
 Assert-Lab ($drive.DriveType -eq [IO.DriveType]::Fixed) 'LOCAL_FIXED_DRIVE_REQUIRED'
 
 $actualSha = (Get-FileHash -LiteralPath $fullPath -Algorithm SHA256).Hash.ToLowerInvariant()
@@ -67,7 +67,7 @@ try {
     Assert-Lab ($payloadEntry.Length -gt 0) 'PAYLOAD_EMPTY'
     $stream = $manifestEntry.Open()
     try {
-        $reader = New-Object IO.StreamReader($stream, [Text.Encoding]::UTF8)
+        $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::UTF8)
         try {
             $manifest = $reader.ReadToEnd() | ConvertFrom-Json
         } finally { $reader.Dispose() }
@@ -99,7 +99,7 @@ if ($CabinetExecutablePath) {
 # The only filesystem mutation is a tiny evidence file in a new TEMP directory.
 # No input is deleted or overwritten. Never write to application data directories.
 $temporaryRoot = [IO.Path]::GetTempPath()
-$tempDrive = New-Object IO.DriveInfo(([IO.Path]::GetPathRoot($temporaryRoot)))
+$tempDrive = [IO.DriveInfo]::new([IO.Path]::GetPathRoot($temporaryRoot))
 Assert-Lab ($tempDrive.DriveType -eq [IO.DriveType]::Fixed) 'TEMP_NOT_LOCAL_FIXED_DRIVE'
 $evidenceDirectory = Join-Path $temporaryRoot ('DigitalCrown-RESTORE03-B-PREFLIGHT-' + [Guid]::NewGuid().ToString('N'))
 [void][IO.Directory]::CreateDirectory($evidenceDirectory)
