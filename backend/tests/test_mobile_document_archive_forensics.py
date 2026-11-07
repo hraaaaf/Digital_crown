@@ -133,3 +133,30 @@ def test_completed_pdf_verifies_only_when_sql_patient_scope_and_bytes_match(
     invalid_path = _inspect(db, tmp_path, identity)
     assert invalid_path["decision"] == "UNSAFE_ARCHIVE_PATH"
     assert invalid_path["verified_archive"] is False
+
+
+def test_forensics_refuses_unisolated_runtime(db, dentiste, tmp_path, monkeypatch):
+    identity = _identity(dentiste.id, 9994, str(uuid.uuid4()))
+    claim_archive_intent(db, **identity)
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "false")
+    with pytest.raises(RuntimeError, match="explicitement isolée"):
+        _inspect(db, tmp_path, identity)
+    assert read_scoped_receipt(
+        db, tenant_id=dentiste.id, actor_id=dentiste.id,
+        device_id="paired-test-01", key=identity["key"],
+    ).state == "PROCESSING"
+
+
+def test_forensics_refuses_dirty_sql_session_without_autoflush(db, dentiste, tmp_path):
+    identity = _identity(dentiste.id, 9995, str(uuid.uuid4()))
+    claim_archive_intent(db, **identity)
+    dentiste.nom_complet = "NON PERSISTÉ FICTIF"
+    assert bool(db.dirty)
+    with pytest.raises(RuntimeError, match="mutations en attente"):
+        _inspect(db, tmp_path, identity)
+    db.rollback()
+    stored = read_scoped_receipt(
+        db, tenant_id=dentiste.id, actor_id=dentiste.id,
+        device_id="paired-test-01", key=identity["key"],
+    )
+    assert stored.state == "PROCESSING" and stored.archive_id is None
