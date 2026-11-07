@@ -73,7 +73,21 @@ jobs:
           $expected = "${{ github.event.pull_request.head.sha || github.sha }}"
           if ($actual -ne $expected) { throw "RESTORE03_TARGET_EXACT_HEAD_MISMATCH" }
           Write-Output "RESTORE03_TARGET_TEST_HEAD=$actual"
-          python scripts/restore03_cross_host_lab.py target --require-windows --input "$env:RUNNER_TEMP/restore03-transfer" --output "$env:RUNNER_TEMP/restore03-target"
+          # Diagnostic wrapper: report only Python module basenames and line numbers.
+          # No exception messages, paths, PHI or secret values reach CI logs.
+          @'
+          import sys, traceback
+          from pathlib import Path
+          sys.path.insert(0, "scripts")
+          from restore03_cross_host_lab import target
+          try:
+              target(Path(sys.argv[1]), Path(sys.argv[2]), True)
+          except Exception as exc:
+              frames = traceback.extract_tb(exc.__traceback__)
+              where = ";".join(f"{Path(frame.filename).name}:{frame.lineno}" for frame in frames[-10:])
+              print("RESTORE03_SAFE_TRACE:" + type(exc).__name__ + ":" + where, file=sys.stderr)
+              sys.exit(2)
+          '@ | python - "$env:RUNNER_TEMP/restore03-transfer" "$env:RUNNER_TEMP/restore03-target"
           if ($LASTEXITCODE -ne 0) { throw "RESTORE03_TARGET_FAILED" }
           if (-not (Test-Path "$env:RUNNER_TEMP/restore03-target/restore03-target-evidence.json")) { throw "RESTORE03_TARGET_PROOF_MISSING" }
       - uses: actions/upload-artifact@v4
