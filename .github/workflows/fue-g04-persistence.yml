@@ -128,5 +128,7 @@ jobs:
           TELEMETRY_ENABLED: 'false'
           CLOUD_AI_ENABLED: 'false'
         run: python -B -m pytest tests/test_cpv2_02c_four_findings_lab.py -q -p no:cacheprovider --maxfail=1
+      - name: CPV2-02C read-only historical and orphan SHA-256 manifest (synthetic)
+        run: python -B -m pytest tests/test_cpv2_02c_readonly_inventory_lab.py -q -p no:cacheprovider --maxfail=1
       - name: Actual mobile API permission, ECDH, revocation and failure regressions
         run: python -B scripts/ci/run_fue_g04_mobile_security.py
