@@ -1,0 +1,100 @@
+name: RESTORE-03 Cross-Host Synthetic Portability LAB
+on:
+  pull_request:
+    paths:
+      - 'scripts/restore03_cross_host_lab.py'
+      - '.github/workflows/restore03-cross-host-lab.yml'
+      - 'backend/services/cabinet_bundle.py'
+      - 'backend/services/guided_restore_archive.py'
+      - 'backend/services/backup_service.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  # Intentionally PUBLIC and only used with generated synthetic fixtures.
+  RESTORE03_TEST_MIGRATION_SECRET: 'SYNTHETIC_ONLY_NOT_A_REAL_CABINET_PASSPHRASE_v1'
+
+jobs:
+  synthetic-source:
+    name: Export synthetic encrypted bundle (Ubuntu host A)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated synthetic dependencies
+        run: python -m pip install cryptography==44.0.3
+      - name: Export from isolated synthetic host
+        shell: bash
+        run: |
+          set -euo pipefail
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          actual="$(git rev-parse HEAD)"
+          test "$actual" = "$expected"
+          echo "RESTORE03_SOURCE_TEST_HEAD=$actual"
+          python scripts/restore03_cross_host_lab.py source --output "$RUNNER_TEMP/restore03-source"
+          test -f "$RUNNER_TEMP/restore03-source/restore03-SYNTHETIC.dcbundle"
+          test -f "$RUNNER_TEMP/restore03-source/restore03-source-evidence.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: restore03-synthetic-encrypted-cross-host
+          path: ${{ runner.temp }}/restore03-source/
+          retention-days: 1
+          if-no-files-found: error
+
+  synthetic-target:
+    name: Import + verify DB/media (independent Windows host B)
+    runs-on: windows-latest
+    needs: synthetic-source
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated synthetic dependencies
+        run: python -m pip install cryptography==44.0.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: restore03-synthetic-encrypted-cross-host
+          path: ${{ runner.temp }}/restore03-transfer
+      - name: Import on independent Windows runner with destination-local keys
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $actual = (git rev-parse HEAD).Trim()
+          $expected = "${{ github.event.pull_request.head.sha || github.sha }}"
+          if ($actual -ne $expected) { throw "RESTORE03_TARGET_EXACT_HEAD_MISMATCH" }
+          Write-Output "RESTORE03_TARGET_TEST_HEAD=$actual"
+          # Diagnostic wrapper: report only Python module basenames and line numbers.
+          # No exception messages, paths, PHI or secret values reach CI logs.
+          @'
+          import sys, traceback
+          from pathlib import Path
+          sys.path.insert(0, "scripts")
+          from restore03_cross_host_lab import target
+          try:
+              target(Path(sys.argv[1]), Path(sys.argv[2]), True)
+          except Exception as exc:
+              frames = traceback.extract_tb(exc.__traceback__)
+              where = ";".join(f"{Path(frame.filename).name}:{frame.lineno}" for frame in frames[-10:])
+              print("RESTORE03_SAFE_TRACE:" + type(exc).__name__ + ":" + where, file=sys.stderr)
+              sys.exit(2)
+          '@ | python - "$env:RUNNER_TEMP/restore03-transfer" "$env:RUNNER_TEMP/restore03-target"
+          if ($LASTEXITCODE -ne 0) { throw "RESTORE03_TARGET_FAILED" }
+          if (-not (Test-Path "$env:RUNNER_TEMP/restore03-target/restore03-target-evidence.json")) { throw "RESTORE03_TARGET_PROOF_MISSING" }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: restore03-cross-host-synthetic-evidence-only
+          path: ${{ runner.temp }}/restore03-target/restore03-target-evidence.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Scope marker
+        run: echo RESTORE03_SYNTHETIC_ONLY_NO_PHYSICAL_DR_GO

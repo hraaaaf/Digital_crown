@@ -1,0 +1,98 @@
+name: RESTORE-03 Remote Windows A-to-B Restore Worker LAB
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/restore03-remote-windows-worker-lab.yml'
+      - 'scripts/restore03_remote_windows_worker_lab.py'
+      - 'scripts/restore03_cross_host_lab.py'
+      - 'backend/services/guided_restore.py'
+      - 'backend/services/guided_restore_worker.py'
+      - 'backend/services/guided_restore_archive.py'
+      - 'backend/services/cabinet_bundle.py'
+      - 'backend/services/backup_service.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  RESTORE03_TEST_MIGRATION_SECRET: 'SYNTHETIC_ONLY_NOT_A_REAL_CABINET_PASSPHRASE_v1'
+
+jobs:
+  windows-source-a:
+    name: Windows A - generate genuinely encrypted synthetic cabinet portable bundle
+    runs-on: windows-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal portable cabinet test runtime
+        run: python -m pip install cryptography==44.0.3
+      - name: Generate DB + media fixture and portable bundle on Windows host A
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expected = "${{ github.event.pull_request.head.sha || github.sha }}"
+          if ((git rev-parse HEAD).Trim() -ne $expected) { throw 'RESTORE03_A_HEAD_MISMATCH' }
+          if ($env:DATABASE_URL -or $env:DIGITALCROWN_USER_DATA_DIR -or $env:CABINET_MASTER_KEY_HEX) { throw 'RESTORE03_A_UNSAFE_ENV' }
+          python scripts/restore03_cross_host_lab.py source --output "$env:RUNNER_TEMP/restore03-a"
+          if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_A_SOURCE_FAILED' }
+          if (-not (Test-Path "$env:RUNNER_TEMP/restore03-a/restore03-SYNTHETIC.dcbundle")) { throw 'RESTORE03_A_BUNDLE_MISSING' }
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: restore03-remote-windows-a-synthetic-encrypted-transfer
+          path: ${{ runner.temp }}/restore03-a/
+          retention-days: 1
+          if-no-files-found: error
+
+  windows-target-b:
+    name: Windows B - real GuidedRestore DB/media apply and rollback (stand-in health)
+    runs-on: windows-latest
+    needs: windows-source-a
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal restore worker test runtime (no clinic installer)
+        run: python -m pip install cryptography==44.0.3
+      - uses: actions/download-artifact@v4
+        with:
+          name: restore03-remote-windows-a-synthetic-encrypted-transfer
+          path: ${{ runner.temp }}/restore03-remote-transfer
+      - name: Execute real restore worker file mutations, synthetic HTTP health and forced rollback
+        shell: pwsh
+        env:
+          RESTORE03_TEST_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:RESTORE03_TEST_HEAD) { throw 'RESTORE03_B_HEAD_MISMATCH' }
+          if ($env:DATABASE_URL -or $env:DIGITALCROWN_USER_DATA_DIR -or $env:CABINET_MASTER_KEY_HEX -or $env:MEDIA_ROOT) { throw 'RESTORE03_B_UNSAFE_ENV' }
+          python scripts/restore03_remote_windows_worker_lab.py --input "$env:RUNNER_TEMP/restore03-remote-transfer" --output "$env:RUNNER_TEMP/restore03-remote-results"
+          if ($LASTEXITCODE -ne 0) { throw 'RESTORE03_B_WORKER_FAILED' }
+          $proofPath = Join-Path $env:RUNNER_TEMP 'restore03-remote-results/restore03-b-real-worker-synthetic-evidence.json'
+          if (-not (Test-Path -LiteralPath $proofPath -PathType Leaf)) { throw 'RESTORE03_B_PROOF_MISSING' }
+          $proof = Get-Content -LiteralPath $proofPath -Raw | ConvertFrom-Json
+          if ($proof.clinical_go -ne $false -or $proof.frozen_cabinet_exe_installed -ne $false) { throw 'RESTORE03_B_FALSE_CLINICAL_PROOF' }
+          if ($proof.result.success.status -ne 'success' -or $proof.result.rollback.status -ne 'rolled_back') { throw 'RESTORE03_B_PROOFS_INCOMPLETE' }
+          if ($proof.result.portable_rebind_rollback.status -ne 'rolled_back' -or $proof.result.portable_rebind_rollback.rollback -ne 'passed') { throw 'RESTORE03_B_P4_INJECTED_ROLLBACK_NOT_PROVED' }
+          if ($proof.result.portable_rebind_rollback.portable_bundle_detected -ne $true -or $proof.result.portable_rebind_rollback.license_vault_rollback_oracle -ne 'PASS') { throw 'RESTORE03_B_P4_VAULT_ORACLE_MISSING' }
+          if ($proof.portable_license_rebind -ne 'REAL_SUCCESS_NOT_RUN; INJECTED_FAILURE_ROLLBACK_PASS') { throw 'RESTORE03_B_FALSE_P4_SUCCESS_PROOF' }
+          if ($proof.test_only_nonportable_manifest_for_worker -ne $true -or $proof.frozen_cabinet_exe_installed -ne $false) { throw 'RESTORE03_B_SCOPE_NOT_DISCLOSED' }
+          Write-Output 'RESTORE03_REMOTE_WINDOWS_A_TO_B_SYNTHETIC_WORKER_SUCCESS_ROLLBACK_AND_PORTABLE_P4_FAILURE_RECOVERY_PASS'
+          exit 0
+      - uses: actions/upload-artifact@v4
+        with:
+          name: restore03-remote-windows-b-worker-evidence-only
+          path: ${{ runner.temp }}/restore03-remote-results/restore03-b-real-worker-synthetic-evidence.json
+          retention-days: 7
+          if-no-files-found: error
