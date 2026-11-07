@@ -31,27 +31,30 @@ def _regular_nonreparse(mode_stat) -> bool:
     )
 
 
-def _safe_directory_chain(target: Path) -> bool:
-    """Read-only lexical ancestor audit, before any directory creation/open.
+def _directory_chain_failure(target: Path) -> str | None:
+    """Return a stable denial code; None means no unsafe ancestor was observed.
 
-    Refuse symlinked paths and Windows junction/reparse ancestors rather than
-    resolving them into a different offsite storage root. Permission failures
-    fail closed. This is not an attestation of ACLs or an active path-swap race.
+    Symlink/junction/reparse redirects are security failures. Ordinary blocking
+    files and unreachable parents preserve the historical UNREACHABLE status.
+    This lexical check alone does not solve concurrent path-swap attacks.
     """
     if not target.is_absolute() or ".." in target.parts:
-        return False
+        return "DEST_DIRECTORY_UNSAFE"
     for entry in (target, *target.parents):
         try:
             metadata = entry.lstat()
         except FileNotFoundError:
             continue
         except OSError:
-            return False
+            return "DEST_UNREACHABLE"
+        if stat.S_ISLNK(metadata.st_mode) or (
+            getattr(metadata, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+        ):
+            return "DEST_DIRECTORY_UNSAFE"
         if not stat.S_ISDIR(metadata.st_mode):
-            return False
-        if getattr(metadata, "st_file_attributes", 0) & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400):
-            return False
-    return True
+            return "DEST_UNREACHABLE"
+    return None
 
 
 def _open_regular_readonly(path: Path):
@@ -76,14 +79,16 @@ def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[boo
     Le fichier final n'est remplacé qu'après vérification SHA-256.
     Ne lève pas d'erreur d'E/S : la sauvegarde locale reste indépendante.
     """
-    if not _safe_directory_chain(dest_dir):
-        return False, "DEST_DIRECTORY_UNSAFE", "Destination ou parent symbolique, jonction ou non-répertoire"
+    directory_failure = _directory_chain_failure(dest_dir)
+    if directory_failure is not None:
+        return False, directory_failure, "Destination non sûre ou inaccessible"
     try:
         dest_dir.mkdir(parents=True, exist_ok=True)
     except OSError as e:
         return False, "DEST_UNREACHABLE", f"Destination inaccessible : {type(e).__name__}"
-    if not _safe_directory_chain(dest_dir):
-        return False, "DEST_DIRECTORY_UNSAFE", "Destination modifiée ou non autorisée"
+    directory_failure = _directory_chain_failure(dest_dir)
+    if directory_failure is not None:
+        return False, directory_failure, "Destination modifiée ou inaccessible"
 
     try:
         source_stat = source.lstat()
@@ -119,8 +124,9 @@ def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[boo
             # the most recent transfer must never destroy that recovery point.
             # Hard-link creation within this directory is atomic and fails
             # closed if the target exists or the filesystem cannot support it.
-            if not _safe_directory_chain(dest_dir):
-                return False, "DEST_DIRECTORY_UNSAFE", "Destination modifiée avant publication"
+            directory_failure = _directory_chain_failure(dest_dir)
+            if directory_failure is not None:
+                return False, directory_failure, "Destination modifiée avant publication"
             try:
                 os.link(temp_path, dest_path)
             except FileExistsError:
@@ -187,9 +193,11 @@ def copy_to_offsite(
             result["error_code"] = code
             result["error_message"] = message
 
-    if not _safe_directory_chain(dest_root):
-        result["error_code"] = "DEST_DIRECTORY_UNSAFE"
-        result["error_message"] = "Destination hors-site ou parent symbolique/jonction/non-répertoire"
+    directory_failure = _directory_chain_failure(dest_root)
+    if directory_failure is not None:
+        result["status"] = "UNREACHABLE" if directory_failure == "DEST_UNREACHABLE" else "FAILED"
+        result["error_code"] = directory_failure
+        result["error_message"] = "Destination hors-site non sûre ou inaccessible"
         result["duration_seconds"] = round(time.monotonic() - started, 3)
         return result
 
@@ -203,9 +211,11 @@ def copy_to_offsite(
         result["duration_seconds"] = round(time.monotonic() - started, 3)
         return result
 
-    if not _safe_directory_chain(dest_root):
-        result["error_code"] = "DEST_DIRECTORY_UNSAFE"
-        result["error_message"] = "Destination modifiée ou non autorisée"
+    directory_failure = _directory_chain_failure(dest_root)
+    if directory_failure is not None:
+        result["status"] = "UNREACHABLE" if directory_failure == "DEST_UNREACHABLE" else "FAILED"
+        result["error_code"] = directory_failure
+        result["error_message"] = "Destination modifiée ou inaccessible"
         result["duration_seconds"] = round(time.monotonic() - started, 3)
         return result
 
