@@ -65,8 +65,12 @@ try {
     baseURL: apiBase, extraHTTPHeaders: { Authorization: 'Bearer ' + owner },
     storageState: { cookies, origins: [] },
   });
+  // The Station boundary precedes RBAC. Reuse the independently enrolled
+  // synthetic workstation cookie (as in canonical R5 FUE) so this probe
+  // proves the actual admin permission 403, not a missing-station denial.
   const staffApi = await request.newContext({
     baseURL: apiBase, extraHTTPHeaders: { Authorization: 'Bearer ' + staff },
+    storageState: { cookies, origins: [] },
   });
   contexts.push(ownerApi, staffApi);
   const patientsBeforeResponse = await ownerApi.get('/api/patients/');
