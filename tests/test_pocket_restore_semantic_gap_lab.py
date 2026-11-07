@@ -56,7 +56,11 @@ def test_valid_encryption_does_not_mean_complete_pocket_document(tmp_path, monke
     monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
     monkeypatch.setenv("SECRET_KEY", "synthetic-only-restore-auth-key-32-char")
     monkeypatch.setenv("CABINET_MASTER_KEY_HEX", "86" * 32)
-    passphrase = secrets.token_hex(32)
+    # backend.database.engine is cached across pytest parameters and its
+    # SQLCipher URL password is read by portable conversion. A deterministic
+    # FIXTURE-ONLY key keeps all four scenarios consistent in one CI process.
+    # The unrelated migration secret remains fresh/random per scenario.
+    passphrase = "79" * 32
     monkeypatch.setenv("SQLCIPHER_KEY_HEX", passphrase)
 
     source = tmp_path / "synthetic-encrypted-db.sqlcipher"
