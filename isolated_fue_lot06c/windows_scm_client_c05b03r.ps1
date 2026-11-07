@@ -12,7 +12,7 @@ param(
   [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
   [switch]$ProbeB05Package,
   [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
-  [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06MediaStatus='None',
+  [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized','StalePid')][string]$B06MediaStatus='None',
   [string]$B05KeyFile='',
   [string]$B05ServiceDll='',
   [string]$B05BinDirectory=''
@@ -239,8 +239,9 @@ public static class DC06RClient {
       throw 'DC06_B06_APPROVED_USER_EXPECTED'
     }
     $env:DC06_B06_NATIVE_INVENTORY_LAB='1'
+    if ($ExpectedServerPid -le 0) { throw 'DC06_B06_BS2_INVENTORY_PIN_MISSING' }
     $python=(Get-Command python -ErrorAction Stop).Source
-    & $python -I (Join-Path $PSScriptRoot 'windows_b06_native_inventory_client.py') $PipeName $B06InventoryStatus
+    & $python -I (Join-Path $PSScriptRoot 'windows_b06_native_inventory_client.py') $PipeName $B06InventoryStatus $ExpectedServerPid
     if ($LASTEXITCODE -ne 0) { throw ('DC06_B06_NATIVE_ADAPTER_FAILED_'+$LASTEXITCODE) }
   }
   if ($B06MediaStatus -ne 'None') {
@@ -252,8 +253,9 @@ public static class DC06RClient {
     }
     $env:DC06_B06_NATIVE_INVENTORY_LAB='1'
     $env:DC06_B06_NATIVE_MEDIA_LAB='1'
+    if ($ExpectedServerPid -le 0) { throw 'DC06_B06_BS2_MEDIA_PIN_MISSING' }
     $python=(Get-Command python -ErrorAction Stop).Source
-    $mediaProbeOutput=@(& $python -I (Join-Path $PSScriptRoot 'windows_b06_native_media_client.py') $PipeName $B06MediaStatus)
+    $mediaProbeOutput=@(& $python -I (Join-Path $PSScriptRoot 'windows_b06_native_media_client.py') $PipeName $B06MediaStatus $ExpectedServerPid)
     if ($LASTEXITCODE -ne 0) {
       # Whitelist-only diagnostic: never echo child output, media, path or SHA.
       $reason='UNCLASSIFIED'
@@ -264,7 +266,9 @@ public static class DC06RClient {
         'NATIVE_MEDIA_FINAL_INTEGRITY_DENIED','NATIVE_INVENTORY_LAB_DISABLED',
         'NATIVE_INVENTORY_PIPE_UNAVAILABLE','NATIVE_INVENTORY_PEER_DENIED',
         'NATIVE_INVENTORY_REQUEST_DENIED','NATIVE_INVENTORY_REPLY_DENIED',
-        'NATIVE_INVENTORY_REPLY_LENGTH','NATIVE_INVENTORY_FRAME_DENIED','UNKNOWN')
+        'NATIVE_INVENTORY_REPLY_LENGTH','NATIVE_INVENTORY_FRAME_DENIED',
+        'NATIVE_PIPE_SERVER_PID_REQUIRED','NATIVE_PIPE_SERVER_PID_UNAVAILABLE',
+        'NATIVE_PIPE_SERVER_PID_MISMATCH','UNKNOWN')
       foreach ($item in $allowed) {
         if (@($mediaProbeOutput) -contains ('DC06_B06_MEDIA_CLIENT_FAIL_' + $item)) {
           $reason=$item
