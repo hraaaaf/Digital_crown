@@ -21,6 +21,7 @@ import types
 import uuid
 import zipfile
 from pathlib import Path
+from contextlib import closing
 
 ROOT = Path(__file__).resolve().parents[1]
 MARKER = "RESTORE03_SYNTHETIC_ONLY_NO_PHYSICAL_DR_GO"
@@ -109,7 +110,9 @@ def setup_synthetic_environment(work: Path):
 
 
 def create_db(path: Path, marker: str):
-    with sqlite3.connect(str(path)) as conn:
+    # A connection context manager commits/rolls back, but does not close.
+    # On Windows an open SQLite handle blocks deterministic fixture cleanup.
+    with closing(sqlite3.connect(str(path))) as conn:
         conn.execute("CREATE TABLE users (id INTEGER PRIMARY KEY, email TEXT)")
         conn.execute("CREATE TABLE patients (id INTEGER PRIMARY KEY, nom TEXT)")
         conn.execute("CREATE TABLE truth (id INTEGER PRIMARY KEY, value TEXT NOT NULL)")
@@ -119,7 +122,8 @@ def create_db(path: Path, marker: str):
 
 
 def read_db_marker(path: Path) -> tuple[str, int]:
-    with sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True) as conn:
+    # Close the read-only SQLite connection before deleting the test database.
+    with closing(sqlite3.connect(f"file:{path.as_posix()}?mode=ro", uri=True)) as conn:
         assert conn.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         return (
             conn.execute("SELECT value FROM truth WHERE id=1").fetchone()[0],
