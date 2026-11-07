@@ -97,5 +97,15 @@ jobs:
           TELEMETRY_ENABLED: 'false'
           CLOUD_AI_ENABLED: 'false'
         run: python -B -m pytest tests/test_pocket_restore_real_schema_lab.py -q -p no:cacheprovider --maxfail=1
+      - name: J6 MAJOR negative characterization - valid crypto but missing SQL-linked PDF
+        env:
+          DATABASE_URL: 'sqlite:///:memory:'
+          ENVIRONMENT: test
+          DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+          SECRET_KEY: 'fictional-semantic-gap-fixture-key-32-chars'
+          CABINET_MASTER_KEY_HEX: '8686868686868686868686868686868686868686868686868686868686868686'
+          TELEMETRY_ENABLED: 'false'
+          CLOUD_AI_ENABLED: 'false'
+        run: python -B -m pytest tests/test_pocket_restore_semantic_gap_lab.py -q -p no:cacheprovider --maxfail=1
       - name: Actual mobile API permission, ECDH, revocation and failure regressions
         run: python -B scripts/ci/run_fue_g04_mobile_security.py
