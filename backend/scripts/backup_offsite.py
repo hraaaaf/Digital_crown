@@ -57,7 +57,31 @@ def _copy_one(source: Path, expected_checksum: str, dest_dir: Path) -> tuple[boo
                     digest.update(block)
             if digest.hexdigest() != expected_checksum:
                 return False, "CHECKSUM_MISMATCH", "Le fichier copié ne correspond pas au checksum attendu"
-            os.replace(temp_path, dest_path)
+            # Atomic no-clobber publication. os.replace() is unsafe here:
+            # another backup with the same filename may already exist, and
+            # the most recent transfer must never destroy that recovery point.
+            # Hard-link creation within this directory is atomic and fails
+            # closed if the target exists or the filesystem cannot support it.
+            try:
+                os.link(temp_path, dest_path)
+            except FileExistsError:
+                if dest_path.is_symlink():
+                    return False, "EXISTING_BACKUP_REPARSE_DENIED", "Destination finale lien symbolique"
+                existing_hash = hashlib.sha256()
+                try:
+                    with dest_path.open("rb") as existing:
+                        while True:
+                            chunk = existing.read(1024 * 1024)
+                            if not chunk:
+                                break
+                            existing_hash.update(chunk)
+                except OSError as e:
+                    return False, "EXISTING_BACKUP_UNREADABLE", f"Destination existante non vérifiable : {type(e).__name__}"
+                if existing_hash.hexdigest() != expected_checksum:
+                    return False, "DESTINATION_NAME_COLLISION", "Un autre backup validé porte déjà ce nom"
+                # Same bytes are already committed; re-copy is idempotent.
+            except OSError as e:
+                return False, "ATOMIC_PUBLICATION_UNAVAILABLE", f"Publication sans écrasement impossible : {type(e).__name__}"
         except OSError as e:
             return False, "VERIFY_FAILED", f"Échec de vérification/finalisation : {type(e).__name__}"
 
@@ -112,9 +136,11 @@ def copy_to_offsite(
 
     attempted = 0
 
-    if db_source is not None and db_checksum is not None:
+    if db_source is not None:
         attempted += 1
-        if not db_source.exists():
+        if db_checksum is None:
+            _record_error("DB_CHECKSUM_MISSING", "Empreinte du backup DB absente, copie refusée")
+        elif not db_source.exists():
             _record_error("DB_SOURCE_MISSING", "Fichier de backup DB local introuvable")
             logger.warning("Backup hors-site : source DB introuvable (%s).", db_source)
         else:
@@ -124,9 +150,11 @@ def copy_to_offsite(
                 _record_error(code, msg)
                 logger.warning("Backup hors-site : copie DB échouée (%s : %s).", code, msg)
 
-    if media_source is not None and media_checksum is not None:
+    if media_source is not None:
         attempted += 1
-        if not media_source.exists():
+        if media_checksum is None:
+            _record_error("MEDIA_CHECKSUM_MISSING", "Empreinte du backup médias absente, copie refusée")
+        elif not media_source.exists():
             _record_error("MEDIA_SOURCE_MISSING", "Fichier de backup médias local introuvable")
             logger.warning("Backup hors-site : source médias introuvable (%s).", media_source)
         else:

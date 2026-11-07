@@ -176,3 +176,79 @@ def test_large_offsite_copy_rehashes_by_blocks(tmp_path, monkeypatch):
     assert result["status"] == "SUCCESS"
     assert (dest / "media" / source.name).read_bytes() == payload
     assert list((dest / "media").glob(".tmp_*")) == []
+
+
+def test_second_valid_backup_same_name_cannot_overwrite_prior_verified_copy(tmp_path):
+    """The two checksums are individually valid; a collision must never erase the earlier archive."""
+    first = tmp_path / "local_a" / "db_backup_same.sql.enc"
+    second = tmp_path / "local_b" / "db_backup_same.sql.enc"
+    first_sum = _write(first, b"VALID-ORIGINAL-DB")
+    second_sum = _write(second, b"VALID-DIFFERENT-DB")
+    remote = tmp_path / "nas"
+    assert copy_to_offsite(first, first_sum, None, None, remote)["status"] == "SUCCESS"
+    result = copy_to_offsite(second, second_sum, None, None, remote)
+    assert result["status"] == "FAILED"
+    assert result["error_code"] == "DESTINATION_NAME_COLLISION"
+    assert (remote / "db" / first.name).read_bytes() == b"VALID-ORIGINAL-DB"
+    assert list((remote / "db").glob(".tmp_*")) == []
+
+
+def test_second_identical_backup_is_idempotently_accepted(tmp_path):
+    first = tmp_path / "local_a" / "db_backup_same.sql.enc"
+    second = tmp_path / "local_b" / "db_backup_same.sql.enc"
+    digest = _write(first, b"IDENTICAL-VALID-DB")
+    _write(second, b"IDENTICAL-VALID-DB")
+    remote = tmp_path / "nas"
+    assert copy_to_offsite(first, digest, None, None, remote)["status"] == "SUCCESS"
+    result = copy_to_offsite(second, digest, None, None, remote)
+    assert result["status"] == "SUCCESS"
+    assert (remote / "db" / first.name).read_bytes() == b"IDENTICAL-VALID-DB"
+
+
+def test_parallel_same_filename_only_one_different_payload_may_publish(tmp_path):
+    """Two processes in a shared NAS directory must not both commit different bytes."""
+    from concurrent.futures import ThreadPoolExecutor
+    src_a = tmp_path / "first" / "db_backup_shared.sql.enc"
+    src_b = tmp_path / "second" / "db_backup_shared.sql.enc"
+    hash_a = _write(src_a, b"A-ENCRYPTED-BACKUP")
+    hash_b = _write(src_b, b"B-ENCRYPTED-BACKUP")
+    remote = tmp_path / "nas"
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        futures = [
+            pool.submit(copy_to_offsite, src_a, hash_a, None, None, remote),
+            pool.submit(copy_to_offsite, src_b, hash_b, None, None, remote),
+        ]
+        results = [future.result() for future in futures]
+    assert sorted(x["status"] for x in results) == ["FAILED", "SUCCESS"]
+    assert (remote / "db" / src_a.name).read_bytes() in {b"A-ENCRYPTED-BACKUP", b"B-ENCRYPTED-BACKUP"}
+    assert list((remote / "db").glob(".tmp_*")) == []
+
+
+def test_missing_db_checksum_never_reports_complete_offsite_success(tmp_path):
+    db = tmp_path / "local" / "db_backup.sql.enc"
+    media = tmp_path / "local" / "media_backup.zip.enc"
+    _write(db, b"DB")
+    media_sha = _write(media, b"MEDIA")
+    remote = tmp_path / "nas"
+    result = copy_to_offsite(db, None, media, media_sha, remote)
+    assert result["status"] == "PARTIAL"
+    assert result["error_code"] == "DB_CHECKSUM_MISSING"
+    assert result["db_copied"] is False
+    assert result["media_copied"] is True
+    assert not (remote / "db" / db.name).exists()
+    assert (remote / "media" / media.name).read_bytes() == b"MEDIA"
+
+
+def test_atomic_no_clobber_unavailable_never_uses_unsafe_replace(tmp_path, monkeypatch):
+    """SMB/NAS without hardlink semantics must fail closed, leaving existing data untouched."""
+    source = tmp_path / "local" / "db_backup.sql.enc"
+    digest = _write(source, b"VALID-DB")
+    remote = tmp_path / "nas"
+    def deny_link(*args, **kwargs):
+        raise OSError("hard links unavailable on target share")
+    monkeypatch.setattr(_SOURCE_MODULE.os, "link", deny_link)
+    result = copy_to_offsite(source, digest, None, None, remote)
+    assert result["status"] == "FAILED"
+    assert result["error_code"] == "ATOMIC_PUBLICATION_UNAVAILABLE"
+    assert not (remote / "db" / source.name).exists()
+    assert list((remote / "db").glob(".tmp_*")) == []
