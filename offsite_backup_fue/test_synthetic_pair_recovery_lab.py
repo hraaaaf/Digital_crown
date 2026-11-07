@@ -65,7 +65,6 @@ def _copy_pair(tmp_path):
 def _recover(cipher, db_source, media_source, offsite, target):
     """Restore synthetic bytes into a distinct directory, never an active DB."""
     assert not target.exists()
-    target.mkdir(parents=True)
     db_copy = offsite / "db" / db_source.name
     media_copy = offsite / "media" / media_source.name
     assert _sha256(db_copy) == _sha256(db_source)
@@ -73,6 +72,9 @@ def _recover(cipher, db_source, media_source, offsite, target):
     # Authentication must succeed BEFORE writing recovered files.
     db_plain = cipher.decrypt(db_copy.read_bytes())
     media_plain = cipher.decrypt(media_copy.read_bytes())
+    # Do not create a recovery target until both encrypted artifacts have
+    # passed integrity and authentication checks.
+    target.mkdir(parents=True)
     restored_db = target / "restored_synthetic.sqlite"
     restored_db.write_bytes(db_plain)
     with zipfile.ZipFile(io.BytesIO(media_plain)) as archive:
