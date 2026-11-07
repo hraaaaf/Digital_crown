@@ -40,6 +40,7 @@ $createdService=$false
 $createdUsers=@()
 $createdDir=$false
 $b05Phase='PRE_CONFIG'
+$script:b06ScmPid=0
 function Invoke-ScChecked([string[]]$Params) {
     $result=@(& sc.exe @Params)
     if ($LASTEXITCODE -ne 0) {
@@ -64,8 +65,9 @@ function Invoke-Child([string]$Username, [string]$Password,
                        [ValidateSet('None','Valid','Tampered','WrongKey')][string]$B03Status='None',
                        [switch]$ProbeB05Package,
                        [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06InventoryStatus='None',
-                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized')][string]$B06MediaStatus='None',
-                       [switch]$ProbeServerPid, [int]$ExpectedServerPid=0) {
+                       [ValidateSet('None','Valid','Tampered','WrongKey','Unauthorized','StalePid')][string]$B06MediaStatus='None',
+                       [switch]$ProbeServerPid, [int]$ExpectedServerPid=0,
+                       [int]$NativePidOverride=0) {
     $cred=[System.Management.Automation.PSCredential]::new(
         ('.' + [char]92 + $Username), (ConvertTo-SecureString $Password -AsPlainText -Force)
     )
@@ -79,6 +81,11 @@ function Invoke-Child([string]$Username, [string]$Password,
     if ($B03Status -ne 'None') { $arguments += ' -B03Status ' + $B03Status }
     if ($B06InventoryStatus -ne 'None') { $arguments += ' -B06InventoryStatus ' + $B06InventoryStatus }
     if ($B06MediaStatus -ne 'None') { $arguments += ' -B06MediaStatus ' + $B06MediaStatus }
+    if ($B06InventoryStatus -ne 'None' -or $B06MediaStatus -ne 'None') {
+        $nativePin=if ($NativePidOverride -gt 0) { $NativePidOverride } else { $script:b06ScmPid }
+        if ($nativePin -le 0) { throw 'DC06_B06_BS2_SCM_PID_NOT_ATTESTED' }
+        $arguments += ' -ExpectedServerPid ' + $nativePin
+    }
     if ($ProbeB05Package) {
         $arguments += ' -ProbeB05Package -B05KeyFile "' + $keyPath +
             '" -B05ServiceDll "' + $dll + '" -B05BinDirectory "' + $bin + '"'
@@ -109,6 +116,24 @@ function Invoke-Child([string]$Username, [string]$Password,
             if ($diagnostic.Length -gt 600) { $diagnostic=$diagnostic.Substring(0,600) }
             throw ('C05B03R_CHILD_OS_PROBE_FAILED_' + $child.ExitCode +
                 '_CHILD_STDERR_' + $diagnostic)
+        }
+        if ($B06MediaStatus -eq 'Valid' -or $B06MediaStatus -eq 'StalePid') {
+            # The child runs real Win32 per-handle tests. Exit status alone
+            # cannot prove the expected negative/positive oracle occurred.
+            $proven=@(Get-Content -LiteralPath $outFile -ErrorAction Stop)
+            $required=if ($B06MediaStatus -eq 'StalePid') {
+                @('DC06_B06_BS2_STALE_SCM_PID_AFTER_RESTART_PREWRITE_DENIED_PASS')
+            } else {
+                @('DC06_B06_BS2_EVERY_MEDIA_FRAGMENT_SERVER_PID_PINNED_PASS',
+                  'DC06_B06_BS2_LIVE_INVENTORY_HANDLE_FORGED_PID_PREWRITE_DENIED_PASS',
+                  'DC06_B06_BS2_SIMULATED_SECOND_M_HANDLE_PID_SWAP_PREWRITE_DENIED_PASS')
+            }
+            foreach ($marker in $required) {
+                if ($proven -notcontains $marker) {
+                    throw ('DC06_B06_BS2_NATIVE_CHILD_ORACLE_MISSING_' + $marker)
+                }
+                Write-Output $marker
+            }
         }
         if ($ProbeServerPid) {
             # Read actual separate-OS-account output; a successful exit with
@@ -294,6 +319,16 @@ try {
     Wait-ServiceState $serviceName 'RUNNING' 20
     Write-Output 'C05B03R_REAL_SCM_LOCAL_SERVICE_RESTRICTED_SERVICE_SID_AND_PIPE_RUNNING_PASS'
 
+    if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+        # This value comes from local SCM, never a device, URL or HTTP user.
+        $actualScm=Get-CimInstance Win32_Service -Filter ("Name='" + $serviceName + "'") -ErrorAction Stop
+        if ($null -eq $actualScm -or $actualScm.State -ne 'Running' -or
+            [int]$actualScm.ProcessId -le 0) {
+            throw 'DC06_B06_BS2_SCM_PID_UNAVAILABLE'
+        }
+        $script:b06ScmPid=[int]$actualScm.ProcessId
+    }
+
     if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
         # An actually RUNNING Windows SCM service and process are required;
         # a plausible filename, pipe, SID or hash alone is not authority.
@@ -378,6 +413,22 @@ try {
             Write-Output 'DC06B04_REAL_SCM_STOP_CONFIRMED_PASS'
             $null=Invoke-ScChecked -Params @('start',$serviceName)
             Wait-ServiceState $serviceName 'RUNNING' 20
+            if ($env:DC06B06_NATIVE_INVENTORY -eq '1') {
+                $oldNativePid=$script:b06ScmPid
+                $afterRestart=Get-CimInstance Win32_Service -Filter ("Name='" + $serviceName + "'") -ErrorAction Stop
+                if ($null -eq $afterRestart -or $afterRestart.State -ne 'Running' -or
+                    [int]$afterRestart.ProcessId -le 0) {
+                    throw 'DC06_B06_BS2_SCM_PID_AFTER_RESTART_UNAVAILABLE'
+                }
+                $script:b06ScmPid=[int]$afterRestart.ProcessId
+                if ($env:DC06B06_NATIVE_MEDIA -eq '1') {
+                    if ($oldNativePid -eq $script:b06ScmPid) {
+                        throw 'DC06_B06_BS2_SCMPID_REUSE_PREVENTS_STALE_NEGATIVE'
+                    }
+                    Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B06MediaStatus StalePid -NativePidOverride $oldNativePid
+                }
+                Write-Output 'DC06_B06_BS2_SCM_PID_REFRESHED_AFTER_RESTART_PASS'
+            }
             Invoke-Child $allowedUser $newPasswordA $allowedSid 0 5 -B03Status Valid
             $cipherHashAfter=(Get-FileHash -LiteralPath $originalCipher[0].FullName -Algorithm SHA256).Hash
             if ($cipherHashBefore -ne $cipherHashAfter) {
