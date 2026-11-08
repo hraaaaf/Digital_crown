@@ -290,3 +290,55 @@ def test_resource_audit_reference_persists_and_cannot_attach_to_other_event_type
 
         session.add(record("E2", 2, "RESOURCE_CLAIMED", "chair-2"))
         session.commit()
+
+
+
+def test_event_sql_constraints_reject_unknown_enums_and_invalid_manual_facts():
+    from datetime import datetime, timezone
+
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import Session
+    from queue_core.persistence.models import QueueEventRecord, QueueTenant
+
+    engine = _fk_enforcing_queue_db()
+    now = datetime(2026, 11, 8, 9, tzinfo=timezone.utc)
+    with Session(engine) as session:
+        session.add(QueueTenant(id="T", timezone_name="Africa/Casablanca", created_at_utc=now))
+        session.commit()
+
+        cases = [
+            dict(event_type="UNRECOGNIZED"),
+            dict(state_before="INVALID"),
+            dict(state_after="INVALID"),
+            dict(event_type="NO_SHOW", reason_code=None),
+            dict(event_type="NO_SHOW", actor_kind="DEVICE", reason_code="ABSENT"),
+            dict(event_type="ARRIVED", method="STAFF", actor_kind="DEVICE"),
+            dict(event_type="WAITING_ENTERED", method="KIOSK_QR", actor_kind="HUMAN"),
+            dict(event_type="CANCELLED", reason_code="  "),
+        ]
+        defaults = dict(
+            tenant_id="T", visit_ref="V", event_type="CALLED",
+            state_before="WAITING", state_after="CALLED",
+            occurred_at_utc=now, actor_kind="HUMAN", actor_ref="STAFF",
+            method=None, reason_code=None, resource_id=None,
+        )
+        for i, override in enumerate(cases, 1):
+            session.add(QueueEventRecord(
+                id=f"BAD{i}", aggregate_version=i, **{**defaults, **override}
+            ))
+            with pytest.raises(IntegrityError):
+                session.commit()
+            session.rollback()
+
+        session.add(QueueEventRecord(
+            id="GOOD1", aggregate_version=20,
+            **{**defaults, "event_type": "NO_SHOW", "reason_code": "ABSENT"},
+        ))
+        session.commit()
+        session.add(QueueEventRecord(
+            id="GOOD2", aggregate_version=21,
+            **{**defaults, "event_type": "ARRIVED", "actor_kind": "DEVICE",
+               "method": "KIOSK_QR", "state_before": "PLANNED", "state_after": "PLANNED"},
+        ))
+        session.commit()

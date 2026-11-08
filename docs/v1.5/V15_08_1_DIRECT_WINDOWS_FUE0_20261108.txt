@@ -1,24 +1,23 @@
 DIGITAL CROWN V1.5-08.1 - Direct Windows FUE-0 proof
-Scope: Queue Core pure domain and isolated SQLAlchemy metadata; synthetic fixtures only.
+Scope: Queue Core domain and isolated SQLAlchemy metadata; synthetic fixtures only.
 Device: DESKTOP-3MAJEEH (owner-authorized Windows workstation).
 Date: 2026-11-08 UTC.
 Branch: codex/v15-08-1-queue-contracts-20261108
-Original base master: 389d5ebcc64f2c409429dc3e2ed9c8625bb23829
-Updated remote master observed during review: 16f531f04eb7daff3bf5d75017717e12927f47ab (unrelated LOT05 files).
-Independent code review #1: Codex CLI session 01a1bce3-5279-7de1-a1f8-b5d207027683, source e5dbd51a; found 2 P2 issues, fixed.
-Independent code review #2: Codex CLI session 01a1bce9-79c9-7fd3-8a8b-8b686daa8309, source 6e7ff906; found P1 missing durable chair owner and P2 missing check-in method, fixed.
-Corrections after reviewer #2:
- - queue_visits.held_resource_id: optional tenant-scoped FK, unique occupied chair, CHAIR iff held.
- - queue_event_log.method: STAFF/KIOSK_QR mandatory for ARRIVED/WAITING_ENTERED, NULL otherwise.
- - QueueEvent and queue_event_log.resource_id: opaque chair reference required for resource CLAIMED/RELEASED events; no unrelated event may carry it.
- - Synthetic negative SQLite and domain tests verify exclusive occupancy, false states, nonexistent resource, absent/spoofed check-in method, and resource event audit.
-Command (direct Windows Python 3.12): python -m pytest -q queue_core/tests --tb=short
-Observed stdout: ......................... [100%]
-Observed result: 25 passed in 0.65s
+Base master original: 389d5ebcc64f2c409429dc3e2ed9c8625bb23829
+Updated master fetched before final reviews: 16f531f04eb7daff3bf5d75017717e12927f47ab
+Independent reviewer #1: Codex CLI session 01a1bce3-5279-7de1-a1f8-b5d207027683, source e5dbd51a; found 2 P2, corrected.
+Independent reviewer #2: Codex CLI session 01a1bce9-79c9-7fd3-8a8b-8b686daa8309, source 6e7ff906; found 1 P1 and 1 P2, corrected.
+Independent reviewer #3: Codex CLI read-only session on source 136d9b92, base origin/master 16f531f0; found 1 P2, corrected.
+G1 corrections tested: prioritized due appointments, audit override, correct A/B/W/C arrival times, human-only NO_SHOW with actor_kind, kiosk check-in restrictions.
+Persistence: isolated tenant-scoped chair ownership with unique active resource and CHAIR iff held; check-in method and resource references in audit; strict SQL event type/state enums; sensitive audit reasons and actor/method constraints.
+Direct Windows Python 3.12 command: python -m pytest -q queue_core/tests --tb=short
+Observed output: ........................... [100%]
+Observed result: 27 passed in 0.54s
 pytest_exit=0
-Direct Python compileall queue_core: PASS.
-git diff --check to be rechecked immediately before commit.
-Reviewer raw terminal transcripts preserved on owner-authorized Windows PC, outside repo.
-No GitHub Actions tests intentionally launched. Prior Actions green runs test older SHAs only.
-No clinical DB, real patient data, migration, API, QR issuer, installed engine or deploy.
-Final independent review on this new corrected SHA required before merge.
+Python compileall queue_core: exit 0
+git diff --check must be confirmed before exact final commit.
+Reviewer raw transcripts retained locally on authorized PC outside source repository.
+No GitHub Actions tests intentionally launched for these corrections.
+Older CI runs belong to older SHAs and are NOT proof of this newer revision.
+No clinical database changes, real patient data, migration, API, QR issuer or deployment.
+Final independent review of corrected exact SHA required before merging.

@@ -151,6 +151,39 @@ class QueueEventRecord(QueueBase):
             name="ck_queue_event_actor_kind",
         ),
         CheckConstraint(
+            "event_type IN ('ARRIVED', 'WAITING_ENTERED', 'CALLED', 'RECALLED', "
+            "'ORDER_OVERRIDE', 'RESOURCE_CLAIMED', 'RESOURCE_RELEASED', 'CHAIR', "
+            "'DONE', 'CANCELLED', 'NO_SHOW', 'UNLOCATED_AFTER_CALL', "
+            "'RETURNED_TO_WAITING')",
+            name="ck_queue_event_known_type",
+        ),
+        CheckConstraint(
+            "state_before IN ('PLANNED', 'EN_ROUTE', 'WAITING', 'CALLED', "
+            "'CHAIR', 'DONE', 'CANCELLED', 'NO_SHOW')",
+            name="ck_queue_event_known_state_before",
+        ),
+        CheckConstraint(
+            "state_after IN ('PLANNED', 'EN_ROUTE', 'WAITING', 'CALLED', "
+            "'CHAIR', 'DONE', 'CANCELLED', 'NO_SHOW')",
+            name="ck_queue_event_known_state_after",
+        ),
+        CheckConstraint(
+            "(event_type NOT IN ('NO_SHOW', 'ORDER_OVERRIDE', "
+            "'UNLOCATED_AFTER_CALL', 'RETURNED_TO_WAITING', 'CANCELLED')) OR "
+            "(reason_code IS NOT NULL AND length(trim(reason_code)) > 0)",
+            name="ck_queue_event_reason_required",
+        ),
+        CheckConstraint(
+            "event_type <> 'NO_SHOW' OR actor_kind = 'HUMAN'",
+            name="ck_queue_event_manual_no_show",
+        ),
+        CheckConstraint(
+            "(event_type NOT IN ('ARRIVED', 'WAITING_ENTERED')) OR "
+            "(method = 'STAFF' AND actor_kind = 'HUMAN') OR "
+            "(method = 'KIOSK_QR' AND actor_kind = 'DEVICE')",
+            name="ck_queue_event_method_actor_kind",
+        ),
+        CheckConstraint(
             "(event_type IN ('ARRIVED', 'WAITING_ENTERED') AND "
             "method IS NOT NULL AND method IN ('STAFF', 'KIOSK_QR')) OR "
             "(event_type NOT IN ('ARRIVED', 'WAITING_ENTERED') AND method IS NULL)",

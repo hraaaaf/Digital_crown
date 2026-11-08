@@ -173,6 +173,11 @@ class QueueEvent:
                 raise QueueDomainError("CHECK_IN_METHOD_REQUIRED")
         elif self.method is not None:
             raise QueueDomainError("CHECK_IN_METHOD_UNEXPECTED")
+        if (
+            (self.method is CheckInMethod.STAFF and self.actor_kind is not ActorKind.HUMAN)
+            or (self.method is CheckInMethod.KIOSK_QR and self.actor_kind is not ActorKind.DEVICE)
+        ):
+            raise QueueDomainError("CHECK_IN_ACTOR_METHOD_MISMATCH")
         if self.event_type in {QueueEventType.RESOURCE_CLAIMED, QueueEventType.RESOURCE_RELEASED}:
             if not self.resource_id or not self.resource_id.strip():
                 raise QueueDomainError("RESOURCE_EVENT_ID_REQUIRED")
@@ -183,6 +188,7 @@ class QueueEvent:
             QueueEventType.NO_SHOW,
             QueueEventType.UNLOCATED_AFTER_CALL,
             QueueEventType.RETURNED_TO_WAITING,
+            QueueEventType.CANCELLED,
         } and (not self.reason_code or not self.reason_code.strip()):
             raise QueueDomainError("AUDIT_REASON_REQUIRED")
 

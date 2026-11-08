@@ -1,4 +1,7 @@
-### LOT08.1 / PR #1234 — 2026-11-08 — Independent review #2 P1/P2 corrected
+### LOT08.1 / PR #1234 — 2026-11-08 — Independent review #3 P2 corrected
+
+Separate Codex CLI read-only session compared source SHA 136d9b92 to updated origin/master 16f531f0. One P2: QueueEventRecord accepted event_type/state_before/state_after outside G1 enums, risking uninterpretable audit. Fixed SQL checks on all three values, mandatory reasons for sensitive events, and actor/method consistency for check-in and NO_SHOW (with corresponding Python domain validation). New negative synthetic SQLite/domain tests. **27/27 Windows Python 3.12 direct PASS**. Reviewer approval remains pending for new SHA; no GitHub Actions intentionally run or patient use authorized.
+
 
 Codex CLI separate read-only session 01a1bce9-79c9-7fd3-8a8b-8b686daa8309 reviewed SHA 6e7ff906 on PC, detected a **P1** (QueueVisitRecord omitted active held_resource_id despite domain CHAIR holding a resource; compatibility join is NOT occupancy) and **P2** (QueueEventRecord omitted check-in method, losing arrival provenance). Both fixed in 08.1 isolated SQLAlchemy metadata without clinical migrations: held_resource_id with tenant-scoped FK, unique holder, CHAIR iff held SQL check; event method constrained for ARRIVED and WAITING_ENTERED, null otherwise. Domain event method validation tightened, two synthetic SQLite negative tests added. Direct Windows Python 3.12 **25/25** tests PASS; audit RESOURCE_CLAIMED/RESOURCE_RELEASED now also retains opaque `resource_id` in domain/SQL with negative tests. Full runtime atomicity, FK enforcement at installed engine and final QA remain deferred 08.3. A new independent third review of the final corrected source remains required. No GitHub Actions deliberately triggered.
 

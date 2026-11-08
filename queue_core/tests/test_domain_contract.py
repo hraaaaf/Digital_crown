@@ -447,3 +447,29 @@ def test_resource_event_audit_requires_explicit_resource_identifier():
         resource_id="chair-1", **common
     )
     assert event.resource_id == "chair-1"
+
+
+
+def test_event_contract_rejects_false_actor_method_and_cancel_reason():
+    from queue_core.domain import QueueEvent
+
+    base = dict(
+        tenant_id="T", visit_id="V", occurred_at=T0,
+        state_before=VisitStatus.PLANNED, state_after=VisitStatus.PLANNED,
+        aggregate_version=1, actor_ref="STAFF",
+    )
+    with pytest.raises(QueueDomainError, match="CHECK_IN_ACTOR_METHOD_MISMATCH"):
+        QueueEvent(
+            event_type=QueueEventType.ARRIVED,
+            actor_kind=ActorKind.DEVICE, method=CheckInMethod.STAFF, **base,
+        )
+    with pytest.raises(QueueDomainError, match="CHECK_IN_ACTOR_METHOD_MISMATCH"):
+        QueueEvent(
+            event_type=QueueEventType.WAITING_ENTERED,
+            actor_kind=ActorKind.HUMAN, method=CheckInMethod.KIOSK_QR, **base,
+        )
+    with pytest.raises(QueueDomainError, match="AUDIT_REASON_REQUIRED"):
+        QueueEvent(
+            event_type=QueueEventType.CANCELLED,
+            actor_kind=ActorKind.HUMAN, reason_code="", **base,
+        )
