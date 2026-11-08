@@ -167,6 +167,11 @@ class QueueEvent:
             raise QueueDomainError("ACTOR_REFERENCE_REQUIRED")
         if self.aggregate_version < 1:
             raise QueueDomainError("EVENT_VERSION_INVALID")
+        if self.event_type in {QueueEventType.ARRIVED, QueueEventType.WAITING_ENTERED}:
+            if not isinstance(self.method, CheckInMethod):
+                raise QueueDomainError("CHECK_IN_METHOD_REQUIRED")
+        elif self.method is not None:
+            raise QueueDomainError("CHECK_IN_METHOD_UNEXPECTED")
         if self.event_type in {
             QueueEventType.ORDER_OVERRIDE,
             QueueEventType.NO_SHOW,

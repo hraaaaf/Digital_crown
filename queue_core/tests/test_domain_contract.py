@@ -398,3 +398,24 @@ def test_no_show_fails_closed_for_device_system_and_unspecified_actor():
     )
     assert accepted.events[0].actor_kind is ActorKind.HUMAN
     assert accepted.visit.status is VisitStatus.NO_SHOW
+
+
+
+def test_checkin_event_contract_cannot_lose_method_or_spoof_other_events():
+    from queue_core.domain import QueueEvent
+
+    common = dict(
+        tenant_id="tenant-a", visit_id="X", occurred_at=T0,
+        state_before=VisitStatus.PLANNED, state_after=VisitStatus.PLANNED,
+        aggregate_version=1, actor_ref="staff-1", actor_kind=ActorKind.HUMAN,
+    )
+    with pytest.raises(QueueDomainError, match="CHECK_IN_METHOD_REQUIRED"):
+        QueueEvent(event_type=QueueEventType.ARRIVED, **common)
+    with pytest.raises(QueueDomainError, match="CHECK_IN_METHOD_REQUIRED"):
+        QueueEvent(event_type=QueueEventType.WAITING_ENTERED, method="STAFF", **common)
+    with pytest.raises(QueueDomainError, match="CHECK_IN_METHOD_UNEXPECTED"):
+        QueueEvent(event_type=QueueEventType.CALLED, method=CheckInMethod.STAFF, **common)
+    arrived = QueueEvent(
+        event_type=QueueEventType.ARRIVED, method=CheckInMethod.STAFF, **common
+    )
+    assert arrived.method is CheckInMethod.STAFF

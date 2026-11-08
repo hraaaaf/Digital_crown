@@ -127,3 +127,124 @@ def test_sqlite_foreign_keys_reject_cross_tenant_resource_binding():
         session.add(QueueVisitResource(tenant_id="A", visit_id="V", resource_id="R"))
         with pytest.raises(IntegrityError):
             session.commit()
+
+
+
+def _fk_enforcing_queue_db():
+    """Synthetic SQLite only: exercise DB constraints with foreign keys enabled."""
+    from sqlalchemy import event
+
+    engine = create_engine("sqlite+pysqlite:///:memory:")
+
+    @event.listens_for(engine, "connect")
+    def _enforce_foreign_keys(dbapi_connection, _connection_record):
+        dbapi_connection.execute("PRAGMA foreign_keys=ON")
+
+    QueueBase.metadata.create_all(engine)
+    return engine
+
+
+def test_active_chair_owner_is_persisted_unique_and_tenant_scoped():
+    from datetime import datetime, timezone
+
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import Session
+
+    from queue_core.persistence.models import (
+        QueueLine, QueueResource, QueueTenant, QueueVisitRecord,
+    )
+
+    engine = _fk_enforcing_queue_db()
+    now = datetime(2026, 11, 8, 9, tzinfo=timezone.utc)
+    with Session(engine) as session:
+        session.add(QueueTenant(id="TENANT", timezone_name="Africa/Casablanca", created_at_utc=now))
+        session.flush()  # Explicit FK parent first; model has no ORM relationship ordering.
+        session.add(QueueLine(id="LINE", tenant_id="TENANT", queue_key="main"))
+        for rid in ("CHAIR1", "CHAIR2"):
+            session.add(QueueResource(id=rid, tenant_id="TENANT", resource_key=rid, resource_kind="CHAIR"))
+        session.commit()
+
+        def record(vid, seq, chair, status="CHAIR"):
+            return QueueVisitRecord(
+                id=vid, tenant_id="TENANT", queue_id="LINE",
+                visit_kind="APPOINTMENT", status=status,
+                scheduled_at_utc=now, arrival_confirmed_at_utc=now,
+                waiting_since_utc=now, queue_sequence=seq,
+                held_resource_id=chair, version=3,
+            )
+
+        session.add(record("A", 1, "CHAIR1"))
+        session.commit()
+        session.expire_all()
+        assert session.get(QueueVisitRecord, "A").held_resource_id == "CHAIR1"
+
+        session.add(record("B", 2, "CHAIR1"))
+        with pytest.raises(IntegrityError):
+            session.commit()  # cannot double-book CHAIR1
+        session.rollback()
+
+        session.add(record("B", 2, "CHAIR2"))
+        session.commit()
+        assert session.get(QueueVisitRecord, "B").held_resource_id == "CHAIR2"
+
+        session.add(record("C", 3, "CHAIR1", status="WAITING"))
+        with pytest.raises(IntegrityError):
+            session.commit()  # only CHAIR can hold a chair
+        session.rollback()
+
+        session.add(record("C", 3, None, status="CHAIR"))
+        with pytest.raises(IntegrityError):
+            session.commit()  # CHAIR must hold an existing resource
+        session.rollback()
+
+        session.add(record("C", 3, "NOT_IN_THIS_TENANT"))
+        with pytest.raises(IntegrityError):
+            session.commit()  # composite tenant FK rejects phantom resource
+        session.rollback()
+
+
+def test_arrival_provenance_is_persisted_and_constrained_in_event_ledger():
+    from datetime import datetime, timezone
+
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import Session
+
+    from queue_core.persistence.models import QueueEventRecord, QueueTenant
+
+    engine = _fk_enforcing_queue_db()
+    now = datetime(2026, 11, 8, 9, tzinfo=timezone.utc)
+    with Session(engine) as session:
+        session.add(QueueTenant(id="TENANT", timezone_name="Africa/Casablanca", created_at_utc=now))
+        session.commit()
+
+        def audit(event_id, version, event_type, method):
+            return QueueEventRecord(
+                id=event_id, tenant_id="TENANT", visit_ref="OPAQUE_VISIT",
+                aggregate_version=version, event_type=event_type,
+                state_before="PLANNED", state_after="WAITING" if version > 1 else "PLANNED",
+                occurred_at_utc=now, actor_kind="DEVICE", actor_ref="PAIRED_KIOSK",
+                method=method,
+            )
+
+        session.add(audit("E1", 1, "ARRIVED", "KIOSK_QR"))
+        session.commit()
+        session.expire_all()
+        assert session.get(QueueEventRecord, "E1").method == "KIOSK_QR"
+
+        session.add(audit("E2", 2, "WAITING_ENTERED", None))
+        with pytest.raises(IntegrityError):
+            session.commit()  # every check-in event retains its method
+        session.rollback()
+
+        session.add(audit("E2", 2, "WAITING_ENTERED", "KIOSK_QR"))
+        session.commit()
+
+        session.add(audit("E3", 3, "CALLED", "STAFF"))
+        with pytest.raises(IntegrityError):
+            session.commit()  # unrelated events cannot spoof check-in method
+        session.rollback()
+
+        session.add(audit("E3", 3, "CALLED", None))
+        session.commit()

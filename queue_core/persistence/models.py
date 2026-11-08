@@ -65,11 +65,23 @@ class QueueVisitRecord(QueueBase):
     __table_args__ = (
         UniqueConstraint("tenant_id", "id", name="uq_queue_visits_tenant_id_id"),
         UniqueConstraint("tenant_id", "queue_id", "queue_sequence", name="uq_queue_visits_queue_sequence"),
+        # NULL occupancy permits multiple non-CHAIR visits, but one held chair per tenant.
+        UniqueConstraint("tenant_id", "held_resource_id", name="uq_queue_visit_active_resource"),
         ForeignKeyConstraint(["tenant_id"], ["queue_tenants.id"], ondelete="RESTRICT"),
         ForeignKeyConstraint(
             ["tenant_id", "queue_id"],
             ["queue_lines.tenant_id", "queue_lines.id"],
             ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["tenant_id", "held_resource_id"],
+            ["queue_resources.tenant_id", "queue_resources.id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "(status = 'CHAIR' AND held_resource_id IS NOT NULL) OR "
+            "(status <> 'CHAIR' AND held_resource_id IS NULL)",
+            name="ck_queue_held_resource_iff_chair",
         ),
         CheckConstraint(
             "(visit_kind = 'APPOINTMENT' AND scheduled_at_utc IS NOT NULL) OR "
@@ -98,6 +110,7 @@ class QueueVisitRecord(QueueBase):
     waiting_since_utc: Mapped[object | None] = mapped_column(DateTime(timezone=True), nullable=True)
     queue_sequence: Mapped[int | None] = mapped_column(Integer, nullable=True)
     public_ticket_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    held_resource_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
     version: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     closed_at_utc: Mapped[object | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
@@ -137,6 +150,12 @@ class QueueEventRecord(QueueBase):
             "actor_kind IN ('HUMAN', 'DEVICE', 'SYSTEM')",
             name="ck_queue_event_actor_kind",
         ),
+        CheckConstraint(
+            "(event_type IN ('ARRIVED', 'WAITING_ENTERED') AND "
+            "method IS NOT NULL AND method IN ('STAFF', 'KIOSK_QR')) OR "
+            "(event_type NOT IN ('ARRIVED', 'WAITING_ENTERED') AND method IS NULL)",
+            name="ck_queue_event_checkin_method",
+        ),
         Index("ix_queue_event_tenant_time", "tenant_id", "occurred_at_utc"),
     )
 
@@ -153,6 +172,7 @@ class QueueEventRecord(QueueBase):
     actor_kind: Mapped[str] = mapped_column(String(16), nullable=False)
     actor_ref: Mapped[str] = mapped_column(String(64), nullable=False)
     reason_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
+    method: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
 
 class QueueExternalReference(QueueBase):
