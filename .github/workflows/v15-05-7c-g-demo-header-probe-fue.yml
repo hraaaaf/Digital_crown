@@ -10,6 +10,7 @@ on:
       - '.github/workflows/v15-05-7c-g-demo-header-probe-fue.yml'
       - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
       - 'scripts/quality/v15_05_7c_g_official_trial_win_preflight.ps1'
+      - 'scripts/quality/v15_05_7c_g_official_demo_db_to_csv_lab.py'
   workflow_dispatch:
 
 permissions:
@@ -121,3 +122,42 @@ jobs:
                 ? 'Signed official installer downloaded on hosted Windows; NOT executed'
                 : 'Windows installer download/signature gate refused or incomplete',
             });
+
+  candidate-official-demo-db-csv:
+    name: Ephemeral Ubuntu MariaDB 10.11 pinned vendor demo DB to PRIVATE CSV (not GUI export)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact PR HEAD and Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python3 -m py_compile scripts/quality/v15_05_7c_g_official_demo_db_to_csv_lab.py
+      - name: Install isolated MariaDB 10.11 and p7zip from Ubuntu repositories
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -qq -y mariadb-server p7zip-full
+          sudo systemctl stop mariadb || true
+          test "$(mariadbd --version | grep -c '10[.]11[.]')" = 1
+      - name: Read publisher-packaged demo patient table via private offline socket and destroy CSV
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/quality/v15_05_7c_g_official_demo_db_to_csv_lab.py
+      - name: Upload only non-PHI SHA and count metadata, NEVER CSV or MyISAM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-g-signed-demo-db-local-csv-evidence-only
+          path: ${{ runner.temp }}/lot05-7c-g-vendor-demo-csv-evidence-only.json
+          if-no-files-found: warn
+          retention-days: 5
