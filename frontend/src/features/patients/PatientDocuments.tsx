@@ -73,6 +73,7 @@ export const PatientDocuments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionsOpenFor, setActionsOpenFor] = useState<string | null>(null);
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{patientId: string; url: string; filename: string} | null>(null);
 
   // Route changes can happen while a document blob request is still pending.
   // Guard both reused instances and the previously mounted instance after unmount.
@@ -80,6 +81,7 @@ export const PatientDocuments = () => {
   currentPatientIdRef.current = id;
   const mountedRef = useRef(false);
   const objectUrlsRef = useRef<Set<string>>(new Set());
+  const previewUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -89,6 +91,7 @@ export const PatientDocuments = () => {
   useEffect(() => () => {
     for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
     objectUrlsRef.current.clear();
+    previewUrlRef.current = null;
   }, [id]);
 
   const belongsToActivePatient = (patientAtRequest: string | undefined) =>
@@ -97,6 +100,22 @@ export const PatientDocuments = () => {
   const releaseObjectUrl = (url: string) => {
     if (objectUrlsRef.current.delete(url)) URL.revokeObjectURL(url);
   };
+
+  const closePreview = () => {
+    const currentUrl = previewUrlRef.current;
+    previewUrlRef.current = null;
+    if (currentUrl) releaseObjectUrl(currentUrl);
+    setPreview(null);
+  };
+
+  useEffect(() => {
+    if (!preview || preview.patientId !== id) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closePreview();
+    };
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [id, preview]);
 
   useEffect(() => {
     let cancelled = false;
@@ -107,6 +126,7 @@ export const PatientDocuments = () => {
     setPatientAssurance(null);
     setActionsOpenFor(null);
     setSigningDocId(null);
+    setPreview(null);
     const fetchDocs = async () => {
       setLoading(true);
       setFetchError(false);
@@ -195,20 +215,25 @@ export const PatientDocuments = () => {
     }
   };
 
-  const handleView = async (docId: string) => {
+  const handleView = async (docId: string, filename: string) => {
     const patientAtRequest = id;
     if (!belongsToActivePatient(patientAtRequest)) return;
     try {
       const res = await api.get(`/documents/${encodeURIComponent(docId)}/download`, { responseType: 'blob' });
-      // Never open an A document whose response arrives after switching to B.
+      // Never render a response from patient A after switching to B.
       if (!belongsToActivePatient(patientAtRequest)) return;
-      const blobUrl = URL.createObjectURL(res.data);
+      const blob = res.data as Blob;
+      if (!(blob instanceof Blob) || blob.type.split(';')[0].toLowerCase() !== 'application/pdf') {
+        alert('Aperçu réservé aux PDF. Utilisez « Fichier » pour ce document.');
+        return;
+      }
+      const blobUrl = URL.createObjectURL(blob);
       objectUrlsRef.current.add(blobUrl);
-      // A noopener popup intentionally returns null even when the PDF tab
-      // has opened successfully. Null is not reliable evidence of blocking:
-      // revoking immediately can invalidate the real preview.
-      window.open(blobUrl, '_blank', 'noopener,noreferrer');
-      window.setTimeout(() => releaseObjectUrl(blobUrl), 60_000);
+      if (previewUrlRef.current) releaseObjectUrl(previewUrlRef.current);
+      previewUrlRef.current = blobUrl;
+      // Keep the PDF inside the patient-bound dossier: a detached noopener
+      // browser tab cannot reliably be closed on A -> B navigation.
+      setPreview({patientId: patientAtRequest!, url: blobUrl, filename});
     } catch (err) {
       if (!belongsToActivePatient(patientAtRequest)) return;
       console.error('Erreur lors de la visualisation:', err);
@@ -431,7 +456,7 @@ export const PatientDocuments = () => {
                   <div className="col-span-2 min-h-[48px] flex items-center justify-center gap-2 bg-warning-surface border border-warning-border text-warning rounded-2xl font-black text-xs uppercase tracking-widest"><FileX2 size={16} /> Fichier introuvable</div>
                 ) : (
                   <>
-                    <button data-m4c-touch onClick={() => void handleView(doc.id)} className="min-h-[48px] flex items-center justify-center gap-2 bg-background border border-border-main hover:bg-input-field text-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"><Eye size={16} /> Voir</button>
+                    <button data-m4c-touch onClick={() => void handleView(doc.id, doc.name)} className="min-h-[48px] flex items-center justify-center gap-2 bg-background border border-border-main hover:bg-input-field text-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"><Eye size={16} /> Voir</button>
                     <button data-m4c-touch onClick={() => void handleDownload(doc.id, doc.name)} className="min-h-[48px] flex items-center justify-center gap-2 bg-gradient-to-br from-primary to-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"><Download size={16} /> Fichier</button>
                   </>
                 )}
@@ -454,6 +479,26 @@ export const PatientDocuments = () => {
           </div>
         )}
       </div>
+      {preview && preview.patientId === id && (
+        <div data-document-pdf-preview role="dialog" aria-modal="true"
+          aria-label={`Aperçu PDF du patient — ${preview.filename}`}
+          className="fixed inset-0 z-[850] flex items-center justify-center bg-slate-950/80 p-2 sm:p-6">
+          <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border-main bg-card shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-main px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Aperçu sécurisé · dossier patient</p>
+                <h3 className="truncate text-sm font-bold text-text-main">{preview.filename}</h3>
+              </div>
+              <button type="button" autoFocus onClick={closePreview} aria-label="Fermer l’aperçu PDF"
+                className="min-h-11 shrink-0 rounded-lg border border-border-main bg-background px-4 py-2 text-sm font-bold text-text-main">
+                Fermer
+              </button>
+            </div>
+            <iframe title={`Aperçu PDF — ${preview.filename}`} src={preview.url}
+              sandbox="allow-downloads" className="min-h-0 w-full flex-1 bg-card" />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
