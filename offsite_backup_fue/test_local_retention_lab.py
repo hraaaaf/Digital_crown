@@ -120,7 +120,7 @@ def test_maj02_posix_swap_just_before_unlink_cannot_delete_external(tmp_path, mo
         return raw_unlink(name, dir_fd=dir_fd)
     monkeypatch.setattr(retention.os, "unlink", replace_name)
     result = _run(root, dest, prefix, suffix)
-    assert once["done"]
+    assert once["done"], result
     assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
     assert external.read_bytes() == b"KEEP"
 
