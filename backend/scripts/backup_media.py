@@ -112,7 +112,8 @@ def _build_media_archive(dest_dir: Path, timestamp: str) -> dict:
         temp_path.write_bytes(encrypted_data)
         if temp_path.stat().st_size == 0:
             raise RuntimeError("temp media archive is empty")
-        os.replace(temp_path, final_path)
+        # Preserve any earlier archive of the same name (no os.replace).
+        os.link(temp_path, final_path)
     except Exception as e:
         status["error_code"] = "WRITE_FAILED"
         status["error_message"] = "Échec écriture de l'archive média"
