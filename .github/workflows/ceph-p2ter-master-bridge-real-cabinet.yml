@@ -76,10 +76,15 @@ jobs:
             backend/tests/test_media_core_timeline_api.py \
             backend/tests/test_media_core_c7_certification.py \
             backend/tests/test_cephalo_four_part_report.py -q
-      - name: DC-DOS-01 patient-switch media UI race and blob revocation regression
+      - name: DC-DOS-01 patient media/document asynchronous race, drafts, DEV-only split and TypeScript
         working-directory: frontend
         run: |
-          npx vitest run src/features/ortho/components/OrthoMediaRecordPanel.test.tsx
+          npx vitest run \
+            src/features/ortho/components/OrthoMediaRecordPanel.test.tsx \
+            src/features/patients/PatientDocuments.patientSwitch.test.tsx \
+            src/features/patients/patientDocumentBoundary.test.ts \
+            src/features/multiview/CabinetMultiViewLab.test.tsx \
+            src/features/multiview/R3SplitWorkspace.test.tsx
           npx tsc --noEmit --pretty false
       - name: Start isolated T2 FastAPI runtime (real JWT and workstation)
         run: |
@@ -375,7 +380,7 @@ jobs:
         run: |
           node --check scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
           node scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
-      - name: DC-DOS-01 verify seven evidence assertions, screenshots and SQLite tenant ownership
+      - name: DC-DOS-01 verify eight evidence assertions, seven screenshots and SQLite tenant ownership
         run: |
           python - <<'PY'
           import json,os
@@ -390,8 +395,8 @@ jobs:
           assert report["synthetic_only"] is True
           assert report["official_fue_complete"] is False
           assert report["clinical_release"] is False
-          assert len(report["checks"])==7 and all(c["status"]=="PASS" for c in report["checks"])
-          assert len(report["shots"])==5
+          assert len(report["checks"])==8 and all(c["status"]=="PASS" for c in report["checks"])
+          assert len(report["shots"])==7
           for fn in report["shots"]:
               p=root/fn
               assert p.is_file() and p.stat().st_size>150
