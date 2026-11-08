@@ -38,6 +38,8 @@ $report = [ordered]@{
   installer_uia_new_server_option_observed = $false
   installer_uia_workstation_option_observed = $false
   installer_uia_license_button_observed = $false
+  initial_installer_window_png_captured = $false
+  initial_installer_window_png_dimensions = $null
   official_trial_installer_completed = $false
   database_installed = $false
   gui_product_launched = $false
@@ -148,6 +150,75 @@ try {
       }
     } catch {
       $report.installer_uia_tree_accessible = $false
+    }
+  }
+  # Screenshot ONLY the signed vendor launcher's first window, before any
+  # Install click or database access. Never capture the desktop or patient UI.
+  if ($report.official_trial_window_title_allowlisted -and
+      $installerHwnd -ne [IntPtr]::Zero -and
+      $report.official_binary_authenticode_valid -and
+      -not $report.database_installed -and
+      -not $report.gui_product_launched) {
+    try {
+      Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public struct Lot05InitialInstallerRect {
+  public int Left;
+  public int Top;
+  public int Right;
+  public int Bottom;
+}
+public static class Lot05InitialInstallerCapture {
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern bool GetWindowRect(IntPtr hwnd, out Lot05InitialInstallerRect bounds);
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern bool SetForegroundWindow(IntPtr hwnd);
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern IntPtr GetForegroundWindow();
+}
+'@
+      $null = [Lot05InitialInstallerCapture]::SetForegroundWindow($installerHwnd)
+      Start-Sleep -Milliseconds 350
+      if ([Lot05InitialInstallerCapture]::GetForegroundWindow() -ne $installerHwnd) {
+        throw 'SIGNED_INSTALLER_NOT_FOREGROUND'
+      }
+      $rectangle = New-Object Lot05InitialInstallerRect
+      if (-not [Lot05InitialInstallerCapture]::GetWindowRect(
+          $installerHwnd, [ref]$rectangle)) {
+        throw 'SIGNED_INSTALLER_WINDOW_BOUNDS_UNAVAILABLE'
+      }
+      $width = [int]($rectangle.Right - $rectangle.Left)
+      $height = [int]($rectangle.Bottom - $rectangle.Top)
+      if ($width -lt 250 -or $height -lt 150 -or
+          $width -gt 1500 -or $height -gt 1100) {
+        throw 'SIGNED_INSTALLER_WINDOW_BOUNDS_REFUSED'
+      }
+      $bitmap = New-Object System.Drawing.Bitmap($width, $height)
+      try {
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        try {
+          $graphics.CopyFromScreen(
+            [int]$rectangle.Left, [int]$rectangle.Top, 0, 0,
+            (New-Object System.Drawing.Size($width, $height)),
+            [System.Drawing.CopyPixelOperation]::SourceCopy
+          )
+        } finally {
+          $graphics.Dispose()
+        }
+        $screenshotPath = Join-Path $env:RUNNER_TEMP 'lot05-7c-h-OFFICIAL-INSTALLER-FIRST-WINDOW-NO-PATIENTS.png'
+        $bitmap.Save($screenshotPath, [System.Drawing.Imaging.ImageFormat]::Png)
+        if ((Get-Item -LiteralPath $screenshotPath).Length -gt 1024) {
+          $report.initial_installer_window_png_captured = $true
+          $report.initial_installer_window_png_dimensions = "$width" + 'x' + "$height"
+        }
+      } finally {
+        $bitmap.Dispose()
+      }
+    } catch {
+      # Evidence unavailable. Do not capture desktop or bypass focus/provenance.
+      $report.initial_installer_window_png_captured = $false
     }
   }
   if ($report.official_trial_window_title_allowlisted) {
