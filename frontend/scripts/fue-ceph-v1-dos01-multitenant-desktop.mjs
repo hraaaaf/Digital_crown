@@ -307,6 +307,11 @@ try {
     const mediaA=page.locator(mediaSelector);
     await mediaA.locator('[data-testid="media-asset-rail"] article').first()
       .waitFor({state:'visible',timeout:35000});
+    const sourceA=mediaA.locator('[data-testid="media-asset-rail"] [data-clinical-asset-id]').first();
+    const sourceAId=Number(await sourceA.getAttribute('data-clinical-asset-id'));
+    const selectedAId=Number(await mediaA.locator('[data-testid="media-inline-viewer"]').getAttribute('data-clinical-asset-id'));
+    checkTrue(sourceAId===assets.a && selectedAId===assets.a,
+      'DC-DOS-02 patient A split duplicated or rebound the original imported ClinicalAsset ID');
     const imageA=mediaA.locator('img[src^="blob:"]').first();
     await imageA.waitFor({state:'visible',timeout:30000});
     const srcA=await imageA.getAttribute('src');
@@ -326,6 +331,11 @@ try {
     const mediaB=page.locator(mediaSelector);
     await mediaB.locator('[data-testid="media-asset-rail"] article').first()
       .waitFor({state:'visible',timeout:35000});
+    const sourceB=mediaB.locator('[data-testid="media-asset-rail"] [data-clinical-asset-id]').first();
+    const sourceBId=Number(await sourceB.getAttribute('data-clinical-asset-id'));
+    const selectedBId=Number(await mediaB.locator('[data-testid="media-inline-viewer"]').getAttribute('data-clinical-asset-id'));
+    checkTrue(sourceBId===assets.b && selectedBId===assets.b && sourceAId!==sourceBId,
+      'DC-DOS-02 patient B split reused A original media ID or created a shadow source');
     const imageB=mediaB.locator('img[src^="blob:"]').first();
     await imageB.waitFor({state:'visible',timeout:30000});
     const srcB=await imageB.getAttribute('src');
@@ -338,7 +348,8 @@ try {
     await shot('09-r3-split-patient-b');
     return {desktop_1920_two_real_panes:true,patient_a_identity_verified:true,
       patient_b_identity_verified:true,stale_a_panel_absent:true,
-      old_media_blob_revoked:true,no_media_write_controls:true,clinical_release:false};
+      old_media_blob_revoked:true,no_media_write_controls:true,
+      dc_dos02_a_b_canonical_asset_ids_preserved:true,clinical_release:false};
   });
   foreignContext=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce',
     storageState:{cookies:foreignEnrolled.cookies.filter(c=>c.name==='dc_workstation'),origins:[]}});
@@ -372,6 +383,13 @@ try {
     await foreignPage.locator(split+' [data-v15-071-viewslot="imagerie"]')
       .locator('[data-testid="media-asset-rail"] article').first()
       .waitFor({state:'visible',timeout:35000});
+    const foreignMedia=foreignPage.locator(split+' [data-v15-071-viewslot="imagerie"]');
+    const foreignOriginal=Number(await foreignMedia.locator('[data-testid="media-asset-rail"] [data-clinical-asset-id]')
+      .first().getAttribute('data-clinical-asset-id'));
+    const foreignSelected=Number(await foreignMedia.locator('[data-testid="media-inline-viewer"]')
+      .getAttribute('data-clinical-asset-id'));
+    checkTrue(foreignOriginal===assets.x && foreignSelected===assets.x,
+      'DC-DOS-02 foreign cabinet X split lost its original imported ClinicalAsset ID');
     await shot('10-r3-foreign-own-patient-x',foreignPage);
 
     await openPatient(foreignPage,f.patient_a,false,'media');
@@ -384,7 +402,8 @@ try {
       await foreignPage.locator('img[src^="blob:"]').count()===0,
       'Foreign Cabinet retained A dossier identity or media blob');
     await shot('11-r3-foreign-cannot-open-a',foreignPage);
-    return {foreign_own_x_two_panes:true,foreign_patient_a_split_denied:true};
+    return {foreign_own_x_two_panes:true,foreign_patient_a_split_denied:true,
+      dc_dos02_x_canonical_asset_id_preserved:true};
   });
   proof.status='SUBLOT_AUTOMATED_PASS';
 }catch(e) {
