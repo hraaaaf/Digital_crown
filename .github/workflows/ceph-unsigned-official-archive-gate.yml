@@ -65,10 +65,10 @@ jobs:
             backend/tests/test_cephalo_p2ter_archive_adversarial.py \
             backend/tests/test_cephalo_p2ter_identity_bound_pdf.py \
             backend/tests/test_cephalo_p2ter_crash_recovery.py \
-            backend/tests/test_cephalo_four_part_report.py
+            backend/tests/test_cephalo_four_part_report.py \
             backend/tests/test_admin_normalize_docs_security.py \
             backend/tests/test_admin_normalize_docs_cephalo_guard.py \
-            backend/tests/test_admin_router.py
+            backend/tests/test_admin_router.py \
             backend/tests/test_cephalo_unsigned_archive_entrypoints_contract.py
 
   unsigned-archive-ui:
