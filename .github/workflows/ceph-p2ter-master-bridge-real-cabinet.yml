@@ -384,7 +384,7 @@ jobs:
         run: |
           node --check scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
           node scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
-      - name: DC-DOS-01 verify ten checks, inline A/B PDF and Desktop split A/B/X isolation
+      - name: DC-DOS-01 verify ten checks and nonblank PDF canvas A/B plus R3 Desktop A/B/X
         run: |
           python - <<'PY'
           import json,os
@@ -411,7 +411,8 @@ jobs:
           assert foreign_split.get("foreign_patient_a_split_denied") is True
           documents=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_REACT_A_B_DOCUMENTS_ROUTE_ISOLATION")
           for flag in ("real_pdf_bytes_sha256_A","real_pdf_bytes_sha256_B",
-                       "blob_a_revoked_on_patient_B","patient_a_document_absent_in_B"):
+                       "pdf_canvas_A_pixels_confirmed","pdf_canvas_B_pixels_confirmed",
+                       "no_pdf_preview_blob_url_created","patient_a_document_absent_in_B"):
               assert documents.get(flag) is True, (flag,documents)
           for flag in ("inline_pdf_preview_patient_bound","zero_native_popup_open_attempts",
                        "escape_closes_pdf_preview"):
