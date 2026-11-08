@@ -205,9 +205,8 @@ try {
       'Patient B PDF appeared on patient A archive tab');
     await shot('04-patient-a-synthetic-archives');
 
-    // Observe native URL.create/revoke and actual authenticated PDF response.
-    // Instrument window.open to avoid a native external popout; this certifies
-    // route-bound blob cleanup, NOT auto-closing a pre-existing browser tab.
+    // Observe actual HTTP PDF bytes, patient-bound in-dossier iframe, and
+    // URL.create/revoke. An external noopener window is no longer launched.
     await page.evaluate(()=>{
       const audit={created:[],revoked:[],opened:[]};
       window.__dcDosPdfAudit=audit;
@@ -225,33 +224,55 @@ try {
     const bytesA=await (await resA).body();
     checkTrue(crypto.createHash('sha256').update(bytesA).digest('hex')===f.archives.a.sha256,
       'The real patient A PDF response bytes differ from seeded SHA256');
-    await page.waitForFunction(()=>window.__dcDosPdfAudit?.opened?.length===1,{timeout:15000});
+    const previewA=page.getByRole('dialog',{name:/Aperçu PDF du patient/});
+    await previewA.waitFor({state:'visible',timeout:15000});
+    const iframeA=previewA.locator('iframe[title^="Aperçu PDF"]');
+    const blobA=await iframeA.getAttribute('src');
     const openedA=await page.evaluate(()=>window.__dcDosPdfAudit);
-    checkTrue(openedA.created.length===1 && openedA.opened[0].url===openedA.created[0] &&
-      openedA.revoked.length===0,'Patient A viewer did not preserve its active blob until switch');
+    checkTrue(blobA?.startsWith('blob:') && openedA.created.includes(blobA) &&
+      openedA.opened.length===0 && openedA.revoked.length===0 &&
+      (await iframeA.getAttribute('sandbox'))==='allow-downloads',
+      'Patient A PDF is not safely bound to the in-dossier sandboxed viewer');
+    await shot('04a-patient-a-inline-pdf-viewer');
 
     await openPatient(page,f.patient_b,false,'archives');
     await page.waitForURL(u=>new URL(u).pathname==='/patients/'+f.patient_b,{timeout:30000});
     await page.locator('[data-flow-patient-surface="archives"]').waitFor({state:'visible',timeout:35000});
     await page.getByText('DC-DOS01-SYNTH-B.pdf').waitFor({state:'visible',timeout:35000});
     await page.waitForFunction(url=>window.__dcDosPdfAudit?.revoked?.includes(url),
-      openedA.created[0],{timeout:15000});
+      blobA,{timeout:15000});
+    checkTrue(await page.getByRole('dialog',{name:/Aperçu PDF du patient/}).count()===0,
+      'Patient A PDF dialog remained mounted after A -> B');
     const auditB=await page.evaluate(()=>window.__dcDosPdfAudit);
-    checkTrue(auditB.revoked.includes(openedA.created[0]) &&
+    checkTrue(auditB.revoked.includes(blobA) && auditB.opened.length===0 &&
       await page.getByText('DC-DOS01-SYNTH-A.pdf').count()===0,
       'A PDF preview object URL or document name persisted after navigation to B');
     checkTrue(await page.locator('[data-ortho-workspace-patient]').count()===0,
       'Patient B archive tab retained patient A cephalo workspace');
+    await shot('05-patient-b-synthetic-archives');
     const resB=page.waitForResponse(r=>r.url().includes('/api/documents/'+f.archives.b.id+'/download') && r.status()===200);
     await page.getByRole('button',{name:'Voir',exact:true}).click();
     const bytesB=await (await resB).body();
     checkTrue(crypto.createHash('sha256').update(bytesB).digest('hex')===f.archives.b.sha256 &&
       f.archives.b.sha256!==f.archives.a.sha256,
       'Patient B PDF did not match its distinct fixture content');
-    await shot('05-patient-b-synthetic-archives');
+    const previewB=page.getByRole('dialog',{name:/Aperçu PDF du patient/});
+    await previewB.waitFor({state:'visible',timeout:15000});
+    const blobB=await previewB.locator('iframe[title^="Aperçu PDF"]').getAttribute('src');
+    checkTrue(blobB?.startsWith('blob:') && blobB!==blobA &&
+      (await previewB.innerText()).includes('DC-DOS01-SYNTH-B.pdf') &&
+      !(await previewB.innerText()).includes('DC-DOS01-SYNTH-A.pdf'),
+      'Patient B viewer contains patient A PDF or incorrect blob');
+    await shot('05a-patient-b-inline-pdf-viewer');
+    await page.keyboard.press('Escape');
+    await page.waitForFunction(url=>window.__dcDosPdfAudit?.revoked?.includes(url),
+      blobB,{timeout:15000});
+    checkTrue(await page.getByRole('dialog',{name:/Aperçu PDF du patient/}).count()===0,
+      'Patient B PDF dialog failed to close on Escape');
     return {real_pdf_bytes_sha256_A:true,real_pdf_bytes_sha256_B:true,
       blob_a_revoked_on_patient_B:true,patient_a_document_absent_in_B:true,
-      external_native_popup_auto_close:'NOT_TESTED',synthetic_official_archives_created:0};
+      inline_pdf_preview_patient_bound:true,zero_native_popup_open_attempts:true,
+      escape_closes_pdf_preview:true,synthetic_official_archives_created:0};
   });
   await page.setViewportSize({width:1920,height:1080});
   await verify('REAL_R3_DESKTOP_SPLIT_A_B_NO_STALE_PANES',async()=>{
