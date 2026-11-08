@@ -5,12 +5,14 @@ on:
     branches: [master]
     paths:
       - 'queue_core/**'
+      - 'STATE.md'
       - 'docs/v1.5/V15_08_1_QUEUE_CORE_DOMAIN_CONTRACT.md'
       - '.github/workflows/v15-08-1-queue-domain-fue0.yml'
   push:
     branches: ['codex/v15-08-1-queue-contracts-20261108']
     paths:
       - 'queue_core/**'
+      - 'STATE.md'
       - 'docs/v1.5/V15_08_1_QUEUE_CORE_DOMAIN_CONTRACT.md'
       - '.github/workflows/v15-08-1-queue-domain-fue0.yml'
 
