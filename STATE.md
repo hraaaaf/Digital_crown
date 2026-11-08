@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-A — Local Windows identity/bootstrap — IN PROGRESS / DRAFT (2026-11-08)
+
+- **GOAL:** standalone Queue Core first Admin enrollment on a physically local elevated Windows console, no Internet, Firebase, patient records or clinical database access.
+- **Owner GO:** « Play 8-2 A go ». This authorizes implementation of A only, not merge/release or 08.2-B–E.
+- **BASE:** `edf26bb7ff70904b802069891f31ef3b4dc7691d` master (LOT08.1 CLOSED 29/29). Worktree `feat/v15-08-2-a-local-admin-bootstrap-20261108`, isolated branch.
+- **DELIVERABLE CANDIDATE:** `queue_core/security/local_auth.py` (SQLite local auth + bootstrapping), `windows_console.py` OS privilege/console gate, `windows_cli.py` ProgramData ACL-controlled offline CLI, synthetic negative unit tests and `docs/v1.5/V15_08_2_A_LOCAL_ADMIN_BOOTSTRAP_CONTRACT.md`.
+- **PRELIMINARY DIRECT WINDOWS EVIDENCE:** Python 3.12 `pytest -q queue_core/tests` **42/42 passed** (29 pre-existing, 13 new); compileall PASS. Real Remote Desktop Commander shell `python -m queue_core.security.windows_cli status` denied with `INTERACTIVE_CONSOLE_REQUIRED` exit 2; `ProgramData\DigitalCrownQueueCore\local_auth.sqlite` absent before/after. NO real admin account or recovery secret generated; tests use temp SQLite synthetic fixtures and injected guard.
+- **SECURITY CONTRACT:** 256-bit random bootstrap (10min), single use/5-attempt cap; scrypt salted passwords, opaque SHA-256 session verifier and lockout, 8h sessions; separate 256-bit offline recovery secret, one-time rotation and all-session revocation. Restricted Windows physical console and ACL verification; no public route. No default admin.
+- **UNVERIFIED / BLOCKED FOR REAL USE:** actual elevated physical Windows-console onboarding, DirectorySecurity Set-Acl success on target PC, backup/restore/installed service, session-cookie/network auth, multi-tenant RBAC, kiosk/QR, standalone runtime and legal G3. Risk-critical source needs independent SEC/OPS review on exact SHA before any merge, with negative tests and correction loops. No automation GitHub Actions requested.
+- **NEXT:** commit & push DRAFT PR, direct Windows proof exact SHA, separate reviewer, POST Notion. Do NOT merge, install or begin 08.2-B without distinct GO.
+
 ## LOT08.1 — Queue Core domain contracts — CLOSED / POST-MERGE VERIFIED (2026-11-08)
 
 - **GOAL:** isolated standalone Queue Core domain state machine, dynamic ranking, auditable event plans, dedicated SQLAlchemy schema and synthetic FUE-0. **Delivered:** G1 transitions/rank oracles, manual NO_SHOW and queue.override, tenant/resource constraints, active chair occupancy, provenance and SQL integrity checks. No clinical DB coupling, migration, patient data or runtime deployment.

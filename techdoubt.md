@@ -1,3 +1,8 @@
+### LOT08.2-A — 2026-11-08 — Security implementation candidate / open gates
+
+Owner authorizes A ONLY. No clinical DB, patient, Firebase or Internet. New local admin service guarded by elevated physical Windows console, Time-limited bootstrap, salted scrypt, one-time offline recovery and session revocation. Synthetic Windows Python 3.12 tests 42/42 pass. **Restricted ProgramData directory ACL and elevated physical-console happy path NOT RUN**: Remote Desktop Commander deliberately fails `INTERACTIVE_CONSOLE_REQUIRED` with no actual auth DB creation. This is a mandatory OPS/SEC on-hardware gate before real cabinet use. No local install, migration, API, RBAC or QR. The default Python and Windows credential stores are not reused. File ACL is implemented but only reviewed statically until physical Windows LAB execution; do not certify.
+No merge without separate risk-based security code review on exact SHA and owner GO. No 08.2-B start.
+
 ### LOT08.1 / PR #1234 — 2026-11-08 — Independent review #4 P2 corrected
 
 Separate Codex CLI read-only review of source d5b2babf found P2 SQL schema allowed WAITING without ARRIVED/waiting timestamp/queue sequence. Fixed DB checks preserving domain invariants for WAITING/CALLED/CHAIR/DONE; denied arrival on PLANNED/EN_ROUTE/NO_SHOW and inconsistent timestamps. New negative SQLite fixture test. Direct Windows Python 3.12 **29/29 PASS** (plus NO_SHOW appointment-only negative cases). Still review exact new HEAD before merge; no durable DB, patient data or migrations.
