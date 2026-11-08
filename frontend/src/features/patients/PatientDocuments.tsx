@@ -65,6 +65,7 @@ export const PatientDocuments = () => {
   const currentUser = useAuthStore(state => state.user);
   const currentUserId = Number(currentUser?.id);
   const [docs, setDocs] = useState<DocumentInfo[]>([]);
+  const [docsPatientId, setDocsPatientId] = useState<string | null>(null);
   const [patientAssurance, setPatientAssurance] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -74,30 +75,44 @@ export const PatientDocuments = () => {
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
 
   useEffect(() => {
+    let cancelled = false;
+    const patientAtRequest = id;
+    // Do not render patient A's documents during the render preceding a B effect.
+    setDocsPatientId(null);
+    setDocs([]);
+    setPatientAssurance(null);
+    setActionsOpenFor(null);
+    setSigningDocId(null);
     const fetchDocs = async () => {
       setLoading(true);
       setFetchError(false);
       try {
-        const patientRequest = api.get(`/patients/${id}`).catch((patientError) => {
-          console.warn('Assurance patient indisponible pour la présélection mutuelle:', patientError);
+        if (!patientAtRequest) throw Error('Patient identity required for document listing');
+        const patientRequest = api.get(`/patients/${patientAtRequest}`).catch((patientError) => {
+          if (!cancelled) console.warn('Assurance patient indisponible pour la présélection mutuelle:', patientError);
           return null;
         });
         const [docsResponse, patientResponse] = await Promise.all([
-          api.get(`/patients/${id}/documents`),
+          api.get(`/patients/${patientAtRequest}/documents`),
           patientRequest,
         ]);
+        if (cancelled) return;
         setDocs(docsResponse.data);
+        setDocsPatientId(patientAtRequest);
         setPatientAssurance(patientResponse?.data?.assurance || null);
       } catch (err) {
+        if (cancelled) return;
         console.error('Erreur archives:', err);
         setDocs([]);
+        setDocsPatientId(patientAtRequest ?? null);
         setPatientAssurance(null);
         setFetchError(true);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     void fetchDocs();
+    return () => { cancelled = true; };
   }, [id, reloadKey]);
 
   const handleDelete = async (docId: string) => {
@@ -196,7 +211,7 @@ export const PatientDocuments = () => {
     }
   };
 
-  const filtered = docs.filter(d =>
+  const filtered = (id && docsPatientId === id ? docs : []).filter(d =>
     d.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.date.includes(searchTerm)
@@ -222,7 +237,7 @@ export const PatientDocuments = () => {
     return { ...doc, isDuplicate };
   });
 
-  if (loading) {
+  if (loading || !id || docsPatientId !== id) {
     return (
       <div className="flex flex-col items-center justify-center py-40 gap-4">
         <Loader2 className="animate-spin text-primary" size={40} />
