@@ -123,3 +123,137 @@ def test_maj02_local_retention_delete_is_disabled_even_on_normal_directory(tmp_p
     assert result["status"] == "BLOCKED_UNCERTIFIED_LOCAL_DELETE"
     assert result["deleted"] == []
     assert len(list(target.iterdir())) == 5
+
+
+
+def _hold_lock_in_child(root, queue, release):
+    """Spawn-safe worker: a different OS process must own the kernel lock."""
+    mod = _functions("_acquire_lock", "_release_lock", root=Path(root))
+    try:
+        queue.put(mod["_acquire_lock"]()[0])
+        release.wait(timeout=15)
+    finally:
+        mod["_release_lock"]()
+
+
+def test_maj01_real_spawned_process_cannot_take_locked_archive_root(tmp_path):
+    import multiprocessing
+
+    ctx = multiprocessing.get_context("spawn")
+    queue, release = ctx.Queue(), ctx.Event()
+    p = ctx.Process(target=_hold_lock_in_child, args=(str(tmp_path / "scheduled"), queue, release))
+    p.start()
+    try:
+        assert queue.get(timeout=20) is True
+        contender = _functions("_acquire_lock", "_release_lock", root=tmp_path / "scheduled")
+        assert contender["_acquire_lock"]()[0] is False
+        release.set()
+        p.join(timeout=20)
+        assert p.exitcode == 0, "child process should release its OS-owned fd"
+        assert contender["_acquire_lock"]()[0] is True
+        contender["_release_lock"]()
+    finally:
+        release.set()
+        if p.is_alive():
+            p.terminate()
+            p.join(timeout=10)
+
+
+def test_maj01_real_postgres_writer_collision_keeps_first_encrypted_archive(tmp_path):
+    """Execute the actual PG backup method body with a synthetic cipher and pg_dump."""
+    import builtins
+    import hashlib
+    import subprocess
+    from types import SimpleNamespace
+
+    source = ast.parse(DB_SOURCE.read_text(encoding="utf-8"), str(DB_SOURCE))
+    klass = next(x for x in source.body if isinstance(x, ast.ClassDef) and x.name == "BackupService")
+    method = next(x for x in klass.body if isinstance(x, ast.FunctionDef) and x.name == "_backup_postgres")
+    method.decorator_list = []
+    original_import = builtins.__import__
+    settings = SimpleNamespace(DATABASE_URL="postgresql://FAKE_NO_NETWORK")
+    dump = {"bytes": b"FAKE_DUMP_A"}
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "backend.config":
+            return SimpleNamespace(settings=settings)
+        if name == "backend.scripts.backup_db":
+            return SimpleNamespace(
+                find_pg_binary=lambda name: "synthetic-pg-dump",
+                _parse_postgres_url=lambda url: ("synthetic", "fake", "localhost", 5432, "fake"),
+                get_cipher=lambda: SimpleNamespace(encrypt=lambda data: b"SYNTHETIC_ENC_" + data),
+            )
+        return original_import(name, globals, locals, fromlist, level)
+
+    namespace = {
+        "__builtins__": {**vars(builtins), "__import__": fake_import},
+        "os": os, "uuid": uuid, "Path": Path,
+        "logger": logging.getLogger("maj-test"), "hashlib": hashlib,
+        "subprocess": SimpleNamespace(run=lambda *a, **kw: SimpleNamespace(returncode=0, stdout=dump["bytes"])),
+    }
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[method], type_ignores=[])), str(DB_SOURCE), "exec"), namespace)
+    writer = namespace["_backup_postgres"]
+    first = writer(tmp_path, "fixed")
+    assert first["status"] == "SUCCESS"
+    original = (tmp_path / first["backup_filename"]).read_bytes()
+    dump["bytes"] = b"FAKE_DUMP_B"
+    second = writer(tmp_path, "fixed")
+    assert second["status"] == "FAILED" and second["error_code"] == "WRITE_FAILED"
+    assert (tmp_path / first["backup_filename"]).read_bytes() == original
+    assert not list(tmp_path.glob(".tmp_*")), "failed contender must clean its own temp"
+
+
+def test_maj01_real_media_writer_collision_keeps_first_encrypted_archive(tmp_path):
+    """Execute the actual media writer with synthetic media and no clinical imports."""
+    import builtins
+    import hashlib
+    import io
+    import zipfile
+    from types import SimpleNamespace
+
+    media_root = tmp_path / "FAKE_MEDIA"
+    media_root.mkdir()
+    (media_root / "synthetic.txt").write_text("A", encoding="utf-8")
+    dest = tmp_path / "archives"
+    source = ast.parse(MEDIA_SOURCE.read_text(encoding="utf-8"), str(MEDIA_SOURCE))
+    method = next(x for x in source.body if isinstance(x, ast.FunctionDef) and x.name == "_build_media_archive")
+    orig_import = builtins.__import__
+
+    def fake_import(name, globals=None, locals=None, fromlist=(), level=0):
+        if name == "backend.core.media_paths":
+            return SimpleNamespace(get_media_root=lambda: media_root,
+                                   get_real_media_root=lambda: tmp_path / "REAL_NOT_USED",
+                                   is_rehearsal_environment=lambda: False)
+        if name == "backend.scripts.backup_db":
+            return SimpleNamespace(get_cipher=lambda: SimpleNamespace(encrypt=lambda data: b"SYNTHETIC_ENC_" + data))
+        return orig_import(name, globals, locals, fromlist, level)
+
+    namespace = {
+        "__builtins__": {**vars(builtins), "__import__": fake_import},
+        "os": os, "uuid": uuid, "Path": Path,
+        "logger": logging.getLogger("maj-test"), "hashlib": hashlib,
+        "zipfile": zipfile, "io": io,
+    }
+    exec(compile(ast.fix_missing_locations(ast.Module(body=[method], type_ignores=[])), str(MEDIA_SOURCE), "exec"), namespace)
+    writer = namespace["_build_media_archive"]
+    first = writer(dest, "fixed")
+    assert first["status"] == "SUCCESS"
+    original = (dest / first["backup_filename"]).read_bytes()
+    (media_root / "synthetic.txt").write_text("B", encoding="utf-8")
+    second = writer(dest, "fixed")
+    assert second["status"] == "FAILED" and second["error_code"] == "WRITE_FAILED"
+    assert (dest / first["backup_filename"]).read_bytes() == original
+    assert not list(dest.glob(".tmp_*"))
+
+
+def test_maj02_no_file_enumeration_on_requested_delete(tmp_path, monkeypatch):
+    root = tmp_path / "scheduled"
+    target = root / "db"
+    target.mkdir(parents=True)
+    def forbidden(*args, **kwargs):
+        raise AssertionError("MAJ-02: no path enumeration at all during destructive retention")
+    monkeypatch.setattr(Path, "glob", forbidden)
+    mod = _functions("_apply_retention", root=root)
+    result = mod["_apply_retention"](target, "db_backup_", ".sql.enc", 0, False, 3)
+    assert result["status"] == "BLOCKED_UNCERTIFIED_LOCAL_DELETE"
+    assert result["deleted"] == []
