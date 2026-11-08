@@ -1,5 +1,18 @@
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
+## PRE / CODE POST — 2026-11-06 — LOT05.7C-D deterministic FAKE CSV evidence replay (DRAFT)
+
+**Goal :** advance vendor-neutral migration proof readiness after 05.7C-C. **Verified PRE** master `e9a442ada5b0119251cb7675020a1e6448e7421f`, [#1218](https://github.com/hraaaaf/Digital_crown/pull/1218) MERGED, post-merge [#42264412464](https://github.com/hraaaaf/Digital_crown/actions/runs/42264412464) SUCCESS PostgreSQL 18 + Windows. Only the current canonical `docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md` remains authoritative; no parallel canonical. User « Go » is permission for a safe LOT05 laboratory next step **not merge/deploy/clinical use**.
+
+**Decision 05.7C-D :** distinguish deterministic integrity evidence from real vendor provenance: require original 05.2 MappingDraft and 05.7C-C count-only simulation; produce immutable SHA256 bundle with domain separation linking source SHA, draft SHA, synthetic target schema SHA, aggregate report SHA and fake patient/critical/unmapped counts. No row, patient name, legacy ID, date, file path, raw SQL, source software label, vendor credentials or PHI in exported evidence. No cryptographic signature, remote evidence registry or vendor identity verification is claimed.
+
+**Implementation POST — unverified until CI finishes :** new standalone `backend/services/legacy_migration_csv_evidence_lab_v15.py`, no DB/ORM/API/UI/runtime import, no target read/write. Existing 05.1 path/staging gates, 05.2 tamper-protected MappingDraft and 05.7C-C FAKE-only simulator are called again to bind evidence to the exact file and mapping. SHA evidence detects altered aggregate/claims. Replay receives the same offline source and mapping to compare digest. It **can never produce vendor-compatible, provenance-verified, clinical-import-approved, backup-restored, or target-writes status**. Target collision counts remain `null` (UNKNOWN); fake zero rejected. A self-declared vendor label is NOT proof of vendor compatibility.
+
+**FUE/CI source-only plan :** new `backend/tests/test_migration_057c_csv_evidence_replay_fue.py`: 36 FAKE-only standalone FUE covering replay, digest, PHI minimization, source/mapping drift, forged vendor/clinical flags, source staging, formula injection and anomalies. New `.github/workflows/v15-05-7c-d-csv-replay-evidence-fue.yml`: exact HEAD 36 tests on Windows + Ubuntu. **Run status and proof required; no PASS claimed in this CODE POST.** Draft PR to master only, no merge authorization.
+
+**Human/clinical gate :** `source_provenance_verified=false`, `vendor_format_compatible=false`, `mapping_human_approved=false`, `import_permitted=false`, `target_rows_written=0`. This lab establishes reproducibility, **not real clinic onboarding import**. Real vendor exports require separate consent, de-identification review, vendor-specific format specification, independent source provenance and target backup/restore before any clinical migration or adapter certification.
+
+**NEXT :** exact-HEAD CI Windows/Ubuntu, correct failures, independent review, then separately request merge approval. **GOAL :** trustworthy reproducible audit evidence without false clinical safety claims.
 ## POST FUSION — 2026-11-06 — LOT05.7C-C PR #1218 MERGED (LAB ONLY / CLINICAL NO-GO)
 
 **Approbation explicite :** le propriétaire a répondu « Oui » à la question de fusion laboratoire seule de PR #1218. Aucun feu vert d'installation, de déploiement, de traitement de données patient réelles ni d'import clinique.
