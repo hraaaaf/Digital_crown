@@ -38,6 +38,7 @@ $report = [ordered]@{
   installer_uia_new_server_option_observed = $false
   installer_uia_workstation_option_observed = $false
   installer_uia_license_button_observed = $false
+  post_extraction_observation_cycles_budget = 0
   initial_installer_window_png_captured = $false
   initial_installer_window_png_dimensions = $null
   official_trial_installer_completed = $false
@@ -86,9 +87,13 @@ try {
   $knownIds = @([int]$proc.Id)
   $installerHwnd = [IntPtr]::Zero
 
-  # Bootstrapper may spawn a child window; inspect ONLY its own process tree.
-  # Window titles are assessed in memory against a fixed allowlist, never logged.
-  for ($i = 0; $i -lt 20; $i++) {
+  # The publisher's first window is an extracting-progress screen (proved by
+  # cropped screenshot artifact #13635604196). Do NOT treat it as an Install UI.
+  # Observe the same publisher process tree for a bounded post-extraction window.
+  # Never click, type, accept license, install or create a database.
+  # Window titles remain in memory, never in metadata/logs.
+  $report.post_extraction_observation_cycles_budget = 100
+  for ($i = 0; $i -lt 100; $i++) {
     Start-Sleep -Seconds 1
     $all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
     for ($depth = 0; $depth -lt 3; $depth++) {
@@ -112,7 +117,8 @@ try {
         break
       }
     }
-    if ($report.official_trial_window_title_allowlisted) { break }
+    # Continue until the bounded observation expires. The earliest verified
+    # window may still be self-extracting and expose only Pause/Cancel controls.
   }
   # Read-only UI Automation inventory from the verified vendor HWND.
   # No click, no title/text capture, no screenshots and no user data.
