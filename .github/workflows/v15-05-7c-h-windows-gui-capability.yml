@@ -1,4 +1,4 @@
-name: LOT05 05.7C-H Signed Vendor First-Window Evidence (NO INSTALL)
+name: LOT05 05.7C-H Trial First Wizard Launch Guard (FICTITIOUS VM ONLY)
 
 on:
   pull_request:
@@ -14,9 +14,9 @@ permissions:
 
 jobs:
   synthetic-windows-gui-capability:
-    name: Synthetic WinForms session + signed vendor GUI launcher observation (NO INSTALL)
+    name: Verified Windows synthetic GUI + single signed vendor wizard entry
     runs-on: windows-2022
-    timeout-minutes: 14
+    timeout-minutes: 16
     steps:
       - uses: actions/checkout@v4
         with:
@@ -57,11 +57,32 @@ jobs:
           $null = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
           if ($errors.Count -gt 0) { throw 'SIGNED_VENDOR_GUI_PROBE_AST_INVALID' }
           Write-Host 'SIGNED_VENDOR_GUI_PROBE_AST_VALID'
-      - name: Observe signed official trial launcher GUI on ephemeral runner (NO INSTALL / NO EXPORT)
+      - name: Owner-authorized signed trial first wizard entry (ONE Install click, NO EULA acceptance)
         shell: pwsh
         run: |
-          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1'
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1' -LaunchSetupWizardOnly
           if ($LASTEXITCODE -ne 0) { throw 'SIGNED_VENDOR_GUI_PROBE_FAILED_TO_COMPLETE' }
+      - name: Fail closed unless exactly one first-wizard request was delivered, no license acceptance or DB
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = Join-Path $env:RUNNER_TEMP 'lot05-7c-h-official-vendor-gui-window-metadata-only.json'
+          if (-not (Test-Path -LiteralPath $path)) { throw 'BOUNDED_WIZARD_JSON_REQUIRED' }
+          $v = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+          if (-not $v.official_binary_authenticode_valid -or
+              -not $v.installer_win32_install_semantic_button_proven -or
+              -not $v.install_wizard_probe_guard_passed -or
+              -not $v.install_button_message_delivered -or
+              -not $v.setup_wizard_new_window_observed -or
+              $v.licence_or_eula_accepted -or
+              $v.clicked_wizard_next -or
+              $v.db_service_created_observed -or
+              $v.database_installed -or
+              $v.import_permitted -or
+              $v.target_rows_written -ne 0) {
+            throw 'WIZARD_FIRST_SCREEN_NOT_PROVEN_OR_UNSAFE_FAIL_CLOSED'
+          }
+          Write-Host 'LOT05H_FIRST_WIZARD_WINDOW_ONLY_NO_EULA_NO_DB_NO_IMPORT'
       - name: Upload ONLY sanitized publisher-window metadata (never exe, window title, patient or CSV)
         if: always()
         uses: actions/upload-artifact@v4
