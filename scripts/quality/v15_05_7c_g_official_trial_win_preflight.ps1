@@ -34,6 +34,9 @@ $report = [ordered]@{
   archive_entry_count = 0
   database_related_path_count = 0
   possible_demo_payload_filename_count = 0
+  demo_patient_triplet_present = $false
+  demo_patient_file_count = 0
+  mariadb_msi_candidate_count = 0
   nested_archive_candidate_count = 0
   archive_extensions = [ordered]@{ sql = 0; zip = 0; msi = 0; cab = 0; exe = 0; db = 0; sqlite = 0; ibd = 0; frm = 0; myd = 0; myi = 0; dat = 0 }
   runner_session_id = $null
@@ -68,6 +71,9 @@ try {
   }
   $report.installer_size_bytes = [int64]$item.Length
   $report.installer_sha256 = (Get-FileHash -LiteralPath $dest -Algorithm SHA256).Hash.ToLowerInvariant()
+  if ($report.installer_sha256 -cne 'b892db0d3b2fc0947fa25fe4fc07c2e81815d70119f72e7abf1f8b9b0671bcb9') {
+    throw 'PINNED_OFFICIAL_INSTALLER_SHA256_CHANGED'
+  }
 
   $stream = [System.IO.File]::OpenRead($dest)
   try {
@@ -105,6 +111,7 @@ try {
       & $sevenZip.Source 'l' '-slt' '-bd' $dest > $listPath 2>&1
       if ($LASTEXITCODE -eq 0) {
         $report.static_archive_listing_supported = $true
+        $demoParts = @{}
         foreach ($line in [System.IO.File]::ReadLines($listPath)) {
           if ($line -match '^Type = ([A-Za-z0-9_+.-]{1,40})$') {
             if ($null -eq $report.static_archive_type) {
@@ -123,6 +130,48 @@ try {
             }
             if ($entry -match '(?i)(^|[\\/])demo[^\\/]*\.(sql|zip|db|sqlite|bak)$') {
               $report.possible_demo_payload_filename_count = [int]$report.possible_demo_payload_filename_count + 1
+            }
+            # Match only the official demo patient table's physical MyISAM triplet.
+            # Paths remain transient; only booleans and counts leave the runner.
+            $normalized = $entry.Replace('\','/')
+            if ($normalized -match '(?i)(^|/)demo/patient\.(frm|myd|myi)
+              $report.nested_archive_candidate_count = [int]$report.nested_archive_candidate_count + 1
+            }
+          }
+        }
+        $report.demo_patient_triplet_present = ($demoParts.ContainsKey('frm') -and $demoParts.ContainsKey('myd') -and $demoParts.ContainsKey('myi'))
+      }
+    } catch {
+      $report.static_archive_listing_supported = $false
+    } finally {
+      Remove-Item -LiteralPath $listPath -Force -ErrorAction SilentlyContinue
+    }
+  }
+  $report.installer_authenticated = $true
+  $report.status = 'AUTHENTICATED_INSTALLER_ONLY_NOT_INSTALLED'
+  Write-Host 'WIN_VM_OFFICIAL_TRIAL_INSTALLER_AUTHENTICATED_NO_EXECUTION'
+} catch {
+  # No raw exception contents or remote server responses: non-sensitive stable code only.
+  $known = @('UNEXPECTED_INSTALLER_SIZE','INVALID_WINDOWS_PE_HEADER',
+             'AUTHENTICODE_NOT_VALID','UNEXPECTED_WINDOWS_SIGNER',
+             'PINNED_OFFICIAL_INSTALLER_SHA256_CHANGED')
+  $code = [string]$_.Exception.Message
+  if ($known -notcontains $code) { $code = 'OFFICIAL_TRIAL_DOWNLOAD_OR_INSPECTION_FAILED' }
+  $report.status = 'REFUSED'
+  $report.failure_code = $code
+  Write-Host ('WIN_VM_TRIAL_PREFLIGHT_REFUSED: ' + $code)
+} finally {
+  $report | ConvertTo-Json -Depth 5 | Out-File -LiteralPath $reportFile -Encoding utf8
+  # Only metadata JSON will be uploaded by workflow; scrub the executable.
+  Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
+}
+if (-not $report.installer_authenticated) { exit 1 }
+) {
+              $demoParts[$Matches[2].ToLowerInvariant()] = $true
+              $report.demo_patient_file_count = [int]$report.demo_patient_file_count + 1
+            }
+            if ($ext -eq 'msi' -and $normalized -match '(?i)(maria|mysql)') {
+              $report.mariadb_msi_candidate_count = [int]$report.mariadb_msi_candidate_count + 1
             }
             if ($ext -in @('zip','msi','cab','7z','exe')) {
               $report.nested_archive_candidate_count = [int]$report.nested_archive_candidate_count + 1
