@@ -1,3 +1,15 @@
+## UPDATED WINDOWS GITHUB ACTIONS VM PLAN — 2026-11-08 — LOT05.7C-G user direction
+
+**Owner correction:** « C rouge fais le sur une VM DANS GITHUB ACTIONS ». The evidence lane now uses an ephemeral **GitHub-hosted `windows-latest`** runner rather than a local VM. Installer source is the [official pinned 25.3.48 EXE](https://www.opendental.com/TrialDownload-25-3-48.exe). No live patient data, self-hosted workstation or secrets.
+
+**Executed repository changes, not proof of successful vendor installation:** new `scripts/quality/v15_05_7c_g_official_trial_win_preflight.ps1` downloads from the pinned official URL; checks file length, PE header, SHA256, Microsoft Authenticode validity and an Open Dental publisher label, recording file metadata. It **never launches the installer**, creates a database or exports a CSV. It deletes the downloaded EXE and uploads only a short non-PHI JSON file with explicit `installer_executed=false`, `demo_csv_export_produced=false`, `source_provenance_verified=false`, `import_permitted=false`. Any unverified signer/failed network request is a refusal, not a PASS.
+
+**CI proof path:** `.github/workflows/v15-05-7c-g-demo-header-probe-fue.yml` has `trial-windows-preflight` and `report-supply-chain-status` jobs. The latter has GitHub `statuses:write` for exactly an observation-only context `LOT05-G/windows-trial-installer-authenticity-ONLY`; it publishes the **actual run URL** and exact PR HEAD SHA for read-only follow-up. This context is **NOT an approval nor a branch-protection certification**. Its state attests only the first Windows download/signature gate, not Open Dental installation. 34 FAKE header tests still run on Ubuntu and Windows.
+
+**RED remains intentional:** the vendor [official trial instructions](https://www.opendental.com/site/trial.html) explicitly call for interactive installation, MariaDB wizard, user input and GUI export. No official silent installation contract/automatic CSV export was verified. The Windows hosted runner is not guaranteed to expose an interactive desktop; do not guess unsafe silent flags. Real demo-CSV origin and compatibility are unproven. Later job may attempt installation *only after* verified vendor-supported, reproducible noninteractive method or suitable isolated interactive VM. If no such method, make blocker visible rather than inventing successful export.
+
+**NEXT exact:** inspect status/JSON of Windows trial acquisition on the HEAD, then decide the next safe GitHub-hosted VM experiment. No merge, no deploy, no clinical import. Clinical provenance flags false. Original code canonical below.
+
 ## EXECUTION ON GITHUB-HOSTED WINDOWS VM — 2026-11-08 — LOT05.7C-G vendor installer source gate (NO INSTALL / NO IMPORT)
 
 **Explicit owner direction:** « C rouge fais le sur une VM DANS GITHUB ACTIONS ». Use **ephemeral `windows-latest` GitHub-hosted runner**; no local workstation/cabinet installation, no self-hosted runner, no patient data. Workflow `.github/workflows/v15-05-7c-g-demo-header-probe-fue.yml` now includes a `trial-windows-preflight` Windows job in addition to Ubuntu/Windows 34 FAKE tests.
