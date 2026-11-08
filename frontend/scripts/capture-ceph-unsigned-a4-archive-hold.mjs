@@ -80,23 +80,31 @@ try {
     await page.waitForFunction(()=>{const b=[...document.querySelectorAll('button')].find(el=>el.textContent?.includes('Archiver le bilan'));return b && !b.disabled;},{timeout:12000});
     await archive.scrollIntoViewIfNeeded();
     await page.screenshot({path:path.join(output,viewport.name+'-BEFORE.png'),animations:'disabled'});
-    proof.viewports.push({name:viewport.name,before:'Archiver le bilan enabled by science-only check',page});
+    // Close BEFORE page before replacing the source: Vite HMR can abort an
+    // in-flight page.reload when the component switches during navigation.
+    // AFTER uses a clean page in the same viewport/context, not an HMR race.
+    await page.close();
+    proof.viewports.push({name:viewport.name,before:'Archiver le bilan enabled by science-only check',context});
   }
   await writeFile(productFile,originalSource,'utf8');
   await sleep(500);
   for(const entry of proof.viewports) {
-    await entry.page.reload({waitUntil:'networkidle',timeout:35000});
-    const archive=entry.page.getByRole('button',{name:'Archivage suspendu'});
+    const page=await entry.context.newPage();
+    page.on('pageerror',err=>proof.errors.push(entry.name+': '+err.message));
+    await page.route('**/*',route=>route.request().url().startsWith(origin)?route.continue():route.abort());
+    await page.goto(origin+'/ceph-archive-hold-visual.html',{waitUntil:'domcontentloaded',timeout:35000});
+    const archive=page.getByRole('button',{name:'Archivage suspendu'});
     await archive.waitFor({state:'visible',timeout:20000});
     if(!await archive.isDisabled())throw Error(entry.name+' archive must be disabled');
-    const draft=entry.page.getByRole('button',{name:'Brouillon PDF'});
+    const draft=page.getByRole('button',{name:'Brouillon PDF'});
     if(!await draft.isEnabled())throw Error(entry.name+' draft export should remain available');
-    const message=entry.page.getByTestId('unsigned-cephalo-archive-hold');
+    const message=page.getByTestId('unsigned-cephalo-archive-hold');
     if(!/signature vérifiable du document exact/i.test(await message.innerText()))throw Error('Missing user-facing reason');
     await archive.scrollIntoViewIfNeeded();
-    await entry.page.screenshot({path:path.join(output,entry.name+'-AFTER.png'),animations:'disabled'});
+    await page.screenshot({path:path.join(output,entry.name+'-AFTER.png'),animations:'disabled'});
     entry.after='Archivage suspendu disabled; draft button enabled; explicit unsigned reason';
-    delete entry.page;
+    await page.close();
+    delete entry.context;
   }
   if(proof.errors.length)throw Error('React browser runtime errors: '+proof.errors.join('; '));
   await writeFile(path.join(output,'evidence.json'),JSON.stringify(proof,null,2),'utf8');
