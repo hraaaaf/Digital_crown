@@ -494,6 +494,45 @@ def test_b06_4db_pg_key_rotation_without_keyring_fail_closed(
 
 
 
+def test_b06_4dc_pg_immutable_trigger_body_tamper_denied(
+    pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    """A trigger with the right name but a no-op body MUST NOT authorize ACK.
+
+    All data and DDL live in an isolated disposable pg_ledger test schema.
+    Neither a production backend nor a patient cabinet is accessed.
+    """
+    from backend.services.imaging_acquisition_durable_v15 import DurableCaptureDenied
+
+    engine, claim, station, headers, app, active = _setup(
+        pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch, 805,
+    )
+    assert candidate.is_committed(
+        engine, tenant=claim.tenant, station=claim.station, capture=805,
+    ) is False
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "CREATE OR REPLACE FUNCTION dc06_b06_lab_immutable() "
+            "RETURNS trigger LANGUAGE plpgsql AS $ "
+            "BEGIN RETURN NEW; END $"
+        )
+    # All nine existing triggers still exist and are enabled. A simple name
+    # check would approve this schema despite removing their protection.
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql(
+            "SELECT count(*) FROM pg_trigger t "
+            "JOIN pg_class c ON c.oid=t.tgrelid "
+            "WHERE c.relname LIKE 'dc06_b06_product_%' "
+            "AND t.tgenabled='O' AND NOT t.tgisinternal"
+        ).scalar_one() == 9
+    with pytest.raises(DurableCaptureDenied, match="PG_PRODUCT_SCHEMA_NOT_APPROVED"):
+        candidate.is_committed(
+            engine, tenant=claim.tenant, station=claim.station, capture=805,
+        )
+    assert _counts(engine) == (0, 0, 0, 0)
+    print("DC06_B06_4DC_PG18_TAMPERED_TRIGGER_BODY_FAIL_CLOSED_PASS")
+
+
 def test_b06_4dc_pg_distinct_login_writer(
     pg_ledger, synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
 ):

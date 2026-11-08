@@ -80,21 +80,47 @@ def _lab_schema(db):
         ).scalar_one()
         if row != 1:
             raise DurableCaptureDenied("PG_PRODUCT_SCHEMA_NOT_APPROVED")
-    # Fixture has 9 anti-mutation triggers (including TRUNCATE). Nothing is
-    # installed or repaired by this runtime code.
+    # Trigger names alone are not an immutability guarantee: an attacker
+    # with DDL privilege could replace the function with RETURN NEW while
+    # preserving all nine trigger names. Fail closed on operation, timing,
+    # function namespace, definer mode and the exact approved denial body.
+    # This is *LAB-only* verification, not a migration or product activation.
+    expected_body = (
+        "BEGIN RAISE EXCEPTION 'DC06_B06_LEDGER_IMMUTABLE'; END"
+    )
     for table in (receipts, audit, outbox):
-        names = set(conn.exec_driver_sql(
-            "SELECT tgname FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid "
+        rows = conn.exec_driver_sql(
+            "SELECT t.tgname, t.tgtype, f.proname, fn.nspname, "
+            "f.prosrc, f.prosecdef "
+            "FROM pg_trigger t JOIN pg_class c ON c.oid=t.tgrelid "
             "JOIN pg_namespace n ON n.oid=c.relnamespace "
+            "JOIN pg_proc f ON f.oid=t.tgfoid "
+            "JOIN pg_namespace fn ON fn.oid=f.pronamespace "
             "WHERE n.nspname=current_schema() AND c.relname=%s "
             "AND t.tgenabled='O' AND NOT t.tgisinternal",
             (table.name,),
-        ).scalars())
+        ).all()
+        found = {row[0]: row[1:] for row in rows}
         part = table.name.replace("dc06_b06_product_", "")
-        expected = {f"dc06_b06_{part}_{op}_lock"
-                    for op in ("update", "delete", "truncate")}
-        if not expected.issubset(names):
-            raise DurableCaptureDenied("PG_PRODUCT_SCHEMA_NOT_APPROVED")
+        for op, flag, row_level in (
+            ("update", 16, True), ("delete", 8, True),
+            ("truncate", 32, False),
+        ):
+            name = f"dc06_b06_{part}_{op}_lock"
+            record = found.get(name)
+            # PostgreSQL tgtype: ROW=1, BEFORE=2, UPDATE=16,
+            # DELETE=8, TRUNCATE=32.
+            expected_type = 2 | flag | (1 if row_level else 0)
+            if record is None or (
+                record[0] != expected_type
+                or record[1] != "dc06_b06_lab_immutable"
+                or record[2] != conn.exec_driver_sql(
+                    "SELECT current_schema()"
+                ).scalar_one()
+                or " ".join(record[3].split()) != expected_body
+                or record[4] is not False
+            ):
+                raise DurableCaptureDenied("PG_PRODUCT_SCHEMA_NOT_APPROVED")
     # Lab-only additive foreign-key contract, including tenant+patient
     # cross-binding and receipt audit/outbox references.
     fks = set(conn.exec_driver_sql(
