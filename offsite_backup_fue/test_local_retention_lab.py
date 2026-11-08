@@ -35,9 +35,15 @@ def _run(root, dest, prefix, suffix, *, dry_run=False):
 def test_maj02_positive_deletion_keeps_newest_three(tmp_path):
     root, dest, prefix, suffix, paths = _files(tmp_path)
     result = _run(root, dest, prefix, suffix)
-    assert result["status"] == "SUCCESS", result
-    assert len(result["deleted"]) == 2
-    assert [p.exists() for p in paths] == [True, True, True, False, False]
+    if os.name == "posix":
+        assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
+        assert result["error_code"] == "POSIX_UNLINK_IDENTITY_RACE"
+        assert len(result["candidates"]) == 2 and result["deleted"] == []
+        assert all(p.exists() for p in paths)
+    else:
+        assert result["status"] == "SUCCESS", result
+        assert len(result["deleted"]) == 2
+        assert [p.exists() for p in paths] == [True, True, True, False, False]
 
 
 def test_maj02_dry_run_does_not_delete(tmp_path):
@@ -81,25 +87,28 @@ def test_maj02_external_symlink_candidate_preserved(tmp_path):
 
 
 @pytest.mark.skipif(os.name != "posix", reason="POSIX path swap")
-def test_maj02_posix_directory_swap_after_scan_prevents_delete(tmp_path, monkeypatch):
+def test_maj02_posix_directory_swap_after_scan_never_deletes(tmp_path, monkeypatch):
     root, dest, prefix, suffix, paths = _files(tmp_path)
     external = tmp_path / "external"
     external.mkdir()
     victim = external / f"{prefix}victim{suffix}"
     victim.write_bytes(b"KEEP")
     moved = root / "db_previous"
-    original = retention._posix_identity_unchanged
-    count = {"n": 0}
-    def substitute(path, fd):
-        count["n"] += 1
-        if count["n"] == 2:
-            dest.rename(moved)
-            dest.symlink_to(external, target_is_directory=True)
-        return original(path, fd)
-    monkeypatch.setattr(retention, "_posix_identity_unchanged", substitute)
+    original = retention._posix_scan
+    swapped = {"done": False}
+
+    def substitute_after_scan(fd, actual_prefix, actual_suffix):
+        records = original(fd, actual_prefix, actual_suffix)
+        dest.rename(moved)
+        dest.symlink_to(external, target_is_directory=True)
+        swapped["done"] = True
+        return records
+
+    monkeypatch.setattr(retention, "_posix_scan", substitute_after_scan)
     result = _run(root, dest, prefix, suffix)
-    assert count["n"] >= 2
+    assert swapped["done"]
     assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
+    assert result["deleted"] == []
     assert victim.read_bytes() == b"KEEP"
     assert len(list(moved.iterdir())) == 5
 
@@ -124,9 +133,11 @@ def test_maj02_posix_swap_just_before_unlink_cannot_delete_external(tmp_path, mo
     monkeypatch.setattr(retention.os, "supports_dir_fd",
                         set(retention.os.supports_dir_fd) | {replace_name})
     result = _run(root, dest, prefix, suffix)
-    assert once["done"], result
+    assert not once["done"], "Destructive POSIX unlink must not be attempted"
     assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
+    assert result["deleted"] == []
     assert external.read_bytes() == b"KEEP"
+    assert all(p.exists() for p in paths)
 
 
 @pytest.mark.skipif(os.name != "nt", reason="Windows junction")

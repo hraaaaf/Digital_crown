@@ -1,7 +1,8 @@
 """MAJ-02: local scheduled-backup retention anchored to OS descriptors.
 
 Only SCHEDULED_ROOT/db and /media are eligible. No offsite deletion.
-POSIX: fd-relative scan and unlink, inode recheck.
+POSIX: fd-relative audit only; automatic deletion is fail-closed.
+Checked inode + pathname unlink are not an atomic identity-bound delete.
 Windows: hold every ancestor without FILE_SHARE_DELETE, delete by verified
 file HANDLE using FileDispositionInfo. No pathname-based delete fallback.
 """
@@ -39,8 +40,7 @@ def _posix_dir(path):
     if (os.name != "posix" or not hasattr(os, "O_DIRECTORY")
             or not hasattr(os, "O_NOFOLLOW")
             or os.open not in os.supports_dir_fd
-            or os.stat not in os.supports_dir_fd
-            or os.unlink not in os.supports_dir_fd):
+            or os.stat not in os.supports_dir_fd):
         raise OSError(errno.ENOTSUP, "POSIX descriptor operations unavailable")
     flags = os.O_RDONLY | os.O_DIRECTORY | os.O_NOFOLLOW | getattr(os, "O_CLOEXEC", 0)
     fd = os.open("/", flags)
@@ -83,26 +83,9 @@ def _posix_scan(fd, prefix, suffix):
     return result
 
 
-def _posix_delete(path, fd, row):
-    name, mtime, device, inode, size = row
-    if not _posix_identity_unchanged(path, fd):
-        raise OSError(errno.EPERM, "Retention root substituted")
-    flags = (getattr(os, "O_PATH", os.O_RDONLY) | os.O_NOFOLLOW
-             | getattr(os, "O_NONBLOCK", 0) | getattr(os, "O_CLOEXEC", 0))
-    pinned = os.open(name, flags, dir_fd=fd)
-    try:
-        expected = (device, inode, size, mtime)
-        for info in (os.fstat(pinned), os.stat(name, dir_fd=fd, follow_symlinks=False)):
-            found = (info.st_dev, info.st_ino, info.st_size, info.st_mtime_ns)
-            if not stat.S_ISREG(info.st_mode) or info.st_nlink != 1 or found != expected:
-                raise OSError(errno.EPERM, "Retention candidate substituted")
-        if not _posix_identity_unchanged(path, fd):
-            raise OSError(errno.EPERM, "Retention root remapped")
-        os.unlink(name, dir_fd=fd)
-        if os.fstat(pinned).st_nlink != 0:
-            raise OSError(errno.EPERM, "Retention filename changed during unlink")
-    finally:
-        os.close(pinned)
+# There is deliberately no POSIX deletion helper: unlinkat(name, dir_fd)
+# removes whichever inode occupies the name at syscall time, even after
+# fstat/lstat checks. A post-unlink check only detects data loss too late.
 
 
 def _windows_backend():
@@ -240,9 +223,13 @@ def apply_retention_local(target_dir, prefix, suffix, retention_days,
                 selected = [row for row in records[keep:] if row[1] < cutoff]
                 report["candidates"] = [row[0] for row in selected]
                 if not dry_run:
-                    for row in selected:
-                        _posix_delete(path, fd, row)
-                        report["deleted"].append(row[0])
+                    # No atomic inode-conditional unlink exists in this POSIX
+                    # backend. A same-owner actor can swap a regular file
+                    # between check and unlink; never delete by name here.
+                    # Keep the candidate audit while refusing destructive mode.
+                    report["status"] = "BLOCKED_UNSAFE_LOCAL_RETENTION"
+                    report["error_code"] = "POSIX_UNLINK_IDENTITY_RACE"
+                    return report
             finally:
                 os.close(fd)
         elif os.name == "nt":

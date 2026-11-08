@@ -254,9 +254,15 @@ def test_maj02_local_retention_deletes_only_old_two(tmp_path):
         os.utime(p, (age, age))
     result = mod.apply_retention_local(
         target, "db_backup_", ".sql.enc", 30, False, 3, scheduled_root=root)
-    assert result["status"] == "SUCCESS", result
-    assert len(result["deleted"]) == 2
-    assert len(list(target.iterdir())) == 3
+    if os.name == "posix":
+        assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
+        assert result["error_code"] == "POSIX_UNLINK_IDENTITY_RACE"
+        assert result["deleted"] == [] and len(result["candidates"]) == 2
+        assert len(list(target.iterdir())) == 5
+    else:
+        assert result["status"] == "SUCCESS", result
+        assert len(result["deleted"]) == 2
+        assert len(list(target.iterdir())) == 3
 
 
 def test_maj02_never_calls_path_glob_or_path_unlink(tmp_path, monkeypatch):
@@ -276,5 +282,9 @@ def test_maj02_never_calls_path_glob_or_path_unlink(tmp_path, monkeypatch):
     monkeypatch.setattr(Path, "unlink", forbidden)
     result = mod.apply_retention_local(
         target, "db_backup_", ".sql.enc", 30, False, 3, scheduled_root=root)
-    assert result["status"] == "SUCCESS", result
-    assert len(result["deleted"]) == 2
+    if os.name == "posix":
+        assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
+        assert result["deleted"] == []
+    else:
+        assert result["status"] == "SUCCESS", result
+        assert len(result["deleted"]) == 2
