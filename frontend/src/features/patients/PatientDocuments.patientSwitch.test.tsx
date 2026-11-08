@@ -108,7 +108,7 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
         });
         mount();
         await screen.findByText('DC_DOS01_SECRET_A');
-        fireEvent.click(screen.getByRole('button', { name: action, exact: true }));
+        fireEvent.click(screen.getByRole('button', { name: action }));
         await waitFor(() => expect(get).toHaveBeenCalledWith(
           '/documents/11/download', { responseType: 'blob' },
         ));
