@@ -90,8 +90,8 @@ try {
         }
       }
     }
-    foreach ($id in $knownIds) {
-      $candidate = Get-Process -Id $id -ErrorAction SilentlyContinue
+    foreach ($processId in $knownIds) {
+      $candidate = Get-Process -Id $processId -ErrorAction SilentlyContinue
       if ($null -eq $candidate) { continue }
       $candidate.Refresh()
       if ($candidate.MainWindowHandle -eq [IntPtr]::Zero) { continue }
@@ -116,9 +116,9 @@ try {
   $report.failure_code = 'VENDOR_WINDOW_OBSERVATION_REFUSED_OR_FAILED'
 } finally {
   # Stop only the publisher process IDs started from this exact launch.
-  foreach ($id in @($knownIds | Select-Object -Unique)) {
+  foreach ($processId in @($knownIds | Select-Object -Unique)) {
     try {
-      Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+      Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
     } catch {}
   }
   try { Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue } catch {}
