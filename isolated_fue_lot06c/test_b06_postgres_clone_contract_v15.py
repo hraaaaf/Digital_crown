@@ -168,6 +168,95 @@ def test_b06_4b_pg_append_only_update_delete_and_truncate(pg_ledger):
     print("DC06_B06_4B_PG18_CLONE_APPEND_ONLY_UPDATE_DELETE_TRUNCATE_DENIED_PASS")
 
 
+def test_b06_4b_pg_additive_migration_rollback_preserves_existing_ledger(pg_ledger):
+    """PostgreSQL 18 rehearsal: failed additive DDL+DML must be atomic.
+
+    A disposable pg_ledger schema stands in for an installed local database.
+    There are no cabinet credentials, real patients, Alembic revisions, or
+    destructive migrations here. The existing synthetic capture is the
+    immutable BEFORE witness; a deliberately aborted migration must not
+    delete or overwrite it, nor leave its proposed new table behind.
+    """
+    engine = pg_ledger
+    baseline = _record(
+        capture=201, asset_id=801, receipt_id="LAB-DC06-BASELINE-201",
+    )
+    proposal = _record(
+        capture=202, asset_id=802, receipt_id="LAB-DC06-ABORTED-202",
+    )
+    with engine.begin() as conn:
+        _write_bundle(conn, baseline)
+
+    with engine.connect() as conn:
+        schema = conn.exec_driver_sql("SELECT current_schema()").scalar_one()
+        before_rows = {
+            table.name: tuple(conn.execute(select(table)).mappings().all())
+            for table in (receipts, audit, outbox)
+        }
+        assert all(len(rows) == 1 for rows in before_rows.values())
+        assert conn.exec_driver_sql(
+            "SELECT count(*) FROM information_schema.tables "
+            "WHERE table_schema=current_schema() "
+            "AND table_name='dc06_b06_lab_migration_probe'"
+        ).scalar_one() == 0
+
+    # CREATE TABLE, constraints and new ledger rows belong to ONE PostgreSQL
+    # transaction. An error must roll everything back, even its DDL.
+    with pytest.raises(RuntimeError, match="SYNTHETIC_MIGRATION_ABORT"):
+        with engine.begin() as conn:
+            conn.exec_driver_sql(
+                "CREATE TABLE dc06_b06_lab_migration_probe "
+                "(id integer PRIMARY KEY, tenant integer NOT NULL, "
+                "CONSTRAINT dc06_b06_lab_probe_positive CHECK (tenant > 0))"
+            )
+            conn.exec_driver_sql(
+                "INSERT INTO dc06_b06_lab_migration_probe (id, tenant) "
+                "VALUES (1, 1)"
+            )
+            _write_bundle(conn, proposal)
+            assert conn.exec_driver_sql(
+                "SELECT count(*) FROM dc06_b06_lab_migration_probe"
+            ).scalar_one() == 1
+            raise RuntimeError("SYNTHETIC_MIGRATION_ABORT")
+
+    # A fresh connection proves that the old captures are unchanged, the
+    # attempted capture is absent, and the new relation was never published.
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql("SELECT current_schema()").scalar_one() == schema
+        assert conn.exec_driver_sql(
+            "SELECT count(*) FROM information_schema.tables "
+            "WHERE table_schema=current_schema() "
+            "AND table_name='dc06_b06_lab_migration_probe'"
+        ).scalar_one() == 0
+        after_rows = {
+            table.name: tuple(conn.execute(select(table)).mappings().all())
+            for table in (receipts, audit, outbox)
+        }
+    assert before_rows == after_rows
+    assert _counts(engine) == (1, 1, 1)
+
+    # Prove that an additive change can be created and reversed on the SAME
+    # isolated schema, without touching the existing signed-ledger records.
+    with engine.begin() as conn:
+        conn.exec_driver_sql(
+            "CREATE TABLE dc06_b06_lab_migration_probe "
+            "(id integer PRIMARY KEY, tenant integer NOT NULL)"
+        )
+    with engine.begin() as conn:
+        conn.exec_driver_sql("DROP TABLE dc06_b06_lab_migration_probe")
+    with engine.connect() as conn:
+        assert conn.exec_driver_sql(
+            "SELECT count(*) FROM information_schema.tables "
+            "WHERE table_schema=current_schema() "
+            "AND table_name='dc06_b06_lab_migration_probe'"
+        ).scalar_one() == 0
+        assert {
+            table.name: tuple(conn.execute(select(table)).mappings().all())
+            for table in (receipts, audit, outbox)
+        } == before_rows
+    print("DC06_B06_4B_PG18_ADDITIVE_DDL_ROLLBACK_PRESERVES_BASELINE_PASS")
+
+
 def test_b06_4b_pg_concurrent_duplicate_one_bundle(pg_ledger):
     engine = pg_ledger
     barrier = threading.Barrier(2)
