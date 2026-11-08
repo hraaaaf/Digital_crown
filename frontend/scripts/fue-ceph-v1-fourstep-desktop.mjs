@@ -120,10 +120,14 @@ try {
   });
   await check('STEP3_PROVENANCE_AND_UNVERIFIED_DIAGNOSIS', async () => {
     await step('Passer à la synthèse');
+    // Step navigation saves asynchronously before React renders Step3.
+    // Wait for the actual V1 selector, rather than sampling a transitional frame.
     const com = page.getByRole('button', { name: 'COM Digital Crown', exact: true });
     const steiner = page.getByRole('button', { name: 'Steiner complet (1953 + 1959)', exact: true });
+    await com.first().waitFor({ state: 'visible', timeout: 30000 });
+    await steiner.first().waitFor({ state: 'visible', timeout: 30000 });
     assert(await com.count() > 0 && await steiner.count() > 0,
-      'V1 two-protocol clinician selection missing');
+      'V1 two-protocol clinician selection missing after Step3 render');
     const note = page.getByPlaceholder(/^Note diagnostique libre/);
     await note.fill('SYNTHETIC_STEP3_NOTE_A_ONLY_UNVERIFIED');
     assert((await note.inputValue()).includes('UNVERIFIED'), 'Clinician editable note missing');
