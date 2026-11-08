@@ -1,4 +1,4 @@
-name: LOT05 05.7C-H Windows GUI Capability Gate (SYNTHETIC / NO VENDOR INSTALL)
+name: LOT05 05.7C-H Windows GUI and Signed Vendor Launcher Probe (NO INSTALL)
 
 on:
   pull_request:
@@ -6,6 +6,7 @@ on:
     paths:
       - '.github/workflows/v15-05-7c-h-windows-gui-capability.yml'
       - 'scripts/quality/v15_05_7c_h_windows_gui_capability_probe.ps1'
+      - 'scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1'
   workflow_dispatch:
 
 permissions:
@@ -13,9 +14,9 @@ permissions:
 
 jobs:
   synthetic-windows-gui-capability:
-    name: Windows hosted session + synthetic WinForms keyboard roundtrip (metadata ONLY)
+    name: Synthetic WinForms session + signed vendor GUI launcher observation (NO INSTALL)
     runs-on: windows-2022
-    timeout-minutes: 8
+    timeout-minutes: 14
     steps:
       - uses: actions/checkout@v4
         with:
@@ -46,4 +47,26 @@ jobs:
           name: lot05-7c-h-synthetic-windows-gui-capability-metadata-only
           path: ${{ runner.temp }}/lot05-7c-h-gui-capability-metadata-only.json
           if-no-files-found: error
+          retention-days: 5
+      - name: Validate signed vendor GUI observation probe offline syntax
+        shell: pwsh
+        run: |
+          $errors = @()
+          $tokens = $null
+          $path = './scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1'
+          $null = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw 'SIGNED_VENDOR_GUI_PROBE_AST_INVALID' }
+          Write-Host 'SIGNED_VENDOR_GUI_PROBE_AST_VALID'
+      - name: Observe signed official trial launcher GUI on ephemeral runner (NO INSTALL / NO EXPORT)
+        shell: pwsh
+        run: |
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1'
+          if ($LASTEXITCODE -ne 0) { throw 'SIGNED_VENDOR_GUI_PROBE_FAILED_TO_COMPLETE' }
+      - name: Upload ONLY sanitized publisher-window metadata (never exe, window title, patient or CSV)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-h-signed-vendor-gui-window-metadata-only
+          path: ${{ runner.temp }}/lot05-7c-h-official-vendor-gui-window-metadata-only.json
+          if-no-files-found: warn
           retention-days: 5
