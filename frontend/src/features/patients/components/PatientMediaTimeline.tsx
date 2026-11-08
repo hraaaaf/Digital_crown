@@ -128,6 +128,7 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
   if (loading || (!url && !pdfBlob)) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Loader2 size={26} className="animate-spin" /></div>;
   if (asset.mime_type === 'application/pdf' && pdfBlob) return <div className={cn('flex min-w-0 max-h-[520px] overflow-hidden bg-card', minHeight)}><Suspense fallback={<span role="status">Chargement du visualiseur PDF…</span>}><PatientPdfCanvasPreview key={`${patientId}:${asset.id}`} blob={pdfBlob} /></Suspense></div>;
 
+  if (!url) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Images size={28} /></div>;
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
