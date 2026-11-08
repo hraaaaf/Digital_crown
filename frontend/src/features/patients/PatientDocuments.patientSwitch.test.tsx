@@ -84,4 +84,52 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
     expect(post).not.toHaveBeenCalled();
     await waitFor(()=>expect(get).toHaveBeenCalledWith('/patients/2/documents'));
   });
+  it.each(['Voir', 'Fichier'] as const)(
+    'does not perform delayed patient A %s after navigating to B',
+    async (action) => {
+      const slowBlob = deferred();
+      const oldCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+      const createUrl = vi.fn(() => 'blob:stale-patient-a');
+      Object.defineProperty(URL, 'createObjectURL', {
+        configurable: true, writable: true, value: createUrl,
+      });
+      const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
+      const alertSpy = vi.spyOn(window, 'alert').mockImplementation(() => {});
+      try {
+        get.mockImplementation((url: string) => {
+          if (url === '/patients/1/documents') {
+            return Promise.resolve({ data: [{ ...doc('DC_DOS01_SECRET_A', '11'), file_exists: true }] });
+          }
+          if (url === '/patients/2/documents') return Promise.resolve({ data: [] });
+          if (url === '/patients/1') return Promise.resolve(patient(1));
+          if (url === '/patients/2') return Promise.resolve(patient(2));
+          if (url === '/documents/11/download') return slowBlob.promise;
+          throw Error('Unexpected fetch ' + url);
+        });
+        mount();
+        await screen.findByText('DC_DOS01_SECRET_A');
+        fireEvent.click(screen.getByRole('button', { name: action, exact: true }));
+        await waitFor(() => expect(get).toHaveBeenCalledWith(
+          '/documents/11/download', { responseType: 'blob' },
+        ));
+
+        fireEvent.click(screen.getByRole('button', { name: 'Patient B' }));
+        await screen.findByText('Aucune archive médicale');
+        await act(async () => {
+          slowBlob.resolve({ data: new Blob(['synthetic A'], { type: 'application/pdf' }) });
+          await slowBlob.promise;
+        });
+
+        expect(createUrl).not.toHaveBeenCalled();
+        expect(openSpy).not.toHaveBeenCalled();
+        expect(alertSpy).not.toHaveBeenCalled();
+      } finally {
+        if (oldCreate) Object.defineProperty(URL, 'createObjectURL', oldCreate);
+        else Reflect.deleteProperty(URL, 'createObjectURL');
+        openSpy.mockRestore();
+        alertSpy.mockRestore();
+      }
+    },
+  );
+
 });
