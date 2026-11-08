@@ -1,0 +1,40 @@
+name: V1.5-08.1 Queue Core domain FUE-0
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'queue_core/**'
+      - 'docs/v1.5/V15_08_1_QUEUE_CORE_DOMAIN_CONTRACT.md'
+      - '.github/workflows/v15-08-1-queue-domain-fue0.yml'
+  push:
+    branches: ['codex/v15-08-1-queue-contracts-20261108']
+    paths:
+      - 'queue_core/**'
+      - 'docs/v1.5/V15_08_1_QUEUE_CORE_DOMAIN_CONTRACT.md'
+      - '.github/workflows/v15-08-1-queue-domain-fue0.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  queue-domain-fue0:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install isolated contract test dependencies
+        run: python -m pip install 'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+      - name: Run Queue Core FUE-0 tests
+        run: python -m pytest -q queue_core/tests --junitxml=queue-core-fue0-junit.xml
+      - name: Retain test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: queue-core-fue0-${{ github.sha }}
+          path: queue-core-fue0-junit.xml
+          if-no-files-found: warn
