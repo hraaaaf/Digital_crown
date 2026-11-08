@@ -132,4 +132,70 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
     },
   );
 
+  it('revokes an already opened A PDF object URL when B replaces the patient', async () => {
+    const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
+    const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
+    const blobUrl = 'blob:synthetic-patient-a-pdf';
+    const createUrl = vi.fn(() => blobUrl);
+    const revokeUrl = vi.fn();
+    Object.defineProperty(URL, 'createObjectURL', {
+      configurable: true, writable: true, value: createUrl,
+    });
+    Object.defineProperty(URL, 'revokeObjectURL', {
+      configurable: true, writable: true, value: revokeUrl,
+    });
+    // Native noopener popouts may return null. An explicit non-null opener
+    // here tests the URL that remains alive until the patient identity changes.
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue({ closed: false } as Window);
+    const timers = vi.spyOn(window, 'setTimeout');
+    try {
+      get.mockImplementation((url: string) => {
+        if (url === '/patients/1/documents') {
+          return Promise.resolve({
+            data: [{ ...doc('DC_DOS01_SECRET_A_PDF', '11'), file_exists: true }],
+          });
+        }
+        if (url === '/patients/2/documents') return Promise.resolve({ data: [] });
+        if (url === '/patients/1') return Promise.resolve(patient(1));
+        if (url === '/patients/2') return Promise.resolve(patient(2));
+        if (url === '/documents/11/download') {
+          return Promise.resolve({
+            data: new Blob(['%PDF-1.4\\n% SYNTHETIC A\\n%%EOF'], { type: 'application/pdf' }),
+          });
+        }
+        throw Error('Unexpected fetch ' + url);
+      });
+      mount();
+      await screen.findByText('DC_DOS01_SECRET_A_PDF');
+      fireEvent.click(screen.getByRole('button', { name: 'Voir' }));
+      await waitFor(() => expect(openSpy).toHaveBeenCalledWith(
+        blobUrl, '_blank', 'noopener,noreferrer',
+      ));
+      expect(createUrl).toHaveBeenCalledTimes(1);
+      expect(revokeUrl).not.toHaveBeenCalled();
+
+      fireEvent.click(screen.getByRole('button', { name: 'Patient B' }));
+      await screen.findByText('Aucune archive médicale');
+      await waitFor(() => expect(revokeUrl).toHaveBeenCalledWith(blobUrl));
+      expect(screen.queryByText('DC_DOS01_SECRET_A_PDF')).not.toBeInTheDocument();
+      expect(screen.queryByRole('button', {
+        name: 'Actions du document DC_DOS01_SECRET_A_PDF',
+      })).not.toBeInTheDocument();
+    } finally {
+      // The 60-second release fallback is unnecessary after the tested route
+      // cleanup and must not keep Vitest alive.
+      for (let i = 0; i < timers.mock.calls.length; i++) {
+        if (timers.mock.calls[i][1] === 60_000) {
+          window.clearTimeout(timers.mock.results[i]?.value as number);
+        }
+      }
+      timers.mockRestore();
+      openSpy.mockRestore();
+      if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate);
+      else Reflect.deleteProperty(URL, 'createObjectURL');
+      if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke);
+      else Reflect.deleteProperty(URL, 'revokeObjectURL');
+    }
+  });
+
 });
