@@ -69,6 +69,13 @@ jobs:
           cryptography==49.0.0 sqlcipher3==0.6.2
       - name: Real encrypted disk database and fresh process
         run: python -B -c "import glob,pytest; raise SystemExit(pytest.main(glob.glob('tests/test_fue_g04*.py') + ['-q','-p','no:cacheprovider']))"
+      - name: CPV2-02C DBA-only additive SQLCipher migration and rollback (5 fictional cases)
+        env:
+          ENVIRONMENT: test
+          DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+          TELEMETRY_ENABLED: 'false'
+          CLOUD_AI_ENABLED: 'false'
+        run: python -B -m pytest tests/test_cpv2_02c_sqlcipher_migration_lab.py -q -p no:cacheprovider --maxfail=1
       - name: Existing key and environment regression
         run: python -B -m pytest backend/tests/test_pure_zka_service.py backend/tests/test_env_loader.py backend/tests/test_cabinet_crypto_env_gate.py -q -p no:cacheprovider
 

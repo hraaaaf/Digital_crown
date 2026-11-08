@@ -83,7 +83,7 @@ La table contient des métadonnées médicales (patient_id, type, acteur) :
 
 ## GATE HUMAIN AVANT CABINET
 
-- [ ] Revue indépendante sécurité/integrité de la migration et de sa rollback.
+- [x] Revue indépendante **facultative et sautée sur décision du responsable** pour CPV2-02C (non réalisée ; ne vaut pas certification).
 - [ ] Backup chiffré du cabinet testé, SHA256 et restauration vérifiée.
 - [ ] SQLCipher et SQLite sur disque : FUE de crash/restart, audit de l'intégrité.
 - [ ] Accord explicite pour **appliquer** la migration au cabinet visé.
@@ -245,3 +245,31 @@ archives actives, un contrôle de destination hors cabinet, le rollback
 et une restauration vérifiée depuis un emplacement protégé.
 Le gate clinique et humain reste NO-GO sans ces éléments.
 
+
+## Répétition DBA additive sur SQLCipher fictive — décision du 08/11/2026
+
+Cette répétition <b>n'est pas une procédure de migration cabinet</b>. Elle est
+limitée aux bases **créées par pytest sous `tmp_path`**, avec secrets et
+identités fictifs. Elle ne peut pas être invoquée depuis une route HTTP, un
+wizard Desktop ou un automatisme de démarrage.
+
+Preuve attendue : `tests/test_cpv2_02c_sqlcipher_migration_lab.py`, exécuté
+sur Windows et Ubuntu par `fue-g04-persistence.yml`, avec **5 tests** :
+ancienne SQLCipher chiffrée sans table => HTTP 503 ; snapshot « avant »
+préservé ; ajout transactionnel **uniquement** du modèle
+`MobileDocumentArchiveReceipt` ; unicité UUID de portée et verrou
+`PROCESSING` conservé après réouverture ; annulation de DDL avant COMMIT
+sans table partielle ; table incomplète préexistante refusée sans réparation ;
+mauvaise clé SQLCipher refusée sans altération du fichier.
+
+**Non prouvé par ces tests :** migration sur une DB cabinet existante,
+cohérence multi-fichiers DB + médias, verrouillage clinique pendant snapshot,
+plan de reprise réel, sauvegarde distante protégée, rollback avec clients
+Pocket actifs, licence et validations applicatives post-migration.
+Ces éléments sont des gates techniques **distincts**, et le feu vert clinique
+requiert une autorisation humaine explicite.
+
+**Gouvernance :** l'avis indépendant est optionnel et expressément
+**sauté** sur CPV2-02C. Ce choix n'affaiblit pas les vérifications internes
+d'intégrité, ni les restrictions imposées par une obligation légale ou
+contractuelle applicable. Aucune migration réelle, merge ni déploiement.
