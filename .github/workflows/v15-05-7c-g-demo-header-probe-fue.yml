@@ -1,0 +1,163 @@
+name: LOT05 05.7C-G Official Fictional Demo Header Probe (NO IMPORT)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/legacy_migration_vendor_demo_header_probe_lab_v15.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/tests/test_migration_057c_official_demo_header_probe_fue.py'
+      - '.github/workflows/v15-05-7c-g-demo-header-probe-fue.yml'
+      - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
+      - 'scripts/quality/v15_05_7c_g_official_trial_win_preflight.ps1'
+      - 'scripts/quality/v15_05_7c_g_official_demo_db_to_csv_lab.py'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  header-proof-fue:
+    name: Header-only fictional-demo evidence 34 FUE — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact HEAD and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile backend/services/legacy_sql_inspector_v15.py backend/services/legacy_migration_vendor_demo_header_probe_lab_v15.py backend/tests/test_migration_057c_official_demo_header_probe_fue.py
+          python backend/services/legacy_migration_vendor_demo_header_probe_lab_v15.py --help > /dev/null
+      - name: "Run 34 FAKE-only FUE - no real demo, no patient imports"
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_migration_057c_official_demo_header_probe_fue.py -v 2>&1 | tee lot05-7c-g-demo-header-fue.log
+          grep -q 'Ran 34 tests' lot05-7c-g-demo-header-fue.log
+          grep -q '^OK' lot05-7c-g-demo-header-fue.log
+          echo 'LOT05_7C_G_34_FAKE_HEADER_ONLY_NO_VENDOR_PROVENANCE_NO_IMPORT'
+
+  trial-windows-preflight:
+    name: Official trial installer on ephemeral Windows VM — SIGNATURE ONLY / NO GUI
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact HEAD before vendor binary acquisition
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Validate PowerShell AST before downloading any installer
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = @()
+          $path = "./scripts/quality/v15_05_7c_g_official_trial_win_preflight.ps1"
+          $null = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count -ne 0) {
+            throw 'OFFLINE_TRIAL_SCRIPT_POWERSHELL_AST_INVALID'
+          }
+          Write-Host 'POWERSHELL_AST_SYNTAX_VALID'
+      - name: Download from official domain and verify Authenticode (never execute EXE)
+        shell: pwsh
+        run: |
+          & "./scripts/quality/v15_05_7c_g_official_trial_win_preflight.ps1" -EvidenceDir "${{ runner.temp }}"
+      - name: Upload non-PHI metadata only, even if vendor download fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-g-official-trial-windows-metadata-only
+          path: ${{ runner.temp }}/lot05-7c-g-official-installer-preflight.json
+          if-no-files-found: error
+          retention-days: 5
+
+  report-supply-chain-status:
+    # A narrowly scoped GitHub commit *status*, so limited connector clients
+    # can read the Windows VM outcome and the actual run URL. Not a merge gate.
+    name: Report Windows VM installer preflight observation (NOT import approval)
+    needs: [trial-windows-preflight]
+    if: ${{ always() && github.event_name == 'pull_request' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      statuses: write
+    steps:
+      - name: Publish exact SHA & run URL as observation-only GitHub commit status
+        uses: actions/github-script@v7
+        env:
+          PREFLIGHT_RESULT: ${{ needs.trial-windows-preflight.result }}
+        with:
+          script: |
+            const sha = context.payload.pull_request?.head?.sha;
+            if (!sha || !/^[0-9a-f]{40}$/.test(sha)) {
+              throw new Error('EXACT_PULL_REQUEST_HEAD_REQUIRED');
+            }
+            const result = process.env.PREFLIGHT_RESULT;
+            const state = result === 'success' ? 'success' : 'failure';
+            const target_url = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+            await github.rest.repos.createCommitStatus({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              sha,
+              state,
+              target_url,
+              context: 'LOT05-G/windows-trial-installer-authenticity-ONLY',
+              description: state === 'success'
+                ? 'Signed official installer downloaded on hosted Windows; NOT executed'
+                : 'Windows installer download/signature gate refused or incomplete',
+            });
+
+  candidate-official-demo-db-csv:
+    name: Ephemeral Ubuntu MariaDB 10.11 pinned vendor demo DB to PRIVATE CSV (not GUI export)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact PR HEAD and Python syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python3 -m py_compile scripts/quality/v15_05_7c_g_official_demo_db_to_csv_lab.py
+      - name: Install isolated MariaDB 10.11 and p7zip from Ubuntu repositories
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo env DEBIAN_FRONTEND=noninteractive apt-get install -qq -y mariadb-server p7zip-full
+          sudo systemctl stop mariadb || true
+          test "$(mariadbd --version | grep -c '10[.]11[.]')" = 1
+      - name: Read publisher-packaged demo patient table via private offline socket and destroy CSV
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/quality/v15_05_7c_g_official_demo_db_to_csv_lab.py
+      - name: Upload only non-PHI SHA and count metadata, NEVER CSV or MyISAM
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-g-signed-demo-db-local-csv-evidence-only
+          path: ${{ runner.temp }}/lot05-7c-g-vendor-demo-csv-evidence-only.json
+          if-no-files-found: warn
+          retention-days: 5
