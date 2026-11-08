@@ -62,6 +62,17 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Validate PowerShell AST before downloading any installer
+        shell: pwsh
+        run: |
+          $tokens = $null
+          $parseErrors = @()
+          $path = "./scripts/quality/v15_05_7c_g_official_trial_win_preflight.ps1"
+          $null = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$parseErrors)
+          if ($parseErrors.Count -ne 0) {
+            throw 'OFFLINE_TRIAL_SCRIPT_POWERSHELL_AST_INVALID'
+          }
+          Write-Host 'POWERSHELL_AST_SYNTAX_VALID'
       - name: Download from official domain and verify Authenticode (never execute EXE)
         shell: pwsh
         run: |
