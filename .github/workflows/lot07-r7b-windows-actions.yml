@@ -39,7 +39,6 @@ jobs:
       LOT07_R7_WINDOWS_NATIVE: '1'
       LOT07_R7_NVDA_CERT: '1'
       # Shared by Guidepup installer AND the later real Node.js NVDA runtime.
-      GUIDEPUP_SCREEN_READERS_PATH: ${{ runner.temp }}/guidepup-screen-readers
       SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       CI: 'true'
       TZ: Africa/Casablanca
@@ -49,6 +48,11 @@ jobs:
         with:
           ref: ${{ env.SOURCE_HEAD }}
           persist-credentials: false
+      - name: Share Guidepup screen-reader cache with all Windows job steps
+        shell: pwsh
+        run: |
+          $cache = Join-Path $env:RUNNER_TEMP 'guidepup-screen-readers'
+          Add-Content -Path $env:GITHUB_ENV -Value "GUIDEPUP_SCREEN_READERS_PATH=$cache"
       - name: Verify exact SHA and disposable Windows-only authority
         shell: pwsh
         run: |
