@@ -119,6 +119,10 @@ def test_maj02_posix_swap_just_before_unlink_cannot_delete_external(tmp_path, mo
             original.symlink_to(external)
         return raw_unlink(name, dir_fd=dir_fd)
     monkeypatch.setattr(retention.os, "unlink", replace_name)
+    # The capability oracle checks callable identity; preserve the mocked
+    # dir_fd capability, otherwise fail-closed preflight stops before injection.
+    monkeypatch.setattr(retention.os, "supports_dir_fd",
+                        set(retention.os.supports_dir_fd) | {replace_name})
     result = _run(root, dest, prefix, suffix)
     assert once["done"], result
     assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
