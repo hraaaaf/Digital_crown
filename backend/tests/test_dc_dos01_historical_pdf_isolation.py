@@ -31,7 +31,8 @@ def test_dc_dos01_historical_pdf_a_b_x_authenticated_bytes_and_patient_lists(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     """A/B see their own real PDF, X cannot fetch them by URL or document ID."""
-    from backend.routers import documents, patients
+    from backend.core import media_paths
+    from backend.routers import documents
     from backend.services import archive_service
 
     assert os.environ.get("ENVIRONMENT") == "test"
@@ -42,7 +43,7 @@ def test_dc_dos01_historical_pdf_a_b_x_authenticated_bytes_and_patient_lists(
     monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", media_root / "archives")
     monkeypatch.setattr(archive_service, "MEDIA_DIR", media_root)
     monkeypatch.setattr(documents, "MEDIA_DIR", media_root)
-    monkeypatch.setattr(patients, "get_media_root", lambda: media_root)
+    monkeypatch.setattr(media_paths, "get_media_root", lambda: media_root)
 
     _cabinet(db, dentiste)
     patient_a, study_a, _ = _case(db, dentiste)
