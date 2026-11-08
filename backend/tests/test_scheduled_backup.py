@@ -193,7 +193,18 @@ class TestRetention:
             report = sb._apply_retention(db_dir, "db_backup_", ".sql.enc", retention_days=30, dry_run=False)
 
         remaining = list(db_dir.glob("db_backup_*.sql.enc"))
-        assert len(remaining) == 3  # plancher respecté même si tout est "vieux"
+        if __import__("os").name == "posix":
+            # A name-based POSIX unlink is unsafe under inode substitution.
+            # The correct behavior is to preserve all backups and refuse purge.
+            assert report["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", report
+            assert report["error_code"] == "POSIX_UNLINK_IDENTITY_RACE"
+            assert report["deleted"] == []
+            assert len(report["candidates"]) == 3
+            assert len(remaining) == 6
+        else:
+            assert report["status"] == "SUCCESS", report
+            assert len(report["deleted"]) == 3
+            assert len(remaining) == 3  # Windows HANDLE deletion, floor respected
 
     def test_retention_never_touches_files_outside_its_prefix(self):
         db_dir = sb.SCHEDULED_ROOT / "db"
