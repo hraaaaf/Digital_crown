@@ -219,6 +219,24 @@ try {
         return {closed:false};
       };
     });
+    const checkCanvas=async dialog=>{
+      const canvas=dialog.locator('canvas[data-testid="patient-pdf-page-canvas"][data-pdf-rendered="true"]');
+      await canvas.waitFor({state:'visible',timeout:35000});
+      const pixels=await canvas.evaluate(el=>{
+        const ctx=el.getContext('2d');
+        if(!ctx)return {width:0,height:0,ink:0};
+        const data=ctx.getImageData(0,0,el.width,el.height).data;
+        let ink=0;
+        for(let k=0;k<data.length;k+=64)
+          if(data[k]<160 && data[k+1]<160 && data[k+2]<160) ink++;
+        return {width:el.width,height:el.height,ink};
+      });
+      checkTrue(pixels.width>450 && pixels.height>500 && pixels.ink>12,
+        'BLANK_PDF_CANVAS '+JSON.stringify(pixels));
+      checkTrue(await dialog.locator('iframe').count()===0,
+        'Old iframe viewer remained mounted');
+      return pixels;
+    };
     const resA=page.waitForResponse(r=>r.url().includes('/api/documents/'+f.archives.a.id+'/download') && r.status()===200);
     await page.getByRole('button',{name:'Voir',exact:true}).click();
     const bytesA=await (await resA).body();
