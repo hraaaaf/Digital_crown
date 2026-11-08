@@ -1,3 +1,17 @@
+## PRE / CODE POST — 2026-11-08 — LOT05.7C-E explicit export syntax envelope (DRAFT / LAB-ONLY)
+
+**Goal / decision:** advance *source-format assessment*, not more fake vendor attestation. Owner said `Okay go` after LOT05.7C-D LAB merge. Work **only** on a new isolated branch, with no merge, deployment, cabinet installation or clinical import authority. Baseline verified `master@ba7e04ffdf00317d47110ef78e6046c5b407822c`, [PR #1220](https://github.com/hraaaaf/Digital_crown/pull/1220) MERGED. Exact master push certification was not retrievable from the available GitHub connector; do not infer its success.
+
+**Implemented proposal on branch `feat/lot05-7c-e-csv-export-envelopes-20261108`:**
+- `backend/services/legacy_migration_csv_envelope_lab_v15.py`: explicit syntax profiles `csv-comma-utf8`, `csv-semicolon-utf8`, `tsv-tab-utf8`; strict UTF-8 with optional BOM, bounded read-only parsing of disposable **FAKE** staged copies using existing 05.1 path/SHA protections and 05.7C-B safe-cell / 05.2 secret-header guards.
+- Emits only source SHA256, size, declared profile, domain-separated header-schema SHA256, row and column counts, fixed warnings and explicit `false/null` clinical/vendor permission flags. Never exports header names, source row values, IDs, paths or patient content. Does not execute SQL, map columns, write target rows, infer source software, process non-synthetic records, or change any runtime/API/DB/dependency.
+- `backend/tests/test_migration_057c_export_envelope_fue.py`: 30 FAKE-only cases (syntax profiles, BOM, determinism, unknown/ambiguous separators, outside-root, symlink/hardlink, missing gates, formula, credentials, duplicate/corrupt headers, malformed rows, UTF-8, cell limits, privacy and byte preservation).
+- `.github/workflows/v15-05-7c-e-export-envelope-fue.yml`: check exact PR HEAD on Windows and Ubuntu, 30 tests each, zero vendor-import permission. **No test PASS claim until CI reports an executed green result.** Existing clinical/runtime workflows untouched.
+
+**Boundary / source truth:** recognizing the syntax of synthetic CSV, semicolon CSV or TSV **does not validate any specific vendor's real export**, entity semantics, identity uniqueness, currency accounting, media linkage, legal provenance, mapping approval, target compatibility or dry-run. `source_provenance_verified=false`; `vendor_format_compatible=false`; `mapping_human_approved=false`; `import_permitted=false`; `target_rows_written=0`; `target_collisions=null`. Need legally authorized version-bound representative source format before promoting a vendor-specific adapter. Do not require owner to upload a personal former-practice database.
+
+**Success bar:** PR DRAFT and exact SHA FUE Windows/Ubuntu with no error and no unexpected skip, plus scope and dependency CI. A green LAB PR is **not** approval to merge. NEXT: inspect CI, fix grounded failures in the same branch, then plan a true source-to-schema mapping adapter only when format evidence exists. Canonical remains this file and unique Notion V1.5 roadmap.
+
 # V1.5-05.7A — Product trust-root security gate (LAB MERGED / PRODUCT NO-GO)
 
 ## PRE / CODE POST — 2026-11-06 — LOT05.7C-D deterministic FAKE CSV evidence replay (DRAFT)

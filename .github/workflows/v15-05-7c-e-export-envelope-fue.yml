@@ -1,0 +1,49 @@
+name: LOT05 05.7C-E FAKE CSV TSV Export Syntax FUE (NO IMPORT)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/legacy_migration_csv_envelope_lab_v15.py'
+      - 'backend/services/legacy_migration_csv_preview_v15.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/services/legacy_sql_mapping_v15.py'
+      - 'backend/tests/test_migration_057c_export_envelope_fue.py'
+      - '.github/workflows/v15-05-7c-e-export-envelope-fue.yml'
+      - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-export-syntax:
+    name: CSV comma semicolon TSV tab syntax — 30 FAKE cases — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact HEAD and standalone compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile backend/services/legacy_sql_inspector_v15.py backend/services/legacy_sql_mapping_v15.py backend/services/legacy_migration_csv_preview_v15.py backend/services/legacy_migration_csv_envelope_lab_v15.py backend/tests/test_migration_057c_export_envelope_fue.py
+      - name: Execute 30 syntax-only FAKE FUE, never authorize clinical import
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_migration_057c_export_envelope_fue.py -v 2>&1 | tee lot05-7c-e-fue.log
+          grep -q 'Ran 30 tests' lot05-7c-e-fue.log
+          grep -q '^OK' lot05-7c-e-fue.log
+          echo 'LOT05_7C_E_30_FAKE_SYNTAX_ONLY_NO_VENDOR_CERT_NO_IMPORT'
