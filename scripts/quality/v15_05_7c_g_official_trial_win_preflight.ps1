@@ -30,7 +30,15 @@ $report = [ordered]@{
   pe_header_valid = $false
   file_version_declared_by_binary = $null
   static_archive_listing_supported = $false
+  static_archive_type = $null
+  archive_entry_count = 0
+  database_related_path_count = 0
   possible_demo_payload_filename_count = 0
+  nested_archive_candidate_count = 0
+  archive_extensions = [ordered]@{ sql = 0; zip = 0; msi = 0; cab = 0; exe = 0; db = 0; sqlite = 0; ibd = 0; frm = 0; myd = 0; myi = 0; dat = 0 }
+  runner_session_id = $null
+  runner_user_interactive_hint = $false
+  interactive_desktop_proven = $false
   actual_demo_payload_validated = $false
   installer_authenticated = $false
   installer_executed = $false
@@ -83,8 +91,13 @@ try {
   if (-not $report.signer_subject -or $report.signer_subject -notmatch '(?i)Open\s*Dental') {
     throw 'UNEXPECTED_WINDOWS_SIGNER'
   }
-  # Optional static archive inventory. No executable runs and no extraction.
-  # The file names are kept transient and never copied into the evidence JSON.
+  # Snapshot runner session capabilities; a hint is NOT an UI automation proof.
+  $report.runner_session_id = [int](Get-Process -Id $PID).SessionId
+  $report.runner_user_interactive_hint = [bool][Environment]::UserInteractive
+  $report.interactive_desktop_proven = $false
+
+  # Static archive metadata only. Do not extract or execute payloads and NEVER
+  # publish internal entry names. We only publish non-sensitive aggregate counts.
   $sevenZip = Get-Command -Name '7z.exe' -ErrorAction SilentlyContinue
   if ($sevenZip -ne $null) {
     $listPath = Join-Path $EvidenceDir 'lot05-7c-g-internal-archive-listing-DELETE.txt'
@@ -92,16 +105,30 @@ try {
       & $sevenZip.Source 'l' '-slt' '-bd' $dest > $listPath 2>&1
       if ($LASTEXITCODE -eq 0) {
         $report.static_archive_listing_supported = $true
-        $count = 0
         foreach ($line in [System.IO.File]::ReadLines($listPath)) {
+          if ($line -match '^Type = ([A-Za-z0-9_+.-]{1,40})$') {
+            if ($null -eq $report.static_archive_type) {
+              $report.static_archive_type = [string]$Matches[1]
+            }
+          }
           if ($line -match '^Path = (.+)$') {
-            $candidate = [string]$Matches[1]
-            if ($candidate -match '(?i)(^|[\\/])demo[^\\/]*\.(sql|zip|db|sqlite|bak)$') {
-              $count++
+            $entry = [string]$Matches[1]
+            $report.archive_entry_count = [int]$report.archive_entry_count + 1
+            $ext = [System.IO.Path]::GetExtension($entry).ToLowerInvariant().TrimStart('.')
+            if ($report.archive_extensions.Contains($ext)) {
+              $report.archive_extensions[$ext] = [int]$report.archive_extensions[$ext] + 1
+            }
+            if ($entry -match '(?i)(demo|database|mariadb|mysql|patient)') {
+              $report.database_related_path_count = [int]$report.database_related_path_count + 1
+            }
+            if ($entry -match '(?i)(^|[\\/])demo[^\\/]*\.(sql|zip|db|sqlite|bak)$') {
+              $report.possible_demo_payload_filename_count = [int]$report.possible_demo_payload_filename_count + 1
+            }
+            if ($ext -in @('zip','msi','cab','7z','exe')) {
+              $report.nested_archive_candidate_count = [int]$report.nested_archive_candidate_count + 1
             }
           }
         }
-        $report.possible_demo_payload_filename_count = $count
       }
     } catch {
       $report.static_archive_listing_supported = $false
