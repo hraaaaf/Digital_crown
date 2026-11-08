@@ -385,13 +385,14 @@ jobs:
         run: |
           node --check scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
           node scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
-      - name: DC-DOS-01 verify ten checks and nonblank PDF canvas A/B plus R3 Desktop A/B/X
+      - name: DC-DOS-01/02 verify 11 JWT browser checks and canonical photo radio PDF source bytes
         run: |
           python - <<'PY'
           import json,os
           from pathlib import Path
           from backend import database,models
           from backend.models_media_core import ClinicalAsset
+          from backend.core.media_paths import get_media_root
           root=Path("artifacts/ceph-v1-dos01-multitenant")
           report=json.loads((root/"report.json").read_text())
           assert report["head"]==os.environ["PRODUCT_HEAD"]
@@ -400,7 +401,7 @@ jobs:
           assert report["synthetic_only"] is True
           assert report["official_fue_complete"] is False
           assert report["clinical_release"] is False
-          assert len(report["checks"])==10 and all(c["status"]=="PASS" for c in report["checks"])
+          assert len(report["checks"])==11 and all(c["status"]=="PASS" for c in report["checks"])
           split=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_R3_DESKTOP_SPLIT_A_B_NO_STALE_PANES")
           for key in ("desktop_1920_two_real_panes","patient_a_identity_verified",
                       "patient_b_identity_verified","stale_a_panel_absent",
@@ -420,7 +421,12 @@ jobs:
           for flag in ("inline_pdf_preview_patient_bound","zero_native_popup_open_attempts",
                        "escape_closes_pdf_preview"):
               assert documents.get(flag) is True, (flag,documents)
-          assert len(report["shots"])==13
+          multimodal=next(c["evidence"] for c in report["checks"] if c["id"]=="DC_DOS02_REAL_PHOTO_RADIO_PDF_IMPORT_TIMELINE_R3_SOURCE_IDS")
+          for flag in ("three_sources_one_identity_each","pdf_canvas_not_blank","no_browser_pdf_iframe",
+                       "read_only_split","patient_a_sources_absent_in_b_and_x"):
+              assert multimodal.get(flag) is True,(flag,multimodal)
+          assert multimodal.get("pdf_canvas_ink_samples",0)>12
+          assert len(report["shots"])==15
           for fn in report["shots"]:
               p=root/fn
               assert p.is_file() and p.stat().st_size>150
@@ -436,10 +442,11 @@ jobs:
                       ClinicalAsset.patient_id==pid,
                       ClinicalAsset.source_kind!="DERIVED",
                   ).all()
-                  assert len(assets)==1,(name,len(assets))
-                  assert assets[0].patient_id==pid
-                  assert assets[0].employer_id==patient.employer_id
-                  assert assets[0].provenance_json["ingestion_channel"]=="ORTHO_STUDIO"
+                  assert len(assets)==(4 if name=="patient_a" else 1),(name,len(assets))
+                  ortho=[a for a in assets if a.provenance_json["ingestion_channel"]=="ORTHO_STUDIO"]
+                  assert len(ortho)==1,(name,len(ortho))
+                  assert ortho[0].patient_id==pid
+                  assert ortho[0].employer_id==patient.employer_id
                   archived=db.get(models.DocumentArchive,fixture["archives"][source]["id"])
                   assert archived is not None and archived.patient_id==pid
                   assert archived.document_type==models.DocumentType.AUTRE
@@ -449,10 +456,35 @@ jobs:
                       fixture["patient_a"],fixture["patient_b"],fixture["patient_x"]]),
                   models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
               ).count()==0,"Synthetic generic PDF test may not create a clinical official archive"
+              uploaded=report.get("dos02_source_ids",{})
+              assert set(uploaded)=={"photo","radio","document"}, uploaded
+              storage_keys=set()
+              expected_types={"photo":("PHOTO","T0"),"radio":("RADIOGRAPH","T1"),
+                              "document":("DOCUMENT","T2")}
+              for kind,(asset_type,timepoint) in expected_types.items():
+                  record=uploaded[kind]
+                  item=db.get(ClinicalAsset,record["id"])
+                  assert item is not None and item.patient_id==fixture["patient_a"]
+                  assert item.asset_type==asset_type and item.timepoint==timepoint
+                  assert item.source_kind=="UPLOAD"
+                  assert item.provenance_json["ingestion_channel"]=="WEB_API"
+                  assert item.provenance_json["validation_version"]=="C3_V1"
+                  assert item.sha256==fixture["dos02_imports"][kind]["sha256"]==record["sha256"]
+                  assert item.storage_key and item.storage_format=="AESGCM_V1"
+                  derivative=db.get(ClinicalAsset,record["thumbnail_asset_id"])
+                  assert derivative is not None and derivative.parent_asset_id==item.id
+                  assert derivative.source_kind=="DERIVED" and derivative.patient_id==item.patient_id
+                  for row in (item,derivative):
+                      assert row.storage_key not in storage_keys
+                      storage_keys.add(row.storage_key)
+                      encrypted=(get_media_root()/row.storage_key).read_bytes()
+                      assert encrypted.startswith(b"DCM1") and encrypted!=b""
+              assert len(storage_keys)==6,"Expected exactly 3 original blobs and 3 linked thumbnails"
               assert db.get(models.Patient,fixture["patient_a"]).employer_id==db.get(models.Patient,fixture["patient_b"]).employer_id
               assert db.get(models.Patient,fixture["patient_a"]).employer_id!=db.get(models.Patient,fixture["patient_x"]).employer_id
               assert db.get(models.CephaloAnalysis,fixture["study_b"]).patient_id==fixture["patient_b"]
           print("DC_DOS01_PATIENT_SWITCH_MULTI_TENANT_SYNTHETIC_SUBLOT_PASS")
+          print("DC_DOS02_PHOTO_RADIO_PDF_CANONICAL_ORIGINAL_SINGLE_SOURCE_T2_PASS")
           print("OFFICIAL_FUE_74_D_STILL_PARTIAL_REQUIRES_DOCUMENT_SPLIT_CACHE_COVERAGE")
           PY
       - name: Dump isolated runtime diagnostic on failure
