@@ -54,3 +54,19 @@ Le workflow `.github/workflows/ceph-p2ter-master-bridge-real-cabinet.yml` exécu
 4. **DC-DOS-03** reste HOLD tant que LOT06 acquisition n'est pas certifié.
 
 **Gates absolus :** clinique HOLD, sécurité indépendante HOLD, signatures officielles HOLD, patient réel NON, merge/déploiement NON. **Fichier de reprise :** ce document, associé au canonique §74–84 et à Notion.
+
+## Tranche 1 — résultat CI vérifié (08/11/2026)
+
+Au SHA exact `460c1b2ce1015a797d121fbf084e8554d1a2666e`, la [CI Cabinet #42483076513](https://github.com/hraaaaf/Digital_crown/actions/runs/42483076513) est SUCCESS. Les quatre suites Media Core/import/timeline/C7/PDF A4 ont **27 tests PASS (30 avertissements de reflection index SQLAlchemy non bloquants)** ; les tests CAS de science **22 PASS**, et les dix contrôles exploratoires du parcours Desktop Step1–4 sont PASS. Les [4/4 jobs Archive Guard #42483076619](https://github.com/hraaaaf/Digital_crown/actions/runs/42483076619) sont SUCCESS. Au total 6 workflows applicables SUCCESS / 1 SKIPPED. Ces chiffres concernent **des tests**, pas 27 scénarios FUE métier.
+
+## Tranche 2 — DC-DOS-01 : garde visuel d'identité patient et URL de blob (candidat)
+
+**Constat source :** `frontend/src/features/ortho/components/OrthoMediaRecordPanel.tsx` gardait la réponse d'un précédent patient jusqu'au prochain effet React, et `AssetPreview` pouvait conserver brièvement une ancienne URL d'objet. Cela pouvait montrer un aperçu antérieur dans le DOM après changement de patient, même si l'API refuserait l'accès réseau du patient B au blob A. Ce constat provient de l'inspection du code et **n'est pas une exposition réelle démontrée sur patient**.
+
+**Périmètre correction** : rendre l'affichage des slots dépendant de `record.patient_id === patientId` et de `record.timepoint === timepoint`; étiqueter les blobs par `patientId` + `assetId`; cacher immédiatement les aperçus d'une autre identité ; révoquer systématiquement les object URLs à changement d'identité et lors du démontage ; ignorer les réponses tardives. Aucun changement de backend ni persistance côté navigateur.
+
+**Tests ajoutés** à `frontend/src/features/ortho/components/OrthoMediaRecordPanel.test.tsx` : (A) réponse d'asset patient A arrivant après la navigation vers B ne peut repeupler le dossier B ; (B) objet blob de A immédiatement absent du DOM après navigation B et URL révoquée, sans GET patient B pour le blob A. **Backend préexistant** : `test_asset_content_cannot_be_rebound_to_a_different_patient_path`, `test_timeline_rejects_another_tenants_patient`, `test_api_cannot_import_into_another_tenants_patient`, tests authentifiés.
+
+**GATE CI** : commande `npx vitest run src/features/ortho/components/OrthoMediaRecordPanel.test.tsx` et `npx tsc --noEmit --pretty false`, insérées dans `.github/workflows/ceph-p2ter-master-bridge-real-cabinet.yml`, suivies de tous les tests backend et navigateur existants. **NOT RUN à la création de cette tranche** ; mettre à jour uniquement après CI exacte. Même si PASS, **DC-DOS-01 reste PARTIEL**, puisqu'un E2E navigateur réel avec deux patients distincts et cabinet B, cache/splits/documents et purge générale du dossier est toujours non exécuté.
+
+**NEXT exact** : lire CI de la tranche 2 ; si verte, construire le FUE réel à deux patients A/B et utilisateur/cabinet B dans le Desktop ; ne pas étendre au scénario d'acquisition LOT06 encore HOLD.
