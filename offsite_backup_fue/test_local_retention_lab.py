@@ -167,3 +167,42 @@ def test_maj02_windows_directory_rename_denied_while_scanning(tmp_path, monkeypa
     assert denied["yes"]
     assert result["status"] == "SUCCESS", result
     assert len(result["deleted"]) == 2
+
+
+@pytest.mark.skipif(os.name != "posix", reason="POSIX regular-file replacement race")
+def test_maj02_posix_regular_file_swap_before_unlink_cannot_delete_substitute(tmp_path, monkeypatch):
+    """No checked-then-unlink window may delete an unrelated regular file.
+
+    Unlike a symlink swap, replacing a name with a REGULAR file turns the
+    name-based unlink into an irreversible deletion before the subsequent
+    pinned-inode check can raise. The injected archive is disposable.
+    """
+    root, dest, prefix, suffix, paths = _files(tmp_path)
+    outsider = tmp_path / "disposable-but-protected.bin"
+    outsider.write_bytes(b"PROTECT_THE_SUBSTITUTE")
+    raw_unlink = retention.os.unlink
+    injection = {"attempted": False}
+
+    def replace_with_regular_file(name, *, dir_fd):
+        if not injection["attempted"]:
+            injection["attempted"] = True
+            target = dest / name
+            target.rename(dest / (name + ".original"))
+            outsider.rename(target)  # another regular inode, not a symlink
+        return raw_unlink(name, dir_fd=dir_fd)
+
+    monkeypatch.setattr(retention.os, "unlink", replace_with_regular_file)
+    monkeypatch.setattr(
+        retention.os, "supports_dir_fd",
+        set(retention.os.supports_dir_fd) | {replace_with_regular_file},
+    )
+    result = _run(root, dest, prefix, suffix)
+
+    assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
+    assert result["deleted"] == [], result
+    # This MUST still be in its original place: detection after deletion is
+    # not mitigation. A no-delete POSIX policy safely avoids the race entirely.
+    assert outsider.is_file(), "A substituted REGULAR file was deleted by unlink"
+    assert outsider.read_bytes() == b"PROTECT_THE_SUBSTITUTE"
+    assert not injection["attempted"], "Unsafe POSIX unlink was reached"
+    assert all(path.is_file() for path in paths)
