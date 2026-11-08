@@ -407,9 +407,11 @@ jobs:
                       "old_media_blob_revoked","no_media_write_controls"):
               assert split.get(key) is True,(key,split)
           assert split.get("clinical_release") is False
+          assert split.get("dc_dos02_a_b_canonical_asset_ids_preserved") is True
           foreign_split=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_R3_FOREIGN_CABINET_X_SPLIT_AND_A_DENIAL")
           assert foreign_split.get("foreign_own_x_two_panes") is True
           assert foreign_split.get("foreign_patient_a_split_denied") is True
+          assert foreign_split.get("dc_dos02_x_canonical_asset_id_preserved") is True
           documents=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_REACT_A_B_DOCUMENTS_ROUTE_ISOLATION")
           for flag in ("real_pdf_bytes_sha256_A","real_pdf_bytes_sha256_B",
                        "pdf_canvas_A_pixels_confirmed","pdf_canvas_B_pixels_confirmed",
