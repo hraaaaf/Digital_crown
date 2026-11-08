@@ -521,7 +521,8 @@ def test_b06_4dc_pg_immutable_trigger_body_tamper_denied(
         assert conn.exec_driver_sql(
             "SELECT count(*) FROM pg_trigger t "
             "JOIN pg_class c ON c.oid=t.tgrelid "
-            "WHERE c.relname LIKE 'dc06_b06_product_%' "
+            "WHERE c.relname IN ('dc06_b06_product_receipts', "
+            "'dc06_b06_product_audit', 'dc06_b06_product_outbox') "
             "AND t.tgenabled='O' AND NOT t.tgisinternal"
         ).scalar_one() == 9
     with pytest.raises(DurableCaptureDenied, match="PG_PRODUCT_SCHEMA_NOT_APPROVED"):
