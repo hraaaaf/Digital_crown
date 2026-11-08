@@ -113,9 +113,9 @@ def source(output: Path) -> None:
         assert check.execute("SELECT is_licensed FROM users WHERE id=7").fetchone() == (1,)
     media = new_dir(work / "media")
     (media / "radios").mkdir()
-    (media / "documents").mkdir()
+    (media / "misc").mkdir()
     (media / "radios" / "SYNTHETIC.txt").write_bytes(RADIO_MEDIA)
-    (media / "documents" / "SYNTHETIC.txt").write_bytes(DOC_MEDIA)
+    (media / "misc" / "SYNTHETIC.txt").write_bytes(DOC_MEDIA)
     bundle = output / BUNDLE_NAME
     result = cabinet_bundle.create_bundle(
         bundle, test_secret(), database_path=db, media_root=media)
@@ -248,7 +248,7 @@ def target(input_dir: Path, output: Path) -> None:
     # Independent fresh-connection persistence oracle AFTER P4 disposed its engine.
     assert read_db_marker(db) == (AFTER_MARKER, 63)
     assert (media / "radios" / "SYNTHETIC.txt").read_bytes() == RADIO_MEDIA
-    assert (media / "documents" / "SYNTHETIC.txt").read_bytes() == DOC_MEDIA
+    assert (media / "misc" / "SYNTHETIC.txt").read_bytes() == DOC_MEDIA
     assert not (media / "before.txt").exists()
     assert not vault.exists(), "DESTINATION_LICENSE_VAULT_NOT_REMOVED"
     with closing(sqlite3.connect(str(db))) as check:
