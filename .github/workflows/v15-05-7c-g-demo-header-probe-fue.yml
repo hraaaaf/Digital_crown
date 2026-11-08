@@ -37,7 +37,7 @@ jobs:
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
           python -m py_compile backend/services/legacy_sql_inspector_v15.py backend/services/legacy_migration_vendor_demo_header_probe_lab_v15.py backend/tests/test_migration_057c_official_demo_header_probe_fue.py
-          python -m backend.services.legacy_migration_vendor_demo_header_probe_lab_v15 --help > /dev/null
+          python backend/services/legacy_migration_vendor_demo_header_probe_lab_v15.py --help > /dev/null
       - name: Run 34 FAKE-only FUE: no real demo, no patient imports
         shell: bash
         run: |
