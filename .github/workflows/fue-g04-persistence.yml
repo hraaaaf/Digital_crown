@@ -6,6 +6,7 @@ on:
       - 'backend/**'
       - 'tests/test_fue_g04*.py'
       - 'tests/test_cpv2_02c_*.py'
+      - 'tests/test_pocket_restore_*.py'
       - 'run.py'
       - 'scripts/ci/run_fue_g04_mobile_security.py'
       - 'DigitalCrown.spec'

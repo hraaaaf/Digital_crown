@@ -24,3 +24,30 @@ On the first integrated tree `78ed8dd54fd8f7431eeaf6e1c8318df8a98bf80c`, two Win
 The isolated rehearsal now relocates only this **generic, fictitious, nonclinical file** from `documents/SYNTHETIC.txt` to `misc/SYNTHETIC.txt` in the three existing RESTORE-03 synthetic test scripts. The file's content and cross-host hash checks remain unchanged; no real medical document or linked archive is reclassified. The Pocket preflight, orphan protections, production scripts, UI and database schema are **not weakened or modified**. Pocket G04 must still prove that true `documents/` orphans are blocked. Treat the follow-up exact-SHA CI as mandatory, with the original failures preserved in GitHub history.
 
 This remains an **integration-only dry-run branch**. Do not cherry-pick these test fixture changes into production without a separate review; DO NOT MERGE the DRAFT PR, deploy, migrate or use real patient data.
+
+## J7 — Cohérence DB + médias lors de captures non atomiques (test fictif du 08/11/2026)
+
+Le bundle de `CabinetBundleService.create_bundle` capture la base puis les
+médias **successivement** : la présence d'un manifeste chiffré n'établit
+**pas** une transaction commune DB+médias. Cette limite est maintenue.
+
+Scénario ajouté au test G04 réel `tests/test_pocket_restore_real_schema_lab.py` :
+prendre un snapshot SQLCipher lié à un `DocumentArchive`/reçu COMPLETED,
+modifier **à longueur égale** le PDF canonique après snapshot DB mais avant
+capture médias, créer un bundle portable cryptographiquement valide et
+convertir en archive GuidedRestore. Son préflight DOIT retourner `blocked`
+malgré le chiffrement correct ; `prepare` DOIT refuser et les originaux
+fictifs doivent rester identiques. Le bundle cohérent original doit
+continuer à être restauré et annulé par les primitives de rollback.
+
+**Preuve attendue :** G04 Windows + Ubuntu sur le SHA intégrant ce cas,
+plus FUE/API globale. Cette preuve vérifie un refus fail-closed d'un
+exemple de capture incohérente ; **elle ne prouve pas** la quiescence
+du cabinet, ni la détection de toutes les courses/concurrences entre
+captures. L'activation clinique exige une procédure opérateur de gel
+d'écriture/backup cohérent, un inventaire DB+médias complet et une
+restauration/rollback vérifiables dans son périmètre autorisé.
+
+Aucune base clinique, patient réel, réparation automatique, migration,
+merge ou déploiement. La revue indépendante demeure facultative et sautée
+pour CPV2-02C selon le canonique.

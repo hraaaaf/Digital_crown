@@ -153,6 +153,40 @@ def test_portable_sqlcipher_actual_archive_receipt_both_media_trees_and_rollback
     assert preflight["status"] == "preflight_ready"
     assert preflight["compatible"] and preflight["restore_media"]
     assert preflight["media_file_count"] == 2 and not preflight["errors"]
+
+    # J7: DB and media snapshots are separate operations. Simulate a
+    # same-size clinical PDF changing AFTER the DB snapshot but BEFORE
+    # the media capture. Both bundle cryptographic layers remain valid;
+    # the SQL->PDF hash oracle must still block staging BEFORE any apply.
+    drifted_media = tmp_path / "fictional-post-db-snapshot-media"
+    shutil.copytree(media_source, drifted_media)
+    modified_pdf = PDF.replace(b"Catalog", b"Xatalog")
+    assert modified_pdf != PDF and len(modified_pdf) == len(PDF)
+    (drifted_media / canonical).write_bytes(modified_pdf)
+    assert _directory_digest(drifted_media) != initial_media_digest
+    original_db_sha = hashlib.sha256(original_db.read_bytes()).hexdigest()
+    skewed_bundle = tmp_path / "fictional-skewed-export.dcbundle"
+    skewed_result = CabinetBundleService.create_bundle(
+        skewed_bundle, secret, database_path=portable_plain,
+        media_root=drifted_media,
+    )
+    assert skewed_result["media_file_count"] == 2
+    skewed_guided = tmp_path / "fictional-skewed-guided.zip"
+    CabinetBundleService.to_local_guided_restore_archive(
+        skewed_bundle, secret, skewed_guided,
+        active_engine=("sqlite", "pysqlcipher"),
+    )
+    skewed = GuidedRestoreService.preflight_file(
+        skewed_guided, original_name="fictional-skewed-guided.zip",
+        active_engine=("sqlite", "pysqlcipher"), owner_employer_id=OWNER,
+    )
+    assert skewed["status"] == "blocked" and not skewed["compatible"]
+    assert any("Pocket" in str(error) for error in skewed["errors"])
+    with pytest.raises(ValueError, match="Préflight valide"):
+        GuidedRestoreService.prepare(skewed["restore_id"], owner_employer_id=OWNER)
+    assert hashlib.sha256(original_db.read_bytes()).hexdigest() == original_db_sha
+    assert (media_source / canonical).read_bytes() == PDF
+
     job = GuidedRestoreService.get_job(preflight["restore_id"])
     GuidedRestoreService._verify_staged_job(job)
     staging = GuidedRestoreService.job_dir(preflight["restore_id"])
