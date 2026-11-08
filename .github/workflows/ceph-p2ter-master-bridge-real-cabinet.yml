@@ -290,6 +290,55 @@ jobs:
                       assert handle.read(8)==bytes.fromhex("89504e470d0a1a0a"), filename
           print("R23_G4_EXPERIMENTAL_AFTER_TWO_DESKTOP_VIEWPORTS_PASS")
           PY
+      - name: FUE V1 four-step Desktop real UI and SQLite persistence (synthetic, nonclinical)
+        working-directory: frontend
+        run: node scripts/fue-ceph-v1-fourstep-desktop.mjs
+      - name: Verify 10 exploratory cross-step checks, unsigned 4-part PDF and zero official archive
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          import fitz
+          from backend import database,models
+          root=Path("artifacts/ceph-v1-fourstep-fue")
+          report=json.loads((root/"report.json").read_text())
+          assert report["head"]==os.environ["PRODUCT_HEAD"]
+          assert report["outcome"]=="CROSSSTEP_EXPERIMENTAL_AUTOMATED_SCOPE_PASS"
+          expected={
+              "LOGIN_REAL_CABINET","STEP1_EXPLICIT_SOURCE_STUDY",
+              "STEP2_DDM_MANUAL_NO_FICTITIOUS_REAL_DDM",
+              "STEP3_PROVENANCE_AND_UNVERIFIED_DIAGNOSIS",
+              "STEP4_DOCUMENT_DRAFT_NOT_THERAPY_DECISION",
+              "A4_SAME_STUDY_REVISION_UNSIGNED_PDF",
+              "OFFICIAL_ARCHIVE_DIRECT_HTTP_FAIL_CLOSED",
+              "SAVE_CLINICAL_NOTES_WITHOUT_SIGNATURE",
+              "SECOND_STUDY_HAS_NO_OLDER_CLINICAL_INPUTS",
+              "REOPEN_ORIGINAL_STUDY_PERSISTED_VALUES",
+          }
+          assert {c["id"] for c in report["checks"]}==expected
+          assert all(c["status"]=="PASS" for c in report["checks"])
+          assert report["clinical_release"] is False and report["official_archival_allowed"] is False
+          assert len(report["screenshots"])>=7
+          assert all((root/name).is_file() for name in report["screenshots"])
+          with fitz.open(root/"fourstep-unsigned-draft.pdf") as doc:
+              assert len(doc)>=1
+              body="\n".join(p.get_text() for p in doc)
+              for marker in ("CÉPHALOMÉTRIE ET TRACÉ",
+                             "EXAMEN DES MOULAGES ET DES IMAGES",
+                             "BILAN DIAGNOSTIQUE ET DIAGNOSTIC FINAL",
+                             "PLAN DE TRAITEMENT","BROUILLON","NON SIGNÉ"):
+                  assert marker in body,marker
+          from pathlib import Path
+          fixture=json.loads(next(line.split('=',1)[1] for line in Path("/tmp/p2ter-seed.log").read_text().splitlines() if line.startswith("P2TER_SYNTHETIC_STUDIES=")))
+          with database.SessionLocal() as db:
+              count=db.query(models.DocumentArchive).filter(
+                  models.DocumentArchive.patient_id==fixture["patient_id"],
+                  models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
+              ).count()
+              assert count==0,f"Unsigned 4-part A4 created {count} official archives"
+          print("CEPH_V1_EXPERIMENTAL_FOURSTEP_PERSISTENCE_AND_DRAFT_PASS")
+          print("NOT_A_COMPLETE_74_FUE_BATTERY_OR_CLINICAL_RELEASE")
+          PY
       - name: Dump isolated runtime diagnostic on failure
         if: failure()
         run: |
@@ -303,5 +352,6 @@ jobs:
             artifacts/ceph-p2ter-authenticated-desktop/
             artifacts/ceph-p2ter-fue-i/
             artifacts/ceph-r23g4-reference-ui/
+            artifacts/ceph-v1-fourstep-fue/
           if-no-files-found: warn
           retention-days: 30
