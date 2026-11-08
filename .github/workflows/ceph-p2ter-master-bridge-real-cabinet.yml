@@ -384,7 +384,7 @@ jobs:
         run: |
           node --check scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
           node scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
-      - name: DC-DOS-01 verify ten checks, real PDF A/B and Desktop split A/B/X isolation
+      - name: DC-DOS-01 verify ten checks, inline A/B PDF and Desktop split A/B/X isolation
         run: |
           python - <<'PY'
           import json,os
@@ -413,8 +413,10 @@ jobs:
           for flag in ("real_pdf_bytes_sha256_A","real_pdf_bytes_sha256_B",
                        "blob_a_revoked_on_patient_B","patient_a_document_absent_in_B"):
               assert documents.get(flag) is True, (flag,documents)
-          assert documents.get("external_native_popup_auto_close")=="NOT_TESTED"
-          assert len(report["shots"])==11
+          for flag in ("inline_pdf_preview_patient_bound","zero_native_popup_open_attempts",
+                       "escape_closes_pdf_preview"):
+              assert documents.get(flag) is True, (flag,documents)
+          assert len(report["shots"])==13
           for fn in report["shots"]:
               p=root/fn
               assert p.is_file() and p.stat().st_size>150
