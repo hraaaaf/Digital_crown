@@ -15,6 +15,9 @@ vi.mock('./CnssInsuranceAction',()=>({
   CnssInsuranceAction:()=>null,
   insuranceOrganizationFromAssurance:()=>null,
 }));
+vi.mock('./PatientPdfCanvasPreview',()=>({
+  PatientPdfCanvasPreview:({blob}:{blob:Blob})=><div data-testid="patient-pdf-canvas-mocked" data-pdf-size={blob.size}/>,
+}));
 
 function Navigation() {
   const navigate=useNavigate();
@@ -132,17 +135,11 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
     },
   );
 
-  it.each(['navigation A→B', 'Escape'])('keeps a genuine A PDF preview in the dossier and revokes on %s', async (exitMode) => {
+  it.each(['navigation A→B', 'Escape'])('keeps A PDF inside the dossier and unmounts it on %s', async (exitMode) => {
     const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
-    const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
-    const blobUrl = 'blob:synthetic-patient-a-pdf';
-    const createUrl = vi.fn(() => blobUrl);
-    const revokeUrl = vi.fn();
+    const createUrl = vi.fn(() => 'blob:unexpected-pdf');
     Object.defineProperty(URL, 'createObjectURL', {
       configurable: true, writable: true, value: createUrl,
-    });
-    Object.defineProperty(URL, 'revokeObjectURL', {
-      configurable: true, writable: true, value: revokeUrl,
     });
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     try {
@@ -162,11 +159,10 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
       await screen.findByText('DC_DOS01_SECRET_A_PDF');
       fireEvent.click(screen.getByRole('button', { name: 'Voir' }));
       const dialog = await screen.findByRole('dialog', { name: /Aperçu PDF du patient/ });
-      expect(dialog.querySelector('iframe')?.getAttribute('src')).toBe(blobUrl);
-      expect(dialog.querySelector('iframe')?.getAttribute('sandbox')).toBe('allow-downloads');
-      expect(createUrl).toHaveBeenCalledTimes(1);
+      expect(await screen.findByTestId('patient-pdf-canvas-mocked')).toBeInTheDocument();
+      expect(dialog.querySelector('iframe')).toBeNull();
+      expect(createUrl).not.toHaveBeenCalled();
       expect(openSpy).not.toHaveBeenCalled();
-      expect(revokeUrl).not.toHaveBeenCalled();
 
       if (exitMode === 'Escape') {
         fireEvent.keyDown(window, { key: 'Escape' });
@@ -176,7 +172,8 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
       }
       await waitFor(() => {
         expect(screen.queryByRole('dialog', { name: /Aperçu PDF du patient/ })).toBeNull();
-        expect(revokeUrl).toHaveBeenCalledWith(blobUrl);
+        expect(screen.queryByTestId('patient-pdf-canvas-mocked')).toBeNull();
+        expect(createUrl).not.toHaveBeenCalled();
       });
       if (exitMode !== 'Escape') {
         expect(screen.queryByText('DC_DOS01_SECRET_A_PDF')).not.toBeInTheDocument();
@@ -185,8 +182,7 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
       openSpy.mockRestore();
       if (originalCreate) Object.defineProperty(URL, 'createObjectURL', originalCreate);
       else Reflect.deleteProperty(URL, 'createObjectURL');
-      if (originalRevoke) Object.defineProperty(URL, 'revokeObjectURL', originalRevoke);
-      else Reflect.deleteProperty(URL, 'revokeObjectURL');
+
     }
   });
 
