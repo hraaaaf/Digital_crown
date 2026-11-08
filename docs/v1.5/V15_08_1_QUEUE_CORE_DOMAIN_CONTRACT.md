@@ -26,7 +26,7 @@ States: `PLANNED`, informational `EN_ROUTE`, `WAITING`, `CALLED`, `CHAIR`, `DONE
 | Return to queue | CALLED → WAITING | Explicit reason and new sequence |
 | Exceptional return | CHAIR → WAITING | Explicit reason; resource release and new sequence commit atomically |
 | Cancel | PLANNED / WAITING / CALLED → CANCELLED | Explicit reason; terminal state |
-| Mark no-show | PLANNED / EN_ROUTE → NO_SHOW | Appointment only, scheduled time reached, no arrival fact, manual authorized action and reason; EN_ROUTE is not presence |
+| Mark no-show | PLANNED / EN_ROUTE → NO_SHOW | Appointment only, scheduled time reached, no arrival fact; mandatory typed HUMAN actor, authorized manual action and reason; EN_ROUTE is not presence |
 
 `DONE` and `CANCELLED` are terminal. No-show after an `ARRIVED` event is forbidden. Any resource write and corresponding event/state change are a single transaction obligation for the later command service.
 

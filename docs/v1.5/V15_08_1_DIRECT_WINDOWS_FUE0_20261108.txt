@@ -1,22 +1,26 @@
-DIGITAL CROWN V1.5-08.1 - Direct Windows FUE-0 test evidence
-Scope: queue_core domain + isolated persistence metadata; synthetic fixtures ONLY.
+DIGITAL CROWN V1.5-08.1 - Direct Windows FUE-0 proof
+Scope: Queue Core pure domain + isolated SQLAlchemy metadata; synthetic fixtures only.
 Device: DESKTOP-3MAJEEH (owner-authorized Windows workstation).
-Date (UTC, recorded by device): 2026-11-08T20:12:50.8952011Z (first log capture).
-Subsequent final test run: executed after additional enum / temporal guards.
+Date: 2026-11-08 UTC.
 Branch: codex/v15-08-1-queue-contracts-20261108
-Base commit before corrections: e743e333868eddb6083ae9c1c6f699814d8e9cc4
-Python: 3.12 Full local runtime (path under user's Windows profile).
-Python 3.11 local launcher: unavailable/broken; NOT tested.
-Command: python -m pytest -q queue_core/tests
-Observed output: ................... [100%]
-Observed result: 19 passed in 0.86s
+Base master: 389d5ebcc64f2c409429dc3e2ed9c8625bb23829
+Candidate reviewed in independent Codex CLI session #1: e5dbd51a106da9b0d5d5becd2cdb99aafc705f32
+Reviewer session: 01a1bce3-5279-7de1-a1f8-b5d207027683
+Raw review captured on owner's Windows computer outside the source repository.
+The reviewer found 2 P2 issues, both fixed after that review:
+ - NO_SHOW requires explicit typed HUMAN actor; no false audit attribution.
+ - Workflow test artifact uses exact PR head SHA on pull_request, not synthetic merge SHA.
+Python interpreter: Python 3.12 Full installed locally. Python 3.11 launcher unavailable locally; NOT tested on current version.
+Direct execution: python -m pytest -q queue_core/tests
+Observed stdout: .................... [100%]
+Observed result: 20 passed in 1.16s
 pytest_exit=0
-Command: python -m compileall -q queue_core
+Direct execution: python -m compileall -q queue_core
 compileall_exit=0
-Command: git diff --check
+Direct execution: git diff --check
 git_diff_check_exit=0
-Tests were executed directly on the Windows PC via Remote Desktop Commander.
-No GitHub Actions run was requested or relied upon for these corrections.
-The preceding green GitHub CI artifacts refer only to the former base commit.
-Limitations: No persistent Queue runtime, auth/RBAC, QR, API, wall, or installation tested.
-This record is a transcript of local process results, not an independent hardware/cabinet certification.
+No GitHub Actions test jobs were intentionally started for the corrected revision.
+Older Actions green runs belong to an older SHA and DO NOT certify this correction.
+Review gate after these P2 fixes: new independent source review on exact corrected commit is REQUIRED.
+Limitations: no deployed Queue runtime, RBAC, QR, durable DB transactions, API, wall, real patient data or Windows installer tested.
+This file is captured local process output and provenance, not hardware/cabinet certification.

@@ -584,12 +584,15 @@ def mark_no_show(
     *,
     at: datetime,
     actor_ref: str,
+    actor_kind: ActorKind,
     reason_code: str,
     authorized: bool,
 ) -> TransitionResult:
     at = as_utc(at)
     if not authorized:
         raise QueueDomainError("NO_SHOW_FORBIDDEN")
+    if not isinstance(actor_kind, ActorKind) or actor_kind is not ActorKind.HUMAN:
+        raise QueueDomainError("NO_SHOW_REQUIRES_HUMAN")
     if visit.kind is not VisitKind.APPOINTMENT or visit.status not in {
         VisitStatus.PLANNED,
         VisitStatus.EN_ROUTE,
@@ -606,6 +609,7 @@ def mark_no_show(
         actor_ref,
         visit.version + 1,
         state_after=VisitStatus.NO_SHOW,
+        actor_kind=actor_kind,
         reason_code=reason_code,
     )
     return TransitionResult(replace(visit, status=VisitStatus.NO_SHOW, version=visit.version + 1), (event,))

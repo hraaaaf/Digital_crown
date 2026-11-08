@@ -58,21 +58,21 @@ def test_checkin_records_arrival_and_waiting_atomically_and_en_route_is_not_pres
 def test_no_show_only_unarrived_planned_appointment_and_reason_is_required():
     appointment = visit("a", VisitKind.APPOINTMENT, scheduled=T0)
     with pytest.raises(QueueDomainError, match="AUDIT_REASON_REQUIRED"):
-        mark_no_show(appointment, at=T0, actor_ref="staff", reason_code="", authorized=True)
+        mark_no_show(appointment, at=T0, actor_ref="staff", actor_kind=ActorKind.HUMAN, reason_code="", authorized=True)
     no_show = mark_no_show(
-        appointment, at=T0, actor_ref="staff", reason_code="ABSENT", authorized=True
+        appointment, at=T0, actor_ref="staff", actor_kind=ActorKind.HUMAN, reason_code="ABSENT", authorized=True
     )
     assert no_show.visit.status is VisitStatus.NO_SHOW
     en_route = visit("c", VisitKind.APPOINTMENT, VisitStatus.EN_ROUTE, T0)
     assert mark_no_show(
-        en_route, at=T0, actor_ref="staff", reason_code="ABSENT", authorized=True
+        en_route, at=T0, actor_ref="staff", actor_kind=ActorKind.HUMAN, reason_code="ABSENT", authorized=True
     ).visit.status is VisitStatus.NO_SHOW
     arrived = visit(
         "b", VisitKind.APPOINTMENT, VisitStatus.WAITING, T0,
         arrival_confirmed_at=T0, waiting_since=T0, queue_sequence=1,
     )
     with pytest.raises(QueueDomainError, match="NO_SHOW_STATE_CONFLICT"):
-        mark_no_show(arrived, at=T0, actor_ref="staff", reason_code="ABSENT", authorized=True)
+        mark_no_show(arrived, at=T0, actor_ref="staff", actor_kind=ActorKind.HUMAN, reason_code="ABSENT", authorized=True)
 
 
 def test_unlocated_after_call_is_audited_event_without_state_change():
@@ -305,7 +305,7 @@ def test_kiosk_checkin_existing_appointment_requires_device_identity():
 def test_no_show_reentry_requires_human_and_reason_and_new_sequence():
     appt = visit("A", VisitKind.APPOINTMENT, scheduled=T0)
     no_show = mark_no_show(
-        appt, at=T0, actor_ref="staff", reason_code="ABSENT", authorized=True,
+        appt, at=T0, actor_ref="staff", actor_kind=ActorKind.HUMAN, reason_code="ABSENT", authorized=True,
     ).visit
     with pytest.raises(QueueDomainError, match="NO_SHOW_REENTRY_REQUIRES_STAFF"):
         check_in(
@@ -380,3 +380,21 @@ def test_ranking_excludes_visits_not_yet_in_waiting_at_evaluation_instant():
         resource_id="r1", available_resource_ids=frozenset({"r1"}),
         evaluated_at=at, tenant_timezone="Africa/Casablanca",
     ) == ()
+
+def test_no_show_fails_closed_for_device_system_and_unspecified_actor():
+    appointment = visit("N", VisitKind.APPOINTMENT, scheduled=T0)
+    for kind in (ActorKind.DEVICE, ActorKind.SYSTEM, "HUMAN", None):
+        with pytest.raises(QueueDomainError, match="NO_SHOW_REQUIRES_HUMAN"):
+            mark_no_show(
+                appointment, at=T0, actor_ref="claimed-staff", actor_kind=kind,
+                reason_code="ABSENT", authorized=True,
+            )
+    with pytest.raises(TypeError, match="actor_kind"):
+        mark_no_show(appointment, at=T0, actor_ref="claimed-staff",
+                     reason_code="ABSENT", authorized=True)
+    accepted = mark_no_show(
+        appointment, at=T0, actor_ref="staff-1", actor_kind=ActorKind.HUMAN,
+        reason_code="ABSENT", authorized=True,
+    )
+    assert accepted.events[0].actor_kind is ActorKind.HUMAN
+    assert accepted.visit.status is VisitStatus.NO_SHOW
