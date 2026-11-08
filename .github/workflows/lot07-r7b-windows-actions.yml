@@ -120,6 +120,52 @@ jobs:
         with:
           path: ${{ runner.temp }}/guidepup-screen-readers
           key: windows-guidepup-nvda-0.2.1-2026.2-guidepup-0.36.3-v1
+      - name: Pre-seed verified NVDA asset from official GitHub release API
+        working-directory: frontend
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GUIDEPUP_SCREEN_READERS_PATH: ${{ runner.temp }}/guidepup-screen-readers
+        run: |
+          # This is the exact Guidepup 0.36.3 manifest + official GitHub
+          # release SHA-256; never accept a generic NVDA binary or mirror.
+          $assetName = 'guidepup-nvda-0.2.1-2026.2.zip'
+          $expected = '7df0ca3c1c9e8c6521bc7553486ca360ed6f0b4f9bdbd6603131e38b5c1497a1'
+          $root = Join-Path $env:GUIDEPUP_SCREEN_READERS_PATH 'nvda/all/0.2.1-2026.2'
+          $destination = Join-Path $root $assetName
+          $extracted = Join-Path $root 'extracted'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $cacheValid = (Test-Path $destination) -and
+            ((Get-FileHash -Path $destination -Algorithm SHA256).Hash.ToLowerInvariant() -eq $expected)
+          if (-not $cacheValid) {
+            if (Test-Path $destination) { Remove-Item -LiteralPath $destination -Force }
+            $download = Join-Path $env:RUNNER_TEMP 'verified-nvda-release-staging'
+            New-Item -ItemType Directory -Path $download -Force | Out-Null
+            if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+              throw 'NOT_CERTIFIED: GitHub CLI unavailable for official NVDA asset'
+            }
+            # GitHub CLI uses the official release-asset API instead of
+            # the repeatedly failing browser download URL (HTTP 504).
+            gh release download '0.2.1-2026.2' --repo 'guidepup/nvda' --pattern $assetName --dir $download
+            if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: official GitHub NVDA download unavailable' }
+            $downloaded = Join-Path $download $assetName
+            if (-not (Test-Path $downloaded)) { throw 'NOT_CERTIFIED: official NVDA asset missing' }
+            if ((Get-FileHash -Path $downloaded -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+              throw 'NOT_CERTIFIED: official NVDA asset checksum mismatch'
+            }
+            Move-Item -LiteralPath $downloaded -Destination $destination -Force
+          }
+          if ((Get-FileHash -Path $destination -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'NOT_CERTIFIED: cached NVDA asset failed SHA256 validation'
+          }
+          # Guidepup skips extraction on cache hits. Seed the extracted
+          # directory as well to guarantee a real portable NVDA binary.
+          if (Test-Path $extracted) { Remove-Item -LiteralPath $extracted -Recurse -Force }
+          Expand-Archive -LiteralPath $destination -DestinationPath $extracted -Force
+          if (-not (Get-ChildItem -LiteralPath $extracted -Recurse -File | Select-Object -First 1)) {
+            throw 'NOT_CERTIFIED: verified NVDA archive extracted empty'
+          }
+          Write-Output 'OFFICIAL_NVDA_ASSET_SHA256_VERIFIED'
       - name: Install real Windows NVDA screen reader for R7B
         working-directory: frontend
         shell: pwsh
