@@ -166,3 +166,51 @@ def test_scientific_writer_rejects_concurrent_clinical_decision():
         assert e.value.status_code == 409
     with Session(engine) as db:
         assert db.get(models.CephaloAnalysis, 101).angles_data[STAGING_KEY]["content_sha256"] == "c" * 64
+
+
+def test_repository_clinical_only_save_keeps_original_revision_and_provisional_label():
+    """Real SQLite: changing notes must not remove graph metadata at revision 2."""
+    engine = _engine()
+    with Session(engine) as db:
+        study = db.get(models.CephaloAnalysis, 101)
+        source = dict(study.angles_data)
+        original = dict(source[EVIDENCE_GRAPH_KEY])
+        original["authority_status"] = "PERSISTED_NOT_YET_READ_PATH"
+        source[EVIDENCE_GRAPH_KEY] = original
+        study.angles_data = source
+        db.commit()
+
+        incoming = dict(source)
+        incoming["clinical_data"] = {"plan_traitement": "SYNTHETIC_UNVERIFIED_NOTE"}
+        obj = CephaloRepository(db).update(101, [], incoming)
+        assert obj.angles_data[EVIDENCE_GRAPH_KEY] == original
+        assert obj.angles_data[EVIDENCE_GRAPH_KEY]["revision"] == 2
+        assert obj.angles_data["clinical_data"]["plan_traitement"] == "SYNTHETIC_UNVERIFIED_NOTE"
+        assert obj.angles_data[STAGING_KEY]["content_sha256"] == "a" * 64
+        assert obj.angles_data[R14_KEY]["content_sha256"] == "b" * 64
+    engine.dispose()
+
+
+def test_repository_still_denies_unversioned_scientific_edit_on_clinical_save():
+    """The no-op exception cannot be repurposed to bypass graph revision CAS."""
+    engine = _engine()
+    with Session(engine) as db:
+        obj = db.get(models.CephaloAnalysis, 101)
+        initial = dict(obj.angles_data)
+        initial[EVIDENCE_GRAPH_KEY] = dict(initial[EVIDENCE_GRAPH_KEY],
+                                            authority_status="PERSISTED_NOT_YET_READ_PATH")
+        obj.angles_data = initial
+        db.commit()
+
+        changed = dict(initial)
+        changed[EVIDENCE_GRAPH_KEY] = dict(initial[EVIDENCE_GRAPH_KEY],
+                                            sources=[{"marker": 999}])
+        changed["clinical_data"] = {"plan_traitement": "SYNTHETIC_INVALID_MUTATION"}
+        with pytest.raises(HTTPException) as caught:
+            CephaloRepository(db).update(101, [], changed)
+        assert caught.value.status_code == 409
+        db.expire_all()
+        actual = db.get(models.CephaloAnalysis, 101)
+        assert actual.angles_data[EVIDENCE_GRAPH_KEY] == initial[EVIDENCE_GRAPH_KEY]
+        assert actual.angles_data.get("clinical_data") is None
+    engine.dispose()
