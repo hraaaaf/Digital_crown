@@ -1,7 +1,7 @@
 name: CEPH P2ter master bridge authenticated real Cabinet FUE-I (experimental)
 on:
   pull_request:
-    branches: [master, test/ceph-v1-facad-two-public-radios-20261105]
+    branches: [master, test/ceph-v1-facad-two-public-radios-20261105, test/ceph-v1-fourstep-fue-20261108]
     paths:
       - 'backend/**'
       - 'frontend/**'
@@ -69,14 +69,15 @@ jobs:
           python -m pytest \
             backend/tests/test_cephalo_scientific_write.py \
             backend/tests/test_cephalo_repository_calibration_invariants.py -q
-      - name: FUE métier evidence tranche 1 - Media Core tenant isolation, manual import, timeline and unsigned A4
+      - name: FUE tranche 1 plus DC-DOS-02 canonical photo radio PDF asset identity and encrypted storage
         run: |
           python -m pytest \
             backend/tests/test_media_core_ingestion_api.py \
             backend/tests/test_media_core_timeline_api.py \
             backend/tests/test_media_core_c7_certification.py \
             backend/tests/test_cephalo_four_part_report.py \
-            backend/tests/test_dc_dos01_historical_pdf_isolation.py -q
+            backend/tests/test_dc_dos01_historical_pdf_isolation.py \
+            backend/tests/test_dc_dos02_single_source_media.py -q
       - name: DC-DOS-01 patient media/document asynchronous race, drafts, DEV-only split and TypeScript
         working-directory: frontend
         run: |
