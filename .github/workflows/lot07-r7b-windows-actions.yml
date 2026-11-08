@@ -111,14 +111,39 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'R7B zoom syntax error' }
           node --check scripts/certify-lot07-r7b-windows-nvda.mjs
           if ($LASTEXITCODE -ne 0) { throw 'R7B NVDA script syntax error' }
+      # This is the official Guidepup asset cache directory, configurable via
+      # GUIDEPUP_SCREEN_READERS_PATH; keep the version in the cache key.
+      # Never cache clinical data or speech output, and never treat a cache hit
+      # as proof that NVDA actually ran.
+      - name: Cache version-pinned genuine NVDA assets on Windows
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/guidepup-screen-readers
+          key: windows-guidepup-nvda-0.2.1-2026.2-guidepup-0.36.3-v1
       - name: Install real Windows NVDA screen reader for R7B
         working-directory: frontend
         shell: pwsh
+        env:
+          GUIDEPUP_SCREEN_READERS_PATH: ${{ runner.temp }}/guidepup-screen-readers
         run: |
           npx --no-install guidepup setup --ci
           if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA OS setup failed' }
-          npx --no-install guidepup install nvda
-          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA install failed' }
+          # First and second attempts on 15104c31 both returned 504 from the
+          # Guidepup GitHub release cache. Retry transient upstream failures,
+          # with a finite budget and NO test bypass or virtual screen reader.
+          $installed = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            Write-Output "Guidepup real NVDA install attempt $attempt/3"
+            npx --no-install guidepup install nvda
+            if ($LASTEXITCODE -eq 0) {
+              $installed = $true
+              break
+            }
+            if ($attempt -lt 3) {
+              Start-Sleep -Seconds (15 * $attempt)
+            }
+          }
+          if (-not $installed) { throw 'NOT_CERTIFIED: real NVDA asset unavailable after three attempts' }
       - name: Real authenticated Windows Cabinet, native zoom, NVDA and negative FUE
         shell: pwsh
         run: |
