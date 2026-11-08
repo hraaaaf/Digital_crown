@@ -71,7 +71,9 @@ def test_step4_has_no_local_normative_ranges_or_default_appliance():
     assert "Valeur brute · aucune norme locale" in source
     assert "Préférence technique — saisie manuelle" in source
     assert "Ces champs peuvent contenir une saisie manuelle ou un contenu historique dont l'auteur n'est pas vérifié. Ils ne valent pas validation clinique finale." in source
-    assert "Prévisualiser ou archiver un PDF ne constitue pas une validation clinique." in source
+    assert "Prévisualisation et téléchargement : brouillon non signé, sans valeur de validation clinique." in source
+    assert "Archivage officiel indisponible : le bilan A4 est un brouillon non signé." in source
+    assert 'disabled aria-describedby="cephalo-a4-archive-hold"' in source
 
 
 def test_cephalo_utils_must_not_reintroduce_age_cvm_or_impa_space_conversion():

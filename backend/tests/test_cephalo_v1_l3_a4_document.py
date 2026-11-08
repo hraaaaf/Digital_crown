@@ -1,6 +1,7 @@
 """Céphalo V1 L3: A4 document skin, patient imagery, and safe preview contract."""
 from __future__ import annotations
 
+from datetime import datetime
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -131,9 +132,13 @@ def test_media_reader_is_tenant_scoped_and_uses_only_verifiable_slots(monkeypatc
     monkeypatch.setattr(
         media, "build_ortho_media_record", lambda _db, **kwargs: (
             seen.append(("record", kwargs))
-            or {"photo_slots": [
+            or {"patient_id": 42, "timepoint": "T0", "photo_slots": [
                 {"state": "FILLED", "slot_id": "EXTRA_PROFILE",
-                 "asset": {"asset_id": 123, "mime_type": "image/jpeg"}},
+                 "asset": {"asset_id": 123, "slot_id": "EXTRA_PROFILE",
+                           "source_kind": "UPLOAD", "timepoint": "T0",
+                           "provenance_schema_version": "ORTHO_MEDIA_RECORD_V1",
+                           "captured_at": datetime(2026, 11, 8),
+                           "mime_type": "image/jpeg"}},
                 {"state": "EMPTY", "slot_id": "INTRA_LEFT", "asset": None},
             ]}
         ),
@@ -152,6 +157,23 @@ def test_media_reader_is_tenant_scoped_and_uses_only_verifiable_slots(monkeypatc
         ("record", {"employer_id": 9, "patient_id": 42, "timepoint": "T0"}),
         ("read", {"employer_id": 9, "patient_id": 42, "asset_id": 123}),
     ]
+
+
+def test_media_reader_refuses_wrong_patient_record_before_bytes(monkeypatch):
+    monkeypatch.setattr(media, "_authorized_study_radio", lambda _: None)
+    monkeypatch.setattr(
+        media, "build_ortho_media_record",
+        lambda _db, **_kwargs: {"patient_id": 99, "timepoint": "T0", "photo_slots": []},
+    )
+
+    def forbidden_read(*_args, **_kwargs):
+        raise AssertionError("cross-patient bytes must never be read")
+
+    monkeypatch.setattr(media, "read_clinical_asset_bytes", forbidden_read)
+    with pytest.raises(ValueError, match="Orthodontic media record identity mismatch"):
+        media.load_cephalo_pdf_media(
+            object(), employer_id=9, patient_id=42, image_original_path=None,
+        )
 
 
 def test_unverified_validation_qr_never_generates_doc_temp(tmp_path, monkeypatch):
