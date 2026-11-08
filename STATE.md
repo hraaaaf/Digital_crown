@@ -7,10 +7,11 @@
 - G1–G5 are recorded as validated gates in canonical Notion; G6 clears only the delivered LOT07 scope with R3 retained; G7 remains before LOT08 final merge/delivery.
 - Contract: `docs/v1.5/V15_08_1_QUEUE_CORE_DOMAIN_CONTRACT.md`.
 - Isolation: new `queue_core` namespace; no clinical model imports, clinical table changes, migration, durable DB setup, runtime, UI, API, authentication, QR or deployment.
-- Local proof: `py -3.12` isolated venv, `pytest==9.0.3`, `SQLAlchemy==2.0.28`, `tzdata==2025.2`; targeted `queue_core/tests`: **7 passed** after correction; `compileall` and `git diff --check` succeeded. This is working-tree evidence, not yet exact-commit or GitHub CI evidence.
-- GitHub proof workflow: `.github/workflows/v15-08-1-queue-domain-fue0.yml`; its exact-HEAD run and artifact reference remain pending.
+- Local exact-code-commit proof: SHA `6c1d369e1ea44fb51d56b14d6810b81892a5ada1`; Python 3.12 isolated venv, `pytest==9.0.3`, `SQLAlchemy==2.0.28`, `tzdata==2025.2`; targeted `queue_core/tests`: **7 passed**; `compileall` and commit diff check succeeded.
+- GitHub exact-code-commit proof: [workflow run #42513988399](https://github.com/hraaaaf/Digital_crown/actions/runs/42513988399) **SUCCESS** on SHA `6c1d369e1ea44fb51d56b14d6810b81892a5ada1`; retained report artifact `queue-core-fue0-6c1d369e1ea44fb51d56b14d6810b81892a5ada1` is attached to that run. The PR's current-head CI remains the final automated gate and is linked from PR #1234.
+- Draft PR: [#1234](https://github.com/hraaaaf/Digital_crown/pull/1234), open and unmerged. Exact current PR head/checks must be re-read after the STATE evidence commit.
 - FUE-0 is applicable; FUE-I/FUE-G are not applicable to this contract-only sub-lot. No product UI is introduced.
-- Next exact: commit this tested candidate, push the isolated branch, confirm exact-HEAD CI and prepare a draft PR. Do not merge or start 08.2 without separate approval.
+- Next exact: finish the STATE evidence commit, confirm the exact final PR-head CI/artifact, and leave PR #1234 in DRAFT for independent review. Do not merge or start 08.2 without separate approval.
 
 # LOT07 V1.5 Desktop Experience & MultiView — 2026-11-08 — INTEGRATED DELIVERY CLOSED (LIMITED SCOPE)
 
