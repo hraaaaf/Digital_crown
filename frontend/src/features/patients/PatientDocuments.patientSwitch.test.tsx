@@ -1,0 +1,82 @@
+import React from 'react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
+import { PatientDocuments } from './PatientDocuments';
+
+const { get, post } = vi.hoisted(() => ({get:vi.fn(),post:vi.fn()}));
+vi.mock('../../services/api',()=>({api:{get,post}}));
+vi.mock('./CnssInsuranceAction',()=>({
+  CnssInsuranceAction:()=>null,
+  insuranceOrganizationFromAssurance:()=>null,
+}));
+
+function Navigation() {
+  const navigate=useNavigate();
+  return <>
+    <button onClick={()=>navigate('/patients/1/archives')}>Patient A</button>
+    <button onClick={()=>navigate('/patients/2/archives')}>Patient B</button>
+    <PatientDocuments/>
+  </>;
+}
+function mount() {
+  return render(
+    <MemoryRouter initialEntries={['/patients/1/archives']}>
+      <Routes>
+        <Route path="/patients/:id/archives" element={<Navigation/>}/>
+      </Routes>
+    </MemoryRouter>,
+  );
+}
+const doc=(name:string,id:string)=>({
+  id,name,type:'CERTIFICAT',date:'2026-11-08',url:'',file_exists:false,
+});
+const patient=(id:number)=>({data:{id,assurance:null}});
+const deferred=()=>{
+  let resolve:(x:unknown)=>void=()=>{};
+  const promise=new Promise(r=>{resolve=r;});
+  return {promise,resolve};
+};
+describe('DC-DOS-01 patient document archive identity switch',()=>{
+  beforeEach(()=>{
+    get.mockReset();
+    post.mockReset();
+  });
+  it('hides patient A archive synchronously when navigating to B before B response',async()=>{
+    const slowB=deferred();
+    get.mockImplementation((url:string)=>{
+      if(url==='/patients/1/documents')return Promise.resolve({data:[doc('DC_DOS01_SECRET_A','11')]});
+      if(url==='/patients/2/documents')return slowB.promise;
+      if(url==='/patients/1')return Promise.resolve(patient(1));
+      if(url==='/patients/2')return Promise.resolve(patient(2));
+      throw Error('Unexpected fetch '+url);
+    });
+    mount();
+    await screen.findByText('DC_DOS01_SECRET_A');
+    fireEvent.click(screen.getByRole('button',{name:'Patient B'}));
+    expect(screen.queryByText('DC_DOS01_SECRET_A')).not.toBeInTheDocument();
+    expect(screen.queryByText('DC_DOS01_SECRET_B')).not.toBeInTheDocument();
+    await act(async()=>{slowB.resolve({data:[doc('DC_DOS01_SECRET_B','22')]});await slowB.promise;});
+    await screen.findByText('DC_DOS01_SECRET_B');
+    expect(screen.queryByText('DC_DOS01_SECRET_A')).not.toBeInTheDocument();
+  });
+  it('ignores a late A document response after B has loaded and forbids A action buttons',async()=>{
+    const slowA=deferred();
+    get.mockImplementation((url:string)=>{
+      if(url==='/patients/1/documents')return slowA.promise;
+      if(url==='/patients/2/documents')return Promise.resolve({data:[doc('DC_DOS01_SECRET_B','22')]});
+      if(url==='/patients/1')return Promise.resolve(patient(1));
+      if(url==='/patients/2')return Promise.resolve(patient(2));
+      throw Error('Unexpected fetch '+url);
+    });
+    mount();
+    fireEvent.click(screen.getByRole('button',{name:'Patient B'}));
+    await screen.findByText('DC_DOS01_SECRET_B');
+    await act(async()=>{slowA.resolve({data:[doc('DC_DOS01_SECRET_A','11')]});await slowA.promise;});
+    expect(screen.queryByText('DC_DOS01_SECRET_A')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button',{name:'Actions du document DC_DOS01_SECRET_A'})).not.toBeInTheDocument();
+    expect(screen.getByText('DC_DOS01_SECRET_B')).toBeInTheDocument();
+    expect(post).not.toHaveBeenCalled();
+    await waitFor(()=>expect(get).toHaveBeenCalledWith('/patients/2/documents'));
+  });
+});
