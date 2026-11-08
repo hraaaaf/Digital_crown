@@ -134,6 +134,15 @@ class CephaloRepository:
         previous = db_analysis.angles_data
         merged = _merge_calibration_projection(previous, results)
         if isinstance(previous, dict) and isinstance(previous.get(_EVIDENCE_GRAPH_KEY), dict):
+            # Clinical-only saves reuse the exact persisted science revision.
+            # The ordinary canonicalizer strips provisional authority_status
+            # (correct for a NEW graph), but stripping it on an UNCHANGED
+            # landmark set would mutate the historical graph at the same
+            # revision, causing legitimate clinical note saves to fail CAS.
+            # Preserve the stored graph byte-for-byte in this narrow case;
+            # genuine graph edits still require revision +1 and the same CAS.
+            if results.get(_EVIDENCE_GRAPH_KEY) == previous[_EVIDENCE_GRAPH_KEY]:
+                merged[_EVIDENCE_GRAPH_KEY] = previous[_EVIDENCE_GRAPH_KEY]
             # A typed study must not silently lose its graph or clinician receipts.
             changes = {"landmarks_data": landmarks}
             if mm_per_pixel is not None:
