@@ -1,5 +1,6 @@
 /** DC-DOS-01 authenticated multi-tenant patient-switch FUE. Synthetic isolated T2 only. */
 import fs from 'node:fs/promises';
+import crypto from 'node:crypto';
 import path from 'node:path';
 import { chromium, request } from 'playwright';
 import { enrollT2Workstation } from './t2-workstation-session.mjs';
@@ -9,7 +10,9 @@ const f=JSON.parse(process.env.DC_DOS01_FIXTURE||'{}');
 checkTrue(process.env.ENVIRONMENT==='test' && process.env.DIGITALCROWN_ISOLATED_RUNTIME==='1'
   && /^[a-f0-9]{40}$/.test(head||'') && password && f.synthetic_only===true
   && ['patient_a','patient_b','patient_x','study_a','study_b','tenant_x_user'].every(x=>Number.isSafeInteger(f[x]))
-  && new Set([f.patient_a,f.patient_b,f.patient_x]).size===3,
+  && new Set([f.patient_a,f.patient_b,f.patient_x]).size===3
+  && ['a','b','x'].every(x=>Number.isSafeInteger(f.archives?.[x]?.id) &&
+    /^[a-f0-9]{64}$/.test(f.archives?.[x]?.sha256||'')),
   'Refusing unverified T2-only synthetic multitenant fixture');
 const root='http://127.0.0.1:5173', backend='http://127.0.0.1:8005';
 const output=path.resolve('../artifacts/ceph-v1-dos01-multitenant');
@@ -118,9 +121,10 @@ try {
     return {a,b,x};
   });
   await verify('PATIENT_SCOPED_MEDIA_TIMELINE_AND_ORTHO_SLOTS',async()=>{
-    const triple=[[ownerApi,ownerJwt,f.patient_a,assets.a],[ownerApi,ownerJwt,f.patient_b,assets.b],
-                  [foreignApi,foreignJwt,f.patient_x,assets.x]];
-    for(const [api,jwt,pid,aid] of triple) {
+    const triple=[[ownerApi,ownerJwt,f.patient_a,assets.a,f.archives.a.id],
+                  [ownerApi,ownerJwt,f.patient_b,assets.b,f.archives.b.id],
+                  [foreignApi,foreignJwt,f.patient_x,assets.x,f.archives.x.id]];
+    for(const [api,jwt,pid,aid,documentId] of triple) {
       const media=await own(api,jwt,'/api/patients/'+pid+'/ortho-media-record?timepoint=T0');
       checkTrue(media.patient_id===pid && media.timepoint==='T0','Wrong patient media record');
       const profile=media.photo_slots.find(x=>x.slot_id==='EXTRA_PROFILE');
@@ -131,9 +135,9 @@ try {
       checkTrue(!('storage_key' in timeline.items[0]) && !('sha256' in timeline.items[0]),
         'Asset storage metadata leaked');
       const documents=await own(api,jwt,'/api/patients/'+pid+'/documents');
-      checkTrue(Array.isArray(documents) &&
-        documents.every(d=>typeof d.id==='string' && !d.id.startsWith('legacy:'+ (pid===f.patient_a?f.patient_b:f.patient_a)+':')),
-        'Own patient document archive response invalid or contains another synthetic patient');
+      checkTrue(Array.isArray(documents) && documents.length===1 &&
+        documents[0].id===String(documentId) && documents[0].file_exists===true,
+        'Own patient PDF archive absent or another patient document included');
       const blob=await get(api,jwt,'/api/patients/'+pid+'/assets/'+aid+'/content');
       checkTrue(blob.status()===200 && (await blob.body()).length>100,'Own blob not available');
     }
@@ -146,14 +150,17 @@ try {
   });
   await verify('FOREIGN_TENANT_ASSETS_PATIENTS_STUDY_DENIED',async()=>{
     let denied=0;
-    const subjects=[[foreignApi,foreignJwt,f.patient_a,assets.a],
-      [foreignApi,foreignJwt,f.patient_b,assets.b],[ownerApi,ownerJwt,f.patient_x,assets.x]];
-    for(const [api,jwt,pid,aid] of subjects) {
+    const subjects=[[foreignApi,foreignJwt,f.patient_a,assets.a,f.archives.a.id],
+      [foreignApi,foreignJwt,f.patient_b,assets.b,f.archives.b.id],
+      [ownerApi,ownerJwt,f.patient_x,assets.x,f.archives.x.id]];
+    for(const [api,jwt,pid,aid,documentId] of subjects) {
       for(const suffix of ['', '/assets','/documents','/ortho-media-record?timepoint=T0',
           '/assets/'+aid+'/content']) {
         await deny(api,jwt,'/api/patients/'+pid+suffix);
         denied++;
       }
+      await deny(api,jwt,'/api/documents/'+documentId+'/download');
+      denied++;
     }
     const study=await get(foreignApi,foreignJwt,'/api/ia/analyses/'+f.study_a);
     checkTrue([403,404].includes(study.status()),'Cross-tenant science GET returned '+study.status());
@@ -191,20 +198,58 @@ try {
     await openPatient(page,f.patient_a,false,'archives');
     await page.locator('[data-flow-patient-surface="archives"]').waitFor({state:'visible',timeout:35000});
     await page.getByPlaceholder("Rechercher dans l'historique...").waitFor({state:'visible',timeout:35000});
-    checkTrue((await page.locator('[data-flow-patient-surface="archives"]').getByText('0 Documents').count())===1,
-      'Synthetic patient A unexpectedly has an official archive');
-    await shot('04-patient-a-empty-archives');
+    await page.getByText('DC-DOS01-SYNTH-A.pdf').waitFor({state:'visible',timeout:35000});
+    checkTrue(await page.getByText('DC-DOS01-SYNTH-B.pdf').count()===0,
+      'Patient B PDF appeared on patient A archive tab');
+    await shot('04-patient-a-synthetic-archives');
+
+    // Observe native URL.create/revoke and actual authenticated PDF response.
+    // Instrument window.open to avoid a native external popout; this certifies
+    // route-bound blob cleanup, NOT auto-closing a pre-existing browser tab.
+    await page.evaluate(()=>{
+      const audit={created:[],revoked:[],opened:[]};
+      window.__dcDosPdfAudit=audit;
+      const create=URL.createObjectURL.bind(URL);
+      const revoke=URL.revokeObjectURL.bind(URL);
+      URL.createObjectURL=blob=>{const url=create(blob);audit.created.push(url);return url;};
+      URL.revokeObjectURL=url=>{audit.revoked.push(url);return revoke(url);};
+      window.open=(url,target,features)=>{
+        audit.opened.push({url:String(url),target,features});
+        return {closed:false};
+      };
+    });
+    const resA=page.waitForResponse(r=>r.url().includes('/api/documents/'+f.archives.a.id+'/download') && r.status()===200);
+    await page.getByRole('button',{name:'Voir',exact:true}).click();
+    const bytesA=await (await resA).body();
+    checkTrue(crypto.createHash('sha256').update(bytesA).digest('hex')===f.archives.a.sha256,
+      'The real patient A PDF response bytes differ from seeded SHA256');
+    await page.waitForFunction(()=>window.__dcDosPdfAudit?.opened?.length===1,{timeout:15000});
+    const openedA=await page.evaluate(()=>window.__dcDosPdfAudit);
+    checkTrue(openedA.created.length===1 && openedA.opened[0].url===openedA.created[0] &&
+      openedA.revoked.length===0,'Patient A viewer did not preserve its active blob until switch');
+
     await openPatient(page,f.patient_b,false,'archives');
     await page.waitForURL(u=>new URL(u).pathname==='/patients/'+f.patient_b,{timeout:30000});
     await page.locator('[data-flow-patient-surface="archives"]').waitFor({state:'visible',timeout:35000});
-    await page.getByPlaceholder("Rechercher dans l'historique...").waitFor({state:'visible',timeout:35000});
-    const header=await page.locator('[data-ortho-workspace-patient]').count();
-    checkTrue(header===0,'Patient B archive tab retained patient A cephalo workspace');
-    checkTrue(await page.locator('[data-document-kind]').count()===0,
-      'Test-only A/B has a document, official archive must remain empty');
-    await shot('05-patient-b-empty-archives');
-    return {patient_a_archives_accessible:true,patient_b_archives_accessible:true,
-      synthetic_official_archives_created:0,blob_archive_claims:false};
+    await page.getByText('DC-DOS01-SYNTH-B.pdf').waitFor({state:'visible',timeout:35000});
+    await page.waitForFunction(url=>window.__dcDosPdfAudit?.revoked?.includes(url),
+      openedA.created[0],{timeout:15000});
+    const auditB=await page.evaluate(()=>window.__dcDosPdfAudit);
+    checkTrue(auditB.revoked.includes(openedA.created[0]) &&
+      await page.getByText('DC-DOS01-SYNTH-A.pdf').count()===0,
+      'A PDF preview object URL or document name persisted after navigation to B');
+    checkTrue(await page.locator('[data-ortho-workspace-patient]').count()===0,
+      'Patient B archive tab retained patient A cephalo workspace');
+    const resB=page.waitForResponse(r=>r.url().includes('/api/documents/'+f.archives.b.id+'/download') && r.status()===200);
+    await page.getByRole('button',{name:'Voir',exact:true}).click();
+    const bytesB=await (await resB).body();
+    checkTrue(crypto.createHash('sha256').update(bytesB).digest('hex')===f.archives.b.sha256 &&
+      f.archives.b.sha256!==f.archives.a.sha256,
+      'Patient B PDF did not match its distinct fixture content');
+    await shot('05-patient-b-synthetic-archives');
+    return {real_pdf_bytes_sha256_A:true,real_pdf_bytes_sha256_B:true,
+      blob_a_revoked_on_patient_B:true,patient_a_document_absent_in_B:true,
+      external_native_popup_auto_close:'NOT_TESTED',synthetic_official_archives_created:0};
   });
   foreignContext=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce',
     storageState:{cookies:foreignEnrolled.cookies.filter(c=>c.name==='dc_workstation'),origins:[]}});
