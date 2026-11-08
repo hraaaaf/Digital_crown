@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrthoMediaRecordPanel, ORTHO_PHOTO_SLOTS } from './OrthoMediaRecordPanel';
 
@@ -94,15 +94,18 @@ describe('OrthoMediaRecordPanel LOT07-F', () => {
     const { rerender } = render(<OrthoMediaRecordPanel patientId={7} P={P} />);
     rerender(<OrthoMediaRecordPanel patientId={8} P={P} />);
     await screen.findByText(/0\/8/);
-    resolveA({
-      data: {
-        ...emptyRecord,
-        photo_complete: true,
-        photo_slots: emptyRecord.photo_slots.map((slot, i) =>
-          i === 0 ? { ...slot, state: 'FILLED', asset: { asset_id: 707 } } : slot),
-      },
+    await act(async () => {
+      resolveA({
+        data: {
+          ...emptyRecord,
+          photo_complete: true,
+          photo_slots: emptyRecord.photo_slots.map((slot, i) =>
+            i === 0 ? { ...slot, state: 'FILLED', asset: { asset_id: 707 } } : slot),
+        },
+      });
+      await pendingA;
     });
-    await waitFor(() => expect(screen.getByText(/0\/8/)).toBeInTheDocument());
+    expect(screen.getByText(/0\/8/)).toBeInTheDocument();
     expect(get.mock.calls.some(([url]) => String(url).includes('/patients/8/assets/707/'))).toBe(false);
     expect(screen.queryByRole('img', { name: 'Vue orthodontique' })).not.toBeInTheDocument();
   });
@@ -126,7 +129,7 @@ describe('OrthoMediaRecordPanel LOT07-F', () => {
       if (url === '/patients/7/assets/707/content') return Promise.resolve({ data: new Blob(['synthetic']) });
       throw Error('Unexpected media access: ' + url);
     });
-    let unmount = () => undefined;
+    let unmount: () => void = () => {};
     try {
       const rendered = render(<OrthoMediaRecordPanel patientId={7} P={P} />);
       unmount = rendered.unmount;
