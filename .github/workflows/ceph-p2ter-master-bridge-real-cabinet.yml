@@ -69,6 +69,13 @@ jobs:
           python -m pytest \
             backend/tests/test_cephalo_scientific_write.py \
             backend/tests/test_cephalo_repository_calibration_invariants.py -q
+      - name: FUE métier evidence tranche 1 - Media Core tenant isolation, manual import, timeline and unsigned A4
+        run: |
+          python -m pytest \
+            backend/tests/test_media_core_ingestion_api.py \
+            backend/tests/test_media_core_timeline_api.py \
+            backend/tests/test_media_core_c7_certification.py \
+            backend/tests/test_cephalo_four_part_report.py -q
       - name: Start isolated T2 FastAPI runtime (real JWT and workstation)
         run: |
           python scripts/t2_runtime_server.py > /tmp/p2ter-backend.log 2>&1 &
