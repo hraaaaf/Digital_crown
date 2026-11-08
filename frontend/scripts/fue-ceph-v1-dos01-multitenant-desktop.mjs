@@ -156,7 +156,7 @@ try {
     return {refused_http:denied+1,foreign_study_http:study.status()};
   });
   ownerContext=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce',
-    storageState:{cookies:ownerEnrolled.cookies,origins:[]}});
+    storageState:{cookies:ownerEnrolled.cookies.filter(c=>c.name==='dc_workstation'),origins:[]}});
   page=await browserLogin(ownerContext,'t2-browser@cabinet.ma');
   const aBlob=await verify('REAL_REACT_PATIENT_A_PROFILE',async()=>{
     await openPatient(page,f.patient_a,true);
@@ -184,7 +184,7 @@ try {
     return {old_blob_hidden:true,new_blob_authenticated:true};
   });
   foreignContext=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce',
-    storageState:{cookies:foreignEnrolled.cookies,origins:[]}});
+    storageState:{cookies:foreignEnrolled.cookies.filter(c=>c.name==='dc_workstation'),origins:[]}});
   foreignPage=await browserLogin(foreignContext,'t2-dos01-foreign@cabinet.ma');
   await verify('REAL_REACT_FOREIGN_CABINET_OWN_AND_DENIED',async()=>{
     await openPatient(foreignPage,f.patient_x,true);
