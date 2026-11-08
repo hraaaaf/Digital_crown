@@ -1,16 +1,19 @@
 /**
  * Screenshot-only synthetic FUE for the exact Step4Documents React component.
- * BEFORE = approved parent PR #1213 source. AFTER = PR #1219 source.
+ * BEFORE = pinned historical pre-hold commit 99935328. AFTER = current product HEAD.
  * Does not run a backend, inspect any clinical database, or authorize signing.
  */
 import { chromium } from 'playwright';
 import { spawn } from 'node:child_process';
+import { createHash } from 'node:crypto';
 import { readFile, writeFile, rm, mkdir } from 'node:fs/promises';
 import path from 'node:path';
 
 const root = process.cwd();
 const productFile = path.join(root, 'src/features/ortho/components/Step4Documents.tsx');
-const baselineFile = path.resolve(process.env.CEPH_BASELINE_FILE || '../baseline/frontend/src/features/ortho/components/Step4Documents.tsx');
+const baselineFile = path.join(root, 'scripts/fixtures/Step4Documents.BEFORE-99935328.tsx');
+const visualBeforeCommitSha = '99935328f565dda87958eee4b4bd0753c2d870d0';
+const visualBeforeBlobSha = '449da8dade79797647fdec36f47831396ec80e35';
 const entryFile = path.join(root, 'src/ceph-archive-hold-visual-fixture.tsx');
 const htmlFile = path.join(root, 'ceph-archive-hold-visual.html');
 const output = path.join(root, 'ceph-unsigned-archive-visual-proof');
@@ -23,7 +26,15 @@ if (!/^[0-9a-f]{40}$/.test(head || '') || !/^[0-9a-f]{40}$/.test(baseSha || ''))
 }
 const originalSource = await readFile(productFile, 'utf8');
 const baselineSource = await readFile(baselineFile, 'utf8');
-if (!originalSource.includes('Archivage suspendu') || !baselineSource.includes('Archiver le bilan')) {
+// A stacked PR's parent already contains the hold; compare against exact historical BEFORE.
+const baselineGitBlob = createHash('sha1')
+  .update('blob ' + Buffer.byteLength(baselineSource, 'utf8') + String.fromCharCode(0))
+  .update(baselineSource, 'utf8').digest('hex');
+if (baselineGitBlob !== visualBeforeBlobSha) {
+  throw Error('BEFORE source does not match approved historical git blob');
+}
+if (!originalSource.includes('Archivage suspendu') || !baselineSource.includes('Archiver le bilan')
+  || baselineSource.includes('Archivage suspendu')) {
   throw Error('BEFORE / AFTER exact UI anchors not present; refuse screenshot proof');
 }
 const entry = [
@@ -48,7 +59,9 @@ const html = '<!doctype html><html lang="fr"><head><meta charset="UTF-8"><meta n
 let server;
 let browser;
 const contexts=[];
-const proof={head,baseline_sha:baseSha,source:'Real Step4Documents React UI, synthetic fixture only',no_real_patient:true,no_clinical_approval:true,viewports:[],errors:[]};
+const proof={head,parent_pr_base_sha:baseSha,visual_before_commit_sha:visualBeforeCommitSha,
+  visual_before_git_blob_sha:visualBeforeBlobSha,
+  source:'Real Step4Documents React UI, synthetic fixture only',no_real_patient:true,no_clinical_approval:true,viewports:[],errors:[]};
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 async function waitForServer() {
   for(let i=0;i<100;i++){
@@ -122,7 +135,8 @@ try {
   }
   if(proof.errors.length)throw Error('React browser runtime errors: '+proof.errors.join('; '));
   await writeFile(path.join(output,'evidence.json'),JSON.stringify(proof,null,2),'utf8');
-  console.log('CEPH_UNSIGNED_A4_VISUAL_BEFORE_AFTER_SYNTHETIC_PASS '+JSON.stringify({head,baseSha,viewports:proof.viewports.map(v=>v.name)}));
+  console.log('CEPH_UNSIGNED_A4_VISUAL_BEFORE_AFTER_SYNTHETIC_PASS '+JSON.stringify({head,parentBaseSha:baseSha,
+    beforeCommitSha:visualBeforeCommitSha,beforeGitBlobSha:visualBeforeBlobSha,viewports:proof.viewports.map(v=>v.name)}));
 } finally {
   for(const ctx of contexts)await ctx.close().catch(()=>{});
   if(browser)await browser.close().catch(()=>{});
