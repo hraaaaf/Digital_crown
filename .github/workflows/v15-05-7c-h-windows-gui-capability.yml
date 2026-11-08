@@ -1,4 +1,4 @@
-name: LOT05 05.7C-H Windows GUI and Signed Vendor Launcher Probe (NO INSTALL)
+name: LOT05 05.7C-H Signed Vendor First-Window Evidence (NO INSTALL)
 
 on:
   pull_request:
@@ -70,3 +70,11 @@ jobs:
           path: ${{ runner.temp }}/lot05-7c-h-official-vendor-gui-window-metadata-only.json
           if-no-files-found: warn
           retention-days: 5
+      - name: Upload ONLY cropped signed vendor initial installer window (not desktop, no patient data)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-h-official-trial-initial-window-NO-PATIENTS
+          path: ${{ runner.temp }}/lot05-7c-h-OFFICIAL-INSTALLER-FIRST-WINDOW-NO-PATIENTS.png
+          if-no-files-found: warn
+          retention-days: 3
