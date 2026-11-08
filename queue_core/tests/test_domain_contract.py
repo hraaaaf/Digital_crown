@@ -14,6 +14,7 @@ from queue_core.domain import (
     check_in,
     mark_no_show,
     move_to_chair,
+    complete_visit,
     record_unlocated_after_call,
     rank_waiting_visits,
     return_to_waiting,
@@ -116,11 +117,18 @@ def test_chair_return_plan_releases_resource_and_requeues_with_new_sequence():
         called.visit, at=T0, actor_ref="staff", resource_id="chair-1",
         resource_available=True, authorized=True,
     )
+    assert chair.events[0].resource_id == "chair-1"
+    completed = complete_visit(
+        chair.visit, at=T0 + timedelta(minutes=2), actor_ref="staff", authorized=True,
+    )
+    assert completed.events[0].resource_id == "chair-1"
+    assert completed.visit.status is VisitStatus.DONE
     result = return_to_waiting(
         chair.visit, at=T0 + timedelta(minutes=5), actor_ref="staff",
         reason_code="CHAIR_UNAVAILABLE", queue_sequence=2, authorized=True,
     )
     assert result.released_resource_ids == ("chair-1",)
+    assert result.events[0].resource_id == "chair-1"
     assert result.visit.status is VisitStatus.WAITING
     assert result.visit.queue_sequence == 2
     assert result.visit.held_resource_id is None
@@ -419,3 +427,23 @@ def test_checkin_event_contract_cannot_lose_method_or_spoof_other_events():
         event_type=QueueEventType.ARRIVED, method=CheckInMethod.STAFF, **common
     )
     assert arrived.method is CheckInMethod.STAFF
+
+
+
+def test_resource_event_audit_requires_explicit_resource_identifier():
+    from queue_core.domain import QueueEvent
+
+    common = dict(
+        tenant_id="tenant-a", visit_id="V", occurred_at=T0,
+        state_before=VisitStatus.CALLED, state_after=VisitStatus.CALLED,
+        aggregate_version=1, actor_ref="staff", actor_kind=ActorKind.HUMAN,
+    )
+    with pytest.raises(QueueDomainError, match="RESOURCE_EVENT_ID_REQUIRED"):
+        QueueEvent(event_type=QueueEventType.RESOURCE_CLAIMED, **common)
+    with pytest.raises(QueueDomainError, match="RESOURCE_ID_UNEXPECTED"):
+        QueueEvent(event_type=QueueEventType.CALLED, resource_id="chair-1", **common)
+    event = QueueEvent(
+        event_type=QueueEventType.RESOURCE_CLAIMED,
+        resource_id="chair-1", **common
+    )
+    assert event.resource_id == "chair-1"

@@ -248,3 +248,45 @@ def test_arrival_provenance_is_persisted_and_constrained_in_event_ledger():
 
         session.add(audit("E3", 3, "CALLED", None))
         session.commit()
+
+
+
+def test_resource_audit_reference_persists_and_cannot_attach_to_other_event_types():
+    from datetime import datetime, timezone
+
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import Session
+    from queue_core.persistence.models import QueueEventRecord, QueueTenant
+
+    engine = _fk_enforcing_queue_db()
+    now = datetime(2026, 11, 8, 9, tzinfo=timezone.utc)
+    with Session(engine) as session:
+        session.add(QueueTenant(id="T", timezone_name="Africa/Casablanca", created_at_utc=now))
+        session.commit()
+
+        def record(event_id, v, event_type, resource_id):
+            return QueueEventRecord(
+                id=event_id, tenant_id="T", visit_ref="VISIT_OPAQUE",
+                aggregate_version=v, event_type=event_type,
+                state_before="CHAIR", state_after="CHAIR",
+                occurred_at_utc=now, actor_kind="HUMAN", actor_ref="STAFF",
+                resource_id=resource_id,
+            )
+
+        session.add(record("E1", 1, "RESOURCE_RELEASED", "chair-1"))
+        session.commit()
+        assert session.get(QueueEventRecord, "E1").resource_id == "chair-1"
+
+        session.add(record("E2", 2, "RESOURCE_CLAIMED", None))
+        with pytest.raises(IntegrityError):
+            session.commit()
+        session.rollback()
+
+        session.add(record("E2", 2, "CALLED", "chair-1"))
+        with pytest.raises(IntegrityError):
+            session.commit()
+        session.rollback()
+
+        session.add(record("E2", 2, "RESOURCE_CLAIMED", "chair-2"))
+        session.commit()

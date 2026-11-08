@@ -153,6 +153,7 @@ class QueueEvent:
     actor_kind: ActorKind = ActorKind.HUMAN
     reason_code: str | None = None
     method: CheckInMethod | None = None
+    resource_id: str | None = None
 
     def __post_init__(self) -> None:
         if (
@@ -172,6 +173,11 @@ class QueueEvent:
                 raise QueueDomainError("CHECK_IN_METHOD_REQUIRED")
         elif self.method is not None:
             raise QueueDomainError("CHECK_IN_METHOD_UNEXPECTED")
+        if self.event_type in {QueueEventType.RESOURCE_CLAIMED, QueueEventType.RESOURCE_RELEASED}:
+            if not self.resource_id or not self.resource_id.strip():
+                raise QueueDomainError("RESOURCE_EVENT_ID_REQUIRED")
+        elif self.resource_id is not None:
+            raise QueueDomainError("RESOURCE_ID_UNEXPECTED")
         if self.event_type in {
             QueueEventType.ORDER_OVERRIDE,
             QueueEventType.NO_SHOW,
@@ -200,6 +206,7 @@ def _event(
     actor_kind: ActorKind = ActorKind.HUMAN,
     reason_code: str | None = None,
     method: CheckInMethod | None = None,
+    resource_id: str | None = None,
 ) -> QueueEvent:
     return QueueEvent(
         tenant_id=visit.tenant_id,
@@ -213,6 +220,7 @@ def _event(
         actor_kind=actor_kind,
         reason_code=reason_code,
         method=method,
+        resource_id=resource_id,
     )
 
 
@@ -446,6 +454,7 @@ def return_to_waiting(
                 version,
                 actor_kind=ActorKind.HUMAN,
                 reason_code=reason_code,
+                resource_id=releasing[0],
             )
         )
     version += 1
@@ -493,6 +502,7 @@ def move_to_chair(
         at,
         actor_ref,
         visit.version + 1,
+        resource_id=resource_id,
     )
     chair = _event(
         visit,
@@ -528,6 +538,7 @@ def complete_visit(
         at,
         actor_ref,
         visit.version + 1,
+        resource_id=visit.held_resource_id,
     )
     done = _event(
         visit,

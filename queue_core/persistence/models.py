@@ -156,6 +156,12 @@ class QueueEventRecord(QueueBase):
             "(event_type NOT IN ('ARRIVED', 'WAITING_ENTERED') AND method IS NULL)",
             name="ck_queue_event_checkin_method",
         ),
+        CheckConstraint(
+            "(event_type IN ('RESOURCE_CLAIMED', 'RESOURCE_RELEASED') AND "
+            "resource_id IS NOT NULL AND resource_id <> '') OR "
+            "(event_type NOT IN ('RESOURCE_CLAIMED', 'RESOURCE_RELEASED') AND resource_id IS NULL)",
+            name="ck_queue_event_resource_reference",
+        ),
         Index("ix_queue_event_tenant_time", "tenant_id", "occurred_at_utc"),
     )
 
@@ -173,6 +179,8 @@ class QueueEventRecord(QueueBase):
     actor_ref: Mapped[str] = mapped_column(String(64), nullable=False)
     reason_code: Mapped[str | None] = mapped_column(String(64), nullable=True)
     method: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    # Opaque resource audit reference survives resource-row churn; no clinical FK.
+    resource_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
 
 
 class QueueExternalReference(QueueBase):
