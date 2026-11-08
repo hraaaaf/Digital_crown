@@ -132,8 +132,11 @@ jobs:
           assert len(set(sample.values()))>=3 and max(sample.values())-min(sample.values())>=60,sample
           print("R23_G4_NONCLINICAL_SYNTHETIC_PLATE_VISIBLE",sample)
           PY
-      - name: Start real Cabinet React frontend
+      - name: Start real Cabinet React frontend (isolated T2 DEV-only R3 lab)
         working-directory: frontend
+        env:
+          VITE_V15_07_1_MULTIVIEW_LAB: "1"
+          VITE_V15_07_1_R3_SPLIT_LAB: "1"
         run: |
           npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p2ter-frontend.log 2>&1 &
           echo $! > /tmp/p2ter-frontend.pid
@@ -381,7 +384,7 @@ jobs:
         run: |
           node --check scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
           node scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
-      - name: DC-DOS-01 verify eight checks, real PDF A/B blob cleanup and SQLite tenant ownership
+      - name: DC-DOS-01 verify ten checks, real PDF A/B and Desktop split A/B/X isolation
         run: |
           python - <<'PY'
           import json,os
@@ -396,13 +399,22 @@ jobs:
           assert report["synthetic_only"] is True
           assert report["official_fue_complete"] is False
           assert report["clinical_release"] is False
-          assert len(report["checks"])==8 and all(c["status"]=="PASS" for c in report["checks"])
+          assert len(report["checks"])==10 and all(c["status"]=="PASS" for c in report["checks"])
+          split=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_R3_DESKTOP_SPLIT_A_B_NO_STALE_PANES")
+          for key in ("desktop_1920_two_real_panes","patient_a_identity_verified",
+                      "patient_b_identity_verified","stale_a_panel_absent",
+                      "old_media_blob_revoked","no_media_write_controls"):
+              assert split.get(key) is True,(key,split)
+          assert split.get("clinical_release") is False
+          foreign_split=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_R3_FOREIGN_CABINET_X_SPLIT_AND_A_DENIAL")
+          assert foreign_split.get("foreign_own_x_two_panes") is True
+          assert foreign_split.get("foreign_patient_a_split_denied") is True
           documents=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_REACT_A_B_DOCUMENTS_ROUTE_ISOLATION")
           for flag in ("real_pdf_bytes_sha256_A","real_pdf_bytes_sha256_B",
                        "blob_a_revoked_on_patient_B","patient_a_document_absent_in_B"):
               assert documents.get(flag) is True, (flag,documents)
           assert documents.get("external_native_popup_auto_close")=="NOT_TESTED"
-          assert len(report["shots"])==7
+          assert len(report["shots"])==11
           for fn in report["shots"]:
               p=root/fn
               assert p.is_file() and p.stat().st_size>150
