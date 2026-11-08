@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../services/api';
 import { usePatientStore } from '../../stores/usePatientStore';
@@ -73,6 +73,30 @@ export const PatientDocuments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionsOpenFor, setActionsOpenFor] = useState<string | null>(null);
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
+
+  // Route changes can happen while a document blob request is still pending.
+  // Guard both reused instances and the previously mounted instance after unmount.
+  const currentPatientIdRef = useRef(id);
+  currentPatientIdRef.current = id;
+  const mountedRef = useRef(false);
+  const objectUrlsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => () => {
+    for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
+    objectUrlsRef.current.clear();
+  }, [id]);
+
+  const belongsToActivePatient = (patientAtRequest: string | undefined) =>
+    Boolean(patientAtRequest && mountedRef.current && currentPatientIdRef.current === patientAtRequest);
+
+  const releaseObjectUrl = (url: string) => {
+    if (objectUrlsRef.current.delete(url)) URL.revokeObjectURL(url);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -172,30 +196,42 @@ export const PatientDocuments = () => {
   };
 
   const handleView = async (docId: string) => {
+    const patientAtRequest = id;
+    if (!belongsToActivePatient(patientAtRequest)) return;
     try {
       const res = await api.get(`/documents/${encodeURIComponent(docId)}/download`, { responseType: 'blob' });
+      // Never open an A document whose response arrives after switching to B.
+      if (!belongsToActivePatient(patientAtRequest)) return;
       const blobUrl = URL.createObjectURL(res.data);
+      objectUrlsRef.current.add(blobUrl);
       const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-      if (!opened) URL.revokeObjectURL(blobUrl);
-      else window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      if (!opened) releaseObjectUrl(blobUrl);
+      else window.setTimeout(() => releaseObjectUrl(blobUrl), 60_000);
     } catch (err) {
+      if (!belongsToActivePatient(patientAtRequest)) return;
       console.error('Erreur lors de la visualisation:', err);
       alert("Impossible d'ouvrir le document.");
     }
   };
 
   const handleDownload = async (docId: string, filename: string) => {
+    const patientAtRequest = id;
+    if (!belongsToActivePatient(patientAtRequest)) return;
     try {
       const res = await api.get(`/documents/${encodeURIComponent(docId)}/download`, { responseType: 'blob' });
+      // Likewise, no delayed download should fire in another patient's dossier.
+      if (!belongsToActivePatient(patientAtRequest)) return;
       const a = document.createElement('a');
       const blobUrl = URL.createObjectURL(res.data);
+      objectUrlsRef.current.add(blobUrl);
       a.href = blobUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1_000);
+      window.setTimeout(() => releaseObjectUrl(blobUrl), 1_000);
     } catch (err) {
+      if (!belongsToActivePatient(patientAtRequest)) return;
       console.error('Erreur lors du téléchargement:', err);
       alert('Impossible de télécharger le document.');
     }
