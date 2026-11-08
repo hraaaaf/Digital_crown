@@ -447,8 +447,12 @@ try {
     checkTrue(new Set(Object.values(uploaded).map(x=>x.id)).size===3,
       'Imported source ClinicalAsset IDs collided');
     const timeline=await own(ownerApi,ownerJwt,'/api/patients/'+f.patient_a+'/assets');
-    checkTrue(timeline.items.length===4 && timeline.items.filter(x=>x.source_kind==='UPLOAD').length===3,
-      'DC-DOS-02 imported source duplicated or absent in bounded A timeline');
+    // The pre-existing ORTHO_STUDIO source is also an UPLOAD, alongside our
+    // three new WEB_API originals. Four source rows is the correct invariant.
+    checkTrue(timeline.items.length===4 &&
+      timeline.items.filter(x=>x.source_kind==='UPLOAD').length===4 &&
+      timeline.items.filter(x=>x.id===assets.a).length===1,
+      'DC-DOS-02 expected pre-existing orthodontic source plus three new originals');
     for(const s of specs){
       const row=timeline.items.filter(x=>x.id===uploaded[s.kind].id);
       checkTrue(row.length===1 && row[0].thumbnail_asset_id===uploaded[s.kind].thumbnail_asset_id &&
