@@ -61,6 +61,9 @@ internal static class Program
     [DllImport("kernel32.dll", SetLastError = true)]
     static extern IntPtr LocalFree(IntPtr descriptor);
 
+    [DllImport("kernel32.dll", SetLastError = true)]
+    static extern bool FlushFileBuffers(SafeFileHandle handle);
+
     [DllImport("kernel32.dll", EntryPoint = "CreateNamedPipeW",
         CharSet = CharSet.Unicode, SetLastError = true)]
     static extern SafeFileHandle CreatePipe(string path, uint openMode, uint mode,
@@ -245,6 +248,120 @@ internal static class Program
         catch { return new byte[] { (byte)'E', (byte)'5' }; }
     }
 
+    static byte[] ReadVerifiedUnassignedInventory()
+    {
+        // B06: LocalService decrypts/verifies the pending capture using the
+        // SAME AES-GCM/SQLite source; sends metadata only, never image or PHI.
+        // LAB only; neither pipe ACL nor this frame is clinical device trust.
+        static byte[] Refused() => new byte[] { (byte)'E', (byte)'2' };
+        if (s_b03Python is null || s_b03Script is null || s_b03Watch is null ||
+            s_b03Private is null || s_b03Key is null)
+            return Refused();
+        try
+        {
+            var start = new ProcessStartInfo(s_b03Python) {
+                UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+            };
+            foreach (var arg in new[] {
+                "-I", s_b03Script, "inventory", s_b03Watch, s_b03Private,
+                s_b03Key, "DC06B03_SYNTHETIC_ONLY"
+            }) start.ArgumentList.Add(arg);
+            start.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
+            using var child = Process.Start(start);
+            if (child is null) return Refused();
+            if (!child.WaitForExit(8000)) {
+                child.Kill(entireProcessTree: true);
+                return Refused();
+            }
+            if (child.ExitCode != 0) return Refused();
+            using var bytes = new MemoryStream();
+            child.StandardOutput.BaseStream.CopyTo(bytes);
+            var response = bytes.ToArray();
+            if (response.Length == 2 && response[0] == (byte)'N' &&
+                response[1] == (byte)'0')
+                return response;
+            if (response.Length != 86 || response[0] != (byte)'I' ||
+                response[1] != (byte)'1')
+                return Refused();
+            for (var i = 2; i < 20; ++i)
+                if (response[i] < (byte)'0' || response[i] > (byte)'9')
+                    return Refused();
+            for (var i = 20; i < 84; ++i)
+                if (!((response[i] >= (byte)'0' && response[i] <= (byte)'9') ||
+                    (response[i] >= (byte)'a' && response[i] <= (byte)'f')))
+                    return Refused();
+            if (response[84] != (byte)'P' && response[84] != (byte)'J' &&
+                response[84] != (byte)'W' && response[84] != (byte)'D')
+                return Refused();
+            if (response[85] != (byte)'P' && response[85] != (byte)'R')
+                return Refused();
+            return response;
+        }
+        catch { return Refused(); }
+    }
+
+    static byte[] ReadVerifiedMediaSlice(byte[] request)
+    {
+        // Explicit synthetic LAB-only binary media. Restricted Win32 pipe SID
+        // is NOT a production operator/session authorization.
+        static byte[] Refused() => new byte[] {
+            (byte)'E', (byte)'0', (byte)'0', (byte)'0', (byte)'0'
+        };
+        if (request.Length != 86 || s_b03Python is null || s_b03Script is null ||
+            s_b03Watch is null || s_b03Private is null || s_b03Key is null)
+            return Refused();
+        for (var i = 0; i < 10; ++i)
+            if (request[i] < (byte)'0' || request[i] > (byte)'9') return Refused();
+        for (var i = 10; i < 74; ++i)
+            if (!((request[i] >= (byte)'0' && request[i] <= (byte)'9') ||
+                (request[i] >= (byte)'a' && request[i] <= (byte)'f')))
+                return Refused();
+        for (var i = 74; i < 86; ++i)
+            if (request[i] < (byte)'0' || request[i] > (byte)'9') return Refused();
+        var id = System.Text.Encoding.ASCII.GetString(request, 0, 10);
+        var digest = System.Text.Encoding.ASCII.GetString(request, 10, 64);
+        var offsetText = System.Text.Encoding.ASCII.GetString(request, 74, 8);
+        var countText = System.Text.Encoding.ASCII.GetString(request, 82, 4);
+        if (!ulong.TryParse(id, out var item) || item == 0 ||
+            !int.TryParse(offsetText, out var offset) ||
+            !int.TryParse(countText, out var count) ||
+            offset < 0 || count < 1 || count > 2048 ||
+            offset + count > 16384) return Refused();
+
+        try
+        {
+            var start = new ProcessStartInfo(s_b03Python) {
+                UseShellExecute = false, CreateNoWindow = true,
+                RedirectStandardOutput = true, RedirectStandardError = true,
+            };
+            foreach (var arg in new[] {
+                "-I", s_b03Script, "media", s_b03Watch, s_b03Private, s_b03Key,
+                "DC06B03_SYNTHETIC_ONLY", id, digest, offsetText, countText
+            }) start.ArgumentList.Add(arg);
+            start.Environment["PYTHONDONTWRITEBYTECODE"] = "1";
+            using var child = Process.Start(start);
+            if (child is null) return Refused();
+            if (!child.WaitForExit(8000)) {
+                child.Kill(entireProcessTree: true);
+                return Refused();
+            }
+            if (child.ExitCode != 0) return Refused();
+            using var bytes = new MemoryStream();
+            child.StandardOutput.BaseStream.CopyTo(bytes);
+            var response = bytes.ToArray();
+            if (response.Length != count + 5 || response[0] != (byte)'D')
+                return Refused();
+            for (var i = 1; i <= 4; ++i)
+                if (response[i] < (byte)'0' || response[i] > (byte)'9')
+                    return Refused();
+            var sizeText = System.Text.Encoding.ASCII.GetString(response, 1, 4);
+            return int.TryParse(sizeText, out var actual) && actual == count
+                ? response : Refused();
+        }
+        catch { return Refused(); }
+    }
+
     static void Serve()
     {
         var pipe = s_pipe;
@@ -261,12 +378,52 @@ internal static class Program
                 if (readOk && received == 1 && buffer[0] == (byte)'Q')
                 {
                     var response = new byte[] { (byte)'U' };
-                    _ = WriteFile(pipe, response, 1, out _, IntPtr.Zero);
+                    if (!WriteFile(pipe, response, 1, out uint written, IntPtr.Zero)
+                        || written != 1)
+                        throw new InvalidOperationException("DC06_BS2_Q_REPLY_WRITE_FAILED");
+                    // The client must consume 'U' BEFORE DisconnectNamedPipe:
+                    // Windows drops unread pipe bytes on disconnect. Unlike
+                    // a delay, FlushFileBuffers provides an OS-backed drain
+                    // boundary for this synchronous, disposable lab fixture.
+                    if (!FlushFileBuffers(pipe))
+                        throw new InvalidOperationException("DC06_BS2_Q_REPLY_DRAIN_FAILED");
                 }
                 else if (readOk && received == 1 && buffer[0] == (byte)'S')
                 {
                     var response = ReadVerifiedUnassignedCount();
                     _ = WriteFile(pipe, response, 2, out _, IntPtr.Zero);
+                }
+                else if (readOk && received == 1 && buffer[0] == (byte)'I')
+                {
+                    var response = ReadVerifiedUnassignedInventory();
+                    _ = WriteFile(pipe, response, (uint)response.Length, out _, IntPtr.Zero);
+                }
+                else if (readOk && received == 1 && buffer[0] == (byte)'M')
+                {
+                    var request = new byte[86];
+                    uint total = 0;
+                    while (total < 86)
+                    {
+                        var part = new byte[86 - (int)total];
+                        if (!ReadFile(pipe, part, (uint)part.Length, out uint got, IntPtr.Zero) ||
+                            got == 0) break;
+                        Array.Copy(part, 0, request, (int)total, got);
+                        total += got;
+                    }
+                    var response = total == 86 ? ReadVerifiedMediaSlice(request)
+                        : new byte[] { (byte)'E', (byte)'0', (byte)'0', (byte)'0', (byte)'0' };
+                    // The byte-mode pipe must remain connected until the client
+                    // has drained the entire binary reply; disconnecting directly
+                    // after WriteFile can discard unread bytes (notably the PNG).
+                    // LAB peer closes on denied replies; the service is one-shot,
+                    // disposable and never installed in a clinical workstation.
+                    if (WriteFile(pipe, response, (uint)response.Length,
+                                  out uint sent, IntPtr.Zero) &&
+                        sent == (uint)response.Length)
+                    {
+                        var drained = new byte[1];
+                        _ = ReadFile(pipe, drained, 1, out _, IntPtr.Zero);
+                    }
                 }
                 else if (readOk && received == 1 && buffer[0] != (byte)'R')
                 {

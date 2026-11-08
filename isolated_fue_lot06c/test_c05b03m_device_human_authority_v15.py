@@ -38,7 +38,7 @@ from tools.imaging_gateway.gateway import GatewayError
 from tools.imaging_gateway.http_ack_lab_v15 import record_lab_http_ack
 
 
-def _setup(bridge, tmp_path):
+def _setup(bridge, tmp_path, *, media_authority=None):
     engine, claim, device_token, station_token, media_root, _ = bridge
     _root, source, env = _isolated_hotfolder(tmp_path)
     collector = make_lab_collector(env)
@@ -52,7 +52,8 @@ def _setup(bridge, tmp_path):
     signing_key = Ed25519PrivateKey.generate()
     server_public = signing_key.public_key().public_bytes(Encoding.Raw, PublicFormat.Raw)
     app = _server_app(
-        engine, approved, media_root, signing_key, security_gate=TestOnlyMediaAuthority(),
+        engine, approved, media_root, signing_key,
+        security_gate=media_authority if media_authority is not None else TestOnlyMediaAuthority(),
     )
     headers = {
         "Authorization": "Bearer " + create_access_token({"sub": staff_email}),

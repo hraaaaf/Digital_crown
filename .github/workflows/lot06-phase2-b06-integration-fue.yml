@@ -1,0 +1,299 @@
+name: LOT06 B06 one-HEAD product boundary + review + MediaCore + Windows FUE
+on:
+  push:
+    branches: [feat/lot06-phase2-b06-product-integration-20261104]
+    paths:
+      - .github/workflows/lot06-phase2-b06-integration-fue.yml
+      - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.tsx
+      - frontend/src/features/patients/PatientDetailsInner.tsx
+      - frontend/src/features/patients/components/ImagingAcquisitionProductReviewV15.tsx
+      - frontend/src/features/patients/components/ImagingAcquisitionProductReviewV15.test.tsx
+      - frontend/src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx
+      - isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py
+      - isolated_fue_lot06c/test_b06_product_durable_receipt_v15.py
+      - isolated_fue_lot06c/test_b06_postgres_clone_contract_v15.py
+      - isolated_fue_lot06c/b06_versioned_crypto_synthetic.py
+      - isolated_fue_lot06c/test_b06_versioned_crypto_synthetic.py
+      - isolated_fue_lot06c/test_b06_f2_product_storage_v2.py
+      - isolated_fue_lot06c/test_b06_f4_private_keyring.py
+      - backend/services/clinical_media_crypto_v2.py
+      - backend/services/clinical_media_keyring_recovery.py
+      - backend/services/windows_keyring_handle_probe.py
+      - backend/services/windows_keyring_restore.py
+      - isolated_fue_lot06c/windows_f5bb_handle_probe_fue.ps1
+      - isolated_fue_lot06c/windows_f5bd2_private_restore_fue.ps1
+      - isolated_fue_lot06c/f5bd4_fixed_recovery_windows_fue.py
+      - isolated_fue_lot06c/f5bd4_fixed_synthetic_oracle.json
+      - isolated_fue_lot06c/f5bd_offline_keyring_recovery_fue.py
+      - backend/services/clinical_asset_storage.py
+      - isolated_fue_lot06c/test_b06_postgres_product_route_lab_v15.py
+      - isolated_fue_lot06c/b06_postgres_product_candidate_lab.py
+      - backend/services/imaging_acquisition_durable_v15.py
+      - isolated_fue_lot06c/test_b06_native_inventory_protocol_v15.py
+      - isolated_fue_lot06c/windows_b06_native_inventory_client.py
+      - isolated_fue_lot06c/windows_b06_native_media_client.py
+      - isolated_fue_lot06c/test_b06_native_media_protocol_v15.py
+      - tools/imaging_gateway/native_media_protocol_v15.py
+      - tools/imaging_gateway/native_media_windows_v15.py
+      - isolated_fue_lot06c/scm_spool_read_b03.py
+      - isolated_fue_lot06c/c05b03m_security_gate_lab.py
+      - isolated_fue_lot06c/unassigned_device_manifest_lab.py
+      - isolated_fue_lot06c/test_b06_unassigned_manifest_v15.py
+      - isolated_fue_lot06c/phase2_staff_review_sqlcipher_lab.py
+      - isolated_fue_lot06c/test_phase2_staff_review_media_sqlcipher_v15.py
+      - isolated_fue_lot06c/scm_fixture_c05b03r/Program.cs
+      - isolated_fue_lot06c/windows_scm_client_c05b03r.ps1
+      - isolated_fue_lot06c/windows_scm_service_sid_fue_c05b03r.ps1
+      - tools/imaging_gateway/native_inventory_protocol_v15.py
+      - tools/imaging_gateway/native_inventory_windows_v15.py
+      - backend/services/imaging_acquisition_native_inventory_v15.py
+      - backend/services/imaging_acquisition_native_bridge_v15.py
+      - backend/services/imaging_acquisition_product_review_v15.py
+      - tools/imaging_gateway/native_product_bridge_v15.py
+      - backend/routers/imaging_acquisition_unassigned_v15.py
+      - backend/main.py
+      - backend/scripts/verify_lot05_windows_publisher_preflight.ps1
+      - backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1
+      - docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: lot06-b06-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  same-server-sqlcipher-product-fue:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    # Never connect to a clinic: this container is an ephemeral per-job service.
+    services:
+      pg-b06-lab:
+        image: postgres:18
+        env:
+          POSTGRES_USER: dc06_synthetic
+          POSTGRES_PASSWORD: dc06_test_only
+          POSTGRES_DB: dc06_b06_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U dc06_synthetic -d dc06_b06_ci"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 6
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DATABASE_URL: 'sqlite:///:memory:'
+      SECRET_KEY: 'b06-synthetic-only-test-secret-not-for-clinic'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000'
+      DC06C05B03B_TEST_ONLY: '1'
+      DC06C05B03C_TEST_ONLY: '1'
+      DC06C05B03E_TEST_ONLY: '1'
+      DC06C05B03G_TEST_ONLY: '1'
+      DC06C05B03M_TEST_ONLY: '1'
+      DC06_B06_PG_LAB_ONLY: '1'
+      DC06_B06_PG_TEST_DSN: 'postgresql+psycopg://dc06_synthetic:dc06_test_only@127.0.0.1:5432/dc06_b06_ci'
+      DC_V15_06_BRIDGE_LAB: '0'
+      DC_V15_06_HTTP_ACK_LAB: '1'
+      DC_V15_06_TRANSFER_LAB: '0'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact pinned laboratory dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install pytest==9.0.3 pytest-asyncio==1.3.0 'pydantic[email]==2.6.3' fastapi==0.115.6 passlib==1.7.4 bcrypt==3.2.2 python-dotenv==1.2.1 pydantic-settings==2.2.1 python-jose==3.5.0 python-multipart==0.0.31 qrcode==8.2 pillow==12.2.0 arabic-reshaper==3.0.0 python-bidi==0.6.7 reportlab==4.4.10 opencv-python-headless==4.13.0.92 SQLAlchemy==2.0.28 httpx==0.28.1 jwcrypto==1.6.1 firebase-admin==7.5.0 'sentry-sdk[fastapi]==2.69.0' alembic==1.20.0 python-magic==0.4.27 PyMuPDF==1.27.2.3 'sqlcipher3>=0.5,<1' 'psycopg[binary]==3.2.6' cryptography uvicorn==0.27.1
+      - name: Product boundary and real SQLCipher end-to-end on one synthetic app
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python - <<'PY'
+          import sys
+          import types
+          from pathlib import Path
+          import pytest
+          routers = types.ModuleType("backend.routers")
+          routers.__path__ = [str(Path.cwd() / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers
+          raise SystemExit(pytest.main([
+              "-q", "-s", "--maxfail=5",
+              "isolated_fue_lot06c/test_phase2_b06_product_to_signed_receipt_fue_v15.py",
+              "isolated_fue_lot06c/test_b06_product_durable_receipt_v15.py",
+              "isolated_fue_lot06c/test_phase2_staff_review_media_sqlcipher_v15.py",
+              "isolated_fue_lot06c/test_b06_unassigned_manifest_v15.py",
+              "isolated_fue_lot06c/test_phase2_product_status_v15.py",
+              "isolated_fue_lot06c/test_b06_native_inventory_protocol_v15.py",
+              "isolated_fue_lot06c/test_b06_native_media_protocol_v15.py",
+          ]))
+          PY
+      - name: B06-4D-F1 synthetic versioned crypto FUE exact SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_versioned_crypto_synthetic.py
+          echo DC06_B06_F1_VERSIONED_CRYPTO_SYNTHETIC_FUE_PASS
+      - name: B06-4D-F2/F3 product DCM2 store read and retained-key rotation FUE
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_f2_product_storage_v2.py
+          echo DC06_B06_F2_PRODUCT_STORAGE_V2_SYNTHETIC_FUE_PASS
+          echo DC06_B06_F3_RETAINED_KEYS_ROTATION_FUE_PASS
+      - name: B06-4D-F4/F5 POSIX private keyring and atomic open security FUE
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_f4_private_keyring.py
+          echo DC06_B06_F4_PRIVATE_KEYRING_FUE_PASS
+          echo DC06_B06_F5_ATOMIC_NOFOLLOW_KEYRING_FUE_PASS
+      - name: B06-4B PostgreSQL 18 disposable clone FUE (schema only, never product)
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python -m pytest -q -s --maxfail=1 isolated_fue_lot06c/test_b06_postgres_clone_contract_v15.py
+      - name: B06-4C real FastAPI/JWT/ClinicalAsset PostgreSQL test-only adapter rehearsal
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          python - <<'PY'
+          import sys, types
+          from pathlib import Path
+          import pytest
+          routers = types.ModuleType("backend.routers")
+          routers.__path__ = [str(Path.cwd() / "backend" / "routers")]
+          sys.modules["backend.routers"] = routers
+          raise SystemExit(pytest.main([
+              "-q", "-s", "--maxfail=1",
+              "isolated_fue_lot06c/test_b06_postgres_product_route_lab_v15.py",
+          ]))
+          PY
+      - name: Product route and clinical release remain strictly closed
+        shell: bash
+        run: |
+          set -euo pipefail
+          ! grep -q "phase2_staff_review_sqlcipher_lab" backend/main.py
+          ! grep -q "imaging_acquisition_transfer_lab_v15" backend/main.py
+          ! grep -q "c05b03m_security_gate_lab" backend/main.py
+          ! grep -q "imaging_acquisition_native_inventory_v15" backend/main.py
+          ! grep -q "native_media_windows_v15" backend/main.py
+          grep -q "CLINICAL_GO=false" docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
+          grep -q "READY_TO_MERGE=false" docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
+          echo DC06_B06_PRODUCT_INGRESS_CLOSED_PASS
+
+  preview-review-ui:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install deterministic UI dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Frontend dual identifiers, preview refusal and stale patient review FUE
+        working-directory: frontend
+        run: npx vitest run src/features/patients/components/ImagingAcquisitionReviewPanelV15.test.tsx src/features/patients/components/ImagingAcquisitionProductStatusV15.test.tsx src/features/patients/components/ImagingAcquisitionProductReviewV15.test.tsx --reporter=dot
+
+  windows-real-service-and-b05-package:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC06B05C1_LAB: '1'
+      DC06B05D1_LAB: '1'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Pinned signature dependency
+        shell: pwsh
+        run: python -m pip install cryptography==46.0.3
+      - name: Windows SCM LocalService real restricted SID and AES spool FUE
+        shell: pwsh
+        env:
+          DC06C05B03R_TEST_ONLY: '1'
+          DC06B02_PROBE: '1'
+          DC06B03_SERVICE_SPOOL: '1'
+          DC06B04_RESTART_KEY_TEST: '1'
+          DC06B06_NATIVE_INVENTORY: '1'
+          DC06B06_NATIVE_MEDIA: '1'
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_scm_service_sid_fue_c05b03r.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B Windows native private-keyring ACL adversarial FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_f5b_private_keyring_acl_fue.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B-B Windows native nofollow handle probe FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_f5bb_handle_probe_fue.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B-C Windows product DCM2 private keyring FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_f5bc_product_keyring_fue.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B-D offline encrypted recovery and retained DCM2 continuity FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          python isolated_fue_lot06c/f5bd_offline_keyring_recovery_fue.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B-D2 Windows private ACL restore and product readback FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          ./isolated_fue_lot06c/windows_f5bd2_private_restore_fue.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: F5B-D4b prebuilt encrypted fixture and fresh-process DCM2 oracle FUE
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_B06_SHA_MISMATCH' }
+          python isolated_fue_lot06c/f5bd4_fixed_recovery_windows_fue.py
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: BS2-03 inherited LOT05.7A-G Windows publisher preflight (negative-only, no real issuer)
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'DC06_BS203_05G_SHA_MISMATCH' }
+          ./backend/tests/fixtures/lot05_7a_g_authenticode_negative_probe.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          Write-Output 'DC06_BS203_05G_SYNTHETIC_NEGATIVE_ONLY_PUBLISHER_NOT_ATTESTED'
+      - name: Windows bounded Authenticode + closed ZIP + wrong signer FUE
+        shell: pwsh
+        run: |
+          ./isolated_fue_lot06c/windows_b05d1_authenticode_zip_lab.ps1
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: No real installer, real patient or real TPM clinical approval
+        shell: pwsh
+        run: |
+          if (-not (Select-String -Path docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md -Pattern 'CLINICAL_GO=false' -Quiet)) { throw 'DC06_B06_RELEASE_BOUNDARY_MISSING' }
+          Write-Output 'DC06_B06_SYNTHETIC_ONLY_NO_CLINICAL_GO_PASS'

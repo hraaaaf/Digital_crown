@@ -1,0 +1,71 @@
+name: LOT06 B06 React Chromium visual evidence (synthetic, no release)
+
+# CI-only visual proof of the actual React component. No dentist/dev mode toggle.
+on:
+  push:
+    branches: [feat/lot06-phase2-b06-product-integration-20261104]
+    paths:
+      - .github/workflows/lot06-b06-react-visual-evidence.yml
+      - frontend/scripts/capture-lot06-b06-react-visual.mjs
+      - frontend/src/features/patients/components/ImagingAcquisitionProductReviewV15.tsx
+      - frontend/src/index.css
+      - docs/lot06/LOT06-PHASE2-B06-INTEGRATION-20261104.md
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot06-b06-visual-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  actual-react-chromium:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DC06_B06_VISUAL_LAB: '1'
+      DC06_B06_VISUAL_SOURCE_SHA: ${{ github.sha }}
+    steps:
+      - name: Checkout exact branch HEAD (no credentials persisted)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Attest no release, exact HEAD, isolated synthetic-only test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$DC06_B06_VISUAL_SOURCE_SHA"
+          test "$ENVIRONMENT" = test
+          test "$DIGITALCROWN_ISOLATED_RUNTIME" = 1
+          test "$DC06_B06_VISUAL_LAB" = 1
+          echo "B06 REAL React component screenshots — synthetic-only SHA $DC06_B06_VISUAL_SOURCE_SHA" >> "$GITHUB_STEP_SUMMARY"
+          echo "No backend, clinical media, device, deployment, or owner visual sign-off." >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Fail early on screenshot harness syntax errors
+        working-directory: frontend
+        run: node --check scripts/capture-lot06-b06-react-visual.mjs
+      - name: Install locked product frontend and disposable Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Render real B06 React TSX and certify responsive theme/identity gates
+        working-directory: frontend
+        run: node scripts/capture-lot06-b06-react-visual.mjs
+      - name: Upload exact-SHA React Chromium screenshots + JSON evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot06-b06-actual-react-chromium-visual
+          path: artifacts/lot06-b06-react-visual/
+          if-no-files-found: error
+          retention-days: 14

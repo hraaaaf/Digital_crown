@@ -43,6 +43,7 @@ import { PatientFinances } from './components/PatientFinances';
 import { PatientRvgPanel } from './components/PatientRvgPanel';
 import { PatientMediaTimeline } from './components/PatientMediaTimeline';
 import { ImagingAcquisitionProductStatusV15 } from './components/ImagingAcquisitionProductStatusV15';
+import { ImagingAcquisitionProductReviewV15 } from './components/ImagingAcquisitionProductReviewV15';
 import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled, isR3SplitLabEnabled } from '../multiview/CabinetMultiViewLab';
 import './PatientRadiologyPolish.css';
 import { QuickPayModal } from './components/QuickPayModal';
@@ -362,12 +363,12 @@ export const PatientDetails = () => {
     <div data-dc-patient-radiology={isRadiology ? 'true' : undefined}
       className={cn('flex flex-col bg-transparent', isDocuments ? 'h-screen overflow-hidden' : 'min-h-screen')}>
       <header data-r3-1-patient-header={r3ReviewActive ? 'nonsticky' : undefined}
-        className={cn('bg-card-bg/90 backdrop-blur-xl border-b border-border-main shadow-elite',
+        className={cn('bg-card/90 backdrop-blur-xl border-b border-border-main shadow-elite',
           r3ReviewActive ? 'relative z-0' : 'lg:sticky lg:top-0 z-[300]')}>
         <div className={cn('max-w-[1600px] mx-auto md:px-8', isRadiology ? 'px-2.5 pt-1.5' : 'px-3 pt-2 sm:px-4 sm:pt-3')}>
           <div className={cn('flex flex-col xl:flex-row xl:items-center xl:justify-between', isRadiology ? 'gap-1.5 mb-1.5' : 'gap-2 mb-2 sm:gap-3 sm:mb-3')}>
             <div className={cn('flex items-start sm:items-center min-w-0', isRadiology ? 'gap-2' : 'gap-3')}>
-              <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card-bg border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10')} style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 16 : 20} strokeWidth={2.5} /></button>
+              <button onClick={() => navigate('/patients')} className={cn('shrink-0 bg-card border border-border-main flex items-center justify-center rounded-xl shadow-sm active:scale-95 transition-all', isRadiology ? 'w-8 h-8 rounded-lg' : 'w-9 h-9 sm:w-10 sm:h-10')} style={{ color: 'var(--primary)' }} aria-label="Retourner à la liste des patients"><ArrowLeft size={isRadiology ? 16 : 20} strokeWidth={2.5} /></button>
               <PatientAvatar
                 patientId={patient.id}
                 firstName={patient.prenom}
@@ -493,7 +494,7 @@ export const PatientDetails = () => {
                 </aside>
               )}
               <div className="flex min-w-0 justify-center">
-                <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card-bg/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" id="dc-radiology-modalities" aria-label="Modalités d’imagerie"
+                <div className="inline-flex w-full max-w-full flex-nowrap justify-start overflow-x-auto bg-card/50 p-0.5 rounded-lg border border-border-main shadow-inner scrollbar-none sm:w-auto sm:p-1 sm:rounded-xl" id="dc-radiology-modalities" aria-label="Modalités d’imagerie"
                   style={{
                     display: 'flex', flexDirection: 'row', flexWrap: 'nowrap',
                     minWidth: 0, maxWidth: '100%', overflowX: 'auto',
@@ -507,12 +508,12 @@ export const PatientDetails = () => {
                 </div>
               </div>
 
-              <div className="bg-card-bg rounded-[1.25rem] sm:rounded-[1.75rem] shadow-elite border border-border-main overflow-hidden min-h-[60vh] p-1.5 sm:p-2.5 md:p-3 min-w-0">
+              <div className="bg-card rounded-[1.25rem] sm:rounded-[1.75rem] shadow-elite border border-border-main overflow-hidden min-h-[60vh] p-1.5 sm:p-2.5 md:p-3 min-w-0">
                 {radioTab === 'media' && (isCabinetMultiViewLabEnabled(import.meta.env.DEV, import.meta.env.VITE_V15_07_1_MULTIVIEW_LAB)
                   ? <CabinetMultiViewLab key={String(user?.id ?? '') + ':' + String(user?.employer_id ?? '') + ':' + String(patient.id)}
                       patient={patient} routePatientId={id} user={user}
                       enableR3Split={isR3SplitLabEnabled(import.meta.env.DEV, import.meta.env.VITE_V15_07_1_R3_SPLIT_LAB)} />
-                  : <><ImagingAcquisitionProductStatusV15 patientId={Number(id)} /><PatientMediaTimeline patientId={Number(id)} /></>)}
+                  : <><ImagingAcquisitionProductStatusV15 patientId={Number(id)} /><ImagingAcquisitionProductReviewV15 patientId={Number(id)} /><PatientMediaTimeline patientId={Number(id)} /></>)}
                 {radioTab === 'rvg' && <PatientRvgPanel patientId={Number(id)} />}
                 {radioTab === 'panoramic' && canPanoramic && <PanoramicStudio patientId={Number(id)} patientName={fullName} />}
                 {radioTab === 'cephalo' && canCephalo && (
@@ -523,7 +524,7 @@ export const PatientDetails = () => {
                       <div className="w-24 h-24 bg-input-field rounded-full flex items-center justify-center mb-6"><Activity className="w-12 h-12 text-text-muted" /></div>
                       <h3 className="text-2xl font-black text-text-main mb-2">Module Céphalométrique Verrouillé</h3>
                       <p className="text-text-muted mb-8 max-w-md">Ce module nécessite que le suivi orthodontique soit actif pour ce patient afin de permettre les tracés céphalométriques.</p>
-                      <button onClick={activateOrtho} className="px-8 py-4 bg-[#003380] text-white font-bold rounded-2xl hover:bg-[#002266] transition-all shadow-lg flex items-center gap-3"><Target className="w-5 h-5" /> Activer le Suivi Orthodontique</button>
+                      <button onClick={activateOrtho} className="px-8 py-4 bg-primary text-on-primary font-bold rounded-2xl hover:bg-secondary transition-all shadow-lg flex items-center gap-3"><Target className="w-5 h-5" /> Activer le Suivi Orthodontique</button>
                     </div>
                   )
                 )}
@@ -543,7 +544,7 @@ export const PatientDetails = () => {
           {isDocuments && (
             <div className="h-full min-h-0 flex flex-col gap-3">
               <div className="shrink-0 flex items-center justify-center">
-                <div className="inline-flex p-1 rounded-xl bg-card-bg border border-border-main shadow-sm">
+                <div className="inline-flex p-1 rounded-xl bg-card border border-border-main shadow-sm">
                   <button onClick={handleDocumentCreate} className={cn('px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all', documentView === 'create' ? 'bg-primary text-white shadow-sm' : 'text-text-muted hover:text-main')}><Plus size={15} /> Créer</button>
                   <button onClick={() => handleTabChange('archives')} className={cn('px-4 py-2 rounded-lg text-xs font-black flex items-center gap-2 transition-all', documentView === 'history' ? 'bg-primary text-white shadow-sm' : 'text-text-muted hover:text-main')}><History size={15} /> Historique</button>
                 </div>
@@ -568,7 +569,7 @@ export const PatientDetails = () => {
 };
 
 const QuickAction = ({ icon, label, onClick, accent = 'primary' }: any) => (
-  <button onClick={onClick} aria-label={label} className={cn('h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card-bg shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95', accent === 'emerald' ? 'text-text-muted hover:text-success hover:border-success-border hover:bg-success-surface' : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5')}>
+  <button onClick={onClick} aria-label={label} className={cn('h-11 sm:h-10 min-w-0 px-1 sm:px-3 rounded-xl border border-border-main bg-card shadow-sm transition-all flex flex-col sm:flex-row items-center justify-center gap-0.5 sm:gap-2 active:scale-95', accent === 'emerald' ? 'text-text-muted hover:text-success hover:border-success-border hover:bg-success-surface' : 'text-text-muted hover:text-primary hover:border-primary/30 hover:bg-primary/5')}>
     {icon}<span className="inline text-[8px] sm:text-[10px] leading-none font-black uppercase tracking-[0.04em] sm:tracking-widest whitespace-nowrap">{label}</span>
   </button>
 );
@@ -580,7 +581,7 @@ const TabButton = ({ active, onClick, icon, label, mobileLabel, ariaLabel, compa
 );
 
 const ImagingButton = ({ active, onClick, icon, label }: any) => (
-  <button onClick={onClick} aria-pressed={active} className={cn('shrink-0 px-2 py-1.5 text-[9px] sm:px-3 sm:py-2 sm:text-[10px] md:px-4 md:text-[11px] font-black uppercase tracking-[0.06em] sm:tracking-[0.08em] rounded-lg transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap', active ? 'bg-card-bg text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
+  <button onClick={onClick} aria-pressed={active} className={cn('shrink-0 px-2 py-1.5 text-[9px] sm:px-3 sm:py-2 sm:text-[10px] md:px-4 md:text-[11px] font-black uppercase tracking-[0.06em] sm:tracking-[0.08em] rounded-lg transition-all duration-300 flex items-center gap-1.5 whitespace-nowrap', active ? 'bg-card text-primary shadow-elite' : 'text-text-muted hover:text-main')}>
     {icon} {label}
   </button>
 );
