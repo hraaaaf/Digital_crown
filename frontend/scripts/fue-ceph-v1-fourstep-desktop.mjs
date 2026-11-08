@@ -192,7 +192,13 @@ try {
     }, { timeout: 45000 });
     await page.getByRole('button', { name: 'Sauvegarder l’analyse céphalométrique' }).click();
     const response = await waiter;
-    assert(response.status() === 200, 'Save clinical notes HTTP ' + response.status());
+    if (response.status() !== 200) {
+      // Preserve exact server refusal. A 409 is not an excuse to disable
+      // scientific CAS or forge persistence through client-only state.
+      const diagnostic = (await response.text()).slice(0, 1200);
+      throw Error('Save clinical notes HTTP ' + response.status()
+        + ' details=' + diagnostic);
+    }
     return { notes_unverified: true, save_http: response.status() };
   });
   await check('SECOND_STUDY_HAS_NO_OLDER_CLINICAL_INPUTS', async () => {
