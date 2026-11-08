@@ -342,3 +342,58 @@ def test_event_sql_constraints_reject_unknown_enums_and_invalid_manual_facts():
                "method": "KIOSK_QR", "state_before": "PLANNED", "state_after": "PLANNED"},
         ))
         session.commit()
+
+
+
+def test_persisted_visit_rejects_missing_or_impossible_arrival_and_queue_facts():
+    from datetime import datetime, timedelta, timezone
+
+    import pytest
+    from sqlalchemy.exc import IntegrityError
+    from sqlalchemy.orm import Session
+    from queue_core.persistence.models import QueueTenant, QueueLine, QueueVisitRecord
+
+    engine = _fk_enforcing_queue_db()
+    now = datetime(2026, 11, 8, 9, tzinfo=timezone.utc)
+    with Session(engine) as session:
+        session.add(QueueTenant(id="T", timezone_name="Africa/Casablanca", created_at_utc=now))
+        session.commit()
+        session.add(QueueLine(id="Q", tenant_id="T", queue_key="main"))
+        session.commit()
+
+        defaults = dict(
+            tenant_id="T", queue_id="Q", visit_kind="APPOINTMENT",
+            status="PLANNED", scheduled_at_utc=now,
+            arrival_confirmed_at_utc=None, waiting_since_utc=None, queue_sequence=None,
+        )
+        cases = [
+            dict(status="WAITING"),
+            dict(status="WAITING", arrival_confirmed_at_utc=now, queue_sequence=1),
+            dict(status="CALLED", arrival_confirmed_at_utc=now, waiting_since_utc=now),
+            dict(status="DONE"),
+            dict(status="NO_SHOW", arrival_confirmed_at_utc=now, waiting_since_utc=now, queue_sequence=1),
+            dict(status="PLANNED", arrival_confirmed_at_utc=now, waiting_since_utc=now),
+            dict(status="WAITING", arrival_confirmed_at_utc=now,
+                 waiting_since_utc=now - timedelta(minutes=1), queue_sequence=1),
+            dict(status="WAITING", arrival_confirmed_at_utc=now,
+                 waiting_since_utc=now, queue_sequence=0),
+            dict(status="CANCELLED", waiting_since_utc=now),
+            dict(status="NO_SHOW", visit_kind="WALK_IN", scheduled_at_utc=None),
+        ]
+        for index, changes in enumerate(cases):
+            session.add(QueueVisitRecord(
+                id=f"BAD-{index}", **{**defaults, **changes},
+            ))
+            with pytest.raises(IntegrityError):
+                session.commit()
+            session.rollback()
+
+        session.add(QueueVisitRecord(id="GOOD-W", **{
+            **defaults, "status": "WAITING", "arrival_confirmed_at_utc": now,
+            "waiting_since_utc": now, "queue_sequence": 1,
+        }))
+        session.add(QueueVisitRecord(id="GOOD-N", **{
+            **defaults, "status": "NO_SHOW",
+        }))
+        session.commit()
+        assert session.get(QueueVisitRecord, "GOOD-W").queue_sequence == 1

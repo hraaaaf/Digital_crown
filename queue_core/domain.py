@@ -111,6 +111,8 @@ class QueueVisit:
             raise QueueDomainError("APPOINTMENT_TIME_REQUIRED")
         if self.kind is VisitKind.WALK_IN and self.scheduled_at is not None:
             raise QueueDomainError("WALK_IN_CANNOT_HAVE_APPOINTMENT_TIME")
+        if self.status is VisitStatus.NO_SHOW and self.kind is not VisitKind.APPOINTMENT:
+            raise QueueDomainError("NO_SHOW_ONLY_APPOINTMENT")
         for field_name in ("scheduled_at", "arrival_confirmed_at", "waiting_since"):
             value = getattr(self, field_name)
             if value is not None:

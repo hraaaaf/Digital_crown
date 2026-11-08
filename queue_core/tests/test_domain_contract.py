@@ -473,3 +473,8 @@ def test_event_contract_rejects_false_actor_method_and_cancel_reason():
             event_type=QueueEventType.CANCELLED,
             actor_kind=ActorKind.HUMAN, reason_code="", **base,
         )
+
+
+def test_walkin_cannot_be_instantiated_as_no_show():
+    with pytest.raises(QueueDomainError, match="NO_SHOW_ONLY_APPOINTMENT"):
+        visit("W", VisitKind.WALK_IN, VisitStatus.NO_SHOW)

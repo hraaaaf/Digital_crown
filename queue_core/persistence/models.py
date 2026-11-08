@@ -97,6 +97,31 @@ class QueueVisitRecord(QueueBase):
             name="ck_queue_visit_status",
         ),
         CheckConstraint("version >= 0", name="ck_queue_visit_version_nonnegative"),
+        CheckConstraint(
+            "status <> 'NO_SHOW' OR visit_kind = 'APPOINTMENT'",
+            name="ck_queue_no_show_only_appointment",
+        ),
+        CheckConstraint(
+            "status NOT IN ('WAITING', 'CALLED', 'CHAIR', 'DONE') OR "
+            "(arrival_confirmed_at_utc IS NOT NULL AND waiting_since_utc IS NOT NULL "
+            "AND queue_sequence IS NOT NULL AND queue_sequence >= 1)",
+            name="ck_queue_present_visit_requires_arrival_and_sequence",
+        ),
+        CheckConstraint(
+            "status NOT IN ('PLANNED', 'EN_ROUTE', 'NO_SHOW') OR "
+            "arrival_confirmed_at_utc IS NULL",
+            name="ck_queue_unarrived_status_no_arrival_fact",
+        ),
+        CheckConstraint(
+            "(arrival_confirmed_at_utc IS NULL AND waiting_since_utc IS NULL) OR "
+            "(arrival_confirmed_at_utc IS NOT NULL AND waiting_since_utc IS NOT NULL "
+            "AND waiting_since_utc >= arrival_confirmed_at_utc)",
+            name="ck_queue_waiting_timestamp_matches_arrival",
+        ),
+        CheckConstraint(
+            "queue_sequence IS NULL OR queue_sequence >= 1",
+            name="ck_queue_sequence_positive_when_present",
+        ),
         Index("ix_queue_visits_tenant_queue_status", "tenant_id", "queue_id", "status"),
     )
 

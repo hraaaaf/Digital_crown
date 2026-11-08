@@ -12,7 +12,7 @@ G1 corrections tested: prioritized due appointments, audit override, correct A/B
 Persistence: isolated tenant-scoped chair ownership with unique active resource and CHAIR iff held; check-in method and resource references in audit; strict SQL event type/state enums; sensitive audit reasons and actor/method constraints.
 Direct Windows Python 3.12 command: python -m pytest -q queue_core/tests --tb=short
 Observed output: ........................... [100%]
-Observed result: 27 passed in 0.54s
+Observed result after arrival/NO_SHOW invariant SQL fixes: 29 passed in 0.50s
 pytest_exit=0
 Python compileall queue_core: exit 0
 git diff --check must be confirmed before exact final commit.

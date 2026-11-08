@@ -1,4 +1,7 @@
-### LOT08.1 / PR #1234 — 2026-11-08 — Independent review #3 P2 corrected
+### LOT08.1 / PR #1234 — 2026-11-08 — Independent review #4 P2 corrected
+
+Separate Codex CLI read-only review of source d5b2babf found P2 SQL schema allowed WAITING without ARRIVED/waiting timestamp/queue sequence. Fixed DB checks preserving domain invariants for WAITING/CALLED/CHAIR/DONE; denied arrival on PLANNED/EN_ROUTE/NO_SHOW and inconsistent timestamps. New negative SQLite fixture test. Direct Windows Python 3.12 **29/29 PASS** (plus NO_SHOW appointment-only negative cases). Still review exact new HEAD before merge; no durable DB, patient data or migrations.
+
 
 Separate Codex CLI read-only session compared source SHA 136d9b92 to updated origin/master 16f531f0. One P2: QueueEventRecord accepted event_type/state_before/state_after outside G1 enums, risking uninterpretable audit. Fixed SQL checks on all three values, mandatory reasons for sensitive events, and actor/method consistency for check-in and NO_SHOW (with corresponding Python domain validation). New negative synthetic SQLite/domain tests. **27/27 Windows Python 3.12 direct PASS**. Reviewer approval remains pending for new SHA; no GitHub Actions intentionally run or patient use authorized.
 
