@@ -76,6 +76,11 @@ jobs:
             backend/tests/test_media_core_timeline_api.py \
             backend/tests/test_media_core_c7_certification.py \
             backend/tests/test_cephalo_four_part_report.py -q
+      - name: DC-DOS-01 patient-switch media UI race and blob revocation regression
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/ortho/components/OrthoMediaRecordPanel.test.tsx
+          npx tsc --noEmit --pretty false
       - name: Start isolated T2 FastAPI runtime (real JWT and workstation)
         run: |
           python scripts/t2_runtime_server.py > /tmp/p2ter-backend.log 2>&1 &
