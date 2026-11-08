@@ -132,7 +132,10 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
     },
   );
 
-  it('revokes an already opened A PDF object URL when B replaces the patient', async () => {
+  it.each([
+    ['window handle', { closed: false } as Window],
+    ['noopener null return (tab may be open)', null],
+  ])('revokes an A PDF URL after patient B navigation with %s', async (_, popupReturn) => {
     const originalCreate = Object.getOwnPropertyDescriptor(URL, 'createObjectURL');
     const originalRevoke = Object.getOwnPropertyDescriptor(URL, 'revokeObjectURL');
     const blobUrl = 'blob:synthetic-patient-a-pdf';
@@ -146,7 +149,7 @@ describe('DC-DOS-01 patient document archive identity switch',()=>{
     });
     // Native noopener popouts may return null. An explicit non-null opener
     // here tests the URL that remains alive until the patient identity changes.
-    const openSpy = vi.spyOn(window, 'open').mockReturnValue({ closed: false } as Window);
+    const openSpy = vi.spyOn(window, 'open').mockReturnValue(popupReturn);
     const timers = vi.spyOn(window, 'setTimeout');
     try {
       get.mockImplementation((url: string) => {
