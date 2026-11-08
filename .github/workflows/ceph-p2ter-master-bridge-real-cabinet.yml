@@ -356,6 +356,67 @@ jobs:
           print("CEPH_V1_EXPERIMENTAL_FOURSTEP_PERSISTENCE_AND_DRAFT_PASS")
           print("NOT_A_COMPLETE_74_FUE_BATTERY_OR_CLINICAL_RELEASE")
           PY
+      - name: DC-DOS-01 seed three synthetic patients and two separate tenants in disposable T2
+        run: |
+          python -m py_compile scripts/ceph_dc_dos01_seed_t2.py
+          python -m scripts.ceph_dc_dos01_seed_t2 | tee /tmp/dc-dos01-seed.log
+          fixture="$(python - <<'PY'
+          import json
+          lines=open('/tmp/dc-dos01-seed.log').read().splitlines()
+          raw=next(x.split('=',1)[1] for x in lines if x.startswith("DC_DOS01_SYNTHETIC_FIXTURE="))
+          fixture=json.loads(raw)
+          assert fixture["synthetic_only"] is True
+          print(json.dumps(fixture,separators=(',',':')))
+          PY
+          )"
+          echo "DC_DOS01_FIXTURE=$fixture" >> "$GITHUB_ENV"
+      - name: DC-DOS-01 real React SPA and two-cabinet JWT Media Core isolation
+        working-directory: frontend
+        run: |
+          node --check scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
+          node scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
+      - name: DC-DOS-01 verify seven evidence assertions, screenshots and SQLite tenant ownership
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from backend import database,models
+          from backend.models_media_core import ClinicalAsset
+          root=Path("artifacts/ceph-v1-dos01-multitenant")
+          report=json.loads((root/"report.json").read_text())
+          assert report["head"]==os.environ["PRODUCT_HEAD"]
+          assert report["case_id"]=="DC-DOS-01"
+          assert report["status"]=="SUBLOT_AUTOMATED_PASS"
+          assert report["synthetic_only"] is True
+          assert report["official_fue_complete"] is False
+          assert report["clinical_release"] is False
+          assert len(report["checks"])==7 and all(c["status"]=="PASS" for c in report["checks"])
+          assert len(report["shots"])==5
+          for fn in report["shots"]:
+              p=root/fn
+              assert p.is_file() and p.stat().st_size>150
+              with p.open("rb") as handle:
+                  assert handle.read(8)==bytes.fromhex("89504e470d0a1a0a"),fn
+          fixture=json.loads(os.environ["DC_DOS01_FIXTURE"])
+          with database.SessionLocal() as db:
+              for name,source in (("patient_a","a"),("patient_b","b"),("patient_x","x")):
+                  pid=fixture[name]
+                  patient=db.get(models.Patient,pid)
+                  assert patient is not None
+                  assets=db.query(ClinicalAsset).filter(
+                      ClinicalAsset.patient_id==pid,
+                      ClinicalAsset.source_kind!="DERIVED",
+                  ).all()
+                  assert len(assets)==1,(name,len(assets))
+                  assert assets[0].patient_id==pid
+                  assert assets[0].employer_id==patient.employer_id
+                  assert assets[0].provenance_json["ingestion_channel"]=="ORTHO_STUDIO"
+              assert db.get(models.Patient,fixture["patient_a"]).employer_id==db.get(models.Patient,fixture["patient_b"]).employer_id
+              assert db.get(models.Patient,fixture["patient_a"]).employer_id!=db.get(models.Patient,fixture["patient_x"]).employer_id
+              assert db.get(models.CephaloAnalysis,fixture["study_b"]).patient_id==fixture["patient_b"]
+          print("DC_DOS01_PATIENT_SWITCH_MULTI_TENANT_SYNTHETIC_SUBLOT_PASS")
+          print("OFFICIAL_FUE_74_D_STILL_PARTIAL_REQUIRES_DOCUMENT_SPLIT_CACHE_COVERAGE")
+          PY
       - name: Dump isolated runtime diagnostic on failure
         if: failure()
         run: |
@@ -370,5 +431,6 @@ jobs:
             artifacts/ceph-p2ter-fue-i/
             artifacts/ceph-r23g4-reference-ui/
             artifacts/ceph-v1-fourstep-fue/
+            artifacts/ceph-v1-dos01-multitenant/
           if-no-files-found: warn
           retention-days: 30
