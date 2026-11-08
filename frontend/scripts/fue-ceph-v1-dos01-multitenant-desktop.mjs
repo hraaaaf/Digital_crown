@@ -405,6 +405,129 @@ try {
     return {foreign_own_x_two_panes:true,foreign_patient_a_split_denied:true,
       dc_dos02_x_canonical_asset_id_preserved:true};
   });
+  await verify('DC_DOS02_REAL_PHOTO_RADIO_PDF_IMPORT_TIMELINE_R3_SOURCE_IDS',async()=>{
+    const specs=[
+      {kind:'photo',type:'PHOTO',timepoint:'T0',mime:'image/png',name:'DC-DOS02-NONCLINICAL-photo.png'},
+      {kind:'radio',type:'RADIOGRAPH',timepoint:'T1',mime:'image/png',name:'DC-DOS02-NONCLINICAL-radio.png'},
+      {kind:'document',type:'DOCUMENT',timepoint:'T2',mime:'application/pdf',name:'DC-DOS02-NONCLINICAL-document.pdf'},
+    ];
+    checkTrue(specs.every(s=>f.dos02_imports?.[s.kind]?.path &&
+      /^[0-9a-f]{64}$/.test(f.dos02_imports[s.kind]?.sha256)),
+      'DC-DOS-02 synthetic import fixtures not source-verified');
+    const uploaded={};
+    for(const s of specs) {
+      const fixture=f.dos02_imports[s.kind];
+      const bytes=await fs.readFile(fixture.path);
+      checkTrue(crypto.createHash('sha256').update(bytes).digest('hex')===fixture.sha256,
+        'Synthetic fixture SHA256 mismatch: '+s.kind);
+      const res=await ownerApi.post('/api/patients/'+f.patient_a+'/assets/import',{
+        headers:{Authorization:'Bearer '+ownerJwt},
+        multipart:{
+          file:{name:s.name,mimeType:s.mime,buffer:bytes},
+          asset_type:s.type,source_kind:'UPLOAD',timepoint:s.timepoint,
+        },
+      });
+      checkTrue(res.status()===201,'DC-DOS-02 import '+s.kind+' HTTP '+res.status()+' '+(await res.text()).slice(0,250));
+      const created=await res.json();
+      checkTrue(Number.isSafeInteger(created.id) && Number.isSafeInteger(created.thumbnail_asset_id)
+        && created.id!==assets.a && created.id!==created.thumbnail_asset_id
+        && created.asset_type===s.type && created.timepoint===s.timepoint
+        && created.mime_type===s.mime && created.patient_id===f.patient_a,
+        'New '+s.kind+' original asset ID/type/provenance mismatch');
+      const original=await get(ownerApi,ownerJwt,'/api/patients/'+f.patient_a+'/assets/'+created.id+'/content');
+      checkTrue(original.status()===200 &&
+        crypto.createHash('sha256').update(await original.body()).digest('hex')===fixture.sha256 &&
+        original.headers()['cache-control']==='private, no-store',
+        'Original '+s.kind+' bytes/HTTP headers not verified');
+      await deny(ownerApi,ownerJwt,'/api/patients/'+f.patient_b+'/assets/'+created.id+'/content');
+      await deny(foreignApi,foreignJwt,'/api/patients/'+f.patient_a+'/assets/'+created.id+'/content');
+      uploaded[s.kind]={id:created.id,thumbnail_asset_id:created.thumbnail_asset_id,
+        sha256:fixture.sha256,asset_type:s.type,timepoint:s.timepoint};
+    }
+    checkTrue(new Set(Object.values(uploaded).map(x=>x.id)).size===3,
+      'Imported source ClinicalAsset IDs collided');
+    const timeline=await own(ownerApi,ownerJwt,'/api/patients/'+f.patient_a+'/assets');
+    checkTrue(timeline.items.length===4 && timeline.items.filter(x=>x.source_kind==='UPLOAD').length===3,
+      'DC-DOS-02 imported source duplicated or absent in bounded A timeline');
+    for(const s of specs){
+      const row=timeline.items.filter(x=>x.id===uploaded[s.kind].id);
+      checkTrue(row.length===1 && row[0].thumbnail_asset_id===uploaded[s.kind].thumbnail_asset_id &&
+        row[0].timepoint===s.timepoint && row[0].asset_type===s.type &&
+        !('storage_key' in row[0]) && !('sha256' in row[0]),
+        'Canonical original ID/derivative leaked or lost in API timeline: '+s.kind);
+    }
+
+    const split='[data-r3-1-split="two-columns"]';
+    const mediaSelector=split+' [data-v15-071-viewslot="imagerie"]';
+    await openPatient(page,f.patient_a,false,'media');
+    await page.locator(split).waitFor({state:'visible',timeout:35000});
+    const media=page.locator(mediaSelector);
+    for(const s of specs) {
+      const assetId=uploaded[s.kind].id;
+      const item=media.locator('[data-testid="media-asset-rail"] article[data-clinical-asset-id="'+assetId+'"]');
+      await item.waitFor({state:'visible',timeout:30000});
+    }
+    checkTrue(await media.locator('[data-testid="media-asset-rail"] article').count()===4,
+      'Real R3 patient A did not show exactly one original per imported modality');
+    checkTrue(await media.getByRole('button',{name:'Importer'}).count()===0,
+      'Read-only R3 exposed a media write action');
+    await shot('12-dos02-multimodal-a-real-split');
+    let pdfInk=0;
+    for(const s of specs) {
+      const assetId=uploaded[s.kind].id;
+      const item=media.locator('[data-testid="media-asset-rail"] article[data-clinical-asset-id="'+assetId+'"]');
+      await item.locator('button').first().click();
+      const modal=page.getByRole('dialog',{name:'Visionneuse média clinique'});
+      await modal.waitFor({state:'visible',timeout:30000});
+      await page.waitForFunction(id=>document.querySelector('[data-testid="media-inline-viewer"]')?.getAttribute('data-clinical-asset-id')===String(id),
+        assetId,{timeout:20000});
+      if(s.kind==='document'){
+        const canvas=modal.locator('canvas[data-testid="patient-pdf-page-canvas"][data-pdf-rendered="true"]');
+        await canvas.waitFor({state:'visible',timeout:35000});
+        const pixels=await canvas.evaluate(el=>{
+          const data=el.getContext('2d')?.getImageData(0,0,el.width,el.height).data||[];
+          let ink=0;
+          for(let i=0;i<data.length;i+=64)if(data[i]<160&&data[i+1]<160&&data[i+2]<160)ink++;
+          return {width:el.width,height:el.height,ink};
+        });
+        checkTrue(pixels.width>450 && pixels.height>500 && pixels.ink>12,
+          'DC-DOS-02 imported document PDF BLANK canvas: '+JSON.stringify(pixels));
+        checkTrue(await media.locator('iframe').count()===0 &&
+          await modal.locator('iframe').count()===0,
+          'DC-DOS-02 rendered unsafe/blank browser PDF iframe');
+        pdfInk=pixels.ink;
+        await shot('13-dos02-imported-pdf-canvas-visible');
+      }else{
+        const preview=modal.locator('img[alt="Média clinique"]');
+        await preview.waitFor({state:'visible',timeout:30000});
+        checkTrue((await preview.getAttribute('src'))?.startsWith('blob:'),
+          'DC-DOS-02 imported image failed authenticated preview '+s.kind);
+      }
+      await modal.getByRole('button',{name:'Fermer la visionneuse'}).click();
+      await modal.waitFor({state:'hidden',timeout:20000});
+    }
+    const importedIds=Object.values(uploaded).map(x=>x.id);
+    await openPatient(page,f.patient_b,false,'media');
+    await page.locator(split).waitFor({state:'visible',timeout:35000});
+    await page.waitForFunction(sel=>document.querySelector(sel)?.textContent?.includes('T2-DC-DOS01-B'),
+      split+' [data-v15-071-viewslot="dossier"]',{timeout:30000});
+    const mediaB=page.locator(mediaSelector);
+    await mediaB.locator('[data-testid="media-asset-rail"] article').first().waitFor({state:'visible'});
+    for(const id of importedIds)checkTrue(await mediaB.locator('article[data-clinical-asset-id="'+id+'"]').count()===0,
+      'Patient A imported asset ID remained visible on B split');
+    await openPatient(foreignPage,f.patient_x,false,'media');
+    await foreignPage.locator(split).waitFor({state:'visible',timeout:35000});
+    const foreignMedia=foreignPage.locator(mediaSelector);
+    await foreignMedia.locator('[data-testid="media-asset-rail"] article').first().waitFor({state:'visible'});
+    for(const id of importedIds)checkTrue(await foreignMedia.locator('article[data-clinical-asset-id="'+id+'"]').count()===0,
+      'Patient A imported source leaked to foreign cabinet X split');
+    proof.dos02_source_ids=uploaded;
+    return {photo_original_id:uploaded.photo.id,radio_original_id:uploaded.radio.id,
+      pdf_original_id:uploaded.document.id,three_sources_one_identity_each:true,
+      pdf_canvas_not_blank:true,pdf_canvas_ink_samples:pdfInk,
+      no_browser_pdf_iframe:true,read_only_split:true,patient_a_sources_absent_in_b_and_x:true,
+      clinical_release:false};
+  });
   proof.status='SUBLOT_AUTOMATED_PASS';
 }catch(e) {
   proof.status='SUBLOT_FAILED';
@@ -422,5 +545,5 @@ console.log('DC_DOS01_SYNTHETIC_REAL_CABINET_RESULT',JSON.stringify({
   screenshots:proof.shots.length,
 }));
 checkTrue(proof.status==='SUBLOT_AUTOMATED_PASS' &&
-  proof.checks.length===10 && proof.checks.every(x=>x.status==='PASS'),
+  proof.checks.length===11 && proof.checks.every(x=>x.status==='PASS'),
   'DC-DOS-01 sublot not proven: read report.json, never claim official FUE PASS');
