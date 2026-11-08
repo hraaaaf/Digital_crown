@@ -479,11 +479,18 @@ class BaseTemplate:
         """
         selected_template = self._get_val(config, 'selected_template', 'swiss')
         
+        # Empty custom header lines must never print fictitious clinician names.
+        # Preserve explicitly configured bilingual branding verbatim.
         fr_lines = self._get_val(config, 'header_lines_fr')
-        if not fr_lines: fr_lines = ["Dr. Nom Prénom", "Chirurgien Dentiste"]
-        
+        if not fr_lines:
+            practitioner_fr = str(self._get_val(config, 'nom_praticien') or '').strip()
+            fr_lines = ([practitioner_fr, "Chirurgien Dentiste"]
+                        if practitioner_fr else ["Chirurgien Dentiste"])
+
         ar_lines = self._get_val(config, 'header_lines_ar')
-        if not ar_lines: ar_lines = ["د. الإسم الكامل", "طبيب جراح للأسنان"]
+        if not ar_lines:
+            practitioner_ar = str(self._get_val(config, 'nom_praticien_ar') or '').strip()
+            ar_lines = [practitioner_ar, "طبيب جراح للأسنان"] if practitioner_ar else []
 
         # Échelle globale de l'en-tête
         h_scale = self._get_val(config, 'header_scale', 1.0)

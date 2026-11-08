@@ -13,6 +13,7 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture, PageCounter
 from backend.services.generators.document_layout_safety import join_unbreakable
+from backend.services.generators.pdf_output_safety import reserve_generated_pdf_path
 
 
 _ALLOWED_PAGE_SIZES = {"A4": A4, "A5": A5}
@@ -180,7 +181,7 @@ class LibreGenerator:
         patient_label = f"{getattr(patient, 'nom', '')}_{getattr(patient, 'prenom', '')}"
         safe_name = _safe_filename_component(patient_label, "PATIENT")
         filename = f"LIBRE_{date_str}_{safe_titre}_{safe_name}.pdf"
-        return os.path.join(save_dir, filename)
+        return reserve_generated_pdf_path(save_dir, filename)
 
     def _draw_canvas(self, canvas, doc, config=None, user=None):
         self.base_template.draw_static_elements(

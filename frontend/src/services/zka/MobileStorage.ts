@@ -22,6 +22,17 @@ const STORE_BRIDGE_CONTEXT_ID = 'zka_bridge_context';
 const STORE_ACTION_QUEUE_ID = 'zka_action_queue_v2';
 const LEGACY_ACTION_QUEUE_ID = 'zka_action_queue';
 const STORE_BIOMETRIC_VAULT_ID = 'zka_biometric_vault_v1';
+const STORE_PENDING_DOCUMENT_ARCHIVE_ID = 'zka_pending_document_archive_v1';
+
+/** Opaque operation identity only: never persist the medical PDF or payload. */
+export interface PendingPocketDocumentArchive {
+  intentKey: string;
+  patientId: number;
+  documentType: 'ordonnance' | 'certificat' | 'devis' | 'libre';
+  cabinetPublicId: string;
+  deviceId: string;
+  savedAt: number;
+}
 
 export interface ZKACredentials {
   publicId: string;
@@ -226,6 +237,7 @@ async function clearSessionData(): Promise<void> {
   await mobileStore().removeItem(STORE_ACTION_QUEUE_ID);
   await mobileStore().removeItem(LEGACY_ACTION_QUEUE_ID);
   await mobileStore().removeItem(STORE_BIOMETRIC_VAULT_ID);
+  await mobileStore().removeItem(STORE_PENDING_DOCUMENT_ARCHIVE_ID);
   biometricAccessToken = null;
   unlockedVault = null;
   try {
@@ -298,6 +310,40 @@ async function refreshCredentialsInternal(creds: ZKACredentials): Promise<ZKACre
 }
 
 export const MobileStorage = {
+  async getPendingDocumentArchive(): Promise<PendingPocketDocumentArchive | null> {
+    const creds = await rawCredentials();
+    if (!creds?.device_id) return null;
+    const pending = await mobileStore().getItem<PendingPocketDocumentArchive>(STORE_PENDING_DOCUMENT_ARCHIVE_ID);
+    if (!pending) return null;
+    if (pending.cabinetPublicId !== creds.publicId || pending.deviceId !== creds.device_id) {
+      await mobileStore().removeItem(STORE_PENDING_DOCUMENT_ARCHIVE_ID);
+      return null;
+    }
+    return pending;
+  },
+
+  async savePendingDocumentArchive(
+    intentKey: string, patientId: number, documentType: PendingPocketDocumentArchive['documentType'],
+  ): Promise<void> {
+    const creds = await rawCredentials();
+    if (!creds?.device_id) throw new Error('Session mobile non appairée.');
+    const existing = await this.getPendingDocumentArchive();
+    if (existing && existing.intentKey !== intentKey) {
+      throw new Error('Une archive Pocket est encore à vérifier. Ouvrez le dossier patient concerné.');
+    }
+    await mobileStore().setItem<PendingPocketDocumentArchive>(STORE_PENDING_DOCUMENT_ARCHIVE_ID, {
+      intentKey, patientId, documentType,
+      cabinetPublicId: creds.publicId, deviceId: creds.device_id, savedAt: Date.now(),
+    });
+  },
+
+  async clearPendingDocumentArchive(intentKey: string): Promise<void> {
+    const existing = await this.getPendingDocumentArchive();
+    if (existing?.intentKey === intentKey) {
+      await mobileStore().removeItem(STORE_PENDING_DOCUMENT_ARCHIVE_ID);
+    }
+  },
+
   async saveCredentials(creds: ZKACredentials, expectedEpoch?: number): Promise<void> {
     if (expectedEpoch !== undefined && mobileSessionEpoch !== expectedEpoch) return;
     if (!/^[0-9a-fA-F]{16}$/.test(creds.publicId)) throw new Error('ID Cabinet invalide.');
@@ -320,6 +366,7 @@ export const MobileStorage = {
       await mobileStore().removeItem(STORE_BRIDGE_CONTEXT_ID);
       await mobileStore().removeItem(STORE_ACTION_QUEUE_ID);
       await mobileStore().removeItem(STORE_BIOMETRIC_VAULT_ID);
+      await mobileStore().removeItem(STORE_PENDING_DOCUMENT_ARCHIVE_ID);
       unlockedVault = null;
       biometricAccessToken = null;
     }

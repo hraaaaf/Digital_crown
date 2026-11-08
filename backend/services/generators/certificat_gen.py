@@ -13,6 +13,7 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_JUSTIFY, TA_LEFT
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
 from backend.services.certificate_signer_policy import resolve_certificate_signer_name
 from backend.services.generators.document_layout_safety import join_unbreakable
+from backend.services.generators.pdf_output_safety import reserve_generated_pdf_path
 
 # Nombres en toutes lettres jusqu'à 31 (plage cliniquement pertinente)
 _DAYS_WORDS = {
@@ -235,7 +236,7 @@ class CertificatGenerator:
         patient_first_name = _safe_filename_component(getattr(patient, 'prenom', ''), 'SANS_PRENOM')
         safe_name = f"{patient_name.upper()}_{patient_first_name}"
         filename = f"CERTIFICAT_{safe_name}_{date_str}.pdf"
-        return os.path.join(save_dir, filename)
+        return reserve_generated_pdf_path(save_dir, filename)
 
     def _draw_canvas(self, canvas, doc, config=None, user=None):
         """Rendu Elite avec signature et QR sûrs."""
