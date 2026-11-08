@@ -3,7 +3,9 @@
 # Does NOT click Install, configure MariaDB, launch Open Dental product, export CSV,
 # or upload binary/window text/screenshot/patient data. Never run on a cabinet PC.
 [CmdletBinding()]
-param()
+param(
+  [switch]$LaunchSetupWizardOnly
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -39,6 +41,15 @@ $report = [ordered]@{
   installer_win32_install_enabled = $false
   installer_win32_install_in_vendor_bounds = $false
   installer_win32_install_semantic_button_proven = $false
+  install_wizard_probe_requested = [bool]$LaunchSetupWizardOnly
+  install_wizard_probe_guard_passed = $false
+  install_button_invocation_attempted = $false
+  install_button_message_delivered = $false
+  setup_wizard_new_window_observed = $false
+  db_service_preexisting = $false
+  db_service_created_observed = $false
+  licence_or_eula_accepted = $false
+  clicked_wizard_next = $false
   installer_win32_probe_completed = $false
   installer_uia_install_button_observed = $false
   installer_uia_new_server_option_observed = $false
@@ -333,7 +344,103 @@ public static class Lot05InitialInstallerCapture {
       $report.initial_installer_window_png_captured = $false
     }
   }
-  if ($report.official_trial_window_title_allowlisted) {
+  # Explicitly bounded owner-authorized synthetic/demo VM action.
+  # The official trial instructions specify that Install FIRST opens the Setup
+  # Wizard. This probe stops at that first screen, without any EULA acceptance,
+  # wizard Next/Finish/confirmation, MariaDB configuration or patient access.
+  if ($LaunchSetupWizardOnly) {
+    if (-not $report.installer_win32_install_semantic_button_proven -or
+        $report.installer_win32_install_candidate_count -ne 1 -or
+        -not $report.installer_uia_new_server_option_observed -or
+        -not $report.official_binary_authenticode_valid -or
+        -not $report.synthetic_gui_prerequisite_verified -or
+        $installerHwnd -eq [IntPtr]::Zero -or
+        $null -eq $installHwnd -or
+        $installHwnd -eq [IntPtr]::Zero) {
+      throw 'INSTALL_WIZARD_PROBE_GUARDS_NOT_MET'
+    }
+    $existingDbService = @(
+      Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue
+    )
+    if ($existingDbService.Count -gt 0) {
+      $report.db_service_preexisting = $true
+      throw 'ISOLATED_VM_REQUIRES_NO_DATABASE_SERVICE'
+    }
+    $report.install_wizard_probe_guard_passed = $true
+
+    # BM_CLICK via bounded SendMessageTimeout: the exact identified native
+    # Button child only. No simulated coordinates, keys, UIA fallback or UAC
+    # circumvention. A failed delivery is a strict stop (no second attempt).
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class Lot05WizardSingleClick {
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern IntPtr SendMessageTimeout(
+    IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam,
+    uint flags, uint timeoutMs, out IntPtr result);
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern bool SetForegroundWindow(IntPtr hwnd);
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+}
+'@
+    $null = [Lot05WizardSingleClick]::SetForegroundWindow($installerHwnd)
+    Start-Sleep -Milliseconds 200
+    if ([Lot05WizardSingleClick]::GetForegroundWindow() -ne $installerHwnd) {
+      throw 'SIGNED_INSTALLER_NOT_FOREGROUND_NO_CLICK'
+    }
+    $output = [IntPtr]::Zero
+    $report.install_button_invocation_attempted = $true
+    $delivered = [Lot05WizardSingleClick]::SendMessageTimeout(
+      $installHwnd, [uint32]0x00F5, [IntPtr]::Zero, [IntPtr]::Zero,
+      [uint32]2, [uint32]1500, [ref]$output
+    )
+    $report.install_button_message_delivered = (
+      $delivered -ne [IntPtr]::Zero
+    )
+    if (-not $report.install_button_message_delivered) {
+      throw 'INSTALL_BUTTON_MESSAGE_TIMEOUT_NO_RETRY'
+    }
+
+    # After ONE click observe ONLY window existence in the launcher process
+    # tree; never capture its content/titles or interact with the wizard.
+    # A dialog could be EULA/UAC: presence is recorded but NOT accepted.
+    for ($probeCycle = 0; $probeCycle -lt 25; $probeCycle++) {
+      Start-Sleep -Seconds 1
+      $allChildren = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+      for ($depth = 0; $depth -lt 3; $depth++) {
+        foreach ($childProc in $allChildren) {
+          if ($knownIds -contains [int]$childProc.ParentProcessId -and
+              -not ($knownIds -contains [int]$childProc.ProcessId)) {
+            $knownIds += [int]$childProc.ProcessId
+          }
+        }
+      }
+      foreach ($childId in $knownIds) {
+        $childProcess = Get-Process -Id $childId -ErrorAction SilentlyContinue
+        if ($null -ne $childProcess -and
+            $childProcess.MainWindowHandle -ne [IntPtr]::Zero -and
+            $childProcess.MainWindowHandle -ne $installerHwnd) {
+          $report.setup_wizard_new_window_observed = $true
+          break
+        }
+      }
+      if ($report.setup_wizard_new_window_observed) { break }
+    }
+    $newDbService = @(
+      Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue
+    )
+    $report.db_service_created_observed = ($newDbService.Count -gt 0)
+    # No false claim of completed install, even if Win32 message delivered.
+    $report.status = if ($report.setup_wizard_new_window_observed) {
+      'FIRST_WIZARD_WINDOW_OBSERVED_NO_LICENSE_ACCEPTED_NO_IMPORT'
+    } else {
+      'INSTALL_BUTTON_MESSAGE_DELIVERED_WIZARD_NOT_PROVEN'
+    }
+  }
+  if ($report.official_trial_window_title_allowlisted -and
+      -not $LaunchSetupWizardOnly) {
     $report.status = 'SIGNED_OFFICIAL_VENDOR_GUI_LAUNCHER_WINDOW_OBSERVED_ONLY'
   } else {
     $report.status = 'SIGNED_TRIAL_EXECUTED_BUT_GUI_WINDOW_NOT_PROVEN'
@@ -357,6 +464,6 @@ public static class Lot05InitialInstallerCapture {
   )
 }
 Write-Host ('LOT05_H_SIGNED_VENDOR_WINDOW_PROBE=' + $report.status)
-Write-Host 'LOT05_H_NO_INSTALL_NO_DATABASE_NO_CSV_NO_IMPORT'
+Write-Host 'LOT05_H_SINGLE_WIZARD_FIRST_SCREEN_ONLY_NO_EULA_ACCEPTANCE_NO_IMPORT'
 # SUCCESS means bounded probe finished. Artifact JSON determines truth.
 exit 0
