@@ -101,6 +101,8 @@ class QueueVisit:
     version: int = 0
 
     def __post_init__(self) -> None:
+        if not isinstance(self.kind, VisitKind) or not isinstance(self.status, VisitStatus):
+            raise QueueDomainError("VISIT_ENUM_INVALID")
         if not self.visit_id or not self.tenant_id or not self.queue_id:
             raise QueueDomainError("VISIT_SCOPE_REQUIRED")
         if self.version < 0:
@@ -126,6 +128,12 @@ class QueueVisit:
         if self.status in {VisitStatus.PLANNED, VisitStatus.EN_ROUTE, VisitStatus.NO_SHOW}:
             if self.arrival_confirmed_at is not None:
                 raise QueueDomainError("NO_ARRIVAL_STATE_HAS_ARRIVAL_FACT")
+        if (
+            self.arrival_confirmed_at is not None
+            and self.waiting_since is not None
+            and self.waiting_since < self.arrival_confirmed_at
+        ):
+            raise QueueDomainError("WAITING_BEFORE_ARRIVAL")
         if self.status is VisitStatus.CHAIR and self.held_resource_id is None:
             raise QueueDomainError("CHAIR_RESOURCE_REQUIRED")
         if self.status is not VisitStatus.CHAIR and self.held_resource_id is not None:
@@ -147,6 +155,13 @@ class QueueEvent:
     method: CheckInMethod | None = None
 
     def __post_init__(self) -> None:
+        if (
+            not isinstance(self.event_type, QueueEventType)
+            or not isinstance(self.actor_kind, ActorKind)
+            or not isinstance(self.state_before, VisitStatus)
+            or not isinstance(self.state_after, VisitStatus)
+        ):
+            raise QueueDomainError("EVENT_ENUM_INVALID")
         object.__setattr__(self, "occurred_at", as_utc(self.occurred_at))
         if not self.actor_ref:
             raise QueueDomainError("ACTOR_REFERENCE_REQUIRED")
@@ -157,7 +172,7 @@ class QueueEvent:
             QueueEventType.NO_SHOW,
             QueueEventType.UNLOCATED_AFTER_CALL,
             QueueEventType.RETURNED_TO_WAITING,
-        } and not self.reason_code:
+        } and (not self.reason_code or not self.reason_code.strip()):
             raise QueueDomainError("AUDIT_REASON_REQUIRED")
 
 
@@ -212,12 +227,25 @@ def check_in(
     at = as_utc(at)
     if not authorized:
         raise QueueDomainError("CHECK_IN_FORBIDDEN")
+    if not isinstance(method, CheckInMethod) or not isinstance(actor_kind, ActorKind):
+        raise QueueDomainError("CHECK_IN_METHOD_INVALID")
     if queue_sequence < 1:
         raise QueueDomainError("QUEUE_SEQUENCE_INVALID")
     if visit.status not in {VisitStatus.PLANNED, VisitStatus.EN_ROUTE, VisitStatus.NO_SHOW}:
         raise QueueDomainError("CHECK_IN_STATE_CONFLICT")
-    if visit.status is VisitStatus.NO_SHOW and not reentry_reason:
-        raise QueueDomainError("NO_SHOW_REENTRY_REASON_REQUIRED")
+    if visit.kind is VisitKind.WALK_IN and method is CheckInMethod.KIOSK_QR:
+        raise QueueDomainError("WALK_IN_KIOSK_CHECK_IN_FORBIDDEN")
+    if method is CheckInMethod.STAFF and actor_kind is not ActorKind.HUMAN:
+        raise QueueDomainError("STAFF_CHECK_IN_REQUIRES_HUMAN")
+    if method is CheckInMethod.KIOSK_QR and actor_kind is not ActorKind.DEVICE:
+        raise QueueDomainError("KIOSK_CHECK_IN_REQUIRES_DEVICE")
+    if visit.status is VisitStatus.NO_SHOW:
+        if method is not CheckInMethod.STAFF:
+            raise QueueDomainError("NO_SHOW_REENTRY_REQUIRES_STAFF")
+        if not reentry_reason or not reentry_reason.strip():
+            raise QueueDomainError("NO_SHOW_REENTRY_REASON_REQUIRED")
+    if visit.queue_sequence is not None and queue_sequence <= visit.queue_sequence:
+        raise QueueDomainError("QUEUE_SEQUENCE_INVALID")
     next_visit = replace(
         visit,
         status=VisitStatus.WAITING,
@@ -257,23 +285,53 @@ def call_visit(
     at: datetime,
     actor_ref: str,
     authorized: bool,
+    candidates: Iterable[QueueVisit],
+    resource_id: str,
+    available_resource_ids: frozenset[str],
+    tenant_timezone: str,
     actor_kind: ActorKind = ActorKind.HUMAN,
     out_of_order_reason: str | None = None,
     can_override: bool = False,
 ) -> TransitionResult:
-    """Call a waiting visit, requiring a reasoned privilege for an override."""
+    """Call only a currently eligible visit; a deviation needs audited override.
+
+    The future 08.3 service MUST read the complete server-side candidate set,
+    authorize the actor and commit this plan under one transactional lock.
+    A client-supplied or partial candidate list is not an authoritative queue.
+    """
 
     at = as_utc(at)
     if not authorized:
         raise QueueDomainError("CALL_FORBIDDEN")
+    if not isinstance(actor_kind, ActorKind) or actor_kind is not ActorKind.HUMAN:
+        raise QueueDomainError("CALL_REQUIRES_HUMAN")
     if visit.status is not VisitStatus.WAITING:
         raise QueueDomainError("CALL_STATE_CONFLICT")
+    ranked = rank_waiting_visits(
+        candidates,
+        tenant_id=visit.tenant_id,
+        queue_id=visit.queue_id,
+        resource_id=resource_id,
+        available_resource_ids=available_resource_ids,
+        evaluated_at=at,
+        tenant_timezone=tenant_timezone,
+    )
+    matching = next((item for item in ranked if item.visit.visit_id == visit.visit_id), None)
+    if matching is None or matching.visit.version != visit.version:
+        raise QueueDomainError("CALL_NOT_ELIGIBLE_OR_STALE")
+    is_override = ranked[0].visit.visit_id != visit.visit_id
+    if is_override and (not can_override or not out_of_order_reason or not out_of_order_reason.strip()):
+        raise QueueDomainError("QUEUE_OVERRIDE_REQUIRED")
     if out_of_order_reason and not can_override:
         raise QueueDomainError("QUEUE_OVERRIDE_FORBIDDEN")
+    if out_of_order_reason is not None and not out_of_order_reason.strip():
+        raise QueueDomainError("AUDIT_REASON_REQUIRED")
+    if not is_override and out_of_order_reason:
+        raise QueueDomainError("QUEUE_OVERRIDE_NOT_REQUIRED")
 
     events: list[QueueEvent] = []
     version = visit.version
-    if out_of_order_reason:
+    if is_override:
         version += 1
         events.append(
             _event(
@@ -365,7 +423,7 @@ def return_to_waiting(
         raise QueueDomainError("RETURN_TO_WAITING_FORBIDDEN")
     if visit.status not in {VisitStatus.CALLED, VisitStatus.CHAIR}:
         raise QueueDomainError("RETURN_TO_WAITING_STATE_CONFLICT")
-    if not reason_code:
+    if not reason_code or not reason_code.strip():
         raise QueueDomainError("AUDIT_REASON_REQUIRED")
     if queue_sequence < 1 or queue_sequence <= (visit.queue_sequence or 0):
         raise QueueDomainError("QUEUE_SEQUENCE_INVALID")
@@ -498,7 +556,7 @@ def cancel_visit(
     at = as_utc(at)
     if not authorized:
         raise QueueDomainError("CANCEL_FORBIDDEN")
-    if not reason_code:
+    if not reason_code or not reason_code.strip():
         raise QueueDomainError("AUDIT_REASON_REQUIRED")
     if visit.status not in {
         VisitStatus.PLANNED,
@@ -590,7 +648,9 @@ def rank_waiting_visits(
             or visit.queue_id != queue_id
             or visit.status is not VisitStatus.WAITING
             or visit.arrival_confirmed_at is None
+            or visit.arrival_confirmed_at > evaluated_at
             or visit.waiting_since is None
+            or visit.waiting_since > evaluated_at
             or visit.queue_sequence is None
             or resource_id not in visit.resource_ids
         ):
@@ -602,9 +662,9 @@ def rank_waiting_visits(
             walk_ins.append(visit)
 
     appointments.sort(
-        key=lambda item: (item.scheduled_at, item.waiting_since, item.queue_sequence, item.visit_id)
+        key=lambda item: (item.scheduled_at, item.arrival_confirmed_at, item.queue_sequence, item.visit_id)
     )
-    walk_ins.sort(key=lambda item: (item.waiting_since, item.queue_sequence, item.visit_id))
+    walk_ins.sort(key=lambda item: (item.arrival_confirmed_at, item.queue_sequence, item.visit_id))
     ordered = [(item, "ELIGIBLE_APPOINTMENT") for item in appointments]
     ordered.extend((item, "ADMITTED_WALK_IN") for item in walk_ins)
     return tuple(RankedVisit(visit=item, rank=index + 1, explanation_code=code) for index, (item, code) in enumerate(ordered))

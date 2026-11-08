@@ -2,6 +2,10 @@
 
 ## LOT08.1 — Queue Core domain contracts — IN PROGRESS
 
+- **2026-11-08 direct independent-review correction (Windows / Remote Desktop Commander):** corrected G1 call-order enforcement against the server-provided full candidate list, confirmed-arrival ordering and accurate 09:05/09:10 fixtures; explicit device-vs-human check-in and no automatic kiosk walk-in/reentry; SQL schema refuses duplicate external appointment reference and cross-tenant resource binding. **19/19 synthetic tests PASS locally on Windows Python 3.12**, compileall PASS, git diff --check PASS, no patient data. Changes must remain DRAFT pending independent post-change review.
+- **Important limits:** the 08.1 pure function cannot attest that its candidate list is complete; future 08.3 service MUST load authoritative candidates inside a locked transaction. Local tests are not a durable/installed engine, fail-safe API, RBAC, appairage, real QR, wall UI or lab recovery proof. Previous GitHub Actions runs belong to the earlier e743e333 head, NOT to any corrected commit. Direct testing requested: do not intentionally launch a new GitHub Actions run; mark corrected commit [skip ci] if pushed.
+- **Next exact:** final direct Windows tests and source/diff review, version all corrections as a new PR #1234 commit, document local stdout, Notion POST; no merge or 08.2 without distinct validation.
+
 - Authorized scope: domain contracts, state transitions, event facts, separate persistence metadata, invariants and FUE-0 tests only.
 - Verified base HEAD: `389d5ebcc64f2c409429dc3e2ed9c8625bb23829` (master after LOT07 bounded closeout); isolated branch: `codex/v15-08-1-queue-contracts-20261108`.
 - G1–G5 are recorded as validated gates in canonical Notion; G6 clears only the delivered LOT07 scope with R3 retained; G7 remains before LOT08 final merge/delivery.

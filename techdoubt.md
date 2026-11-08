@@ -1,3 +1,9 @@
+### LOT08.1 / PR #1234 — 2026-11-08 — Direct Windows review after author correction
+
+**Known bound, do not claim certification:** `call_visit` is a pure domain plan and only ranks the candidate list supplied by its caller. It CANNOT authenticate who assembled that set, whether the list is complete or whether concurrent resource claims remain valid. **08.3 MUST** select the complete current tenant/queue/resource candidates from the authoritative Queue DB while holding the correct transaction/lock, verify G2 permission, state/version, and atomically commit result and audit. No partial or client-supplied candidate list as truth. No durable append-only, crypto, backup/restore, no wall/kiosk security, no patient data enabled by 08.1.
+
+**08.1 review corrections:** normal call may not bypass G1 ranking; exception requires permission + reason + ORDER_OVERRIDE event; arrival-confirmed tiebreak and correct B/W fixtures; kiosk walk-in forbidden, manual reentry after NO_SHOW; isolated external appointment reference uniqueness; tenant FK negative SQL checks. Tested locally Windows Python 3.12 with synthetic data, **19/19** tests. No new GitHub Actions tests by owner request; previous green Actions prove only old e743... candidate. Maintain DRAFT / NO MERGE until separate final-head review and owner gate.
+
 ### LOT07 / 07-C — 2026-10-21 — Playwright T2 Frontdesk POST body, retest required
 
 FUE-G #39608276461 on HEAD 79cb7ed4 failed 422 while probing the new Frontdesk endpoint because the newly written Playwright test helper supplied an unsupported `json` option and omitted the HTTP body. This is a harness error, not proven product failure. The helper now passes `data: json` to Playwright for object-to-JSON serialization. Re-test real backend cases on the final SHA and inspect the result before closing C07C-11. No security assertions were relaxed and no patient/production data were involved.

@@ -64,7 +64,7 @@ class QueueVisitRecord(QueueBase):
     __tablename__ = "queue_visits"
     __table_args__ = (
         UniqueConstraint("tenant_id", "id", name="uq_queue_visits_tenant_id_id"),
-        UniqueConstraint("queue_id", "queue_sequence", name="uq_queue_visits_queue_sequence"),
+        UniqueConstraint("tenant_id", "queue_id", "queue_sequence", name="uq_queue_visits_queue_sequence"),
         ForeignKeyConstraint(["tenant_id"], ["queue_tenants.id"], ondelete="RESTRICT"),
         ForeignKeyConstraint(
             ["tenant_id", "queue_id"],
@@ -158,13 +158,15 @@ class QueueEventRecord(QueueBase):
 class QueueExternalReference(QueueBase):
     __tablename__ = "queue_external_references"
     __table_args__ = (
+        # This 08.1 schema maps appointment references ONLY. Patient identity
+        # mappings are deferred to LOT09 to avoid blocking repeat visits.
+        CheckConstraint("entity_kind = 'APPOINTMENT'", name="ck_queue_external_kind_appointment"),
         UniqueConstraint(
             "tenant_id",
             "source_system",
             "entity_kind",
             "external_id",
-            "visit_id",
-            name="uq_queue_external_ref_visit",
+            name="uq_queue_external_appointment",
         ),
         ForeignKeyConstraint(
             ["tenant_id", "visit_id"],

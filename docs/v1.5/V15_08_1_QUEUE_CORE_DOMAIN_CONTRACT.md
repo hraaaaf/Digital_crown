@@ -17,8 +17,8 @@ States: `PLANNED`, informational `EN_ROUTE`, `WAITING`, `CALLED`, `CHAIR`, `DONE
 | Command | From → to | Required audit / invariant |
 |---|---|---|
 | Check in | PLANNED or EN_ROUTE → WAITING | Authorized actor, UTC timestamp, method, new sequence; ARRIVED + WAITING_ENTERED committed atomically |
-| Re-entry | NO_SHOW → WAITING | Explicit reason; new ARRIVED and sequence; never reuse prior position |
-| Call | WAITING → CALLED | Human authorized action; out-of-order action requires explicit permission and reason; no automatic call/re-call |
+| Re-entry | NO_SHOW → WAITING | Human staff confirmation with explicit reason; new ARRIVED and sequence; never reuse prior position or accept kiosk re-entry automatically |
+| Call | WAITING → CALLED | Human action on an eligible visit selected against the COMPLETE authoritative queue snapshot under server lock; mismatch requires queue.override AND reason, recorded before CALLED; no automatic call/re-call |
 | Recall | CALLED → CALLED | `RECALLED` event only; no hidden state transition |
 | Unlocated after call | CALLED → CALLED | `UNLOCATED_AFTER_CALL` exception event with reason; never `NO_SHOW` |
 | Seat | CALLED → CHAIR | Resource compatibility and availability; resource claim and state change commit atomically |
@@ -26,7 +26,7 @@ States: `PLANNED`, informational `EN_ROUTE`, `WAITING`, `CALLED`, `CHAIR`, `DONE
 | Return to queue | CALLED → WAITING | Explicit reason and new sequence |
 | Exceptional return | CHAIR → WAITING | Explicit reason; resource release and new sequence commit atomically |
 | Cancel | PLANNED / WAITING / CALLED → CANCELLED | Explicit reason; terminal state |
-| Mark no-show | PLANNED → NO_SHOW | Appointment only, scheduled time reached, no arrival fact, manual authorized action and reason |
+| Mark no-show | PLANNED / EN_ROUTE → NO_SHOW | Appointment only, scheduled time reached, no arrival fact, manual authorized action and reason; EN_ROUTE is not presence |
 
 `DONE` and `CANCELLED` are terminal. No-show after an `ARRIVED` event is forbidden. Any resource write and corresponding event/state change are a single transaction obligation for the later command service.
 
@@ -34,7 +34,9 @@ All timestamps are timezone-aware instants normalized to UTC. Tenant display tim
 
 ## Ranking contract and oracle
 
-At each server evaluation, compute callable rank from current `WAITING` visits; do not persist a daily order. Filter by tenant, queue, confirmed arrival, resource compatibility and current resource availability. Appointments with `scheduled_at <= evaluated_at` sort first by appointment instant, waiting-entry instant, stable queue sequence, then visit ID. Admitted walk-ins follow by waiting-entry instant, sequence, then visit ID. Future appointments are not callable. Human override must be explicit, authorized, reasoned and audited. A visit already in `CALLED` is engaged and is never automatically reordered or recalled. Ranking carries no clinical priority.
+At each server evaluation, compute callable rank from current `WAITING` visits; do not persist a daily order. Filter by tenant, queue, confirmed arrival **not later than the evaluation instant**, resource compatibility and current resource availability. Appointments with `scheduled_at <= evaluated_at` sort first by appointment instant, **confirmed arrival instant**, stable queue sequence, then visit ID. Admitted walk-ins follow by **confirmed arrival instant**, sequence, then visit ID. Waiting-entry instant remains a separate audit fact (including after manual return to waiting), not a replacement for ARRIVED in the G1 tie-break. Future appointments are not callable. Human override must be explicit, authorized, reasoned and audited. An authorized staff member may not call a lower-ranked candidate by omitting the reason or by merely having the override permission; an `ORDER_OVERRIDE` event must accompany the exceptional call. A visit already in `CALLED` is engaged and is never automatically reordered or recalled. Ranking carries no clinical priority.
+
+`call_visit` consumes an explicit **candidate set, resource and evaluation instant** and rejects ineligible/stale choices. This pure 08.1 function CANNOT verify that an untrusted caller supplied the complete candidate set: the future **08.3 server service MUST load all authorized tenant/queue candidates from its own DB under the transaction lock**, rank them, and commit the selected transition/event atomically; a client-provided ranking or filtered subset must NEVER be treated as the authoritative queue. Likewise, G2 role grants and QR signature validation are outside 08.1 and MUST be enforced upstream.
 
 Oracle in UTC (tenant IANA timezone separately supplied): A appointment 09:00 arrived 08:45; B appointment 09:00 arrived 09:05; W admitted walk-in arrived 09:02; C appointment 09:10 arrived 09:00. At 09:05: `A → B → W`, C excluded. At 09:10 with none called: `A → B → C → W`. If W was called earlier, W remains engaged and is not recalled by recomputation.
 
@@ -42,13 +44,13 @@ Oracle in UTC (tenant IANA timezone separately supplied): A appointment 09:00 ar
 
 Every accepted transition emits versioned, timestamped event facts with tenant and visit references, actor kind/reference, before/after state, and reason where required. A rejected command must not emit state-changing events. Aggregate version uniqueness is declared per tenant/visit reference. The event table intentionally does not cascade with identifiable visit rows so minimized audit can outlive visit retention; it remains tenant-bound. There is no unrestricted event JSON payload and no clinical foreign key. Append-only enforcement and the transaction boundary are obligations of the later persistence service; 08.1 has no database triggers, engine, or write path and does not claim to enforce them at runtime.
 
-Separate schema tables: tenants, queues, resources, visits, visit-resource compatibility, minimized event log, external references. Composite tenant foreign keys scope queue/resource/visit links. The model is a contract, not an executable migration. Any physical database format, engine, encryption/key custody, backup mechanism, purge executor, or startup/bootstrap design requires separate technical validation before persistent personal data is introduced.
+Separate schema tables: tenants, queues, resources, visits, visit-resource compatibility, minimized event log, external **appointment** references. Composite tenant foreign keys scope queue/resource/visit links. Appointment source reference must be unique across visits per tenant/source/external ID, not just per visit, preventing a single external appointment from silently becoming two Queue visits. The 08.1 reference contract permits only `APPOINTMENT` entity kind; repeating patient identity mappings are deliberately deferred to LOT09. The model is a contract, not an executable migration. Any physical database format, engine, encryption/key custody, backup mechanism, purge executor, or startup/bootstrap design requires separate technical validation before persistent personal data is introduced.
 
 G3 policy carried forward for future implementation: identifiable visit and external-reference data 30 days after closure; minimized audit 12 months; operational logs/ledger 7 days; encrypted backups 7 daily plus 4 weekly; lab targets RPO 1h/RTO 2h. Legal review is required before real-patient use. These retention and recovery controls are not claimed as implemented by 08.1.
 
 ## FUE-0 evidence plan
 
-FUE-0 applies because this sub-lot supplies contracts, pure domain rules, schema metadata and tests only; there is no runnable user-facing workflow. Tests use synthetic identities and times and assert: arrival/event atomic plan; informational EN_ROUTE; no-show boundaries; `UNLOCATED_AFTER_CALL`; override permission; exceptional chair release/requeue; 09:05/09:10 dynamic oracle; tenant/resource filtering; schema isolation and ephemeral schema creation. No browser screenshots are applicable; no UI exists in this sub-lot. CI on the exact PR head is the final automated evidence, not a claim about 08.2–08.6.
+FUE-0 applies because this sub-lot supplies contracts, pure domain rules, schema metadata and tests only; there is no runnable user-facing workflow. Tests use synthetic identities and times and assert: arrival/event atomic plan; informational EN_ROUTE; no-show boundaries; `UNLOCATED_AFTER_CALL`; override permission; exceptional chair release/requeue; 09:05/09:10 dynamic oracle; tenant/resource filtering; schema isolation and ephemeral schema creation. No browser screenshots are applicable; no UI exists in this sub-lot. For this correction pass, local Windows Python tests and review of the exact local Git commit are the executable FUE-0 evidence; do not claim new GitHub Actions evidence from a skipped workflow. Previous CI for the original PR HEAD remains historical evidence only, not proof of corrections. These tests cannot certify completeness of server-side candidate snapshots, DB transactions, live RBAC, durable append-only events, LAN TLS or Windows installer; these remain later required gates.
 
 ## Explicitly deferred
 

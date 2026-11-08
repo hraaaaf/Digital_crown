@@ -1,0 +1,22 @@
+DIGITAL CROWN V1.5-08.1 - Direct Windows FUE-0 test evidence
+Scope: queue_core domain + isolated persistence metadata; synthetic fixtures ONLY.
+Device: DESKTOP-3MAJEEH (owner-authorized Windows workstation).
+Date (UTC, recorded by device): 2026-11-08T20:12:50.8952011Z (first log capture).
+Subsequent final test run: executed after additional enum / temporal guards.
+Branch: codex/v15-08-1-queue-contracts-20261108
+Base commit before corrections: e743e333868eddb6083ae9c1c6f699814d8e9cc4
+Python: 3.12 Full local runtime (path under user's Windows profile).
+Python 3.11 local launcher: unavailable/broken; NOT tested.
+Command: python -m pytest -q queue_core/tests
+Observed output: ................... [100%]
+Observed result: 19 passed in 0.86s
+pytest_exit=0
+Command: python -m compileall -q queue_core
+compileall_exit=0
+Command: git diff --check
+git_diff_check_exit=0
+Tests were executed directly on the Windows PC via Remote Desktop Commander.
+No GitHub Actions run was requested or relied upon for these corrections.
+The preceding green GitHub CI artifacts refer only to the former base commit.
+Limitations: No persistent Queue runtime, auth/RBAC, QR, API, wall, or installation tested.
+This record is a transcript of local process results, not an independent hardware/cabinet certification.
