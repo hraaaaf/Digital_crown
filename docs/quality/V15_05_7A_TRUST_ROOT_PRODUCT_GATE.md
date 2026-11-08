@@ -18,7 +18,7 @@
 4. From the repo in the LAB VM, run the following one-shot offline CLI, replacing the version placeholder with the *observed* version (do not hardcode a guessed release):
 
 ```powershell
-python -m backend.services.legacy_migration_vendor_demo_header_probe_lab_v15 --source "C:\\dc-demo-staging\\FAKE_DEMO_selected_patients.csv" --staging-root "C:\\dc-demo-staging" --demo-version "VERSION_OBSERVEE" --synthetic-only --offline-copy --official-demo-only
+python backend/services/legacy_migration_vendor_demo_header_probe_lab_v15.py --source "C:\\dc-demo-staging\\FAKE_DEMO_selected_patients.csv" --staging-root "C:\\dc-demo-staging" --demo-version "VERSION_OBSERVEE" --synthetic-only --offline-copy --official-demo-only
 ```
 
 5. Store **only the non-PHI JSON metadata** and screenshots of selected report parameters/version (not patient rows) in an authorized local evidence vault. Independent reviewer must reconcile file digest, demo installation identity, selected query, time/clock and exported header. Manual declaration and SHA256 are NOT vendor signing/chain of custody. If exact header differs, FAIL CLOSED and revisit the adapter on a separate review; never silently accept aliases.
