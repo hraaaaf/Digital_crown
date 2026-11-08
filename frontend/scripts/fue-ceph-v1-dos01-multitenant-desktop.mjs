@@ -273,19 +273,22 @@ try {
       'Patient B PDF did not match its distinct fixture content');
     const previewB=page.getByRole('dialog',{name:/Aperçu PDF du patient/});
     await previewB.waitFor({state:'visible',timeout:15000});
-    const blobB=await previewB.locator('iframe[title^="Aperçu PDF"]').getAttribute('src');
-    checkTrue(blobB?.startsWith('blob:') && blobB!==blobA &&
-      (await previewB.innerText()).includes('DC-DOS01-SYNTH-B.pdf') &&
+    const pixelsB=await checkCanvas(previewB);
+    checkTrue((await previewB.innerText()).includes('DC-DOS01-SYNTH-B.pdf') &&
       !(await previewB.innerText()).includes('DC-DOS01-SYNTH-A.pdf'),
-      'Patient B viewer contains patient A PDF or incorrect blob');
+      'Patient B PDF viewer contains patient A identity');
+    const afterB=await page.evaluate(()=>window.__dcDosPdfAudit);
+    checkTrue(afterB.created.length===0 && afterB.opened.length===0,
+      'Patient B PDF preview created a detachable URL');
     await shot('05a-patient-b-inline-pdf-viewer');
     await page.keyboard.press('Escape');
-    await page.waitForFunction(url=>window.__dcDosPdfAudit?.revoked?.includes(url),
-      blobB,{timeout:15000});
+    checkTrue(await page.locator('canvas[data-testid="patient-pdf-page-canvas"]').count()===0,
+      'Patient B PDF canvas persisted after Escape');
     checkTrue(await page.getByRole('dialog',{name:/Aperçu PDF du patient/}).count()===0,
       'Patient B PDF dialog failed to close on Escape');
     return {real_pdf_bytes_sha256_A:true,real_pdf_bytes_sha256_B:true,
-      blob_a_revoked_on_patient_B:true,patient_a_document_absent_in_B:true,
+      pdf_canvas_A_pixels_confirmed:pixelsA.ink>12,pdf_canvas_B_pixels_confirmed:pixelsB.ink>12,
+      no_pdf_preview_blob_url_created:true,patient_a_document_absent_in_B:true,
       inline_pdf_preview_patient_bound:true,zero_native_popup_open_attempts:true,
       escape_closes_pdf_preview:true,synthetic_official_archives_created:0};
   });
