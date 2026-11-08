@@ -1,0 +1,48 @@
+name: LOT05 05.7C-G Official Fictional Demo Header Probe (NO IMPORT)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/legacy_migration_vendor_demo_header_probe_lab_v15.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/tests/test_migration_057c_official_demo_header_probe_fue.py'
+      - '.github/workflows/v15-05-7c-g-demo-header-probe-fue.yml'
+      - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  header-proof-fue:
+    name: Header-only fictional-demo evidence 34 FUE — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact HEAD and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile backend/services/legacy_sql_inspector_v15.py backend/services/legacy_migration_vendor_demo_header_probe_lab_v15.py backend/tests/test_migration_057c_official_demo_header_probe_fue.py
+          python -m backend.services.legacy_migration_vendor_demo_header_probe_lab_v15 --help > /dev/null
+      - name: Run 34 FAKE-only FUE: no real demo, no patient imports
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_migration_057c_official_demo_header_probe_fue.py -v 2>&1 | tee lot05-7c-g-demo-header-fue.log
+          grep -q 'Ran 34 tests' lot05-7c-g-demo-header-fue.log
+          grep -q '^OK' lot05-7c-g-demo-header-fue.log
+          echo 'LOT05_7C_G_34_FAKE_HEADER_ONLY_NO_VENDOR_PROVENANCE_NO_IMPORT'
