@@ -144,8 +144,20 @@ async function metrics(page, viewportName, scene) {
       hasPractitionerAction: text.includes('action praticien'),
       hasNoFakeValidation: text.includes('aucune validation disponible'),
       hasImportedNotes: text.includes('notes praticien importées : origine non vérifiée'),
-      hasDocumentSeparation: text.includes('actions documentaires') && text.includes('ne constitue pas une validation clinique'),
-      hasArchiveAction: text.includes('archiver le bilan'),
+      hasDocumentSeparation: text.includes('actions documentaires') &&
+        text.includes('prévisualisation et téléchargement : brouillon non signé, sans valeur de validation clinique.') &&
+        Boolean(document.getElementById('cephalo-a4-archive-hold')),
+      hasUnsignedArchiveHold: (() => {
+        const archive = Array.from(document.querySelectorAll('button')).find(button =>
+          button.textContent?.toLowerCase().includes('archivage suspendu'));
+        const draft = Array.from(document.querySelectorAll('button')).find(button =>
+          button.textContent?.toLowerCase().includes('brouillon pdf'));
+        const hold = document.querySelector('[data-testid="unsigned-cephalo-archive-hold"]');
+        return Boolean(archive?.disabled &&
+          archive.getAttribute('aria-describedby') === 'cephalo-a4-archive-hold' &&
+          draft && !draft.disabled &&
+          hold?.textContent?.toLowerCase().includes('signature vérifiable du document exact'));
+      })(),
       hasTechnicalVocabulary: technicalVocabulary.test(rawText),
       bodyHeight: body.scrollHeight,
     };
@@ -221,11 +233,12 @@ async function captureAttempt(viewport, attempt) {
     await page.getByText('Actions documentaires', { exact: true }).waitFor({ state: 'visible', timeout: 15000 });
     await page.waitForTimeout(250);
     const step4Top = await metrics(page, viewport.name, 'step4-top');
-    if (!studioContract(step4Top) || !step4Top.hasDocumentSeparation || !step4Top.hasArchiveAction) throw new Error(`Step4 AFTER contract failed ${JSON.stringify(step4Top)}`);
+    if (!studioContract(step4Top) || !step4Top.hasDocumentSeparation || !step4Top.hasUnsignedArchiveHold) throw new Error(`Step4 unsigned-archive fail-closed contract failed ${JSON.stringify(step4Top)}`);
     await page.screenshot({ path: path.join(OUTPUT_DIR, `after-step4-top-${viewport.name}.png`), fullPage: false });
 
-    const archive = page.getByRole('button', { name: /Archiver le bilan/i }).first();
+    const archive = page.getByRole('button', { name: /Archivage suspendu/i }).first();
     await archive.waitFor({ state: 'visible', timeout: 10000 });
+    if (await archive.isEnabled()) throw new Error('Unsigned official archive action unexpectedly enabled');
     await archive.scrollIntoViewIfNeeded();
     await page.waitForTimeout(150);
     await page.screenshot({ path: path.join(OUTPUT_DIR, `after-step4-action-${viewport.name}.png`), fullPage: false });

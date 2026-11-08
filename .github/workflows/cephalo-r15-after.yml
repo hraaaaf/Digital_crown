@@ -86,7 +86,7 @@ jobs:
               if (scene.hasTechnicalVocabulary) throw new Error(`Internal implementation vocabulary exposed ${capture.viewport}/${scene.scene}`);
             }
             if (!capture.step3Top.hasImportedNotes) throw new Error(`Imported-note provenance missing ${capture.viewport}`);
-            if (!capture.step4Top.hasDocumentSeparation || !capture.step4Top.hasArchiveAction) throw new Error(`Document/clinical validation separation missing ${capture.viewport}`);
+            if (!capture.step4Top.hasDocumentSeparation || !capture.step4Top.hasUnsignedArchiveHold) throw new Error(`Unsigned official archive hold or document/clinical separation missing ${capture.viewport}`);
           }
           NODE
           for viewport in 390x844 768x1024 1280x900; do

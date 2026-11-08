@@ -90,7 +90,7 @@ jobs:
               if (!scene.hasPractitionerAction || !scene.hasNoFakeValidation || scene.hasTechnicalVocabulary) throw new Error(`Client copy contract failure ${capture.viewport}`);
             }
             if (!capture.step3Top.hasImportedNotes) throw new Error(`Imported-note provenance missing ${capture.viewport}`);
-            if (!capture.step4Top.hasDocumentSeparation || !capture.step4Top.hasArchiveAction) throw new Error(`Document/clinical validation separation missing ${capture.viewport}`);
+            if (!capture.step4Top.hasDocumentSeparation || !capture.step4Top.hasUnsignedArchiveHold) throw new Error(`Unsigned official archive hold or document/clinical separation missing ${capture.viewport}`);
             if (capture.step3Top.bodyHeight >= before[capture.viewport].step3) throw new Error(`Step 3 density did not improve ${capture.viewport}: ${capture.step3Top.bodyHeight}`);
             if (capture.step4Top.bodyHeight >= before[capture.viewport].step4) throw new Error(`Step 4 density did not improve ${capture.viewport}: ${capture.step4Top.bodyHeight}`);
           }
