@@ -79,7 +79,7 @@ def inspect_synthetic_csv_envelope(
         raise SyntheticExportEnvelopeRefused("OFFLINE_COPY_ATTESTATION_REQUIRED")
     if type(syntax_profile) is not str or syntax_profile not in _FORMATS:
         raise SyntheticExportEnvelopeRefused("UNSUPPORTED_SYNTAX_PROFILE")
-    if type(source_path) is not Path or type(staging_root) is not Path:
+    if not isinstance(source_path, Path) or not isinstance(staging_root, Path):
         raise SyntheticExportEnvelopeRefused("STAGED_PATH_REQUIRED")
     suffix, delimiter = _FORMATS[syntax_profile]
     if source_path.suffix.lower() != suffix:
