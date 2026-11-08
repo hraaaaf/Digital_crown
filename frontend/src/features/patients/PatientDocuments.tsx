@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../services/api';
 import { usePatientStore } from '../../stores/usePatientStore';
@@ -28,6 +28,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CnssInsuranceAction, insuranceOrganizationFromAssurance } from './CnssInsuranceAction';
+
+const PatientPdfCanvasPreview = lazy(() => import('./PatientPdfCanvasPreview').then(module => ({default: module.PatientPdfCanvasPreview})));
 
 interface DocumentInfo {
   id: string;
@@ -73,7 +75,7 @@ export const PatientDocuments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionsOpenFor, setActionsOpenFor] = useState<string | null>(null);
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
-  const [preview, setPreview] = useState<{patientId: string; url: string; filename: string} | null>(null);
+  const [preview, setPreview] = useState<{patientId: string; blob: Blob; filename: string} | null>(null);
 
   // Route changes can happen while a document blob request is still pending.
   // Guard both reused instances and the previously mounted instance after unmount.
@@ -81,7 +83,6 @@ export const PatientDocuments = () => {
   currentPatientIdRef.current = id;
   const mountedRef = useRef(false);
   const objectUrlsRef = useRef<Set<string>>(new Set());
-  const previewUrlRef = useRef<string | null>(null);
 
   useEffect(() => {
     mountedRef.current = true;
@@ -91,7 +92,6 @@ export const PatientDocuments = () => {
   useEffect(() => () => {
     for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
     objectUrlsRef.current.clear();
-    previewUrlRef.current = null;
   }, [id]);
 
   const belongsToActivePatient = (patientAtRequest: string | undefined) =>
@@ -101,12 +101,7 @@ export const PatientDocuments = () => {
     if (objectUrlsRef.current.delete(url)) URL.revokeObjectURL(url);
   };
 
-  const closePreview = () => {
-    const currentUrl = previewUrlRef.current;
-    previewUrlRef.current = null;
-    if (currentUrl) releaseObjectUrl(currentUrl);
-    setPreview(null);
-  };
+  const closePreview = () => setPreview(null);
 
   useEffect(() => {
     if (!preview || preview.patientId !== id) return;
@@ -227,13 +222,9 @@ export const PatientDocuments = () => {
         alert('Aperçu réservé aux PDF. Utilisez « Fichier » pour ce document.');
         return;
       }
-      const blobUrl = URL.createObjectURL(blob);
-      objectUrlsRef.current.add(blobUrl);
-      if (previewUrlRef.current) releaseObjectUrl(previewUrlRef.current);
-      previewUrlRef.current = blobUrl;
-      // Keep the PDF inside the patient-bound dossier: a detached noopener
-      // browser tab cannot reliably be closed on A -> B navigation.
-      setPreview({patientId: patientAtRequest!, url: blobUrl, filename});
+      // PDF.js draws directly from the authenticated Blob. No detached tab
+      // or object URL exists for the document preview.
+      setPreview({patientId: patientAtRequest!, blob, filename});
     } catch (err) {
       if (!belongsToActivePatient(patientAtRequest)) return;
       console.error('Erreur lors de la visualisation:', err);
@@ -494,8 +485,9 @@ export const PatientDocuments = () => {
                 Fermer
               </button>
             </div>
-            <iframe title={`Aperçu PDF — ${preview.filename}`} src={preview.url}
-              sandbox="allow-downloads" className="min-h-0 w-full flex-1 bg-card" />
+            <Suspense fallback={<p role="status" className="p-5 text-sm">Préparation du visualiseur PDF…</p>}>
+              <PatientPdfCanvasPreview key={preview.patientId + ':' + preview.filename} blob={preview.blob} />
+            </Suspense>
           </div>
         </div>
       )}
