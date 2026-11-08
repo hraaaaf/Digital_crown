@@ -381,7 +381,7 @@ jobs:
         run: |
           node --check scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
           node scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
-      - name: DC-DOS-01 verify eight evidence assertions, seven screenshots and SQLite tenant ownership
+      - name: DC-DOS-01 verify eight checks, real PDF A/B blob cleanup and SQLite tenant ownership
         run: |
           python - <<'PY'
           import json,os
@@ -397,6 +397,11 @@ jobs:
           assert report["official_fue_complete"] is False
           assert report["clinical_release"] is False
           assert len(report["checks"])==8 and all(c["status"]=="PASS" for c in report["checks"])
+          documents=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_REACT_A_B_DOCUMENTS_ROUTE_ISOLATION")
+          for flag in ("real_pdf_bytes_sha256_A","real_pdf_bytes_sha256_B",
+                       "blob_a_revoked_on_patient_B","patient_a_document_absent_in_B"):
+              assert documents.get(flag) is True, (flag,documents)
+          assert documents.get("external_native_popup_auto_close")=="NOT_TESTED"
           assert len(report["shots"])==7
           for fn in report["shots"]:
               p=root/fn
@@ -417,6 +422,15 @@ jobs:
                   assert assets[0].patient_id==pid
                   assert assets[0].employer_id==patient.employer_id
                   assert assets[0].provenance_json["ingestion_channel"]=="ORTHO_STUDIO"
+                  archived=db.get(models.DocumentArchive,fixture["archives"][source]["id"])
+                  assert archived is not None and archived.patient_id==pid
+                  assert archived.document_type==models.DocumentType.AUTRE
+                  assert archived.file_hash==fixture["archives"][source]["sha256"]
+              assert db.query(models.DocumentArchive).filter(
+                  models.DocumentArchive.patient_id.in_([
+                      fixture["patient_a"],fixture["patient_b"],fixture["patient_x"]]),
+                  models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
+              ).count()==0,"Synthetic generic PDF test may not create a clinical official archive"
               assert db.get(models.Patient,fixture["patient_a"]).employer_id==db.get(models.Patient,fixture["patient_b"]).employer_id
               assert db.get(models.Patient,fixture["patient_a"]).employer_id!=db.get(models.Patient,fixture["patient_x"]).employer_id
               assert db.get(models.CephaloAnalysis,fixture["study_b"]).patient_id==fixture["patient_b"]
