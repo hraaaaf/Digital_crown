@@ -442,7 +442,7 @@ public static class Lot05WizardSingleClick {
   if ($report.official_trial_window_title_allowlisted -and
       -not $LaunchSetupWizardOnly) {
     $report.status = 'SIGNED_OFFICIAL_VENDOR_GUI_LAUNCHER_WINDOW_OBSERVED_ONLY'
-  } else {
+  } elseif (-not $report.official_trial_window_title_allowlisted) {
     $report.status = 'SIGNED_TRIAL_EXECUTED_BUT_GUI_WINDOW_NOT_PROVEN'
     $report.failure_code = 'VENDOR_GUI_WINDOW_NOT_PROVEN'
   }
