@@ -9,6 +9,7 @@ on:
       - 'backend/tests/test_migration_057c_official_demo_header_probe_fue.py'
       - '.github/workflows/v15-05-7c-g-demo-header-probe-fue.yml'
       - 'docs/quality/V15_05_7A_TRUST_ROOT_PRODUCT_GATE.md'
+      - 'scripts/quality/v15_05_7c_g_official_trial_win_preflight.ps1'
   workflow_dispatch:
 
 permissions:
@@ -46,3 +47,30 @@ jobs:
           grep -q 'Ran 34 tests' lot05-7c-g-demo-header-fue.log
           grep -q '^OK' lot05-7c-g-demo-header-fue.log
           echo 'LOT05_7C_G_34_FAKE_HEADER_ONLY_NO_VENDOR_PROVENANCE_NO_IMPORT'
+
+  trial-windows-preflight:
+    name: Official trial installer on ephemeral Windows VM — SIGNATURE ONLY / NO GUI
+    runs-on: windows-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact HEAD before vendor binary acquisition
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Download from official domain and verify Authenticode (never execute EXE)
+        shell: pwsh
+        run: |
+          & "./scripts/quality/v15_05_7c_g_official_trial_win_preflight.ps1" -EvidenceDir "${{ runner.temp }}"
+      - name: Upload non-PHI metadata only, even if vendor download fails
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-g-official-trial-windows-metadata-only
+          path: ${{ runner.temp }}/lot05-7c-g-official-installer-preflight.json
+          if-no-files-found: error
+          retention-days: 5
