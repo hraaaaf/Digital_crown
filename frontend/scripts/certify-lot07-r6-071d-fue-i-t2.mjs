@@ -169,9 +169,25 @@ try {
     browser=context;
     zoomWorker=context.serviceWorkers()[0]||
       await context.waitForEvent('serviceworker',{timeout:25000});
+    // Capability diagnostics only: prove the actual extension-origin worker
+    // and native tabs APIs. Do not weaken, mock or skip the a11y gate.
+    const extensionCapability=await zoomWorker.evaluate(()=>({
+      extensionOrigin:location.protocol==='chrome-extension:',
+      runtime:typeof chrome?.runtime?.id==='string',
+      tabsApi:typeof chrome?.tabs==='object',
+      setZoom:typeof chrome?.tabs?.setZoom==='function',
+      getZoom:typeof chrome?.tabs?.getZoom==='function',
+    }));
+    console.log('LOT07_R7B_GENUINE_CHROMIUM_EXTENSION_CAPABILITY',
+      JSON.stringify(extensionCapability));
     check('r7b-native-chromium-extension-service-worker',
       zoomWorker.url().startsWith('chrome-extension://') &&
-      await zoomWorker.evaluate(()=>Boolean(chrome.tabs?.setZoom && chrome.tabs?.getZoom)));
+      extensionCapability.extensionOrigin &&
+      extensionCapability.runtime &&
+      extensionCapability.tabsApi &&
+      extensionCapability.setZoom &&
+      extensionCapability.getZoom,
+      {capabilities:extensionCapability});
   } else {
     browser=await chromium.launch({headless:process.platform!=='win32'});
     context=await browser.newContext({

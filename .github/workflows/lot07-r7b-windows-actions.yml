@@ -38,6 +38,7 @@ jobs:
       LOT07_R7_DESKTOP_CERT: '1'
       LOT07_R7_WINDOWS_NATIVE: '1'
       LOT07_R7_NVDA_CERT: '1'
+      # Shared by Guidepup installer AND the later real Node.js NVDA runtime.
       SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       CI: 'true'
       TZ: Africa/Casablanca
@@ -47,6 +48,11 @@ jobs:
         with:
           ref: ${{ env.SOURCE_HEAD }}
           persist-credentials: false
+      - name: Share Guidepup screen-reader cache with all Windows job steps
+        shell: pwsh
+        run: |
+          $cache = Join-Path $env:RUNNER_TEMP 'guidepup-screen-readers'
+          Add-Content -Path $env:GITHUB_ENV -Value "GUIDEPUP_SCREEN_READERS_PATH=$cache"
       - name: Verify exact SHA and disposable Windows-only authority
         shell: pwsh
         run: |
@@ -111,14 +117,97 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'R7B zoom syntax error' }
           node --check scripts/certify-lot07-r7b-windows-nvda.mjs
           if ($LASTEXITCODE -ne 0) { throw 'R7B NVDA script syntax error' }
+      # This is the official Guidepup asset cache directory, configurable via
+      # GUIDEPUP_SCREEN_READERS_PATH; keep the version in the cache key.
+      # Never cache clinical data or speech output, and never treat a cache hit
+      # as proof that NVDA actually ran.
+      - name: Cache version-pinned genuine NVDA assets on Windows
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/guidepup-screen-readers
+          key: windows-guidepup-nvda-0.2.1-2026.2-guidepup-0.36.3-v1
+      - name: Pre-seed verified NVDA asset from official GitHub release API
+        working-directory: frontend
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GUIDEPUP_SCREEN_READERS_PATH: ${{ runner.temp }}/guidepup-screen-readers
+        run: |
+          # This is the exact Guidepup 0.36.3 manifest + official GitHub
+          # release SHA-256; never accept a generic NVDA binary or mirror.
+          $assetName = 'guidepup-nvda-0.2.1-2026.2.zip'
+          $expected = '7df0ca3c1c9e8c6521bc7553486ca360ed6f0b4f9bdbd6603131e38b5c1497a1'
+          $root = Join-Path $env:GUIDEPUP_SCREEN_READERS_PATH 'nvda/all/0.2.1-2026.2'
+          $destination = Join-Path $root $assetName
+          $extracted = Join-Path $root 'extracted'
+          New-Item -ItemType Directory -Path $root -Force | Out-Null
+          $cacheValid = (Test-Path $destination) -and
+            ((Get-FileHash -Path $destination -Algorithm SHA256).Hash.ToLowerInvariant() -eq $expected)
+          if (-not $cacheValid) {
+            if (Test-Path $destination) { Remove-Item -LiteralPath $destination -Force }
+            $download = Join-Path $env:RUNNER_TEMP 'verified-nvda-release-staging'
+            New-Item -ItemType Directory -Path $download -Force | Out-Null
+            if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
+              throw 'NOT_CERTIFIED: GitHub CLI unavailable for official NVDA asset'
+            }
+            # GitHub CLI uses the official release-asset API instead of
+            # the repeatedly failing browser download URL (HTTP 504).
+            gh release download '0.2.1-2026.2' --repo 'guidepup/nvda' --pattern $assetName --dir $download
+            if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: official GitHub NVDA download unavailable' }
+            $downloaded = Join-Path $download $assetName
+            if (-not (Test-Path $downloaded)) { throw 'NOT_CERTIFIED: official NVDA asset missing' }
+            if ((Get-FileHash -Path $downloaded -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+              throw 'NOT_CERTIFIED: official NVDA asset checksum mismatch'
+            }
+            Move-Item -LiteralPath $downloaded -Destination $destination -Force
+          }
+          if ((Get-FileHash -Path $destination -Algorithm SHA256).Hash.ToLowerInvariant() -ne $expected) {
+            throw 'NOT_CERTIFIED: cached NVDA asset failed SHA256 validation'
+          }
+          # Guidepup skips extraction on cache hits. Seed the extracted
+          # directory as well to guarantee a real portable NVDA binary.
+          if (Test-Path $extracted) { Remove-Item -LiteralPath $extracted -Recurse -Force }
+          Expand-Archive -LiteralPath $destination -DestinationPath $extracted -Force
+          if (-not (Get-ChildItem -LiteralPath $extracted -Recurse -File | Select-Object -First 1)) {
+            throw 'NOT_CERTIFIED: verified NVDA archive extracted empty'
+          }
+          Write-Output 'OFFICIAL_NVDA_ASSET_SHA256_VERIFIED'
       - name: Install real Windows NVDA screen reader for R7B
         working-directory: frontend
         shell: pwsh
+        env:
+          GUIDEPUP_SCREEN_READERS_PATH: ${{ runner.temp }}/guidepup-screen-readers
         run: |
           npx --no-install guidepup setup --ci
           if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA OS setup failed' }
-          npx --no-install guidepup install nvda
-          if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: NVDA install failed' }
+          # First and second attempts on 15104c31 both returned 504 from the
+          # Guidepup GitHub release cache. Retry transient upstream failures,
+          # with a finite budget and NO test bypass or virtual screen reader.
+          $installed = $false
+          for ($attempt = 1; $attempt -le 3; $attempt++) {
+            Write-Output "Guidepup real NVDA install attempt $attempt/3"
+            npx --no-install guidepup install nvda
+            if ($LASTEXITCODE -eq 0) {
+              $installed = $true
+              break
+            }
+            if ($attempt -lt 3) {
+              Start-Sleep -Seconds (15 * $attempt)
+            }
+          }
+          if (-not $installed) { throw 'NOT_CERTIFIED: real NVDA asset unavailable after three attempts' }
+      - name: Verify real NVDA executable visible to runtime
+        shell: pwsh
+        run: |
+          $executable = Join-Path $env:GUIDEPUP_SCREEN_READERS_PATH 'nvda/all/0.2.1-2026.2/extracted/nvda.exe'
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw 'NOT_CERTIFIED: NVDA executable missing in shared Guidepup runtime cache'
+          }
+          Push-Location frontend
+          try {
+            node --input-type=module -e "import {nvda} from '@guidepup/guidepup'; if (!nvda.detect()) { process.exit(2) }; console.log('REAL_NVDA_RUNTIME_PRESENT')"
+            if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: Guidepup runtime NVDA detection failed' }
+          } finally { Pop-Location }
       - name: Real authenticated Windows Cabinet, native zoom, NVDA and negative FUE
         shell: pwsh
         run: |
