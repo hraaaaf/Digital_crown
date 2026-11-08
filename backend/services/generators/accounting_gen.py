@@ -13,6 +13,7 @@ from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PageCounter
 from backend.services.generators.document_layout_safety import join_unbreakable
 from backend.services.generators.accounting_pdf_readability import readable_accounting_font_floor
+from backend.services.generators.pdf_output_safety import reserve_generated_pdf_path
 
 class AccountingGenerator:
     def __init__(self, base_output_dir="static/documents"):
@@ -121,7 +122,7 @@ class AccountingGenerator:
         save_dir = os.path.join(self.base_output_dir, now.strftime('%Y'), now.strftime('%m'))
         os.makedirs(save_dir, exist_ok=True)
         safe_name = f"{patient.nom.upper()}_{patient.prenom.capitalize()}".replace(" ", "_")
-        return os.path.join(save_dir, f"{prefix}_{safe_name}_{date_str}.pdf")
+        return reserve_generated_pdf_path(save_dir, f"{prefix}_{safe_name}_{date_str}.pdf")
 
     def _draw_canvas(self, canvas, doc, config=None, user=None, highlighted_teeth=None, cloture_text=None, p_color=None):
         """Rendu canvas : header/footer statiques + clôture en coordonnées absolues de page."""

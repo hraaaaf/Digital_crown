@@ -40,6 +40,8 @@ def _create_tables():
     # production router import order and exercising the real cabinet schema contract.
     install_document_provenance_p3()
     models.Base.metadata.create_all(bind=_engine)
+    from backend.services.mobile_document_archive_receipts import PocketReceiptBase
+    PocketReceiptBase.metadata.create_all(bind=_engine)
     # Match migrated clinical DB trigger/index even in isolated in-memory tests.
     from backend.core.appointment_revision_ddl import (
         install_appointment_overlap_index, install_appointment_revision_guard,
@@ -48,6 +50,7 @@ def _create_tables():
         install_appointment_revision_guard(conn)
         install_appointment_overlap_index(conn)
     yield
+    PocketReceiptBase.metadata.drop_all(bind=_engine)
     models.Base.metadata.drop_all(bind=_engine)
 
 
@@ -116,6 +119,10 @@ def db():
         # Some optional model modules are imported after this session fixture has
         # created the schema, so their metadata table may not exist in SQLite.
         existing_tables = set(inspect(_engine).get_table_names())
+        from backend.services.mobile_document_archive_receipts import PocketReceiptBase
+        for table in reversed(PocketReceiptBase.metadata.sorted_tables):
+            if table.name in existing_tables:
+                session.execute(table.delete())
         for table in reversed(models.Base.metadata.sorted_tables):
             if table.name in existing_tables:
                 session.execute(table.delete())

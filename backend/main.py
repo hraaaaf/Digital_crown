@@ -668,8 +668,8 @@ app.add_middleware(
     allow_origin_regex=_DEV_LAN_ORIGIN_REGEX,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
-    expose_headers=["X-Total-Count", "X-Cephalo-Analysis-Id", "X-Cephalo-Revision", "X-Cephalo-Archive-Replayed", "Content-Disposition"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Idempotency-Key"],
+    expose_headers=["X-Total-Count", "X-Cephalo-Analysis-Id", "X-Cephalo-Revision", "X-Cephalo-Archive-Replayed", "Content-Disposition", "X-Document-Id", "X-Idempotent-Replay"],
 )
 from backend.routers import (
     auth, clinics, patients, ia, documents, stats, admin,

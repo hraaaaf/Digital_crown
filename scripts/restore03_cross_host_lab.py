@@ -142,10 +142,10 @@ def source(out: Path):
     create_db(db, token)
     media = new_dir(work / "media")
     (media / "radios").mkdir()
-    (media / "documents").mkdir()
+    (media / "misc").mkdir()
     payloads = {
         "radios/SYNTHETIC.txt": b"SYNTHETIC_RADIO_NOT_CLINICAL",
-        "documents/SYNTHETIC.txt": b"SYNTHETIC_DOCUMENT_NOT_CLINICAL",
+        "misc/SYNTHETIC.txt": b"SYNTHETIC_DOCUMENT_NOT_CLINICAL",
     }
     for name, data in payloads.items():
         (media / name).write_bytes(data)

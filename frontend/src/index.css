@@ -38,6 +38,7 @@
   /* Glassmorphism Premium */
   --color-glass-bg: var(--glass-bg);
   --color-glass-border: var(--glass-border);
+  --color-modal-scrim: var(--modal-scrim);
   --blur-glass-md: 12px;
   --blur-glass-xl: 24px;
   
@@ -66,6 +67,7 @@
   --bg-gradient-end: #eff6ff;
   --glass-bg: rgba(255, 255, 255, 0.85);
   --glass-border: rgba(255, 255, 255, 0.6);
+  --modal-scrim: rgb(15 23 42 / 0.35);
   --card-bg: white;
   --sidebar-bg: white;
   --text-main: #0f172a;
@@ -236,6 +238,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
 /* Pocket semantic states retain a readable contrast on selected dark themes.
    Components consume role/meaning tokens, never their own fixed palettes. */
 [data-theme='dark'], [data-theme='prestige'] {
+  --modal-scrim: rgb(0 0 0 / 0.6);
   --status-success: #6ee7b7;
   --status-success-surface: #064e3b;
   --status-success-border: #047857;
@@ -252,6 +255,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
 
 [data-theme='high-contrast'] {
   /* HAUT CONTRASTE CLINIQUE */
+  --modal-scrim: rgb(0 0 0 / 0.75);
   --status-success: #000000;
   --status-success-surface: #ffffff;
   --status-success-border: #000000;

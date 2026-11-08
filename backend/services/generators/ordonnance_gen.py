@@ -11,6 +11,7 @@ from reportlab.lib.enums import TA_CENTER, TA_RIGHT, TA_LEFT, TA_JUSTIFY
 from backend.services.base_template import BaseTemplate, NAVY_BLUE, PinnedCloture
 from backend.services.generators.document_layout_safety import join_unbreakable, protect_unit_patterns
 from backend.services.document_provenance_context import document_branding_owner_id
+from backend.services.generators.pdf_output_safety import reserve_generated_pdf_path
 from backend.services.generators.document_typography import (
     PRESCRIPTION_TITLE_SIZE,
     PRESCRIPTION_PATIENT_SIZE,
@@ -46,7 +47,7 @@ class OrdonnanceGenerator:
         os.makedirs(save_dir, exist_ok=True)
         safe_name = f"{patient.nom.upper()}_{patient.prenom.capitalize()}".replace(" ", "_")
         filename = f"ORDONNANCE_{safe_name}_{date_str}.pdf"
-        return os.path.join(save_dir, filename)
+        return reserve_generated_pdf_path(save_dir, filename)
 
     def _draw_canvas(self, canvas, doc, config=None, user=None):
         self.base_template.draw_static_elements(canvas, doc, config=config, draw_legal_ids=False, user=user)

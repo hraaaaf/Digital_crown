@@ -155,7 +155,7 @@ def main() -> int:
     source_bundle = input_dir / BUNDLE_NAME
     assert source_bundle.is_file()
     assert evidence["bundle_sha256"] == sha256_file(source_bundle)
-    assert set(evidence["media_sha256"]) == {"radios/SYNTHETIC.txt", "documents/SYNTHETIC.txt"}
+    assert set(evidence["media_sha256"]) == {"radios/SYNTHETIC.txt", "misc/SYNTHETIC.txt"}
     new_dir(args.output)
     work = new_dir(args.output / "private-synthetic-lab")
     setup_synthetic_environment(work)
@@ -305,7 +305,7 @@ def main() -> int:
                 assert return_code == 0 and final["status"] == "success"
                 assert final["smoke_check"] == "passed" and final["rollback"] == "not_needed"
                 assert_state(db, media, marker_after, "radios/SYNTHETIC.txt", b"SYNTHETIC_RADIO_NOT_CLINICAL")
-                assert (media / "documents" / "SYNTHETIC.txt").read_bytes() == b"SYNTHETIC_DOCUMENT_NOT_CLINICAL"
+                assert (media / "misc" / "SYNTHETIC.txt").read_bytes() == b"SYNTHETIC_DOCUMENT_NOT_CLINICAL"
             elif scenario == "rollback":
                 assert return_code == 2 and final["status"] == "rolled_back"
                 assert final["smoke_check"] == "failed" and final["rollback"] == "passed"
