@@ -513,8 +513,7 @@ def test_b06_4dc_pg_immutable_trigger_body_tamper_denied(
     with engine.begin() as conn:
         conn.exec_driver_sql(
             "CREATE OR REPLACE FUNCTION dc06_b06_lab_immutable() "
-            "RETURNS trigger LANGUAGE plpgsql AS $ "
-            "BEGIN RETURN NEW; END $"
+            "RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RETURN NEW; END'"
         )
     # All nine existing triggers still exist and are enabled. A simple name
     # check would approve this schema despite removing their protection.
