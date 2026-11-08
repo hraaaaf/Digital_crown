@@ -1,5 +1,20 @@
 # STATE — DigitalCrown
 
+# LOT07 V1.5 Desktop Experience & MultiView — 2026-11-08 — INTEGRATED DELIVERY CLOSED (LIMITED SCOPE)
+
+- **Scope closed:** R8.3 + POLISH-01 + POLISH-02 (historical merge and postmerge CI success 2026-10-31), plus Windows B10 true NVDA certification workflow fix PR #1228, source head `68279047d9d73a501f18a1e5c7fb235f241deae7` merged at `1131f117254894d208490b2b6916fd2a4799d18b`.
+- **Proof B10 source:** Windows actual NVDA, native zoom and synthetic authenticated FastAPI/React [run #42481818872](https://github.com/hraaaaf/Digital_crown/actions/runs/42481818872) SUCCESS (18 screenshots, 104 checks), owner Human Visual Approval [#42504061075](https://github.com/hraaaaf/Digital_crown/actions/runs/42504061075) SUCCESS.
+- **Proof postmerge:** [Cabinet Upgrade PostgreSQL Certification #42504229531](https://github.com/hraaaaf/Digital_crown/actions/runs/42504229531), **2/2 SUCCESS** on the B10 merge commit. Merge diff is exactly one CI workflow and one synthetic browser test script, no patient/clinical runtime changes.
+- **Historical DRAFT disposition:** #1131 (R5) CLOSED/NOT MERGED, core R5 API/preferences modules present on master; #1109 (R3) CLOSED/NOT MERGED, historical 3-pane DEV pilot NOT SHIPPED. The nine declared layout starting points on master are **not nine independently certified clinical UIs**. Numerous historical DRAFTs remain outside this verified closure and are not silently certified. No clinical or patient data imported.
+- **Future scope:** R3 prototype and missing 3-pane specialist views are **unshipped/deferred**, preserved in [Notion backlog](https://app.notion.com/p/41277c66336281cc9654e5e69fe4e2d4), with branch/PR history intact; if deemed REQUIRED by owner, reopen LOT07 scope before treating it as completed. No blanket clearance for unimplemented clinical interfaces.
+- **Roadmap:** [LOT07 canonical closeout](https://app.notion.com/p/40277c66336281b6b7ffeeecae6baff9) and [V1.5 roadmap](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb). LOT08 G6 is cleared only for this delivered, bounded LOT07 scope. Resume LOT08 preflight against current master, and still lock G1-G5 before 08.1. 35 SP LOT08 re-estimate remains tentative, not approved baseline.
+- **No release:** no Vercel, no cabinet PROD deployment, no physical multi-monitor / OS DPI200 field certification; physical tests at LOT10.
+
+**NEXT EXACT:** Re-check current master SHA/CI, confirm relevant LOT07 closure and any REQUIRED scope exception; re-run LOT08 PRE / domain/tenant/visits before any LOT08 implementation. No implicit permission for real patient data, migration, merge of future features or production.
+
+---
+
+
 > Fichier de reprise canonique. Historique pré-audit : `docs/archive/STATE_2026-07-21.md`.
 
 # Etat canonique scientifique — 2026-10-07
