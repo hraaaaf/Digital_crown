@@ -6,6 +6,7 @@ Executed after the existing authenticated four-step FUE so its IDs remain stable
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import sys
@@ -28,9 +29,11 @@ if not password or not all(isinstance(studies.get(k), int) for k in
                            ("patient_id", "older_id", "latest_id")):
     raise RuntimeError("Missing signed-off synthetic T2 fixture context")
 
+import fitz
 from PIL import Image
 from backend import database, models
 from backend.security import get_password_hash
+from backend.services.archive_service import ArchiveService
 from backend.services.cephalo_safe_engine import cephalo_safe_engine
 from backend.services.cephalo_runtime_evidence import (
     EVIDENCE_GRAPH_KEY, build_cephalo_runtime_evidence_payload,
@@ -152,10 +155,37 @@ with database.SessionLocal() as db:
         p = Path(f"/tmp/dc-dos01-{name}.png")
         Image.new("RGB", (800, 600), color).save(p, "PNG")
         image_paths[name] = str(p)
+    # Real, readable PDF bytes, but ONLY generic NON-CLINICAL test archives.
+    # Never forge RAPPORT_CEPHALO, practitioner signatures or a final A4.
+    archives = {}
+    for code, patient, practitioner in (
+        ("a", source_a, owner), ("b", patient_b, owner), ("x", patient_x, user_x),
+    ):
+        with fitz.open() as pdf:
+            page = pdf.new_page()
+            page.insert_text(
+                (60, 80), f"DC-DOS01 SYNTHETIC TEST PDF {code.upper()} - NOT CLINICAL"
+            )
+            data = pdf.tobytes(garbage=4, deflate=True)
+        doc, _ = ArchiveService(db).archive_document(
+            patient_id=patient.id,
+            file_content=data,
+            filename=f"DC-DOS01-SYNTH-{code.upper()}.pdf",
+            doc_type=models.DocumentType.AUTRE,
+            uploaded_by_id=practitioner.id,
+            title="TEST ONLY - DO NOT SIGN",
+        )
+        if (doc.patient_id != patient.id
+                or doc.document_type != models.DocumentType.AUTRE
+                or doc.file_hash != hashlib.sha256(data).hexdigest()):
+            raise RuntimeError("DC-DOS-01 synthetic archive provenance mismatch")
+        archives[code] = {"id": doc.id, "sha256": doc.file_hash}
+    if len({archives[k]["id"] for k in archives}) != 3:
+        raise RuntimeError("DC-DOS-01 synthetic archive identities collided")
     fixture = {
         "patient_a": source_a.id, "study_a": source_study.id,
         "patient_b": patient_b.id, "study_b": study_b.id,
         "patient_x": patient_x.id, "tenant_x_user": user_x.id,
-        "images": image_paths, "synthetic_only": True,
+        "images": image_paths, "archives": archives, "synthetic_only": True,
     }
     print("DC_DOS01_SYNTHETIC_FIXTURE="+json.dumps(fixture), flush=True)
