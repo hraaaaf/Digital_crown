@@ -7,12 +7,12 @@
 - G1–G5 are recorded as validated gates in canonical Notion; G6 clears only the delivered LOT07 scope with R3 retained; G7 remains before LOT08 final merge/delivery.
 - Contract: `docs/v1.5/V15_08_1_QUEUE_CORE_DOMAIN_CONTRACT.md`.
 - Isolation: new `queue_core` namespace; no clinical model imports, clinical table changes, migration, durable DB setup, runtime, UI, API, authentication, QR or deployment.
-- Local exact-code-commit proof: SHA `6c1d369e1ea44fb51d56b14d6810b81892a5ada1`; Python 3.12 isolated venv, `pytest==9.0.3`, `SQLAlchemy==2.0.28`, `tzdata==2025.2`; targeted `queue_core/tests`: **7 passed**; `compileall` and commit diff check succeeded.
-- GitHub exact-code-commit proof: [workflow run #42513988399](https://github.com/hraaaaf/Digital_crown/actions/runs/42513988399) **SUCCESS** on SHA `6c1d369e1ea44fb51d56b14d6810b81892a5ada1`; retained report artifact `queue-core-fue0-6c1d369e1ea44fb51d56b14d6810b81892a5ada1` is attached to that run. The PR's current-head CI remains the final automated gate and is linked from PR #1234.
+- Latest source proof before this STATE follow-up: SHA `4e9c50304df7e54b20ab2ad67b9f0a3eb1ef51ce`; isolated Python 3.12, `pytest==9.0.3`, `SQLAlchemy==2.0.28`, `tzdata==2025.2`; **7 passed** locally and exact-SHA workflow [run #42514292556](https://github.com/hraaaaf/Digital_crown/actions/runs/42514292556) **SUCCESS**. Its JUnit artifact [13630038823](https://github.com/hraaaaf/Digital_crown/actions/runs/42514292556) is named `queue-core-fue0-4e9c50304df7e54b20ab2ad67b9f0a3eb1ef51ce`; inspected report: **7 tests, 0 failures, 0 errors, 0 skipped**.
+- The final current-head exact-SHA run/artifact is linked dynamically from [PR #1234 Checks](https://github.com/hraaaaf/Digital_crown/pull/1234/checks); that PR check must be re-read at review time.
 - Workflow refinement: PR-triggered runs explicitly checkout `github.event.pull_request.head.sha`; push runs checkout `github.sha`, so the retained test artifact corresponds to the source SHA rather than a synthetic merge ref.
 - Draft PR: [#1234](https://github.com/hraaaaf/Digital_crown/pull/1234), open and unmerged. Exact current PR head/checks must be re-read after the STATE evidence commit.
 - FUE-0 is applicable; FUE-I/FUE-G are not applicable to this contract-only sub-lot. No product UI is introduced.
-- Next exact: finish the STATE evidence commit, confirm the exact final PR-head CI/artifact, and leave PR #1234 in DRAFT for independent review. Do not merge or start 08.2 without separate approval.
+- Next exact: independent read-only review of PR #1234, then owner decision on 08.1. Keep it DRAFT; no merge or 08.2 without separate approval.
 
 # LOT07 V1.5 Desktop Experience & MultiView — 2026-11-08 — INTEGRATED DELIVERY CLOSED (LIMITED SCOPE)
 
