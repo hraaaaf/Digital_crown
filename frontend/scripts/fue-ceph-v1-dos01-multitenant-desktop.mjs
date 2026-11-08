@@ -244,27 +244,24 @@ try {
       'The real patient A PDF response bytes differ from seeded SHA256');
     const previewA=page.getByRole('dialog',{name:/Aperçu PDF du patient/});
     await previewA.waitFor({state:'visible',timeout:15000});
-    const iframeA=previewA.locator('iframe[title^="Aperçu PDF"]');
-    const blobA=await iframeA.getAttribute('src');
+    const pixelsA=await checkCanvas(previewA);
     const openedA=await page.evaluate(()=>window.__dcDosPdfAudit);
-    checkTrue(blobA?.startsWith('blob:') && openedA.created.includes(blobA) &&
-      openedA.opened.length===0 && openedA.revoked.length===0 &&
-      (await iframeA.getAttribute('sandbox'))==='allow-downloads',
-      'Patient A PDF is not safely bound to the in-dossier sandboxed viewer');
+    checkTrue(openedA.created.length===0 && openedA.opened.length===0,
+      'Patient A PDF preview created a detached blob URL or native window');
     await shot('04a-patient-a-inline-pdf-viewer');
 
     await openPatient(page,f.patient_b,false,'archives');
     await page.waitForURL(u=>new URL(u).pathname==='/patients/'+f.patient_b,{timeout:30000});
     await page.locator('[data-flow-patient-surface="archives"]').waitFor({state:'visible',timeout:35000});
     await page.getByText('DC-DOS01-SYNTH-B.pdf').waitFor({state:'visible',timeout:35000});
-    await page.waitForFunction(url=>window.__dcDosPdfAudit?.revoked?.includes(url),
-      blobA,{timeout:15000});
+    checkTrue(await page.locator('canvas[data-testid="patient-pdf-page-canvas"]').count()===0,
+      'Patient A canvas persisted in patient B dossier');
     checkTrue(await page.getByRole('dialog',{name:/Aperçu PDF du patient/}).count()===0,
       'Patient A PDF dialog remained mounted after A -> B');
     const auditB=await page.evaluate(()=>window.__dcDosPdfAudit);
-    checkTrue(auditB.revoked.includes(blobA) && auditB.opened.length===0 &&
+    checkTrue(auditB.created.length===0 && auditB.opened.length===0 &&
       await page.getByText('DC-DOS01-SYNTH-A.pdf').count()===0,
-      'A PDF preview object URL or document name persisted after navigation to B');
+      'Patient A PDF or detached preview persisted after navigation to B');
     checkTrue(await page.locator('[data-ortho-workspace-patient]').count()===0,
       'Patient B archive tab retained patient A cephalo workspace');
     await shot('05-patient-b-synthetic-archives');
