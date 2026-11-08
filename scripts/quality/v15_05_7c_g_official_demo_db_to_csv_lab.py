@@ -188,6 +188,10 @@ def main() -> int:
         "candidate_csv_generated_privately": False,
         "candidate_csv_sha256": None,
         "candidate_csv_sample_rows": None,
+        "demo_patient_rows_total": None,
+        "demo_patient_rows_eligible": None,
+        "rows_excluded_incomplete_names_or_invalid_id": None,
+        "selection_is_explicit_nonempty_name_subset": True,
         "publisher_gui_csv_export_verified": False,
         "source_provenance_verified_for_clinical_use": False,
         "vendor_format_compatible": False,
@@ -248,8 +252,31 @@ def main() -> int:
                 suffix = "frm" if ext == "frm" else ext.upper()
                 shutil.copyfile(file, data / "dc_vendor_demo" / f"patient.{suffix}")
             server = start_private_mariadb(data, sock, lab / "mariadb.log")
+            def count_rows(query: str) -> int:
+                text = sql(sock, query).decode("ascii", "strict").strip()
+                if not re.fullmatch(r"[0-9]{1,9}", text):
+                    raise LabRefused("VENDOR_DEMO_AGGREGATE_COUNT_INVALID")
+                return int(text)
+
+            # Do not invent fake names or mutate the vendor's records.
+            # Record explicitly that this is a filtered complete-name sample.
+            eligible = (
+                "PatNum > 0 AND FName IS NOT NULL AND LName IS NOT NULL "
+                "AND TRIM(FName) <> '' AND TRIM(LName) <> ''"
+            )
+            total = count_rows("SELECT COUNT(*) FROM dc_vendor_demo.patient")
+            qualified = count_rows(
+                "SELECT COUNT(*) FROM dc_vendor_demo.patient WHERE " + eligible
+            )
+            report["demo_patient_rows_total"] = total
+            report["demo_patient_rows_eligible"] = qualified
+            report["rows_excluded_incomplete_names_or_invalid_id"] = total - qualified
+            if not (0 < qualified <= total):
+                raise LabRefused("VENDOR_DEMO_HAS_NO_COMPLETE_NAME_RECORDS")
             private_xml = sql(
-                sock, "SELECT PatNum,FName,LName FROM dc_vendor_demo.patient ORDER BY PatNum LIMIT 30",
+                sock,
+                "SELECT PatNum,FName,LName FROM dc_vendor_demo.patient WHERE "
+                + eligible + " ORDER BY PatNum LIMIT 30",
                 xml=True,
             )
             csv_path = lab / "PRIVATE_VENDOR_DEMO_CSV_NEVER_UPLOAD.csv"
