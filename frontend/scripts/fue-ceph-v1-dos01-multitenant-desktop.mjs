@@ -80,7 +80,9 @@ async function browserLogin(context,email) {
   return p;
 }
 async function openPatient(p,id,fresh=false,tab='radiology') {
-  const url=root+'/patients/'+id+(tab==='archives'?'?tab=archives':'?tab=radiology&radioTab=cephalo');
+  const routeTab=tab==='archives'?'?tab=archives':
+    tab==='media'?'?tab=radiology&radioTab=media':'?tab=radiology&radioTab=cephalo';
+  const url=root+'/patients/'+id+routeTab;
   if(fresh)await p.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
   else await p.evaluate(dest=>{
     history.pushState({},'',dest);
@@ -251,6 +253,54 @@ try {
       blob_a_revoked_on_patient_B:true,patient_a_document_absent_in_B:true,
       external_native_popup_auto_close:'NOT_TESTED',synthetic_official_archives_created:0};
   });
+  await page.setViewportSize({width:1920,height:1080});
+  await verify('REAL_R3_DESKTOP_SPLIT_A_B_NO_STALE_PANES',async()=>{
+    const splitSelector='[data-r3-1-split="two-columns"]';
+    const dossierSelector=splitSelector+' [data-v15-071-viewslot="dossier"]';
+    const mediaSelector=splitSelector+' [data-v15-071-viewslot="imagerie"]';
+    await openPatient(page,f.patient_a,false,'media');
+    await page.locator(splitSelector).waitFor({state:'visible',timeout:40000});
+    const dossierA=page.locator(dossierSelector);
+    await page.waitForFunction(sel=>document.querySelector(sel)?.textContent?.includes('T2-0001'),
+      dossierSelector,{timeout:25000});
+    checkTrue((await dossierA.innerText()).includes('T2-0001'),
+      'Patient A true Desktop R3 dossier panel not bound to patient A');
+    const mediaA=page.locator(mediaSelector);
+    await mediaA.locator('[data-testid="media-asset-rail"] article').first()
+      .waitFor({state:'visible',timeout:35000});
+    const imageA=mediaA.locator('img[src^="blob:"]').first();
+    await imageA.waitFor({state:'visible',timeout:30000});
+    const srcA=await imageA.getAttribute('src');
+    checkTrue(srcA?.startsWith('blob:'),'Patient A genuine media pane lacks authenticated blob');
+    checkTrue(await mediaA.getByRole('button',{name:'Importer'}).count()===0,
+      'Read-only MultiView mistakenly exposes media import');
+    await shot('08-r3-split-patient-a');
+
+    await openPatient(page,f.patient_b,false,'media');
+    await page.waitForURL(u=>new URL(u).pathname==='/patients/'+f.patient_b,{timeout:30000});
+    await page.locator(splitSelector).waitFor({state:'visible',timeout:40000});
+    await page.waitForFunction(sel=>document.querySelector(sel)?.textContent?.includes('T2-DC-DOS01-B'),
+      dossierSelector,{timeout:35000});
+    const dossierB=await page.locator(dossierSelector).innerText();
+    checkTrue(dossierB.includes('T2-DC-DOS01-B') && !dossierB.includes('T2-0001'),
+      'Patient A dossier identity persisted in the R3 split of B');
+    const mediaB=page.locator(mediaSelector);
+    await mediaB.locator('[data-testid="media-asset-rail"] article').first()
+      .waitFor({state:'visible',timeout:35000});
+    const imageB=mediaB.locator('img[src^="blob:"]').first();
+    await imageB.waitFor({state:'visible',timeout:30000});
+    const srcB=await imageB.getAttribute('src');
+    checkTrue(srcA!==srcB && await page.locator('img[src="'+srcA+'"]').count()===0,
+      'Patient A media blob remained visible in true Desktop R3 split of B');
+    await page.waitForFunction(url=>window.__dcDosPdfAudit?.revoked?.includes(url),
+      srcA,{timeout:15000});
+    checkTrue(await mediaB.getByRole('button',{name:'Importer'}).count()===0,
+      'Patient B split mounted editable media actions');
+    await shot('09-r3-split-patient-b');
+    return {desktop_1920_two_real_panes:true,patient_a_identity_verified:true,
+      patient_b_identity_verified:true,stale_a_panel_absent:true,
+      old_media_blob_revoked:true,no_media_write_controls:true,clinical_release:false};
+  });
   foreignContext=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce',
     storageState:{cookies:foreignEnrolled.cookies.filter(c=>c.name==='dc_workstation'),origins:[]}});
   foreignPage=await browserLogin(foreignContext,'t2-dos01-foreign@cabinet.ma');
@@ -267,6 +317,35 @@ try {
       'Foreign Cabinet displayed A media');
     await shot('07-foreign-cannot-open-a',foreignPage);
     return {foreign_own_visible:true,foreign_A_photo_hidden:true};
+  });
+  await foreignPage.setViewportSize({width:1920,height:1080});
+  await verify('REAL_R3_FOREIGN_CABINET_X_SPLIT_AND_A_DENIAL',async()=>{
+    const split='[data-r3-1-split="two-columns"]';
+    const dossier=split+' [data-v15-071-viewslot="dossier"]';
+    await openPatient(foreignPage,f.patient_x,false,'media');
+    await foreignPage.locator(split).waitFor({state:'visible',timeout:40000});
+    await foreignPage.waitForFunction(sel=>document.querySelector(sel)?.textContent?.includes('T2-DC-DOS01-X'),
+      dossier,{timeout:35000});
+    const content=await foreignPage.locator(dossier).innerText();
+    checkTrue(content.includes('T2-DC-DOS01-X') &&
+      !content.includes('T2-0001') && !content.includes('T2-DC-DOS01-B'),
+      'Foreign Cabinet X split contains an A/B dossier');
+    await foreignPage.locator(split+' [data-v15-071-viewslot="imagerie"]')
+      .locator('[data-testid="media-asset-rail"] article').first()
+      .waitFor({state:'visible',timeout:35000});
+    await shot('10-r3-foreign-own-patient-x',foreignPage);
+
+    await openPatient(foreignPage,f.patient_a,false,'media');
+    await foreignPage.waitForURL(u=>new URL(u).pathname==='/patients/'+f.patient_a,
+      {timeout:30000});
+    await foreignPage.waitForTimeout(800);
+    checkTrue(await foreignPage.locator(split).count()===0,
+      'Foreign Cabinet rendered real MultiView panels from patient A');
+    checkTrue(await foreignPage.getByText('T2-0001').count()===0 &&
+      await foreignPage.locator('img[src^="blob:"]').count()===0,
+      'Foreign Cabinet retained A dossier identity or media blob');
+    await shot('11-r3-foreign-cannot-open-a',foreignPage);
+    return {foreign_own_x_two_panes:true,foreign_patient_a_split_denied:true};
   });
   proof.status='SUBLOT_AUTOMATED_PASS';
 }catch(e) {
@@ -285,5 +364,5 @@ console.log('DC_DOS01_SYNTHETIC_REAL_CABINET_RESULT',JSON.stringify({
   screenshots:proof.shots.length,
 }));
 checkTrue(proof.status==='SUBLOT_AUTOMATED_PASS' &&
-  proof.checks.length===8 && proof.checks.every(x=>x.status==='PASS'),
+  proof.checks.length===10 && proof.checks.every(x=>x.status==='PASS'),
   'DC-DOS-01 sublot not proven: read report.json, never claim official FUE PASS');
