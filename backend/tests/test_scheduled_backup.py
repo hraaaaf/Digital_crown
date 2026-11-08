@@ -1,6 +1,7 @@
 """Tests for the SCHEDULED-TASK-BACKUP-REPLACE-1 orchestrator."""
 import hashlib
 import json
+import os
 import time
 from pathlib import Path
 from types import SimpleNamespace
@@ -193,7 +194,7 @@ class TestRetention:
             report = sb._apply_retention(db_dir, "db_backup_", ".sql.enc", retention_days=30, dry_run=False)
 
         remaining = list(db_dir.glob("db_backup_*.sql.enc"))
-        if __import__("os").name == "posix":
+        if os.name == "posix":
             # A name-based POSIX unlink is unsafe under inode substitution.
             # The correct behavior is to preserve all backups and refuse purge.
             assert report["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", report
