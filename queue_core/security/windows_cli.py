@@ -1,17 +1,20 @@
-"""Privileged offline Windows console entry point for Queue Core's first admin.
+"""Offline first-admin Windows CLI for an isolated Queue Core auth store.
 
-The CLI deliberately has NO --db or LAN option. It always targets a dedicated,
-ACL-locked ProgramData folder discovered from HKLM rather than user-controlled
-environment variables. No clinical database, Firebase or network access.
-DO NOT run this tool as part of 08.2-A automated tests or on a real cabinet.
+No --db parameter or network endpoints. Only a physically local elevated
+server console may create the initial administrator or rotate the offline
+recovery secret. Directory and initial DB file are created with protected
+Windows security descriptors atomically; existing objects are verified and
+NEVER silently re-ACL'd if ownership or grants are not trusted.
 """
 from __future__ import annotations
 
 import argparse
 import base64
+import ctypes
 import getpass
 import os
 from pathlib import Path
+import stat
 import subprocess
 import sys
 
@@ -20,8 +23,15 @@ from .windows_console import (
     LocalConsoleRequired, require_local_windows_admin_console,
 )
 
+_SYSTEM = "S-1-5-18"
+_ADMINS = "S-1-5-32-544"
+# Owner=BUILTIN Administrators, Group=BUILTIN Administrators, protected DACL.
+_DIR_SDDL = "O:BAG:BAD:P(A;OICI;FA;;;SY)(A;OICI;FA;;;BA)"
+_FILE_SDDL = "O:BAG:BAD:P(A;;FA;;;SY)(A;;FA;;;BA)"
+
 
 def _programdata() -> Path:
+    """HKLM-controlled Common AppData, never a caller-modifiable env var."""
     import winreg
 
     with winreg.OpenKey(
@@ -33,41 +43,137 @@ def _programdata() -> Path:
 
 
 def _no_reparse(path: Path) -> None:
-    if path.exists() and path.stat(follow_symlinks=False).st_file_attributes & 0x400:
+    """lstat, NOT exists(): dangling symlinks and junctions must be detected."""
+    try:
+        info = path.lstat()
+    except FileNotFoundError:
+        return
+    if (stat.S_ISLNK(info.st_mode)
+            or getattr(info, "st_file_attributes", 0) & 0x400):
         raise LocalConsoleRequired("REPARSE_POINT_FORBIDDEN")
 
 
+def _secure_win32_create(path: Path, *, directory: bool) -> None:
+    """Atomic CreateDirectoryW/CreateFileW with explicit owner + protected DACL.
+
+    The directory/file must not be created first with inheritable broad ACLs.
+    Reparse-point following is disabled for opening/creating the file. A
+    collision (including pre-existing objects) is verified separately and
+    rejected unless it has the exact trusted security boundary.
+    """
+    if os.name != "nt":
+        raise LocalConsoleRequired("WINDOWS_REQUIRED")
+    from ctypes import wintypes
+
+    class SecurityAttributes(ctypes.Structure):
+        _fields_ = [
+            ("nLength", wintypes.DWORD),
+            ("lpSecurityDescriptor", ctypes.c_void_p),
+            ("bInheritHandle", wintypes.BOOL),
+        ]
+
+    advapi = ctypes.WinDLL("advapi32", use_last_error=True)
+    kernel = ctypes.WinDLL("kernel32", use_last_error=True)
+    from_sddl = advapi.ConvertStringSecurityDescriptorToSecurityDescriptorW
+    from_sddl.argtypes = [
+        wintypes.LPCWSTR, wintypes.DWORD,
+        ctypes.POINTER(ctypes.c_void_p), ctypes.POINTER(wintypes.DWORD),
+    ]
+    from_sddl.restype = wintypes.BOOL
+    sd = ctypes.c_void_p()
+    sd_size = wintypes.DWORD()
+    if not from_sddl(
+        _DIR_SDDL if directory else _FILE_SDDL,
+        1, ctypes.byref(sd), ctypes.byref(sd_size)
+    ):
+        raise LocalConsoleRequired("SECURE_SECURITY_DESCRIPTOR_FAILED")
+    sa = SecurityAttributes(ctypes.sizeof(SecurityAttributes), sd, 0)
+    try:
+        if directory:
+            create_dir = kernel.CreateDirectoryW
+            create_dir.argtypes = [wintypes.LPCWSTR, ctypes.POINTER(SecurityAttributes)]
+            create_dir.restype = wintypes.BOOL
+            created = bool(create_dir(str(path), ctypes.byref(sa)))
+            if not created:
+                if ctypes.get_last_error() != 183:  # ERROR_ALREADY_EXISTS
+                    raise LocalConsoleRequired("SECURE_DIRECTORY_CREATE_FAILED")
+        else:
+            create_file = kernel.CreateFileW
+            create_file.argtypes = [
+                wintypes.LPCWSTR, wintypes.DWORD, wintypes.DWORD,
+                ctypes.POINTER(SecurityAttributes), wintypes.DWORD,
+                wintypes.DWORD, wintypes.HANDLE,
+            ]
+            create_file.restype = wintypes.HANDLE
+            # CREATE_NEW, GENERIC_READ|WRITE, FILE_FLAG_OPEN_REPARSE_POINT.
+            handle = create_file(
+                str(path), 0xC0000000, 0, ctypes.byref(sa), 1,
+                0x80 | 0x00200000, None,
+            )
+            if handle == ctypes.c_void_p(-1).value:
+                if ctypes.get_last_error() != 80:  # ERROR_FILE_EXISTS
+                    raise LocalConsoleRequired("SECURE_AUTH_FILE_CREATE_FAILED")
+            else:
+                close = kernel.CloseHandle
+                close.argtypes = [wintypes.HANDLE]
+                close.restype = wintypes.BOOL
+                if not close(handle):
+                    raise LocalConsoleRequired("AUTH_FILE_HANDLE_CLOSE_FAILED")
+    finally:
+        local_free = kernel.LocalFree
+        local_free.argtypes = [ctypes.c_void_p]
+        local_free.restype = ctypes.c_void_p
+        local_free(sd)
+
+
 def _ps(script: str) -> None:
-    command = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
-    result = subprocess.run(
+    encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
+    proc = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive",
-         "-EncodedCommand", command],
-        stdin=subprocess.DEVNULL, capture_output=True, text=True, timeout=30,
-        check=False,
+         "-EncodedCommand", encoded],
+        stdin=subprocess.DEVNULL, capture_output=True, text=True,
+        timeout=30, check=False,
     )
-    if result.returncode != 0 or "ACL_VERIFIED" not in result.stdout:
-        # Do not disclose potentially sensitive machine path details.
-        raise LocalConsoleRequired("LOCAL_AUTH_ACL_UNVERIFIED")
+    if proc.returncode != 0 or "ACL_VERIFIED" not in proc.stdout:
+        # Never disclose caller-controlled paths, secrets or PowerShell details.
+        raise LocalConsoleRequired("AUTH_STORE_ACL_UNVERIFIED")
 
 
 def _verify_acl(path: Path, *, allow_inherited: bool = False) -> None:
+    """Validate trusted owner AND exactly one ACE per mandatory SID."""
     quoted = str(path).replace("'", "''")
     script = """
 $ErrorActionPreference = 'Stop'
 $p = '%s'
-$a = (Get-Acl -LiteralPath $p).Access
+$info = Get-Acl -LiteralPath $p
+$owner = $info.Owner
+try {
+  $ownerSid = (New-Object System.Security.Principal.NTAccount($owner)).Translate(
+    [System.Security.Principal.SecurityIdentifier]).Value
+} catch {
+  $ownerSid = $owner
+}
 $required = @('S-1-5-18','S-1-5-32-544')
-if ($a.Count -ne 2) { throw 'ACL has unexpected grants' }
-foreach ($rule in $a) {
+if ($ownerSid -notin $required) { throw 'Untrusted owner' }
+$seen = @()
+$access = @($info.Access)
+if ($access.Count -ne 2) { throw 'Unexpected grant count' }
+foreach ($rule in $access) {
   $sid = $rule.IdentityReference.Translate(
     [System.Security.Principal.SecurityIdentifier]).Value
-  if ($sid -notin $required -or ( $rule.IsInherited -and -not %s ) -or
+  if ($sid -notin $required -or $seen -contains $sid -or
+      ($rule.IsInherited -and -not %s) -or
       $rule.AccessControlType -ne 'Allow' -or
       (($rule.FileSystemRights -band
         [System.Security.AccessControl.FileSystemRights]::FullControl) -ne
         [System.Security.AccessControl.FileSystemRights]::FullControl)) {
-    throw 'ACL not private'
+    throw 'Untrusted ACE'
   }
+  $seen += $sid
+}
+if ((@($seen | Sort-Object) -join ',') -ne
+    (@($required | Sort-Object) -join ',')) {
+  throw 'Missing required identity'
 }
 Write-Output 'ACL_VERIFIED'
 """ % (quoted, "$true" if allow_inherited else "$false")
@@ -75,39 +181,28 @@ Write-Output 'ACL_VERIFIED'
 
 
 def _create_private_dir(path: Path) -> None:
-    parent = path.parent
-    _no_reparse(parent)
+    _no_reparse(path.parent)
     _no_reparse(path)
-    if path.exists():
-        _verify_acl(path)
-        return
-    path.mkdir(exist_ok=False)
-    quoted = str(path).replace("'", "''")
-    script = """
-$ErrorActionPreference = 'Stop'
-$p = '%s'
-$acl = New-Object System.Security.AccessControl.DirectorySecurity
-$acl.SetAccessRuleProtection($true,$false)
-foreach ($identity in @('S-1-5-18','S-1-5-32-544')) {
-  $sid = New-Object System.Security.Principal.SecurityIdentifier($identity)
-  $rule = New-Object System.Security.AccessControl.FileSystemAccessRule(
-    $sid, 'FullControl', 'ContainerInherit,ObjectInherit','None','Allow')
-  $acl.AddAccessRule($rule)
-}
-Set-Acl -LiteralPath $p -AclObject $acl
-Write-Output 'ACL_VERIFIED'
-""" % quoted
-    _ps(script)
+    if not path.exists():
+        _secure_win32_create(path, directory=True)
+    _no_reparse(path)
+    if not path.is_dir():
+        raise LocalConsoleRequired("AUTH_DIR_INVALID")
     _verify_acl(path)
 
 
-def _database_path() -> Path:
+def _database_path(*, initialize: bool) -> Path:
     require_local_windows_admin_console()
     base = _programdata() / "DigitalCrownQueueCore"
     _create_private_dir(base)
     database = base / "local_auth.sqlite"
     _no_reparse(database)
+    if initialize and not database.exists():
+        _secure_win32_create(database, directory=False)
+    _no_reparse(database)
     if database.exists():
+        if not database.is_file():
+            raise LocalConsoleRequired("AUTH_FILE_INVALID")
         _verify_acl(database, allow_inherited=True)
     return database
 
@@ -120,14 +215,13 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     try:
-        path = _database_path()
+        path = _database_path(initialize=args.action == "issue")
         store = LocalIdentityStore(path)
         if args.action == "issue":
             token = store.begin_bootstrap()
-            # Display once on a physically local admin console only.
             print("One-time bootstrap code (expires in 10 minutes):")
             print(token)
-            print("Run 'enroll' at this same local server console.")
+            print("Run 'enroll' at the same physical server console.")
         elif args.action == "enroll":
             challenge = getpass.getpass("Bootstrap code: ")
             username = input("New local Admin username (3-64 ASCII chars): ")
@@ -154,7 +248,6 @@ def main(argv: list[str] | None = None) -> int:
                   ("INITIALIZED" if store.is_initialized() else "NOT_INITIALIZED"))
         return 0
     except (LocalIdentityError, LocalConsoleRequired) as error:
-        # Never log supplied challenge, password, recovery secret, or session.
         print("Queue Core local administration refused: " + str(error),
               file=sys.stderr)
         return 2

@@ -66,3 +66,15 @@ a real local auth store without an approved recovery/restore plan.
 integration. 08.2-C devices; 08.2-D QR; 08.2-E installation/FUE-I. Each
 requires separate validated sublot scope. Physical Windows service packaging
 and real patient/production usage are not authorized.
+
+## SEC/OPS adversarial review — hardening of the 08.2-A draft
+
+Initial independent generic Codex review at SHA `58e3b5e73367ad7236a1049857f349131f3193ab`: no actionable findings. A separate targeted adversarial reviewer **FAILED** this SHA with P1 attacker-owned precreated authentication directory and P2 dangling symlink/reparse bypass.
+
+Corrected within scope:
+- **Atomic protected creation:** Win32 `CreateDirectoryW` and `CreateFileW` supply explicit security descriptors *at creation*, owner BUILTIN Administrators and protected DACL with SYSTEM and Administrators only. The DB file creation uses `FILE_FLAG_OPEN_REPARSE_POINT`; SQL opens it only after private directory and file owner/ACE verification. If an existing path collides, it is re-verified, never silently repaired or trusted.
+- **Fail-closed owner and ACE verification:** PowerShell `Get-Acl` checks trusted SID owner, exactly two allowed full-control ACEs, distinct SYSTEM and Administrators SIDs, no unwanted principal or deny grant. A directory owned by an unprivileged local user is refused even if it can spoof grant counts.
+- **Dangling links:** `Path.lstat()` detects reparse/symlink attributes regardless of target existence, unlike `Path.exists()`.
+- **Negative safety tests:** local Windows Python 3.12 suite **51/51 PASS**, including an actual TEMP DIRECTORY ACL denial, mocked dangling link and atomic creation calls, Windows SDDL parser, PowerShell ACL script parser. No real ProgramData ACL was changed and no real admin account/recovery secret was created.
+
+**LIMIT:** the physical positive elevated Windows console flow, actual protected ACL installation, Windows service account and restore remain `NOT_RUN`; a later physical LAB gate must run before real first-admin enrollment. A malicious privileged Windows administrator is outside protection against OS-level tampering; the implementation is designed to resist unprivileged users, not compromised SYSTEM.
