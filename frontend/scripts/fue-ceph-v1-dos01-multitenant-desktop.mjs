@@ -76,8 +76,8 @@ async function browserLogin(context,email) {
   checkTrue(await p.evaluate(()=>Boolean(localStorage.getItem('token'))),'Real UI JWT missing');
   return p;
 }
-async function openPatient(p,id,fresh=false) {
-  const url=root+'/patients/'+id+'?tab=radiology&radioTab=cephalo';
+async function openPatient(p,id,fresh=false,tab='radiology') {
+  const url=root+'/patients/'+id+(tab==='archives'?'?tab=archives':'?tab=radiology&radioTab=cephalo');
   if(fresh)await p.goto(url,{waitUntil:'domcontentloaded',timeout:45000});
   else await p.evaluate(dest=>{
     history.pushState({},'',dest);
@@ -130,6 +130,10 @@ try {
         timeline.items[0].patient_id===pid,'Duplicate/cross-patient timeline');
       checkTrue(!('storage_key' in timeline.items[0]) && !('sha256' in timeline.items[0]),
         'Asset storage metadata leaked');
+      const documents=await own(api,jwt,'/api/patients/'+pid+'/documents');
+      checkTrue(Array.isArray(documents) &&
+        documents.every(d=>typeof d.id==='string' && !d.id.startsWith('legacy:'+ (pid===f.patient_a?f.patient_b:f.patient_a)+':')),
+        'Own patient document archive response invalid or contains another synthetic patient');
       const blob=await get(api,jwt,'/api/patients/'+pid+'/assets/'+aid+'/content');
       checkTrue(blob.status()===200 && (await blob.body()).length>100,'Own blob not available');
     }
@@ -145,7 +149,7 @@ try {
     const subjects=[[foreignApi,foreignJwt,f.patient_a,assets.a],
       [foreignApi,foreignJwt,f.patient_b,assets.b],[ownerApi,ownerJwt,f.patient_x,assets.x]];
     for(const [api,jwt,pid,aid] of subjects) {
-      for(const suffix of ['', '/assets','/ortho-media-record?timepoint=T0',
+      for(const suffix of ['', '/assets','/documents','/ortho-media-record?timepoint=T0',
           '/assets/'+aid+'/content']) {
         await deny(api,jwt,'/api/patients/'+pid+suffix);
         denied++;
@@ -183,6 +187,25 @@ try {
     await shot('03-patient-b-own-media');
     return {old_blob_hidden:true,new_blob_authenticated:true};
   });
+  await verify('REAL_REACT_A_B_DOCUMENTS_ROUTE_ISOLATION',async()=>{
+    await openPatient(page,f.patient_a,false,'archives');
+    await page.locator('[data-flow-patient-surface="archives"]').waitFor({state:'visible',timeout:35000});
+    await page.getByPlaceholder("Rechercher dans l'historique...").waitFor({state:'visible',timeout:35000});
+    checkTrue((await page.locator('[data-flow-patient-surface="archives"]').getByText('0 Documents').count())===1,
+      'Synthetic patient A unexpectedly has an official archive');
+    await shot('04-patient-a-empty-archives');
+    await openPatient(page,f.patient_b,false,'archives');
+    await page.waitForURL(u=>new URL(u).pathname==='/patients/'+f.patient_b,{timeout:30000});
+    await page.locator('[data-flow-patient-surface="archives"]').waitFor({state:'visible',timeout:35000});
+    await page.getByPlaceholder("Rechercher dans l'historique...").waitFor({state:'visible',timeout:35000});
+    const header=await page.locator('[data-ortho-workspace-patient]').count();
+    checkTrue(header===0,'Patient B archive tab retained patient A cephalo workspace');
+    checkTrue(await page.locator('[data-document-kind]').count()===0,
+      'Test-only A/B has a document, official archive must remain empty');
+    await shot('05-patient-b-empty-archives');
+    return {patient_a_archives_accessible:true,patient_b_archives_accessible:true,
+      synthetic_official_archives_created:0,blob_archive_claims:false};
+  });
   foreignContext=await browser.newContext({viewport:{width:1280,height:900},reducedMotion:'reduce',
     storageState:{cookies:foreignEnrolled.cookies.filter(c=>c.name==='dc_workstation'),origins:[]}});
   foreignPage=await browserLogin(foreignContext,'t2-dos01-foreign@cabinet.ma');
@@ -191,13 +214,13 @@ try {
     await foreignPage.locator('[data-ortho-workspace-title]').waitFor({state:'visible',timeout:40000});
     const label=await foreignPage.locator('[data-ortho-workspace-patient]').innerText();
     checkTrue(label.includes('SYNTHETIC_X'),'Foreign dentist cannot view own X synthetic patient');
-    await shot('04-foreign-own-patient',foreignPage);
+    await shot('06-foreign-own-patient',foreignPage);
     await openPatient(foreignPage,f.patient_a);
     await foreignPage.waitForURL(u=>new URL(u).pathname==='/patients/'+f.patient_a,{timeout:30000});
     await foreignPage.waitForTimeout(500);
     checkTrue(await foreignPage.locator('[data-ortho-photo-slot] img[alt="Vue orthodontique"]').count()===0,
       'Foreign Cabinet displayed A media');
-    await shot('05-foreign-cannot-open-a',foreignPage);
+    await shot('07-foreign-cannot-open-a',foreignPage);
     return {foreign_own_visible:true,foreign_A_photo_hidden:true};
   });
   proof.status='SUBLOT_AUTOMATED_PASS';
@@ -217,5 +240,5 @@ console.log('DC_DOS01_SYNTHETIC_REAL_CABINET_RESULT',JSON.stringify({
   screenshots:proof.shots.length,
 }));
 checkTrue(proof.status==='SUBLOT_AUTOMATED_PASS' &&
-  proof.checks.length===7 && proof.checks.every(x=>x.status==='PASS'),
+  proof.checks.length===8 && proof.checks.every(x=>x.status==='PASS'),
   'DC-DOS-01 sublot not proven: read report.json, never claim official FUE PASS');
