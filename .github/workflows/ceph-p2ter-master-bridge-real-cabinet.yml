@@ -64,6 +64,11 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
+      - name: Enforce scientific CAS clinical-only and negative mutation regressions
+        run: |
+          python -m pytest \
+            backend/tests/test_cephalo_scientific_write.py \
+            backend/tests/test_cephalo_repository_calibration_invariants.py -q
       - name: Start isolated T2 FastAPI runtime (real JWT and workstation)
         run: |
           python scripts/t2_runtime_server.py > /tmp/p2ter-backend.log 2>&1 &
