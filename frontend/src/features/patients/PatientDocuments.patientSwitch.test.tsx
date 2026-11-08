@@ -5,7 +5,12 @@ import { MemoryRouter, Route, Routes, useNavigate } from 'react-router-dom';
 import { PatientDocuments } from './PatientDocuments';
 
 const { get, post } = vi.hoisted(() => ({get:vi.fn(),post:vi.fn()}));
-vi.mock('../../services/api',()=>({api:{get,post}}));
+vi.mock('../../services/api',async(importOriginal)=>{
+  // Keep API_BASE and other real exports required by the auth/store import
+  // graph; only intercept the patient document network calls for this test.
+  const actual=await importOriginal<typeof import('../../services/api')>();
+  return {...actual,api:{...actual.api,get,post}};
+});
 vi.mock('./CnssInsuranceAction',()=>({
   CnssInsuranceAction:()=>null,
   insuranceOrganizationFromAssurance:()=>null,
