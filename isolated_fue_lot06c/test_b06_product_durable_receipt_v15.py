@@ -331,6 +331,45 @@ def test_b06_4_schema_corruption_and_audit_immutability_fail_closed(
     print("DC06_B06_4_REJECTS_INCOMPLETE_SCHEMA_AND_IMMUTABLE_ACK_AUDIT_PASS")
 
 
+def test_b06_3_partial_unique_index_does_not_approve_receipt_schema(
+    synthetic_sqlcipher_bridge, tmp_path, monkeypatch,
+):
+    """A conditional UNIQUE is not a global replay-safe receipt constraint.
+
+    Disposable SQLCipher only. No production DDL or patient data.
+    """
+    from backend.services.imaging_acquisition_durable_v15 import (
+        is_committed, DurableCaptureDenied,
+    )
+
+    engine, claim, station, headers, app, active = _setup(
+        synthetic_sqlcipher_bridge, tmp_path, monkeypatch, 86,
+    )
+    _lab_approve_schema(engine)
+    with engine.begin() as conn:
+        original_sql = conn.exec_driver_sql(
+            "SELECT sql FROM sqlite_master WHERE type='table' "
+            "AND name='dc06_b06_product_receipts'"
+        ).scalar_one()
+        assert "UNIQUE (receipt_id)" in original_sql
+        # Construct the exact expected columns, PK, and immutability triggers,
+        # but replace the global uniqueness guard with a partial index.
+        conn.exec_driver_sql("DROP TABLE dc06_b06_product_receipts")
+        conn.exec_driver_sql(original_sql.replace(
+            "UNIQUE (receipt_id)", "CHECK (length(receipt_id) > 0)",
+        ))
+        conn.exec_driver_sql(
+            "CREATE UNIQUE INDEX dc06_b06_partial_receipt_id "
+            "ON dc06_b06_product_receipts(receipt_id) WHERE tenant > 0"
+        )
+        for name, sql in LEDGER_IMMUTABILITY_TRIGGERS.items():
+            if name.startswith("dc06_b06_receipts_"):
+                conn.exec_driver_sql(sql)
+    with pytest.raises(DurableCaptureDenied, match="DURABLE_SCHEMA_NOT_APPROVED"):
+        is_committed(engine, tenant=claim.tenant, station=station, capture=86)
+    print("DC06_B06_3_PARTIAL_UNIQUE_RECEIPT_INDEX_FAIL_CLOSED_PASS")
+
+
 def test_b06_4_plaintext_sqlite_engine_cannot_authorize_durable_ledger():
     from sqlalchemy import create_engine
     from backend.services.imaging_acquisition_durable_v15 import (

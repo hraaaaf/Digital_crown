@@ -135,7 +135,10 @@ def _schema(db: Session) -> None:
     for info in connection.exec_driver_sql(
         'PRAGMA index_list("dc06_b06_product_receipts")'
     ).all():
-        if info[2]:
+        # A partial UNIQUE index only constrains rows matching its WHERE
+        # predicate, so it cannot protect all patient-capture receipts.
+        # SQLite PRAGMA index_list column 4 is the 'partial' flag.
+        if info[2] and len(info) > 4 and not info[4]:
             idx_name = info[1].replace('"', '""')
             unique_index_columns.add(tuple(
                 col[2] for col in connection.exec_driver_sql(
