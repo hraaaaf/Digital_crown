@@ -204,9 +204,11 @@ export const PatientDocuments = () => {
       if (!belongsToActivePatient(patientAtRequest)) return;
       const blobUrl = URL.createObjectURL(res.data);
       objectUrlsRef.current.add(blobUrl);
-      const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-      if (!opened) releaseObjectUrl(blobUrl);
-      else window.setTimeout(() => releaseObjectUrl(blobUrl), 60_000);
+      // A noopener popup intentionally returns null even when the PDF tab
+      // has opened successfully. Null is not reliable evidence of blocking:
+      // revoking immediately can invalidate the real preview.
+      window.open(blobUrl, '_blank', 'noopener,noreferrer');
+      window.setTimeout(() => releaseObjectUrl(blobUrl), 60_000);
     } catch (err) {
       if (!belongsToActivePatient(patientAtRequest)) return;
       console.error('Erreur lors de la visualisation:', err);
