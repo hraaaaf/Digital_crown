@@ -112,8 +112,8 @@ try {
     }
     if ($report.official_trial_window_title_allowlisted) { break }
   }
-  # Read-only Windows UI Automation inventory from the signed launcher's own
-  # verified HWND. Inspect only fixed whitelisted control identities. No click.
+  # Read-only UI Automation inventory from the verified vendor HWND.
+  # No click, no title/text capture, no screenshots and no user data.
   if ($report.official_trial_window_title_allowlisted -and
       $installerHwnd -ne [IntPtr]::Zero) {
     try {
@@ -122,43 +122,17 @@ try {
       $uiRoot = [System.Windows.Automation.AutomationElement]::FromHandle($installerHwnd)
       if ($null -ne $uiRoot) {
         $report.installer_uia_tree_accessible = $true
-        $scope = [System.Windows.Automation.TreeScope]::Descendants
         $elements = $uiRoot.FindAll(
-          $scope, [System.Windows.Automation.Condition]::TrueCondition
+          [System.Windows.Automation.TreeScope]::Descendants,
+          [System.Windows.Automation.Condition]::TrueCondition
         )
         $limit = [Math]::Min([int]$elements.Count, 500)
         $report.installer_uia_element_count_bounded = $limit
         for ($idx = 0; $idx -lt $limit; $idx++) {
           $element = $elements.Item($idx)
           $label = [string]$element.Current.Name
-          $type = [string]$element.Current.ControlType.ProgrammaticName
-          if ($type -match '(?i)Button' -and $label -match '(?i)^Install
-  } else {
-    $report.status = 'SIGNED_TRIAL_EXECUTED_BUT_GUI_WINDOW_NOT_PROVEN'
-    $report.failure_code = 'VENDOR_GUI_WINDOW_NOT_PROVEN'
-  }
-} catch {
-  # Fixed non-PHI error code. Never print exception text, title, user or path.
-  $report.status = 'REFUSED_OR_NOT_PROVEN'
-  $report.failure_code = 'VENDOR_WINDOW_OBSERVATION_REFUSED_OR_FAILED'
-} finally {
-  # Stop only the publisher process IDs started from this exact launch.
-  foreach ($processId in @($knownIds | Select-Object -Unique)) {
-    try {
-      Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-    } catch {}
-  }
-  try { Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue } catch {}
-  [System.IO.File]::WriteAllText(
-    $reportFile, ($report | ConvertTo-Json -Depth 4),
-    (New-Object System.Text.UTF8Encoding($false))
-  )
-}
-Write-Host ('LOT05_H_SIGNED_VENDOR_WINDOW_PROBE=' + $report.status)
-Write-Host 'LOT05_H_NO_INSTALL_NO_DATABASE_NO_CSV_NO_IMPORT'
-# SUCCESS means bounded probe finished. Artifact JSON determines truth.
-exit 0
-) {
+          $kind = [string]$element.Current.ControlType.ProgrammaticName
+          if ($kind -match '(?i)Button' -and $label -match '(?i)^Install$') {
             $report.installer_uia_install_button_observed = $true
           }
           if ($label -match '(?i)New\s+Server') {
@@ -173,8 +147,6 @@ exit 0
         }
       }
     } catch {
-      # An unexposed or owner-drawn UIA tree is an explicit NOT_PROVEN,
-      # not permission to fall back to blind coordinates or key injection.
       $report.installer_uia_tree_accessible = $false
     }
   }
