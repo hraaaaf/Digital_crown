@@ -120,7 +120,9 @@ class BackupService:
             temp_path.write_bytes(encrypted_data)
             if temp_path.stat().st_size == 0:
                 raise RuntimeError("temp backup file is empty")
-            os.replace(temp_path, final_path)
+            # An existing point must never be overwritten by a second run.
+            # Local same-volume hardlink publication is atomic and no-clobber.
+            os.link(temp_path, final_path)
         except Exception as exc:
             status.update(error_code="WRITE_FAILED", error_message="Échec écriture du fichier de backup")
             logger.error("Backup Postgres : échec écriture (%s).", type(exc).__name__)

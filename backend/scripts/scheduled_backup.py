@@ -23,7 +23,7 @@ import argparse
 import json
 import logging
 import os
-import socket
+import stat
 import sys
 import time
 import uuid
@@ -33,7 +33,6 @@ from pathlib import Path
 RUNTIME_ROOT = Path(os.environ.get("DIGITALCROWN_RUNTIME_ROOT", r"C:\Users\lenovo\DigitalCrown-Runtime"))
 SCHEDULED_ROOT = RUNTIME_ROOT / "backups" / "scheduled"
 LOCK_PATH = SCHEDULED_ROOT / ".backup.lock"
-LOCK_MAX_AGE_SECONDS = 2 * 60 * 60  # 2h - durée max raisonnable d'un backup DB+médias
 
 # SCHEDULED-BACKUP-RELEASE-EXECUTION-FIX-1 : le dépôt de travail mutable ne doit jamais
 # être la source du code réellement exécuté par la tâche planifiée -- seul un venv/
@@ -56,49 +55,71 @@ OFFSITE_MEDIA_RETENTION_DAYS = int(os.environ.get("SCHEDULED_OFFSITE_MEDIA_RETEN
 logger = logging.getLogger("scheduled_backup")
 
 
-def _pid_alive(pid: int) -> bool:
-    """Vérification Windows-only (tasklist) — ce projet est on-premise Windows,
-    voir CLAUDE.md. Pas de dépendance psutil ajoutée pour un seul appel/jour."""
-    if not pid:
-        return False
-    try:
-        import subprocess
-        r = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True)
-        return str(pid) in r.stdout
-    except Exception:
-        return False
+# Keep the lock file inode stable across executions. An OS-owned lock is
+# released on process exit, including crashes. Never unlink/recreate the path:
+# doing so could let concurrent processes lock different inodes.
+_LOCK_FD = None
 
 
 def _acquire_lock() -> tuple[bool, str]:
-    SCHEDULED_ROOT.mkdir(parents=True, exist_ok=True)
-    if LOCK_PATH.exists():
+    global _LOCK_FD
+    if _LOCK_FD is not None:
+        return False, "Verrou déjà détenu par ce processus"
+    try:
+        SCHEDULED_ROOT.mkdir(parents=True, exist_ok=True)
         try:
-            existing = json.loads(LOCK_PATH.read_text(encoding="utf-8"))
-            age = time.time() - existing.get("started_at_epoch", 0)
-            pid = existing.get("pid")
-            pid_alive = _pid_alive(pid) if pid else False
-            if pid_alive and age < LOCK_MAX_AGE_SECONDS:
-                return False, f"Verrou actif (pid={pid}, age={int(age)}s)"
-            logger.warning(
-                "Verrou périmé détecté (pid_alive=%s, age=%ds) — écrasé.", pid_alive, int(age)
-            )
-        except Exception as e:
-            logger.warning("Verrou illisible, écrasé (%s).", type(e).__name__)
+            entry = LOCK_PATH.lstat()
+        except FileNotFoundError:
+            entry = None
+        if entry is not None and (
+            not stat.S_ISREG(entry.st_mode)
+            or getattr(entry, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+        ):
+            return False, "Verrou non régulier / redirection refusée"
+        flags = os.O_RDWR | os.O_CREAT | getattr(os, "O_NOFOLLOW", 0)
+        fd = os.open(LOCK_PATH, flags, 0o600)
+    except OSError as exc:
+        return False, f"Verrou inaccessible : {type(exc).__name__}"
 
-    payload = {
-        "pid": os.getpid(), "host": socket.gethostname(),
-        "started_at_epoch": time.time(), "started_at": datetime.utcnow().isoformat() + "Z",
-    }
-    LOCK_PATH.write_text(json.dumps(payload), encoding="utf-8")
-    return True, ""
+    try:
+        pinned = os.fstat(fd)
+        named = LOCK_PATH.lstat()
+        if not stat.S_ISREG(pinned.st_mode) or (
+            getattr(named, "st_file_attributes", 0)
+            & getattr(stat, "FILE_ATTRIBUTE_REPARSE_POINT", 0x400)
+        ) or (pinned.st_dev, pinned.st_ino) != (named.st_dev, named.st_ino):
+            raise OSError("Verrou substitué pendant ouverture")
+        if os.name == "nt":
+            import msvcrt
+            os.lseek(fd, 0, os.SEEK_SET)
+            msvcrt.locking(fd, msvcrt.LK_NBLCK, 1)
+        elif os.name == "posix":
+            import fcntl
+            fcntl.flock(fd, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        else:
+            raise OSError("Plateforme de verrouillage non certifiée")
+        # Never trust a stale JSON/PID file to reclaim a live lock. Ownership
+        # is the actual kernel lock on this persistent file descriptor.
+        _LOCK_FD = fd
+        return True, ""
+    except (OSError, ValueError) as exc:
+        os.close(fd)
+        return False, f"Verrou détenu ou refusé : {type(exc).__name__}"
 
 
 def _release_lock():
+    global _LOCK_FD
+    fd = _LOCK_FD
+    _LOCK_FD = None
+    if fd is None:
+        return
+    # Closing the owned fd releases flock/msvcrt.locking, also after a crash.
+    # Do not unlink the lock filename: deleting it can create split-brain.
     try:
-        if LOCK_PATH.exists():
-            LOCK_PATH.unlink()
-    except Exception as e:
-        logger.warning("Impossible de libérer le verrou (%s).", type(e).__name__)
+        os.close(fd)
+    except OSError as exc:
+        logger.warning("Impossible de fermer le verrou (%s).", type(exc).__name__)
 
 
 def _check_execution_provenance() -> dict:
@@ -175,37 +196,22 @@ def _apply_retention(
     target_dir: Path, prefix: str, suffix: str, retention_days: int, dry_run: bool,
     min_to_keep: int | None = None,
 ) -> dict:
-    """Ne supprime que dans target_dir (toujours un sous-dossier de scheduled/ ou de
-    la destination hors-site), protège toujours les min_to_keep fichiers les plus
-    récents quel que soit leur âge (défaut : MIN_BACKUPS_TO_KEEP, le même plancher
-    que pour les dossiers locaux), journalise chaque candidat avant toute suppression
-    réelle."""
+    """Local-only descriptor/handle retention; errors never fail main backup."""
     if min_to_keep is None:
         min_to_keep = MIN_BACKUPS_TO_KEEP
-    report = {"dir": str(target_dir), "dry_run": dry_run, "candidates": [], "deleted": []}
-    if not target_dir.exists():
-        return report
-
-    files = sorted(
-        [f for f in target_dir.glob(f"{prefix}*{suffix}") if f.is_file()],
-        key=lambda p: p.stat().st_mtime, reverse=True,
-    )
-    protected = {f.name for f in files[:min_to_keep]}
-    cutoff = time.time() - retention_days * 86400
-
-    for f in files:
-        if f.name in protected:
-            continue
-        if f.stat().st_mtime < cutoff:
-            report["candidates"].append(f.name)
-            logger.info("Rétention : candidat %s à suppression (dry_run=%s).", f.name, dry_run)
-            if not dry_run:
-                try:
-                    f.unlink()
-                    report["deleted"].append(f.name)
-                except Exception as e:
-                    logger.warning("Rétention : échec suppression %s (%s).", f.name, type(e).__name__)
-    return report
+    try:
+        from backend.scripts.backup_retention_local import apply_retention_local
+        return apply_retention_local(
+            target_dir, prefix, suffix, retention_days, dry_run, min_to_keep,
+            scheduled_root=SCHEDULED_ROOT,
+        )
+    except Exception as exc:
+        logger.warning("Local retention blocked: %s", type(exc).__name__)
+        return {
+            "dir": str(target_dir), "dry_run": True, "candidates": [],
+            "deleted": [], "status": "BLOCKED_UNSAFE_LOCAL_RETENTION",
+            "error_code": type(exc).__name__,
+        }
 
 
 def _apply_retention_all(dry_run: bool) -> list:
@@ -216,18 +222,25 @@ def _apply_retention_all(dry_run: bool) -> list:
 
 
 def _apply_retention_all_offsite(offsite_dir_str: str, dry_run: bool) -> list:
-    """Rétention hors-site, symétrique à _apply_retention_all mais sur la
-    destination réseau -- jamais mélangée aux dossiers locaux. Ne lève jamais (appelé
-    depuis run() dans son propre try/except, un incident réseau ici ne doit jamais
-    empêcher l'écriture du manifeste d'un run par ailleurs réussi)."""
+    """Fail closed: NEVER enumerate or delete remote backup paths before an
+    audited handle-relative NAS/SMB deletion gate.
+
+    The offsite copy's pinned directory handles do not protect a later
+    glob/stat/unlink from symlink swaps. This is a no-I/O policy sentinel,
+    including if called directly with dry_run=False.
+    """
     offsite_root = Path(offsite_dir_str)
+    if not dry_run:
+        logger.warning("Remote retention disabled pending audited NAS/SMB path-race safety")
     return [
-        _apply_retention(
-            offsite_root / "db", "db_backup_", ".sql.enc", OFFSITE_DB_RETENTION_DAYS, dry_run,
-        ),
-        _apply_retention(
-            offsite_root / "media", "media_backup_", ".zip.enc", OFFSITE_MEDIA_RETENTION_DAYS, dry_run,
-        ),
+        {
+            "dir": str(offsite_root / folder),
+            "dry_run": True,
+            "candidates": [],
+            "deleted": [],
+            "status": "BLOCKED_UNCERTIFIED_REMOTE_DELETE",
+        }
+        for folder in ("db", "media")
     ]
 
 
@@ -299,7 +312,8 @@ def _write_manifest(manifest: dict):
 
 def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
     run_id = uuid.uuid4().hex[:12]
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    # Unique per attempt even when jobs start within the same second.
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S") + "_" + run_id
     manifest = {
         "run_id": run_id,
         "started_at": datetime.utcnow().isoformat() + "Z",
@@ -314,7 +328,9 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
         "offsite_status": "NOT_CONFIGURED", "offsite_db_copied": False, "offsite_media_copied": False,
         "offsite_error_code": None, "offsite_error_message": None, "offsite_duration_seconds": 0.0,
         "offsite_retention_candidates": [],
+        "offsite_retention_status": "NOT_CONFIGURED",
         "retention_dry_run": not apply_retention,
+        "retention_status": "BLOCKED_UNCERTIFIED_LOCAL_DELETE" if apply_retention else "DRY_RUN",
         "retention_candidates": [],
         "error_code": None, "error_message": None,
     }
@@ -395,11 +411,23 @@ def run(*, apply_retention: bool = False, dry_run: bool = False) -> dict:
 
         manifest["retention_candidates"] = _apply_retention_all(dry_run=not apply_retention)
 
-        if OFFSITE_DIR:
+        # Retention of remote recovery points is forbidden unless this run
+        # published a complete new DB+media pair. Local retention remains
+        # separately governed by the existing local policy.
+        if (
+            OFFSITE_DIR
+            and manifest["overall_status"] == "SUCCESS"
+            and manifest["offsite_status"] == "SUCCESS"
+            and manifest["offsite_db_copied"]
+            and manifest["offsite_media_copied"]
+        ):
             try:
+                # A complete copy does not authorize an unvalidated remote deletion.
+                # The callee also fails closed when invoked with dry_run=False.
                 manifest["offsite_retention_candidates"] = _apply_retention_all_offsite(
-                    OFFSITE_DIR, dry_run=not apply_retention,
+                    OFFSITE_DIR, dry_run=True,
                 )
+                manifest["offsite_retention_status"] = "BLOCKED_UNCERTIFIED_REMOTE_DELETE"
             except Exception as e:
                 logger.warning(
                     "Rétention hors-site : échec, sans impact sur le backup principal (%s).",
@@ -418,7 +446,7 @@ def main():
     parser = argparse.ArgumentParser(description="Orchestrated PostgreSQL + media backup for Task Scheduler.")
     parser.add_argument(
         "--apply-retention", action="store_true",
-        help="Actually delete old scheduled backups beyond retention. Default: dry-run only, deletes nothing.",
+        help="Apply retention to LOCAL scheduled backups only. Remote deletion is blocked pending NAS/SMB certification.",
     )
     parser.add_argument(
         "--dry-run", action="store_true",

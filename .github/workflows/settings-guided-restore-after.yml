@@ -11,6 +11,9 @@ on:
       - 'backend/services/guided_restore_worker.py'
       - 'backend/routers/admin.py'
       - 'backend/tests/test_guided_restore.py'
+      - 'offsite_backup_fue/test_synthetic_pair_recovery_lab.py'
+      - 'backend/scripts/backup_offsite.py'
+      - 'backend/scripts/backup_offsite_win32.py'
       - 'run.py'
       - '.github/workflows/settings-guided-restore-after.yml'
   workflow_dispatch:
