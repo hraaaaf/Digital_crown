@@ -137,3 +137,38 @@ def probe_offline_demo_csv_header(
         raise DemoExportHeaderRefused(str(exc)) from None
     except (OSError, ValueError):
         raise DemoExportHeaderRefused("INVALID_OR_CHANGED_DEMO_COPY") from None
+
+
+def _main() -> int:
+    """One-shot local QA only. No file uploads or network calls."""
+    import argparse
+    import json
+
+    parser = argparse.ArgumentParser(
+        description="LAB demo-only CSV header evidence (no row inspection or import)"
+    )
+    parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument("--staging-root", type=Path, required=True)
+    parser.add_argument("--demo-version", required=True)
+    parser.add_argument("--synthetic-only", action="store_true")
+    parser.add_argument("--offline-copy", action="store_true")
+    parser.add_argument("--official-demo-only", action="store_true")
+    args = parser.parse_args()
+    try:
+        evidence = probe_offline_demo_csv_header(
+            args.source,
+            args.staging_root,
+            operator_declared_demo_version=args.demo_version,
+            lab_only_synthetic_fixture=args.synthetic_only,
+            attested_offline_copy=args.offline_copy,
+            operator_declared_official_demo=args.official_demo_only,
+        )
+    except DemoExportHeaderRefused as exc:
+        print("REFUSED: " + str(exc))
+        return 2
+    print(json.dumps(evidence.public_dict(), sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
