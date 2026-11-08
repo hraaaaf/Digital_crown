@@ -38,6 +38,8 @@ jobs:
       LOT07_R7_DESKTOP_CERT: '1'
       LOT07_R7_WINDOWS_NATIVE: '1'
       LOT07_R7_NVDA_CERT: '1'
+      # Shared by Guidepup installer AND the later real Node.js NVDA runtime.
+      GUIDEPUP_SCREEN_READERS_PATH: ${{ runner.temp }}/guidepup-screen-readers
       SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
       CI: 'true'
       TZ: Africa/Casablanca
@@ -190,6 +192,18 @@ jobs:
             }
           }
           if (-not $installed) { throw 'NOT_CERTIFIED: real NVDA asset unavailable after three attempts' }
+      - name: Verify real NVDA executable visible to runtime
+        shell: pwsh
+        run: |
+          $executable = Join-Path $env:GUIDEPUP_SCREEN_READERS_PATH 'nvda/all/0.2.1-2026.2/extracted/nvda.exe'
+          if (-not (Test-Path -LiteralPath $executable -PathType Leaf)) {
+            throw 'NOT_CERTIFIED: NVDA executable missing in shared Guidepup runtime cache'
+          }
+          Push-Location frontend
+          try {
+            node --input-type=module -e "import {nvda} from '@guidepup/guidepup'; if (!nvda.detect()) { process.exit(2) }; console.log('REAL_NVDA_RUNTIME_PRESENT')"
+            if ($LASTEXITCODE -ne 0) { throw 'NOT_CERTIFIED: Guidepup runtime NVDA detection failed' }
+          } finally { Pop-Location }
       - name: Real authenticated Windows Cabinet, native zoom, NVDA and negative FUE
         shell: pwsh
         run: |
