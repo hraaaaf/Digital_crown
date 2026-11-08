@@ -9,6 +9,7 @@
 - Isolation: new `queue_core` namespace; no clinical model imports, clinical table changes, migration, durable DB setup, runtime, UI, API, authentication, QR or deployment.
 - Local exact-code-commit proof: SHA `6c1d369e1ea44fb51d56b14d6810b81892a5ada1`; Python 3.12 isolated venv, `pytest==9.0.3`, `SQLAlchemy==2.0.28`, `tzdata==2025.2`; targeted `queue_core/tests`: **7 passed**; `compileall` and commit diff check succeeded.
 - GitHub exact-code-commit proof: [workflow run #42513988399](https://github.com/hraaaaf/Digital_crown/actions/runs/42513988399) **SUCCESS** on SHA `6c1d369e1ea44fb51d56b14d6810b81892a5ada1`; retained report artifact `queue-core-fue0-6c1d369e1ea44fb51d56b14d6810b81892a5ada1` is attached to that run. The PR's current-head CI remains the final automated gate and is linked from PR #1234.
+- Workflow refinement: PR-triggered runs explicitly checkout `github.event.pull_request.head.sha`; push runs checkout `github.sha`, so the retained test artifact corresponds to the source SHA rather than a synthetic merge ref.
 - Draft PR: [#1234](https://github.com/hraaaaf/Digital_crown/pull/1234), open and unmerged. Exact current PR head/checks must be re-read after the STATE evidence commit.
 - FUE-0 is applicable; FUE-I/FUE-G are not applicable to this contract-only sub-lot. No product UI is introduced.
 - Next exact: finish the STATE evidence commit, confirm the exact final PR-head CI/artifact, and leave PR #1234 in DRAFT for independent review. Do not merge or start 08.2 without separate approval.
