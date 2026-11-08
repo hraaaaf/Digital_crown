@@ -20,7 +20,12 @@ import hashlib
 from pathlib import Path
 import re
 
-from .legacy_sql_inspector_v15 import UnsafeSource, _copy_path, _hash
+# Direct script mode avoids importing backend/__init__.py (ORM model registration).
+# Package mode is retained for the isolated standalone FUE harness.
+if __package__:
+    from .legacy_sql_inspector_v15 import UnsafeSource, _copy_path, _hash
+else:
+    from legacy_sql_inspector_v15 import UnsafeSource, _copy_path, _hash
 
 
 class DemoExportHeaderRefused(ValueError):
