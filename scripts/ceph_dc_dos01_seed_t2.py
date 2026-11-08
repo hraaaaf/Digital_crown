@@ -155,6 +155,30 @@ with database.SessionLocal() as db:
         p = Path(f"/tmp/dc-dos01-{name}.png")
         Image.new("RGB", (800, 600), color).save(p, "PNG")
         image_paths[name] = str(p)
+    # DC-DOS-02: distinct synthetic, explicitly NON-CLINICAL manual import fixtures.
+    # Separate content prevents accidental same-tenant content-address dedup from
+    # masking storage-count assertions on the new three original sources.
+    from PIL import ImageDraw
+    dos02_imports = {}
+    for media_type, code, color in (
+        ("PHOTO", "photo", (60, 135, 175)),
+        ("RADIOGRAPH", "radio", (135, 135, 135)),
+    ):
+        filename = Path(f"/tmp/dc-dos02-a-{code}.png")
+        sample = Image.new("RGB", (920, 720), color)
+        drawer = ImageDraw.Draw(sample)
+        drawer.text((70, 95), f"DC-DOS02 SYNTHETIC {media_type} - NOT CLINICAL", fill=(0, 0, 0))
+        sample.save(filename, "PNG")
+        data = filename.read_bytes()
+        dos02_imports[code] = {"path": str(filename), "sha256": hashlib.sha256(data).hexdigest()}
+    filename = Path("/tmp/dc-dos02-a-document.pdf")
+    with fitz.open() as pdf:
+        page = pdf.new_page()
+        page.insert_text((65, 90), "DC-DOS02 SYNTHETIC IMPORTED PDF - NOT CLINICAL")
+        filename.write_bytes(pdf.tobytes(garbage=4, deflate=True))
+    dos02_imports["document"] = {
+        "path": str(filename), "sha256": hashlib.sha256(filename.read_bytes()).hexdigest(),
+    }
     # Real, readable PDF bytes, but ONLY generic NON-CLINICAL test archives.
     # Never forge RAPPORT_CEPHALO, practitioner signatures or a final A4.
     archives = {}
@@ -186,6 +210,7 @@ with database.SessionLocal() as db:
         "patient_a": source_a.id, "study_a": source_study.id,
         "patient_b": patient_b.id, "study_b": study_b.id,
         "patient_x": patient_x.id, "tenant_x_user": user_x.id,
-        "images": image_paths, "archives": archives, "synthetic_only": True,
+        "images": image_paths, "archives": archives,
+        "dos02_imports": dos02_imports, "synthetic_only": True,
     }
     print("DC_DOS01_SYNTHETIC_FIXTURE="+json.dumps(fixture), flush=True)

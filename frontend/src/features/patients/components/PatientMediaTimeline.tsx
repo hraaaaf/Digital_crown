@@ -1,9 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { Check, Eye, FileText, Image as ImageIcon, Images, Loader2, Maximize2, RefreshCcw, Search, Upload, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 import { api } from '../../../services/api';
 import { cn } from '../../../utils/cn';
+
+// Reuse patient-bound PDF.js canvas instead of an opaque browser PDF iframe.
+const PatientPdfCanvasPreview = lazy(() => import('../PatientPdfCanvasPreview').then(m => ({ default: m.PatientPdfCanvasPreview })));
 
 interface ClinicalAsset {
   id: number;
@@ -26,7 +29,8 @@ interface PatientMediaTimelineProps {
 
 interface ViewerState {
   asset: ClinicalAsset;
-  url: string;
+  url: string | null;
+  blob?: Blob;
 }
 
 const PAGE_SIZE = 200;
@@ -84,23 +88,29 @@ const AuthenticatedThumbnail = ({ patientId, assetId }: { patientId: number; ass
 
 const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { patientId: number; asset: ClinicalAsset | null; compact?: boolean }) => {
   const [url, setUrl] = useState<string | null>(null);
+  const [pdfBlob, setPdfBlob] = useState<Blob | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     let disposed = false;
     let objectUrl: string | null = null;
     setUrl(null);
+    setPdfBlob(null);
     if (!asset) return () => undefined;
 
     setLoading(true);
     api.get(`/patients/${patientId}/assets/${asset.id}/content`, { responseType: 'blob' })
       .then((response) => {
         if (disposed) return;
-        objectUrl = URL.createObjectURL(response.data);
-        setUrl(objectUrl);
+        if (asset.mime_type === 'application/pdf') {
+          setPdfBlob(response.data);
+        } else {
+          objectUrl = URL.createObjectURL(response.data);
+          setUrl(objectUrl);
+        }
       })
       .catch(() => {
-        if (!disposed) setUrl(null);
+        if (!disposed) { setUrl(null); setPdfBlob(null); }
       })
       .finally(() => {
         if (!disposed) setLoading(false);
@@ -115,9 +125,10 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
   const minHeight = compact ? 'min-h-[220px] sm:min-h-[280px] lg:min-h-[360px]' : 'min-h-[220px] sm:min-h-[280px] md:min-h-[390px] lg:min-h-[470px]';
 
   if (!asset) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Images size={44} strokeWidth={1.4} /></div>;
-  if (loading || !url) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Loader2 size={26} className="animate-spin" /></div>;
-  if (asset.mime_type === 'application/pdf') return <iframe src={url} title="Aperçu document clinique" className={cn('w-full bg-card', minHeight)} />;
+  if (loading || (!url && !pdfBlob)) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Loader2 size={26} className="animate-spin" /></div>;
+  if (asset.mime_type === 'application/pdf' && pdfBlob) return <div className={cn('flex min-w-0 max-h-[520px] overflow-hidden bg-card', minHeight)}><Suspense fallback={<span role="status">Chargement du visualiseur PDF…</span>}><PatientPdfCanvasPreview key={`${patientId}:${asset.id}`} blob={pdfBlob} /></Suspense></div>;
 
+  if (!url) return <div className={cn('flex items-center justify-center bg-slate-950 text-text-muted', minHeight)}><Images size={28} /></div>;
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
@@ -278,10 +289,11 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
     try {
       const response = await api.get(`/patients/${patientId}/assets/${asset.id}/content`, { responseType: 'blob' });
       if (requestId !== viewerRequestIdRef.current) return;
-      const url = URL.createObjectURL(response.data);
+      const isPdf = asset.mime_type === 'application/pdf';
+      const url = isPdf ? null : URL.createObjectURL(response.data);
       setViewer((current) => {
         if (current?.url) URL.revokeObjectURL(current.url);
-        return { asset, url };
+        return { asset, url, blob: isPdf ? response.data : undefined };
       });
     } catch {
       if (requestId === viewerRequestIdRef.current) {
@@ -337,7 +349,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
   };
 
   return (
-    <div ref={workspaceRef} data-testid="patient-media-timeline" className="min-w-0 space-y-2">
+    <div ref={workspaceRef} data-testid="patient-media-timeline" data-clinical-patient-id={patientId} className="min-w-0 space-y-2">
       <div className="rounded-xl border border-border-main bg-card-bg px-2 py-2 sm:px-2.5 sm:py-2.5 lg:px-3">
         <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
           <div className="min-w-0">
@@ -416,12 +428,12 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
               {grouped.map(([label, assets]) => <section key={label} aria-label={`Temps ${label}`} className="space-y-1.5"><div className="flex items-center gap-2 px-0.5"><span className="inline-flex h-6 min-w-6 items-center justify-center rounded-lg bg-primary px-2 text-[9px] font-black tracking-wider text-white">{label}</span><div className="h-px flex-1 bg-border-main" /><span className="text-[9px] font-black uppercase tracking-widest text-text-muted">{assets.length}</span></div><div className="space-y-1.5">{assets.map((asset) => {
                 const selected = selectedAsset?.id === asset.id;
                 const compared = compareIds.includes(asset.id);
-                return <article key={asset.id} className={cn('min-w-0 overflow-hidden rounded-xl border bg-card-bg transition-all', selected ? 'border-primary/40 shadow-sm ring-2 ring-primary/5' : 'border-border-main hover:border-primary/20')}><div className="flex w-full min-w-0 items-center gap-2 p-1.5"><button type="button" onClick={() => void openAsset(asset)} className="flex min-w-0 flex-1 items-center gap-2 text-left" aria-label={`Ouvrir ${assetTypeLabel[asset.asset_type] || 'média'} ${asset.timepoint || ''}`.trim()}><div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-background">{asset.thumbnail_asset_id ? <AuthenticatedThumbnail patientId={patientId} assetId={asset.thumbnail_asset_id} /> : <div className="absolute inset-0 flex items-center justify-center text-text-muted">{asset.asset_type === 'DOCUMENT' ? <FileText size={26} /> : <ImageIcon size={26} />}</div>}</div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-black text-main">{assetTypeLabel[asset.asset_type] || asset.asset_type}</span><Eye size={13} className="shrink-0 text-text-muted" /></div><p className="mt-0.5 truncate text-[9px] font-bold text-text-muted">{formatDate(asset.captured_at || asset.created_at)}</p><p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-primary">{asset.mime_type === 'application/pdf' ? 'PDF' : 'Image'} · {asset.timepoint || 'Sans repère'}</p></div></button><button type="button" onClick={() => toggleCompare(asset.id)} className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition', compared ? 'border-primary bg-primary text-white' : 'border-border-main text-text-muted hover:border-primary/30 hover:text-primary')} aria-pressed={compared} aria-label={compared ? 'Retirer de la comparaison' : 'Ajouter à la comparaison'}>{compared ? <Check size={14} /> : <span className="text-[10px] font-black">1/2</span>}</button></div></article>;
+                return <article key={asset.id} data-clinical-asset-id={asset.id} className={cn('min-w-0 overflow-hidden rounded-xl border bg-card-bg transition-all', selected ? 'border-primary/40 shadow-sm ring-2 ring-primary/5' : 'border-border-main hover:border-primary/20')}><div className="flex w-full min-w-0 items-center gap-2 p-1.5"><button type="button" onClick={() => void openAsset(asset)} className="flex min-w-0 flex-1 items-center gap-2 text-left" aria-label={`Ouvrir ${assetTypeLabel[asset.asset_type] || 'média'} ${asset.timepoint || ''}`.trim()}><div className="relative h-14 w-20 shrink-0 overflow-hidden rounded-lg bg-background">{asset.thumbnail_asset_id ? <AuthenticatedThumbnail patientId={patientId} assetId={asset.thumbnail_asset_id} /> : <div className="absolute inset-0 flex items-center justify-center text-text-muted">{asset.asset_type === 'DOCUMENT' ? <FileText size={26} /> : <ImageIcon size={26} />}</div>}</div><div className="min-w-0 flex-1"><div className="flex items-center justify-between gap-2"><span className="truncate text-[11px] font-black text-main">{assetTypeLabel[asset.asset_type] || asset.asset_type}</span><Eye size={13} className="shrink-0 text-text-muted" /></div><p className="mt-0.5 truncate text-[9px] font-bold text-text-muted">{formatDate(asset.captured_at || asset.created_at)}</p><p className="mt-0.5 text-[8px] font-black uppercase tracking-wider text-primary">{asset.mime_type === 'application/pdf' ? 'PDF' : 'Image'} · {asset.timepoint || 'Sans repère'}</p></div></button><button type="button" onClick={() => toggleCompare(asset.id)} className={cn('flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border transition', compared ? 'border-primary bg-primary text-white' : 'border-border-main text-text-muted hover:border-primary/30 hover:text-primary')} aria-pressed={compared} aria-label={compared ? 'Retirer de la comparaison' : 'Ajouter à la comparaison'}>{compared ? <Check size={14} /> : <span className="text-[10px] font-black">1/2</span>}</button></div></article>;
               })}</div></section>)}
               {hasMore && <button type="button" onClick={() => void loadAssets({ append: true, offset: items.length })} disabled={loadingMore} className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-xl border border-border-main bg-card-bg text-[10px] font-black uppercase tracking-wider text-primary disabled:opacity-50" aria-label="Charger plus de médias">{loadingMore && <Loader2 size={13} className="animate-spin" />}Charger plus</button>}
             </div>
 
-            <section data-testid="media-inline-viewer" aria-label="Aperçu média clinique" className="order-1 min-w-0 overflow-hidden rounded-[1.25rem] border border-border-main bg-card-bg shadow-sm md:order-2">
+            <section data-testid="media-inline-viewer" data-clinical-asset-id={selectedAsset?.id ?? undefined} aria-label="Aperçu média clinique" className="order-1 min-w-0 overflow-hidden rounded-[1.25rem] border border-border-main bg-card-bg shadow-sm md:order-2">
               <div className="flex min-h-[44px] items-center justify-between gap-2 border-b border-border-main px-2.5 py-2 sm:px-3 md:px-4"><div className="min-w-0"><p className="text-[8px] font-black uppercase tracking-[0.16em] text-primary">{selectedAsset?.timepoint || 'Sans repère'}</p><div className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5"><h3 className="truncate text-xs font-black text-main sm:text-sm">{selectedAsset ? (assetTypeLabel[selectedAsset.asset_type] || selectedAsset.asset_type) : 'Aucun média'}</h3>{selectedAsset && <span className="text-[9px] font-bold text-text-muted">{formatDate(selectedAsset.captured_at || selectedAsset.created_at)}</span>}</div></div>{selectedAsset && <div className="flex shrink-0 items-center gap-1.5"><button type="button" onClick={() => toggleCompare(selectedAsset.id)} className={cn('inline-flex h-8 items-center justify-center rounded-lg border px-2 text-[9px] font-black uppercase tracking-wider', compareIds.includes(selectedAsset.id) ? 'border-primary bg-primary text-white' : 'border-border-main text-primary')} aria-pressed={compareIds.includes(selectedAsset.id)}>{compareIds.includes(selectedAsset.id) ? 'Ajouté' : 'Comparer'}</button><button type="button" onClick={() => void openAsset(selectedAsset)} className="inline-flex h-8 items-center justify-center gap-1.5 rounded-lg border border-border-main bg-card-bg px-2 text-[9px] font-black uppercase tracking-wider text-primary" aria-label="Ouvrir le média sélectionné en plein écran"><Maximize2 size={13} /><span className="hidden sm:inline">Plein écran</span></button></div>}</div>
               <AuthenticatedAssetPreview patientId={patientId} asset={selectedAsset} />
             </section>
@@ -429,7 +441,7 @@ export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMed
         </>
       )}
 
-      {viewer && <div className="fixed inset-0 z-[700] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label="Visionneuse média clinique"><div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] bg-card shadow-2xl"><div className="flex items-center justify-between gap-3 border-b border-border-main px-4 py-3 sm:px-5"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-widest text-primary">{viewer.asset.timepoint || 'Sans repère'}</p><h3 className="truncate text-base font-black text-text-main">{assetTypeLabel[viewer.asset.asset_type] || viewer.asset.asset_type}</h3></div><button type="button" onClick={closeViewer} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-main text-text-muted hover:bg-background" aria-label="Fermer la visionneuse"><X size={20} /></button></div><div className="min-h-0 flex-1 bg-input-field p-2 sm:p-4">{viewer.asset.mime_type === 'application/pdf' ? <iframe src={viewer.url} title="Document clinique" className="h-full w-full rounded-xl bg-card" /> : <div className="flex h-full w-full items-center justify-center overflow-auto rounded-xl bg-slate-950"><img src={viewer.url} alt="Média clinique" className="max-h-full max-w-full object-contain" /></div>}</div></div></div>}
+      {viewer && <div className="fixed inset-0 z-[700] flex items-center justify-center bg-slate-950/75 p-3 backdrop-blur-sm sm:p-6" role="dialog" aria-modal="true" aria-label="Visionneuse média clinique"><div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-[1.75rem] bg-card shadow-2xl"><div className="flex items-center justify-between gap-3 border-b border-border-main px-4 py-3 sm:px-5"><div className="min-w-0"><p className="text-xs font-black uppercase tracking-widest text-primary">{viewer.asset.timepoint || 'Sans repère'}</p><h3 className="truncate text-base font-black text-text-main">{assetTypeLabel[viewer.asset.asset_type] || viewer.asset.asset_type}</h3></div><button type="button" onClick={closeViewer} className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-main text-text-muted hover:bg-background" aria-label="Fermer la visionneuse"><X size={20} /></button></div><div className="min-h-0 flex-1 bg-input-field p-2 sm:p-4">{viewer.asset.mime_type === 'application/pdf' && viewer.blob ? <div className="flex h-full min-h-0 overflow-hidden rounded-xl bg-card"><Suspense fallback={<span role="status">Chargement du visualiseur PDF…</span>}><PatientPdfCanvasPreview key={`${patientId}:${viewer.asset.id}:modal`} blob={viewer.blob} /></Suspense></div> : <div className="flex h-full w-full items-center justify-center overflow-auto rounded-xl bg-slate-950"><img src={viewer.url || undefined} alt="Média clinique" className="max-h-full max-w-full object-contain" /></div>}</div></div></div>}
     </div>
   );
 };
