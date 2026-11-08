@@ -83,9 +83,8 @@ try {
   if (-not $report.signer_subject -or $report.signer_subject -notmatch '(?i)Open\s*Dental') {
     throw 'UNEXPECTED_WINDOWS_SIGNER'
   }
-  # Optional static archive metadata: never extract, execute or expose any
-  # included patient/demo values or filenames. A mere filename match proves
-  # neither a valid database nor any vendor-export capability.
+  # Optional static archive inventory. No executable runs and no extraction.
+  # The file names are kept transient and never copied into the evidence JSON.
   $sevenZip = Get-Command -Name '7z.exe' -ErrorAction SilentlyContinue
   if ($sevenZip -ne $null) {
     $listPath = Join-Path $EvidenceDir 'lot05-7c-g-internal-archive-listing-DELETE.txt'
@@ -95,43 +94,9 @@ try {
         $report.static_archive_listing_supported = $true
         $count = 0
         foreach ($line in [System.IO.File]::ReadLines($listPath)) {
-          if ($line -match '^Path = (.+)
-  Write-Host 'WIN_VM_OFFICIAL_TRIAL_INSTALLER_AUTHENTICATED_NO_EXECUTION'
-} catch {
-  # No raw exception contents or remote server responses: non-sensitive stable code only.
-  $known = @('UNEXPECTED_INSTALLER_SIZE','INVALID_WINDOWS_PE_HEADER',
-             'AUTHENTICODE_NOT_VALID','UNEXPECTED_WINDOWS_SIGNER')
-  $code = [string]$_.Exception.Message
-  if ($known -notcontains $code) { $code = 'OFFICIAL_TRIAL_DOWNLOAD_OR_INSPECTION_FAILED' }
-  $report.status = 'REFUSED'
-  $report.failure_code = $code
-  Write-Host ('WIN_VM_TRIAL_PREFLIGHT_REFUSED: ' + $code)
-} finally {
-  $report | ConvertTo-Json -Depth 5 | Out-File -LiteralPath $reportFile -Encoding utf8
-  # Only metadata JSON will be uploaded by workflow; scrub the executable.
-  Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
-}
-if (-not $report.installer_authenticated) { exit 1 }
-) {
+          if ($line -match '^Path = (.+)$') {
             $candidate = [string]$Matches[1]
-            if ($candidate -match '(?i)(^|[\\/])demo[^\\/]*\\.(sql|zip|db|sqlite|bak)
-  Write-Host 'WIN_VM_OFFICIAL_TRIAL_INSTALLER_AUTHENTICATED_NO_EXECUTION'
-} catch {
-  # No raw exception contents or remote server responses: non-sensitive stable code only.
-  $known = @('UNEXPECTED_INSTALLER_SIZE','INVALID_WINDOWS_PE_HEADER',
-             'AUTHENTICODE_NOT_VALID','UNEXPECTED_WINDOWS_SIGNER')
-  $code = [string]$_.Exception.Message
-  if ($known -notcontains $code) { $code = 'OFFICIAL_TRIAL_DOWNLOAD_OR_INSPECTION_FAILED' }
-  $report.status = 'REFUSED'
-  $report.failure_code = $code
-  Write-Host ('WIN_VM_TRIAL_PREFLIGHT_REFUSED: ' + $code)
-} finally {
-  $report | ConvertTo-Json -Depth 5 | Out-File -LiteralPath $reportFile -Encoding utf8
-  # Only metadata JSON will be uploaded by workflow; scrub the executable.
-  Remove-Item -LiteralPath $dest -Force -ErrorAction SilentlyContinue
-}
-if (-not $report.installer_authenticated) { exit 1 }
-) {
+            if ($candidate -match '(?i)(^|[\\/])demo[^\\/]*\.(sql|zip|db|sqlite|bak)$') {
               $count++
             }
           }
@@ -139,8 +104,6 @@ if (-not $report.installer_authenticated) { exit 1 }
         $report.possible_demo_payload_filename_count = $count
       }
     } catch {
-      # Listing is not an installation/verification gate; do not hide a
-      # legitimate signed installer if the optional viewer is unavailable.
       $report.static_archive_listing_supported = $false
     } finally {
       Remove-Item -LiteralPath $listPath -Force -ErrorAction SilentlyContinue
