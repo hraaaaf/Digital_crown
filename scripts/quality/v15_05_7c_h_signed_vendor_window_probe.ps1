@@ -34,6 +34,12 @@ $report = [ordered]@{
   official_trial_window_title_allowlisted = $false
   installer_uia_tree_accessible = $false
   installer_uia_element_count_bounded = 0
+  installer_win32_install_candidate_count = 0
+  installer_win32_install_visible = $false
+  installer_win32_install_enabled = $false
+  installer_win32_install_in_vendor_bounds = $false
+  installer_win32_install_semantic_button_proven = $false
+  installer_win32_probe_completed = $false
   installer_uia_install_button_observed = $false
   installer_uia_new_server_option_observed = $false
   installer_uia_workstation_option_observed = $false
@@ -156,6 +162,106 @@ try {
       }
     } catch {
       $report.installer_uia_tree_accessible = $false
+    }
+  }
+  # Inspect Win32 child controls as an independent read-only oracle. The GUI
+  # screenshot shows an Install button that was NOT recognized by UI Automation.
+  # This code enumerates controls and compares ONLY an exact allowlisted label
+  # in process memory; no button names, raw window text, coordinates or HWNDs
+  # are uploaded. No click, WM_COMMAND, SendKeys, InvokePattern or elevation.
+  if ($report.official_trial_window_title_allowlisted -and
+      $installerHwnd -ne [IntPtr]::Zero) {
+    try {
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class Lot05ReadOnlyInstallerWin32 {
+  public delegate bool ChildProc(IntPtr hwnd, IntPtr data);
+  [StructLayout(LayoutKind.Sequential)]
+  public struct Rect {
+    public int Left;
+    public int Top;
+    public int Right;
+    public int Bottom;
+  }
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  public static extern bool EnumChildWindows(IntPtr parent, ChildProc callback, IntPtr data);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  public static extern int GetClassName(IntPtr hwnd, StringBuilder output, int capacity);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode, SetLastError=true)]
+  public static extern int GetWindowText(IntPtr hwnd, StringBuilder output, int capacity);
+  [DllImport("user32.dll")]
+  public static extern bool IsWindowVisible(IntPtr hwnd);
+  [DllImport("user32.dll")]
+  public static extern bool IsWindowEnabled(IntPtr hwnd);
+  [DllImport("user32.dll")]
+  public static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
+}
+'@
+      $found = New-Object 'System.Collections.Generic.List[System.IntPtr]'
+      $callback = [Lot05ReadOnlyInstallerWin32+ChildProc]{
+        param([IntPtr]$child, [IntPtr]$unused)
+        $klass = New-Object System.Text.StringBuilder(128)
+        $null = [Lot05ReadOnlyInstallerWin32]::GetClassName(
+          $child, $klass, $klass.Capacity
+        )
+        $klassName = $klass.ToString()
+        if ($klassName -match '^(?i:Button|WindowsForms10\.BUTTON\..*)$') {
+          $labelBuilder = New-Object System.Text.StringBuilder(128)
+          $null = [Lot05ReadOnlyInstallerWin32]::GetWindowText(
+            $child, $labelBuilder, $labelBuilder.Capacity
+          )
+          # Strict identity, allowing only a Windows accelerator marker (&).
+          if ($labelBuilder.ToString() -cmatch '^\s*&?Install\s*$') {
+            [void]$found.Add($child)
+          }
+        }
+        return $true
+      }
+      $null = [Lot05ReadOnlyInstallerWin32]::EnumChildWindows(
+        $installerHwnd, $callback, [IntPtr]::Zero
+      )
+      $report.installer_win32_probe_completed = $true
+      $report.installer_win32_install_candidate_count = $found.Count
+      if ($found.Count -eq 1) {
+        $installHwnd = $found[0]
+        $report.installer_win32_install_visible = [bool](
+          [Lot05ReadOnlyInstallerWin32]::IsWindowVisible($installHwnd)
+        )
+        $report.installer_win32_install_enabled = [bool](
+          [Lot05ReadOnlyInstallerWin32]::IsWindowEnabled($installHwnd)
+        )
+        $parentRect = New-Object Lot05ReadOnlyInstallerWin32+Rect
+        $buttonRect = New-Object Lot05ReadOnlyInstallerWin32+Rect
+        if ([Lot05ReadOnlyInstallerWin32]::GetWindowRect(
+            $installerHwnd, [ref]$parentRect) -and
+            [Lot05ReadOnlyInstallerWin32]::GetWindowRect(
+            $installHwnd, [ref]$buttonRect)) {
+          $parentWidth = $parentRect.Right - $parentRect.Left
+          $parentHeight = $parentRect.Bottom - $parentRect.Top
+          $buttonMidX = ($buttonRect.Left + $buttonRect.Right) / 2
+          $buttonMidY = ($buttonRect.Top + $buttonRect.Bottom) / 2
+          $report.installer_win32_install_in_vendor_bounds = (
+            $parentWidth -ge 250 -and $parentHeight -ge 150 -and
+            $buttonRect.Left -ge $parentRect.Left -and
+            $buttonRect.Right -le $parentRect.Right -and
+            $buttonRect.Top -ge $parentRect.Top -and
+            $buttonRect.Bottom -le $parentRect.Bottom -and
+            $buttonMidX -gt ($parentRect.Left + 0.65 * $parentWidth) -and
+            $buttonMidY -gt ($parentRect.Top + 0.70 * $parentHeight)
+          )
+        }
+        $report.installer_win32_install_semantic_button_proven = (
+          $report.installer_win32_install_visible -and
+          $report.installer_win32_install_enabled -and
+          $report.installer_win32_install_in_vendor_bounds
+        )
+      }
+    } catch {
+      # No fallback to coordinate-based clicks; zero evidence means NO-GO.
+      $report.installer_win32_probe_completed = $false
+      $report.installer_win32_install_semantic_button_proven = $false
     }
   }
   # Screenshot ONLY the signed vendor launcher's first window, before any
