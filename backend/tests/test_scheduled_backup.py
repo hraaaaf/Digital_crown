@@ -30,6 +30,7 @@ def _isolated_runtime_root(tmp_path, monkeypatch):
                   "repo_root_checked": str(sb.REPO_ROOT), "violations": {}},
     )
     yield root
+    sb._release_lock()
 
 
 class TestLock:
@@ -38,43 +39,22 @@ class TestLock:
         assert acquired is True
         assert sb.LOCK_PATH.exists()
 
-    def test_acquire_lock_refused_when_held_by_live_process(self):
+    def test_acquire_lock_refused_when_held_by_process(self):
+        assert sb._acquire_lock()[0] is True
+        assert sb._acquire_lock()[0] is False
+
+    def test_stale_lock_metadata_is_not_kernel_ownership(self):
         sb.LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"pid": 999999, "host": "x", "started_at_epoch": time.time(), "started_at": "now"}
-        sb.LOCK_PATH.write_text(json.dumps(payload), encoding="utf-8")
+        sb.LOCK_PATH.write_text('{"pid":999999,"started_at_epoch":0}', encoding="utf-8")
+        assert sb._acquire_lock()[0] is True
 
-        with patch.object(sb, "_pid_alive", return_value=True):
-            acquired, reason = sb._acquire_lock()
-
-        assert acquired is False
-        assert "Verrou actif" in reason
-
-    def test_stale_lock_dead_pid_is_overwritten(self):
-        sb.LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"pid": 999999, "host": "x", "started_at_epoch": time.time(), "started_at": "now"}
-        sb.LOCK_PATH.write_text(json.dumps(payload), encoding="utf-8")
-
-        with patch.object(sb, "_pid_alive", return_value=False):
-            acquired, reason = sb._acquire_lock()
-
-        assert acquired is True
-
-    def test_stale_lock_too_old_is_overwritten_even_if_pid_alive(self):
-        sb.LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        old_epoch = time.time() - (sb.LOCK_MAX_AGE_SECONDS + 60)
-        payload = {"pid": 123, "host": "x", "started_at_epoch": old_epoch, "started_at": "old"}
-        sb.LOCK_PATH.write_text(json.dumps(payload), encoding="utf-8")
-
-        with patch.object(sb, "_pid_alive", return_value=True):
-            acquired, reason = sb._acquire_lock()
-
-        assert acquired is True
-
-    def test_release_lock_removes_file(self):
-        sb._acquire_lock()
-        assert sb.LOCK_PATH.exists()
+    def test_release_keeps_lock_inode_for_subsequent_run(self):
+        assert sb._acquire_lock()[0] is True
+        before = sb.LOCK_PATH.stat()
         sb._release_lock()
-        assert not sb.LOCK_PATH.exists()
+        assert sb.LOCK_PATH.exists()
+        assert sb.LOCK_PATH.stat().st_ino == before.st_ino
+        assert sb._acquire_lock()[0] is True
 
 
 class TestOrchestrationStatus:
@@ -127,14 +107,9 @@ class TestOrchestrationStatus:
         assert manifest["db_status"] == "SKIPPED_UNSUPPORTED_ENGINE"
 
     def test_lock_held_skips_everything_and_reports_failed(self):
-        sb.LOCK_PATH.parent.mkdir(parents=True, exist_ok=True)
-        payload = {"pid": 999999, "host": "x", "started_at_epoch": time.time(), "started_at": "now"}
-        sb.LOCK_PATH.write_text(json.dumps(payload), encoding="utf-8")
-
-        with patch.object(sb, "_pid_alive", return_value=True), \
-             patch("backend.services.backup_service.BackupService._backup_postgres") as mock_pg:
+        assert sb._acquire_lock()[0] is True
+        with patch("backend.services.backup_service.BackupService._backup_postgres") as mock_pg:
             manifest = sb.run(apply_retention=False, dry_run=False)
-
         mock_pg.assert_not_called()
         assert manifest["lock_status"] == "SKIPPED_LOCKED"
         assert manifest["overall_status"] == "FAILED"

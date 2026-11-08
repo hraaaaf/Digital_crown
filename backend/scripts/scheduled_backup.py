@@ -196,45 +196,22 @@ def _apply_retention(
     target_dir: Path, prefix: str, suffix: str, retention_days: int, dry_run: bool,
     min_to_keep: int | None = None,
 ) -> dict:
-    """Ne supprime que dans target_dir (toujours un sous-dossier de scheduled/ ou de
-    la destination hors-site), protège toujours les min_to_keep fichiers les plus
-    récents quel que soit leur âge (défaut : MIN_BACKUPS_TO_KEEP, le même plancher
-    que pour les dossiers locaux), journalise chaque candidat avant toute suppression
-    réelle."""
+    """Local-only descriptor/handle retention; errors never fail main backup."""
     if min_to_keep is None:
         min_to_keep = MIN_BACKUPS_TO_KEEP
-    report = {"dir": str(target_dir), "dry_run": dry_run, "candidates": [], "deleted": []}
-    if not dry_run:
-        # MAJ-02 containment: until anchored local deletion is reviewed on
-        # Windows and POSIX, fail CLOSED. Never follow a mutable directory
-        # path into unrelated archives merely to free disk space.
-        logger.warning("Local retention DELETE disabled pending SEC/OPS certification")
-        report["dry_run"] = True
-        report["status"] = "BLOCKED_UNCERTIFIED_LOCAL_DELETE"
-        return report
-    if not target_dir.exists():
-        return report
-
-    files = sorted(
-        [f for f in target_dir.glob(f"{prefix}*{suffix}") if f.is_file()],
-        key=lambda p: p.stat().st_mtime, reverse=True,
-    )
-    protected = {f.name for f in files[:min_to_keep]}
-    cutoff = time.time() - retention_days * 86400
-
-    for f in files:
-        if f.name in protected:
-            continue
-        if f.stat().st_mtime < cutoff:
-            report["candidates"].append(f.name)
-            logger.info("Rétention : candidat %s à suppression (dry_run=%s).", f.name, dry_run)
-            if not dry_run:
-                try:
-                    f.unlink()
-                    report["deleted"].append(f.name)
-                except Exception as e:
-                    logger.warning("Rétention : échec suppression %s (%s).", f.name, type(e).__name__)
-    return report
+    try:
+        from backend.scripts.backup_retention_local import apply_retention_local
+        return apply_retention_local(
+            target_dir, prefix, suffix, retention_days, dry_run, min_to_keep,
+            scheduled_root=SCHEDULED_ROOT,
+        )
+    except Exception as exc:
+        logger.warning("Local retention blocked: %s", type(exc).__name__)
+        return {
+            "dir": str(target_dir), "dry_run": True, "candidates": [],
+            "deleted": [], "status": "BLOCKED_UNSAFE_LOCAL_RETENTION",
+            "error_code": type(exc).__name__,
+        }
 
 
 def _apply_retention_all(dry_run: bool) -> list:

@@ -92,40 +92,6 @@ def test_maj01_no_clobber_preserves_first_archive(tmp_path):
     assert target.read_bytes() == b"FAKE-ENCRYPTED-DB-A"
 
 
-def test_maj02_symlink_retention_must_not_delete_outside(tmp_path):
-    root = tmp_path / "scheduled"
-    outside = tmp_path / "other_archives"
-    outside.mkdir()
-    for i in range(5):
-        (outside / f"db_backup_old{i}.sql.enc").write_bytes(b"DO_NOT_DELETE")
-    root.mkdir()
-    redirect = root / "db"
-    try:
-        redirect.symlink_to(outside, target_is_directory=True)
-    except (OSError, NotImplementedError) as exc:
-        import pytest
-        pytest.skip(f"symlink privilege unavailable: {type(exc).__name__}")
-    mod = _functions("_apply_retention", root=root)
-    result = mod["_apply_retention"](redirect, "db_backup_", ".sql.enc", 0, False, 3)
-    assert result["status"] == "BLOCKED_UNCERTIFIED_LOCAL_DELETE"
-    assert result["deleted"] == []
-    assert len(list(outside.iterdir())) == 5
-
-
-def test_maj02_local_retention_delete_is_disabled_even_on_normal_directory(tmp_path):
-    root = tmp_path / "scheduled"
-    target = root / "db"
-    target.mkdir(parents=True)
-    for i in range(5):
-        (target / f"db_backup_old{i}.sql.enc").write_bytes(b"FAKE_ARCHIVE")
-    mod = _functions("_apply_retention", root=root)
-    result = mod["_apply_retention"](target, "db_backup_", ".sql.enc", 0, False, 3)
-    assert result["status"] == "BLOCKED_UNCERTIFIED_LOCAL_DELETE"
-    assert result["deleted"] == []
-    assert len(list(target.iterdir())) == 5
-
-
-
 def _hold_lock_in_child(root, queue, release):
     """Spawn-safe worker: a different OS process must own the kernel lock."""
     mod = _functions("_acquire_lock", "_release_lock", root=Path(root))
@@ -246,14 +212,69 @@ def test_maj01_real_media_writer_collision_keeps_first_encrypted_archive(tmp_pat
     assert not list(dest.glob(".tmp_*"))
 
 
-def test_maj02_no_file_enumeration_on_requested_delete(tmp_path, monkeypatch):
+def _retention():
+    import importlib.util
+    path = SOURCE.with_name("backup_retention_local.py")
+    spec = importlib.util.spec_from_file_location("_maj02_retention", path)
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_maj02_rejects_symlinked_retention_root(tmp_path):
+    import pytest
+    mod = _retention()
+    root = tmp_path / "scheduled"
+    root.mkdir()
+    external = tmp_path / "external"
+    external.mkdir()
+    for i in range(5):
+        (external / f"db_backup_{i}.sql.enc").write_bytes(b"FAKE_SENTINEL")
+    target = root / "db"
+    try:
+        target.symlink_to(external, target_is_directory=True)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"Symlink unavailable: {type(exc).__name__}")
+    result = mod.apply_retention_local(
+        target, "db_backup_", ".sql.enc", 0, False, 3, scheduled_root=root)
+    assert result["status"] == "BLOCKED_UNSAFE_LOCAL_RETENTION", result
+    assert len(list(external.iterdir())) == 5
+
+
+def test_maj02_local_retention_deletes_only_old_two(tmp_path):
+    import time
+    mod = _retention()
     root = tmp_path / "scheduled"
     target = root / "db"
     target.mkdir(parents=True)
+    for i in range(5):
+        p = target / f"db_backup_synthetic_{i}.sql.enc"
+        p.write_bytes(b"FAKE_BACKUP")
+        age = time.time() - (40 + i) * 86400
+        os.utime(p, (age, age))
+    result = mod.apply_retention_local(
+        target, "db_backup_", ".sql.enc", 30, False, 3, scheduled_root=root)
+    assert result["status"] == "SUCCESS", result
+    assert len(result["deleted"]) == 2
+    assert len(list(target.iterdir())) == 3
+
+
+def test_maj02_never_calls_path_glob_or_path_unlink(tmp_path, monkeypatch):
+    import time
+    mod = _retention()
+    root = tmp_path / "scheduled"
+    target = root / "db"
+    target.mkdir(parents=True)
+    for i in range(5):
+        p = target / f"db_backup_synthetic_{i}.sql.enc"
+        p.write_bytes(b"FAKE_BACKUP")
+        age = time.time() - (40 + i) * 86400
+        os.utime(p, (age, age))
     def forbidden(*args, **kwargs):
-        raise AssertionError("MAJ-02: no path enumeration at all during destructive retention")
+        raise AssertionError("Unanchored pathname operation forbidden")
     monkeypatch.setattr(Path, "glob", forbidden)
-    mod = _functions("_apply_retention", root=root)
-    result = mod["_apply_retention"](target, "db_backup_", ".sql.enc", 0, False, 3)
-    assert result["status"] == "BLOCKED_UNCERTIFIED_LOCAL_DELETE"
-    assert result["deleted"] == []
+    monkeypatch.setattr(Path, "unlink", forbidden)
+    result = mod.apply_retention_local(
+        target, "db_backup_", ".sql.enc", 30, False, 3, scheduled_root=root)
+    assert result["status"] == "SUCCESS", result
+    assert len(result["deleted"]) == 2
