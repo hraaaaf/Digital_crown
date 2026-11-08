@@ -64,8 +64,13 @@ try {
   await writeFile(entryFile,entry,'utf8');
   await writeFile(htmlFile,html,'utf8');
   const vite = path.join(root,'node_modules/.bin/vite');
-  server=spawn(vite,['--host','127.0.0.1','--port',String(port), '--strictPort'],{cwd:root,env:{...process.env,BROWSER:'none',VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe']});
-  await waitForServer();
+  const startFixtureServer=async()=>{
+    server=spawn(vite,['--host','127.0.0.1','--port',String(port),'--strictPort','--force'],{
+      cwd:root,env:{...process.env,BROWSER:'none',VITE_API_URL:'http://127.0.0.1:8005'},stdio:['ignore','pipe','pipe'],
+    });
+    await waitForServer();
+  };
+  await startFixtureServer();
   browser=await chromium.launch({headless:true});
   const viewports=[{name:'desktop-1280x900',width:1280,height:900},{name:'mobile-390x844',width:390,height:844}];
   for (const viewport of viewports) {
@@ -86,8 +91,17 @@ try {
     await page.close();
     proof.viewports.push({name:viewport.name,before:'Archiver le bilan enabled by science-only check',context});
   }
+  // Invalidate the BEFORE module cache by restarting Vite before AFTER.
+  // A new browser page alone is not sufficient when Vite retains transformed
+  // Step4Documents with the old "Archiver le bilan" button.
+  await new Promise(resolve=>{
+    const beforeServer=server;
+    beforeServer.once('exit',resolve);
+    beforeServer.kill('SIGTERM');
+  });
+  server=null;
   await writeFile(productFile,originalSource,'utf8');
-  await sleep(500);
+  await startFixtureServer();
   for(const entry of proof.viewports) {
     const page=await entry.context.newPage();
     page.on('pageerror',err=>proof.errors.push(entry.name+': '+err.message));
