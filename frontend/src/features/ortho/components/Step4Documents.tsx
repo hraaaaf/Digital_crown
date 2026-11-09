@@ -358,6 +358,9 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
             <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
             <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualisation et téléchargement : brouillon non signé, sans valeur de validation clinique.</p>
+            <p role="note" className="mb-3 text-center text-xs font-semibold leading-relaxed" style={{ color: P.textMuted }}>
+              Prévisualiser ou archiver un PDF ne constitue pas une validation clinique.
+            </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
               <button onClick={handlePreviewBilan} disabled={isPreviewLoading || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
               <button onClick={handleBrouillon} disabled={isBrouillon || isPreviewLoading || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
