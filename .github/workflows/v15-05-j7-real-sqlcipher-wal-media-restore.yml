@@ -65,6 +65,8 @@ jobs:
             pytest==8.4.2 SQLAlchemy==2.0.48 alembic==1.20.0 \
             fastapi==0.115.6 pydantic==2.6.3 pydantic-settings==2.2.1 \
             python-dotenv==1.2.2 python-multipart==0.0.22 \
+            email-validator==2.3.0 httpx==0.28.1 \
+            passlib==1.7.4 bcrypt==3.2.2 python-jose==3.5.0 \
             cryptography==49.0.0 sqlcipher3==0.6.2
           python -B -c "from sqlcipher3 import dbapi2 as c; print('REAL_SQLCIPHER_NATIVE_LOADED', c.sqlite_version)"
       - name: Real backup + WAL crash + clone verify + full media rollback
