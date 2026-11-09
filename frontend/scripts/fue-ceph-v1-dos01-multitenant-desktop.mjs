@@ -518,10 +518,10 @@ try {
     }
     const compare=media.locator('[data-testid="media-compare-panel"]');
     await compare.waitFor({state:'visible',timeout:20000});
-    await compare.getByRole('heading',{name:'T0 ? T1'}).waitFor({state:'visible'});
+    await compare.getByRole('heading',{name:/T0.*T1/}).waitFor({state:'visible'});
     await page.waitForFunction(sel=>{
       const panel=document.querySelector(sel);
-      const imgs=[...(panel?.querySelectorAll('img[alt="M?dia clinique s?lectionn?"]')||[])];
+      const imgs=[...(panel?.querySelectorAll('.dc-c5-compare-asset img')||[])];
       return imgs.length===2 && imgs.every(img=>img.getAttribute('src')?.startsWith('blob:') &&
         img.complete && img.naturalWidth>0);
     },mediaSelector+' [data-testid="media-compare-panel"]',{timeout:30000});
