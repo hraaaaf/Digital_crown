@@ -576,8 +576,8 @@ public static class Lot05InitialInstallerCapture {
       throw 'PHYSICAL_INPUT_OWNER_GUARD_NOT_PROVEN'
     }
     $report.install_wizard_probe_guard_passed = $true
-    # Snapshot all publisher-rooted main-window handles BEFORE this sole
-    # authorized click. A post-click window must be genuinely new.
+    # Snapshot all vendor-rooted main HWNDs before any one-shot click:
+    # a new vendor HWND must NOT have been present before this interaction.
     $priorVendorWindowHandles = @(
       foreach ($knownId in @($knownIds | Select-Object -Unique)) {
         $priorProc = Get-Process -Id $knownId -ErrorAction SilentlyContinue
@@ -760,9 +760,8 @@ public static class Lot05WizardSingleClick {
       }
       if ($report.setup_wizard_new_window_observed) { break }
     }
-    # Bounded classification of only that NEW publisher process-tree HWND:
-    # read UIA Name/ControlType and window title IN MEMORY, export fixed
-    # booleans/enum only. Never upload title, full text, screenshot or HWND.
+    # Read-only and bounded semantic inventory of NEW publisher window.
+    # Never emit raw UI title, control text, screenshots, HWND, PID or patients.
     if ($LaunchSetupWizardViaPhysicalInputOnly -and
         $report.post_click_screen_new_hwnd_verified -and
         $report.post_click_screen_process_lineage_bound -and
@@ -791,90 +790,10 @@ public static class Lot05WizardSingleClick {
             if ($postName -match '(?i)\b(Welcome to.*(?:Setup|Install)|Setup Wizard|Choose (?:the )?(?:installation|setup) type|Server Installation)\b') {
               $report.post_click_screen_uia_welcome_setup = $true
             }
-            if ($postKind -match 'Button' -and $postName -match '(?i)^\s*&?Next(?:\s*>+)?\s*
-      Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue
-    )
-    $report.db_service_created_observed = ($newDbService.Count -gt 0)
-    # No false claim of completed install, even if Win32 message delivered.
-    $report.status = if ($report.setup_wizard_new_window_observed) {
-      'FIRST_WIZARD_WINDOW_OBSERVED_NO_LICENSE_ACCEPTED_NO_IMPORT'
-    } else {
-      'INSTALL_BUTTON_MESSAGE_DELIVERED_WIZARD_NOT_PROVEN'
-    }
-  }
-  if ($report.official_trial_window_title_allowlisted -and
-      -not $LaunchSetupWizardOnly -and
-      -not $LaunchSetupWizardViaPhysicalInputOnly) {
-    $report.status = 'SIGNED_OFFICIAL_VENDOR_GUI_LAUNCHER_WINDOW_OBSERVED_ONLY'
-  } elseif (-not $report.official_trial_window_title_allowlisted) {
-    $report.status = 'SIGNED_TRIAL_EXECUTED_BUT_GUI_WINDOW_NOT_PROVEN'
-    $report.failure_code = 'VENDOR_GUI_WINDOW_NOT_PROVEN'
-  }
-} catch {
-  # Fixed non-PHI error code. Never print exception text, title, user or path.
-  $report.status = 'REFUSED_OR_NOT_PROVEN'
-  $report.failure_code = 'VENDOR_WINDOW_OBSERVATION_REFUSED_OR_FAILED'
-} finally {
-  # Stop only the publisher process IDs started from this exact launch.
-  foreach ($processId in @($knownIds | Select-Object -Unique)) {
-    try {
-      Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-    } catch {}
-  }
-  try { Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue } catch {}
-  [System.IO.File]::WriteAllText(
-    $reportFile, ($report | ConvertTo-Json -Depth 4),
-    (New-Object System.Text.UTF8Encoding($false))
-  )
-}
-Write-Host ('LOT05_H_SIGNED_VENDOR_WINDOW_PROBE=' + $report.status)
-Write-Host 'LOT05_H_SINGLE_WIZARD_FIRST_SCREEN_ONLY_NO_EULA_ACCEPTANCE_NO_IMPORT'
-# SUCCESS means bounded probe finished. Artifact JSON determines truth.
-exit 0
-) {
+            if ($postKind -match 'Button' -and $postName -match '(?i)^\s*&?Next(?:\s*>+)?\s*$') {
               $report.post_click_screen_uia_next_control = $true
             }
-            if ($postKind -match 'Button' -and $postName -match '(?i)^\s*(?:<+)?\s*&?Back\s*
-      Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue
-    )
-    $report.db_service_created_observed = ($newDbService.Count -gt 0)
-    # No false claim of completed install, even if Win32 message delivered.
-    $report.status = if ($report.setup_wizard_new_window_observed) {
-      'FIRST_WIZARD_WINDOW_OBSERVED_NO_LICENSE_ACCEPTED_NO_IMPORT'
-    } else {
-      'INSTALL_BUTTON_MESSAGE_DELIVERED_WIZARD_NOT_PROVEN'
-    }
-  }
-  if ($report.official_trial_window_title_allowlisted -and
-      -not $LaunchSetupWizardOnly -and
-      -not $LaunchSetupWizardViaPhysicalInputOnly) {
-    $report.status = 'SIGNED_OFFICIAL_VENDOR_GUI_LAUNCHER_WINDOW_OBSERVED_ONLY'
-  } elseif (-not $report.official_trial_window_title_allowlisted) {
-    $report.status = 'SIGNED_TRIAL_EXECUTED_BUT_GUI_WINDOW_NOT_PROVEN'
-    $report.failure_code = 'VENDOR_GUI_WINDOW_NOT_PROVEN'
-  }
-} catch {
-  # Fixed non-PHI error code. Never print exception text, title, user or path.
-  $report.status = 'REFUSED_OR_NOT_PROVEN'
-  $report.failure_code = 'VENDOR_WINDOW_OBSERVATION_REFUSED_OR_FAILED'
-} finally {
-  # Stop only the publisher process IDs started from this exact launch.
-  foreach ($processId in @($knownIds | Select-Object -Unique)) {
-    try {
-      Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
-    } catch {}
-  }
-  try { Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue } catch {}
-  [System.IO.File]::WriteAllText(
-    $reportFile, ($report | ConvertTo-Json -Depth 4),
-    (New-Object System.Text.UTF8Encoding($false))
-  )
-}
-Write-Host ('LOT05_H_SIGNED_VENDOR_WINDOW_PROBE=' + $report.status)
-Write-Host 'LOT05_H_SINGLE_WIZARD_FIRST_SCREEN_ONLY_NO_EULA_ACCEPTANCE_NO_IMPORT'
-# SUCCESS means bounded probe finished. Artifact JSON determines truth.
-exit 0
-) {
+            if ($postKind -match 'Button' -and $postName -match '(?i)^\s*(?:<+)?\s*&?Back\s*$') {
               $report.post_click_screen_uia_back_control = $true
             }
             if ($postName -match '(?i)\b(Licen[sc]e Agreement|Terms and Conditions|I (?:do |have read and )?agree|Accept (?:the )?(?:terms|licen[sc]e)|EULA)\b') {
@@ -883,7 +802,7 @@ exit 0
           }
         }
       } catch {
-        # Inaccessible screen = UNKNOWN, not wizard certification.
+        # The unreadable screen is UNKNOWN; never certify by inference.
         $report.post_click_screen_uia_queryable = $false
       }
       $report.post_click_screen_kind = if (
