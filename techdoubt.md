@@ -1,3 +1,20 @@
+### LOT08.2-A — 2026-11-09 — Independent source-review PASS, physical gate still OPEN
+
+Current source `44bc6fc639332796f064dbf18a59a4f8b5c3333f` (PR #1238), separate Codex read-only **delta review** vs previously fully reviewed SHA 09f3d40e: no actionable defect. Direct Windows Python 3.12 53/53 PASS postcommit, compileall PASS, worktree clean; both SDDL parsed by Windows native API in memory, CLI fails closed via Remote Desktop. The real privileged physical-console first admin creation, secure filesystem ACL install and recovery positive-path FUE-I are NOT_RUN and must not be certified from mock tests. Keep DRAFT, no merge/cabinet deployment or 08.2-B until safe physical LAB proof and owner gate. Full report `docs/v1.5/V15_08_2_A_SECURITY_REVIEW_20261109.md`.
+
+### LOT08.2-A — 2026-11-09 — Independent review P2 expired session retention
+
+Separate Codex CLI read-only review of candidate 09f3d40e found P2: expired session digest rows persisted indefinitely. Fix deletes expired digests within serialized login transaction even for denied logins; regression proves deletion and absence of token resurrection. **53/53 Windows Python 3.12 synthetic tests pass**, compileall and diff-check pass. Source must be reviewed on the next SHA before merge. Audit TTL/purge and future G3 still require design, not claimed in A.
+
+### LOT08.2-A — 2026-11-09 — Independent SEC review on e3513ac9
+
+Separate read-only Codex CLI reviewer found no P1/P2, only P3 `status` created the private directory on uninitialized server. Fixed with explicit no-create read-only path and regression test. **52/52 Windows Python 3.12 synthetic PASS.** SDDL directory+file parsed successfully by real Windows `advapi32` in memory with no filesystem modifications. Physical elevated local-console enrollment / real ACL attestation still NOT_RUN and the new SHA still requires independent review. PR #1238 DRAFT, not merged, no patient data or deployment.
+
+### LOT08.2-A — 2026-11-08 — Security implementation candidate / open gates
+
+Owner authorizes A ONLY. No clinical DB, patient, Firebase or Internet. New local admin service guarded by elevated physical Windows console, Time-limited bootstrap, salted scrypt, one-time offline recovery and session revocation. Synthetic Windows Python 3.12 tests 51/51 pass after first adversarial reviewer found P1 attacker-owned directory trust and P2 dangling reparse bypass; fixed via atomic Windows SDDL owner/DACL, exact SID verification and lstat/no-follow creation, 9 new negative/static tests. **Restricted ProgramData directory ACL and elevated physical-console happy path NOT RUN**: Remote Desktop Commander deliberately fails `INTERACTIVE_CONSOLE_REQUIRED` with no actual auth DB creation. This is a mandatory OPS/SEC on-hardware gate before real cabinet use. No local install, migration, API, RBAC or QR. The default Python and Windows credential stores are not reused. File ACL is implemented but only reviewed statically until physical Windows LAB execution; do not certify.
+No merge without separate risk-based security code review on exact SHA and owner GO. No 08.2-B start.
+
 ### LOT08.1 / PR #1234 — 2026-11-08 — Independent review #4 P2 corrected
 
 Separate Codex CLI read-only review of source d5b2babf found P2 SQL schema allowed WAITING without ARRIVED/waiting timestamp/queue sequence. Fixed DB checks preserving domain invariants for WAITING/CALLED/CHAIR/DONE; denied arrival on PLANNED/EN_ROUTE/NO_SHOW and inconsistent timestamps. New negative SQLite fixture test. Direct Windows Python 3.12 **29/29 PASS** (plus NO_SHOW appointment-only negative cases). Still review exact new HEAD before merge; no durable DB, patient data or migrations.
