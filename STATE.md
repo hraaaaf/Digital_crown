@@ -1,5 +1,13 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B — RBAC tenant-scopé / isolation — 2026-11-09 — B-1 EN COURS
+
+- **08.2-A** : [PR #1238](https://github.com/hraaaaf/Digital_crown/pull/1238) MERGED sur master commit `324afd13487acf7ff29223f077451927b54b8178`; Windows CI 53/53 PASS au SHA source `1b4380735932896b8b7a38485b2af709182c796c`, physique `NOT_RUN / LOT10`. Un workflow transversal postmerge #42599749810 était IN_PROGRESS au premier relevé.
+- **Décision propriétaire** : séquence 08.2-A → **08.2-B**, pas 08.3. G2 validé : Admin configuration/audit sans droits opérationnels ; accueil check-in/QR ; staff call/recall ; CHAIR/DONE distincts, NO_SHOW et queue.override OFF par défaut, permissions par tenant/file/visite/ressource.
+- **B-1 candidat (PR DRAFT, non fusionné)** : policy pure `queue_core/security/rbac.py`, oracles synthétiques d'isolation/refus/révocation via resolver de session live, contrat `docs/v1.5/V15_08_2_B_RBAC_ISOLATION_CONTRACT.md`. La présence de code + tests ne constitue PAS une preuve d'auth multi-opérateurs persistante ni une certification des flux.
+- **B reste OPEN** : persistance isolée des opérateurs nominaux, rattachements/permissions et authentification par compte, révocation immédiate de sessions, preuve last-admin et contrôle réellement appliqué sur chaque future commande/flux, revue SEC indépendante et CI au SHA avant GO de merge. C/D/E, 08.3, déploiement, cabinet et données patients hors périmètre.
+- **Next exact** : CI Python/tests existants + nouveaux tests RBAC, examiner SEC et compléter durable store/transactions ; aucune validation physique avant LOT10.
+
 ## DÉCISION PROPRIÉTAIRE — 2026-11-09 — LOT08 logiciel/LAB ≠ LOT10 physique
 
 **Cette décision prime sur les anciens checkpoints « NO-GO merge car tests physiques non exécutés » contenus plus bas.** La roadmap officielle [V1.5-10 — Tests physiques exclusivement](https://app.notion.com/p/3e677c66336281fcbe65f8889baf8c6a) réserve la validation matérielle/terrain au **LOT10** : 10.1 (installation postes), 10.2 (Queue Core réel), 10.7 (incidents/sécurité terrain), 10.8 (réception humaine). Le premier enrôlement physique Admin `issue→enroll→recover`, les ACL sur installation réelle, la récupération offline et le refus d'autres profils sont **PHYSICAL NOT_RUN / LOT10**. Ils ne sont **pas un préalable de clôture logicielle/merge du LOT08.2-A** ; l'utilisation clinique reste interdite jusqu'aux gates terrain applicables.
