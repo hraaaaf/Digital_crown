@@ -510,18 +510,39 @@ try {
       await modal.getByRole('button',{name:'Fermer la visionneuse'}).click();
       await modal.waitFor({state:'hidden',timeout:20000});
     }
+    // DC-DOS-04: two genuine authenticated T0/T1 image viewers in the same
+    // real Cabinet R3 split. Neither a screenshot nor a synthetic DOM mock.
+    for(const kind of ['photo','radio']) {
+      const item=media.locator('[data-testid="media-asset-rail"] article[data-clinical-asset-id="'+uploaded[kind].id+'"]');
+      await item.getByRole('button',{name:'Ajouter ? la comparaison'}).click();
+    }
+    const compare=media.locator('[data-testid="media-compare-panel"]');
+    await compare.waitFor({state:'visible',timeout:20000});
+    await compare.getByRole('heading',{name:'T0 ? T1'}).waitFor({state:'visible'});
+    await page.waitForFunction(sel=>{
+      const panel=document.querySelector(sel);
+      const imgs=[...(panel?.querySelectorAll('img[alt="M?dia clinique s?lectionn?"]')||[])];
+      return imgs.length===2 && imgs.every(img=>img.getAttribute('src')?.startsWith('blob:') &&
+        img.complete && img.naturalWidth>0);
+    },mediaSelector+' [data-testid="media-compare-panel"]',{timeout:30000});
+    await shot('14-dos04-t0-photo-t1-radio-two-authenticated-viewers-a');
+
     const importedIds=Object.values(uploaded).map(x=>x.id);
     await openPatient(page,f.patient_b,false,'media');
     await page.locator(split).waitFor({state:'visible',timeout:35000});
     await page.waitForFunction(sel=>document.querySelector(sel)?.textContent?.includes('T2-DC-DOS01-B'),
       split+' [data-v15-071-viewslot="dossier"]',{timeout:30000});
     const mediaB=page.locator(mediaSelector);
+    checkTrue(await mediaB.locator('[data-testid="media-compare-panel"]').count()===0,
+      'DC-DOS-04 patient A T0/T1 compare persisted in patient B split');
     await mediaB.locator('[data-testid="media-asset-rail"] article').first().waitFor({state:'visible'});
     for(const id of importedIds)checkTrue(await mediaB.locator('article[data-clinical-asset-id="'+id+'"]').count()===0,
       'Patient A imported asset ID remained visible on B split');
     await openPatient(foreignPage,f.patient_x,false,'media');
     await foreignPage.locator(split).waitFor({state:'visible',timeout:35000});
     const foreignMedia=foreignPage.locator(mediaSelector);
+    checkTrue(await foreignMedia.locator('[data-testid="media-compare-panel"]').count()===0,
+      'DC-DOS-04 patient A T0/T1 compare leaked to foreign Cabinet X');
     await foreignMedia.locator('[data-testid="media-asset-rail"] article').first().waitFor({state:'visible'});
     for(const id of importedIds)checkTrue(await foreignMedia.locator('article[data-clinical-asset-id="'+id+'"]').count()===0,
       'Patient A imported source leaked to foreign cabinet X split');
@@ -530,6 +551,8 @@ try {
       pdf_original_id:uploaded.document.id,three_sources_one_identity_each:true,
       pdf_canvas_not_blank:true,pdf_canvas_ink_samples:pdfInk,
       no_browser_pdf_iframe:true,read_only_split:true,patient_a_sources_absent_in_b_and_x:true,
+      dc_dos04_t0_t1_two_live_blob_viewers:true,
+      dc_dos04_comparison_purged_on_patient_and_cabinet_switch:true,
       clinical_release:false};
   });
   proof.status='SUBLOT_AUTOMATED_PASS';
