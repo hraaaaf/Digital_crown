@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B — LOCAL COMMAND/REPLAY ADAPTER FUE-I — 2026-11-09 — CANDIDATE / NO MERGE
+
+- **GO utilisateur :** après B-2 FUE-0, intégrer le contrôle humain aux vraies commandes/lectures événementielles du Queue Core, FUE proportionné ; aucune revue indépendante obligatoire par défaut, mais contrôles SEC/IDOR/intégrité systématiquement négatifs. Pas de GO fusion ou mise en production.
+- **Source réelle vérifiée :** PR #1239 DRAFT sur base master 324afd13487acf7ff29223f077451927b54b8178 ; HEAD avant travaux a642bb38d26c5b6420456fc02867e2da8ea5d6b7. Domaine et tables Queue Core existants ; aucun HTTP/SSE runtime existant.
+- **Implémentation :** queue_core/service/authorized_queue.py : adaptateur local in-process sur le vrai domaine Queue Core et la base SQLAlchemy séparée de la SQLite auth B-2 ; RECEPTION check-in, STAFF call/recall, CHAIR/DONE grants séparés, NO_SHOW/override explicites, verrou de transaction auth→queue, scope tenant/visite/ressource résolu depuis le serveur, événements minimisés, pagination/replay et queue snapshot réautorisés à chaque appel. Aucun listener, create_all, migration, données patient ni identité Device.
+- **FUE-I local :** 11 tests sur 2 SQLite temporaires avec commandes/vrais événements, IDOR, annulation/révocation, cursor cross-tenant, concurrence command→revoke et pagination. FUE-I ciblé 11/11 PASS ; suite globale Windows Python 3.12 finale 100/100 PASS (33,65s), compileall et git diff --check PASS ; CI GitHub au SHA final à relever après push. Preuve : docs/v1.5/V15_08_2_B_LOCAL_SERVICE_FUEI_20261109.md.
+- **Limite critique :** ce FUE-I concerne l'adaptateur local **sans transport HTTP/SSE**. Aucune preuve FUE-G/browser/SSE live ni physique (LOT10 NOT_RUN). Le prochain vrai endpoint/service devra revalider les autorisations par requête, souscription, replay et événement émis. B RESTE OPEN ; ne pas fusionner, déployer ou créer de comptes cabinet.
+- **NEXT EXACT :** terminer re-test Windows + CI GitHub exact-SHA, consigner Notion, puis poursuivre l'intégration transport uniquement sur périmètre autorisé quand 08.3 expose un vrai service. Ne pas revendiquer de service HTTP déjà livré.
+
+
+
 ## LOT08.2-B — FUE-FIRST remplacement gate reviewer — 2026-11-09 — B-2 FUE-0 PASS / B OPEN
 
 - **Décision utilisateur :** la revue indépendante systématique est substituée par le FUE approprié, conformément à SKILLS.md FUE-first ; les contrôles SEC/data/révocation restent obligatoires selon les risques. Pas de revue artificielle ni de sign-off humain inventé.
