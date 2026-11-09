@@ -1,5 +1,13 @@
 # STATE — DigitalCrown
 
+## DÉCISION PROPRIÉTAIRE — 2026-11-09 — LOT08 logiciel/LAB ≠ LOT10 physique
+
+**Cette décision prime sur les anciens checkpoints « NO-GO merge car tests physiques non exécutés » contenus plus bas.** La roadmap officielle [V1.5-10 — Tests physiques exclusivement](https://app.notion.com/p/3e677c66336281fcbe65f8889baf8c6a) réserve la validation matérielle/terrain au **LOT10** : 10.1 (installation postes), 10.2 (Queue Core réel), 10.7 (incidents/sécurité terrain), 10.8 (réception humaine). Le premier enrôlement physique Admin `issue→enroll→recover`, les ACL sur installation réelle, la récupération offline et le refus d'autres profils sont **PHYSICAL NOT_RUN / LOT10**. Ils ne sont **pas un préalable de clôture logicielle/merge du LOT08.2-A** ; l'utilisation clinique reste interdite jusqu'aux gates terrain applicables.
+
+**Preuves 08.2-A :** [Windows Actions #42596486051](https://github.com/hraaaaf/Digital_crown/actions/runs/42596486051) SUCCESS sur SHA exécutable `1b4380735932896b8b7a38485b2af709182c796c`, **53/53 tests PASS**, création Win32 et vérification ACL réelles uniquement sous RUNNER_TEMP, refus CLI non interactive sans modification ProgramData, refus ACL non conforme ; [Ubuntu FUE-0 #42596493320](https://github.com/hraaaaf/Digital_crown/actions/runs/42596493320) SUCCESS. Une **décision de clôture du logiciel** doit considérer revue SEC, CI, risques et périmètre, sans exiger le terrain physique.
+
+**PR #1238 :** reste DRAFT/non fusionnée **en attente d'une décision d'intégration distincte du propriétaire et des contrôles logiciels applicables, pas d'une preuve physique LOT10**. Pas de déploiement, d'installation cabinet ou de passage automatique à 08.2-B–E. **Next exact :** revoir les preuves et le diff logiciel A, proposer décision de merge ; si approuvée, merge + contrôles post-merge, puis poursuivre roadmap logicielle. Les précédentes mentions contradictoires documentent le gate erroné désormais supersédé.
+
 ## LOT08.2-A — Windows GitHub Actions ACL complémentaire — 2026-11-09 — CI PROUVÉ / PHYSIQUE OPEN
 
 - **PR #1238 : OPEN/DRAFT/NOT MERGED**, [preuve Windows Actions #42596486051](https://github.com/hraaaaf/Digital_crown/actions/runs/42596486051) **SUCCESS** sur SHA exact testé `1b4380735932896b8b7a38485b2af709182c796c`, Windows hosted runner et Python 3.12. La suite `queue_core/tests` **53/53 PASS** ; non-interactive `status` refusé `INTERACTIVE_CONSOLE_REQUIRED` sans effet sur ProgramData ; **vraie création Win32 d'un dossier et fichier temporaires** sous RUNNER_TEMP avec validation owner/ACE réelle Get-Acl + refus ACL non conforme. Artifact JUnit non médical. Aucun accès cabinet ni donnée patient.

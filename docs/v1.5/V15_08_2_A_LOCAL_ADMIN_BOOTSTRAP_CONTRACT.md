@@ -2,6 +2,12 @@
 
 **Status:** implementation candidate; owner GO for 08.2-A only, no merge/release GO.
 
+## Décision de périmètre — 2026-11-09 (prime sur les réserves physiques historiques)
+
+La roadmap propriétaire réserve les **tests physiques exclusivement au LOT10** (10.1/10.2/10.7/10.8). Les revues SEC, tests synthétiques et CI Windows autorisent **une décision de clôture logicielle LOT08.2-A**, sans prétendre au premier Admin réellement enrôlé sur un poste local. Première console physique élevée, ACL du véritable serveur, rotation hors ligne, refus inter-profils, restauration et acceptation humaine = **PHYSICAL NOT_RUN / LOT10** ; ces tests ne bloquent **plus le closeout logiciel ni le merge du LOT08.2-A**. La fusion nécessite toujours une décision distincte du propriétaire ; aucune utilisation clinique sans les gates terrain.
+
+Preuves : [Windows Actions #42596486051](https://github.com/hraaaaf/Digital_crown/actions/runs/42596486051) SUCCESS avec Python 3.12 **53/53 PASS**, vrais ACL objets temporaires et garde fail-closed ; [Ubuntu Queue FUE-0 #42596493320](https://github.com/hraaaaf/Digital_crown/actions/runs/42596493320) SUCCESS, SHA source testé `1b4380735932896b8b7a38485b2af709182c796c`. Les mentions historiques de tests physiques comme condition de merge sont supersédées, mais restent une limite pour l'usage réel.
+
 ## Goal
 An independent Queue Core Windows server can provision its FIRST local administrator
 once, using a short-lived random challenge at the physically local elevated console,

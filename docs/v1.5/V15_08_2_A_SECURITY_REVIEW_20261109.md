@@ -1,6 +1,14 @@
 # LOT08.2-A — Security review and direct Windows evidence (2026-11-09)
 
-**State: DRAFT / Security source reviewed / Physical bootstrap NOT RUN / No merge.**
+**State: security/LAB tested; physical bootstrap NOT RUN (LOT10); PR DRAFT / merge decision separate.**
+
+## Décision propriétaire corrective — 2026-11-09 (gouverne le closeout)
+
+La roadmap [V1.5-10 — Tests physiques exclusivement](https://app.notion.com/p/3e677c66336281fcbe65f8889baf8c6a) réserve à **LOT10** les FUE sur installation réelle : 10.1 postes Windows ; 10.2 Queue Core ; 10.7 sécurité/incidents ; 10.8 acceptation humaine. Le premier Admin `issue→enroll`, la rotation offline, les vrais ACL installés et les refus inter-profils **sont PHYSICAL NOT_RUN / LOT10**, **pas des prérequis au merge ou closeout logiciel 08.2-A**. Aucune mise en service clinique n'est autorisée.
+
+Les sections historiques ci-dessous « Mandatory unexecuted acceptance / no-go », « NEXT physique » et « PR remains DRAFT/NO-GO merge » plaçaient **à tort le gate terrain dans le LOT08** ; elles sont désormais supersédées pour les décisions de clôture logicielle, sans effacer l'historique des limites. Le LOT08.2-A conserve ses gates code/SEC/CI et **le GO d'intégration distinct du propriétaire**. [Windows Actions #42596486051](https://github.com/hraaaaf/Digital_crown/actions/runs/42596486051) SUCCESS 53/53 et ACL Win32 temporaires réelles ; [Ubuntu Queue FUE-0 #42596493320](https://github.com/hraaaaf/Digital_crown/actions/runs/42596493320) SUCCESS au SHA exact `1b4380735932896b8b7a38485b2af709182c796c`.
+
+**Next exact :** relecture des preuves et du diff A, décision de merge du propriétaire, post-merge si approuvé ; LOT10 physique à exécuter plus tard. Delta de ce corrigendum documentaire uniquement.
 
 ## Scope
 Local-first Queue Core first-admin bootstrapping, local login sessions and offline recovery, isolated from clinical data. Owner GO: 08.2-A implementation and review only. No web endpoints, Firebase, patient data, actual installed service or production enrollment.
