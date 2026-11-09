@@ -97,15 +97,19 @@ class SceneLandmark(ScenePixel):
     id: str = Field(pattern=r"^[A-Za-z][A-Za-z0-9_]{0,39}$")
     origin: Literal["SRPOSE38_AUTO", "PRACTITIONER_EDIT", "CONSTRUCTED"]
     confidence: float | None = Field(default=None, ge=0, le=1)
+    score_status: Literal["NOT_EMITTED", "AVAILABLE"] = "NOT_EMITTED"
 
     @model_validator(mode="after")
     def validate_landmark(self):
         if self.origin == "SRPOSE38_AUTO":
             if self.id not in _LOCAL_DETECTOR_POINTS:
                 raise ValueError("ONNX channel names limited to legacy SRPose38 local contract")
-            if self.confidence is None or not math.isfinite(self.confidence):
-                raise ValueError("ONNX landmark must retain a finite score")
-        elif self.confidence is not None:
+            if self.score_status == "AVAILABLE":
+                if self.confidence is None or not math.isfinite(self.confidence):
+                    raise ValueError("Available model score must be finite and genuine")
+            elif self.confidence is not None:
+                raise ValueError("Score NOT_EMITTED cannot invent a confidence value")
+        elif self.confidence is not None or self.score_status != "NOT_EMITTED":
             raise ValueError("Only an ONNX output can carry ONNX confidence")
         if self.origin == "CONSTRUCTED" and self.id not in _CONSTRUCTED_ONLY_POINTS:
             raise ValueError("Constructed points must use explicit construction IDs")

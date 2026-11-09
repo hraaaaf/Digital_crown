@@ -1,0 +1,165 @@
+name: CEPH-PREMIUM J2.1 M2-M6 detached source transforms + CAS + genuine film LAB FUE
+
+on:
+  pull_request:
+    branches:
+      - test/ceph-premium-j21m1-scene-contract-20261109
+    paths:
+      - backend/services/ceph_premium_pixel_transform_lab.py
+      - backend/services/ceph_premium_scene_ledger_lab.py
+      - backend/services/ceph_premium_scene_source_lab.py
+      - backend/schemas/cephalo_premium_scene_contract.py
+      - backend/tests/test_ceph_premium_j21m1_scene_contract.py
+      - backend/tests/test_ceph_premium_j21_m2m5_lab.py
+      - scripts/ceph_premium_j21_m6_lab_preview.py
+      - .github/workflows/ceph-premium-j21-m2m6-fue.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  m2-m5-parallel:
+    name: ${{ matrix.lane }} isolated contract & negative gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: M2-coordinate-transforms
+            pattern: m2_
+          - lane: M3-revisions-CAS
+            pattern: m3_
+          - lane: M4-byte-source
+            pattern: m4_
+          - lane: M5-adversarial-security
+            pattern: m5_
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      LAB_PATTERN: ${{ matrix.pattern }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Minimal separate contract dependencies
+        run: python -m pip install pydantic==2.6.3 pytest==9.0.3 Pillow==11.3.0
+      - name: Test this lane only (no backend registration)
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          import os,pytest
+          from scripts.ceph_premium_j21m1_scene_fue import namespace,load_source
+          namespace('backend','backend')
+          namespace('backend.services','backend/services')
+          namespace('backend.schemas','backend/schemas')
+          load_source('backend.services.srpose38_contract','backend/services/srpose38_contract.py')
+          assert os.environ['LAB_PATTERN'] in ('m2_','m3_','m4_','m5_')
+          rc=pytest.main(['--noconftest','-q','--disable-warnings',
+                          'backend/tests/test_ceph_premium_j21_m2m5_lab.py',
+                          '-k',os.environ['LAB_PATTERN']])
+          if rc:raise SystemExit(rc)
+          print('CEPH_PREMIUM_LANE_PASS',os.environ['LAB_PATTERN'])
+          PY
+
+  isolated-lab-gates:
+    needs: [m2-m5-parallel]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CEPH_PUBLIC_SOURCE_IMAGE: /tmp/j21-public/anug.jpg
+      CEPH_J1_COORDS_JSON: /tmp/j21-prior/source-locked-38-points.json
+      CEPH_J21_EVIDENCE_DIR: artifacts/ceph-j21-m2m6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact HEAD + no production/runtime injection
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          paths=('backend/__init__.py','backend/main.py',
+                 'backend/routers/__init__.py','backend/schemas/__init__.py')
+          for p in paths:
+              if Path(p).exists():
+                  content=Path(p).read_text(encoding='utf8')
+                  assert 'ceph_premium_pixel_transform_lab' not in content
+                  assert 'ceph_premium_scene_ledger_lab' not in content
+                  assert 'ceph_premium_scene_source_lab' not in content
+          print('NO_PROD_SCENE_RUNTIME_REGISTRATION_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal isolated dependencies
+        run: |
+          python -m pip install pydantic==2.6.3 pytest==9.0.3 Pillow==11.3.0
+      - name: Restore public ORIGINAL film with pinned digest
+        run: |
+          mkdir -p /tmp/j21-public
+          curl -fL --retry 3 --retry-delay 2 --max-time 120 -A 'DigitalCrown-PublicFUE/1.0'             'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG'             -o /tmp/j21-public/anug.jpg
+          echo 'ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6  /tmp/j21-public/anug.jpg' | sha256sum -c -
+          test "$(stat -c%s /tmp/j21-public/anug.jpg)" = '399879'
+      - name: Restore prior J1 genuine ONNX coordinates exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/j21-prior
+          gh run download 42685230506 --repo "$GITHUB_REPOSITORY"             --name ceph-premium-j1-real-onnx-3137fa4c1611d47e4d71906cf5e4542cc8b01b49             --dir /tmp/j21-prior
+          echo '4c7c459ae0e612606ebdeba72752839d8718af834b50ab631e5cc98de818bdbe  /tmp/j21-prior/source-locked-38-points.json' | sha256sum -c -
+      - name: Run 104 strict M1-M5 contract / security test cases
+        run: |
+          python - <<'PY'
+          import pytest
+          from scripts.ceph_premium_j21m1_scene_fue import namespace,load_source
+          namespace('backend','backend')
+          namespace('backend.services','backend/services')
+          namespace('backend.schemas','backend/schemas')
+          load_source('backend.services.srpose38_contract','backend/services/srpose38_contract.py')
+          rc=pytest.main([
+              '--noconftest','-q','--disable-warnings',
+              'backend/tests/test_ceph_premium_j21m1_scene_contract.py',
+              'backend/tests/test_ceph_premium_j21_m2m5_lab.py',
+          ])
+          if rc:raise SystemExit(rc)
+          print('CEPH_J21_M1_M5_DETACHED_LAB_TESTS_GREEN')
+          PY
+      - name: Genuine ANUG pixels + J1 ONNX point replay lab 1280/1600
+        run: |
+          python -m scripts.ceph_premium_j21_m6_lab_preview
+      - name: Independent source, scene, preview, clinical-hold audit
+        run: |
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ['CEPH_J21_EVIDENCE_DIR'])
+          r=json.loads((root/'m6-report.json').read_text(encoding='utf8'))
+          assert r['head']==os.environ['PRODUCT_HEAD']
+          assert r['prior_onnx_head']=='3137fa4c1611d47e4d71906cf5e4542cc8b01b49'
+          assert r['source_sha256']=='ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6'
+          assert r['coords_sha256']=='4c7c459ae0e612606ebdeba72752839d8718af834b50ab631e5cc98de818bdbe'
+          assert r['points']==38 and r['scene_reopened']
+          assert r['real_authenticated_dc_dos05_binding'] is False
+          assert r['mock_binding_envelope'] is True
+          assert r['native_desktop_fue_complete'] is False
+          assert r['new_onnx_inference'] is False and r['clinical_release'] is False
+          for p in r['views']:
+              f=root/p['filename']
+              assert f.is_file() and hashlib.sha256(f.read_bytes()).hexdigest()==p['sha256']
+              assert p['max_roundtrip_error']<1e-7
+          print('CEPH_J21_LAB_PREVIEWS_REAL_SOURCE_CERTIFIED_DESKTOP_HOLD')
+          PY
+      - name: Publish exact HEAD nonclinical lab proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-premium-j21-m2m6-lab-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-j21-m2m6/
+          if-no-files-found: warn
+          retention-days: 7
