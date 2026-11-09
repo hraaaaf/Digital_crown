@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B / B-5 — DESKTOP LOCAL LAB FUE-G — 2026-11-09 — PREUVE BROWSER PASS / B OPEN
+
+- **GO utilisateur :** raccorder B-4 HTTP/SSE au runtime Desktop local en laboratoire, FUE-G navigateur, sans fusion/déploiement/installation ni patient réel. PR #1239 DRAFT, HEAD avant B-5 `16bf642d2558380326e89fea3ac049308048de0f`, base master `324afd13487acf7ff29223f077451927b54b8178`.
+- **Reality check :** Desktop réel `run.py → backend.main:app` + React ; `WaitingRoomPage.tsx` existante utilise les vrais `/appointments`. Aucune mutation de ce workflow ni de données cliniques. Montage `backend.queue_core_desktop_lab.attach_queue_core_lab` derrière flag + environnement `test` uniquement, deux fichiers SQLite synthétiques préexistants, marqueur explicite ; le montage dans `backend/main.py` est opt-in et exclut cabinet/production. Login opérateur B-2 tenant résolu serveur, rôles/grants seulement comme indices UI, RBAC toujours côté serveur.
+- **Client LAB :** `frontend/src/features/queue-core/QueueCoreLabPane.tsx`, route React dév protégée `/queue-core-lab` plus entrée Vite de test isolée `/queue-core-fue.html`. Un navigateur réel utilise token Bearer volatile (pas URL/cookie/storage), fait check-in→call→chair→done, affiche les événements SSE, cache les actions non autorisées, et efface les visites immédiatement si le flux est clos/révoqué.
+- **FUE-I :** montage Desktop 8/8 PASS, tests ciblés montage+HTTP/SSE 21/21 PASS, Python 3.12 Windows. **FUE-G navigateur :** Chromium + Python FastAPI et Vite sur processus loopback distincts, deux SQLite temporaires, 19/19 checks PASS, 7 captures 390/768/1280 et JSON hashes SHA256 ; aucune erreur navigateur inattendue ; vérification du 401 après révocation externe. Preuve : `docs/v1.5/V15_08_2_B_DESKTOP_LAB_FUE_G_20261109.md` et `docs/v1.5/evidence/lot08_2_b5_fue_g_20261109/`.
+- **CI et gates :** re-tests complets Windows Python 3.12 **121/121 PASS (89,32 s)**, compilation Python PASS, TypeScript `tsc --noEmit -p tsconfig.app.json` PASS, build gardé `npm run build:test` PASS dans `frontend/dist-test` sans toucher au dist cabinet ; GitHub CI au SHA final à vérifier après push. FUE-G est **LAB navigateur synthétique**, PAS une session clinique native installée ; aucune preuve USB/Windows installer/TLS LAN, ni intégration aux rendez-vous cliniques ; LOT10 physique NOT_RUN. **LOT08.2-B OPEN, PR DRAFT, aucun merge/déploiement.**
+- **Next exact :** relever résultats locaux et Actions exact SHA, POST Notion, puis définir gate distinct pour intégration dans candidat Desktop certifiable, sans exposer de vrais patients.
+
+
+
 ## LOT08.2-B / B-4 — HTTP/SSE LOCAL ASGI — 2026-11-09 — FUE-I PASS LAB, B OPEN / NO MERGE
 
 - **GO user :** développer la vraie interface HTTP/SSE du Queue Core depuis le B-3 in-process, sans fusion, installation, déploiement ni patient réel. PR #1239 DRAFT, base master 324afd13487acf7ff29223f077451927b54b8178 ; HEAD avant B-4 a94343a12f6045db5595e108763fe6cfd7d3068d.

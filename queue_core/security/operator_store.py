@@ -337,6 +337,21 @@ class LocalOperatorStore:
             c.commit()
         return actor_id
 
+    def login_bound_operator(self, username: str, password: str) -> str:
+        """Local lab/desktop login: tenant comes from immutable first Admin.
+
+        Never accept a tenant, role, actor, or permission from a browser login.
+        Not a new first-Admin or provisioning endpoint.
+        """
+        with self.auth._connect() as c:
+            row = c.execute(
+                "SELECT tenant_id FROM operators WHERE is_bootstrap=1 AND enabled=1"
+            ).fetchone()
+            if row is None:
+                raise OperatorError("INVALID_CREDENTIALS")
+            tenant = row["tenant_id"]
+        return self.login_operator(tenant, username, password)
+
     def login_operator(self, tenant_id: str, username: str, password: str) -> str:
         tenant = _identifier(tenant_id)
         name = username.lower() if isinstance(username, str) else ""

@@ -21,7 +21,7 @@ import anyio
 from fastapi import FastAPI, Query, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse, StreamingResponse
-from pydantic import BaseModel, ConfigDict, Field, StrictInt
+from pydantic import BaseModel, ConfigDict, Field, StrictInt, StrictStr
 from starlette.concurrency import run_in_threadpool
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
@@ -32,6 +32,14 @@ from queue_core.service.authorized_queue import (
 )
 
 
+class LabOperatorLoginBody(BaseModel):
+    """Synthetic LAB session only; never used for clinical JWT/auth."""
+
+    model_config = ConfigDict(extra="forbid")
+    username: StrictStr = Field(min_length=3, max_length=64)
+    password: StrictStr = Field(min_length=14, max_length=128)
+
+
 class HumanCommandBody(BaseModel):
     """No client-supplied tenant, actor, principal or authorization flag."""
 
@@ -40,6 +48,15 @@ class HumanCommandBody(BaseModel):
     expected_version: StrictInt = Field(ge=0)
     resource_id: str | None = Field(default=None, min_length=1, max_length=128)
     reason_code: str | None = Field(default=None, min_length=1, max_length=64)
+
+
+def _local_path(request: Request) -> str:
+    """Normalize ASGI mount root_path for the Desktop sub-application."""
+    path = request.url.path
+    mount = request.scope.get("root_path", "")
+    if mount and path.startswith(mount + "/"):
+        return path[len(mount):]
+    return path
 
 
 def _token(request: Request) -> str:
@@ -142,6 +159,7 @@ def create_local_queue_app(
     poll_interval: float = 0.5,
     lab_allow_testclient: bool = False,
     lab_max_sse_frames: int | None = None,
+    lab_allow_operator_login: bool = False,
 ) -> FastAPI:
     """Build an ASGI app WITHOUT binding a socket or starting an HTTP server.
 
@@ -179,7 +197,11 @@ def create_local_queue_app(
             loopback = lab_allow_testclient and peer == "testclient"
         if not loopback:
             response = JSONResponse({"code": "LOCAL_ONLY"}, status_code=403)
-        elif request.url.path.startswith("/v1/"):
+        elif _local_path(request).startswith("/v1/") and not (
+            lab_allow_operator_login
+            and request.method == "POST"
+            and _local_path(request) == "/v1/operators/session"
+        ):
             # Gate authentication BEFORE body parsing/validation so a guest
             # cannot elicit 422 or probe command schemas. The service still
             # resolves rights again inside the locked queue transaction.
@@ -220,6 +242,45 @@ def create_local_queue_app(
         # FastAPI validation detail often includes input values; do not echo
         # tokens, unexpected patient fields or contents in public errors.
         return JSONResponse({"code": "INVALID_REQUEST"}, status_code=422)
+
+    if lab_allow_operator_login:
+        @app.post("/v1/operators/session")
+        async def lab_operator_login(body: LabOperatorLoginBody):
+            # This opt-in route is mounted ONLY in the explicitly isolated
+            # lab by the Desktop gate, never in cabinet/production.
+            from queue_core.security.operator_store import OperatorError
+            try:
+                token = await run_in_threadpool(
+                    service._operators.login_bound_operator,
+                    body.username, body.password,
+                )
+            except OperatorError:
+                return JSONResponse({"code": "INVALID_CREDENTIALS"}, status_code=401)
+            principal = await run_in_threadpool(
+                service._operators.resolve_session, token,
+            )
+            if principal is None:
+                raise AuthorizationError("AUTH_REQUIRED", 401)
+            # UI convenience only; all commands still require fresh B-2
+            # authorization. Never expose assignments, scopes or tenant IDs.
+            return {
+                "token": token,
+                "token_type": "Bearer",
+                "roles": sorted(role.value for role in principal.roles),
+                "explicit_permissions": sorted(
+                    grant.value for grant in principal.explicit_permissions
+                ),
+            }
+
+    @app.post("/v1/operators/logout")
+    async def lab_operator_logout(request: Request):
+        token = _token(request)
+        revoked = await run_in_threadpool(
+            service._operators.revoke_session, token,
+        )
+        if not revoked:
+            raise AuthorizationError("AUTH_REQUIRED", 401)
+        return {"closed": True}
 
     @app.post("/v1/visits/{visit_id}/commands")
     async def human_command(visit_id: str, body: HumanCommandBody, request: Request):

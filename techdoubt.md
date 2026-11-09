@@ -1,3 +1,7 @@
+### LOT08.2-B B-5 — 2026-11-09 — Desktop/Browser LAB ≠ installed clinic acceptance
+
+Real Chromium synthetic FUE-G, test-only FastAPI mount and queue RBAC work in LAB; the existing clinical WaitingRoomPage still uses /appointments and is intentionally untouched. Native executable/installed Desktop startup, actual clinical appointment-to-Queue mapping, multi-PC/TLS and human physical/visual approvals have not been exercised. A browser stream revocation can only prevent future frames and must fail-closed on unexpected closure; already sent frames cannot be retracted. This B-5 evidence is not a clinic deployment or clinical data migration permission. Keep PR #1239 DRAFT and LOT08.2-B OPEN. Evidence: docs/v1.5/V15_08_2_B_DESKTOP_LAB_FUE_G_20261109.md.
+
 ### LOT08.2-A — 2026-11-09 — Independent source-review PASS, physical gate still OPEN
 
 Current source `44bc6fc639332796f064dbf18a59a4f8b5c3333f` (PR #1238), separate Codex read-only **delta review** vs previously fully reviewed SHA 09f3d40e: no actionable defect. Direct Windows Python 3.12 53/53 PASS postcommit, compileall PASS, worktree clean; both SDDL parsed by Windows native API in memory, CLI fails closed via Remote Desktop. The real privileged physical-console first admin creation, secure filesystem ACL install and recovery positive-path FUE-I are NOT_RUN and must not be certified from mock tests. Keep DRAFT, no merge/cabinet deployment or 08.2-B until safe physical LAB proof and owner gate. Full report `docs/v1.5/V15_08_2_A_SECURITY_REVIEW_20261109.md`.

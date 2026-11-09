@@ -47,6 +47,8 @@ const PartnerCatalogAdminPage = lazy(() => import('./pages/PartnerCatalogAdminPa
 const PartnerSupplierPage = lazy(() => import('./pages/PartnerSupplierPage').then(m => ({ default: m.PartnerSupplierPage })));
 const PartnerProductPage = lazy(() => import('./pages/PartnerProductPage').then(m => ({ default: m.PartnerProductPage })));
 const WaitingRoomPage  = lazy(() => import('./pages/WaitingRoomPage').then(m => ({ default: m.WaitingRoomPage })));
+// V1.5-08.2-B: strictly dev-flagged synthetic Queue Core preview, NOT Agenda migration.
+const QueueCoreLabPane = lazy(() => import('./features/queue-core/QueueCoreLabPane'));
 const LegalPage        = lazy(() => import('./pages/LegalPage').then(m => ({ default: m.LegalPage })));
 const PatientCompanionApp = lazy(() => import('./features/patient-companion/PatientCompanionApp').then(m => ({ default: m.PatientCompanionApp })));
 const HubPage = lazy(() => import('./features/hub/HubPage').then(m => ({ default: m.HubPage })));
@@ -282,6 +284,9 @@ const ProtectedRoutes = () => {
           <Route path="/cabinet" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/agenda" element={<PermissionRoute permission="agenda"><AgendaPage /></PermissionRoute>} />
+          {import.meta.env.DEV && import.meta.env.VITE_QUEUE_CORE_LAB_PREVIEW === "true" && (
+            <Route path="/queue-core-lab" element={<PermissionRoute permission="agenda"><QueueCoreLabPane /></PermissionRoute>} />
+          )}
           {/* LOT07/07-C opt-in dev laboratory only. Parent auth + workstation gates remain mandatory. */}
           {isCommandCabinetLabEnabled(import.meta.env.DEV, import.meta.env.VITE_COMMAND_CABINET_LAB) && (
             <Route path="/command-cabinet-lab" element={<PermissionRoute permission="agenda"><CommandCabinetReadOnlyRoute /></PermissionRoute>} />
