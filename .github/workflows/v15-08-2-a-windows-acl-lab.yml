@@ -46,45 +46,6 @@ jobs:
         shell: pwsh
         run: |
           python -m pip install 'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
-      - name: Windows real ACL smoke on RUNNER_TEMP only
-        shell: pwsh
-        run: |
-          $ErrorActionPreference = 'Stop'
-          @'
-          import os
-          import shutil
-          import uuid
-          from pathlib import Path
-          from queue_core.security.windows_cli import (
-              _secure_win32_create, _verify_acl, _no_reparse,
-          )
-          from queue_core.security.windows_console import LocalConsoleRequired
-
-          root = Path(os.environ["RUNNER_TEMP"]) / ("digital-crown-acl-" + uuid.uuid4().hex)
-          db = root / "local_auth.sqlite"
-          unsafe = Path(os.environ["RUNNER_TEMP"]) / ("digital-crown-unsafe-" + uuid.uuid4().hex)
-          try:
-              _secure_win32_create(root, directory=True)
-              _no_reparse(root)
-              _verify_acl(root)
-              _secure_win32_create(db, directory=False)
-              _no_reparse(db)
-              _verify_acl(db, allow_inherited=True)
-              print("REAL_TEMP_DIRECTORY_AND_FILE_ACL_VERIFIED")
-              unsafe.mkdir()
-              try:
-                  _verify_acl(unsafe)
-              except LocalConsoleRequired:
-                  print("UNTRUSTED_ACL_REFUSED")
-              else:
-                  raise AssertionError("INSECURE_ACL_WAS_ACCEPTED")
-          finally:
-              # Only CI-generated disposable names under RUNNER_TEMP.
-              for item in (unsafe, root):
-                  if item.exists():
-                      shutil.rmtree(item)
-          '@ | python -
-          if ($LASTEXITCODE -ne 0) { throw 'REAL_TEMP_ACL_SMOKE_FAILED' }
       - name: Verify CI/redirected CLI is refused without ProgramData side effects
         shell: pwsh
         run: |
@@ -105,6 +66,75 @@ jobs:
         run: |
           python -m pytest -q queue_core/tests --junitxml=queue-core-windows-acl-lab.xml
           if ($LASTEXITCODE -ne 0) { throw 'QUEUE_CORE_TEST_FAILURE' }
+      - name: Windows real ACL smoke on RUNNER_TEMP only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          import os
+          import shutil
+          import uuid
+          from pathlib import Path
+          from queue_core.security.windows_cli import (
+              _secure_win32_create, _verify_acl, _no_reparse,
+          )
+          from queue_core.security.windows_console import LocalConsoleRequired
+
+          root = Path(os.environ["RUNNER_TEMP"]) / ("digital-crown-acl-" + uuid.uuid4().hex)
+          db = root / "local_auth.sqlite"
+          unsafe = Path(os.environ["RUNNER_TEMP"]) / ("digital-crown-unsafe-" + uuid.uuid4().hex)
+          try:
+              _secure_win32_create(root, directory=True)
+              _no_reparse(root)
+              try:
+                  _verify_acl(root)
+              except LocalConsoleRequired:
+                  # Diagnostic only: no paths, passwords or identities are logged.
+                  import subprocess
+                  cmd = r"""
+          $ErrorActionPreference = 'Stop'
+          $acl = Get-Acl -LiteralPath $env:DC_TEMP_ACL_OBJECT
+          $sidType = [System.Security.Principal.SecurityIdentifier]
+          $owner = $acl.Owner
+          try { $owner = (New-Object System.Security.Principal.NTAccount($owner)).Translate($sidType).Value } catch {}
+          Write-Output ('ACL_OWNER_SID=' + $owner)
+          Write-Output ('ACL_PROTECTED=' + $acl.AreAccessRulesProtected)
+          $rules = @($acl.Access)
+          Write-Output ('ACL_ACE_COUNT=' + $rules.Count)
+          foreach ($rule in $rules) {
+            $sid = $rule.IdentityReference.Value
+            try { $sid = $rule.IdentityReference.Translate($sidType).Value } catch {}
+            Write-Output ('ACL_ACE=' + $sid + ';rights=' + $rule.FileSystemRights +
+              ';type=' + $rule.AccessControlType + ';inherited=' + $rule.IsInherited)
+          }
+          """
+                  e = dict(os.environ, DC_TEMP_ACL_OBJECT=str(root))
+                  diag = subprocess.run(
+                      ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", cmd],
+                      env=e, capture_output=True, text=True, timeout=20, check=False,
+                  )
+                  print("SYNTHETIC_ACL_DIAGNOSTIC_START")
+                  print(diag.stdout.strip())
+                  print("SYNTHETIC_ACL_DIAGNOSTIC_END", diag.returncode)
+                  raise
+              _secure_win32_create(db, directory=False)
+              _no_reparse(db)
+              _verify_acl(db, allow_inherited=True)
+              print("REAL_TEMP_DIRECTORY_AND_FILE_ACL_VERIFIED")
+              unsafe.mkdir()
+              try:
+                  _verify_acl(unsafe)
+              except LocalConsoleRequired:
+                  print("UNTRUSTED_ACL_REFUSED")
+              else:
+                  raise AssertionError("INSECURE_ACL_WAS_ACCEPTED")
+          finally:
+              # Only CI-generated disposable names under RUNNER_TEMP.
+              for item in (unsafe, root):
+                  if item.exists():
+                      shutil.rmtree(item)
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'REAL_TEMP_ACL_SMOKE_FAILED' }
       - name: Retain non-sensitive JUnit report only
         if: always()
         uses: actions/upload-artifact@v4
