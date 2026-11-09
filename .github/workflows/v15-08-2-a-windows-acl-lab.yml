@@ -2,6 +2,7 @@ name: V1.5-08.2-A Windows ACL synthetic LAB
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, edited]
     branches: [master]
     paths:
       - '.github/workflows/v15-08-2-a-windows-acl-lab.yml'
