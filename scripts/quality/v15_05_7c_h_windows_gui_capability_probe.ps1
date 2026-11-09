@@ -1,6 +1,7 @@
 # LOT05.7C-H - Ephemeral GitHub-hosted Windows GUI-capability probe.
 # This script NEVER downloads, launches, or installs Open Dental.
-# It creates a local synthetic WinForms text box to test real GUI interaction only.
+# It creates only a disposable WinForms textbox and synthetic Button.
+# Tests SendMessageTimeout(BM_CLICK) on that own button, never vendor UI.
 # The published JSON is metadata only; no screenshots, patient data, credentials, or window titles.
 [CmdletBinding()]
 param()
@@ -35,6 +36,13 @@ $report = [ordered]@{
   synthetic_form_created = $false
   synthetic_form_foreground = $false
   synthetic_textbox_keyboard_roundtrip = $false
+  synthetic_bm_click_candidate_created = $false
+  synthetic_bm_click_requested = $false
+  synthetic_bm_click_returned_nonzero = $false
+  synthetic_bm_click_win32_last_error = $null
+  synthetic_bm_click_message_result = $null
+  synthetic_bm_click_handler_fired = $false
+  synthetic_bm_click_proven = $false
   failure_code = $null
   publisher_gui_csv_export_verified = $false
   vendor_format_compatible = $false
@@ -57,6 +65,19 @@ public static class Lot05Win32GuiProbe {
   public static extern bool CloseDesktop(IntPtr desktop);
   [DllImport("user32.dll", SetLastError = true)]
   public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", SetLastError = true)]
+  private static extern IntPtr SendMessageTimeout(
+    IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam,
+    uint flags, uint timeoutMs, out IntPtr result);
+  public static bool BMClickOwnSyntheticButton(
+    IntPtr hwnd, out int lastError, out long messageResult) {
+    IntPtr rawResult;
+    IntPtr delivered = SendMessageTimeout(
+      hwnd, 0x00F5, IntPtr.Zero, IntPtr.Zero, 2, 1500, out rawResult);
+    lastError = Marshal.GetLastWin32Error();
+    messageResult = rawResult.ToInt64();
+    return delivered != IntPtr.Zero;
+  }
 }
 '@
 
@@ -78,7 +99,7 @@ public static class Lot05Win32GuiProbe {
 
     $form = New-Object System.Windows.Forms.Form
     $form.Text = 'LOT05H-SYNTHETIC-GUI-CAPABILITY'
-    $form.Size = New-Object System.Drawing.Size(360, 100)
+    $form.Size = New-Object System.Drawing.Size(360, 145)
     $form.StartPosition = [System.Windows.Forms.FormStartPosition]::Manual
     $form.Location = New-Object System.Drawing.Point(20, 20)
     $form.ShowInTaskbar = $false
@@ -86,6 +107,13 @@ public static class Lot05Win32GuiProbe {
     $field.Location = New-Object System.Drawing.Point(16, 15)
     $field.Width = 280
     $form.Controls.Add($field)
+    $button = New-Object System.Windows.Forms.Button
+    $button.Name = 'LOT05H_SYNTHETIC_ONLY_BUTTON'
+    $button.Text = 'Synthetic Click'
+    $button.Location = New-Object System.Drawing.Point(16, 50)
+    $button.Size = New-Object System.Drawing.Size(145, 28)
+    $button.Add_Click({ $report.synthetic_bm_click_handler_fired = $true })
+    $form.Controls.Add($button)
     $form.Show()
     [System.Windows.Forms.Application]::DoEvents()
     $report.synthetic_form_created = [bool]$form.IsHandleCreated
@@ -100,6 +128,30 @@ public static class Lot05Win32GuiProbe {
       [System.Windows.Forms.SendKeys]::SendWait($probeMarker)
       [System.Windows.Forms.Application]::DoEvents()
       $report.synthetic_textbox_keyboard_roundtrip = ($field.Text -ceq $probeMarker)
+    }
+    # EXACT same native Win32 message signature as the failed vendor experiment,
+    # but addressed ONLY to a Button handle created by this script's own form.
+    # No PIDs/HWNDs, widget text, coordinates or desktop screenshots are saved.
+    if ($report.synthetic_textbox_keyboard_roundtrip -and
+        $report.synthetic_form_foreground -and
+        $button.IsHandleCreated -and
+        $button.Enabled -and $button.Visible) {
+      $report.synthetic_bm_click_candidate_created = $true
+      $lastError = [int]0
+      $messageResult = [long]0
+      $report.synthetic_bm_click_requested = $true
+      $report.synthetic_bm_click_returned_nonzero = [bool](
+        [Lot05Win32GuiProbe]::BMClickOwnSyntheticButton(
+          $button.Handle, [ref]$lastError, [ref]$messageResult
+        )
+      )
+      [System.Windows.Forms.Application]::DoEvents()
+      $report.synthetic_bm_click_win32_last_error = $lastError
+      $report.synthetic_bm_click_message_result = $messageResult
+      $report.synthetic_bm_click_proven = (
+        $report.synthetic_bm_click_returned_nonzero -and
+        $report.synthetic_bm_click_handler_fired
+      )
     }
   }
 
