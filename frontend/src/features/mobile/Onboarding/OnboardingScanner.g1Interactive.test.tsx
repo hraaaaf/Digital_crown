@@ -64,6 +64,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   sessionStorage.clear();
   localStorage.clear();
+  document.documentElement.dataset.theme = '';
+  document.body.dataset.theme = '';
 
   Object.defineProperty(window, 'isSecureContext', { configurable: true, value: true });
   vi.mocked(generateClientKeyPair).mockResolvedValue({
@@ -85,6 +87,28 @@ afterEach(() => {
 });
 
 describe('OnboardingScanner G1 interactive matrix', () => {
+  it.each(['emerald', 'rose', 'ocean', 'graphite', 'prestige', 'dark', 'high-contrast'])(
+    'preserves the cabinet-selected %s theme across the pairing screen',
+    (selectedTheme) => {
+      document.documentElement.dataset.theme = selectedTheme;
+      document.body.dataset.theme = selectedTheme;
+      // The global desktop theme is not the source of truth for Pocket.
+      localStorage.setItem('digitalcrown_theme', 'elite');
+
+      renderScanner('/mobile/onboarding');
+
+      expect(document.documentElement.dataset.theme).toBe(selectedTheme);
+      expect(document.body.dataset.theme).toBe(selectedTheme);
+      expect(localStorage.getItem('digitalcrown_theme')).toBe('elite');
+    },
+  );
+
+  it('preserves the Elite default when no selected theme exists', () => {
+    renderScanner('/mobile/onboarding');
+    expect(document.documentElement.dataset.theme).toBe('');
+    expect(document.body.dataset.theme).toBe('');
+  });
+
   it('keeps the unconfirmed remote-revocation alert across PWA reload until cabinet confirmation', () => {
     markUnconfirmedMobileRevocation();
     const page = renderScanner('/mobile/onboarding');

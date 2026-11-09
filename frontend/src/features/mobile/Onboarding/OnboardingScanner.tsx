@@ -89,9 +89,8 @@ export const OnboardingScanner = () => {
   }, [phase, continueAfterPairing]);
 
   useEffect(() => {
-    document.documentElement.dataset.theme = '';
-    document.body.dataset.theme = '';
-
+    // The Pocket runtime owns theme selection (paired cabinet or default).
+    // A pairing route must not reset it after bootstrap or cached restore.
     const token = searchParams.get('token');
     if (token) {
       if (mustInstallPocketFirst) {
@@ -299,11 +298,11 @@ export const OnboardingScanner = () => {
 
   if (phase === 'welcome') {
     return (
-      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-6 sm:p-8 font-outfit relative overflow-hidden" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-6 sm:p-8 font-outfit relative overflow-hidden bg-background text-text-main">
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
 
         <div className="z-10 w-full max-w-xs flex flex-col items-center">
-          <img src={Logo} alt="Digital Crown" className="w-48 h-auto object-contain mb-8 drop-shadow-md" />
+          <img src={Logo} alt="Digital Crown" className="w-48 h-auto object-contain mb-8" style={{ filter: 'var(--theme-logo-filter) drop-shadow(0 1px 2px var(--border-color))' }} />
 
           <div className="w-24 h-24 rounded-3xl bg-primary/10 border border-primary/20 flex items-center justify-center text-primary mb-8 shadow-elite">
             <Smartphone size={44} />
@@ -338,7 +337,7 @@ export const OnboardingScanner = () => {
               <button
                 type="button"
                 onClick={() => window.location.assign('/mobile/demo?demo=1')}
-                className="w-full min-h-[52px] px-4 bg-primary hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-white transition-all shadow-elite-hover flex items-center justify-center gap-2"
+                className="w-full min-h-[52px] px-4 bg-primary hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-on-primary transition-all shadow-elite-hover flex items-center justify-center gap-2"
               >
                 Entrer dans Digital Crown
                 <ArrowRight size={16} />
@@ -384,7 +383,7 @@ export const OnboardingScanner = () => {
           )}
 
           {mustInstallPocketFirst && (
-            <p role="status" data-dc-pocket-install-first className="mt-4 w-full rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-center text-[12px] font-bold leading-relaxed text-amber-900">
+            <p role="status" data-dc-pocket-install-first className="mt-4 w-full rounded-2xl border border-warning-border bg-warning-surface px-4 py-3 text-center text-[12px] font-bold leading-relaxed text-warning">
               Installez Pocket et ouvrez son icône avant de saisir un code.
               Les codes sont à usage unique et ne transfèrent pas la session Safari.
             </p>
@@ -403,7 +402,7 @@ export const OnboardingScanner = () => {
           <button
             disabled={mustInstallPocketFirst}
             onClick={startScanner}
-            className="w-full min-h-[52px] px-4 bg-primary hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-white uppercase tracking-widest transition-all shadow-elite-hover mb-4"
+            className="w-full min-h-[52px] px-4 bg-primary hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-on-primary uppercase tracking-widest transition-all shadow-elite-hover mb-4"
           >
             Scanner le QR Code
           </button>
@@ -420,7 +419,7 @@ export const OnboardingScanner = () => {
               inputMode="numeric"
               placeholder="Code à 6 chiffres"
               aria-label="Code d'appairage à 6 chiffres"
-              className="min-w-0 flex-1 min-h-[52px] bg-white dark:bg-slate-900 border border-border-main rounded-2xl px-3 text-center font-black tracking-widest text-base outline-none focus:border-primary transition-all"
+              className="min-w-0 flex-1 min-h-[52px] bg-card dark:bg-input-field border border-border-main rounded-2xl px-3 text-center font-black tracking-widest text-base outline-none focus:border-primary transition-all"
               value={manualToken}
               disabled={mustInstallPocketFirst}
               onChange={event => setManualToken(event.target.value.replace(/\D/g, '').slice(0, 6))}
@@ -436,7 +435,7 @@ export const OnboardingScanner = () => {
                 }
               }}
               disabled={mustInstallPocketFirst || manualToken.length !== 6}
-              className="shrink-0 min-h-[52px] px-5 bg-slate-800 disabled:bg-slate-300 text-white font-bold rounded-2xl active:scale-95 transition-transform"
+              className="shrink-0 min-h-[52px] px-5 bg-primary disabled:opacity-40 text-on-primary font-bold rounded-2xl active:scale-95 transition-transform"
             >
               OK
             </button>
@@ -448,7 +447,7 @@ export const OnboardingScanner = () => {
 
   if (phase === 'claiming') {
     return (
-      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center gap-6 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center gap-6 font-outfit relative bg-background text-text-main">
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
         <Loader2 size={48} className="text-primary animate-spin z-10" />
         <p className="font-black text-text-muted text-sm uppercase tracking-widest z-10">Vérification en cours…</p>
@@ -460,16 +459,16 @@ export const OnboardingScanner = () => {
     return (
       <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center gap-5 p-6 text-center font-outfit animate-in fade-in duration-500 relative" style={{ backgroundColor: 'var(--bg-medical-pearl)', color: 'var(--primary)' }}>
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none opacity-20" />
-        <CheckCircle2 size={72} className="text-emerald-500 z-10" />
-        <p className="font-black text-2xl tracking-tight z-10 text-emerald-600">Appairage réussi</p>
-        <p className="text-sm z-10 text-slate-500">Ouverture :</p>
+        <CheckCircle2 size={72} className="text-success z-10" />
+        <p className="font-black text-2xl tracking-tight z-10 text-success">Appairage réussi</p>
+        <p className="text-sm z-10 text-text-muted">Ouverture :</p>
         <p className="text-xl font-black z-10 text-primary">{destinationLabel}</p>
         {/* Genuine navigation survives an interrupted React tap handler in iOS
             embedded browsers. The destination is from the server-bound route
             allowlist and remains protected by MobileProtectedRoute. */}
         <a
           href={destinationRoute}
-          className="z-10 mt-5 min-h-[52px] w-full max-w-xs rounded-2xl bg-primary px-6 text-sm font-black text-white shadow-elite active:scale-[0.98] transition-transform flex items-center justify-center"
+          className="z-10 mt-5 min-h-[52px] w-full max-w-xs rounded-2xl bg-primary px-6 text-sm font-black text-on-primary shadow-elite active:scale-[0.98] transition-transform flex items-center justify-center"
         >
           Continuer vers {destinationLabel}
         </a>
@@ -487,12 +486,12 @@ export const OnboardingScanner = () => {
     };
 
     return (
-      <div data-dc-mobile-shell className="min-h-screen flex flex-col p-6 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col p-6 font-outfit relative bg-background text-text-main">
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
         <div className="z-10 flex-1 flex flex-col max-w-xs mx-auto w-full justify-center">
           <div className="flex flex-col items-center mb-8">
-            <div className="w-20 h-20 rounded-3xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center mb-4">
-              <ShieldCheck size={40} className="text-emerald-500" />
+            <div className="w-20 h-20 rounded-3xl bg-success-surface border border-success-border flex items-center justify-center mb-4">
+              <ShieldCheck size={40} className="text-success" />
             </div>
             <h2 className="text-2xl font-black tracking-tight text-center mb-2">Connexion sécurisée</h2>
             <p className="text-xs text-text-muted font-medium text-center leading-relaxed">
@@ -502,7 +501,7 @@ export const OnboardingScanner = () => {
             <p className="mt-3 text-xs font-black text-primary">Destination : {destinationLabel}</p>
           </div>
 
-          <div className="w-full p-4 rounded-2xl bg-white border border-border-main shadow-elite mb-6 space-y-3">
+          <div className="w-full p-4 rounded-2xl bg-card border border-border-main shadow-elite mb-6 space-y-3">
             {[
               'Appuyez sur « Activer la sécurité »',
               'Autorisez le téléchargement du profil',
@@ -518,7 +517,7 @@ export const OnboardingScanner = () => {
 
           <a
             href={certUrl}
-            className="w-full min-h-[52px] px-4 mb-3 bg-emerald-600 hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-white uppercase tracking-widest transition-all shadow-elite flex items-center justify-center gap-2"
+            className="w-full min-h-[52px] px-4 mb-3 bg-primary hover:opacity-90 active:scale-95 rounded-2xl font-black text-sm text-on-primary uppercase tracking-widest transition-all shadow-elite flex items-center justify-center gap-2"
           >
             <ShieldCheck size={16} />
             Activer la sécurité
@@ -538,14 +537,14 @@ export const OnboardingScanner = () => {
 
   if (phase === 'error') {
     return (
-      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-8 gap-8 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-8 gap-8 font-outfit relative bg-background text-text-main">
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
         <div className="z-10 flex flex-col items-center">
-          <div className="w-20 h-20 rounded-3xl bg-rose-500/10 border border-rose-500/20 flex items-center justify-center mb-6">
-            <AlertCircle size={40} className="text-rose-500" />
+          <div className="w-20 h-20 rounded-3xl bg-danger-surface border border-danger-border flex items-center justify-center mb-6">
+            <AlertCircle size={40} className="text-danger" />
           </div>
           <div className="text-center max-w-xs mb-8">
-            <p className="font-black text-rose-500 text-lg mb-2">Échec de l'appairage</p>
+            <p className="font-black text-danger text-lg mb-2">Échec de l'appairage</p>
             <p className="text-[11px] text-text-muted font-bold leading-relaxed">{errorMessage}</p>
           </div>
           <button
@@ -561,19 +560,19 @@ export const OnboardingScanner = () => {
 
   if (phase === 'denied') {
     return (
-      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-8 gap-8 font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+      <div data-dc-mobile-shell className="min-h-screen flex flex-col items-center justify-center p-8 gap-8 font-outfit relative bg-background text-text-main">
         <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
         <div className="z-10 flex flex-col items-center">
-          <Camera size={48} className="text-rose-500 mb-6" />
+          <Camera size={48} className="text-danger mb-6" />
           <div className="text-center max-w-xs mb-8">
-            <p className="font-black text-rose-500 mb-2 text-lg">Caméra bloquée</p>
+            <p className="font-black text-danger mb-2 text-lg">Caméra bloquée</p>
             <p className="text-[11px] text-text-muted font-bold leading-relaxed">
               Autorisez l'accès à la caméra dans les réglages de votre navigateur, puis rechargez la page.
             </p>
           </div>
           <button
             onClick={() => window.location.reload()}
-            className="min-h-[52px] px-8 bg-primary hover:opacity-90 rounded-2xl font-black text-xs text-white uppercase tracking-widest shadow-elite"
+            className="min-h-[52px] px-8 bg-primary hover:opacity-90 rounded-2xl font-black text-xs text-on-primary uppercase tracking-widest shadow-elite"
           >
             Réessayer
           </button>
@@ -583,11 +582,11 @@ export const OnboardingScanner = () => {
   }
 
   return (
-    <div data-dc-mobile-shell className="min-h-screen p-6 flex flex-col font-outfit relative" style={{ backgroundColor: '#f8fafc', color: '#0f172a' }}>
+    <div data-dc-mobile-shell className="min-h-screen p-6 flex flex-col font-outfit relative bg-background text-text-main">
       <div className="document-watermark absolute inset-0 z-0 pointer-events-none" />
       <div className="z-10 flex-1 flex flex-col">
         <div className="flex items-center justify-center gap-3 mb-10 mt-4">
-          <img src={Logo} alt="Digital Crown" className="w-36 h-auto object-contain drop-shadow-sm" />
+          <img src={Logo} alt="Digital Crown" className="w-36 h-auto object-contain" style={{ filter: 'var(--theme-logo-filter) drop-shadow(0 1px 2px var(--border-color))' }} />
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center gap-8">

@@ -73,6 +73,9 @@
   --border-color: #e2e8f0;
   --border-hover: #cbd5e1;
   --input-bg: #f1f5f9;
+  /* Transparent brand assets adapt to the current backdrop without
+     introducing a second brand palette inside product components. */
+  --theme-logo-filter: brightness(1);
 
   /* Couleurs par défaut (Elite Blue) */
   --primary: #003380;
@@ -165,6 +168,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --border-color: #334155;
   --border-hover: #475569;
   --input-bg: #1e293b;
+  --theme-logo-filter: brightness(0) invert(1);
 
   --primary: #3b82f6;
   --text-on-primary: #020617;
@@ -227,6 +231,7 @@ body, .bg-white, .text-slate-800, .bg-primary, .border-slate-200 {
   --border-color: #1e293b;
   --border-hover: #334155;
   --input-bg: #020617;
+  --theme-logo-filter: brightness(0) invert(1);
 
   --primary: #4f46e5; /* Indigo Saphir (Désaturé) */
   --secondary: #3730a3;
