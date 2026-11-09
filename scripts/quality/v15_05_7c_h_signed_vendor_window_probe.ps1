@@ -6,7 +6,8 @@
 [CmdletBinding()]
 param(
   [switch]$LaunchSetupWizardOnly,
-  [switch]$ReadOnlyElevationProbe
+  [switch]$ReadOnlyElevationProbe,
+  [switch]$ReadOnlyButtonOwnershipProbe
 )
 
 Set-StrictMode -Version Latest
@@ -50,6 +51,14 @@ $report = [ordered]@{
   runner_token_queryable = $false
   runner_token_elevated = $null
   token_elevation_mismatch = $null
+  read_only_button_ownership_probe_requested = [bool]$ReadOnlyButtonOwnershipProbe
+  install_button_owner_queryable = $false
+  install_button_same_process_as_vendor_window = $null
+  install_button_same_thread_as_vendor_window = $null
+  install_button_same_process_as_runner = $null
+  install_button_native_class_verified = $false
+  install_button_window_still_valid = $false
+  install_button_parent_chain_contains_vendor_window = $false
   install_wizard_probe_guard_passed = $false
   install_button_invocation_attempted = $false
   install_button_message_delivered = $false
@@ -281,6 +290,361 @@ public static class Lot05ReadOnlyInstallerWin32 {
       # No fallback to coordinate-based clicks; zero evidence means NO-GO.
       $report.installer_win32_probe_completed = $false
       $report.installer_win32_install_semantic_button_proven = $false
+    }
+  }
+  # READ ONLY: compare native Install child HWND owner PID/TID with the
+  # allowlisted signed publisher window and current runner process.
+  # Never upload numeric HWND, PID, TID, title, path or patient content.
+  if ($ReadOnlyButtonOwnershipProbe -and
+      $report.installer_win32_install_semantic_button_proven -and
+      $report.installer_win32_install_candidate_count -eq 1 -and
+      $installerHwnd -ne [IntPtr]::Zero -and
+      $null -ne $installHwnd -and
+      $installHwnd -ne [IntPtr]::Zero) {
+    try {
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+using System.Text;
+public static class Lot05ButtonOwnershipReadOnly {
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern uint GetWindowThreadProcessId(
+    IntPtr hwnd, out uint processId);
+  [DllImport("user32.dll")]
+  public static extern bool IsWindow(IntPtr hwnd);
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetParent(IntPtr hwnd);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)]
+  public static extern int GetClassName(
+    IntPtr hwnd, StringBuilder className, int capacity);
+}
+'@
+      $report.install_button_window_still_valid = [bool](
+        [Lot05ButtonOwnershipReadOnly]::IsWindow($installHwnd)
+      )
+      $vendorPid = [uint32]0
+      $buttonPid = [uint32]0
+      $vendorTid = [Lot05ButtonOwnershipReadOnly]::GetWindowThreadProcessId(
+        $installerHwnd, [ref]$vendorPid
+      )
+      $buttonTid = [Lot05ButtonOwnershipReadOnly]::GetWindowThreadProcessId(
+        $installHwnd, [ref]$buttonPid
+      )
+      if ($vendorTid -ne 0 -and $buttonTid -ne 0 -and
+          $vendorPid -ne 0 -and $buttonPid -ne 0 -and
+          $report.install_button_window_still_valid) {
+        $report.install_button_owner_queryable = $true
+        $report.install_button_same_process_as_vendor_window = (
+          $buttonPid -eq $vendorPid
+        )
+        $report.install_button_same_thread_as_vendor_window = (
+          $buttonTid -eq $vendorTid
+        )
+        $report.install_button_same_process_as_runner = (
+          $buttonPid -eq [uint32]$PID
+        )
+        $classBuilder = New-Object System.Text.StringBuilder(128)
+        $null = [Lot05ButtonOwnershipReadOnly]::GetClassName(
+          $installHwnd, $classBuilder, $classBuilder.Capacity
+        )
+        $report.install_button_native_class_verified = (
+          $classBuilder.ToString() -match
+          '^(?i:Button|WindowsForms10\.BUTTON\..*)  # cross-integrity GUI messages, without sending another BM_CLICK.
+  # Never publish PIDs, usernames, token handles, paths or window contents.
+  if ($ReadOnlyElevationProbe -and
+      $report.official_trial_window_title_allowlisted -and
+      $installerHwnd -ne [IntPtr]::Zero) {
+    try {
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class Lot05InstallerTokenReadOnly {
+  [DllImport("user32.dll", SetLastError=true)]
+  private static extern uint GetWindowThreadProcessId(
+    IntPtr hwnd, out uint processId);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern IntPtr OpenProcess(
+    uint desiredAccess, bool inherit, uint processId);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern IntPtr GetCurrentProcess();
+  [DllImport("kernel32.dll")]
+  private static extern bool CloseHandle(IntPtr handle);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  private static extern bool OpenProcessToken(
+    IntPtr process, uint access, out IntPtr token);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  private static extern bool GetTokenInformation(
+    IntPtr token, int infoClass, out int elevation,
+    int bufferSize, out int resultSize);
+  private static bool TryReadElevation(IntPtr process, out bool elevated) {
+    elevated = false;
+    IntPtr token = IntPtr.Zero;
+    try {
+      if (!OpenProcessToken(process, 0x0008, out token)) return false;
+      int elevation = 0;
+      int resultSize = 0;
+      if (!GetTokenInformation(
+          token, 20, out elevation, sizeof(int), out resultSize)) return false;
+      elevated = (elevation != 0);
+      return true;
+    } finally {
+      if (token != IntPtr.Zero) CloseHandle(token);
+    }
+  }
+  public static bool TryCurrent(out bool elevated) {
+    return TryReadElevation(GetCurrentProcess(), out elevated);
+  }
+  public static bool TryWindow(IntPtr hwnd, out bool elevated) {
+    elevated = false;
+    uint pid = 0;
+    if (GetWindowThreadProcessId(hwnd, out pid) == 0 || pid == 0) {
+      return false;
+    }
+    IntPtr process = OpenProcess(0x1000, false, pid);
+    if (process == IntPtr.Zero) return false;
+    try {
+      return TryReadElevation(process, out elevated);
+    } finally {
+      CloseHandle(process);
+    }
+  }
+}
+'@
+      $selfElevated = $false
+      $vendorElevated = $false
+      $report.runner_token_queryable = [bool](
+        [Lot05InstallerTokenReadOnly]::TryCurrent([ref]$selfElevated)
+      )
+      $report.vendor_window_token_queryable = [bool](
+        [Lot05InstallerTokenReadOnly]::TryWindow(
+          $installerHwnd, [ref]$vendorElevated
+        )
+      )
+      if ($report.runner_token_queryable) {
+        $report.runner_token_elevated = [bool]$selfElevated
+      }
+      if ($report.vendor_window_token_queryable) {
+        $report.vendor_window_token_elevated = [bool]$vendorElevated
+      }
+      if ($report.runner_token_queryable -and
+          $report.vendor_window_token_queryable) {
+        $report.token_elevation_mismatch = (
+          $report.runner_token_elevated -ne
+          $report.vendor_window_token_elevated
+        )
+      }
+    } catch {
+      # Unreadable token is a legitimate NOT_PROVEN outcome.
+      $report.vendor_window_token_queryable = $false
+      $report.token_elevation_mismatch = $null
+    }
+  }
+  # Screenshot ONLY the signed vendor launcher's first window, before any
+  # Install click or database access. Never capture the desktop or patient UI.
+  if ($report.official_trial_window_title_allowlisted -and
+      $installerHwnd -ne [IntPtr]::Zero -and
+      $report.official_binary_authenticode_valid -and
+      -not $report.database_installed -and
+      -not $report.gui_product_launched) {
+    try {
+      Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public struct Lot05InitialInstallerRect {
+  public int Left;
+  public int Top;
+  public int Right;
+  public int Bottom;
+}
+public static class Lot05InitialInstallerCapture {
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern bool GetWindowRect(IntPtr hwnd, out Lot05InitialInstallerRect bounds);
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern bool SetForegroundWindow(IntPtr hwnd);
+  [DllImport("user32.dll", SetLastError = true)]
+  public static extern IntPtr GetForegroundWindow();
+}
+'@
+      $null = [Lot05InitialInstallerCapture]::SetForegroundWindow($installerHwnd)
+      Start-Sleep -Milliseconds 350
+      if ([Lot05InitialInstallerCapture]::GetForegroundWindow() -ne $installerHwnd) {
+        throw 'SIGNED_INSTALLER_NOT_FOREGROUND'
+      }
+      $rectangle = New-Object Lot05InitialInstallerRect
+      if (-not [Lot05InitialInstallerCapture]::GetWindowRect(
+          $installerHwnd, [ref]$rectangle)) {
+        throw 'SIGNED_INSTALLER_WINDOW_BOUNDS_UNAVAILABLE'
+      }
+      $width = [int]($rectangle.Right - $rectangle.Left)
+      $height = [int]($rectangle.Bottom - $rectangle.Top)
+      if ($width -lt 250 -or $height -lt 150 -or
+          $width -gt 1500 -or $height -gt 1100) {
+        throw 'SIGNED_INSTALLER_WINDOW_BOUNDS_REFUSED'
+      }
+      $bitmap = New-Object System.Drawing.Bitmap($width, $height)
+      try {
+        $graphics = [System.Drawing.Graphics]::FromImage($bitmap)
+        try {
+          $graphics.CopyFromScreen(
+            [int]$rectangle.Left, [int]$rectangle.Top, 0, 0,
+            (New-Object System.Drawing.Size($width, $height)),
+            [System.Drawing.CopyPixelOperation]::SourceCopy
+          )
+        } finally {
+          $graphics.Dispose()
+        }
+        $screenshotPath = Join-Path $env:RUNNER_TEMP 'lot05-7c-h-OFFICIAL-INSTALLER-FIRST-WINDOW-NO-PATIENTS.png'
+        $bitmap.Save($screenshotPath, [System.Drawing.Imaging.ImageFormat]::Png)
+        if ((Get-Item -LiteralPath $screenshotPath).Length -gt 1024) {
+          $report.initial_installer_window_png_captured = $true
+          $report.initial_installer_window_png_dimensions = "$width" + 'x' + "$height"
+        }
+      } finally {
+        $bitmap.Dispose()
+      }
+    } catch {
+      # Evidence unavailable. Do not capture desktop or bypass focus/provenance.
+      $report.initial_installer_window_png_captured = $false
+    }
+  }
+  # Explicitly bounded owner-authorized synthetic/demo VM action.
+  # The official trial instructions specify that Install FIRST opens the Setup
+  # Wizard. This probe stops at that first screen, without any EULA acceptance,
+  # wizard Next/Finish/confirmation, MariaDB configuration or patient access.
+  if ($LaunchSetupWizardOnly) {
+    if (-not $report.installer_win32_install_semantic_button_proven -or
+        $report.installer_win32_install_candidate_count -ne 1 -or
+        -not $report.installer_uia_new_server_option_observed -or
+        -not $report.official_binary_authenticode_valid -or
+        -not $report.synthetic_gui_prerequisite_verified -or
+        $installerHwnd -eq [IntPtr]::Zero -or
+        $null -eq $installHwnd -or
+        $installHwnd -eq [IntPtr]::Zero) {
+      throw 'INSTALL_WIZARD_PROBE_GUARDS_NOT_MET'
+    }
+    $existingDbService = @(
+      Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue
+    )
+    if ($existingDbService.Count -gt 0) {
+      $report.db_service_preexisting = $true
+      throw 'ISOLATED_VM_REQUIRES_NO_DATABASE_SERVICE'
+    }
+    $report.install_wizard_probe_guard_passed = $true
+
+    # BM_CLICK via bounded SendMessageTimeout: the exact identified native
+    # Button child only. No simulated coordinates, keys, UIA fallback or UAC
+    # circumvention. A failed delivery is a strict stop (no second attempt).
+    Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class Lot05WizardSingleClick {
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern IntPtr SendMessageTimeout(
+    IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam,
+    uint flags, uint timeoutMs, out IntPtr result);
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern bool SetForegroundWindow(IntPtr hwnd);
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+}
+'@
+    $null = [Lot05WizardSingleClick]::SetForegroundWindow($installerHwnd)
+    Start-Sleep -Milliseconds 200
+    if ([Lot05WizardSingleClick]::GetForegroundWindow() -ne $installerHwnd) {
+      throw 'SIGNED_INSTALLER_NOT_FOREGROUND_NO_CLICK'
+    }
+    $output = [IntPtr]::Zero
+    $report.install_button_invocation_attempted = $true
+    $delivered = [Lot05WizardSingleClick]::SendMessageTimeout(
+      $installHwnd, [uint32]0x00F5, [IntPtr]::Zero, [IntPtr]::Zero,
+      [uint32]2, [uint32]1500, [ref]$output
+    )
+    $report.install_button_message_delivered = (
+      $delivered -ne [IntPtr]::Zero
+    )
+    if (-not $report.install_button_message_delivered) {
+      throw 'INSTALL_BUTTON_MESSAGE_TIMEOUT_NO_RETRY'
+    }
+
+    # After ONE click observe ONLY window existence in the launcher process
+    # tree; never capture its content/titles or interact with the wizard.
+    # A dialog could be EULA/UAC: presence is recorded but NOT accepted.
+    for ($probeCycle = 0; $probeCycle -lt 25; $probeCycle++) {
+      Start-Sleep -Seconds 1
+      $allChildren = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+      for ($depth = 0; $depth -lt 3; $depth++) {
+        foreach ($childProc in $allChildren) {
+          if ($knownIds -contains [int]$childProc.ParentProcessId -and
+              -not ($knownIds -contains [int]$childProc.ProcessId)) {
+            $knownIds += [int]$childProc.ProcessId
+          }
+        }
+      }
+      foreach ($childId in $knownIds) {
+        $childProcess = Get-Process -Id $childId -ErrorAction SilentlyContinue
+        if ($null -ne $childProcess -and
+            $childProcess.MainWindowHandle -ne [IntPtr]::Zero -and
+            $childProcess.MainWindowHandle -ne $installerHwnd) {
+          $report.setup_wizard_new_window_observed = $true
+          break
+        }
+      }
+      if ($report.setup_wizard_new_window_observed) { break }
+    }
+    $newDbService = @(
+      Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue
+    )
+    $report.db_service_created_observed = ($newDbService.Count -gt 0)
+    # No false claim of completed install, even if Win32 message delivered.
+    $report.status = if ($report.setup_wizard_new_window_observed) {
+      'FIRST_WIZARD_WINDOW_OBSERVED_NO_LICENSE_ACCEPTED_NO_IMPORT'
+    } else {
+      'INSTALL_BUTTON_MESSAGE_DELIVERED_WIZARD_NOT_PROVEN'
+    }
+  }
+  if ($report.official_trial_window_title_allowlisted -and
+      -not $LaunchSetupWizardOnly) {
+    $report.status = 'SIGNED_OFFICIAL_VENDOR_GUI_LAUNCHER_WINDOW_OBSERVED_ONLY'
+  } elseif (-not $report.official_trial_window_title_allowlisted) {
+    $report.status = 'SIGNED_TRIAL_EXECUTED_BUT_GUI_WINDOW_NOT_PROVEN'
+    $report.failure_code = 'VENDOR_GUI_WINDOW_NOT_PROVEN'
+  }
+} catch {
+  # Fixed non-PHI error code. Never print exception text, title, user or path.
+  $report.status = 'REFUSED_OR_NOT_PROVEN'
+  $report.failure_code = 'VENDOR_WINDOW_OBSERVATION_REFUSED_OR_FAILED'
+} finally {
+  # Stop only the publisher process IDs started from this exact launch.
+  foreach ($processId in @($knownIds | Select-Object -Unique)) {
+    try {
+      Stop-Process -Id $processId -Force -ErrorAction SilentlyContinue
+    } catch {}
+  }
+  try { Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue } catch {}
+  [System.IO.File]::WriteAllText(
+    $reportFile, ($report | ConvertTo-Json -Depth 4),
+    (New-Object System.Text.UTF8Encoding($false))
+  )
+}
+Write-Host ('LOT05_H_SIGNED_VENDOR_WINDOW_PROBE=' + $report.status)
+Write-Host 'LOT05_H_SINGLE_WIZARD_FIRST_SCREEN_ONLY_NO_EULA_ACCEPTANCE_NO_IMPORT'
+# SUCCESS means bounded probe finished. Artifact JSON determines truth.
+exit 0
+
+        )
+        $walk = $installHwnd
+        for ($depth = 0; $depth -lt 12; $depth++) {
+          $walk = [Lot05ButtonOwnershipReadOnly]::GetParent($walk)
+          if ($walk -eq [IntPtr]::Zero) { break }
+          if ($walk -eq $installerHwnd) {
+            $report.install_button_parent_chain_contains_vendor_window = $true
+            break
+          }
+        }
+      }
+    } catch {
+      $report.install_button_owner_queryable = $false
     }
   }
   # READ-ONLY token elevation assessment: determine whether Windows blocked
