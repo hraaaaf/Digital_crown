@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B — B-2 persistance opérateurs candidate — 2026-11-09 — OPEN / NO MERGE
+
+- **GO owner 2026-11-09 :** poursuivre B-2 exclusivement après B-1 au HEAD `e0363e055fd4b31b3903b105229445e7252e1078` de PR #1239 DRAFT. Aucun GO de merge, déploiement, installation ou activation clinique.
+- **B-2 implémenté en LAB isolé :** `queue_core/security/operator_store.py`, extension additive au fichier SQLite local de 08.2-A (distinct de toute DB clinique), premier Admin bind tenant contrôlé par garde local, opérateurs nominatifs, scrypt, sessions opaques, rôle unique, attributions file/ressource, grants explicites, audit append-only, last-admin et bootstrap immuable par API + trigger SQL. `local_auth.recover_admin` invalide désormais les sessions A et B atomiquement.
+- **Preuve directe Windows Python 3.12 :** `py -3.12 -m pytest -q queue_core/tests` → **86 PASSED / 0 FAILED** (fixtures synthétiques SQLite temporaires uniquement) ; `compileall` et `git diff --check` exit 0. Ne pas assimiler cette preuve à une validation physique ou sécurité complète ; le SHA final et CI GitHub sont à consigner après commit.
+- **Contrat :** `docs/v1.5/V15_08_2_B_RBAC_ISOLATION_CONTRACT.md`, nouvelle section B-2 avec limites. `test_operator_store_08_2_b.py` fournit tests persistés, tenant/IDOR, droits, expiration, lockout, transactions, audit refus, rollback et récupération.
+- **OPEN :** revue SEC ciblée sur SHA final et CI Linux/Windows applicable ; résolution serveur fiable des tenants/visites/ressources et couplage auth→commande/flux futurs non implémentés ; aucune route/API, service SSE ou installation. Scope mono-tenant local de B-2. Essais physiques exclusivement LOT10 NOT_RUN.
+- **Next exact :** commit/push candidat sur PR #1239 DRAFT, inspecter CI exacte et revue SEC indépendante, corriger tout défaut critique et demander décision de fusion distincte une fois tous les gates logiciels requis satisfaits. Aucun merge automatique.
+
+
+
 ## LOT08.2-B — RBAC tenant-scopé / isolation — 2026-11-09 — B-1 EN COURS
 
 - **08.2-A** : [PR #1238](https://github.com/hraaaaf/Digital_crown/pull/1238) MERGED sur master commit `324afd13487acf7ff29223f077451927b54b8178`; Windows CI 53/53 PASS au SHA source `1b4380735932896b8b7a38485b2af709182c796c`, physique `NOT_RUN / LOT10`. Un workflow transversal postmerge #42599749810 était IN_PROGRESS au premier relevé.

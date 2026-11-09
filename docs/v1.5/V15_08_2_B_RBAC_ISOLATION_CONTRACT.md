@@ -61,3 +61,26 @@ later. No HTTP route or live stream currently exists in 08.2-A/B-1.
 Runtime Windows first Admin and physical authorization acceptance are LOT10
 (10.1, 10.2, 10.7, 10.8), PHYSICAL NOT_RUN. Code review/CI are LOT08.
 No merge/production install/clinical activation without separate GO.
+
+
+## B-2 candidate: durable local operators (2026-11-09)
+
+**Scope:** additive, isolated software/LAB candidate. The G2 B-1 pure policy remains unchanged; B-2 is NOT an HTTP adapter or clinical deployment.
+
+- Implementation: queue_core/security/operator_store.py; synthetic tests: queue_core/tests/test_operator_store_08_2_b.py.
+- **One existing local authentication SQLite file from 08.2-A**, not a second inconsistent credential database, and never any clinical DB. The existing restricted Windows filesystem ACL remains the responsibility of the protected A bootstrap/installer path. No automatic installer, route, network port, remote identity provider or default user is added.
+- First Admin from A must already be enrolled; one-time binding to a trusted tenant ID requires the A elevated physical-local-console guard and valid live A session. The bootstrapped Admin keeps A credential ownership and recovery semantics. Any untrusted caller's claimed tenant, actor, role or rights are disregarded. A distinct tenant cannot be rebound after first binding.
+- Named non-bootstrap operators have per-tenant unique usernames, per-user salted scrypt hashes, lockouts, 8-hour opaque SHA-256-digested sessions, enabled state, role, queue/resource assignments and explicit grants in SQLite.
+- Every operator check re-reads session, role, assignments and permissions from the local DB and yields only a trusted VerifiedPrincipal for the existing B-1 QueueAuthorizer. Only Admin may change operators; an Admin role does not imply operational queue rights. New users have no implicit explicit grants. Queue/resource ownership resolution remains a server responsibility: B-2 stores assigned identifiers but cannot certify nonexistent 08.3 server lookups.
+- Grant/assignment/role changes and disabling/password reset invalidate affected operator sessions *inside the same BEGIN IMMEDIATE transaction* as the change and append-only audit insert. An audit-write failure rolls the transaction back; protected audit DELETE/UPDATE triggers refuse modification.
+- First Admin is immutable within the B-2 operator API and SQL triggers. A last-active-Admin invariant is also checked during rights/disable transactions and enforced by SQL trigger. These are software controls, not evidence of physical operator use.
+- A privileged offline recovery in local_auth.recover_admin now atomically clears both 08.2-A and B-2 session tables while preserving existing A behavior when the B-2 table does not exist.
+- Invalid login/session, tenant mismatch, disabled account, corrupted role/permission, duplicate username or resolver error fail closed. Never store or log raw sessions, passwords or recovery secrets in audit records.
+
+### Limitations / unproven gates
+
+- **NOT a complete B closeout:** no live API, server target-scope resolver, queue command adapter, SSE authorization/replay, QR lifecycle, native installer or migration of existing production users. No physical first-Admin or multi-operator reception acceptance: LOT10 PHYSICAL NOT_RUN.
+- Each QueueAuthorizer check re-resolves from live DB. **Transactionally coupling authorization to future Queue Core command execution** is a mandatory future 08.3 integration condition; the pure resolver alone cannot eliminate in-flight time-of-check/time-of-use races.
+- Only one local tenant can be bound to the A first-admin store by this candidate; additional per-machine multi-tenant provisioning is not authorized. Identifiers assigned to queues/resources must later be verified against authoritative Queue Core rows on the server.
+- No real patients, clinical DB migration, HTTP user store or production accounts were used. Tests are synthetic and do not establish regulatory/clinical fitness.
+- CI and security review at the exact final HEAD, scope review and an independent owner merge decision remain gates; no merge or deployment authorization is implied by implementing B-2.

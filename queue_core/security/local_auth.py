@@ -336,6 +336,13 @@ class LocalIdentityStore:
                     (salt, password_digest),
                 )
                 c.execute("DELETE FROM local_sessions")
+                # B-2 operators share this isolated DB: a privileged offline
+                # recovery must also revoke their sessions in the SAME txn.
+                if c.execute(
+                    "SELECT 1 FROM sqlite_master WHERE type='table' "
+                    "AND name='operator_sessions'"
+                ).fetchone():
+                    c.execute("DELETE FROM operator_sessions")
                 c.execute(
                     """UPDATE auth_meta SET recovery_digest=?,
                        recovery_failures=0, recovery_locked_until=0,
