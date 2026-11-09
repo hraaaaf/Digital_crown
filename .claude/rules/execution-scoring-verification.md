@@ -99,7 +99,7 @@ Pour le closeout d'un lot, ajouter la liste des gates binaires et leur état.
 
 ## 8. UI/UX
 
-**Règle FUE-first :** sélectionner FUE-0, FUE-I ou FUE-G selon le parcours réellement disponible, exécuter les scénarios et produire des preuves inspectables. Les revues A/B et reviewers externes ne sont pas des gates par défaut ; les contrôles sécurité, clinique, humain et physique applicables restent obligatoires.
+**Règle FUE-first (décision 2026-11-09) :** sélectionner FUE-0, FUE-I ou FUE-G selon le parcours réellement disponible, exécuter les scénarios et produire des preuves inspectables. **La FUE se substitue à la revue indépendante de code comme gate technique de merge : aucune revue A/B, aucun reviewer externe n'est nécessaire en supplément.** Les contrôles sécurité, clinique, humain et physique applicables restent obligatoires.
 
 Cette règle complète `.claude/rules/visual-closeout-human-validation.md` :
 
