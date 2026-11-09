@@ -98,7 +98,8 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).toContain("databaseHttpStatus: dbResponse.status");
     expect(controlCenter).toContain("result.authHttpStatus === 423");
     expect(controlCenter).toContain("data-control-center-diagnosis={diagnosis}");
-    expect(controlCenter).toContain("crossOriginLimited: false,\n        failureKind:");
+    // Normalize platform line endings; the exact fail-closed field ordering remains mandatory.
+    expect(controlCenter.replace(/\r\n/g, "\n")).toContain("crossOriginLimited: false,\n        failureKind:");
     expect(controlCenter).toContain('Aucune réponse du service depuis ce poste');
     expect(controlCenter).toContain('Le serveur répond, mais le service Digital Crown est indisponible');
     expect(controlCenter).toContain('Le serveur répond, mais la base de données est indisponible');
