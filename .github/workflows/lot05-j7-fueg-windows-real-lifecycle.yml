@@ -1,0 +1,94 @@
+name: LOT05 J7 FUE-G Windows real app lifecycle restore rollback (FAKE NO DEPLOY)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'scripts/lot05_j7_fueg_real_windows_lifecycle.py'
+      - '.github/workflows/lot05-j7-fueg-windows-real-lifecycle.yml'
+      - 'backend/services/backup_service.py'
+      - 'backend/services/guided_restore.py'
+      - 'backend/services/guided_restore_worker.py'
+      - 'backend/services/guided_restore_archive.py'
+      - 'backend/core/runtime_safety.py'
+      - 'run.py'
+      - 'docs/quality/V15_05_J7_FUEG_REAL_WINDOWS_APP_LIFECYCLE.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot05-j7-fueg-real-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  PYTHONDONTWRITEBYTECODE: '1'
+  PIP_DISABLE_PIP_VERSION_CHECK: '1'
+  TELEMETRY_ENABLED: 'false'
+  CLOUD_AI_ENABLED: 'false'
+
+jobs:
+  real-windows-app-restore:
+    name: Actual run.py startup + SQLCipher WAL/media + worker restore/restart/rollback (Windows FAKE)
+    runs-on: windows-2022
+    timeout-minutes: 50
+    steps:
+      - name: Exact PR HEAD checkout, no persisted GitHub credentials
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Refuse wrong HEAD, inherited clinical config and non-Windows
+        shell: pwsh
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:EXACT_HEAD) { throw 'FUEG_HEAD_MISMATCH' }
+          if ($env:RUNNER_OS -ne 'Windows') { throw 'FUEG_NATIVE_WINDOWS_REQUIRED' }
+          foreach ($name in @('DATABASE_URL','DIGITALCROWN_USER_DATA_DIR','DIGITALCROWN_ENV_FILE','SQLCIPHER_KEY_HEX','CABINET_MASTER_KEY_HEX','MEDIA_ROOT')) {
+            if ([Environment]::GetEnvironmentVariable($name)) { throw 'FUEG_CLINICAL_ENV_INHERITED' }
+          }
+          python -m py_compile scripts/lot05_j7_fueg_real_windows_lifecycle.py
+          if ($LASTEXITCODE -ne 0) { throw 'FUEG_PY_SYNTAX' }
+      - name: Install pinned Windows source-app build dependencies in virgin venv
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $venv = Join-Path $env:RUNNER_TEMP 'lot05-j7-fueg-venv'
+          if (Test-Path -LiteralPath $venv) { throw 'FUEG_VENV_NOT_VIRGIN' }
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw 'FUEG_VENV_FAILED' }
+          $venvPython = Join-Path $venv 'Scripts/python.exe'
+          & $venvPython -m pip install --upgrade pip==26.0.1
+          if ($LASTEXITCODE -ne 0) { throw 'FUEG_PIP_INSTALL_FAILED' }
+          & $venvPython -m pip install -r backend/requirements-windows-build.txt
+          if ($LASTEXITCODE -ne 0) { throw 'FUEG_DEPS_FAILED' }
+          & $venvPython -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'FUEG_DEPS_CHECK_FAILED' }
+          "FUEG_VENV_PYTHON=$venvPython" >> $env:GITHUB_ENV
+      - name: Real Windows app lifecycle, restore, failure and rollback
+        shell: pwsh
+        env:
+          EXACT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & $env:FUEG_VENV_PYTHON scripts/lot05_j7_fueg_real_windows_lifecycle.py --output "$env:RUNNER_TEMP/lot05-j7-fueg-evidence"
+          if ($LASTEXITCODE -ne 0) { throw 'FUEG_APP_LIFECYCLE_FAILED' }
+          $proof = Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'lot05-j7-fueg-evidence/lot05-j7-fueg-windows-verdict.json') -Raw | ConvertFrom-Json
+          if ($proof.head_sha -ne $env:EXACT_HEAD) { throw 'FUEG_EVIDENCE_SHA_MISMATCH' }
+          foreach ($name in @('app_start_stop_real','http_health_real','native_sqlcipher_wal_commit_and_crash','backupservice_encrypted_clone_verified','guided_restore_worker_success_restart_real','guided_restore_worker_http_failure_rollback_restart_real')) {
+            if ($proof.$name -ne $true) { throw "FUEG_ASSERTION_MISSING:$name" }
+          }
+          if ($proof.clinical_import_permitted -ne $false -or $proof.physical_cabinet_touched -ne $false -or $proof.production_deployed -ne $false -or $proof.signed_installable_executable_verified -ne $false) { throw 'FUEG_FALSE_CLINICAL_GO' }
+          Write-Output 'LOT05_J7_REAL_WINDOWS_APP_FUEG_SUCCESS_WITH_CLINICAL_NO_GO'
+      - name: Publish only non-sensitive verdict, no database/keys/logs/media
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-j7-fueg-windows-real-runpy-fake-only
+          path: ${{ runner.temp }}/lot05-j7-fueg-evidence/lot05-j7-fueg-windows-verdict.json
+          retention-days: 14
+          if-no-files-found: error
