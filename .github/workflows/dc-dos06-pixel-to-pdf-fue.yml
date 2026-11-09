@@ -1,0 +1,120 @@
+name: DC-DOS-06 synthetic pixel-to-measure-PDF FUE (no clinical release)
+on:
+  pull_request:
+    branches:
+      - master
+      - test/dc-dos05-study-media-link-20261109
+    paths:
+      - 'backend/services/cephalo_source_measure_pdf_fue.py'
+      - 'backend/routers/cephalo_source_measure_pdf_fue.py'
+      - 'backend/tests/test_dc_dos06_source_measure_pdf_fue.py'
+      - '.github/workflows/dc-dos06-pixel-to-pdf-fue.yml'
+      - 'docs/clinic/DC_DOS06_NONCLINICAL_SOURCE_TO_PDF_FUE.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  real-jwt-pixel-source-to-pdf:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: 'sqlite:///:memory:'
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC_DOS05_FUE_ONLY: '1'
+      DC_DOS06_FUE_ONLY: '1'
+      DC_DOS06_FUE_EVIDENCE_DIR: artifacts/dc-dos06-pixel-to-pdf
+      SECRET_KEY: dc-dos06-only-disposable-test-jwt-secret-000000
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Check exact candidate HEAD and no production activation
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          backend_init=Path('backend/__init__.py').read_text(encoding='utf8')
+          router_init=Path('backend/routers/__init__.py').read_text(encoding='utf8')
+          assert 'models_cephalo_study_media' not in backend_init
+          assert 'cephalo_source_measure_pdf_fue' not in router_init
+          assert 'cephalo_study_media_binding' not in router_init
+          print('DC_DOS06_NO_SCHEMA_OR_ROUTER_PRODUCTION_ACTIVATION_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies (CPU only)
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/dos06-fue-dependencies.txt
+          pip install -r /tmp/dos06-fue-dependencies.txt
+          python -m pip check
+      - name: Real authenticated source-pixel to geometry and PDF FUE
+        run: |
+          python -m pytest backend/tests/test_dc_dos06_source_measure_pdf_fue.py -q -s --maxfail=1
+      - name: Verify exact-HEAD synthetic evidence + authentic PDF raster
+        run: |
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          import fitz
+          root=Path('artifacts/dc-dos06-pixel-to-pdf')
+          manifest=json.loads((root/'dc-dos06-report.json').read_text(encoding='utf8'))
+          assert manifest['head']==os.environ['PRODUCT_HEAD']
+          assert manifest['case_id']=='DC-DOS-06'
+          assert manifest['status']=='NONCLINICAL_BYTE_CAUSAL_FUE_PASS'
+          required=('synthetic_only','real_http_jwt','source_original_aesgcm_sha_verified',
+                    'landmarks_calculated_from_actual_source_pixels',
+                    'safe_cephalo_geometry_from_derived_points',
+                    'same_digest_chain_printed_in_real_pdf',
+                    'raw_synthetic_numeric_measurements_printed',
+                    'single_marker_location_change_alters_measurement_digest',
+                    'cross_patient_tenant_study_denied','stale_revision_and_rebind_denied',
+                    'tampered_science_and_source_denied',
+                    'invalid_marker_source_fails_closed','test_only_route_disabled_by_default')
+          assert all(manifest[k] is True for k in required)
+          assert manifest['model_onnx_executed'] is False
+          assert manifest['existing_clinical_measurements_source_proven'] is False
+          assert manifest['clinical_release'] is False
+          assert manifest['official_pdf'] is False
+          assert manifest['migration_executed'] is False
+          assert manifest['production_router_mounted'] is False
+          raw=(root/'dc-dos06-synthetic-pixel-source.png').read_bytes()
+          pdf=(root/'dc-dos06-synthetic-source-measure-proof.pdf').read_bytes()
+          raster=(root/'dc-dos06-pdf-real-raster.png').read_bytes()
+          assert raw.startswith(bytes.fromhex('89504e470d0a1a0a'))
+          assert raster.startswith(bytes.fromhex('89504e470d0a1a0a'))
+          assert len(raster)>1500
+          assert pdf.startswith(b'%PDF')
+          assert hashlib.sha256(raw).hexdigest()==manifest['source_sha256']
+          assert hashlib.sha256(pdf).hexdigest()==manifest['pdf_sha256']
+          with fitz.open(stream=pdf,filetype='pdf') as doc:
+              assert len(doc)==1
+              text=doc[0].get_text()
+              for key in ('source_sha256','landmarks_sha256','measurements_sha256',
+                          'provenance_sha256'):
+                  assert manifest[key] in text,key
+              assert 'NOT A CLINICAL CEPHALOMETRIC REPORT' in text
+              assert 'INFERENCE_AUTHORITY: SYNTHETIC_ONLY_NOT_ONNX' in text
+              for label in ('RAW SYNTHETIC SNA:', 'RAW SYNTHETIC SNB:',
+                            'RAW SYNTHETIC ANB:', 'RAW SYNTHETIC IMPA:'):
+                  assert label in text,label
+              assert 'CLINICAL_RELEASE: FALSE' in text
+              assert 590<doc[0].rect.width<600
+          print('DC_DOS06_EXACT_HEAD_REAL_BYTES_GEOMETRY_PDF_RASTER_PASS_NO_CLINICAL_RELEASE')
+          PY
+      - name: Upload FUE proof even on failure (synthetic only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc-dos06-source-measure-pdf-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/dc-dos06-pixel-to-pdf/
+          if-no-files-found: warn
+          retention-days: 7
