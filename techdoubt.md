@@ -1,3 +1,7 @@
+### LOT08.2-A — 2026-11-09 — Independent review P2 expired session retention
+
+Separate Codex CLI read-only review of candidate 09f3d40e found P2: expired session digest rows persisted indefinitely. Fix deletes expired digests within serialized login transaction even for denied logins; regression proves deletion and absence of token resurrection. **53/53 Windows Python 3.12 synthetic tests pass**, compileall and diff-check pass. Source must be reviewed on the next SHA before merge. Audit TTL/purge and future G3 still require design, not claimed in A.
+
 ### LOT08.2-A — 2026-11-09 — Independent SEC review on e3513ac9
 
 Separate read-only Codex CLI reviewer found no P1/P2, only P3 `status` created the private directory on uninitialized server. Fixed with explicit no-create read-only path and regression test. **52/52 Windows Python 3.12 synthetic PASS.** SDDL directory+file parsed successfully by real Windows `advapi32` in memory with no filesystem modifications. Physical elevated local-console enrollment / real ACL attestation still NOT_RUN and the new SHA still requires independent review. PR #1238 DRAFT, not merged, no patient data or deployment.

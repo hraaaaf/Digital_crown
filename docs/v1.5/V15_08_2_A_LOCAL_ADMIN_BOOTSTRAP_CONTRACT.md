@@ -33,7 +33,7 @@ data, Digital Crown account, Firebase, Internet, QR or LAN service is involved.
   is stored; never expose it in logs, audit, GUI or normal app exports.
 - `login()` issues an opaque random session token, persists only a domain-separated
   SHA-256 digest; eight-hour expiry, explicit revocation, five wrong attempts
-  trigger a 15-minute lock. **No HTTP/session cookie/API route is exposed in A.**
+  trigger a 15-minute lock. Expired session verifier rows are removed in each serialized login transaction (including rejected logins), preventing unbounded stale-session accumulation. **No HTTP/session cookie/API route is exposed in A.**
 - `recover_admin()` is local-elevated-console-only, requires the offline secret,
   rotates it atomically, changes the password and revokes *all* sessions.
   Five recovery failures trigger a 15-minute lock. No universal backdoor,

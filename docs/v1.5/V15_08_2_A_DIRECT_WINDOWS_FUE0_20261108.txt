@@ -5,7 +5,7 @@ Baseline: edf26bb7ff70904b802069891f31ef3b4dc7691d
 Branch: feat/v15-08-2-a-local-admin-bootstrap-20261108
 Interpreter: Python 3.12 Full, Windows local runtime
 Test command: python -m pytest -q queue_core/tests
-Observed after SEC review P3 correction on 2026-11-09: 52 passed; 29 LOT08.1 regressions + 23 LOT08.2-A synthetic tests incl. Windows ACL, reparse negatives and read-only status noncreation
+Observed after SEC reviewer P2 expired-session fix on 2026-11-09: 53 passed; 29 LOT08.1 regressions + 24 LOT08.2-A synthetic tests incl. ACL, reparse negatives, read-only status and expired session pruning
 Compile: python -m compileall -q queue_core/security — exit 0
 Negative physical guard direct-command evidence:
   python -m queue_core.security.windows_cli status

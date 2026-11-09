@@ -227,3 +227,27 @@ def test_missing_database_login_fails_without_creating_files(env):
     with pytest.raises(LocalIdentityError, match="LOCAL_AUTH_NOT_INITIALIZED"):
         store.login("owner", "any")
     assert not store.path.exists()
+
+
+
+def test_expired_session_digests_are_pruned_in_login_transaction(env):
+    """Expired session storage cannot grow unbounded during repeated logins."""
+    store, now, _ = env
+    initialize(env)
+    first = store.login("owner.admin", "CorrectHorseWithEntropy123!")
+    with sqlite3.connect(store.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM local_sessions").fetchone()[0] == 1
+
+    now[0] += SESSION_TTL_SECONDS
+    assert not store.session_valid(first)
+    # Expired records must also be removed if a new login is denied.
+    with pytest.raises(LocalIdentityError, match="INVALID_CREDENTIALS"):
+        store.login("owner.admin", "incorrect-password")
+    with sqlite3.connect(store.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM local_sessions").fetchone()[0] == 0
+
+    current = store.login("owner.admin", "CorrectHorseWithEntropy123!")
+    assert store.session_valid(current)
+    assert not store.session_valid(first)
+    with sqlite3.connect(store.path) as db:
+        assert db.execute("SELECT COUNT(*) FROM local_sessions").fetchone()[0] == 1

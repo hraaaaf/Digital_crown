@@ -235,6 +235,11 @@ class LocalIdentityStore:
             admin = c.execute("SELECT * FROM local_admin WHERE id=1").fetchone()
             if meta is None or admin is None:
                 raise LocalIdentityError("LOCAL_AUTH_NOT_INITIALIZED")
+            # Expired session digests are not retained forever. Prune within
+            # the same serialized login transaction, even on denied logins.
+            c.execute(
+                "DELETE FROM local_sessions WHERE expires_epoch <= ?", (now,)
+            )
             if now < meta["login_locked_until"]:
                 result = "TEMPORARILY_LOCKED"
             else:

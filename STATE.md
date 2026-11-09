@@ -2,6 +2,8 @@
 
 ## LOT08.2-A — Local Windows identity/bootstrap — IN PROGRESS / DRAFT (2026-11-09)
 
+- **2026-11-09 independent Codex review on SHA 09f3d40e:** found P2 unbounded expired sessions retained in SQLite. Fixed under the login transaction by pruning `expires_epoch <= now` even on denied logins; added negative synthetic retention test. **53/53 direct Windows Python 3.12 PASS**, compileall and diff check PASS. New exact SHA and separate final review still required. Physical Windows local elevated console enrollment/ACL positive **NOT_RUN**; no clinical use, merge, 08.2-B or deploy.
+
 - **2026-11-09 separate Codex review on e3513ac9:** no P1/P2 findings; one P3: read-only `status` unexpectedly created an auth directory before first enrollment. Fixed `windows_cli._database_path(initialize=False)` to inspect without creating, with a regression test. **52/52 direct Windows Python 3.12 PASS**, compileall and diff-check PASS. Fresh reviewer required on the *new* commit; physical elevated Windows-console positive enrollment/ACL still NOT_RUN, no real auth store created and no merge under this checkpoint.
 
 - **SEC critical review #1, initial SHA 58e3b5e7:** independent targeted Codex SEC/OPS review identified P1 directory-owner ACL spoof and P2 dangling reparse bypass. Corrected with atomic Windows SDDL protected CreateDirectoryW/CreateFileW, trusted SID owner and both distinct required ACEs, non-following `lstat()` and `FILE_FLAG_OPEN_REPARSE_POINT`, with synthetic negative/static Win32/PowerShell tests. **51/51 direct Windows Python 3.12 PASS on preceding e3513ac9.** Subsequent 2026-11-09 review P3 correction now **52/52 PASS**. Real elevated physical console creation/ACL remains NOT_RUN. New SHA needs another independent security review before merge.
