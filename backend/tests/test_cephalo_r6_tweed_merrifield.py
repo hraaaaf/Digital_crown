@@ -248,3 +248,46 @@ def test_r6_creation_landmark_edit_and_calibration_keep_one_active_behavioral_ch
     }
     assert all(item["requires_calibration"] is False for item in r6_3.values())
     assert all(item["calibration_ref"] is None for item in r6_3.values())
+
+
+def test_merrifield_v1_folds_supplementary_inferior_angles_audit_only():
+    """Reproduce the historical V1 ambiguity; this is NOT clinical approval.
+
+    Merrifield 1966 p.812 Fig.5 depicts the inferior sector between the
+    posterior Frankfort ray and the lip-to-chin profile ray. The published
+    cohort contained only Z angles of 71-89 degrees in its normal sample;
+    this synthetic >90-degree configuration is a geometry counterexample,
+    not a patient reference or a new diagnostic threshold.
+    """
+    import math
+
+    po = (0.0, 0.0)
+    or_ = (10.0, 0.0)
+    pog = (2.0, 20.0)
+
+    def inferior_sector(lip):
+        posterior_fh = (po[0] - or_[0], po[1] - or_[1])
+        lip_to_chin = (pog[0] - lip[0], pog[1] - lip[1])
+        cosine = sum(a * b for a, b in zip(posterior_fh, lip_to_chin)) / (
+            math.hypot(*posterior_fh) * math.hypot(*lip_to_chin)
+        )
+        return math.degrees(math.acos(max(-1.0, min(1.0, cosine))))
+
+    anterior_lip = (7.0, 10.0)
+    posterior_lip = (-3.0, 10.0)
+    forward_v1 = merrifield_z_angle_deg_v1(
+        po, or_, pog, anterior_lip, (6.0, 12.0)
+    )
+    backward_v1 = merrifield_z_angle_deg_v1(
+        po, or_, pog, posterior_lip, (-4.0, 12.0)
+    )
+
+    # Existing V1 folds both supplementary rays to the same acute value.
+    assert forward_v1 == pytest.approx(63.4349488229)
+    assert backward_v1 == pytest.approx(forward_v1)
+    # The lower-sector ray construction discriminates the synthetic cases.
+    assert inferior_sector(anterior_lip) == pytest.approx(63.4349488229)
+    assert inferior_sector(posterior_lip) == pytest.approx(116.5650511771)
+    assert inferior_sector(posterior_lip) > 90.0
+    # Never silently repurpose the persisted V1/V2 method IDs: requires
+    # a reviewed, versioned replacement and migration decision.

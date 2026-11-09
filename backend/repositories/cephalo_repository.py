@@ -1,6 +1,7 @@
 from sqlalchemy.orm import Session
 from typing import List, Optional, Dict, Any
 from backend import models
+from backend.services.cephalo_scientific_write import save_scientific_transition
 import logging
 
 logger = logging.getLogger(__name__)
@@ -130,10 +131,22 @@ class CephaloRepository:
         if not db_analysis:
             return None
 
-        db_analysis.landmarks_data = landmarks
-        db_analysis.angles_data = _merge_calibration_projection(db_analysis.angles_data, results)
-        if mm_per_pixel is not None:
-            db_analysis.mm_per_pixel = mm_per_pixel
+        previous = db_analysis.angles_data
+        merged = _merge_calibration_projection(previous, results)
+        if isinstance(previous, dict) and isinstance(previous.get(_EVIDENCE_GRAPH_KEY), dict):
+            # A typed study must not silently lose its graph or clinician receipts.
+            changes = {"landmarks_data": landmarks}
+            if mm_per_pixel is not None:
+                changes["mm_per_pixel"] = mm_per_pixel
+            save_scientific_transition(
+                db=self.db, analysis=db_analysis, updated_angles=merged,
+                other_values=changes,
+            )
+        else:
+            db_analysis.landmarks_data = landmarks
+            db_analysis.angles_data = merged
+            if mm_per_pixel is not None:
+                db_analysis.mm_per_pixel = mm_per_pixel
 
         self.db.commit()
         self.db.refresh(db_analysis)

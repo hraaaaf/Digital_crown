@@ -63,7 +63,7 @@ def _projection() -> dict:
 
 
 def _required_tokens() -> tuple[str, ...]:
-    return ("SNA", "81.5", "NOT_COMPUTABLE", "R11", "R13", "R14", "BLOCKED", "synthetic contradiction", "synthetic contraindication", "EVIDENCE_GRAPH_V1")
+    return ("SNA", "81.5", "NOT_COMPUTABLE", "R11", "R13", "R14", "BLOCKED", "synthetic contradiction", "synthetic contraindication")
 
 
 def _forbidden_tokens() -> tuple[str, ...]:
@@ -77,6 +77,36 @@ def _assert_semantics(text: str) -> None:
         assert token not in text, f"legacy/non-authoritative semantic leaked: {token}"
 
 
+def _assert_pdf_semantics(text: str) -> None:
+    for token in (
+        "SNA", "81.5", "Non calculable", "Non validé",
+        "synthetic contradiction", "synthetic contraindication",
+        "En attente du praticien",
+    ):
+        assert token in text, f"PDF expected content missing: {token}"
+    for token in (
+        "R11", "R13", "R14", "BLOCKED", "NOT_COMPUTABLE",
+        "EVIDENCE_GRAPH_V1", "CRANIOM v1", "STEINER v1",
+    ):
+        assert token not in text, f"PDF internal identifier leaked: {token}"
+    for token in _forbidden_tokens():
+        assert token not in text, f"legacy client text leaked: {token}"
+
+
+def test_clinician_facing_labels_fail_closed_without_changing_source_evidence():
+    generator = BilanOrthoPDFGenerator()
+    assert generator._pdf_method_label("STEINER v1") == "Steiner"
+    assert generator._pdf_method_label("SOURCE_SYNTHETIQUE vfixture-v1") == "Méthode non précisée"
+    assert generator._pdf_measurement_value("NOT_COMPUTABLE") == "Non calculable"
+    assert generator._pdf_stage_state("APPROVED", complete=False) == "Non validé"
+    assert generator._pdf_stage_state("BLOCKED", complete=False) == "Non validé"
+    assert generator._pdf_stage_state("AWAITING_CLINICIAN", complete=False) == "En attente du praticien"
+    assert generator._pdf_stage_summary("R14 cannot sign") == "Éléments en attente de validation clinique."
+    context = generator._shared_context(_vm(), _projection())
+    assert context["measurements"][1]["value"] == "NOT_COMPUTABLE"
+    assert context["stages"][2]["presentation_state"] == "AWAITING_CLINICIAN"
+
+
 def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
     generator = BilanOrthoPDFGenerator(str(tmp_path))
     pdf_path = tmp_path / "r17-reportlab-after.pdf"
@@ -85,8 +115,11 @@ def test_reportlab_pdf_is_real_readable_and_fail_closed(tmp_path: Path):
     doc = fitz.open(pdf_path)
     assert len(doc) >= 1
     full_text = "\n".join(page.get_text("text") for page in doc)
-    _assert_semantics(full_text)
-    assert "INCOMPLETE" in full_text
+    _assert_pdf_semantics(full_text)
+    assert "DOCUMENT CLINIQUE INCOMPLET" in full_text
+    assert "TRAÇABILITÉ SCIENTIFIQUE" not in full_text
+    assert "EVIDENCE_GRAPH_V1" not in full_text
+    assert "Source" not in full_text
     for page in doc:
         rect = page.rect
         assert 590 <= rect.width <= 600
@@ -105,6 +138,7 @@ def test_html_and_reportlab_share_the_same_authoritative_semantics(tmp_path: Pat
     context = generator._shared_context(_vm(), _projection())
     html = generator.jinja_env.get_template("bilan_ortho_authoritative.html").render(context)
     _assert_semantics(html)
+    assert "EVIDENCE_GRAPH_V1" in html  # Internal authority remains intact.
     assert "DOCUMENT CLINIQUE INCOMPLET" in html
     assert "AWAITING_CLINICIAN" in html
     assert "EVALUABLE n'est jamais une prescription" in unescape(html)

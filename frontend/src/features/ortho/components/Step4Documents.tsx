@@ -190,6 +190,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     try {
       const source = await prepareBoundCephaloDocumentSource(
         patientId, analysisId, stillSelected, () => store.silentSave(analysisId, true),
+        () => { const live = useOrthoStore.getState(); return { landmarks: live.local.landmarks, mmPerPixel: live.mmPerPixel }; },
       );
       // All PDF entrypoints must verify the response's study/revision headers.
       const data = await cephaloRepository.generatePDF(patientId, {
@@ -232,6 +233,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     try {
       const source = await prepareBoundCephaloDocumentSource(
         patientId, analysisId, stillSelected, () => store.silentSave(analysisId, true),
+        () => { const live = useOrthoStore.getState(); return { landmarks: live.local.landmarks, mmPerPixel: live.mmPerPixel }; },
       );
       const { data: vResult } = await api.get<ValidationResult & { analysis_id: number; analysis_revision: number }>(
         `/patients/${patientId}/cephalo-validation`, { params: source },

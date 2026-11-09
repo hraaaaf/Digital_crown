@@ -15,7 +15,7 @@ const viewports = [
   { name: '768x1024', width: 768, height: 1024 },
   { name: '1280x900', width: 1280, height: 900 },
 ];
-const modes = ['all', 'steiner', 'tweed', 'mcnamara', 'com', 'ricketts'];
+const modes = ['steiner', 'com'];
 
 const entrySource = `
 import React from 'react';
@@ -62,7 +62,7 @@ async function waitForServer(url,timeoutMs=30000){const start=Date.now();while(D
 
 function modeContract(mode, metrics) {
   if (metrics.analysis !== mode || metrics.panelAnalysis !== mode || !metrics.hasAnalysisSelector || metrics.horizontalOverflow || !metrics.desktopLayoutOk) return false;
-  if (metrics.selectorButtons.length !== 6) return false;
+  if (metrics.selectorButtons.length !== 2) return false;
   if (['mcnamara','com','ricketts'].includes(mode)) {
     // R23-G4 source-only modes: unauthenticated fixture MUST fail closed.
     // This R19 historical fixture is NOT a valid JWT/source-locked study.
@@ -137,7 +137,7 @@ async function captureViewport(viewport,attempt){
   await page.locator('[data-r19-reference-layout]').waitFor({state:'visible',timeout:10000});
   // Exercise the left-hand ready-made selector, not only the floating tracing tabs.
   const selectorChecks=[];
-  for(const requested of ['steiner','com','all']){
+  for(const requested of ['steiner','com']){
    await page.locator('#cephalo-ready-analysis').selectOption(requested);
    await page.waitForFunction(mode=>{
     const overlay=document.querySelector('[data-cephalo-analysis]')?.getAttribute('data-cephalo-analysis');
@@ -171,7 +171,7 @@ async function captureViewport(viewport,attempt){
     const tabs=Array.from(document.querySelectorAll('[aria-label="Analyse du tracé"] button'));
     const tabBar=document.querySelector('[aria-label="Analyse du tracé"]');
     const barRect=tabBar?.getBoundingClientRect();
-    const tabsFullyVisible=Boolean(barRect && tabs.length===6 && tabs.every(tab=>{const rect=tab.getBoundingClientRect();return rect.left>=barRect.left-1 && rect.right<=barRect.right+1;}));
+    const tabsFullyVisible=Boolean(barRect && tabs.length===2 && tabs.every(tab=>{const rect=tab.getBoundingClientRect();return rect.left>=barRect.left-1 && rect.right<=barRect.right+1;}));
     const panel=document.querySelector('[data-r19-analysis-panel]') || document.querySelector('[data-r23g4-reference-panel]');
     const detail=document.querySelector('[data-r19-measure-detail]');
     const panelRect=panel?.getBoundingClientRect();
@@ -289,7 +289,7 @@ async function captureViewport(viewport,attempt){
    }
    states.push({mode,valid,metrics,zoomCheck});
   }
-  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)&&selectorChecks.length===3&&selectorChecks.every(s=>s.valid);
+  const valid=response?.status()===200&&!pageErrors.length&&!consoleErrors.length&&states.every(s=>s.valid)&&selectorChecks.length===2&&selectorChecks.every(s=>s.valid);
   return {viewport:viewport.name,attempt,valid,pageErrors,consoleErrors,selectorChecks,states};
  }catch(error){return{viewport:viewport.name,attempt,valid:false,pageErrors:[...pageErrors,error instanceof Error?error.message:String(error)],consoleErrors,states:[]}}
  finally{await context.close().catch(()=>{});await browser.close().catch(()=>{})}
@@ -304,5 +304,5 @@ try{
   captures.push({...finalAttempt,attempts:attempts.map(a=>({attempt:a.attempt,valid:a.valid,pageErrors:a.pageErrors,consoleErrors:a.consoleErrors,states:a.states})),recoveredTransientRender:attempts.length===2&&!attempts[0].valid&&attempts[1].valid});
  }
 }finally{if(!server.killed)server.kill('SIGTERM');await Promise.race([once(server,'exit'),new Promise(r=>setTimeout(r,3000))]).catch(()=>{});await writeFile(path.join(OUTPUT_DIR,'vite.log'),serverLog,'utf8')}
-const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R19-ANALYSIS-REFERENCE-LAYOUT',phase:'AFTER',theme:CAPTURE_THEME,productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'R18 deterministic fixture lineage and unchanged All/Steiner/Tweed at 390/768/1280; R23-G4 experimental COM/McNamara/Ricketts MUST refuse legacy numeric fixture, decline Focus, and show no unverified geometry; full authenticated R23-G4 desktop evidence is in separate exact-HEAD T2 Cabinet workflow.',captures,blockedExternalRequests,invalidCount:invalid.length};
+const invalid=captures.filter(c=>!c.valid); const report={lot:'CEPHALO-R19-ANALYSIS-REFERENCE-LAYOUT',phase:'AFTER',theme:CAPTURE_THEME,productHead:PRODUCT_HEAD,viewports:viewports.map(v=>v.name),modes,capturePolicy:'V1 two-protocol deterministic reference: Steiner complete 1953+1959 displays 15 unavailable or source-proven rows; COM must refuse unsourced numeric fixture and unauthorized Focus; 390/768/1280, zoom/pan/layout and geometry remain gated. Historical six-protocol coverage is a Phase 2 task.',captures,blockedExternalRequests,invalidCount:invalid.length};
 await writeFile(path.join(OUTPUT_DIR,'report.json'),JSON.stringify(report,null,2),'utf8'); console.log(JSON.stringify(report,null,2)); if(invalid.length||blockedExternalRequests.length)process.exitCode=1;

@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Loader2, Maximize, Printer, Download, RefreshCcw } from 'lucide-react';
+import { X, Loader2, Maximize, Printer, Download, RefreshCcw, Eye } from 'lucide-react';
+import { MobilePdfCanvas } from './MobilePdfCanvas';
 
 interface LivePreviewProps {
   pdfUrl: string | null;
@@ -19,13 +20,21 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
   title,
   inline = false,
 }) => {
-  const [iframeReady, setIframeReady] = useState(false);
   const closeButtonRef = useRef<HTMLButtonElement | null>(null);
+  const pdfFrameRef = useRef<HTMLIFrameElement | null>(null);
+  const [mobileView, setMobileView] = useState(() => window.matchMedia('(max-width: 639px)').matches);
+  // PDF.js is the reliable default on the main application's desktop preview.
+  // Chromium's native PDF plugin can paint a blank or black frame, even when
+  // the PDF is valid. The native viewer remains available by explicit choice.
+  const [compatiblePreview, setCompatiblePreview] = useState(true);
+  const showCanvas = mobileView || compatiblePreview;
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setIframeReady(false);
-  }, [pdfUrl]);
+    const query = window.matchMedia('(max-width: 639px)');
+    const onChange = (event: MediaQueryListEvent) => setMobileView(event.matches);
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
 
   useEffect(() => {
     if (inline) return;
@@ -45,7 +54,10 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
     };
   }, [inline, onClose]);
 
-  const showSkeleton = loading || Boolean(pdfUrl && !iframeReady);
+  // Native PDF viewers can omit iframe load events (notably headless Chromium
+  // and some embedded/mobile readers). Never keep the preview covered forever.
+  // The PDF blob URL is already ready when loading becomes false.
+  const showSkeleton = loading;
 
   const containerContent = (
     <div className="relative flex h-full w-full flex-col bg-white">
@@ -65,6 +77,13 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
           </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
+          {pdfUrl && !mobileView && (
+            <button type="button" onClick={() => setCompatiblePreview(current => !current)}
+              disabled={loading} aria-pressed={compatiblePreview}
+              className="flex min-h-11 items-center gap-2 rounded-xl border border-border-main bg-card px-4 py-2 text-xs font-semibold text-text-main focus-visible:ring-2 focus-visible:ring-primary/50">
+              <Eye size={16} /> {compatiblePreview ? 'Lecteur natif' : 'Aperçu compatible'}
+            </button>
+          )}
           {onRefresh && (
             <button
               type="button"
@@ -113,12 +132,16 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
         )}
 
         {pdfUrl ? (
-          <iframe
-            src={pdfUrl}
-            className="h-full w-full border-none"
-            title={`Aperçu PDF — ${title}`}
-            onLoad={() => setIframeReady(true)}
-          />
+          showCanvas ? (
+            <MobilePdfCanvas key={pdfUrl} pdfUrl={pdfUrl} />
+          ) : (
+            <iframe
+              ref={pdfFrameRef}
+              src={pdfUrl}
+              className="h-full w-full border-none"
+              title={`Aperçu PDF — ${title}`}
+            />
+          )
         ) : !loading ? (
           <div className="flex h-full w-full flex-col items-center justify-center p-8 text-center sm:p-16">
             <div className="mb-6 flex h-20 w-20 items-center justify-center rounded-[2rem] bg-slate-100 text-slate-300 shadow-inner sm:h-24 sm:w-24">
@@ -133,6 +156,31 @@ export const LivePreview: React.FC<LivePreviewProps> = ({
       <div className="flex flex-wrap justify-center gap-3 border-t border-slate-200 bg-white/80 p-4 backdrop-blur-md sm:p-5">
         {pdfUrl && (
           <>
+            <button
+              type="button"
+              disabled={loading}
+              onClick={() => {
+                // On mobile, open the exact PDF in the native viewer: printing
+                // a hidden or unsupported embedded frame can silently fail.
+                if (showCanvas) {
+                  window.open(pdfUrl.split('#')[0], '_blank', 'noopener,noreferrer');
+                  return;
+                }
+                try {
+                  const frame = pdfFrameRef.current?.contentWindow;
+                  if (!frame) throw new Error('PDF frame unavailable');
+                  frame.focus();
+                  frame.print();
+                } catch {
+                  // Some mobile embedded PDF viewers disallow iframe printing.
+                  // Opening the same local blob keeps the browser's native Print available.
+                  window.open(pdfUrl.split('#')[0], '_blank', 'noopener,noreferrer');
+                }
+              }}
+              className="flex min-h-11 items-center gap-2 rounded-2xl border border-slate-200 bg-white px-5 py-2.5 text-[10px] font-black uppercase tracking-widest text-slate-600 shadow-sm transition-all hover:border-primary hover:text-primary disabled:opacity-50 sm:text-[11px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            >
+              <Printer size={17} /> Imprimer
+            </button>
             <a
               href={pdfUrl.split('#')[0]}
               download={`${title}.pdf`}
