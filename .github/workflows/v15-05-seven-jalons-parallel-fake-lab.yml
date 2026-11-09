@@ -1,0 +1,85 @@
+name: LOT05 J1-J7 Parallel Fake-Only Integration (NO IMPORT / NO DEPLOY)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/v15-05-seven-jalons-parallel-fake-lab.yml'
+      - 'backend/tests/test_lot05_j1_j7_parallel_fue_v15.py'
+      - 'docs/quality/V15_05_J1_J7_PARALLEL_EXECUTION_GATE.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot05-seven-fake-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  seven-jalons:
+    name: LOT05 ${{ matrix.jalon }} real SQLite/media fake-only
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      max-parallel: 7
+      matrix:
+        jalon:
+          - j1_inspector
+          - j2_mapping
+          - j3_dryrun
+          - j4_identities
+          - j5_agenda_acts_finances
+          - j6_documents_and_media
+          - j7_backup_rollback_recovery
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Assert exact PR head, fake-only and no app runtime modifications
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$RUNNER_ENVIRONMENT" = github-hosted
+          grep -Fq 'NO patient inputs, runtime router, real source files' backend/tests/test_lot05_j1_j7_parallel_fue_v15.py
+          grep -Fq 'DC_LOT05_SEVEN_J_FAKE_ONLY_V1' backend/tests/test_lot05_j1_j7_parallel_fue_v15.py
+          python -m py_compile backend/tests/test_lot05_j1_j7_parallel_fue_v15.py
+          echo "SEVEN_JALONS_HEAD=$(git rev-parse HEAD)"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Execute actual independent jalon against disposable SQLite and fake media
+        working-directory: backend/tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 PYTHONWARNINGS=error::ResourceWarning \
+            python -m unittest -v "test_lot05_j1_j7_parallel_fue_v15.Lot05SevenJalons.test_${{ matrix.jalon }}"
+      - name: Create zero-PHI jalon verdict
+        shell: bash
+        run: |
+          mkdir -p "artifacts/lot05-j1-j7/${{ matrix.jalon }}"
+          printf '%s\n' \
+            '{"jalon":"${{ matrix.jalon }}","scope":"DISPOSABLE_SYNTHETIC_ONLY","test_status":"PASS","patient_source_used":false,"cabinet_database_accessed":false,"production_code_changed":false,"clinical_import_permitted":false,"deployment":false,"head_sha":"${{ github.event.pull_request.head.sha }}"}' \
+            > "artifacts/lot05-j1-j7/${{ matrix.jalon }}/verdict.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lot05-${{ matrix.jalon }}-fake-only-evidence
+          path: artifacts/lot05-j1-j7/${{ matrix.jalon }}/verdict.json
+          if-no-files-found: error
+          retention-days: 14
+
+  integrated-no-clinical-import-gate:
+    needs: [seven-jalons]
+    if: always()
+    runs-on: ubuntu-24.04
+    permissions:
+      contents: read
+    steps:
+      - name: All seven fake-only validations must be SUCCESS
+        shell: bash
+        run: |
+          test '${{ needs.seven-jalons.result }}' = 'success'
+          echo 'LOT05_SEVEN_SYNTHETIC_JALONS_GREEN_CLINICAL_NO_GO'
