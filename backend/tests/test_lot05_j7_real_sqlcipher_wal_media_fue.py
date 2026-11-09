@@ -353,3 +353,31 @@ def test_j7_sqlcipher_corruption_wrong_key_and_owner_fail_closed(lab, monkeypatc
     assert not clone.exists()
     assert not list(lab["tmp"].glob(".tmp_*FAKE_wrong_key_clone.db"))
     assert _read_truth(lab["target"]) == ["BEFORE_FAKE", "WAL_COMMITTED_FAKE_ONLY"]
+
+
+def test_j7_generic_restore_rejects_authenticated_but_invalid_database(lab):
+    """Fernet authenticity does NOT prove SQLCipher/SQLite structural validity."""
+    ciphertext = lab["tmp"] / "FAKE_invalid_sqlite.db.enc"
+    ciphertext.write_bytes(
+        BackupService._get_or_create_key().encrypt(b"FAKE_NOT_A_DATABASE")
+    )
+    candidate = lab["tmp"] / "FAKE_unverified_clone.db"
+    with pytest.raises(RuntimeError, match="RESTORE_FORMAT_UNVERIFIED"):
+        BackupService.restore_backup(ciphertext, candidate)
+    assert not candidate.exists()
+
+
+def test_j7_generic_restore_refuses_any_existing_clone_target(lab):
+    """A restore helper must never silently replace a possibly live target."""
+    result = BackupService.backup_active_database()
+    assert result["status"] == "SUCCESS"
+    archive_path = lab["appdata"] / "backups" / result["backup_filename"]
+    existing = lab["tmp"] / "FAKE_EXISTING_TARGET.db"
+    existing.write_bytes(b"FAKE_PREEXISTING_SENTINEL")
+    with pytest.raises(FileExistsError):
+        BackupService.restore_backup(
+            archive_path, existing,
+            verify_sqlcipher=True, passphrase=FAKE_SQLCIPHER_KEY,
+        )
+    assert existing.read_bytes() == b"FAKE_PREEXISTING_SENTINEL"
+    assert not list(lab["tmp"].glob(".tmp_*FAKE_EXISTING_TARGET.db"))
