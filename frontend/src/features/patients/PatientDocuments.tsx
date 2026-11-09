@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, lazy, Suspense } from 'react';
 import { useParams } from 'react-router-dom';
 import { api } from '../../services/api';
 import { usePatientStore } from '../../stores/usePatientStore';
@@ -28,6 +28,8 @@ import {
 } from 'lucide-react';
 import { cn } from '../../utils/cn';
 import { CnssInsuranceAction, insuranceOrganizationFromAssurance } from './CnssInsuranceAction';
+
+const PatientPdfCanvasPreview = lazy(() => import('./PatientPdfCanvasPreview').then(module => ({default: module.PatientPdfCanvasPreview})));
 
 interface DocumentInfo {
   id: string;
@@ -65,6 +67,7 @@ export const PatientDocuments = () => {
   const currentUser = useAuthStore(state => state.user);
   const currentUserId = Number(currentUser?.id);
   const [docs, setDocs] = useState<DocumentInfo[]>([]);
+  const [docsPatientId, setDocsPatientId] = useState<string | null>(null);
   const [patientAssurance, setPatientAssurance] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState(false);
@@ -72,32 +75,83 @@ export const PatientDocuments = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [actionsOpenFor, setActionsOpenFor] = useState<string | null>(null);
   const [signingDocId, setSigningDocId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{patientId: string; blob: Blob; filename: string} | null>(null);
+
+  // Route changes can happen while a document blob request is still pending.
+  // Guard both reused instances and the previously mounted instance after unmount.
+  const currentPatientIdRef = useRef(id);
+  currentPatientIdRef.current = id;
+  const mountedRef = useRef(false);
+  const objectUrlsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
+    mountedRef.current = true;
+    return () => { mountedRef.current = false; };
+  }, []);
+
+  useEffect(() => () => {
+    for (const url of objectUrlsRef.current) URL.revokeObjectURL(url);
+    objectUrlsRef.current.clear();
+  }, [id]);
+
+  const belongsToActivePatient = (patientAtRequest: string | undefined) =>
+    Boolean(patientAtRequest && mountedRef.current && currentPatientIdRef.current === patientAtRequest);
+
+  const releaseObjectUrl = (url: string) => {
+    if (objectUrlsRef.current.delete(url)) URL.revokeObjectURL(url);
+  };
+
+  const closePreview = () => setPreview(null);
+
+  useEffect(() => {
+    if (!preview || preview.patientId !== id) return;
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') closePreview();
+    };
+    window.addEventListener('keydown', onEscape);
+    return () => window.removeEventListener('keydown', onEscape);
+  }, [id, preview]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const patientAtRequest = id;
+    // Do not render patient A's documents during the render preceding a B effect.
+    setDocsPatientId(null);
+    setDocs([]);
+    setPatientAssurance(null);
+    setActionsOpenFor(null);
+    setSigningDocId(null);
+    setPreview(null);
     const fetchDocs = async () => {
       setLoading(true);
       setFetchError(false);
       try {
-        const patientRequest = api.get(`/patients/${id}`).catch((patientError) => {
-          console.warn('Assurance patient indisponible pour la présélection mutuelle:', patientError);
+        if (!patientAtRequest) throw Error('Patient identity required for document listing');
+        const patientRequest = api.get(`/patients/${patientAtRequest}`).catch((patientError) => {
+          if (!cancelled) console.warn('Assurance patient indisponible pour la présélection mutuelle:', patientError);
           return null;
         });
         const [docsResponse, patientResponse] = await Promise.all([
-          api.get(`/patients/${id}/documents`),
+          api.get(`/patients/${patientAtRequest}/documents`),
           patientRequest,
         ]);
+        if (cancelled) return;
         setDocs(docsResponse.data);
+        setDocsPatientId(patientAtRequest);
         setPatientAssurance(patientResponse?.data?.assurance || null);
       } catch (err) {
+        if (cancelled) return;
         console.error('Erreur archives:', err);
         setDocs([]);
+        setDocsPatientId(patientAtRequest ?? null);
         setPatientAssurance(null);
         setFetchError(true);
       } finally {
-        setLoading(false);
+        if (!cancelled) setLoading(false);
       }
     };
     void fetchDocs();
+    return () => { cancelled = true; };
   }, [id, reloadKey]);
 
   const handleDelete = async (docId: string) => {
@@ -156,31 +210,46 @@ export const PatientDocuments = () => {
     }
   };
 
-  const handleView = async (docId: string) => {
+  const handleView = async (docId: string, filename: string) => {
+    const patientAtRequest = id;
+    if (!belongsToActivePatient(patientAtRequest)) return;
     try {
       const res = await api.get(`/documents/${encodeURIComponent(docId)}/download`, { responseType: 'blob' });
-      const blobUrl = URL.createObjectURL(res.data);
-      const opened = window.open(blobUrl, '_blank', 'noopener,noreferrer');
-      if (!opened) URL.revokeObjectURL(blobUrl);
-      else window.setTimeout(() => URL.revokeObjectURL(blobUrl), 60_000);
+      // Never render a response from patient A after switching to B.
+      if (!belongsToActivePatient(patientAtRequest)) return;
+      const blob = res.data as Blob;
+      if (!(blob instanceof Blob) || blob.type.split(';')[0].toLowerCase() !== 'application/pdf') {
+        alert('Aperçu réservé aux PDF. Utilisez « Fichier » pour ce document.');
+        return;
+      }
+      // PDF.js draws directly from the authenticated Blob. No detached tab
+      // or object URL exists for the document preview.
+      setPreview({patientId: patientAtRequest!, blob, filename});
     } catch (err) {
+      if (!belongsToActivePatient(patientAtRequest)) return;
       console.error('Erreur lors de la visualisation:', err);
       alert("Impossible d'ouvrir le document.");
     }
   };
 
   const handleDownload = async (docId: string, filename: string) => {
+    const patientAtRequest = id;
+    if (!belongsToActivePatient(patientAtRequest)) return;
     try {
       const res = await api.get(`/documents/${encodeURIComponent(docId)}/download`, { responseType: 'blob' });
+      // Likewise, no delayed download should fire in another patient's dossier.
+      if (!belongsToActivePatient(patientAtRequest)) return;
       const a = document.createElement('a');
       const blobUrl = URL.createObjectURL(res.data);
+      objectUrlsRef.current.add(blobUrl);
       a.href = blobUrl;
       a.download = filename;
       document.body.appendChild(a);
       a.click();
       a.remove();
-      window.setTimeout(() => URL.revokeObjectURL(blobUrl), 1_000);
+      window.setTimeout(() => releaseObjectUrl(blobUrl), 1_000);
     } catch (err) {
+      if (!belongsToActivePatient(patientAtRequest)) return;
       console.error('Erreur lors du téléchargement:', err);
       alert('Impossible de télécharger le document.');
     }
@@ -196,7 +265,7 @@ export const PatientDocuments = () => {
     }
   };
 
-  const filtered = docs.filter(d =>
+  const filtered = (id && docsPatientId === id ? docs : []).filter(d =>
     d.type.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     d.date.includes(searchTerm)
@@ -222,7 +291,7 @@ export const PatientDocuments = () => {
     return { ...doc, isDuplicate };
   });
 
-  if (loading) {
+  if (loading || !id || docsPatientId !== id) {
     return (
       <div className="flex flex-col items-center justify-center py-40 gap-4">
         <Loader2 className="animate-spin text-primary" size={40} />
@@ -378,7 +447,7 @@ export const PatientDocuments = () => {
                   <div className="col-span-2 min-h-[48px] flex items-center justify-center gap-2 bg-warning-surface border border-warning-border text-warning rounded-2xl font-black text-xs uppercase tracking-widest"><FileX2 size={16} /> Fichier introuvable</div>
                 ) : (
                   <>
-                    <button data-m4c-touch onClick={() => void handleView(doc.id)} className="min-h-[48px] flex items-center justify-center gap-2 bg-background border border-border-main hover:bg-input-field text-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"><Eye size={16} /> Voir</button>
+                    <button data-m4c-touch onClick={() => void handleView(doc.id, doc.name)} className="min-h-[48px] flex items-center justify-center gap-2 bg-background border border-border-main hover:bg-input-field text-text-muted rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95"><Eye size={16} /> Voir</button>
                     <button data-m4c-touch onClick={() => void handleDownload(doc.id, doc.name)} className="min-h-[48px] flex items-center justify-center gap-2 bg-gradient-to-br from-primary to-secondary text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95"><Download size={16} /> Fichier</button>
                   </>
                 )}
@@ -401,6 +470,27 @@ export const PatientDocuments = () => {
           </div>
         )}
       </div>
+      {preview && preview.patientId === id && (
+        <div data-document-pdf-preview role="dialog" aria-modal="true"
+          aria-label={`Aperçu PDF du patient — ${preview.filename}`}
+          className="fixed inset-0 z-[850] flex items-center justify-center bg-slate-950/80 p-2 sm:p-6">
+          <div className="flex h-[92vh] w-full max-w-6xl flex-col overflow-hidden rounded-2xl border border-border-main bg-card shadow-2xl">
+            <div className="flex shrink-0 items-center justify-between gap-3 border-b border-border-main px-4 py-3">
+              <div className="min-w-0">
+                <p className="text-xs font-black uppercase tracking-widest text-primary">Aperçu sécurisé · dossier patient</p>
+                <h3 className="truncate text-sm font-bold text-text-main">{preview.filename}</h3>
+              </div>
+              <button type="button" autoFocus onClick={closePreview} aria-label="Fermer l’aperçu PDF"
+                className="min-h-11 shrink-0 rounded-lg border border-border-main bg-background px-4 py-2 text-sm font-bold text-text-main">
+                Fermer
+              </button>
+            </div>
+            <Suspense fallback={<p role="status" className="p-5 text-sm">Préparation du visualiseur PDF…</p>}>
+              <PatientPdfCanvasPreview key={preview.patientId + ':' + preview.filename} blob={preview.blob} />
+            </Suspense>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

@@ -8,7 +8,7 @@ import { api } from '../../../services/api';
 import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { cephaloRepository } from '../cephaloRepository';
 import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
-import { canArchiveCephaloValidation, cephaloArchiveErrorMessage, type CephaloArchiveValidation } from '../cephaloArchiveGate';
+import { type CephaloArchiveValidation } from '../cephaloArchiveGate';
 import { useOrthoStore, snapshotCephaloPdfClinicalInputs } from '../stores/useOrthoStore';
 
 interface Step4DocumentsProps {
@@ -78,7 +78,6 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const {
     photos,
     handlePhotoUpload: onUpload,
-    handlePrint: onGeneratePDF,
     handlePreview: onPreviewPDF,
     isPrinting: isGenerating,
     isPreviewLoading,
@@ -97,8 +96,6 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const [showDetails, setShowDetails] = useState(false);
   const [validation, setValidation] = useState<ValidationResult | null>(null);
   const [isValidating, setIsValidating] = useState(false);
-  const [isArchiving, setIsArchiving] = useState(false);
-  const archiveInFlight = useRef(false); // React state alone cannot block two clicks in one tick.
   const draftInFlight = useRef(false);
   const validationGeneration = useRef(0);
   const [isBrouillon, setIsBrouillon] = useState(false);
@@ -166,7 +163,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
   const hasWarnings = (validation?.warnings?.length ?? 0) > 0;
 
   const handlePreviewBilan = async () => {
-    if (archiveInFlight.current || draftInFlight.current) {
+    if (draftInFlight.current || useOrthoStore.getState().isPrinting) {
       toast.error('Une opération PDF est déjà en cours.');
       return;
     }
@@ -175,7 +172,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
 
   const handleBrouillon = async () => {
     if (!patientId || !analysisId || draftInFlight.current) return;
-    if (archiveInFlight.current || useOrthoStore.getState().isPrinting
+    if (useOrthoStore.getState().isPrinting
         || useOrthoStore.getState().isPreviewLoading) {
       toast.error('Une opération PDF est déjà en cours.');
       return;
@@ -218,50 +215,6 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       setIsBrouillon(false);
     }
   };
-
-  const handleArchiveBilan = async () => {
-    if (!patientId || !analysisId || archiveInFlight.current) return;
-    if (draftInFlight.current || useOrthoStore.getState().isPreviewLoading
-        || useOrthoStore.getState().isPrinting) {
-      toast.error('Une autre opération PDF est déjà en cours.');
-      return;
-    }
-    archiveInFlight.current = true;
-    setIsArchiving(true);
-    const stillSelected = () => useOrthoStore.getState().patientId === patientId
-      && useOrthoStore.getState().analysisId === analysisId;
-    try {
-      const source = await prepareBoundCephaloDocumentSource(
-        patientId, analysisId, stillSelected, () => store.silentSave(analysisId, true),
-        () => { const live = useOrthoStore.getState(); return { landmarks: live.local.landmarks, mmPerPixel: live.mmPerPixel }; },
-      );
-      const { data: vResult } = await api.get<ValidationResult & { analysis_id: number; analysis_revision: number }>(
-        `/patients/${patientId}/cephalo-validation`, { params: source },
-      );
-      if (!stillSelected() || vResult.analysis_id !== analysisId || vResult.analysis_revision !== source.expected_revision) {
-        throw Error("Prévalidation liée à une autre étude");
-      }
-      setValidation(vResult);
-      if (!canArchiveCephaloValidation(vResult)) {
-        toast.error(`Impossible d'archiver : ${vResult.fatals?.[0] || 'prévalidation non autorisée'}`);
-        return;
-      }
-      if ((vResult.warnings?.length ?? 0) > 0) {
-        toast(`Attention : ${vResult.warnings.length} avertissement(s). Archivage en cours...`, { icon: '⚠️' });
-      }
-      if (!stillSelected()) throw Error("L'étude a changé avant l'archivage");
-      // Archive the *same* exact revision which just passed prevalidation;
-      // another silent save here could silently invalidate that gate.
-      await onGeneratePDF(source);
-    } catch (e: any) {
-      if (stillSelected()) toast.error(await cephaloArchiveErrorMessage(e));
-    } finally {
-      archiveInFlight.current = false;
-      setIsArchiving(false);
-    }
-  };
-
-  const canArchive = canArchiveCephaloValidation(validation) && !isValidating && !hasFatals && hasImage && landmarksOk;
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -404,12 +357,15 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
 
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
             <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
-            <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualiser ou archiver un PDF ne constitue pas une validation clinique.</p>
+            <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualisation et téléchargement : brouillon non signé, sans valeur de validation clinique.</p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-              <button onClick={handlePreviewBilan} disabled={isPreviewLoading || isArchiving || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
-              <button onClick={handleBrouillon} disabled={isBrouillon || isArchiving || isPreviewLoading || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
-              <button onClick={handleArchiveBilan} disabled={isArchiving || isBrouillon || isPreviewLoading || isGenerating || !analysisId || !canArchive} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest text-white disabled:opacity-40" style={{ background: canArchive ? `linear-gradient(135deg, ${P.accent}, #7c3aed)` : '#94a3b8' }}>{isArchiving || isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Archive size={20} />}Archiver le bilan</button>
+              <button onClick={handlePreviewBilan} disabled={isPreviewLoading || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
+              <button onClick={handleBrouillon} disabled={isBrouillon || isPreviewLoading || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
+              <button type="button" disabled aria-describedby="cephalo-a4-archive-hold" className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border cursor-not-allowed" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}><Archive size={20} />Archivage suspendu</button>
             </div>
+            <p id="cephalo-a4-archive-hold" data-testid="unsigned-cephalo-archive-hold" role="status" className="mt-3 text-center text-xs leading-relaxed" style={{ color: P.textMuted }}>
+              Archivage officiel indisponible : le bilan A4 est un brouillon non signé. Utilisez « Brouillon PDF » ; une signature vérifiable du document exact sera nécessaire pour archiver.
+            </p>
           </div>
         </div>
       </div>

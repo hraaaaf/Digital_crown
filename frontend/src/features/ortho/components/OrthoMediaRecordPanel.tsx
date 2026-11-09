@@ -36,26 +36,33 @@ const nowLocalInput = () => {
 };
 
 const AssetPreview: React.FC<{ patientId: number; asset: Asset | null }> = ({ patientId, asset }) => {
-  const [url, setUrl] = useState<string | null>(null);
+  const [preview, setPreview] = useState<{ url: string; patientId: number; assetId: number } | null>(null);
   useEffect(() => {
-    let revoked = false;
+    let cancelled = false;
     let objectUrl: string | null = null;
-    setUrl(null);
+    setPreview(null);
     if (!asset) return;
-    void api.get(`/patients/${patientId}/assets/${asset.asset_id}/content`, { responseType: 'blob' })
+    const assetId = asset.asset_id;
+    void api.get(`/patients/${patientId}/assets/${assetId}/content`, { responseType: 'blob' })
       .then(({ data }) => {
-        if (revoked) return;
+        if (cancelled) return;
         objectUrl = URL.createObjectURL(data as Blob);
-        setUrl(objectUrl);
+        setPreview({ url: objectUrl, patientId, assetId });
       })
-      .catch(() => setUrl(null));
+      .catch(() => {
+        if (!cancelled) setPreview(null);
+      });
     return () => {
-      revoked = true;
+      cancelled = true;
       if (objectUrl) URL.revokeObjectURL(objectUrl);
     };
   }, [asset?.asset_id, patientId]);
-  if (!url) return <Camera size={24} className="opacity-35" aria-hidden="true" />;
-  return <img src={url} alt="Vue orthodontique" className="h-full w-full object-cover" />;
+  // Never paint a previously authorized patient's blob for a new identity,
+  // even during the render BEFORE React has run the old effect's cleanup.
+  if (!asset || preview?.patientId !== patientId || preview.assetId !== asset.asset_id) {
+    return <Camera size={24} className="opacity-35" aria-hidden="true" />;
+  }
+  return <img src={preview.url} alt="Vue orthodontique" className="h-full w-full object-cover" />;
 };
 
 export const OrthoMediaRecordPanel: React.FC<{ patientId: number; P: any }> = ({ patientId, P }) => {
@@ -91,7 +98,10 @@ export const OrthoMediaRecordPanel: React.FC<{ patientId: number; P: any }> = ({
     return () => { requestSequence.current += 1; };
   }, [patientId, timepoint]);
 
-  const bySlot = useMemo(() => new Map((record?.photo_slots ?? []).map(item => [item.slot_id, item])), [record]);
+  // A prop change renders before effects fire: do not expose the previous
+  // patient's record in that transient frame, regardless of request timing.
+  const currentRecord = record?.patient_id === patientId && record?.timepoint === timepoint ? record : null;
+  const bySlot = useMemo(() => new Map((currentRecord?.photo_slots ?? []).map(item => [item.slot_id, item])), [currentRecord]);
 
   const upload = async (slotId: string, event: ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
@@ -154,7 +164,7 @@ export const OrthoMediaRecordPanel: React.FC<{ patientId: number; P: any }> = ({
     );
   };
 
-  const filledCount = record?.photo_slots.filter(slot => slot.state === 'FILLED').length ?? 0;
+  const filledCount = currentRecord?.photo_slots.filter(slot => slot.state === 'FILLED').length ?? 0;
 
   return (
     <div data-testid="ortho-media-record" className="mb-6 rounded-3xl border p-4 sm:p-5" style={{ borderColor: P.border, background: P.bgPanel }}>
@@ -179,7 +189,7 @@ export const OrthoMediaRecordPanel: React.FC<{ patientId: number; P: any }> = ({
           </label>
         </div>
       </div>
-      {loading ? <div className="flex min-h-32 items-center justify-center"><Loader2 className="animate-spin" style={{ color: P.accent }} /></div> : (
+      {(loading || (record !== null && !currentRecord)) ? <div className="flex min-h-32 items-center justify-center"><Loader2 className="animate-spin" style={{ color: P.accent }} /></div> : (
         <div className="space-y-5">
           {renderGroup('extraoral', 'Extra-orales · 3 vues')}
           {renderGroup('intraoral', 'Intra-orales · 5 vues')}

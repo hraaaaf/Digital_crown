@@ -119,3 +119,43 @@ def _temporary_pdf_output(monkeypatch, tmp_path):
     monkeypatch.setattr(doc_factory.ceph_gen, "output_dir", str(tmp_path))
     monkeypatch.setattr(doc_factory, "output_dir", str(tmp_path))
 
+
+
+def _seed_synthetic_historical_cephalo_archive(
+    db, patient, study, *, filename=None, pdf_bytes=None,
+):
+    """Fixture ONLY: represent a pre-existing P2ter archive, not a new signed PDF.
+
+    The production /patients/{id}/pdf endpoint must never create this row from
+    the current unsigned four-part A4 renderer. ArchiveService itself remains
+    exercised here for historical read/tamper/crash regression compatibility.
+    """
+    from backend.services.archive_service import ArchiveService
+    from backend.services.cephalo_document_lock import (
+        lock_selected_cephalo_for_archive, render_payload_digest,
+    )
+    source = study.angles_data or {}
+    payload_digest = render_payload_digest(
+        clinical_data=source.get("clinical_data", {}),
+        ai_diagnostic=source.get("ai_diagnostic", {}),
+    )
+    lock_selected_cephalo_for_archive(
+        db, patient_id=patient.id, analysis_id=study.id,
+    )
+    body = pdf_bytes or b"%PDF-1.4\\n% SYNTHETIC HISTORIC P2TER ARCHIVE - NOT CLINICAL\\n%%EOF\\n"
+    doc, _ = ArchiveService(db).archive_document(
+        patient_id=patient.id,
+        file_content=body,
+        filename=filename or f"synthetic-history-{study.id}.pdf",
+        doc_type=models.DocumentType.RAPPORT_CEPHALO,
+        uploaded_by_id=None,
+        title="SYNTHETIC HISTORIC CEPHALO (NOT A CLINICAL SIGNATURE)",
+        analysis_id=study.id,
+        clinical_data={
+            "cephalo_analysis_id": study.id,
+            "cephalo_analysis_revision": source[EVIDENCE_GRAPH_KEY]["revision"],
+            "cephalo_archive_payload_digest": payload_digest,
+            "clinical_data": source.get("clinical_data", {}),
+        },
+    )
+    return doc, body

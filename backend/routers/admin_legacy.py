@@ -37,16 +37,13 @@ def normalize_docs(db: Session = Depends(database.get_db), current_user: models.
             ),
             {"employer_id": employer_id},
         )
-        db.execute(
-            text(
-                "UPDATE document_archives SET document_type = 'RAPPORT_CEPHALO' "
-                "WHERE " + tenant_scope + " "
-                "AND CAST(document_type AS TEXT) IN ('bilan', 'BILAN', 'rapport_cephalo');"
-            ),
-            {"employer_id": employer_id},
-        )
+        # Patient-safety HOLD: these generic historical labels have no
+        # cryptographic link to a practitioner-signed PDF, study, revision,
+        # or immutable digest. Never silently promote them to official
+        # RAPPORT_CEPHALO. A separately approved, audited migration must
+        # establish provenance document-by-document before any relabelling.
         db.commit()
-        return {"status": "success"}
+        return {"status": "success", "cephalo_legacy_reclassification": "HELD_UNVERIFIED_SIGNATURE"}
     except Exception:
         db.rollback()
         logger.exception("Document type normalization failed for employer_id=%s", employer_id)

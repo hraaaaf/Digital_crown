@@ -1539,6 +1539,22 @@ def generate_cephalo_pdf(
                     "X-Cephalo-Archive-Replayed": "true",
                 },
             )
+        # Existing P2ter archives remain readable/replayable only after the
+        # exact identity, revision, payload and persisted PDF hash check above.
+        # Every newly rendered four-part A4 PDF is explicitly an unsigned draft,
+        # even if the underlying scientific measurements are COMPLETE. There is
+        # no persisted signer + exact PDF digest approval in this route.
+        # Never write it to DocumentArchive with an official RAPPORT_CEPHALO type.
+        db.rollback()  # release the study lock on both SQLite and PostgreSQL
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                "Archivage officiel refusé : bilan céphalométrique BROUILLON NON SIGNÉ. "
+                "Validation et signature du PDF exact requises avant nouvel archivage. "
+                "Utiliser archive=false pour consulter le brouillon."
+            ),
+        )
+
     analysis_data = {
         "id": selected.id,
         "image_path": selected.image_original_path,
@@ -1551,55 +1567,9 @@ def generate_cephalo_pdf(
     pdf_path = doc_factory.create_cephalo_report(
         patient, analysis_data, db=db, user_id=current_user.id
     )
-    if req.archive:
-        from backend.services.archive_service import ArchiveService
-        from backend.schemas import ConflictResolution
-
-        with open(pdf_path, "rb") as pdf_stream:
-            pdf_bytes = pdf_stream.read()
-
-        try:
-            archived, _ = ArchiveService(db).archive_document(
-                patient_id=patient_id,
-                file_content=pdf_bytes,
-                filename=os.path.basename(pdf_path),
-                doc_type=models.DocumentType.RAPPORT_CEPHALO,
-                uploaded_by_id=current_user.id,
-                title="Bilan Céphalométrique et Plan ODF",
-                analysis_id=selected.id,
-                clinical_data={
-                    "cephalo_analysis_id": selected.id,
-                    "cephalo_analysis_revision": revision,
-                    "cephalo_archive_payload_digest": payload_digest,
-                    "clinical_data": results.get("clinical_data", {}),
-                },
-                on_conflict=ConflictResolution.CREATE_VERSION,
-            )
-            if archived is None:
-                raise RuntimeError("Archive manquante")
-        except Exception as exc:
-            logger.exception("Archivage du bilan de l'analyse %s échoué", selected.id)
-            # A failed archive must not leave an unintended public-facing PDF.
-            try:
-                os.remove(pdf_path)
-            except OSError:
-                logger.warning("Nettoyage du PDF non archivé impossible")
-            raise HTTPException(
-                status_code=500, detail="Échec d'archivage : aucun bilan archivé confirmé"
-            ) from exc
-
     headers = {"X-Cephalo-Analysis-Id": str(selected.id)}
     if revision is not None:
         headers["X-Cephalo-Revision"] = str(revision)
-    if req.archive:
-        # Crash recovery may commit previously rendered, verified bytes.
-        # Never hand the caller a fresh draft that differs from SQL's SHA256.
-        from urllib.parse import quote
-        from backend.services.cephalo_document_lock import verified_official_archive_bytes
-
-        committed_pdf = verified_official_archive_bytes(archived, db)
-        headers["Content-Disposition"] = "attachment; filename*=utf-8''" + quote(archived.filename)
-        return Response(content=committed_pdf, media_type="application/pdf", headers=headers)
     return FileResponse(
         path=pdf_path,
         filename=os.path.basename(pdf_path),

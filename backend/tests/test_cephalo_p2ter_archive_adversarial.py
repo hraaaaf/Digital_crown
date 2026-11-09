@@ -8,7 +8,7 @@ from types import SimpleNamespace
 
 from backend import models
 from backend.tests.p2ter_bridge_synthetic_support import _case, _jwt
-from backend.tests.p2ter_bridge_synthetic_support import _cabinet, _temporary_pdf_output
+from backend.tests.p2ter_bridge_synthetic_support import _cabinet, _temporary_pdf_output, _seed_synthetic_historical_cephalo_archive
 
 
 def _setup_official(client, db, dentiste, monkeypatch, tmp_path):
@@ -26,6 +26,7 @@ def _setup_official(client, db, dentiste, monkeypatch, tmp_path):
     headers = _jwt(client, dentiste)
     endpoint = f"/api/patients/{patient.id}/pdf"
     payload = {"analysis_id": study.id, "expected_revision": 1, "archive": True}
+    _seed_synthetic_historical_cephalo_archive(db, patient, study)
     response = client.post(endpoint, json=payload, headers=headers)
     assert response.status_code == 200, response.text[:300] if response.status_code != 200 else ""
     doc = db.query(models.DocumentArchive).filter(
@@ -244,7 +245,15 @@ def test_s4_trashed_official_revision_cannot_be_restored_over_active_duplicate(
     replacement = client.post(
         f"/api/patients/{patient.id}/pdf", json=payload, headers=headers,
     )
-    assert replacement.status_code == 200, replacement.text[:250] if replacement.status_code != 200 else ""
+    assert replacement.status_code == 409
+    assert "BROUILLON NON SIGNÉ" in replacement.json()["detail"]
+    # Model historical duplicates via the fixture, never via an unsigned HTTP
+    # archive creation. This still exercises the real restore collision gate.
+    replacement_doc, _ = _seed_synthetic_historical_cephalo_archive(
+        db, patient, study,
+        filename="historical-after-trash.pdf",
+        pdf_bytes=b"%PDF-1.4\\n% SYNTHETIC HISTORIC DIFFERENT BYTES\\n%%EOF\\n",
+    )
     # Re-archiving a trashed revision must not overwrite its physical bytes.
     assert old_path.read_bytes() == old_pdf
     restored = client.post(f"/api/documents/{doc_id}/restore", headers=headers)
@@ -256,7 +265,7 @@ def test_s4_trashed_official_revision_cannot_be_restored_over_active_duplicate(
         models.DocumentArchive.status == models.DocumentStatus.ACTIF,
     ).all()
     assert len(active) == 1
-    assert active[0].id != doc_id
+    assert active[0].id == replacement_doc.id
     assert active[0].file_path != doc.file_path
 
 

@@ -1,5 +1,5 @@
 import React from 'react';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { OrthoMediaRecordPanel, ORTHO_PHOTO_SLOTS } from './OrthoMediaRecordPanel';
 
@@ -80,6 +80,71 @@ describe('OrthoMediaRecordPanel LOT07-F', () => {
     resolveT0({ data: { ...emptyRecord, photo_slots: emptyRecord.photo_slots.map((slot: any) => ({ ...slot, state: 'FILLED' })), photo_complete: true } });
     await new Promise(resolve => setTimeout(resolve, 0));
     expect(screen.getByText(/0\/8/)).toBeInTheDocument();
+  });
+
+  it('does not render patient A media after switching to patient B while A response resolves late', async () => {
+    let resolveA: (value: any) => void = () => undefined;
+    const pendingA = new Promise(resolve => { resolveA = resolve; });
+    const patientB = { ...emptyRecord, patient_id: 8 };
+    get.mockImplementation((url: string) => {
+      if (url === '/patients/7/ortho-media-record') return pendingA;
+      if (url === '/patients/8/ortho-media-record') return Promise.resolve({ data: patientB });
+      throw Error('Unexpected media request: ' + url);
+    });
+    const { rerender } = render(<OrthoMediaRecordPanel patientId={7} P={P} />);
+    rerender(<OrthoMediaRecordPanel patientId={8} P={P} />);
+    await screen.findByText(/0\/8/);
+    await act(async () => {
+      resolveA({
+        data: {
+          ...emptyRecord,
+          photo_complete: true,
+          photo_slots: emptyRecord.photo_slots.map((slot, i) =>
+            i === 0 ? { ...slot, state: 'FILLED', asset: { asset_id: 707 } } : slot),
+        },
+      });
+      await pendingA;
+    });
+    expect(screen.getByText(/0\/8/)).toBeInTheDocument();
+    expect(get.mock.calls.some(([url]) => String(url).includes('/patients/8/assets/707/'))).toBe(false);
+    expect(screen.queryByRole('img', { name: 'Vue orthodontique' })).not.toBeInTheDocument();
+  });
+
+  it('purges rendered patient A blob and revokes its URL when patient identity changes', async () => {
+    const originalCreate = URL.createObjectURL;
+    const originalRevoke = URL.revokeObjectURL;
+    const create = vi.fn(() => 'blob:synthetic-patient-a');
+    const revoke = vi.fn();
+    URL.createObjectURL = create;
+    URL.revokeObjectURL = revoke;
+    const populatedA = {
+      ...emptyRecord,
+      photo_complete: false,
+      photo_slots: emptyRecord.photo_slots.map((slot, i) =>
+        i === 0 ? { ...slot, state: 'FILLED', asset: { asset_id: 707 } } : slot),
+    };
+    get.mockImplementation((url: string) => {
+      if (url === '/patients/7/ortho-media-record') return Promise.resolve({ data: populatedA });
+      if (url === '/patients/8/ortho-media-record') return Promise.resolve({ data: { ...emptyRecord, patient_id: 8 } });
+      if (url === '/patients/7/assets/707/content') return Promise.resolve({ data: new Blob(['synthetic']) });
+      throw Error('Unexpected media access: ' + url);
+    });
+    let unmount: () => void = () => {};
+    try {
+      const rendered = render(<OrthoMediaRecordPanel patientId={7} P={P} />);
+      unmount = rendered.unmount;
+      const preview = await screen.findByRole('img', { name: 'Vue orthodontique' });
+      expect(preview).toHaveAttribute('src', 'blob:synthetic-patient-a');
+      rendered.rerender(<OrthoMediaRecordPanel patientId={8} P={P} />);
+      expect(screen.queryByRole('img', { name: 'Vue orthodontique' })).not.toBeInTheDocument();
+      await waitFor(() => expect(revoke).toHaveBeenCalledWith('blob:synthetic-patient-a'));
+      await waitFor(() => expect(get).toHaveBeenCalledWith('/patients/8/ortho-media-record', { params: { timepoint: 'T0' } }));
+      expect(get.mock.calls.some(([url]) => url === '/patients/8/assets/707/content')).toBe(false);
+    } finally {
+      unmount();
+      URL.createObjectURL = originalCreate;
+      URL.revokeObjectURL = originalRevoke;
+    }
   });
 
   it('fails closed when acquisition time is empty instead of posting invalid provenance', async () => {

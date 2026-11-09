@@ -1,13 +1,15 @@
 name: CEPH P2ter master bridge authenticated real Cabinet FUE-I (experimental)
 on:
   pull_request:
-    branches: [master]
+    branches: [master, test/ceph-v1-facad-two-public-radios-20261105]
     paths:
       - 'backend/**'
       - 'frontend/**'
       - 'scripts/ceph_p2ter_seed_t2.py'
       - 'scripts/t2_runtime_server.py'
       - '.github/workflows/ceph-p2ter-master-bridge-*.yml'
+      - 'frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs'
+      - 'frontend/scripts/fue-ceph-p2ter-first-value.mjs'
 permissions:
   contents: read
 jobs:
@@ -62,6 +64,29 @@ jobs:
           npm ci
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
+      - name: Enforce scientific CAS clinical-only and negative mutation regressions
+        run: |
+          python -m pytest \
+            backend/tests/test_cephalo_scientific_write.py \
+            backend/tests/test_cephalo_repository_calibration_invariants.py -q
+      - name: FUE métier evidence tranche 1 - Media Core tenant isolation, manual import, timeline and unsigned A4
+        run: |
+          python -m pytest \
+            backend/tests/test_media_core_ingestion_api.py \
+            backend/tests/test_media_core_timeline_api.py \
+            backend/tests/test_media_core_c7_certification.py \
+            backend/tests/test_cephalo_four_part_report.py \
+            backend/tests/test_dc_dos01_historical_pdf_isolation.py -q
+      - name: DC-DOS-01 patient media/document asynchronous race, drafts, DEV-only split and TypeScript
+        working-directory: frontend
+        run: |
+          npx vitest run \
+            src/features/ortho/components/OrthoMediaRecordPanel.test.tsx \
+            src/features/patients/PatientDocuments.patientSwitch.test.tsx \
+            src/features/patients/patientDocumentBoundary.test.ts \
+            src/features/multiview/CabinetMultiViewLab.test.tsx \
+            src/features/multiview/R3SplitWorkspace.test.tsx
+          npx tsc --noEmit --pretty false
       - name: Start isolated T2 FastAPI runtime (real JWT and workstation)
         run: |
           python scripts/t2_runtime_server.py > /tmp/p2ter-backend.log 2>&1 &
@@ -107,8 +132,11 @@ jobs:
           assert len(set(sample.values()))>=3 and max(sample.values())-min(sample.values())>=60,sample
           print("R23_G4_NONCLINICAL_SYNTHETIC_PLATE_VISIBLE",sample)
           PY
-      - name: Start real Cabinet React frontend
+      - name: Start real Cabinet React frontend (isolated T2 DEV-only R3 lab)
         working-directory: frontend
+        env:
+          VITE_V15_07_1_MULTIVIEW_LAB: "1"
+          VITE_V15_07_1_R3_SPLIT_LAB: "1"
         run: |
           npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/p2ter-frontend.log 2>&1 &
           echo $! > /tmp/p2ter-frontend.pid
@@ -118,7 +146,7 @@ jobs:
           done
           tail -100 /tmp/p2ter-frontend.log
           exit 1
-      - name: REAL UI login, history study A/B, JWT PDF at two desktops
+      - name: REAL UI login, history study A/B, unsigned A4 JWT PDF at two desktops
         working-directory: frontend
         run: node scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
       - name: Verify A4 PDF identity and rendered nonclinical pages
@@ -149,29 +177,33 @@ jobs:
                           if index<8:
                               page.get_pixmap(matrix=fitz.Matrix(1,1),alpha=False).save(root/(label+'-'+kind+'-page-'+str(index+1)+'.png'))
           PY
-      - name: Verify clicked archives persisted same old study and scientific revision
+      - name: Verify unsigned A4 requests never created an official archived row
         run: |
           python - <<'PY'
           import json
           from pathlib import Path
-          import fitz
           from backend import database, models
-          source=json.loads(Path('artifacts/ceph-p2ter-authenticated-desktop/report.json').read_text())
+          root=Path('artifacts/ceph-p2ter-authenticated-desktop')
+          report=json.loads((root/'report.json').read_text())
           studied=json.loads(next(line.split('=',1)[1] for line in Path('/tmp/p2ter-seed.log').read_text().splitlines() if line.startswith('P2TER_SYNTHETIC_STUDIES=')))
           with database.SessionLocal() as db:
-              rows=db.query(models.DocumentArchive).filter(models.DocumentArchive.patient_id==studied['patient_id'], models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO).all()
-              assert len(rows)==2, f"Idempotency requires exactly one archive for A and B rev2, got {len(rows)}"
-              assert {row.analysis_id for row in rows}=={studied['older_id'],studied['latest_id']}
-              assert all(row.clinical_data.get('cephalo_analysis_revision')==2 for row in rows)
-              assert len({(row.analysis_id,row.clinical_data['cephalo_analysis_revision']) for row in rows})==2
-          for viewport in source['viewports']:
-              assert any('REAL_CABINET_ARCHIVE_BUTTON_OLDER_STUDY_' in check for check in viewport['checks'])
-              pdf=Path('artifacts/ceph-p2ter-authenticated-desktop')/(viewport['viewport']+'-older-click-archived.pdf')
-              with fitz.open(pdf) as doc:
-                  assert len(doc)>=2 and all(590 < page.rect.width < 600 and 838 < page.rect.height < 845 for page in doc)
-          print('P2TER_CLICK_ARCHIVE_DB_FK_REVISION_AND_A4_PASS')
+              rows=db.query(models.DocumentArchive).filter(
+                  models.DocumentArchive.patient_id==studied['patient_id'],
+                  models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
+              ).all()
+              assert len(rows)==0, f"Unsigned A4 created {len(rows)} official archived row(s)"
+          for viewport in report['viewports']:
+              assert viewport['valid'], viewport
+              checks=set(viewport['checks'])
+              assert 'REAL_CABINET_UNSIGNED_ARCHIVE_DISABLED_AND_DRAFT_AVAILABLE' in checks
+              assert 'REAL_JWT_UNSIGNED_NEW_OFFICIAL_ARCHIVE_HTTP_409' in checks
+              assert 'TWO_AUTHENTICATED_TABS_SAME_STUDY_UNSIGNED_ARCHIVE_BOTH_409' in checks
+              assert viewport['sameRevisionArchive']['creation_refused'] is True
+              assert viewport['sameRevisionArchive']['responses']==[409,409]
+              assert (root/(viewport['viewport']+'-archive-suspended-explained.png')).is_file()
+          print('P2TER_UNSIGNED_A4_NO_OFFICIAL_ARCHIVE_AND_DRAFT_PROOF_PASS')
           PY
-      - name: EXPERIMENTAL FUE-I first useful PDF on two supported desktop viewports
+      - name: EXPERIMENTAL FUE-I unsigned first PDF on two desktop viewports
         working-directory: frontend
         run: node scripts/fue-ceph-p2ter-first-value.mjs
       - name: Verify FUE-I report and same-viewport before-after captures
@@ -187,23 +219,21 @@ jobs:
           required_checks={
               "CLEAN_BROWSER_LOGIN","DASHBOARD_PATIENT_SEARCH","ENTER_IMAGING",
               "OPEN_CEPHALO","SELECT_OLDER_STUDY","DESKTOP_STEPPER",
-              "NO_HORIZONTAL_VIEWPORT_OVERFLOW","DRAFT_PDF_FIRST_VALUE","OFFICIAL_ARCHIVE_REPLAY",
+              "NO_HORIZONTAL_VIEWPORT_OVERFLOW","DRAFT_PDF_FIRST_VALUE","UNSIGNED_OFFICIAL_ARCHIVE_HOLD",
           }
           for r in report["viewports"]:
               assert r["valid"] and all(c["status"] == "PASS" for c in r["matrix"])
               assert {c["id"] for c in r["matrix"]} == required_checks, "Missing real UI discovery or first-value check"
-              # Native Chromium window.confirm is not present in AFTER screenshots:
-              # verify the actual dialog text, tied to the replayed selected study.
-              feedback=r.get("archiveUiFeedback") or {}
-              assert feedback.get("kind") == "native-window.confirm"
-              assert "Archive existante réutilisée sans modification" in feedback.get("message","")
-              assert "étude "+str(r["firstValue"]["analysis_id"]) in feedback.get("message","")
+              hold=r.get("archiveHoldEvidence") or {}
+              assert hold.get("server_status")==409 and hold.get("archive_created") is False
+              assert hold.get("clinical_release") is False
+              assert "brouillon non signé" in hold.get("reason","").lower()
               for label in ("before-hub", "after-login", "before-patient-search",
                             "patient-search-result","after-patient-opened",
                             "after-imaging-opened","before-select-study",
                             "before-first-value","before-first-value-actions",
-                            "after-first-value","before-official-archive-replay",
-                            "after-official-archive-replay"):
+                            "after-first-value","before-unsigned-archive-hold",
+                            "after-unsigned-archive-hold"):
                   filename=r["viewport"]+"-"+label+".png"
                   assert (report_path.parent/filename).is_file(), filename
           print("P2TER_FUE_I_AUTOMATED_EVIDENCE_VERIFIED")
@@ -286,6 +316,142 @@ jobs:
                       assert handle.read(8)==bytes.fromhex("89504e470d0a1a0a"), filename
           print("R23_G4_EXPERIMENTAL_AFTER_TWO_DESKTOP_VIEWPORTS_PASS")
           PY
+      - name: FUE V1 four-step Desktop real UI and SQLite persistence (synthetic, nonclinical)
+        working-directory: frontend
+        run: node scripts/fue-ceph-v1-fourstep-desktop.mjs
+      - name: Verify 10 exploratory cross-step checks, unsigned 4-part PDF and zero official archive
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          import fitz
+          from backend import database,models
+          root=Path("artifacts/ceph-v1-fourstep-fue")
+          report=json.loads((root/"report.json").read_text())
+          assert report["head"]==os.environ["PRODUCT_HEAD"]
+          assert report["outcome"]=="CROSSSTEP_EXPERIMENTAL_AUTOMATED_SCOPE_PASS"
+          expected={
+              "LOGIN_REAL_CABINET","STEP1_EXPLICIT_SOURCE_STUDY",
+              "STEP2_DDM_MANUAL_NO_FICTITIOUS_REAL_DDM",
+              "STEP3_PROVENANCE_AND_UNVERIFIED_DIAGNOSIS",
+              "STEP4_DOCUMENT_DRAFT_NOT_THERAPY_DECISION",
+              "A4_SAME_STUDY_REVISION_UNSIGNED_PDF",
+              "OFFICIAL_ARCHIVE_DIRECT_HTTP_FAIL_CLOSED",
+              "SAVE_CLINICAL_NOTES_WITHOUT_SIGNATURE",
+              "SECOND_STUDY_HAS_NO_OLDER_CLINICAL_INPUTS",
+              "REOPEN_ORIGINAL_STUDY_PERSISTED_VALUES",
+          }
+          assert {c["id"] for c in report["checks"]}==expected
+          assert all(c["status"]=="PASS" for c in report["checks"])
+          assert report["clinical_release"] is False and report["official_archival_allowed"] is False
+          assert len(report["screenshots"])>=7
+          assert all((root/name).is_file() for name in report["screenshots"])
+          with fitz.open(root/"fourstep-unsigned-draft.pdf") as doc:
+              assert len(doc)>=1
+              body="\n".join(p.get_text() for p in doc)
+              for marker in ("CÉPHALOMÉTRIE ET TRACÉ",
+                             "EXAMEN DES MOULAGES ET DES IMAGES",
+                             "BILAN DIAGNOSTIQUE ET DIAGNOSTIC FINAL",
+                             "PLAN DE TRAITEMENT","BROUILLON","NON SIGNÉ"):
+                  assert marker in body,marker
+          from pathlib import Path
+          fixture=json.loads(next(line.split('=',1)[1] for line in Path("/tmp/p2ter-seed.log").read_text().splitlines() if line.startswith("P2TER_SYNTHETIC_STUDIES=")))
+          with database.SessionLocal() as db:
+              count=db.query(models.DocumentArchive).filter(
+                  models.DocumentArchive.patient_id==fixture["patient_id"],
+                  models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
+              ).count()
+              assert count==0,f"Unsigned 4-part A4 created {count} official archives"
+          print("CEPH_V1_EXPERIMENTAL_FOURSTEP_PERSISTENCE_AND_DRAFT_PASS")
+          print("NOT_A_COMPLETE_74_FUE_BATTERY_OR_CLINICAL_RELEASE")
+          PY
+      - name: DC-DOS-01 seed three synthetic patients and two separate tenants in disposable T2
+        run: |
+          python -m py_compile scripts/ceph_dc_dos01_seed_t2.py
+          python -m scripts.ceph_dc_dos01_seed_t2 | tee /tmp/dc-dos01-seed.log
+          fixture="$(python - <<'PY'
+          import json
+          lines=open('/tmp/dc-dos01-seed.log').read().splitlines()
+          raw=next(x.split('=',1)[1] for x in lines if x.startswith("DC_DOS01_SYNTHETIC_FIXTURE="))
+          fixture=json.loads(raw)
+          assert fixture["synthetic_only"] is True
+          print(json.dumps(fixture,separators=(',',':')))
+          PY
+          )"
+          echo "DC_DOS01_FIXTURE=$fixture" >> "$GITHUB_ENV"
+      - name: DC-DOS-01 real React SPA and two-cabinet JWT Media Core isolation
+        working-directory: frontend
+        run: |
+          node --check scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
+          node scripts/fue-ceph-v1-dos01-multitenant-desktop.mjs
+      - name: DC-DOS-01 verify ten checks and nonblank PDF canvas A/B plus R3 Desktop A/B/X
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          from backend import database,models
+          from backend.models_media_core import ClinicalAsset
+          root=Path("artifacts/ceph-v1-dos01-multitenant")
+          report=json.loads((root/"report.json").read_text())
+          assert report["head"]==os.environ["PRODUCT_HEAD"]
+          assert report["case_id"]=="DC-DOS-01"
+          assert report["status"]=="SUBLOT_AUTOMATED_PASS"
+          assert report["synthetic_only"] is True
+          assert report["official_fue_complete"] is False
+          assert report["clinical_release"] is False
+          assert len(report["checks"])==10 and all(c["status"]=="PASS" for c in report["checks"])
+          split=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_R3_DESKTOP_SPLIT_A_B_NO_STALE_PANES")
+          for key in ("desktop_1920_two_real_panes","patient_a_identity_verified",
+                      "patient_b_identity_verified","stale_a_panel_absent",
+                      "old_media_blob_revoked","no_media_write_controls"):
+              assert split.get(key) is True,(key,split)
+          assert split.get("clinical_release") is False
+          foreign_split=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_R3_FOREIGN_CABINET_X_SPLIT_AND_A_DENIAL")
+          assert foreign_split.get("foreign_own_x_two_panes") is True
+          assert foreign_split.get("foreign_patient_a_split_denied") is True
+          documents=next(c["evidence"] for c in report["checks"] if c["id"]=="REAL_REACT_A_B_DOCUMENTS_ROUTE_ISOLATION")
+          for flag in ("real_pdf_bytes_sha256_A","real_pdf_bytes_sha256_B",
+                       "pdf_canvas_A_pixels_confirmed","pdf_canvas_B_pixels_confirmed",
+                       "no_pdf_preview_blob_url_created","patient_a_document_absent_in_B"):
+              assert documents.get(flag) is True, (flag,documents)
+          for flag in ("inline_pdf_preview_patient_bound","zero_native_popup_open_attempts",
+                       "escape_closes_pdf_preview"):
+              assert documents.get(flag) is True, (flag,documents)
+          assert len(report["shots"])==13
+          for fn in report["shots"]:
+              p=root/fn
+              assert p.is_file() and p.stat().st_size>150
+              with p.open("rb") as handle:
+                  assert handle.read(8)==bytes.fromhex("89504e470d0a1a0a"),fn
+          fixture=json.loads(os.environ["DC_DOS01_FIXTURE"])
+          with database.SessionLocal() as db:
+              for name,source in (("patient_a","a"),("patient_b","b"),("patient_x","x")):
+                  pid=fixture[name]
+                  patient=db.get(models.Patient,pid)
+                  assert patient is not None
+                  assets=db.query(ClinicalAsset).filter(
+                      ClinicalAsset.patient_id==pid,
+                      ClinicalAsset.source_kind!="DERIVED",
+                  ).all()
+                  assert len(assets)==1,(name,len(assets))
+                  assert assets[0].patient_id==pid
+                  assert assets[0].employer_id==patient.employer_id
+                  assert assets[0].provenance_json["ingestion_channel"]=="ORTHO_STUDIO"
+                  archived=db.get(models.DocumentArchive,fixture["archives"][source]["id"])
+                  assert archived is not None and archived.patient_id==pid
+                  assert archived.document_type==models.DocumentType.AUTRE
+                  assert archived.file_hash==fixture["archives"][source]["sha256"]
+              assert db.query(models.DocumentArchive).filter(
+                  models.DocumentArchive.patient_id.in_([
+                      fixture["patient_a"],fixture["patient_b"],fixture["patient_x"]]),
+                  models.DocumentArchive.document_type==models.DocumentType.RAPPORT_CEPHALO,
+              ).count()==0,"Synthetic generic PDF test may not create a clinical official archive"
+              assert db.get(models.Patient,fixture["patient_a"]).employer_id==db.get(models.Patient,fixture["patient_b"]).employer_id
+              assert db.get(models.Patient,fixture["patient_a"]).employer_id!=db.get(models.Patient,fixture["patient_x"]).employer_id
+              assert db.get(models.CephaloAnalysis,fixture["study_b"]).patient_id==fixture["patient_b"]
+          print("DC_DOS01_PATIENT_SWITCH_MULTI_TENANT_SYNTHETIC_SUBLOT_PASS")
+          print("OFFICIAL_FUE_74_D_STILL_PARTIAL_REQUIRES_DOCUMENT_SPLIT_CACHE_COVERAGE")
+          PY
       - name: Dump isolated runtime diagnostic on failure
         if: failure()
         run: |
@@ -299,5 +465,7 @@ jobs:
             artifacts/ceph-p2ter-authenticated-desktop/
             artifacts/ceph-p2ter-fue-i/
             artifacts/ceph-r23g4-reference-ui/
+            artifacts/ceph-v1-fourstep-fue/
+            artifacts/ceph-v1-dos01-multitenant/
           if-no-files-found: warn
           retention-days: 30

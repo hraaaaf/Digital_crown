@@ -1,0 +1,205 @@
+name: CEPH Unsigned Official Archive Guard (NO DEPLOY)
+
+on:
+  pull_request:
+    paths:
+      - 'backend/routers/patients.py'
+      - 'backend/tests/p2ter_bridge_synthetic_support.py'
+      - 'backend/tests/test_cephalo_p2ter_atomic_archive.py'
+      - 'backend/tests/test_cephalo_p2ter_archive_adversarial.py'
+      - 'backend/tests/test_cephalo_p2ter_identity_bound_pdf.py'
+      - 'backend/tests/test_cephalo_p2ter_crash_recovery.py'
+      - 'backend/routers/admin_legacy.py'
+      - 'backend/tests/test_admin_normalize_docs_security.py'
+      - 'backend/tests/test_admin_normalize_docs_cephalo_guard.py'
+      - 'frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs'
+      - 'frontend/scripts/fue-ceph-p2ter-first-value.mjs'
+      - 'frontend/src/features/ortho/hooks/useCephaloPersistence.ts'
+      - 'backend/tests/test_cephalo_unsigned_archive_entrypoints_contract.py'
+      - '.github/workflows/ceph-p2ter-master-bridge-real-cabinet.yml'
+      - 'frontend/src/features/ortho/components/Step4Documents.tsx'
+      - 'frontend/src/features/ortho/components/Step4Documents.g4Interactive.test.tsx'
+      - 'frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs'
+      - '.github/workflows/ceph-unsigned-official-archive-gate.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  unsigned-official-archive:
+    name: HTTP archive and historic replay safety
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      SECRET_KEY: ceph-unsigned-archive-test-key-000001
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Pin exact PR head
+        if: github.event_name == 'pull_request'
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-unsigned-archive-deps.txt
+          python -m pip install -r /tmp/ceph-unsigned-archive-deps.txt
+          python -m pip check
+      - name: Verify route refusal and historical archive integrity
+        run: |
+          python -m pytest -q \
+            backend/tests/test_cephalo_p2ter_atomic_archive.py \
+            backend/tests/test_cephalo_p2ter_archive_adversarial.py \
+            backend/tests/test_cephalo_p2ter_identity_bound_pdf.py \
+            backend/tests/test_cephalo_p2ter_crash_recovery.py \
+            backend/tests/test_cephalo_four_part_report.py \
+            backend/tests/test_admin_normalize_docs_security.py \
+            backend/tests/test_admin_normalize_docs_cephalo_guard.py \
+            backend/tests/test_admin_router.py \
+            backend/tests/test_cephalo_unsigned_archive_entrypoints_contract.py
+
+  unsigned-archive-ui:
+    name: Desktop archive affordance and draft export
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Pin exact PR head
+        if: github.event_name == 'pull_request'
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Verify archive disabled and draft still operational
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/components/Step4Documents.g4Interactive.test.tsx src/features/ortho/cephaloArchiveGate.test.ts src/features/ortho/cephaloRepository.document.test.ts
+      - name: Check TypeScript without running or deploying desktop application
+        working-directory: frontend
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Syntax check historical P2ter authentic browser scripts
+        working-directory: frontend
+        run: |
+          node --check scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+          node --check scripts/fue-ceph-p2ter-first-value.mjs
+
+  native-windows-sqlcipher:
+    name: Native Windows SQLCipher P2ter crash and replay
+    runs-on: windows-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      DATABASE_URL: 'sqlite:///:memory:'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Pin exact PR head
+        if: github.event_name == 'pull_request'
+        shell: pwsh
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:PRODUCT_HEAD) {
+            throw 'Product HEAD mismatch: refuse evidence'
+          }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          architecture: 'x64'
+      - name: Install native Windows SQLCipher and isolated archive dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --only-binary=:all: sqlcipher3==0.6.2
+          if ($LASTEXITCODE -ne 0) { throw 'Native Windows SQLCipher unavailable' }
+          python -m pip install SQLAlchemy==2.0.28 pytest==9.0.3 fastapi==0.115.6 pydantic==2.6.3 passlib==1.7.4 python-dotenv==1.2.1 email-validator==2.3.0 python-multipart==0.0.31 pillow==12.2.0 numpy==2.4.3
+          if ($LASTEXITCODE -ne 0) { throw 'Native archive deps failed' }
+          python -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'Native archive dependencies incompatible' }
+      - name: Native encrypted DB crash/replay with hard process termination
+        shell: pwsh
+        run: |
+          python -m pytest --noconftest backend/tests/test_cephalo_p2ter_windows_sqlcipher_native.py -vv -s 2>&1 | Tee-Object -FilePath unsigned-archive-windows-sqlcipher.log
+          if ($LASTEXITCODE -ne 0) { throw 'Native SQLCipher archive recovery failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ceph-unsigned-a4-windows-sqlcipher-${{ github.event.pull_request.head.sha || github.sha }}
+          path: unsigned-archive-windows-sqlcipher.log
+          retention-days: 30
+          if-no-files-found: warn
+
+  unsigned-archive-visual-proof:
+    name: BEFORE AFTER browser screenshots real React synthetic patient
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Pin exact product HEAD
+        if: github.event_name == 'pull_request'
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/checkout@v4
+        if: github.event_name == 'pull_request'
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: baseline
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated headless Chromium fixture dependencies
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --no-package-lock playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Render exact BEFORE and AFTER on identical viewports
+        if: github.event_name == 'pull_request'
+        working-directory: frontend
+        env:
+          CEPH_PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+          CEPH_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          CEPH_BASELINE_FILE: ../baseline/frontend/src/features/ortho/components/Step4Documents.tsx
+        run: node scripts/capture-ceph-unsigned-a4-archive-hold.mjs
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ceph-unsigned-a4-before-after-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/ceph-unsigned-archive-visual-proof/
+          retention-days: 30
+          if-no-files-found: warn

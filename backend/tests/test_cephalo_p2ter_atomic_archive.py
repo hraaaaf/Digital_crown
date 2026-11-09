@@ -15,7 +15,7 @@ from sqlalchemy.orm import Session
 from backend import models
 from backend.services.cephalo_document_lock import lock_selected_cephalo_for_archive
 from backend.tests.p2ter_bridge_synthetic_support import _case, _jwt, PATH
-from backend.tests.p2ter_bridge_synthetic_support import _cabinet, _temporary_pdf_output
+from backend.tests.p2ter_bridge_synthetic_support import _cabinet, _temporary_pdf_output, _seed_synthetic_historical_cephalo_archive
 
 
 def test_database_row_guard_blocks_actual_concurrent_revision_write(tmp_path):
@@ -96,9 +96,10 @@ def test_same_study_revision_archive_replays_identical_bytes_once(
 
     endpoint = f"/api/patients/{patient.id}/pdf"
     payload = {"analysis_id": study.id, "expected_revision": 1, "archive": True}
+    _seed_synthetic_historical_cephalo_archive(db, patient, study)
     first = client.post(endpoint, json=payload, headers=headers)
     assert first.status_code == 200, first.text[:250] if first.status_code != 200 else ""
-    assert first.headers.get("X-Cephalo-Archive-Replayed") is None
+    assert first.headers["X-Cephalo-Archive-Replayed"] == "true"
     second = client.post(endpoint, json=payload, headers=headers)
     assert second.status_code == 200, second.text[:250] if second.status_code != 200 else ""
     assert second.headers["X-Cephalo-Archive-Replayed"] == "true"
@@ -158,6 +159,7 @@ def test_replay_serves_verified_snapshot_not_reopened_file(
     monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
     endpoint = f"/api/patients/{patient.id}/pdf"
     payload = {"analysis_id": study.id, "expected_revision": 1, "archive": True}
+    _seed_synthetic_historical_cephalo_archive(db, patient, study)
     initial = client.post(endpoint, json=payload, headers=headers)
     assert initial.status_code == 200
     before = initial.content
@@ -215,13 +217,14 @@ def test_generic_upload_cannot_forge_or_overwrite_official_cephalo_archive(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 0
 
-    # Create an actual synthetic authority-bound report, then attempt generic
-    # overwrite of its original filename. Neither its bytes nor SQL may mutate.
+    # Seed a synthetic *historical* official record via the low-level archival
+    # fixture. The current unsigned renderer must not create new official rows.
     monkeypatch.setattr(
         cephalo_consistency_validator, "validate",
         lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
     )
     monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+    _seed_synthetic_historical_cephalo_archive(db, patient, study)
     official = client.post(
         f"/api/patients/{patient.id}/pdf",
         json={"analysis_id": study.id, "expected_revision": 1, "archive": True},
@@ -303,6 +306,7 @@ def test_archive_revision_edit_after_first_commit_is_not_replayed_as_old_revisio
     monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
     path = f"/api/patients/{patient.id}/pdf"
     req1 = {"analysis_id": study.id, "expected_revision": 1, "archive": True}
+    _seed_synthetic_historical_cephalo_archive(db, patient, study)
     assert client.post(path, json=req1, headers=headers).status_code == 200
     edited = deepcopy(points)
     next(p for p in edited if p["id"] == "A")["x"] += 2
@@ -313,10 +317,52 @@ def test_archive_revision_edit_after_first_commit_is_not_replayed_as_old_revisio
         json={"analysis_id": study.id, "expected_revision": 2, "archive": True},
         headers=headers,
     )
-    assert updated.status_code == 200, updated.text[:250] if updated.status_code != 200 else ""
+    assert updated.status_code == 409
+    assert "BROUILLON NON SIGNÉ" in updated.json()["detail"]
     archives = db.query(models.DocumentArchive).filter(
         models.DocumentArchive.analysis_id == study.id,
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).all()
-    assert len(archives) == 2
-    assert sorted(a.clinical_data["cephalo_analysis_revision"] for a in archives) == [1, 2]
+    assert len(archives) == 1
+    assert archives[0].clinical_data["cephalo_analysis_revision"] == 1
+
+
+def test_unsigned_new_a4_official_archive_is_rejected_before_file_or_db_write(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    """Actual authenticated route: no official DB row and no orphan PDF."""
+    from types import SimpleNamespace
+    from backend.services.cephalo_consistency_validator import cephalo_consistency_validator
+    from backend.services import archive_service
+
+    _temporary_pdf_output(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _ = _case(db, dentiste)
+    monkeypatch.setattr(
+        cephalo_consistency_validator, "validate",
+        lambda _: SimpleNamespace(is_valid=True, warnings=[], fatals=[]),
+    )
+    monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
+    headers = _jwt(client, dentiste)
+    endpoint = f"/api/patients/{patient.id}/pdf"
+    payload = {"analysis_id": study.id, "expected_revision": 1, "archive": True}
+    first = client.post(endpoint, json=payload, headers=headers)
+    assert first.status_code == 409, first.text[:400]
+    assert "BROUILLON NON SIGNÉ" in first.json()["detail"]
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+    assert not list(tmp_path.rglob("*.pdf"))
+
+    # An explicit non-archived preview remains available for the same study.
+    preview = client.post(endpoint, json={**payload, "archive": False}, headers=headers)
+    assert preview.status_code == 200, preview.text[:400] if preview.status_code != 200 else ""
+    assert preview.content.startswith(b"%PDF")
+    import fitz
+    with fitz.open(stream=preview.content, filetype="pdf") as pdf:
+        assert "BROUILLON" in "\\n".join(page.get_text() for page in pdf)
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0

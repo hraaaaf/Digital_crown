@@ -1,5 +1,5 @@
 /** Experimental P2ter++ FUE-I, fresh Cabinet browser personas on synthetic T2.
- * Runs after the authenticated desktop tests seeded two verified archives.
+ * Runs after authenticated desktop tests confirmed unsigned archive denial.
  * Does not pretend to represent an unsupervised clinician or a blank patient.
  */
 import fs from 'node:fs/promises';
@@ -22,8 +22,8 @@ await fs.mkdir(output,{recursive:true});
 const report={
   head,classification:'FUE-I',scope:'CEPH-FAC-PARITY/P2ter++',
   persona:'first-time Cabinet dentist with an existing synthetic versioned study',
-  fixture:'disposable T2; official archive already created by the desktop certification',
-  firstValue:'genuine study/revision-bound PDF draft downloaded, followed by official archive replay',
+  fixture:'disposable T2; no newly created official archive',
+  firstValue:'genuine study/revision-bound PDF draft downloaded, official archive disabled and HTTP 409',
   exclusions:['real first patient creation','real medical records','clinical signoff','server persistence of patient photos',
     'production deployment','mobile and tablet (Céphalométrie not supported on those devices)',
     'genuine independent clinical/human audit'],
@@ -33,7 +33,7 @@ const browser=await chromium.launch({headless:true});
 const matrixIDs=[
   'CLEAN_BROWSER_LOGIN','DASHBOARD_PATIENT_SEARCH','ENTER_IMAGING','OPEN_CEPHALO','SELECT_OLDER_STUDY',
   'DESKTOP_STEPPER','NO_HORIZONTAL_VIEWPORT_OVERFLOW',
-  'DRAFT_PDF_FIRST_VALUE','OFFICIAL_ARCHIVE_REPLAY',
+  'DRAFT_PDF_FIRST_VALUE','UNSIGNED_OFFICIAL_ARCHIVE_HOLD',
 ];
 async function viewportRun(viewport) {
   const label=viewport.width+'x'+viewport.height;
@@ -188,54 +188,32 @@ async function viewportRun(viewport) {
       await shot('after-first-value');
       return record.firstValue;
     });
-    if(ready) ready=await run('OFFICIAL_ARCHIVE_REPLAY',async()=>{
-      const archive=page.getByRole('button',{name:'Archiver le bilan'});
+    if(ready) ready=await run('UNSIGNED_OFFICIAL_ARCHIVE_HOLD',async()=>{
+      const archive=page.getByRole('button',{name:'Archivage suspendu'});
       await archive.waitFor({state:'visible',timeout:15000});
-      await page.waitForFunction(()=>{
-        const b=[...document.querySelectorAll('button')].find(e=>e.textContent?.includes('Archiver le bilan'));
-        return Boolean(b&&!b.disabled);
-      },null,{timeout:30000});
-      // Native window.confirm is the real user-visible archive ACK.
-      // A screenshot AFTER dialog dismissal cannot capture its contents:
-      // retain the actual Chromium dialog message and explicitly verify it.
-      const dialogPromise=page.waitForEvent('dialog',{timeout:45000}).then(async dialog=>{
-        const message=dialog.message();
-        const type=dialog.type();
-        await dialog.dismiss();
-        if(type!=='confirm')throw Error('Archive expected a native confirm, got '+type);
-        return message;
-      });
-      const archiveDownloadPromise=page.waitForEvent('download',{timeout:45000});
-      const responsePromise=page.waitForResponse(res=>
-        new URL(res.url()).pathname==='/api/patients/'+ids.patient_id+'/pdf'
-        && res.request().method()==='POST' && res.request().postDataJSON()?.archive===true,
-      {timeout:45000});
+      if(!await archive.isDisabled())
+        throw Error('Unsigned A4 official archive button must be disabled');
+      const draft=page.getByRole('button',{name:'Brouillon PDF'});
+      if(!await draft.isEnabled())throw Error('Draft download unavailable while archive held');
+      const explanation=await page.getByTestId('unsigned-cephalo-archive-hold').innerText();
+      if(!/brouillon non signé/i.test(explanation) || !/signature vérifiable/i.test(explanation))
+        throw Error('Clinician did not receive unsigned archive reason');
       await archive.scrollIntoViewIfNeeded();
-      await shot('before-official-archive-replay');
-      await archive.click();
-      const [response,dialogMessage,archiveDownload]=await Promise.all([
-        responsePromise,dialogPromise,archiveDownloadPromise,
-      ]);
-      const downloadFailure=await archiveDownload.failure();
-      if(downloadFailure)throw Error('Archived PDF download failed: '+downloadFailure);
-      if(!dialogMessage.includes('Archive existante réutilisée sans modification')
-          || !dialogMessage.includes('étude '+ids.older_id)
-          || !dialogMessage.includes('Annuler = Télécharger le fichier'))
-        throw Error('User-visible archive confirmation missing accurate replay message: '+dialogMessage);
-      record.archiveUiFeedback={kind:'native-window.confirm',message:dialogMessage,
-        file:archiveDownload.suggestedFilename(),verifiedBy:'Playwright dialog event, not page screenshot'};
-      const payload=response.request().postDataJSON();
-      const bytes=await response.body();
-      if(response.status()!==200||!bytes.subarray(0,4).equals(Buffer.from('%PDF'))
-        ||payload.analysis_id!==ids.older_id
-        ||payload.expected_revision!==record.firstValue.revision
-        ||response.headers()['x-cephalo-analysis-id']!==String(ids.older_id)
-        ||response.headers()['x-cephalo-revision']!==String(record.firstValue.revision)
-        ||response.headers()['x-cephalo-archive-replayed']!=='true')
-        throw Error('Official archive replay is not identity/revision-verified, HTTP '+response.status());
-      await shot('after-official-archive-replay');
-      return {analysis_id:ids.older_id,revision:payload.expected_revision,replayed:true,bytes:bytes.length,
-        uiConfirmation:record.archiveUiFeedback};
+      await shot('before-unsigned-archive-hold');
+      // Even an authenticated client bypassing the disabled button must not
+      // be able to promote this unsignable PDF into DocumentArchive.
+      const response=await api.post('/api/patients/'+ids.patient_id+'/pdf',{
+        headers:{Authorization:'Bearer '+token},
+        data:{analysis_id:ids.older_id,expected_revision:record.firstValue.revision,archive:true},
+      });
+      const detail=(await response.json().catch(()=>({}))).detail||'';
+      if(response.status()!==409 || !String(detail).includes('BROUILLON NON SIGNÉ'))
+        throw Error('New official archive not refused: '+response.status()+' '+String(detail));
+      await shot('after-unsigned-archive-hold');
+      record.archiveHoldEvidence={kind:'real-button-disabled + authenticated direct HTTP',
+        reason:explanation,server_status:response.status(),archive_created:false,
+        clinical_release:false};
+      return record.archiveHoldEvidence;
     });
   }catch(error){
     record.errors.push('HARNESS_SETUP: '+String(error));
