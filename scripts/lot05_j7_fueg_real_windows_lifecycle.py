@@ -169,7 +169,10 @@ def main():
     root = Path(os.environ["RUNNER_TEMP"]).resolve()
     check(evidence.parent.resolve() == root and not evidence.exists(), "NON_VIRGIN_RUNNER_OUTPUT")
     evidence.mkdir()
-    work = evidence / "FAKE_PRIVATE_WORK"
+    # Keep ALL generated DB/keys/WAL/media OUTSIDE the upload-artifact directory.
+    # Even a Windows filesystem cleanup problem must never expose them.
+    work = root / ("LOT05_FAKE_PRIVATE_" + actual_sha[:12])
+    check(work.parent.resolve() == root and not work.exists(), "NON_VIRGIN_PRIVATE_WORK")
     work.mkdir()
     procs = []
     verdict = None
@@ -289,7 +292,14 @@ def main():
             database.engine.dispose()
         except Exception:
             pass
-        shutil.rmtree(work, ignore_errors=True)
+        # Windows SQLCipher, Uvicorn and antivirus may briefly retain handles;
+        # bounded retry, never treat incomplete cleanup as a passing verdict.
+        for _attempt in range(15):
+            shutil.rmtree(work, ignore_errors=True)
+            if not work.exists():
+                break
+            time.sleep(2)
+        check(not work.exists(), "PRIVATE_WORK_CLEANUP_FAILED")
     if verdict is None:
         raise AssertionError("NO_VERDICT")
     (evidence / PROOF_NAME).write_text(json.dumps(verdict, sort_keys=True, indent=2) + "\n", encoding="utf-8")
