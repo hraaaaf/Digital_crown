@@ -1,10 +1,12 @@
 # LOT05.7C-H - official trial GUI launch observation, GitHub-hosted ephemeral Windows only.
 # Requires a proven synthetic interactive desktop on the SAME runner.
-# Does NOT click Install, configure MariaDB, launch Open Dental product, export CSV,
-# or upload binary/window text/screenshot/patient data. Never run on a cabinet PC.
+# Default is read-only. The optional bounded wizard switch can request one
+# owner-authorized Install message; never accept EULA or complete a setup.
+# Never run on a cabinet PC or access real patient data.
 [CmdletBinding()]
 param(
-  [switch]$LaunchSetupWizardOnly
+  [switch]$LaunchSetupWizardOnly,
+  [switch]$ReadOnlyElevationProbe
 )
 
 Set-StrictMode -Version Latest
@@ -42,6 +44,12 @@ $report = [ordered]@{
   installer_win32_install_in_vendor_bounds = $false
   installer_win32_install_semantic_button_proven = $false
   install_wizard_probe_requested = [bool]$LaunchSetupWizardOnly
+  read_only_elevation_probe_requested = [bool]$ReadOnlyElevationProbe
+  vendor_window_token_queryable = $false
+  vendor_window_token_elevated = $null
+  runner_token_queryable = $false
+  runner_token_elevated = $null
+  token_elevation_mismatch = $null
   install_wizard_probe_guard_passed = $false
   install_button_invocation_attempted = $false
   install_button_message_delivered = $false
@@ -273,6 +281,97 @@ public static class Lot05ReadOnlyInstallerWin32 {
       # No fallback to coordinate-based clicks; zero evidence means NO-GO.
       $report.installer_win32_probe_completed = $false
       $report.installer_win32_install_semantic_button_proven = $false
+    }
+  }
+  # READ-ONLY token elevation assessment: determine whether Windows blocked
+  # cross-integrity GUI messages, without sending another BM_CLICK.
+  # Never publish PIDs, usernames, token handles, paths or window contents.
+  if ($ReadOnlyElevationProbe -and
+      $report.official_trial_window_title_allowlisted -and
+      $installerHwnd -ne [IntPtr]::Zero) {
+    try {
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class Lot05InstallerTokenReadOnly {
+  [DllImport("user32.dll", SetLastError=true)]
+  private static extern uint GetWindowThreadProcessId(
+    IntPtr hwnd, out uint processId);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern IntPtr OpenProcess(
+    uint desiredAccess, bool inherit, uint processId);
+  [DllImport("kernel32.dll", SetLastError=true)]
+  private static extern IntPtr GetCurrentProcess();
+  [DllImport("kernel32.dll")]
+  private static extern bool CloseHandle(IntPtr handle);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  private static extern bool OpenProcessToken(
+    IntPtr process, uint access, out IntPtr token);
+  [DllImport("advapi32.dll", SetLastError=true)]
+  private static extern bool GetTokenInformation(
+    IntPtr token, int infoClass, out int elevation,
+    int bufferSize, out int resultSize);
+  private static bool TryReadElevation(IntPtr process, out bool elevated) {
+    elevated = false;
+    IntPtr token = IntPtr.Zero;
+    try {
+      if (!OpenProcessToken(process, 0x0008, out token)) return false;
+      int elevation = 0;
+      int resultSize = 0;
+      if (!GetTokenInformation(
+          token, 20, out elevation, sizeof(int), out resultSize)) return false;
+      elevated = (elevation != 0);
+      return true;
+    } finally {
+      if (token != IntPtr.Zero) CloseHandle(token);
+    }
+  }
+  public static bool TryCurrent(out bool elevated) {
+    return TryReadElevation(GetCurrentProcess(), out elevated);
+  }
+  public static bool TryWindow(IntPtr hwnd, out bool elevated) {
+    elevated = false;
+    uint pid = 0;
+    if (GetWindowThreadProcessId(hwnd, out pid) == 0 || pid == 0) {
+      return false;
+    }
+    IntPtr process = OpenProcess(0x1000, false, pid);
+    if (process == IntPtr.Zero) return false;
+    try {
+      return TryReadElevation(process, out elevated);
+    } finally {
+      CloseHandle(process);
+    }
+  }
+}
+'@
+      $selfElevated = $false
+      $vendorElevated = $false
+      $report.runner_token_queryable = [bool](
+        [Lot05InstallerTokenReadOnly]::TryCurrent([ref]$selfElevated)
+      )
+      $report.vendor_window_token_queryable = [bool](
+        [Lot05InstallerTokenReadOnly]::TryWindow(
+          $installerHwnd, [ref]$vendorElevated
+        )
+      )
+      if ($report.runner_token_queryable) {
+        $report.runner_token_elevated = [bool]$selfElevated
+      }
+      if ($report.vendor_window_token_queryable) {
+        $report.vendor_window_token_elevated = [bool]$vendorElevated
+      }
+      if ($report.runner_token_queryable -and
+          $report.vendor_window_token_queryable) {
+        $report.token_elevation_mismatch = (
+          $report.runner_token_elevated -ne
+          $report.vendor_window_token_elevated
+        )
+      }
+    } catch {
+      # Unreadable token is a legitimate NOT_PROVEN outcome.
+      $report.vendor_window_token_queryable = $false
+      $report.token_elevation_mismatch = $null
     }
   }
   # Screenshot ONLY the signed vendor launcher's first window, before any
