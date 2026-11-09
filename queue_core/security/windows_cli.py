@@ -194,7 +194,17 @@ def _create_private_dir(path: Path) -> None:
 def _database_path(*, initialize: bool) -> Path:
     require_local_windows_admin_console()
     base = _programdata() / "DigitalCrownQueueCore"
-    _create_private_dir(base)
+    # status/enroll/recover must never create a previously absent store.
+    _no_reparse(base.parent)
+    _no_reparse(base)
+    if initialize:
+        _create_private_dir(base)
+    elif base.exists():
+        if not base.is_dir():
+            raise LocalConsoleRequired("AUTH_DIR_INVALID")
+        _verify_acl(base)
+    else:
+        return base / "local_auth.sqlite"
     database = base / "local_auth.sqlite"
     _no_reparse(database)
     if initialize and not database.exists():

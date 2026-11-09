@@ -13,6 +13,7 @@ data, Digital Crown account, Firebase, Internet, QR or LAN service is involved.
 - `windows_console.require_local_windows_admin_console` checks Windows, elevated
   UAC token, actual interactive console, server console session and WTS protocol=0.
   Remote Desktop / redirected terminal / non-admin sessions fail closed.
+- `status`, `enroll` and `recover` do **not** create an absent auth directory or database. Only elevated local-console `issue` can securely create the store. Read-only status is side-effect-free when uninitialized (review #2 P3 correction).
 - Only `windows_cli` chooses the runtime database location, using HKLM's
   `Common AppData`; no user-configurable `--db` in production CLI. Dedicated
   `ProgramData\DigitalCrownQueueCore\local_auth.sqlite`. Parent DACL accepts

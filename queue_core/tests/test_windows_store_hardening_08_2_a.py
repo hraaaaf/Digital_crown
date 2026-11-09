@@ -144,3 +144,18 @@ def test_powershell_acl_verifier_template_parses_without_execution(monkeypatch, 
     )
     assert result.returncode == 0
     assert "PARSE_OK" in result.stdout
+
+
+
+def test_status_and_recovery_path_never_create_uninitialized_store(monkeypatch, tmp_path):
+    """Read-only mode may inspect an absent store, but must not create ProgramData."""
+    monkeypatch.setattr(windows_cli, "require_local_windows_admin_console", lambda: None)
+    monkeypatch.setattr(windows_cli, "_programdata", lambda: tmp_path)
+    def forbidden_create(*_args, **_kwargs):
+        pytest.fail("Non-initializing command MUST NOT create auth directories/files")
+    monkeypatch.setattr(windows_cli, "_secure_win32_create", forbidden_create)
+    monkeypatch.setattr(windows_cli, "_create_private_dir", forbidden_create)
+    expected = tmp_path / "DigitalCrownQueueCore" / "local_auth.sqlite"
+    assert windows_cli._database_path(initialize=False) == expected
+    assert not expected.parent.exists()
+    assert not expected.exists()
