@@ -184,9 +184,11 @@ def main():
         media.mkdir(parents=True, exist_ok=False)
         _subprocess("FAKE_alembic", [sys.executable, "-m", "alembic", "upgrade", "head"], env, work)
         check(db.is_file(), "REAL_SQLCIPHER_SCHEMA_NOT_CREATED")
+        print("FUEG_STAGE:SCHEMA", flush=True)
         first = launch(env, work, "FAKE_live_before")
         procs.append(first)
         check(health(port, 110, first), "REAL_INITIAL_RUNPY_HEALTH_FAILED")
+        print("FUEG_STAGE:INITIAL_HEALTH", flush=True)
         (media / "FAKE_before.bin").write_bytes(b"FAKE_BEFORE_NOT_A_PATIENT")
         crash_commit_wal(db, env["SQLCIPHER_KEY_HEX"])
         check(Path(str(db) + "-wal").stat().st_size > 0, "WAL_NOT_RETAINED")
@@ -202,9 +204,12 @@ def main():
         BackupService.restore_backup(encrypted, clone, verify_sqlcipher=True,
                                      passphrase=env["SQLCIPHER_KEY_HEX"])
         check(read_truth(clone, env["SQLCIPHER_KEY_HEX"]) == "BEFORE_FAKE", "VERIFIED_BACKUP_WRONG")
+        print("FUEG_STAGE:ENCRYPTED_BACKUP_AND_CLONE_VERIFIED", flush=True)
         good_id = prepare(before_package, db)
+        print("FUEG_STAGE:PREPARED_GOOD", flush=True)
         database.engine.dispose()
         stop(first)
+        print("FUEG_STAGE:REAL_PARENT_STOPPED", flush=True)
         import backend.services.guided_restore_worker as worker_module
         # ONLY launcher path is adapted: the installed signed EXE is NOT available.
         # Each returned process actually executes the real source entrypoint run.py.
@@ -216,10 +221,12 @@ def main():
             return proc
         Worker._launch_app = staticmethod(launch_real)
         check(not Worker._pid_alive(first.pid), "PARENT_EXIT_NOT_REAL")
+        print("FUEG_STAGE:WORKER_GOOD_START", flush=True)
         check(Worker.run(good_id, first.pid, executable="SOURCE_ONLY_NOT_FROZEN") == 0,
               "REAL_RESTORE_AND_RESTART_FAILED")
         check(Service.get_job(good_id)["status"] == "success", "REAL_RESTORE_JOB_NOT_SUCCESS")
         check(health(port, 30, launches[-1]), "REAL_POST_RESTORE_HTTP_NOT_HEALTHY")
+        print("FUEG_STAGE:WORKER_GOOD_HEALTH", flush=True)
         check(read_truth(db, env["SQLCIPHER_KEY_HEX"]) == "AFTER_FAKE", "REAL_RESTORE_MARKER_WRONG")
         check((media / "radios/FAKE_AFTER.bin").read_bytes() == b"FAKE_RADIO_NO_PATIENT",
               "RESTORED_FAKE_MEDIA_MISSING")
@@ -229,6 +236,7 @@ def main():
         failing_package = bundle(work, db, env["SQLCIPHER_KEY_HEX"], "FAILED_FAKE",
                                  {"radios/FAKE_FAILED.bin": b"FAKE_FAILED_MEDIA"})
         bad_id = prepare(failing_package, db)
+        print("FUEG_STAGE:PREPARED_NEGATIVE", flush=True)
         database.engine.dispose()
         stop(launches[-1])
         check(not Worker._pid_alive(launches[-1].pid), "SECOND_PARENT_EXIT_NOT_REAL")
@@ -247,7 +255,9 @@ def main():
         original_smoke = Worker._smoke_check
         Worker._smoke_check = staticmethod(
             lambda timeout=60: original_smoke(timeout=9 if failed_once[0] and len(launches) == 2 else 110))
+        print("FUEG_STAGE:WORKER_ROLLBACK_START", flush=True)
         exit_code = Worker.run(bad_id, launches[0].pid, executable="SOURCE_ONLY_NOT_FROZEN")
+        print("FUEG_STAGE:WORKER_ROLLBACK_EXIT_" + str(exit_code), flush=True)
         check(exit_code == 2, "REAL_HEALTH_FAILURE_DID_NOT_ROLLBACK")
         check(Service.get_job(bad_id)["status"] == "rolled_back", "ROLLBACK_STATE_NOT_WRITTEN")
         check(health(port, 35, launches[-1]), "REAL_ROLLBACK_RESTART_NOT_HEALTHY")
@@ -291,5 +301,5 @@ if __name__ == "__main__":
     try:
         main()
     except Exception as exc:
-        print("LOT05_J7_FUEG_FAIL:" + type(exc).__name__, file=sys.stderr)
+        print("LOT05_J7_FUEG_FAIL:" + type(exc).__name__ + ":" + (str(exc) if __import__("re").fullmatch(r"[A-Z0-9_]{3,100}", str(exc)) else "UNCLASSIFIED"), file=sys.stderr, flush=True)
         raise SystemExit(2) from None
