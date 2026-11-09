@@ -190,19 +190,24 @@ class BilanPDFGenerator(BaseTemplate):
         ddm_max = clinical_data.get('ddm_maxillaire') or {}
         ddm_mand = clinical_data.get('ddm_mandibulaire') or {}
         
+        def measured_mm(component, key):
+            value = component.get(key)
+            return f"{value} mm" if isinstance(value, (int, float)) else "Non mesuré"
+
+        ddm_total = clinical_data.get("ddm_reelle")
         ddm_table_data = [
             ["Arcade", "Espace Disponible (ED)", "Espace Nécessaire (EN)", "DDM Clinique"],
-            ["Maxillaire", f"{ddm_max.get('espace_disponible', 0)} mm", f"{ddm_max.get('espace_necessaire', 0)} mm", f"{ddm_max.get('calcul_ddm', 0)} mm"],
-            ["Mandibulaire", f"{ddm_mand.get('espace_disponible', 0)} mm", f"{ddm_mand.get('espace_necessaire', 0)} mm", f"{ddm_mand.get('calcul_ddm', 0)} mm"],
-            ["VERDICT DDM RÉELLE", "", "", f"<b>{clinical_data.get('ddm_reelle', 0)} mm</b>"]
+            ["Maxillaire", measured_mm(ddm_max, "espace_disponible"), measured_mm(ddm_max, "espace_necessaire"), measured_mm(ddm_max, "calcul_ddm")],
+            ["Mandibulaire", measured_mm(ddm_mand, "espace_disponible"), measured_mm(ddm_mand, "espace_necessaire"), measured_mm(ddm_mand, "calcul_ddm")],
+            ["DDM totale", "", "", f"<b>{ddm_total} mm</b>" if isinstance(ddm_total, (int, float)) else "Non calculable"]
         ]
-        
+
         t_ddm = Table(ddm_table_data, colWidths=[4.5*cm, 4*cm, 4*cm, 4.5*cm])
         t_ddm.setStyle(TableStyle([('BACKGROUND',(0,0),(-1,0),NAVY_BLUE),('TEXTCOLOR',(0,0),(-1,0),colors.whitesmoke),('ALIGN',(0,0),(-1,-1),'CENTER'),('GRID',(0,0),(-1,-1),0.5,colors.grey),('SPAN',(0,3),(2,3))]))
         elements.append(t_ddm)
         elements.append(Spacer(1, 1*cm))
         
-        elements.append(Paragraph("<i>Note : La DDM Réelle intègre l'encombrement prévisionnel lié au redressement incisif calculé en céphalométrie (0.5mm par degré de correction).</i>", self.styles['Narrative']))
+        elements.append(Paragraph("<i>DDM clinique = espace disponible moins espace nécessaire, mesurés sur moulage. Aucune correction céphalométrique n'est déduite.</i>", self.styles['Narrative']))
 
         doc.build(elements, onFirstPage=self._draw_canvas, onLaterPages=self._draw_canvas)
         return file_path.replace("\\", "/")

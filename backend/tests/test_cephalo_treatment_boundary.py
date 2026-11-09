@@ -118,8 +118,8 @@ def test_practitioner_payload_is_not_sanitized():
 
 def test_clinical_ddm_is_not_modified_by_impa():
     clinical = schemas.ClinicalData(
-        ddm_maxillaire=schemas.DDMComponent(espace_disponible=0, espace_necessaire=0, calcul_ddm=-2.5),
-        ddm_mandibulaire=schemas.DDMComponent(espace_disponible=0, espace_necessaire=0, calcul_ddm=-3.0),
+        ddm_maxillaire=schemas.DDMComponent(espace_disponible=20, espace_necessaire=22.5, calcul_ddm=999),
+        ddm_mandibulaire=schemas.DDMComponent(espace_disponible=20, espace_necessaire=23, calcul_ddm=999),
     )
     result = CephaloService._calculate_complex_ddm(None, None, clinical)
     assert result.ddm_maxillaire.calcul_ddm == -2.5
@@ -133,3 +133,60 @@ def test_service_contains_no_impa_space_conversion_formula():
     source = SERVICE.read_text(encoding="utf-8")
     assert "(impa - 90) / 2.5" not in source
     assert "2.5°" not in source
+
+
+def test_partial_direct_model_measurement_stays_unknown_not_zero():
+    clinical = schemas.ClinicalData(
+        ddm_maxillaire=schemas.DDMComponent(espace_disponible=24.0, espace_necessaire=None, calcul_ddm=None),
+        ddm_mandibulaire=None,
+    )
+    result = CephaloService._calculate_complex_ddm(None, None, clinical)
+    assert result.ddm_maxillaire.espace_disponible == 24.0
+    assert result.ddm_maxillaire.espace_necessaire is None
+    assert result.ddm_maxillaire.calcul_ddm is None
+    assert result.ddm_reelle is None
+
+
+def test_total_ddm_requires_both_arches_but_preserves_a_measured_zero():
+    upper = schemas.DDMComponent(espace_disponible=20, espace_necessaire=25, calcul_ddm=-5.0)
+    upper_only = CephaloService._calculate_complex_ddm(
+        None, None, schemas.ClinicalData(ddm_maxillaire=upper, ddm_mandibulaire=None),
+    )
+    assert upper_only.ddm_maxillaire.calcul_ddm == -5.0
+    assert upper_only.ddm_reelle is None
+
+    lower_partial = schemas.DDMComponent(espace_disponible=20, espace_necessaire=None, calcul_ddm=None)
+    incomplete = CephaloService._calculate_complex_ddm(
+        None, None, schemas.ClinicalData(ddm_maxillaire=upper, ddm_mandibulaire=lower_partial),
+    )
+    assert incomplete.ddm_reelle is None
+
+    lower_zero = schemas.DDMComponent(espace_disponible=20, espace_necessaire=20, calcul_ddm=0.0)
+    complete = CephaloService._calculate_complex_ddm(
+        None, None, schemas.ClinicalData(ddm_maxillaire=upper, ddm_mandibulaire=lower_zero),
+    )
+    assert complete.ddm_reelle == -5.0
+
+
+def test_backend_ddm_does_not_trust_client_reported_results():
+    clinical = schemas.ClinicalData(
+        ddm_maxillaire=schemas.DDMComponent(espace_disponible=25, espace_necessaire=30, calcul_ddm=100),
+        ddm_mandibulaire=schemas.DDMComponent(espace_disponible=20, espace_necessaire=18, calcul_ddm=-900),
+        ddm_reelle=999,
+    )
+    result = CephaloService._calculate_complex_ddm(None, None, clinical)
+    assert result.ddm_maxillaire.calcul_ddm == -5
+    assert result.ddm_mandibulaire.calcul_ddm == 2
+    assert result.ddm_reelle == -3
+
+
+def test_partial_cast_inputs_cannot_retain_a_client_calculated_ddm():
+    clinical = schemas.ClinicalData(
+        ddm_maxillaire=schemas.DDMComponent(espace_disponible=25, espace_necessaire=None, calcul_ddm=999),
+        ddm_mandibulaire=schemas.DDMComponent(espace_disponible=20, espace_necessaire=20, calcul_ddm=-900),
+        ddm_reelle=999,
+    )
+    result = CephaloService._calculate_complex_ddm(None, None, clinical)
+    assert result.ddm_maxillaire.calcul_ddm is None
+    assert result.ddm_mandibulaire.calcul_ddm == 0
+    assert result.ddm_reelle is None
