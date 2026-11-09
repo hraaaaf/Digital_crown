@@ -1,3 +1,9 @@
+## DECISION CANONIQUE DE GOUVERNANCE — 2026-11-09 — FUE À LA PLACE DE REVUE INDEPENDANTE DE CODE
+
+**Décision propriétaire 2026-11-09 — FUE remplace la revue indépendante de code comme gate standard.** La preuve requise est une FUE-0/I/G réellement exécutée, proportionnée au risque, avec scénarios négatifs/sécurité et oracles explicites, résultats inspectables, artefacts et SHA/HEAD exacts. Aucun reviewer indépendant, double review A/B, agent externe ou validation fictive n'est requis **en plus** de cette FUE pour un merge logiciel. Une FUE verte ne vaut pas automatiquement autorisation de merge, acte médical, restauration réelle, installation, validation humaine clinique/réglementaire/physique ou déploiement ; ces gates explicites restent inchangés. Les sections historiques qui imposent une revue indépendante de code sont supersédées prospectivement ; leurs constats et preuves restent archivés.
+
+**Effet immédiat pour LOT05 / J7 et les lots V1.5 à venir :** un reviewer indépendant absent ne bloque plus une PR lorsque la FUE et les contrôles spécialisés applicables sont exécutés avec preuves exact-HEAD ; un backend CI encore en cours/rouge, une faille prouvée, ou une autorisation humaine requise continue à bloquer. Les anciennes mentions « fresh independent review », « separate reviewer », « two reviewers » ci-dessous conservent leur valeur d'historique et **ne sont plus un gate prospectif**. La roadmap/Notion et `AGENTS.md` sont autorités.
+
 # STATE — DigitalCrown
 
 ## DÉCISION PROPRIÉTAIRE — 2026-11-09 — LOT08 logiciel/LAB ≠ LOT10 physique

@@ -27,10 +27,10 @@
 
 **Non-negotiable flags:** all successful test verdicts must still state `clinical_import_permitted=false`, `cabinet_database_accessed=false`, `deployment=false`. No path to activate the real Import button; no clinical data read/write; no production config, Vercel, EULA or install action.
 
-## Human GO/NO-GO sequence after seven lab lanes
+## FUE-first GO/NO-GO sequence after seven lab lanes
 
 1. Require all seven jobs **SUCCESS on the exact branch SHA**, inspect the actual jobs and JSON, and review negative tests. No skipped J task counts as success.
-2. Independently review the J1–J7 fake-only implementation for mistakes, overstatement and unsafe file paths.
+2. Execute and inspect the **FUE-0/I/G applicable** to J1–J7 on the exact HEAD (negative tests, immutable source SHA, target/tenant boundaries, unsafe file paths, fabricated media, DB/WAL restore) to detect mistakes and false-green claims. **No independent code reviewer is required in addition to FUE.**
 3. Keep all product import gates FALSE. Before any actual source data, separately validate source rights/format, authenticated owner identity, full ORM + physical schema and tenant reconciliation.
 4. Before any cabinet mutation, demonstrate tested backup/restore of the actual local encrypted database, WAL, attachments and media; rollback and post-crash idempotency; sample-level clinician approval.
 5. Merge only proven fake-only integration under owner approval; NO clinical activation and NO deployment by inference.

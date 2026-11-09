@@ -1,10 +1,14 @@
-# Digital Crown V1.5 — Independent Reviewer Routing (canonical lot matrix)
+# Digital Crown V1.5 — FUE-first risk routing (optional specialist reviewer matrix)
 
 Version: 1.0 · 2026-11-04 · **DOCUMENTARY CANDIDATE** · No clinical activation, merge or deployment permission.
 
+**Décision propriétaire 2026-11-09 — FUE remplace la revue indépendante de code comme gate standard.** La preuve requise est une FUE-0/I/G réellement exécutée, proportionnée au risque, avec scénarios négatifs/sécurité et oracles explicites, résultats inspectables, artefacts et SHA/HEAD exacts. Aucun reviewer indépendant, double review A/B, agent externe ou validation fictive n'est requis **en plus** de cette FUE pour un merge logiciel. Une FUE verte ne vaut pas automatiquement autorisation de merge, acte médical, restauration réelle, installation, validation humaine clinique/réglementaire/physique ou déploiement ; ces gates explicites restent inchangés. Les sections historiques qui imposent une revue indépendante de code sont supersédées prospectivement ; leurs constats et preuves restent archivés.
+
+**Nouvelle portée de ce fichier :** référentiel facultatif d'expertises, **pas matrice d'approbations requises**. Les colonnes « primary reviewer » ci-dessous sont des suggestions de risques pour construire les FUE/oracles, non des acteurs à convoquer obligatoirement. En cas de contradiction, `AGENTS.md` prévaut.
+
 ## 0. Scope and authority
 
-Canonical lot definitions: [Digital Crown V1.5 ROADMAP UNIQUE](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb), lots V1.5-00 through V1.5-10. Read actual HEAD, current lot handover and `AGENTS.md` before use. The historically closed V1 roadmap is NOT the operative V1.5 plan. This file is the **single reviewer-routing matrix**; do not replicate lot-level lists in AGENTS/CLAUDE.
+Canonical lot definitions: [Digital Crown V1.5 ROADMAP UNIQUE](https://app.notion.com/p/3e677c66336281d88c82d2fbe43835fb), lots V1.5-00 through V1.5-10. Read actual HEAD, current lot handover and `AGENTS.md` before use. The historically closed V1 roadmap is NOT the operative V1.5 plan. This file is an **optional specialist risk inventory**; FUE-0/I/G provides the required observable technical gate. Do not replicate general doctrine in AGENTS/CLAUDE.
 
 Seven specialized reviewer agents are read-only and independent of the implementing agent. **They are not independent human reviewers just because distinct names exist**: use a separate invocation/personnel with actual evidence; disclose same-model/self-review limits. Reviewers have neither clinical authority nor permission to mutate records, production, CI gating policies, deployment or merge. Their output is advisory/risk-evidence only.
 
@@ -22,18 +26,18 @@ Existing scientific specialists are reused when relevant: `scientific-reviewer`,
 | QUEUE | `.claude/agents/reviewer-queue-consistency.md` | queue transitions, events, retries, idempotence, integrations |
 | UX | `.claude/agents/reviewer-ux-accessibility.md` | real workflow usability, FR/AR/EN, theme tokens, 200%, accessibility |
 
-These are **available reviewers**, not seven mandatory approvals per pull request. The reviewer must not author the change under review. Invoke the minimal set **triggered by changed risk surface** and annotate `REQUIRED / CONDITIONAL / OUT_OF_SCOPE`. An independent reviewer is required only when the applicable lot/human/clinical/security gate explicitly requires one; never replace actual executable tests or certified field acceptance with a simulated second persona.
+These are **available reviewers**, not seven mandatory approvals per pull request. The reviewer must not author the change under review. No specialist reviewer is a mandatory code-merge gate; optionally consult the minimal set **when it adds insight** and annotate `OPTIONAL / NOT_INVOKED`. Explicit qualified clinical, regulatory, human or physical authorization gates are separate and cannot be replaced by a FUE or a simulated persona.
 
 ## 2. Canonical lot-to-risk matrix
 
-| Lot V1.5 | Canonical feature scope | Primary reviewer | Add on actual risk trigger | Non-negotiable validation |
+| Lot V1.5 | Canonical feature scope | Optional specialty lens | Other optional lenses | Non-negotiable FUE / clinical validation |
 |---|---|---|---|---|
 | **00 Hub & Dispatcher** | Hub shell, roles/workstation routes, device mode | SEC | UX, OPS | RBAC, denied routes, Hub navigation, appropriate FUE-I/G visual |
 | **01 Cabinet topology** | Server, annex PCs, LAN discovery/restart | OPS | SEC | 2-PC+server real topology when required; reconnect/restart/latency; simulated != field |
 | **02 Patient photo & identity** | Canonical photo source, capture/crop, UI propagation | SEC | IMG, UX, DATA | Correct patient association, tenant/RBAC, cache/delete and image fallback |
 | **03 Station / kiosk foundation** | Locked kiosk, pairing, QR/NFC, arrival, wall calls | SEC | QUEUE, UX, OPS | Anti-replay, public/private boundary, short sessions, no autonomous queue engine in LOT03 |
 | **04 Self-service documents** | Whitelist, staff-presence proof, pre-approved care sheet, print/Pocket | DOC | SEC, UX, OPS | Never edit clinical content in station; short token, purge, print, exact PDF |
-| **05 SQL Migration Wizard** | Inspector, source mappings, dry run, patients, finance, documents, rollback | DATA | OPS, SEC; clinical specialist if clinical semantics imported | Independent record/financial reconciliation, double run idempotence, tested isolated restore |
+| **05 SQL Migration Wizard** | Inspector, source mappings, dry run, patients, finance, documents, rollback | DATA | OPS, SEC; clinical validation remains a separate human gate if clinical semantics imported | **FUE observed record/financial reconciliation**, double-run idempotence, tested isolated SQLCipher/WAL + media restore, negative cases on exact HEAD |
 | **06 Imaging Acquisition Gateway** | Local hot-folder, camera, TWAIN/DICOM, patient linking, retries | IMG | SEC, OPS, DATA; radiology specialist if clinical reading affected | Correct patient / acquisition metadata, malformed files, duplicates, device trial for LOT10 |
 | **07 Theme Packs & Motion** | Semantic tokens, theme switch/persistence and accessibility | UX | SEC only if persistence/auth changes | Theme token inheritance (no palette hardcode); BEFORE/AFTER, contrast, 200%, reduced motion |
 | **08 Autonomous Queue Core** | Standalone state machine, operators, event log, idempotent API | QUEUE | SEC, DATA, UX | Concurrency, duplicate arrival, offline replay, tenant isolation, real events |
@@ -53,17 +57,17 @@ These are **available reviewers**, not seven mandatory approvals per pull reques
 7. For UI, only use theme semantic tokens from `frontend/src/index.css`; avoid theme-specific palette literals. The reviewers may flag violations but cannot implement fixes.
 8. A reviewer says `PASS_TECHNICAL` only for an inspected exact-HEAD scoped claim; `NOT_RUN` / `UNKNOWN` for missing evidence; `CHANGES_REQUIRED` / `BLOCKED` for unresolved MAJOR/BLOCKER. No score overrides missing proof.
 
-## 4. Per-lot reviewer call contract (copy, do not invent)
+## 4. Optional specialist consultation contract (not a required merge gate)
 
 `LOT / SUBLOT / CHANTIER / SHA / DIFF / ACCEPTANCE CLAIM / INPUT EVIDENCE / HUMAN GATES / FUE LEVEL`
 
 Reviewer returns `FINDING_ID / SEVERITY / EVIDENCE FILE+LINE OR ARTIFACT / IMPACT / REPRODUCTION / REFUSAL CASE / REMEDY / REQUIRED RETEST / STATUS`.
 
-After correction, compare actual new HEAD, retest affected evidence and have the distinct reviewer recheck only invalidated claims. Do not silently reclassify `UNKNOWN` as `PASS`.
+After correction, compare actual new HEAD and rerun the impacted **FUE assertions/oracles**. Optional specialists may comment on evidence, but no reviewer sign-off is required for technical FUE closeout. Do not silently reclassify `UNKNOWN` as `PASS`.
 
 ## 5. FUE and evidence gates
 
-- FUE-0: Markdown/contract/validator and independent static-oracle verification only. Do not fake UI screenshots.
+- FUE-0: Markdown/contract/validator and executable static-oracle verification only. Do not fake UI screenshots.
 - FUE-I: actual isolated intermediate workflow with synthetic actors and APIs; negative permissions and meaningful interaction.
 - FUE-G: actual end-to-end UI/API/auth/persistence pathway when the lot affects it. Capture BEFORE → ACTION → AFTER plus inspectable artifacts as appropriate.
 - LOT10: hardware/Windows/LAN/printer/camera/QR/NFC and field witness **NOT_RUN until physically exercised**, irrespective of prior lab/CI success.
