@@ -1,0 +1,91 @@
+name: DC-DOS-05 authenticated study-media source FUE (isolated, no deploy)
+on:
+  pull_request:
+    branches:
+      - master
+      - test/dc-dos04-t0t1-two-viewers-20261109
+    paths:
+      - 'backend/models_cephalo_study_media.py'
+      - 'backend/services/cephalo_study_media_binding.py'
+      - 'backend/routers/cephalo_study_media_binding.py'
+      - 'backend/tests/test_dc_dos05_study_media_fue.py'
+      - '.github/workflows/dc-dos05-study-media-fue.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  isolated-jwt-study-source-fue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: 'sqlite:///:memory:'
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC_DOS05_FUE_ONLY: '1'
+      DC_DOS05_FUE_EVIDENCE_DIR: artifacts/dc-dos05-study-media-fue
+      SECRET_KEY: dc-dos05-synthetic-test-jwt-only-minimum-32-characters
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact candidate HEAD and forbidden production wiring
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          init=Path('backend/__init__.py').read_text(encoding='utf-8')
+          routers=Path('backend/routers/__init__.py').read_text(encoding='utf-8')
+          assert 'models_cephalo_study_media' not in init
+          assert 'cephalo_study_media_binding' not in routers
+          assert 'dc_dos05_study_media' not in routers
+          print('DC_DOS05_PRODUCTION_REGISTRATION_ABSENT_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/dos05-fue-dependencies.txt
+          pip install -r /tmp/dos05-fue-dependencies.txt
+          python -m pip check
+      - name: Real FastAPI JWT FUE — A/B/X, content SHA, science revision, write-once
+        run: |
+          python -m pytest backend/tests/test_dc_dos05_study_media_fue.py -q -s --maxfail=1
+      - name: Verify synthetic real-HTTP proof for exact HEAD
+        run: |
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          p=Path('artifacts/dc-dos05-study-media-fue/dc-dos05-fue-report.json')
+          assert p.exists(), 'FUE evidence absent'
+          report=json.loads(p.read_text(encoding='utf-8'))
+          assert report['head']==os.environ['PRODUCT_HEAD'], 'FUE wrong commit'
+          assert report['case_id']=='DC-DOS-05'
+          assert report['status']=='FUE_API_STUDY_MEDIA_PREPRODUCTION_PASS'
+          assert report['synthetic_only'] is True
+          for flag in ('real_http_jwt','patient_a_b_and_cabinet_x_refused',
+                       'study_and_source_digest_revision_bound','write_once_swap_refused',
+                       'db_unique_write_once','tamper_fail_closed','scientific_tamper_fail_closed',
+                       'unknown_role_denied','default_disabled'):
+              assert report[flag] is True, flag
+          assert report['migration_executed'] is False
+          assert report['production_router_mounted'] is False
+          assert report['clinical_release'] is False
+          assert report['study_media_roles']==['PHOTO_CONTEXT','RADIO_SOURCE']
+          print('DC_DOS05_EXACT_HEAD_FUE_API_GREEN_NO_CLINICAL_RELEASE')
+          PY
+      - name: Upload isolated synthetic evidence even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dc-dos05-study-media-fue-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/dc-dos05-study-media-fue/
+          if-no-files-found: warn
+          retention-days: 7
