@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B / B-6 — DESKTOP INSTALLABLE ACCEPTANCE CONTRACT — 2026-11-09 — SOURCE PREFLIGHT PASS / NO GO
+
+- **GO utilisateur :** « Go » pour définir et tester les conditions d'acceptation du véritable Desktop installable ; aucune autorisation de merge, de certification master, de build EXE, d'installation ni de migration clinique. PR #1239 DRAFT/OPEN, HEAD source avant ce sous-lot `b003528a744f78ad4a9375e7de0eb70762f38b34`.
+- **Décision unique :** le LAB Queue Core et sa CI ne constituent pas `CODE_CERTIFIED` ni `INSTALLABLE_CERTIFIED`. Le vrai binaire installable exige les gates de `docs/CABINET_CERTIFIED_RELEASE_POLICY.md` : SHA exact master → CODE_CERTIFIED+Sigstore → assets scientifiques certifiés au même SHA → INSTALLABLE_CERTIFIED+7 manifestes → packaging natif fail-closed → FUE installable sur PC fictif → GO distinct de migration patients et LOT10 physique.
+- **Livré :** matrice de décision exhaustive `docs/v1.5/V15_08_2_B_B6_DESKTOP_INSTALLABLE_ACCEPTANCE_20261109.md` avec Success/Proof/STOP et états PRESENT/NOT_RUN/NOT_AUTHORIZED. Nouveau préflight source **READ-ONLY** `scripts/v15_08_2_b_desktop_installable_preflight.py` : SHA 40 hex exact, dix garde-fous source inspectés, détection de couplage entre `WaitingRoomPage` et Queue Core LAB, rapport permanent `installable_ready=false` / `clinical_go=false`; aucun accès cabinet, installation ou package. `queue_core/tests/test_installable_source_preflight_08_2_b.py` injecte source altérée, mauvais SHA, refus de sortie dans repo, état NO GO.
+- **Preuves source Windows Python 3.12 :** `SOURCE_GATE_PRESENT_NO_INSTALLABLE_GO`, **10/10 contrôles statiques PRESENT** ; **5/5 tests ciblés de préflight PASS** ; suite globale Queue Core finale **127/127 PASS / 95,37 s**, compilation et diff-check PASS. Préflight désormais **strictement lecture seule** (stdout simple ou `--json`, aucune option de fichier de sortie). Les protections doivent encore être exercées sur un vrai artefact certifié avant acceptation native ; CI au nouveau SHA à relever après push.
+- **Source canonique existante :** `docs/CABINET_CERTIFIED_RELEASE_POLICY.md`, `docs/quality/REALITY_PROOF_GATE.md`, `installer/DigitalCrown.iss`, `DigitalCrown.spec`, `run.py`, `docs/handovers/2026-11-07-restore03-installable-candidate-preflight.md`. La preuve B-5b sur le SHA `b003528` est Queue Core Linux **119 PASSED / 3 SKIPPED** et Scope Gate SUCCESS ; `Cabinet CODE_CERTIFIED candidate regression (no package)` était QUEUED au contrôle et **n'est pas une certification master**.
+- **STOP / NEXT EXACT :** LOT08.2-B reste OPEN. Finaliser régression, exact-head PR/CI, mettre Notion à jour ; toute promotion vers master/installable et tout test sur clinique nécessitent un GO humain séparé. Ne pas créer de pourcentage non prouvé.
+
+
+
 ## LOT08.2-B / B-5b — RED CI DEPENDENCY ISOLATION — 2026-11-09 — WINDOWS PASS / LINUX CI PENDING
 
 - **GO utilisateur :** « Red », traiter le blocage critique suivant de la PR #1239, sans fusion, installation, déploiement ou migration patient. HEAD avant fix `10ff5f55b4ec43709ad23e7f1b7a4e90f31283b9`. BRANCHE `feat/v15-08-2-b-rbac-isolation-20261109`, PR OPEN/DRAFT.
