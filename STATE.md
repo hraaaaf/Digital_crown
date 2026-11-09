@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B / B-5a — REAL BACKEND.MAIN ASGI LAB FUE-I — 2026-11-09 — PASS / NO DEPLOY
+
+- **Décision & périmètre :** GO « Green next » après B-5 Chromium LAB ; vérifier le véritable point d'entrée `backend.main:app` et ses middlewares via ASGI local synthétique. Aucun runtime clinique/lifespan, aucun installable ni migration patient ou de cabinet. Base git `3203eff850b081261ec7959cb81cc8f4a2bda782` PR #1239 DRAFT et non fusionnée.
+- **Test autonome :** `queue_core/tests/desktop_main_lab_probe.py` : flag explicite `DIGITALCROWN_QUEUE_MAIN_FUE_RUN=1`, `ENVIRONMENT=test`, clinique `sqlite:///:memory:` et attestation runtime isolé, deux vraies SQLite temporaires B-2 + Queue Core avec comptes/visites fictifs, import réel `backend.main` **sans lancer clinical lifespan**, réseau absent ; test HTTP ASGI loopback réel sur la composition globale et les middlewares (synthetic `testclient` 403, 127.0.0.1 → 401 sans auth, 200 login/snapshot/check-in, 200 logout, 401 session révoquée). `backend.main` garde `WaitingRoomPage` clinique historique intacte. Commande : `$env:DIGITALCROWN_QUEUE_MAIN_FUE_RUN='1'; py -3.12 -m queue_core.tests.desktop_main_lab_probe` → **exit 0 / ACTUAL_BACKEND_MAIN_ROUTING_AND_RBAC_PASS_NO_CLINICAL_LIFESPAN**. Fermeture explicite moteurs SQLAlchemy pour suppression des fichiers Windows.
+- **Écarts rencontrés et résolus :** `relay` absent seulement du sparse-checkout local, ajouté sans changement source ; testclient ASGI synthétique 403 attendu car seul loopback réel est autorisé ; SQLite test verrouillée pendant nettoyage initial, puis `engine.dispose` et rerun code 0. Warnings imports modèle Pydantic / ONNX absent dans sparse checkout non bloquants pour ce test.
+- **Preuve :** `docs/v1.5/V15_08_2_B_MAIN_ENTRYPOINT_FUE_I_20261109.md`. B-5 précédent : FUE-G navigateur Chromium 19/19 PASS + captures 7, suite locale Windows 121/121 PASS, build:test isolé PASS. Le présent FUE-I **n'est pas** un test du cycle de vie de l'application clinique, du paquet installable, du contenu patient ou des machines cabinet. LOT08.2-B OPEN / LOT10 PHYSICAL NOT_RUN.
+- **CI :** Scope Gate sur HEAD B-5 3203eff SUCCESS ; Queue Core #42632131539 encore QUEUED au relevé ; le prochain commit B-5a nécessite une vérification CI sur son SHA propre avant tout jugement. Aucun merge / déploiement / Vercel.
+- **Next exact :** attester CI exact-SHA, documenter Notion + PR, puis isoler les critères d'acceptation d'un candidat Desktop installable avant tout test patient réel.
+
+
+
 ## LOT08.2-B / B-5 — DESKTOP LOCAL LAB FUE-G — 2026-11-09 — PREUVE BROWSER PASS / B OPEN
 
 - **GO utilisateur :** raccorder B-4 HTTP/SSE au runtime Desktop local en laboratoire, FUE-G navigateur, sans fusion/déploiement/installation ni patient réel. PR #1239 DRAFT, HEAD avant B-5 `16bf642d2558380326e89fea3ac049308048de0f`, base master `324afd13487acf7ff29223f077451927b54b8178`.
