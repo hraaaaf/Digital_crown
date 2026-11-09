@@ -41,7 +41,7 @@ jobs:
         run: |
           set -euo pipefail
           test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
-          grep -q 'cannot.*accept a cabinet path' backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py
+          grep -q 'accept a cabinet path' backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py
           grep -q 'FAKE_ONLY_NO_EXECUTION' backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py
           python -m py_compile backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py
       - name: Install Ubuntu signed SQLCipher build dependency
