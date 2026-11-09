@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B / B-7c — REAL PRESCRIPTION TEST TIMEOUT & EXHAUSTIVE AUDIT BATCHING — 2026-11-09
+
+- **User GO:** continue the exact last RED: full frontend Vitest 2022 PASS / 1 FAIL (test-only PrescriptionForm quick-preset **5000ms timeout**), not a proven clinical prescription bug. PR #1239 DRAFT, starting SHA `82248e25c9eecc12c4b63052d40a9aee1c22a6f1`, no merge/install/deploy/clinical migration.
+- **Oracle repair, NO clinical production code changes:** `frontend/src/features/admin/DocumentStudio/PrescriptionForm.g4Interactive.test.tsx` checks all four quick-preset names, order, payload drug name and exact 4 calls to `onApplyPreset`, with explicit 20s load budget. BEFORE the same isolated unchanged PrescriptionForm file passed **7/7**, actual test time **2.77s**; the RED was runner timeout only, not a callback assertion.
+- **Second load failure discovered:** monolithic AST `ClientFacingCopyCandidateAudit.test.ts` timed out even at 20s during a four-suite focused run. Converted to exhaustive **48-file** source batches using identical source discovery filter, same per-file AST/technical-copy rules; new positive source count/unique/flatten coverage assertion, no exclusions and no weaker language scanning.
+- **FUE-I Windows focused actual:** the four sensitive suites (copy audit, PrescriptionForm, patient draft-guard, M4-C documents) **34/34 PASS** across **4/4 files**, process exit 0; previous patient draft active-identity+empty editor test retained. Further TypeScript and full default frontend Vitest run currently in progress. `frontend/src/ClientFacingCopyCandidateAudit.test.ts`, `frontend/src/features/patients/PatientDraftRouteGuard.test.tsx` were previously local-uncommitted at `82248e2`.
+- **Clinical safety boundaries:** no actual medication instructions altered, no prescribing algorithm clinically certified, no real patient data. `CODE_CERTIFIED`, `INSTALLABLE_CERTIFIED`, physical LOT10 and real `/appointments` migration **NOT_RUN/NOT_AUTHORIZED**; LOT08.2-B OPEN. Repro/report `docs/v1.5/V15_08_2_B_B7C_PRESCRIPTION_TIMEOUT_STABILITY_20261109.md`.
+- **NEXT EXACT:** read full Vitest/TypeScript verdict; fix proven residual failures without dropping tests, compile/build if relevant, push safe verified changes only to DRAFT PR #1239, verify GitHub exact HEAD workflows and Notion. GitHub CLI local PC is not authenticated, so do not invent run IDs or CI state.
+
+
+
 ## LOT08.2-B / B-7 — RED / 3 FAILED CODE_CERT CANDIDATE ASSERTIONS — 2026-11-09
 
 - **Décision :** GO « Red » : traiter les **trois échecs** du workflow GitHub candidat `Cabinet CODE_CERTIFIED candidate regression (no package)` [#42644548911](https://github.com/hraaaaf/Digital_crown/actions/runs/42644548911) au HEAD `c64d9e94077fb63bb6c37e3b80cf24d477dab3dc`. PR #1239 `feat/v15-08-2-b-rbac-isolation-20261109` OPEN/DRAFT/non mergée. Ne pas fusionner, déployer, créer d'installable ni migrer des patients.

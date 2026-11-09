@@ -176,13 +176,30 @@ const auditFile = (file: string): Finding[] => {
   return findings;
 };
 
+// Scan ALL production source files, but split the expensive TypeScript AST
+// analysis into bounded tests. Under concurrent Vitest workers a monolithic
+// 938-file source tree scan can hit even a 20-second watchdog.
+const SOURCE_FILES = collectSourceFiles(SRC_ROOT).sort();
+const AUDIT_BATCH_SIZE = 48;
+const AUDIT_BATCHES = Array.from(
+  { length: Math.ceil(SOURCE_FILES.length / AUDIT_BATCH_SIZE) },
+  (_, index) => SOURCE_FILES.slice(index * AUDIT_BATCH_SIZE, (index + 1) * AUDIT_BATCH_SIZE),
+);
+
 describe('client-facing copy candidate audit', () => {
-  it('blocks implementation language from rendered practitioner copy', () => {
-    const findings = collectSourceFiles(SRC_ROOT).flatMap(auditFile);
-    const report = findings
-      .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
-      .map(f => `${f.file}:${f.line} [${f.source}] ${f.reason}: ${f.text}`);
-    if (report.length > 0) console.error(`CLIENT_FACING_COPY_CANDIDATES=${report.length}\n${report.join('\n')}`);
-    expect(report, `Technical/internal wording candidates:\n${report.join('\n')}`).toEqual([]);
+  it('includes every discovered production source file exactly once', () => {
+    expect(SOURCE_FILES.length).toBeGreaterThan(0);
+    expect(AUDIT_BATCHES.flat()).toEqual(SOURCE_FILES);
+    expect(new Set(SOURCE_FILES).size).toBe(SOURCE_FILES.length);
   });
+  for (const [batchIndex, files] of AUDIT_BATCHES.entries()) {
+    it(`blocks implementation language from rendered practitioner copy (batch ${batchIndex + 1}/${AUDIT_BATCHES.length})`, () => {
+      const findings = files.flatMap(auditFile);
+      const report = findings
+        .sort((a, b) => a.file.localeCompare(b.file) || a.line - b.line)
+        .map(f => `${f.file}:${f.line} [${f.source}] ${f.reason}: ${f.text}`);
+      if (report.length > 0) console.error(`CLIENT_FACING_COPY_CANDIDATES=${report.length}\n${report.join('\n')}`);
+      expect(report, `Technical/internal wording candidates:\n${report.join('\n')}`).toEqual([]);
+    }, 20_000);
+  }
 });

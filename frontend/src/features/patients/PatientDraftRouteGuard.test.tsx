@@ -141,8 +141,13 @@ describe('R2 live root guard contract on Data Router (synthetic pages only)', ()
     await router.navigate(-1);
     expect(await screen.findByRole('alertdialog')).toBeTruthy();
     fireEvent.click(screen.getByRole('button',{name:'Quitter sans sauvegarder'}));
-    await waitFor(()=>expect(router.state.location.pathname).toBe('/patients/17'));
-    expect((screen.getByLabelText('Éditeur synthétique') as HTMLInputElement).value).toBe('');
+    // Router location can update before React commits the new patient editor.
+    // Check BOTH the route and the rendered cleared draft, never just the URL.
+    await waitFor(() => {
+      expect(router.state.location.pathname).toBe('/patients/17');
+      expect(screen.getByTestId('patient-identity').textContent).toContain('17');
+      expect((screen.getByLabelText('Éditeur synthétique') as HTMLInputElement).value).toBe('');
+    }, { timeout: 3000 });
   });
 
   it('discards the stale blocked A navigation and wipes A draft on permission revocation', async () => {
