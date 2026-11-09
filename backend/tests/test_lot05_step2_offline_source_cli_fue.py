@@ -6,6 +6,7 @@ cannot authorize an import of real patient records.
 from __future__ import annotations
 
 import hashlib
+from contextlib import closing
 import json
 import os
 from pathlib import Path
@@ -31,7 +32,7 @@ class OfflineSourceIntakeCliFUE(unittest.TestCase):
         self.stage = self.root / "staging"
         self.stage.mkdir()
         self.db = self.stage / "FAKE_legacy.sqlite"
-        with sqlite3.connect(self.db) as db:
+        with closing(sqlite3.connect(self.db)) as db:
             db.execute("CREATE TABLE fake_patients (id TEXT, fake_name TEXT)")
             db.execute(
                 "INSERT INTO fake_patients VALUES (?, ?)",
