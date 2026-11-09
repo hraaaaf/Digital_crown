@@ -132,7 +132,13 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
   return <div className={cn('flex items-center justify-center overflow-hidden bg-slate-950', minHeight)}><img src={url} alt="Média clinique sélectionné" className="max-h-[470px] max-w-full object-contain" /></div>;
 };
 
-export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => {
+// Patient identity is a hard render boundary: clear prior media and modal state
+// synchronously when switching patient context (including pending blob requests).
+export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => (
+  <PatientMediaTimelineForPatient key={patientId} patientId={patientId} readOnly={readOnly} />
+);
+
+const PatientMediaTimelineForPatient = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => {
   const [items, setItems] = useState<ClinicalAsset[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
