@@ -426,7 +426,10 @@ jobs:
                        "read_only_split","patient_a_sources_absent_in_b_and_x"):
               assert multimodal.get(flag) is True,(flag,multimodal)
           assert multimodal.get("pdf_canvas_ink_samples",0)>12
-          assert len(report["shots"])==15
+          assert multimodal.get("dc_dos04_t0_t1_two_live_blob_viewers") is True
+          assert multimodal.get("dc_dos04_comparison_purged_on_patient_and_cabinet_switch") is True
+          assert len(report["shots"])==16, (len(report["shots"]), report["shots"])
+          assert "14-dos04-t0-photo-t1-radio-two-authenticated-viewers-a.png" in report["shots"]
           for fn in report["shots"]:
               p=root/fn
               assert p.is_file() and p.stat().st_size>150
