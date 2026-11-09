@@ -87,7 +87,9 @@ def test_private_store_creation_calls_secure_win32_creation_for_both_objects(
 def test_console_required_fails_closed_in_redirected_context(monkeypatch):
     from queue_core.security import windows_console
     monkeypatch.setattr(windows_console.sys.stdin, "isatty", lambda: False)
-    with pytest.raises(LocalConsoleRequired, match="INTERACTIVE_CONSOLE_REQUIRED"):
+    expected = ("INTERACTIVE_CONSOLE_REQUIRED" if os.name == "nt"
+                else "LOCAL_WINDOWS_CONSOLE_REQUIRED")
+    with pytest.raises(LocalConsoleRequired, match=expected):
         windows_console.require_local_windows_admin_console()
 
 

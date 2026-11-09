@@ -117,6 +117,7 @@ jobs:
                   )
                   print("SYNTHETIC_ACL_DIAGNOSTIC_START")
                   print(diag.stdout.strip())
+                  print("SYNTHETIC_ACL_DIAGNOSTIC_STDERR", diag.stderr.strip().replace(str(root), "<SYNTHETIC_PATH>")[:1500])
                   print("SYNTHETIC_ACL_DIAGNOSTIC_END", diag.returncode)
                   raise
               _secure_win32_create(db, directory=False)
