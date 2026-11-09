@@ -1,0 +1,97 @@
+name: CEPH-PREMIUM J2.1-M1 canonical scene schema FUE (NO CLINICAL RELEASE)
+
+on:
+  pull_request:
+    branches:
+      - test/ceph-premium-j1-real-onnx-20261109
+    paths:
+      - backend/schemas/cephalo_premium_scene_contract.py
+      - backend/tests/test_ceph_premium_j21m1_scene_contract.py
+      - scripts/ceph_premium_j21m1_scene_fue.py
+      - docs/clinic/CEPH_PREMIUM_J21M1_CANONICAL_SCENE_CONTRACT.md
+      - .github/workflows/ceph-premium-j21m1-scene-contract-fue.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  schema-only-fue:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CEPH_J21M1_EVIDENCE_DIR: artifacts/ceph-premium-j21m1
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact HEAD and no runtime registration
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          source=Path('backend/schemas/cephalo_premium_scene_contract.py').read_text(encoding='utf8')
+          assert 'LEGACY_LOCAL_UNVERIFIED' in source
+          assert 'NONCLINICAL_DRAFT' in source
+          for path in ('backend/__init__.py', 'backend/main.py',
+                       'backend/routers/__init__.py', 'backend/schemas/__init__.py'):
+              if Path(path).exists():
+                  assert 'cephalo_premium_scene_contract' not in Path(path).read_text(encoding='utf8')
+          print('CEPH_J21M1_NO_RUNTIME_OR_DB_ACTIVATION_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install only detached schema test dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install pydantic==2.6.3 pytest==9.0.3
+      - name: FUE synthetic canonical scene schema and 43 negative/positive test cases
+        run: |
+          python scripts/ceph_premium_j21m1_scene_fue.py
+      - name: Independently attest exact-HEAD schema and synthetic evidence
+        run: |
+          python - <<'PY'
+          import hashlib, json, os
+          from pathlib import Path
+          root=Path('artifacts/ceph-premium-j21m1')
+          r=json.loads((root/'j21m1-report.json').read_text(encoding='utf8'))
+          schema=json.loads((root/'j21m1-schema.json').read_text(encoding='utf8'))
+          sample=json.loads((root/'j21m1-synthetic-scene.json').read_text(encoding='utf8'))
+          assert r['case_id']=='CEPH-PREMIUM-J2.1-M1'
+          assert r['status']=='NONCLINICAL_SCENE_SCHEMA_CONTRACT_PASS'
+          assert r['head']==os.environ['PRODUCT_HEAD']
+          assert r['schema_version']==sample['schema_version']=='CEPH_PREMIUM_SCENE_V1_DRAFT'
+          assert r['mapping_authority']==sample['identity']['detector_mapping_authority']=='LEGACY_LOCAL_UNVERIFIED'
+          assert r['landmark_count_synthetic']==len(sample['landmarks'])==38
+          assert r['scene_sha256']==hashlib.sha256(json.dumps(
+              sample,sort_keys=True,separators=(',',':'),ensure_ascii=False,allow_nan=False
+          ).encode('utf8')).hexdigest()
+          assert r['contract_source_sha256']==hashlib.sha256(Path(
+              'backend/schemas/cephalo_premium_scene_contract.py'
+          ).read_bytes()).hexdigest()
+          assert r['immutable_value_contract']
+          assert r['malformed_and_unsafe_contract_inputs_rejected']
+          assert r['source_sha256_declared_not_authenticated']
+          for key in ('real_source_bytes_verified','study_media_runtime_binding',
+                      'scene_persistence_implemented','actual_onnx_inference_executed',
+                      'clinical_release','approved_contour_exists',
+                      'database_migration_executed','production_endpoint_mounted'):
+              assert r[key] is False,key
+          assert sample['clinical_release'] is False
+          assert sample['document_status']=='NONCLINICAL_DRAFT'
+          assert sample['identity']['parent_scene_sha256'] is None
+          assert not any(k in schema.get('properties',{}) for k in ('diagnosis','treatment'))
+          print('CEPH_J21M1_EXACT_HEAD_SCHEMA_SYNTHETIC_SHA_PASS_NO_CLINICAL_RELEASE')
+          PY
+      - name: Upload detached FUE proof artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-premium-j21m1-scene-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-premium-j21m1/
+          if-no-files-found: warn
+          retention-days: 7
