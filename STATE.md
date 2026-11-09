@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B / B-4 — HTTP/SSE LOCAL ASGI — 2026-11-09 — FUE-I PASS LAB, B OPEN / NO MERGE
+
+- **GO user :** développer la vraie interface HTTP/SSE du Queue Core depuis le B-3 in-process, sans fusion, installation, déploiement ni patient réel. PR #1239 DRAFT, base master 324afd13487acf7ff29223f077451927b54b8178 ; HEAD avant B-4 a94343a12f6045db5595e108763fe6cfd7d3068d.
+- **Implémenté :** queue_core/service/http_transport.py, factory FastAPI ASGI locale (aucun socket démarré), POST commandes, GET snapshot, GET replay paginé, GET SSE streaming (text/event-stream). B-2 session Bearer obligatoire depuis Authorization header, local loopback peer+Host, pas de credentials URL/cookie, Docs/OpenAPI/CORS fermés, refus 401/403, schéma HTTP fermé à l'injection de tenant/actor, SSE recontrôle droit B-2 avant ouverture et avant chaque frame / heartbeat, reprise Last-Event-ID tenant/queue, évents minimisés sans secret et IDs validés. Ajout queue_core/service/authorized_queue.py require_queue_read() à validation fraîche.
+- **FUE-I transport local réel (sans réseau) :** queue_core/tests/test_http_sse_08_2_b.py, FastAPI TestClient + httpx.ASGITransport, 13 scénarios HTTP/SSE réels / négatifs avec deux vraies SQLite isolées et données synthétiques : commandes 0→2→3→5→7, IDOR, token, non-loopback, host, corps malformé, paginated replay, cursor, SSE révocation au milieu d'un lot d'événements et anti-injection de champs SSE. Suite Windows Python 3.12 après modifications : **113/113 PASS / 46,20 s** ; compileall et git diff --check exit 0.
+- **CI GitHub :** workflow .github/workflows/v15-08-1-queue-domain-fue0.yml étendu aux dépendances isolées FastAPI/httpx/anyio/pydantic/starlette afin d'exécuter la même suite ; verdict exact HEAD final à relever après commit/push. Preuve : docs/v1.5/V15_08_2_B_HTTP_SSE_FUEI_20261109.md.
+- **LIMITES :** aucun serveur écoutant, TLS, Windows packaging, client navigateur/UI ni expérience opérateur physique ; FUE-G non exécuté, LOT10 PHYSICAL NOT_RUN. Un octet déjà envoyé ne peut pas être retiré après révocation. Architecture non déployée/non activée en cabinet. LOT08.2-B OPEN, pas de merge ni production.
+- **Next exact :** vérifier la CI Linux et Scope Gate au SHA poussé, enregistrer Notion, puis réconcilier l'interface vers le périmètre 08.3 et effectuer FUE-G/browser quand un vrai client est disponible. Pas de pourcentage inventé.
+
+
+
 ## LOT08.2-B — LOCAL COMMAND/REPLAY ADAPTER FUE-I — 2026-11-09 — CANDIDATE / NO MERGE
 
 - **GO utilisateur :** après B-2 FUE-0, intégrer le contrôle humain aux vraies commandes/lectures événementielles du Queue Core, FUE proportionné ; aucune revue indépendante obligatoire par défaut, mais contrôles SEC/IDOR/intégrité systématiquement négatifs. Pas de GO fusion ou mise en production.

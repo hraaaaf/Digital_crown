@@ -421,6 +421,19 @@ class AuthorizedLocalQueue:
                 plan.visit.version, plan.visit.queue_sequence,
             )
 
+    def require_queue_read(self, token: str, queue_id: str) -> None:
+        """Fail closed on every future stream frame, including buffered frames.
+
+        Caller MUST invoke immediately before yielding each SSE event or
+        heartbeat. This is a fresh protected DB lookup, not cached authorizer.
+        """
+        with self._transaction(token) as (db, principal, authorizer):
+            self._queue(db, principal.tenant_id, queue_id)
+            authorizer.require(
+                token, Permission.QUEUE_READ,
+                TargetScope(principal.tenant_id, queue_id),
+            )
+
     def queue_snapshot(self, token: str, queue_id: str) -> tuple[QueueVisitView, ...]:
         """Read only minimal queue facts; recheck live session every call."""
         with self._transaction(token) as (db, principal, authorizer):
