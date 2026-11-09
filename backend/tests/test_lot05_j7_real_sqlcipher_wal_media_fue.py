@@ -46,11 +46,11 @@ conn=sqlcipher.connect(path)
 conn.execute("PRAGMA key = '" + key + "'")
 assert conn.execute("PRAGMA journal_mode=WAL").fetchone()[0].lower()=="wal"
 conn.execute("PRAGMA wal_autocheckpoint=0")
-conn.executescript("""
+conn.executescript('''
 CREATE TABLE users(id INTEGER PRIMARY KEY, email TEXT);
 CREATE TABLE patients(id INTEGER PRIMARY KEY, nom TEXT);
 CREATE TABLE truth(id INTEGER PRIMARY KEY, value TEXT);
-""")
+''')
 conn.execute("INSERT INTO users VALUES (1,'fake-owner@example.invalid')")
 conn.execute("INSERT INTO patients VALUES (1,'FAKE_ONLY')")
 conn.execute("INSERT INTO truth VALUES (1,?)",(value,))
@@ -78,6 +78,27 @@ def _crash_committed_database(path: Path, value: str) -> None:
     wal = Path(str(path) + "-wal")
     assert path.is_file() and wal.is_file() and wal.stat().st_size > 0
 
+
+
+def _crash_refresh_wal(path: Path) -> None:
+    """Leave a committed but uncheckpointed WAL after preparation, no value change."""
+    code = (
+        "from sqlcipher3 import dbapi2 as c\n"
+        "import os,sys\n"
+        "db=c.connect(sys.argv[1]); "
+        "db.execute(\"PRAGMA key = '\"+sys.argv[2]+\"'\"); "
+        "db.execute('PRAGMA journal_mode=WAL'); "
+        "db.execute('PRAGMA wal_autocheckpoint=0'); "
+        "db.execute('UPDATE truth SET value=value WHERE id=2'); "
+        "db.commit(); os._exit(0)\n"
+    )
+    result = subprocess.run(
+        [sys.executable, "-B", "-c", code, str(path), FAKE_SQLCIPHER_KEY],
+        capture_output=True, text=True, timeout=25,
+    )
+    assert result.returncode == 0, result.stderr[-1200:]
+    wal = Path(str(path) + "-wal")
+    assert wal.exists() and wal.stat().st_size > 0
 
 def _read_truth(path: Path) -> list[str]:
     with sqlcipher.connect(str(path)) as db:
@@ -162,8 +183,7 @@ def lab(tmp_path: Path, monkeypatch):
     candidate = tmp_path / "FAKE_candidate_source.db"
     _crash_committed_database(target, "BEFORE_FAKE")
     _crash_committed_database(candidate, "AFTER_FAKE")
-    assert _read_truth(target) == ["BEFORE_FAKE", "WAL_COMMITTED_FAKE_ONLY"]
-    assert _read_truth(candidate) == ["AFTER_FAKE", "WAL_COMMITTED_FAKE_ONLY"]
+    # Do not read/close the WAL crash image here: final-close may checkpoint WAL.
 
     # Production BackupService obtains the engine by import. Replace ONLY that
     # engine import in pytest with a fake object pointing to our temp clone.
@@ -248,6 +268,7 @@ def test_j7_real_sqlcipher_crash_wal_preserved_through_verified_backup(lab):
 
 def test_j7_real_guided_restore_sqlcipher_plus_media_success(lab, monkeypatch):
     restore_id = _prepare(lab, monkeypatch)
+    _crash_refresh_wal(lab["target"])
     monkeypatch.setattr(
         GuidedRestoreWorker, "_smoke_check",
         staticmethod(lambda timeout=60: True),
@@ -269,6 +290,7 @@ def test_j7_real_guided_restore_sqlcipher_plus_media_success(lab, monkeypatch):
 
 def test_j7_real_guided_restore_smoke_fail_restores_wal_and_media(lab, monkeypatch):
     restore_id = _prepare(lab, monkeypatch)
+    _crash_refresh_wal(lab["target"])
     checks = iter([False, True])  # first app failed, rollback app healthy
     monkeypatch.setattr(
         GuidedRestoreWorker, "_smoke_check",
@@ -300,11 +322,15 @@ def test_j7_sqlcipher_corruption_wrong_key_and_owner_fail_closed(lab, monkeypatc
     restore_id = _prepare(lab, monkeypatch)
     with pytest.raises(PermissionError):
         GuidedRestoreService.get_owned_job(restore_id, FAKE_OWNER_ID + 1)
+    # Restore the pre-apply status to exercise the *real* frozen runtime gate.
+    preapply = GuidedRestoreService.get_job(restore_id)
+    preapply["status"] = "prepared"
+    GuidedRestoreService._write_job(preapply)
     with pytest.raises(RuntimeError, match="exécutable cabinet"):
         GuidedRestoreService.request_apply(
             restore_id, "RESTAURER", owner_employer_id=FAKE_OWNER_ID,
         )  # deliberate NO-GO: never starts the worker
-    assert GuidedRestoreService.get_job(restore_id)["status"] == "scheduled"
+    assert GuidedRestoreService.get_job(restore_id)["status"] == "prepared"
     assert _read_truth(lab["target"]) == ["BEFORE_FAKE", "WAL_COMMITTED_FAKE_ONLY"]
 
     # A mismatched SQLCipher key must not publish a cloned destination.
