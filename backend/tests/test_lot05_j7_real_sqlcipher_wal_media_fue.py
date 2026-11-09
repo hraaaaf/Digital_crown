@@ -11,6 +11,7 @@ this is not a physical cabinet restart or clinical migration certification.
 from __future__ import annotations
 
 import hashlib
+from contextlib import closing
 import io
 import json
 import os
@@ -101,7 +102,7 @@ def _crash_refresh_wal(path: Path) -> None:
     assert wal.exists() and wal.stat().st_size > 0
 
 def _read_truth(path: Path) -> list[str]:
-    with sqlcipher.connect(str(path)) as db:
+    with closing(sqlcipher.connect(str(path))) as db:
         db.execute("PRAGMA key = '" + FAKE_SQLCIPHER_KEY + "'")
         assert db.execute("PRAGMA integrity_check").fetchone()[0] == "ok"
         assert db.execute(
