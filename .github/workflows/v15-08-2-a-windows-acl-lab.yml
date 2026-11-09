@@ -1,11 +1,11 @@
 name: V1.5-08.2-A Windows ACL synthetic LAB
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened, edited]
-    branches: [master]
+  push:
+    branches: ['feat/v15-08-2-a-local-admin-bootstrap-20261108']
     paths:
       - '.github/workflows/v15-08-2-a-windows-acl-lab.yml'
+      - 'queue_core/**'
   workflow_dispatch:
 
 permissions:
