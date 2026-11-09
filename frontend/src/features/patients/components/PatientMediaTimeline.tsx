@@ -25,6 +25,8 @@ interface PatientMediaTimelineProps {
   patientId: number;
   /** MultiView R-mode: hides editing actions; backend RBAC remains authoritative. */
   readOnly?: boolean;
+  /** Authentication/user/cabinet identity; only used to invalidate UI caches. */
+  scopeKey?: string;
 }
 
 interface ViewerState {
@@ -134,8 +136,8 @@ const AuthenticatedAssetPreview = ({ patientId, asset, compact = false }: { pati
 
 // Patient identity is a hard render boundary: clear prior media and modal state
 // synchronously when switching patient context (including pending blob requests).
-export const PatientMediaTimeline = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => (
-  <PatientMediaTimelineForPatient key={patientId} patientId={patientId} readOnly={readOnly} />
+export const PatientMediaTimeline = ({ patientId, readOnly = false, scopeKey = '' }: PatientMediaTimelineProps) => (
+  <PatientMediaTimelineForPatient key={JSON.stringify([scopeKey, patientId])} patientId={patientId} readOnly={readOnly} />
 );
 
 const PatientMediaTimelineForPatient = ({ patientId, readOnly = false }: PatientMediaTimelineProps) => {

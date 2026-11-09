@@ -95,6 +95,7 @@ export const PatientDetails = () => {
   const activeTab = (searchParams.get('tab') as TabType) || 'tracking';
 
   const user = useAuthStore(state => state.user);
+  const mediaScopeKey = JSON.stringify([user?.id ?? null, user?.employer_id ?? null]);
   const role = userRoleValue(user?.role);
   const userPermissions = user?.permissions || {};
   const hasExplicitPermissions = Object.keys(userPermissions).length > 0;
@@ -515,7 +516,7 @@ export const PatientDetails = () => {
                   ? <CabinetMultiViewLab key={String(user?.id ?? '') + ':' + String(user?.employer_id ?? '') + ':' + String(patient.id)}
                       patient={patient} routePatientId={id} user={user}
                       enableR3Split={isR3SplitLabEnabled(import.meta.env.DEV, import.meta.env.VITE_V15_07_1_R3_SPLIT_LAB)} />
-                  : <PatientMediaTimeline patientId={Number(id)} />)}
+                  : <PatientMediaTimeline patientId={Number(id)} scopeKey={mediaScopeKey} />)}
                 {radioTab === 'rvg' && <PatientRvgPanel patientId={Number(id)} />}
                 {radioTab === 'panoramic' && canPanoramic && <PanoramicStudio patientId={Number(id)} patientName={fullName} />}
                 {radioTab === 'cephalo' && canCephalo && (
@@ -571,7 +572,7 @@ export const PatientDetails = () => {
               {showClinicalMedia && String(patient.id) === id && (
                 <section id="clinical-dossier-mediatheque" aria-label="Médiathèque du dossier clinique"
                   className="rounded-2xl border border-border-main bg-card-bg p-2 sm:p-3">
-                  <PatientMediaTimeline key={id} patientId={Number(id)} readOnly />
+                  <PatientMediaTimeline key={id} patientId={Number(id)} scopeKey={mediaScopeKey} readOnly />
                 </section>
               )}
               <ClinicalHub patientId={Number(id)} />

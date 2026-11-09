@@ -120,7 +120,7 @@ export function CommandCabinetPatientSurfaces({
       )}
       {patient && surface === 'imagerie' && (
         <div data-testid="r4-verified-imagerie">
-          <PatientMediaTimeline key={patient.id} patientId={patient.id} readOnly />
+          <PatientMediaTimeline key={patient.id} patientId={patient.id} scopeKey={JSON.stringify([user.id, user.employer_id])} readOnly />
         </div>
       )}
     </section>

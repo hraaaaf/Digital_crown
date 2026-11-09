@@ -77,3 +77,16 @@ describe('DC-DOS-04 late network result quarantine (synthetic)', () => {
     expect(document.querySelector('[data-clinical-asset-id="72"]')).toBeNull();
   });
 });
+
+
+describe('DC-DOS-04 tenant/user scope collision guard (synthetic)', () => {
+  it('drops old modal when a different cabinet uses the same numeric patient ID', async () => {
+    const view = render(<PatientMediaTimeline patientId={7} scopeKey="user-100-cabinet-900" readOnly />);
+    await waitFor(() => expect(document.querySelector('[data-clinical-asset-id="71"]')).toBeTruthy());
+    fireEvent.click(within(screen.getByTestId('media-asset-rail')).getByRole('button', { name: 'Ouvrir Radiographie T0' }));
+    await waitFor(() => expect(screen.getByRole('dialog', { name: /Visionneuse/ })).toBeTruthy());
+    view.rerender(<PatientMediaTimeline patientId={7} scopeKey="user-200-cabinet-901" readOnly />);
+    expect(screen.queryByRole('dialog', { name: /Visionneuse/ })).toBeNull();
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:synthetic-test');
+  });
+});

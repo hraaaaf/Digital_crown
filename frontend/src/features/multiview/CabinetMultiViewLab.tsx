@@ -170,7 +170,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
       </div>
       <span className="shrink-0 rounded-full bg-primary px-2.5 py-1 text-xs font-bold text-on-primary">R</span>
     </div>
-    <PatientMediaTimeline patientId={patient.id} readOnly/>
+    <PatientMediaTimeline patientId={patient.id} scopeKey={identityKey} readOnly/>
   </section>;
 
   const possible=selectablePilotLayouts(canCephalo);
@@ -209,7 +209,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
 
   const renderSlot=(slot:{module:ModuleKey})=>{
     if (!trustedPatient) return null;
-    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>;
+    if (slot.module==='imagerie') return <PatientMediaTimeline patientId={trustedPatient.id} scopeKey={identityKey} readOnly/>;
     if (slot.module==='dossier') return (
       <div data-testid="multiview-real-dossier" className="min-w-0 space-y-2.5 p-2.5 text-sm sm:p-3">
         <div className="rounded-2xl bg-gradient-to-br from-primary via-primary to-primary p-4 text-on-primary shadow-sm">
@@ -439,7 +439,7 @@ export function CabinetMultiViewLab({patient, routePatientId, user, enableR3Spli
         ? <section data-testid="multiview-responsive-single-media-fallback"
             aria-label="Médiathèque clinique seule — repli de lisibilité"
             className="min-w-0 rounded-xl border border-border-main bg-card-bg p-2">
-            <PatientMediaTimeline patientId={trustedPatient.id} readOnly/>
+            <PatientMediaTimeline patientId={trustedPatient.id} scopeKey={identityKey} readOnly/>
           </section>
         : (enableR3Split && import.meta.env.DEV &&
             (mounted.geometry==='two-columns' || mounted.geometry==='two-rows')
