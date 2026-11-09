@@ -4,9 +4,9 @@
 >
 > Ce fichier est uniquement un point d'entrée compatible avec Claude Code. Il ne définit **aucune seconde doctrine générale** d'exécution, de FUE, de revue, de scoring, de CI, de communication ou de closeout. Toute modification de ces consignes générales se fait **exclusivement dans AGENTS.md**.
 
-## Auditeurs spécialisés V1.5
+## Validation FUE — gate unique de preuve technique
 
-Pour la revue indépendante, consulter **[docs/quality/V15_INDEPENDENT_REVIEWER_MATRIX.md](docs/quality/V15_INDEPENDENT_REVIEWER_MATRIX.md)** puis charger le ou les `.claude/agents/reviewer-*.md` seulement si le lot et le risque le justifient. Ces agents sont en lecture seule, leurs noms ne constituent pas des reviews humaines indépendantes et leurs avis ne remplacent pas les tests/FUE ou le gate physique V1.5-10. Les agents scientifiques existants restent sous leurs contrats. Les instructions communes et l'autorisation de merge restent exclusivement dans [AGENTS.md](AGENTS.md).
+Conformément à [AGENTS.md](AGENTS.md), la **FUE-0/I/G exécutée sur le HEAD exact**, complétée de tests de sécurité et scénarios négatifs selon le risque, **remplace la revue indépendante de code obligatoire**. [La matrice d'agents spécialisés](docs/quality/V15_INDEPENDENT_REVIEWER_MATRIX.md) reste **facultative et consultative**. Aucun deuxième agent ou reviewer externe n'est un prérequis mécanique à la fusion. Les validations humaines/clinique/réglementaire/physique et autorisations de mise en production restent des gates différents.
 
 ## Lecture opérationnelle
 
