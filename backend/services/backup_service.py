@@ -4,6 +4,7 @@ import logging
 import os
 import shutil
 import sqlite3
+from contextlib import closing
 import subprocess
 import uuid
 from datetime import datetime
@@ -301,22 +302,47 @@ class BackupService:
 
     @staticmethod
     def restore_backup(enc_file: Path, restore_db: Path, *, verify_sqlcipher: bool = False, passphrase: str | None = None):
+        """Restore a verified backup to a *new clone path*, never a live DB.
+
+        Decryption authentication alone cannot prove that the payload is a
+        usable database. This legacy helper deliberately does not replace an
+        existing destination, even when it contains a valid backup. A real
+        cabinet swap must use Guided Restore with its separate owner, media,
+        process-termination, rescue and rollback gates.
+        """
+        enc_file, restore_db = Path(enc_file), Path(restore_db)
+        if restore_db.exists() or restore_db.is_symlink():
+            raise FileExistsError("RESTORE_DESTINATION_ALREADY_EXISTS")
+        if not enc_file.is_file():
+            raise FileNotFoundError("RESTORE_ARCHIVE_NOT_FOUND")
         cipher_suite = BackupService._get_or_create_key()
-        if not enc_file.exists():
-            raise FileNotFoundError(f"Fichier chiffré introuvable : {enc_file}")
         decrypted_data = cipher_suite.decrypt(enc_file.read_bytes())
         temp_restore = restore_db.parent / f".tmp_{uuid.uuid4().hex}_{restore_db.name}"
         try:
-            temp_restore.write_bytes(decrypted_data)
+            with temp_restore.open("xb") as stream:
+                stream.write(decrypted_data)
             if verify_sqlcipher:
                 if not passphrase:
                     raise RuntimeError("SQLCipher passphrase required for verification")
                 BackupService._verify_sqlcipher_file(temp_restore, passphrase)
-            os.replace(temp_restore, restore_db)
+            else:
+                if not decrypted_data.startswith(b"SQLite format 3\x00"):
+                    raise RuntimeError("RESTORE_FORMAT_UNVERIFIED")
+                try:
+                    with closing(sqlite3.connect(str(temp_restore))) as conn:
+                        conn.execute("PRAGMA query_only=ON")
+                        row = conn.execute("PRAGMA integrity_check").fetchone()
+                        if not row or str(row[0]).lower() != "ok":
+                            raise RuntimeError("RESTORE_FORMAT_UNVERIFIED")
+                except sqlite3.DatabaseError as exc:
+                    raise RuntimeError("RESTORE_FORMAT_UNVERIFIED") from exc
+            # Atomic no-clobber publication on the same local filesystem.
+            # os.replace() could silently destroy an existing live database
+            # after the initial existence check; link() fails if it appears.
+            os.link(temp_restore, restore_db)
         finally:
-            if temp_restore.exists():
-                temp_restore.unlink()
-        logger.info("Restauration réussie vers %s", restore_db)
+            temp_restore.unlink(missing_ok=True)
+        logger.info("Restauration vérifiée vers un nouveau clone")
 
     @staticmethod
     def _cleanup_old_backups(backups_dir: Path, prefix: str, keep: int = 7):
