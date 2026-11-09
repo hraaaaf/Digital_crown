@@ -1,5 +1,16 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B / B-5b — RED CI DEPENDENCY ISOLATION — 2026-11-09 — WINDOWS PASS / LINUX CI PENDING
+
+- **GO utilisateur :** « Red », traiter le blocage critique suivant de la PR #1239, sans fusion, installation, déploiement ou migration patient. HEAD avant fix `10ff5f55b4ec43709ad23e7f1b7a4e90f31283b9`. BRANCHE `feat/v15-08-2-b-rbac-isolation-20261109`, PR OPEN/DRAFT.
+- **Cause constatée dans les logs GitHub :** [Queue Core #42634986803](https://github.com/hraaaaf/Digital_crown/actions/runs/42634986803) FAIL au SHA 10ff5f5 pendant **pytest collection, 0 tests exécutés**, `ModuleNotFoundError: email_validator`. La suite isolée Queue Core importait `backend.queue_core_desktop_lab`, ce qui importait d'abord `backend/__init__` et des schémas médicaux nécessitant `pydantic.EmailStr`. [Scope #42634986969](https://github.com/hraaaaf/Digital_crown/actions/runs/42634986969) SUCCESS. Ce n'était PAS un échec d'autorisation Queue Core.
+- **Correction sécurité/architecture :** le module LAB existant, inchangé, est maintenant `queue_core/service/desktop_lab_bridge.py` ; `backend/queue_core_desktop_lab.py` est un shim de compatibilité vers cette implémentation, afin que l'authentique `backend.main` conserve sa composition. Tests Queue Core importent directement le module isolé ; nouveau test sur interpréteur vierge interdit l'import implicite de `backend`. Aucune dépendance clinique ajoutée, aucun skip de test ni affaiblissement de la CI ; aucun changement aux données, aux rendez-vous ni à la sécurité de production.
+- **Proof Windows locale vérifiée :** `BACKEND_LOADED=False` import du module LAB depuis processus Python vierge ; suite ciblée Desktop 8/8 PASS ; suite globale `py -3.12 -m pytest -q queue_core/tests` **122/122 PASS / 82,28 s**, `compileall` et `git diff --check` exit 0. **Véritable `backend.main` ASGI synthetic** après shim : autorisation 403/401/200/CHECK_IN/logout/401, **exit 0**, sans démarrer `lifespan` clinique, et SQLite temporaire supprimée.
+- **Document :** `docs/v1.5/V15_08_2_B_B5B_CI_ISOLATION_FIX_20261109.md`. CI au prochain SHA final à attester et Notion à synchroniser. **LOT08.2-B OPEN**, logiciel cabinet certifié/installer, essais physiques LOT10, données patients et migration `/appointments` NOT_RUN.
+- **NEXT EXACT :** push contrôlé du correctif sur PR #1239 DRAFT, lire jobs/logs Linux et Scope Gate du nouveau SHA ; si échec changer de stratégie sans prétendre PASS, sinon actualiser Notion/PR. Aucune fusion ou déploiement non autorisé.
+
+
+
 ## LOT08.2-B / B-5a — REAL BACKEND.MAIN ASGI LAB FUE-I — 2026-11-09 — PASS / NO DEPLOY
 
 - **Décision & périmètre :** GO « Green next » après B-5 Chromium LAB ; vérifier le véritable point d'entrée `backend.main:app` et ses middlewares via ASGI local synthétique. Aucun runtime clinique/lifespan, aucun installable ni migration patient ou de cabinet. Base git `3203eff850b081261ec7959cb81cc8f4a2bda782` PR #1239 DRAFT et non fusionnée.

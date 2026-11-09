@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 import pytest
 
-from backend.queue_core_desktop_lab import (
+from queue_core.service.desktop_lab_bridge import (
     MARKER, FLAG, ROOT, MOUNT_PATH, DesktopQueueLabError, attach_queue_core_lab,
     resolve_isolated_lab_root,
 )
@@ -122,3 +122,20 @@ def test_mount_login_bad_credentials_and_no_caller_tenant(local, tmp_path):
             json={"username": "reception1", "password": PASS2, "tenant_id": "T2"},
         )
         assert forged.status_code == 422 and forged.json() == {"code": "INVALID_REQUEST"}
+
+def test_queue_lab_import_in_clean_interpreter_never_imports_clinical_backend():
+    """Linux slim CI must collect this suite without backend clinical deps."""
+    import subprocess
+    import sys
+
+    root = Path(__file__).resolve().parents[2]
+    code = (
+        "import sys; "
+        "from queue_core.service.desktop_lab_bridge import attach_queue_core_lab; "
+        "assert 'backend' not in sys.modules, 'backend imported by Queue Core LAB'"
+    )
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=root, capture_output=True, text=True, timeout=30, check=False,
+    )
+    assert result.returncode == 0, result.stderr
