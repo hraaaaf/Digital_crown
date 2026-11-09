@@ -140,6 +140,21 @@ try{
     devicePixelRatio>before.devicePixelRatio,
     {innerWidth:report.at100.innerWidth,devicePixelRatio:report.at100.devicePixelRatio},
     {timeout:20000,polling:'raf'});
+  // React's desktop/media breakpoint settles asynchronously after a real tab
+  // zoom. Observe the first frame for diagnosis, then require the actual
+  // authenticated read-only patient fallback to become visible and fit.
+  // This is a bounded UI synchronization, NOT a bypass of the safety gate.
+  report.at200FirstFrame=await snapshot(page);
+  await page.waitForFunction(() => {
+    const width=document.documentElement.clientWidth;
+    return ['multiview-mobile-safe-view','multiview-responsive-single-media-fallback']
+      .some(id => {
+        const el=document.querySelector('[data-testid="'+id+'"]');
+        if (!el || getComputedStyle(el).display==='none') return false;
+        const box=el.getBoundingClientRect();
+        return box.width>0 && box.height>0 && box.left>=-2 && box.right<=width+2;
+      });
+  },null,{timeout:15000,polling:'raf'});
   report.at200=await snapshot(page);
   const getZoom=await worker.evaluate(async pathname=>{
     const tabs=await chrome.tabs.query({});
