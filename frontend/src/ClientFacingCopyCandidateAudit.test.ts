@@ -184,5 +184,5 @@ describe('client-facing copy candidate audit', () => {
       .map(f => `${f.file}:${f.line} [${f.source}] ${f.reason}: ${f.text}`);
     if (report.length > 0) console.error(`CLIENT_FACING_COPY_CANDIDATES=${report.length}\n${report.join('\n')}`);
     expect(report, `Technical/internal wording candidates:\n${report.join('\n')}`).toEqual([]);
-  });
+  }, 30_000); // Large repository AST scan, especially under concurrent Windows suites.
 });
