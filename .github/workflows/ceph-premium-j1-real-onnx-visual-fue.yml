@@ -1,0 +1,271 @@
+# CEPH-PREMIUM-V1 J1: re-run genuine public radiograph to ONNX38 on exact current GitHub PR HEAD.
+# Workflow intentionally reuses certified real UI/JWT source upload and React SVG pipeline.
+# Does NOT demonstrate clinical landmark accuracy or local Windows ONNX packaging.
+name: CEPH-PREMIUM J1 REAL ONNX-38 + visible React ceph tracing (nonclinical)
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/ceph-premium-j1-real-onnx-visual-fue.yml'
+      - 'scripts/ceph_r23h_seed_empty_patient_t2.py'
+      - 'frontend/scripts/fue-ceph-r23h-first-use.mjs'
+  workflow_dispatch:
+permissions:
+  contents: read
+  actions: read
+jobs:
+  real-ui-onxx-first-use:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      ENVIRONMENT: test
+      SECRET_KEY: p2ter-t2-disposable-only-secret-key-000001
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      DIGITALCROWN_ISOLATED_RUNTIME: "1"
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      DEBUG: "false"
+      ALLOWED_ORIGINS: http://127.0.0.1:5173,http://localhost:5173
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CEPH_PUBLIC_SOURCE_DIR: /tmp/ceph-public-originals
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: J1 verify exact HEAD of Draft / no clinical release
+        run: test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate isolated password and SQLCipher key without publishing secrets
+        run: |
+          password="$(python -c 'import secrets;print(secrets.token_urlsafe(24))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+          storage_key="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+          echo "::add-mask::$storage_key"
+          echo "SQLCIPHER_KEY_HEX=$storage_key" >> "$GITHUB_ENV"
+      - name: Install isolated Cabinet backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-fue-deps.txt
+          python -m pip install -r /tmp/ceph-fue-deps.txt
+          python -m pip check
+      - name: Install real Cabinet frontend and Chromium
+        working-directory: frontend
+        run: |
+          npm ci
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Download TWO ORIGINAL PUBLIC radiographs and lock their bytes
+        run: |
+          mkdir -p "$CEPH_PUBLIC_SOURCE_DIR"
+          curl -fL --retry 4 --retry-delay 3 --max-time 120 -A 'DigitalCrown-PublicFUE/1.0' 'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG' -o "$CEPH_PUBLIC_SOURCE_DIR/anug.jpg"
+          curl -fL --retry 4 --retry-delay 3 --max-time 120 -A 'DigitalCrown-PublicFUE/1.0' 'https://upload.wikimedia.org/wikipedia/commons/8/8e/A_lateral_cephalogram_without_true_vertical.jpg' -o "$CEPH_PUBLIC_SOURCE_DIR/challiyan.jpg"
+          echo '2a284993c666790a72d0c004044b35a92534ce9d  /tmp/ceph-public-originals/anug.jpg' | sha1sum -c -
+          echo '66c74c588af3c54dfc581f8a870c5276c3427498  /tmp/ceph-public-originals/challiyan.jpg' | sha1sum -c -
+      - name: Provision independently certified REAL SRPose38 ONNX asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/ceph-r23h-model backend/ai_models
+          gh run download 34281082926 --repo "$GITHUB_REPOSITORY" --name cephalo-srpose38-onnx-parity --dir /tmp/ceph-r23h-model
+          cp /tmp/ceph-r23h-model/srpose38-tta-1024.onnx backend/ai_models/srpose38-tta-1024.onnx
+          echo 'a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb  backend/ai_models/srpose38-tta-1024.onnx' | sha256sum -c -
+          test "$(stat -c%s backend/ai_models/srpose38-tta-1024.onnx)" = '267484931'
+      - name: Start REAL FastAPI + JWT on disposable SQLite T2 only
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/ceph-fue-real-backend.log 2>&1 &
+          echo $! > /tmp/ceph-fue-real-backend.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/ceph-fue-real-backend.log
+          exit 1
+      - name: Start empty fictitious orthodontic T2 patient — ZERO studies
+        run: |
+          python -m scripts.ceph_r23h_seed_empty_patient_t2 | tee /tmp/ceph-r23h-seed.log
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          data=json.loads(next(line.split('=',1)[1] for line in Path('/tmp/ceph-r23h-seed.log').read_text().splitlines() if line.startswith('CEPH_R23H_EMPTY_TEST_PATIENT=')))
+          assert data['initial_studies']==0 and data['clinical_release'] is False
+          with open(os.environ['GITHUB_ENV'],'a') as f: f.write('CEPH_R23H_PATIENT='+json.dumps(data,separators=(',',':'))+'\n')
+          PY
+      - name: Start genuine Vite Cabinet UI
+        working-directory: frontend
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/ceph-fue-real-frontend.log 2>&1 &
+          echo $! > /tmp/ceph-fue-real-frontend.pid
+          for i in {1..75}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/ceph-fue-real-frontend.log
+          exit 1
+      - name: FUE-H REAL user FIRST upload, ONNX CPU inference, security, reload
+        working-directory: frontend
+        run: node scripts/fue-ceph-r23h-first-use.mjs
+      - name: Validate FUE-H strict success and disposable database isolation
+        run: |
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          from backend import database,models
+          r=json.loads(Path('artifacts/ceph-r23h-first-use/report.json').read_text())
+          assert r['head']=='${{ github.event.pull_request.head.sha || github.sha }}'
+          assert r['overall']=='FUE_H_REAL_UI_ONNX_PERSISTENCE_SECURITY_PASS_NONCLINICAL'
+          assert len(r['case_ids'])==2 and r['case_ids'][0]!=r['case_ids'][1]
+          assert not r['errors'] and all(c['status']=='PASS' for c in r['checks'])
+          assert r['clinical_release'] is False and r['scientific_goldset'] is False
+          p=json.loads(next(x.split('=',1)[1] for x in Path('/tmp/ceph-r23h-seed.log').read_text().splitlines() if x.startswith('CEPH_R23H_EMPTY_TEST_PATIENT=')))
+          with database.SessionLocal() as db:
+            cases=db.query(models.CephaloAnalysis).filter_by(patient_id=p['patient_id']).all()
+            assert len(cases)==2 and {x.id for x in cases}==set(r['case_ids'])
+            for x in cases:
+              assert x.is_calibrated is False and x.mm_per_pixel is None
+              assert len(x.landmarks_data)==38
+              assert x.angles_data['vision_metadata']['mode_inference']=='SOTA_ONNX_38'
+          print('CEPH_R23H_FUE_H_USER_FIRST_REAL_ONNX_PASS_NONCLINICAL')
+          PY
+      - name: Produce whole-film 38-landmark numbered review boards (nonclinical)
+        if: success()
+        shell: bash
+        run: |
+          python -m scripts.ceph_r23h_fullfilm_review \
+            --input artifacts/ceph-r23h-first-use/source-locked-38-points.json \
+            --sources "$CEPH_PUBLIC_SOURCE_DIR" \
+            --output artifacts/ceph-r23h-first-use
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          folder=Path('artifacts/ceph-r23h-first-use')
+          index=json.loads((folder/'fullfilm-review-index.json').read_text())
+          assert index['head']==__import__('os').environ['PRODUCT_HEAD']
+          assert index['clinical_accuracy_validated'] is False
+          assert len(index['cases'])==2 and {x['radio'] for x in index['cases']}=={'anug','challiyan'}
+          assert all(x['landmarks_drawn']==38 and x['landmarks_outside']==0 for x in index['cases'])
+          assert all((folder/x['annotated_png']).stat().st_size>50000 for x in index['cases'])
+          candidate=json.loads((folder/'model-native-4-steiner-angles.json').read_text())
+          assert candidate['head']==__import__('os').environ['PRODUCT_HEAD']
+          assert candidate['model_sha256']==index['model_sha256']
+          assert candidate['clinical_release'] is False and candidate['historical_aliases_certified'] is False
+          assert candidate['available_official_steiner_rows_modified'] is False
+          assert {x['radio'] for x in candidate['cases']}=={'anug','challiyan'}
+          for one in candidate['cases']:
+            assert one['clinical_authority'] is False and one['calibration_verified'] is False
+            assert one['point_count']==38 and one['source_image_sha256']==next(x['source_sha256'] for x in index['cases'] if x['radio']==one['radio'])
+            assert len(one['rows'])==4 and len({r['id'] for r in one['rows']})==4
+            assert all(r['status']=='MODEL_NATIVE_EXPERIMENTAL_ONLY' and r['canonical_clinical_measurement_available'] is False and 0<=r['value_deg']<=180 for r in one['rows'])
+          print('CEPH_MODEL_NATIVE_4_ANGLES_ARTIFACT_SOURCE_LOCKED_NONCLINICAL_PASS')
+          print('CEPH_R23H_WHOLE_FILM_38_LANDMARKS_BOTH_SOURCE_LOCKED_PASS')
+          PY
+      - name: Publish exact-HEAD public original to ONNX38 proof summary
+        if: success()
+        run: |
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          report=json.loads(Path('artifacts/ceph-r23h-first-use/report.json').read_text())
+          assert report['head']==os.environ['PRODUCT_HEAD']
+          assert report['overall']=='FUE_H_REAL_UI_ONNX_PERSISTENCE_SECURITY_PASS_NONCLINICAL'
+          assert report['clinical_release'] is False and report['scientific_goldset'] is False
+          assert all(c['status']=='PASS' for c in report['checks'])
+          # Native React Steiner A/B adds two real page captures, and two SVG
+          # captures. Evidence must grow with the FUE, never be silently cut.
+          expected_page={
+            '01-before-first-file.png',
+            '02-real-upload-anug.png', '02-real-upload-challiyan.png',
+            '03-reopen-anug.png', '03-reopen-challiyan.png',
+            '05-real-react-steiner-anug.png', '05-real-react-steiner-challiyan.png',
+          }
+          expected_svg={
+            '04-ui-svg-anug.png', '04-ui-svg-challiyan.png',
+            '06-real-react-steiner-svg-anug.png', '06-real-react-steiner-svg-challiyan.png',
+          }
+          assert len(report['screenshots'])==len(expected_page)
+          assert set(report['screenshots'])==expected_page
+          assert len(report['svg_screenshots'])==len(expected_svg)
+          assert set(report['svg_screenshots'])==expected_svg
+          evidence_dir=Path('artifacts/ceph-r23h-first-use')
+          for name in expected_page | expected_svg:
+            assert (evidence_dir/name).is_file() and (evidence_dir/name).stat().st_size>10000, name
+          source_hashes={
+            'anug':'ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6',
+            'challiyan':'98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b',
+          }
+          native=report.get('react_steiner') or []
+          assert len(native)==2 and {item['radio'] for item in native}==set(source_hashes)
+          for item in native:
+            radio=item['radio']
+            assert item['study_id'] in report['case_ids']
+            assert item['source_image_sha256']==source_hashes[radio]
+            assert item['renderer']=='DIGITAL_CROWN_AUTHENTICATED_REACT_SVG'
+            assert item['source_lock']=='AUTHENTICATED_GET_AFTER_REAL_UI_UPLOAD'
+            assert item['model']=='SOTA_ONNX_38'
+            assert item['uncalibrated'] is True and item['expert_verified'] is False
+            assert item['screenshot']=='05-real-react-steiner-'+radio+'.png'
+            assert item['svg_screenshot']=='06-real-react-steiner-svg-'+radio+'.png'
+            segments=item['line_segments']
+            assert len(segments)==5 and {v['id'] for v in segments}=={'sn','na','nb','u1','l1'}
+            assert {(v['id'],v['from'],v['to']) for v in segments}=={
+              ('sn','s','n'),('na','n','a'),('nb','n','b'),
+              ('u1','u1_apex','u1_incisal'),('l1','l1_apex','l1_incisal')}
+          checks={c['id']:c['evidence'] for c in report['checks']}
+          sources=(
+            ('anug','ANUG (2014)','https://commons.wikimedia.org/wiki/File:Cephalometric_radiograph.JPG',
+             'ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6'),
+            ('challiyan','Challiyan (2023)','https://commons.wikimedia.org/wiki/File:A_lateral_cephalogram_without_true_vertical.jpg',
+             '98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b'),
+          )
+          lines=[
+            '# CEPH real public radiographs — genuine ONNX38 proof',
+            '',
+            'Exact product SHA: '+report['head'],
+            '',
+            'Real UI, real FastAPI/JWT, two original public JPEGs, local SRPose38 ONNX.',
+            '',
+            '| Source (CC BY-SA 4.0) | Input SHA-256 | Study | Actual ONNX landmarks | Original bytes displayed |',
+            '| --- | --- | ---: | ---: | --- |',
+          ]
+          for key,author,url,expected in sources:
+            e=checks[key.upper()+'_REAL_UI_UPLOAD_WITH_PINNED_ONNX']
+            assert e['displayed_hash']==expected and e['actual_onnx_landmarks']==38
+            lines.append(f'| [{author}]({url}) | `{expected}` | {e["study_id"]} | 38 | SHA-256 MATCH |')
+          lines.extend([
+            '',
+            'Model SRPose38: `srpose38-tta-1024.onnx`, SHA-256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb` (runner independently checks byte hash).',
+            '',
+            '7 genuine Cabinet page captures: '+', '.join('`'+x+'`' for x in report['screenshots'])+'.',
+            '',
+            '4 native React SVG captures (2 baseline, 2 Steiner): '+', '.join('`'+x+'`' for x in report['svg_screenshots'])+'.',
+            '',
+            'Steiner React SVG source-locked SN/NA/NB validated on BOTH original public radiographs. This is an engineering proof, not expert anatomical accuracy.',
+            '',
+            '**Research / engineering only.** No independent expert-landmark accuracy, no confirmed mm/pixel, no diagnostic certification, no clinical release, no PDF clinical sign-off.',
+            '',
+          ])
+          with open(os.environ['GITHUB_STEP_SUMMARY'],'a',encoding='utf-8') as stream:
+            stream.write('\n'.join(lines))
+          print('CEPH_PUBLIC_ORIGINAL_ONNX38_EXACT_SHA_PROOF_SUMMARY_PASS')
+          PY
+      - name: Diagnostics on failure — no patient images or secrets in logs
+        if: failure()
+        run: |
+          tail -100 /tmp/ceph-fue-real-backend.log 2>/dev/null || true
+          tail -100 /tmp/ceph-fue-real-frontend.log 2>/dev/null || true
+      - name: Upload attributed public evidence only — 30 days
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-premium-j1-real-onnx-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-r23h-first-use/
+          if-no-files-found: warn
+          retention-days: 30
