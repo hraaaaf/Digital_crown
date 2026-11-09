@@ -132,6 +132,38 @@ jobs:
               assert x.angles_data['vision_metadata']['mode_inference']=='SOTA_ONNX_38'
           print('CEPH_R23H_FUE_H_USER_FIRST_REAL_ONNX_PASS_NONCLINICAL')
           PY
+      - name: Produce whole-film 38-landmark numbered review boards (nonclinical)
+        if: success()
+        shell: bash
+        run: |
+          python -m scripts.ceph_r23h_fullfilm_review \
+            --input artifacts/ceph-r23h-first-use/source-locked-38-points.json \
+            --sources "$CEPH_PUBLIC_SOURCE_DIR" \
+            --output artifacts/ceph-r23h-first-use
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          folder=Path('artifacts/ceph-r23h-first-use')
+          index=json.loads((folder/'fullfilm-review-index.json').read_text())
+          assert index['head']==__import__('os').environ['PRODUCT_HEAD']
+          assert index['clinical_accuracy_validated'] is False
+          assert len(index['cases'])==2 and {x['radio'] for x in index['cases']}=={'anug','challiyan'}
+          assert all(x['landmarks_drawn']==38 and x['landmarks_outside']==0 for x in index['cases'])
+          assert all((folder/x['annotated_png']).stat().st_size>50000 for x in index['cases'])
+          candidate=json.loads((folder/'model-native-4-steiner-angles.json').read_text())
+          assert candidate['head']==__import__('os').environ['PRODUCT_HEAD']
+          assert candidate['model_sha256']==index['model_sha256']
+          assert candidate['clinical_release'] is False and candidate['historical_aliases_certified'] is False
+          assert candidate['available_official_steiner_rows_modified'] is False
+          assert {x['radio'] for x in candidate['cases']}=={'anug','challiyan'}
+          for one in candidate['cases']:
+            assert one['clinical_authority'] is False and one['calibration_verified'] is False
+            assert one['point_count']==38 and one['source_image_sha256']==next(x['source_sha256'] for x in index['cases'] if x['radio']==one['radio'])
+            assert len(one['rows'])==4 and len({r['id'] for r in one['rows']})==4
+            assert all(r['status']=='MODEL_NATIVE_EXPERIMENTAL_ONLY' and r['canonical_clinical_measurement_available'] is False and 0<=r['value_deg']<=180 for r in one['rows'])
+          print('CEPH_MODEL_NATIVE_4_ANGLES_ARTIFACT_SOURCE_LOCKED_NONCLINICAL_PASS')
+          print('CEPH_R23H_WHOLE_FILM_38_LANDMARKS_BOTH_SOURCE_LOCKED_PASS')
+          PY
       - name: Publish exact-HEAD public original to ONNX38 proof summary
         if: success()
         run: |
@@ -143,7 +175,46 @@ jobs:
           assert report['overall']=='FUE_H_REAL_UI_ONNX_PERSISTENCE_SECURITY_PASS_NONCLINICAL'
           assert report['clinical_release'] is False and report['scientific_goldset'] is False
           assert all(c['status']=='PASS' for c in report['checks'])
-          assert len(report['screenshots'])==5
+          # Native React Steiner A/B adds two real page captures, and two SVG
+          # captures. Evidence must grow with the FUE, never be silently cut.
+          expected_page={
+            '01-before-first-file.png',
+            '02-real-upload-anug.png', '02-real-upload-challiyan.png',
+            '03-reopen-anug.png', '03-reopen-challiyan.png',
+            '05-real-react-steiner-anug.png', '05-real-react-steiner-challiyan.png',
+          }
+          expected_svg={
+            '04-ui-svg-anug.png', '04-ui-svg-challiyan.png',
+            '06-real-react-steiner-svg-anug.png', '06-real-react-steiner-svg-challiyan.png',
+          }
+          assert len(report['screenshots'])==len(expected_page)
+          assert set(report['screenshots'])==expected_page
+          assert len(report['svg_screenshots'])==len(expected_svg)
+          assert set(report['svg_screenshots'])==expected_svg
+          evidence_dir=Path('artifacts/ceph-r23h-first-use')
+          for name in expected_page | expected_svg:
+            assert (evidence_dir/name).is_file() and (evidence_dir/name).stat().st_size>10000, name
+          source_hashes={
+            'anug':'ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6',
+            'challiyan':'98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b',
+          }
+          native=report.get('react_steiner') or []
+          assert len(native)==2 and {item['radio'] for item in native}==set(source_hashes)
+          for item in native:
+            radio=item['radio']
+            assert item['study_id'] in report['case_ids']
+            assert item['source_image_sha256']==source_hashes[radio]
+            assert item['renderer']=='DIGITAL_CROWN_AUTHENTICATED_REACT_SVG'
+            assert item['source_lock']=='AUTHENTICATED_GET_AFTER_REAL_UI_UPLOAD'
+            assert item['model']=='SOTA_ONNX_38'
+            assert item['uncalibrated'] is True and item['expert_verified'] is False
+            assert item['screenshot']=='05-real-react-steiner-'+radio+'.png'
+            assert item['svg_screenshot']=='06-real-react-steiner-svg-'+radio+'.png'
+            segments=item['line_segments']
+            assert len(segments)==5 and {v['id'] for v in segments}=={'sn','na','nb','u1','l1'}
+            assert {(v['id'],v['from'],v['to']) for v in segments}=={
+              ('sn','s','n'),('na','n','a'),('nb','n','b'),
+              ('u1','u1_apex','u1_incisal'),('l1','l1_apex','l1_incisal')}
           checks={c['id']:c['evidence'] for c in report['checks']}
           sources=(
             ('anug','ANUG (2014)','https://commons.wikimedia.org/wiki/File:Cephalometric_radiograph.JPG',
@@ -169,7 +240,11 @@ jobs:
             '',
             'Model SRPose38: `srpose38-tta-1024.onnx`, SHA-256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb` (runner independently checks byte hash).',
             '',
-            '5 screenshots included in the artifact: '+', '.join('`'+x+'`' for x in report['screenshots'])+'.',
+            '7 genuine Cabinet page captures: '+', '.join('`'+x+'`' for x in report['screenshots'])+'.',
+            '',
+            '4 native React SVG captures (2 baseline, 2 Steiner): '+', '.join('`'+x+'`' for x in report['svg_screenshots'])+'.',
+            '',
+            'Steiner React SVG source-locked SN/NA/NB validated on BOTH original public radiographs. This is an engineering proof, not expert anatomical accuracy.',
             '',
             '**Research / engineering only.** No independent expert-landmark accuracy, no confirmed mm/pixel, no diagnostic certification, no clinical release, no PDF clinical sign-off.',
             '',

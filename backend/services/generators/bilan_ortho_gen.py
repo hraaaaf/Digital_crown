@@ -63,6 +63,15 @@ class BilanOrthoPDFGenerator(BaseTemplate):
             "clinical_validation_reason": "Projection clinique autoritaire indisponible.",
         }
 
+        # Switch only for a server-generated typed PDF projection. Existing R17
+        # renderer and its regression harness remain available for old snapshots.
+        if (document.get("layout_version") == "CLINICAL_FOUR_PART_A4_V1"
+                and document.get("authority") == "BACKEND_TYPED_EVIDENCE_AND_R15_STUDIO"):
+            from backend.services.generators.cephalo_four_part_report import render_four_part_a4
+            return render_four_part_a4(
+                self, vm, file_path, projection=document, user=user, media=media,
+            )
+
         # Official A4 and its preview must share the same ReportLab BaseTemplate
         # letterhead, branding, footer and QR renderer as every cabinet document.
         # The HTML renderer remains for contract tests, never a divergent output.

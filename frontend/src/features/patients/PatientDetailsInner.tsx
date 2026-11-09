@@ -131,6 +131,9 @@ export const PatientDetails = () => {
   const [loading, setLoading] = useState(!cachedPatient);
   const [fetchError, setFetchError] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
+  // The dossier shares the existing patient-scoped Media Core viewer.
+  const [showClinicalMedia, setShowClinicalMedia] = useState(false);
+  useEffect(() => setShowClinicalMedia(false), [id]);
   // Read-only contextual advice lives in the radiology layout rather than
   // over clinical data. Key by patient to prevent A→B transient disclosure.
   const [radiologyAdvice, setRadiologyAdvice] = useState<{
@@ -538,7 +541,42 @@ export const PatientDetails = () => {
               <PatientJourney patientId={Number(id)} />
             </>
           )}
-          {activeTab === 'clinical' && <ClinicalHub patientId={Number(id)} />}
+          {activeTab === 'clinical' && canClinical && (
+            <div className="space-y-4" data-testid="clinical-dossier-unified">
+              <section className="rounded-2xl border border-border-main bg-card-bg p-4 shadow-sm" aria-label="Dossier clinique unifié">
+                <h2 className="text-lg font-bold text-text-main">Dossier clinique</h2>
+                <p className="mt-1 text-sm text-text-muted">
+                  Examens, images et documents rattachés au même dossier patient.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                  <button type="button"
+                    onClick={() => setShowClinicalMedia(value => !value)}
+                    aria-expanded={showClinicalMedia}
+                    aria-controls="clinical-dossier-mediatheque"
+                    className="rounded-lg border border-border-main bg-card-bg px-3 py-2 text-sm font-semibold text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                    {showClinicalMedia ? 'Masquer la médiathèque' : 'Voir la médiathèque du patient'}
+                  </button>
+                  <button type="button"
+                    onClick={() => setSearchParams({ tab: 'radiology', radioTab: 'media' })}
+                    className="rounded-lg border border-border-main px-3 py-2 text-sm font-semibold text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                    Ouvrir l’imagerie
+                  </button>
+                  <button type="button"
+                    onClick={() => handleTabChange('archives')}
+                    className="rounded-lg border border-border-main px-3 py-2 text-sm font-semibold text-primary focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2">
+                    Documents et bilans
+                  </button>
+                </div>
+              </section>
+              {showClinicalMedia && String(patient.id) === id && (
+                <section id="clinical-dossier-mediatheque" aria-label="Médiathèque du dossier clinique"
+                  className="rounded-2xl border border-border-main bg-card-bg p-2 sm:p-3">
+                  <PatientMediaTimeline key={id} patientId={Number(id)} readOnly />
+                </section>
+              )}
+              <ClinicalHub patientId={Number(id)} />
+            </div>
+          )}
 
           {isDocuments && (
             <div className="h-full min-h-0 flex flex-col gap-3">

@@ -787,3 +787,1755 @@ Les écarts Junior/Senior sont **non nuls pour 12/29 landmarks Veraviewepocs et 
 **Contrôle humain et scientifique inchangé :** le modèle retournant 38 repères = preuve d'exécution **et NON précision anatomique / qualité diagnostique**. `is_calibrated=false` / `mm_per_pixel=null` dans FUE-H ; pas de validité mm ni mesures cliniques ; pas de classification. `clinical_validation_available=false`, PDF `INCOMPLETE`, Wits `CANDIDATE_ONLY`, `HOLD-MCNAMARA-SCALE`, `HOLD-Z-ORIENTATION`, FUE cabinet réel 0/10. Aucune approval visuelle de l'owner, pas de merge master, pas d'EXE, pas de Vercel, pas d'activation cabinet.
 
 **Dernière mise à jour canonique 05/11/2026 — FUE-H public original exact SHA déclenché sur branche candidate ; résultat en attente de vérification des jobs/artefacts.**
+
+### 38. POST — 2026-11-05 — authentic FUE-H deux radios FACAD au SHA Céphalo actuel
+
+**Preuve de run sur le vrai HEAD V1 `aa7fb5569c00b8a22b6493a4b729fab29a9674f4`** : [GitHub Actions #42008168486](https://github.com/hraaaaf/Digital_crown/actions/runs/42008168486) **COMPLETED/SUCCESS**, [artefact #13406715253](https://github.com/hraaaaf/Digital_crown/actions/runs/42008168486/artifacts/13406715253) ouvert/inspecté ; second run indépendant au **même SHA** [#42008167166](https://github.com/hraaaaf/Digital_crown/actions/runs/42008167166) SUCCESS, [artefact #13405913261](https://github.com/hraaaaf/Digital_crown/actions/runs/42008167166/artifacts/13405913261). **Chaque run : 6/6 contrôles PASS**, zéro erreur et cinq captures véritables par run, ZIP compris. Les six structures JSON `checks` correspondent exactement d'un run à l'autre, et les deux PNG `03-reopen-anug.png` et `03-reopen-challiyan.png` sont **byte-identiques** entre les deux runs (SHA256 screenshot A `d76808115162e…`, B `f062f83f51b89…`). Aucune nouvelle application n'a été déployée ni modifiée pour tester.
+
+**Source certifiée / vrai upload / modèle** : images Wikimedia originales **ANUG** et **Challiyan** hashées SHA1 et affichées SHA256 exact (A `ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6`; B `98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b`), ONNX local SRPose38 exact SHA256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb`; vrai navigateur Cabinet T2, login, vrai widget upload, vrai HTTP FastAPI/JWT, base SQLite T2 jetable, **38 repères par radio**, études de démo #2 et #3 distinctes, nouvelle session/réouverture complète. Un rôle restreint et un autre cabinet sont rejetés HTTP **403** pour étude ET image. `clinical_release=false`, `scientific_goldset=false`, `patient_real=false`; aucune donnée patient réelle. Report `overall=FUE_H_REAL_UI_ONNX_PERSISTENCE_SECURITY_PASS_NONCLINICAL`.
+
+**Captures EXACTES visibles** (artefact authentique, pas de rendu fabriqué): `01-before-first-file.png` (zéro étude), `02-real-upload-anug.png`, `02-real-upload-challiyan.png` (étapes directement après upload), `03-reopen-anug.png`, `03-reopen-challiyan.png` (relecture après nouveau login avec panneau COM et repères). Les versions POST nouvellement rechargées correspondent pixel à pixel sur 2 runs. **Limitation UI** : le viewport screenshot haut de page n'expose qu'une partie de la radio et de la liste des mesures ; il n'est PAS une preuve de placement exact des 38 landmarks. L'écran immédiatement après upload affiche un avertissement de chaîne/protocole non vérifiés, tandis qu'à la réouverture il expose « 4/10 valeurs prouvées » et quelques ANGLES verts ; auditer la cohérence d'état et éviter de faire passer ces couleurs pour une validation anatomique. Distances en mm et diagnostics non autorisés sans calibration vérifiée et références.
+
+**Limitations et next** : aucun ground truth expert sur ces **deux clichés** identifié, aucune comparaison indépendante point à point, aucune concordance numérique FACAD même tracé ; `is_calibrated=false`, `mm_per_pixel=null` pour les deux. **FUE réel sur input public validé fonctionnellement, NO-GO clinique** ; ne pas lever Wits, McNamara, Z, PDF et validation humaine. Autre CI [CEPH L3 PDF #42008168295](https://github.com/hraaaaf/Digital_crown/actions/runs/42008168295) FAIL au même SHA dans Playwright `locator.evaluate: Execution context was destroyed` lors rechargement Vite optimize deps ; 34 tests ciblés backend PASS, risque test visuel L3 restant indépendant, ne pas proclamer toute la PR verte. `CODE_CERTIFIED candidate` #42008167161 encore IN_PROGRESS au relevé (backend full), sans verdict global.
+
+**Portée de la modification Git :** ce POST est une écriture **documentaire sur une branche de test distincte**, qui conserve les mêmes octets de code que `aa7fb556...`; la PR DRAFT #1212 et `master` restent inchangés et le run prouve uniquement `aa7fb556...`. Aucun nouveau canonique créé, il s'agit du fichier existant.
+
+**Dernière mise à jour canonique 05/11/2026 — deux run FUE-H exact-SHA 6/6 chacun, screenshots AFTER identiques sur 2 runs ; précision anatomique et vraie clinique toujours non certifiées.**
+
+### 39. PRE — 2026-11-05 — FUE-H plein-cliché 38 repères A/B et capture du vrai SVG (branche de test uniquement)
+
+**Demande praticien / cible :** images ANUG et Challiyan exactement identiques (SHA-256 A `ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6`, B `98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b`), nouveaux rendus complets avec les 38 vrais repères numérotés et légende lisible, **exclusivement depuis le GET authentifié au SHA précis du test**, ainsi que captures SVG de la vraie UI. Ne jamais générer les landmarks ni inventer leur position.
+
+**Baseline** : produit `aa7fb5569c00b8a22b6493a4b729fab29a9674f4`, PR #1212 DRAFT, FUE-H existant [#42008168486](https://github.com/hraaaaf/Digital_crown/actions/runs/42008168486) 6/6 PASS, mais 5 screenshots non plein-cliché et pas de JSON des positions. Le canonique UNIQUE actuel §38 déjà mis à jour. Uniquement copie du script FUE-H, artefact d'audit généré et workflow minimal sur la branche isolée ; **aucun changement aux fichiers applicatifs**. Nouveau commit implique nouveau SHA : les preuves antérieures ne se transfèrent pas au nouveau commit.
+
+**Gates nouvelles preuves** : source hashée, modèle ONNX local hashé, JWT réel, étude distincte A/B, GET et identité, 38 IDs uniques, x/y finis et image complète non recadrée ; image audit avec distinction « points AUTO non validés » et géométrie explicite, pas d'affirmation mm/normalité/diagnostic. Captures app véridiques séparées des planches d'audit PIL, jamais maquillées. Relever si le statut « 4/10 valeurs prouvées » n'a aucun rapport avec la vérité terrain. Résultat FINAL à remplir après CI ; ne pas toucher `master`, ne pas toucher PR #1212, pas de Vercel ou EXE.
+
+**CLINICAL NO-GO** : `clinical_validation_available=false`, Wits `CANDIDATE_ONLY`, McNamara/Z HOLD, PDF INCOMPLETE, 0/10 FUE cabinet réels. Le PDF L3 [#42008168295](https://github.com/hraaaaf/Digital_crown/actions/runs/42008168295) échoue dans Vite/Playwright `Execution context was destroyed` (reload optimizeDeps), distinct des 38 points ; si traité, contrôle isolé sans contourner le PDF.
+
+### 40. POST — 2026-11-05 — vrai plein-cliché A/B 38 repères, screenshots de l'UI, et revue FUE
+
+**HEAD exécuté (ne pas transférer automatiquement à la documentation future)** : `a7b633b93aa6a50aa72bdc04c621623af3c3cbea`, branche de test `test/ceph-v1-facad-two-public-radios-20261105`, [PR DRAFT #1213](https://github.com/hraaaaf/Digital_crown/pull/1213) **vers la branche DRAFT clinique #1212**, pas vers master. Run exact SHA [#42011785804](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785804) **COMPLETED/SUCCESS, 6/6 FUE-H PASS** + **garde du hors champ clinique** + **plein-cliché à 38 repères × 2 PASS**. [Artefact de preuve #13407028578](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785804/artifacts/13407028578) 5,48 Mo, **12 fichiers** ; ouverture des fichiers et inspection des PNG/JSON effectuée.
+
+**Authenticité** : mêmes radiographies publiques ANUG et Challiyan vérifiées SHA256 des octets JPEG, modèle SRPose38 vérifié SHA256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb`, vraie UI Cabinet + upload input, JWT/FastAPI, 2 analyses #2 et #3 SQLite jetable, réouverture sur second navigateur, `GET` authentifié indépendant, 38 points ID/x/y par radio entièrement finis et dans le cadre original, aucun doublon, refus 403 lecture image/étude hors cabine et secrétariat. `report.json` : `overall=FUE_H_REAL_UI_ONNX_PERSISTENCE_SECURITY_PASS_NONCLINICAL`, `errors=[]`, `checks` 6/6 PASS, `clinical_release=false`, `scientific_goldset=false`, `patient_real=false`.
+
+**NOUVELLES 4 preuves visuelles** :
+- `fullfilm-anug-38points-numerotes.png` **3126×2125**, source native 2272×1818 sans recadrage, 38 indices sur positions réelles, tableau de 38 couples x/y en pixels originaux, source hashing et attribution CC BY-SA 4.0.
+- `fullfilm-challiyan-38points-numerotes.png` **1644×1727**, source native 1000×1255 sans recadrage, 38 indices, tableau indépendant des 38 couples et identité JSON.
+- `04-ui-svg-anug.png` **632×764**, capture directe de l'élément SVG React du véritable Céphalo COM après réouverture (labels COM seulement, interface indique `Landmarks: 38`).
+- `04-ui-svg-challiyan.png` **632×764**, vraie capture de la seconde étude COM, même conditions.
+
+`source-locked-38-points.json` est la source probante UNIQUE des superpositions, issue des deux GET authentifiés et réconciliée à la réouverture (pas de nouveaux landmarks inventés) ; `fullfilm-review-index.json` indexe les SHA256 des 2 PNG. Les PNG plein-cliché sont **des planches de revue indépendantes PIL**, pas des captures de l'interface : l'origine n'a pas été altérée, seuls les labels/calques sont ajoutés.
+
+**Analyse critique** : le pipeline réel fonctionne (non-clinique) et les deux images sont maintenant **évaluables visuellement en entier**. Cela **ne valide pas** la précision de positionnement des 38 repères : pas de vérité terrain experte sur les mêmes images, pas de mesure de précision en px/mm, pas de concordance directe FACAD, pas de calibration mm/pixel. Les repères anatomiques peuvent être imparfaits ; un praticien doit approuver chaque point/contour avant tout usage. L'UI COM ne présente qu'un sous-ensemble de labels et son badge `38` signifie **chargés**, non approuvés. `4/10 valeurs prouvées` dans le panneau R23G4 désigne un calcul/protocole disponible, **pas l'exactitude anatomique vérifiée** ; revoir la sémantique pour éviter un green clinique trompeur.
+
+**PDF L3 parallèle** : [ancien run #42008168295](https://github.com/hraaaaf/Digital_crown/actions/runs/42008168295) réexécution des jobs FAILED **déclenchée** pour discriminer le reload Vite/Playwright `locator.evaluate: Execution context was destroyed` de l'exactitude PDF; aucun nouveau PASS inventé à cet instant. Le full backend CODE candidate SHA aa7fb556 restait RUNNING lors de cette passe, distinct du test plein-cliché.
+
+**Gates et versions** : Aucun code produit, couleur/token, backend de calcul ou PDF n'est changé par #1213. `clinical_validation_available=false`, Wits `CANDIDATE_ONLY`, McNamara et Z HOLD, PDF `INCOMPLETE`, 0/10 FUE réels et aucune approval visuelle humaine. Aucun merge master, aucun Vercel, EXE ou installation. **Ce commit POST documentaire déplace le SHA HEAD après la preuve, donc les résultats FUE-H décrits restent rattachés exclusivement à `a7b633b...`; toute validation visuelle/merge exige un contrôle au nouveau HEAD.** Conserver une seule documentation canonique par lot.
+
+**Dernière mise à jour canonique 05/11/2026 — FUE-H 6/6 + 2 planches plein-cliché 38 pts + 2 vrai SVG + JSON de coordonnées PASS sur a7b633b, revue anatomique HOLD.**
+
+### 41. PRE — 2026-11-05 — manque identifié : analyses calculées + PDF DIGITAL CROWN des deux téléradios FACAD
+
+**Retour praticien :** les points seuls, même 38/38, ne répondent pas à la validation Céphalo. Au SHA de test précédent `a7b633b93aa6a50aa72bdc04c621623af3c3cbea`, FUE-H 6/6 et plein-cliché PASS, mais **aucun PDF et aucun tableau de mesures lisibles n'ont été produits pour A et B**. Les sorties déjà remises NE SONT PAS des bilans céphalométriques.
+
+**Mission de ce sous-lot :** sur branche DRAFT de test #1213 et uniquement dans un test T2 sans patients, appeler pour chaque analyse A/B le `GET /api/ia/analyses/{analysis_id}` authentifié et extraire **les valeurs réellement présentes dans `angles_data.metrics`** sans les inventer, conserver les `null` et l'absence de calibration. Prévalider la révision (GET `/api/patients/{id}/cephalo-validation`), puis appeler la vraie route `POST /api/patients/{id}/pdf` avec `analysis_id`, `expected_revision` et `archive:false`, capture des octets PDF OFFICIELS (vrais `%PDF`, id/revision en headers, extraction texte PDF). Générer PNG A4 depuis ces octets pour montrer **le rendu exact de l'application** et remettre 2 PDFs téléchargeables. Les screenshots radio + repères de §40 restent distincts. S'il y a un 409/422 : montrer l'échec et ne JAMAIS forger une révision/une calibration.
+
+**Critères de réussite :** chaque PDF identifié et lié à la bonne étude, non interverti, au moins une page A4 vérifiée; 2 fichiers d'analyse JSON source-authentifiée listant unités/valeurs/NC, pas de norme ni diagnostic inféré, vérification absence de mesure mm non calibrée, et revue PDF visuelle. **Les vert/anormal ne certifient pas l'exactitude anatomique.** Aucun changement de moteur, schéma, thème, ni app backend ; un harness/tests/workflow seulement. Aucun merge master/Vercel/EXE ni clinical approval. État initial `clinical_validation_available=false`, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF INCOMPLETE au plan clinique.
+
+**POST :** à compléter strictement sur des artefacts et logs exact SHA.
+
+### 40. BILANS TECHNIQUES NON CLINIQUES — 2026-11-05 — deux radios FACAD, analyse angulaire / PDF d'audit
+
+**PRE/constat** : Le praticien demande explicitement les analyses et le bilan PDF, pas seulement les 38 points. Le précédent FUE-H [#42011785804](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785804), SHA `a7b633b93aa6a50aa72bdc04c621623af3c3cbea`, **6/6 PASS** et artefact #13407028578 fournit deux vrais clichés publics ANUG/Challiyan + **38 points auto chacun** via GET authentifié SQLite, mais **aucun PDF clinique de ces 2 études n'est généré**. La radio A étude T2 #2, B #3 ; `is_calibrated=false`, `mm_per_pixel=null`. Les FUE-P1 [#42011785853](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785853) / FUE-P2 [#42011785726](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785726) indiquent `DOCUMENT_STEPPER_SAFELY_BLOCKS_UNCALIBRATED_STUDY` PASS et `REAL_PROTOCOL_SELECTORS_AND_UNVERIFIED_LABELS` FAIL (sélecteurs COM/Steiner manquants). Ne pas contourner l'export clinique fail-closed, ne pas diagnostiquer.
+
+**POST calculs transparents depuis les points authentifiés de `source-locked-38-points.json`** selon les **7 formules angulaires géométriques** de [`backend/services/cephalo_engine.py` au SHA produit](https://github.com/hraaaaf/Digital_crown/blob/aa7fb5569c00b8a22b6493a4b729fab29a9674f4/backend/services/cephalo_engine.py), sans normes : `SNA/SNB/ANB`, `FMA`, `IMPA`, `I_Francfort`, `Inter_Incisif` ; aucune entrée clinique ni échelle millimétrique inventée.
+
+| Mesure en degrés (brute, aucun verdict clinique) | ANUG A | Challiyan B |
+| --- | ---: | ---: |
+| SNA | 79.1 | 79.9 |
+| SNB | 77.7 | 74.6 |
+| ANB = SNA − SNB | 1.4 | 5.3 |
+| FMA / Tweed | 31.5 | 27.7 |
+| IMPA | 101.1 | 104.3 |
+| Incisive sup. / Francfort | 115.9 | 108.4 |
+| Inter-incisif | 111.4 | 119.6 |
+
+**Deux PDF réellement produits et inspectés dans le container utilisateur**, trois pages chacun : (1) analyse tabulée angulaire + screenshot véritable de l'UI, (2) radio entière annotée 38 repères + légende sur A3 paysage, (3) table des 38 coordonnées pixel + provenance. Documents **distincts du moteur PDF CLINIQUE officiel** et titrés en première page **NON CLINIQUE / NON SIGNÉ / NON CALIBRÉ**. Sorties générées dans le chat du 05/11/2026 :
+- `CEPHALO_ANUG_BILAN_TECHNIQUE_NON_CLINIQUE.pdf` (SHA256 `bfb98896f63223e3762ee8b7cab2894e86fac7fd7831d5a92b6b788dbeb0f591`)
+- `CEPHALO_CHALLIYAN_BILAN_TECHNIQUE_NON_CLINIQUE.pdf` (SHA256 `0e9ec21634ed866ee8cae71375ff863daa1fb33794db035b16fdd3ff8650851d`)
+
+**QA PDF** : ReportLab et rendu à 120 DPI via la compétence PDF ; inspection visuelle des trois pages ANUG et extraction PyMuPDF des deux (3 pages, A4/A3/A4), aucun bloc texte hors cadre. Les chiffres ne prétendent **pas** être des réponses persistées du protocole R23G4 ni une comparaison anatomique FACAD : ils sont un **recalcul déterministe externe** des formules contenues dans le module Céphalo, appliqué aux points authentifiés.
+
+**À faire pour un vrai bilan officiel Digital Crown** : établir calibration physique vérifiée si possible, corriger/geler manuellement les 38 repères, rejouer FUE-P1 avec sélecteurs/protocole réellement supportés, exporter via vrai endpoint PDF avec identité étude/révision et contrôler PDF/preview/screenshot. Les 2 radios publiques sans marqueur d'étalonnage **ne doivent pas recevoir de calibration estimée**. Wits candidate, McNamara et Z HOLD, PDF `INCOMPLETE`, `clinical_validation_available=false`, 0/10 FUE cabinet, approbation humaine absente. Aucun code clinique, couleur, token, master, Vercel ou EXE modifié.
+
+**Dernière mise à jour canonique 05/11/2026 — mesures 7 angles × 2 + deux bilans PDF techniques non-cliniques disponibles dans le chat ; export clinique officiel = BLOQUÉ légitimement.**
+
+### 42. PRE — 2026-11-05 — planches Steiner / Tweed / COM des deux radios réelles
+
+**GO du praticien** : après les bilans PDF angulaires, montrer des **tracés géométriques céphalométriques** sur les deux originaux publics ANUG (A) et Challiyan (B), avec visuels lisibles, valeurs SNA/SNB/ANB/FMA/IMPA/IF/inter-incisif, et PDF de revue auditables. Ne pas s'arrêter aux 38 points ni inventer une anatomie intermédiaire.
+
+**Source verrouillée** : `source-locked-38-points.json` issu des GET authentifiés au SHA de run `a7b633b93aa6a50aa72bdc04c621623af3c3cbea` par [GitHub #42011785804](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785804), originaux JPEG à SHA256 `ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6` (ANUG) et `98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b` (Challiyan). Formules angulaires relues dans `backend/services/cephalo_engine.py` sur SHA produit `aa7fb556...`: SNA/SNB/ANB à N, FMA entre Go-Me et Po-Or, IMPA = 180° − angle(L1a→L1i,Go→Me), I/Francfort et inter-incisif.
+
+**Portée** : 6 PNG A/B × Steiner, Tweed, COM, 2 PDF techniques + index JSON source/mesures/hash, éventuel script reproductible sur branche de test PR #1213. **Les tracés se limitent à segments entre repères sources** : Steiner SN/NA/NB, Tweed FH/GoMe/L1, COM agrégation angulaire sans diagnostic ni contour cutané inventé. Original radiographique jamais rééchantillonné pour la géométrie originale. Les PDF sont des **documents d'audit externes, pas ceux de l'export clinique officiel** ; rester explicite sur le modèle automatique non contrôlé et `mm_per_pixel=null`.
+
+**NO-GO clinique maintenu** : `clinical_validation_available=false`, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF OFFICIEL INCOMPLETE, FUE cabinet réel 0/10, approbation humaine absente. Aucun merge master, déploiement Vercel, EXE ou levée de gate.
+
+**POST** à compléter uniquement après génération, inspection PNG/PDF et preuve de cohérence des chiffres et des 38 points.
+
+### 42. POST — 2026-11-05 — Steiner / Tweed / COM, A+B, PDF de revue et validation des images
+
+**PRE lié à cette passe** : §42 PRE, baseline de provenance `source-locked-38-points.json` API GET authentifié réel, source ONNX SHA `a7b633b...`, photo source ANUG et Challiyan vérifiées SHA256 et CC BY-SA 4.0. **Il s'agit d'une production d'audit externe locale, pas d'une nouvelle inférence ONNX ni d'un export PDF officiel de Digital Crown.** PR #1213 reste DRAFT, #1212/master inchangés.
+
+**POST : six PNG réels produits et rendus en conversation** depuis seulement 38 landmarks auto d'origine pour A et B :
+- `anug-steiner-traces-geometriques.png`, `challiyan-steiner-traces-geometriques.png` : segments SN, NA, NB, angles SNA/SNB/ANB (N commun), positions d'origine x/y verrouillées ;
+- `anug-tweed-traces-geometriques.png`, `challiyan-tweed-traces-geometriques.png` : plan FH Po-Or, mandibulaire Go-Me, axe L1a–L1i, FMA/IMPA ;
+- `anug-com-traces-geometriques.png`, `challiyan-com-traces-geometriques.png` : combinaison explicite des sept segments (SN, NA, NB, FH, Go-Me, U1a-i, L1a-i), sept angles bruts SNA, SNB, ANB, FMA, IMPA, I/Francfort, inter-incisif.
+
+**Valeurs calculées et recoupées par assertions des formules de `backend/services/cephalo_engine.py` au `aa7fb556...`** : ANUG SNA 79.1° SNB 77.7° ANB 1.4° FMA 31.5° IMPA 101.1° I/FH 115.9° interincisif 111.4°. Challiyan SNA 79.9° SNB 74.6° ANB 5.3° FMA 27.7° IMPA 104.3° I/FH 108.4° interincisif 119.6°. **Pas de valeurs normatives, classification, hypothèses ou distances mm**. Les tracés ne sont pas une segmentation de tissus mous ou un contour osseux interpolé (pas d'information source pour en dessiner un). Photos sources inchangées sur disque ; calques rendus dans des PNG d'audit indépendants.
+
+**Deux PDFs physiques de revue générés et vérifiés** : `CEPHALO_ANUG_STEINER_TWEED_COM_AUDIT_NON_CLINIQUE.pdf` SHA256 `703895f92087fee6f8f1192407126f3cd123daca62784bb066e46adab5e435e6` (4 pages) ; `CEPHALO_CHALLIYAN_STEINER_TWEED_COM_AUDIT_NON_CLINIQUE.pdf` SHA256 `a678f69ce51d1677272cda86978988231174896ead08e313f34eedc260334754` (4 pages). Chaque PDF contient (1) 7 angles + limites sur A4 (2) Steiner A3 paysage (3) Tweed A3 paysage (4) COM A3 paysage. **PDF généré par ReportLab externe**, pas par endpoint de bilan patient Digital Crown, strictement « AUDIT NON CLINIQUE » en page 1 ; la création ne prétend donc pas lever le blocage volontaire de l'export clinique pour ces 2 radios sans calibration.
+
+**QA physique** : rendu des deux PDF en PNG à 100 DPI et inspection de la première page et des planches A/B ; vérification structure PyMuPDF 4 pages chacune (8 pages), tous blocs texte dans limites ; assertions SHA sources, modèle, 38 ID distincts, x/y finis dans cadre, et exact 7 angles pour chaque source, SHA256 de 6 images et 2 PDF réinscrit dans `traces-provenance.json`. ZIP complet des 10 fichiers `Cephalo_FACAD_Steiner_Tweed_COM_ANUG_Challiyan_AUDIT_2026-11-05.zip` SHA256 `486c1e099d1c9d50addd555320ea81201e4fd771d3504d17146f4089be51650d`, contient le script Python de reproduction, 6 PNG, 2 PDF, manifest JSON.
+
+**État projet GitHub au SHA juste avant ce POST `d4487e1a3a155ac07adb0a7108c9b90d3a9efae8`** : branche #1213 DRAFT, run test-only CI Scope #42018667717 SUCCESS, R14 #42018667606 SUCCESS, frontend test #42018667595 SUCCESS, FUE-H #42018667542, FUE-P1 #42018667736 et FUE-P2 #42018667464 **IN_PROGRESS** au relevé. Gate « UI Human Visual Approval » #42018660457 **FAIL** comme non approuvé; ne pas auto-signer ni présenter PASS clinique. Ce PASS des audités externes ne remplace pas la CI live du nouveau SHA documentaire.
+
+**Blocages maintenus** : preuve ONNX technique réutilisée du run antérieur et non nouvellement inférée, pas de contours anatomiques expertisés, aucune comparaison FACAD même image / ground truth, `is_calibrated=false` / `mm_per_pixel=null`, `clinical_validation_available=false`, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF officiel INCOMPLETE, FUE cabinet réel 0/10. **No merge master, no Vercel, no EXE, no patient release.**
+
+**NEXT** : faire la revue visuelle humaine des deux plans Steiner et Tweed + COM, marquer les erreurs de placement landmark par landmark, puis produire une nouvelle vraie analyse corrigée via l'app avec révision contrôlée. Sans expert confirmé ni échelle mm, seule l'analyse angulaire de recherche reste autorisée.
+
+**Dernière mise à jour canonique 05/11/2026 — 6 PNG source-lock + 2 PDFs techniques (8 pages) + manifest et ZIP vérifiés, pas de GO clinique.**
+
+
+### 43. POST — 2026-11-05 — V2 arcs angulaires réels et labels sans collision sur ANUG + Challiyan
+
+**Demande/état d'entrée de ce sous-lot** : l'utilisateur a donné « Okay go » après une note **7,5/10 visuelle** et **3/10 clinique**, avec les objectifs arcs d'angles, déplacement étiquettes et comparaison FACAD expert même image. Baseline source §42 : deux radios publiques Wikimedia Commons CC BY-SA 4.0, images originales SHA256 A `ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6` et B `98c6384dd9cc392ac54bf365173e522a4860ce55a64b8b15e87485dbcc30371b`, origine landmarks `source-locked-38-points.json` émis par GET authentifié du run [#42011785804](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785804) SHA `a7b633b93aa6a50aa72bdc04c621623af3c3cbea`, moteur géométrique au HEAD produit `aa7fb5569c00b8a22b6493a4b729fab29a9674f4`. Aucun git PRE distinct n'a été poussé pour ce nouvel incrément visuel : ce POST documente l'écart de gouvernance sans prétendre à une annotation PRE faite avant exécution.
+
+**Sortie V2 physique produite dans la conversation** : 6 PNG `anug-{steiner,tweed,com}-arcs-et-labels.png` et `challiyan-{steiner,tweed,com}-arcs-et-labels.png`, 2 PDF `CEPHALO_ANUG_STEINER_TWEED_COM_ARCS_AUDIT_NON_CLINIQUE.pdf` SHA256 `d8651a64dec668b25ba9c715ce6d5673d34d7bf000d5e6dad4b95a5cda27711d` et `CEPHALO_CHALLIYAN_STEINER_TWEED_COM_ARCS_AUDIT_NON_CLINIQUE.pdf` SHA256 `7c435a0784f38b87ef25787eaac0b31c1890ec2e421b45d2719b7bec28c99e8f`; PDF **4 pages chacun** (A4 mesures + 3 A3 paysage Steiner/Tweed/COM). Dossier ZIP `Cephalo_FACAD_Arcs_Steiner_Tweed_COM_V2_2026-11-05.zip` SHA256 `8bb996a7fdf574123fdeed19d9247505e13ad91df74c25d148840103f0f7a26e` avec 6 PNG, 2 PDF, JSON provenance, script de reproduction et limites.
+
+**Constructions** : arcs calculés par vecteurs dans l'image sur le vrai sommet à N pour SNA=angle SN/NA, SNB=angle SN/NB, ANB=angle NA/NB (calcul par différence SNA-SNB), à l'intersection des **droites** pour FMA (Go-Me/FH), IMPA (axe incisif inferieur/Go-Me), incisive supérieure/Francfort et interincisif (axes U1/L1). Chaque sweep est contrôlé par assertion indépendante `abs(angle_arc - angle_moteur) < 0.11°`. ANUG FMA : prolongements **pointillés** jusqu'à l'intersection réelle des droites sur le cliché. Challiyan FMA : intersection réelle x=-147 px à l'**extérieur de l'image native**, donc schéma angulaire **déporté et marqué** hors photo, avec deux rayons, valeur 27,7°. Aucune position anatomique créée par l'inset.
+
+**Géométrie et collision** : packing déterministe des étiquettes des landmarks utilisés dans chaque protocole, boîtes de légendes garanties dans le cadre, zéro recouvrement boîte/boîte et zéro masque de repère voisin, marqueurs d'origine non déplacés, aucune extrapolation de profil mou. Statut visuel supérieur à §42, mais ne pas présenter un « score certifié ». Chaque image porte « NON CLINIQUE / POINTS AUTO NON EXPERTISÉS / PAS DE CALIBRATION » et « AUDIT GRAPHIQUE — PAS L'INTERFACE NI FACAD ». Les valeurs angulaires source demeurent inchangées : A `79.1, 77.7, 1.4, 31.5, 101.1, 115.9, 111.4` degrés, B `79.9, 74.6, 5.3, 27.7, 104.3, 108.4, 119.6` degrés (ordre SNA, SNB, ANB, FMA, IMPA, I/FH, inter-incisif). **Ces valeurs n'ont pas été comparées à une mesure experte sur les mêmes clichés**.
+
+**QA PDF** : script PDF skill `render_pdf.py` DPI 110 appliqué aux deux PDF ; 8 pages rendues et contact sheets ouverts visuellement ; PyMuPDF 4 pages/patient et une image par page A3, tous les blocs texte dans le cadre ; fichiers hashés sur disque. Manifest `traces-arcs-provenance.json` : source SHA & modèle SHA, 38 ID uniques, exactement les 7 angles par cas, `overlaps=0`, `arc_placement` et géométrie, `scientific_goldset=false`, `clinical_accuracy_validated=false`, `landmark_deviation_px=null` et `landmark_deviation_mm=null` ; aucun patient réel ni mm inventé.
+
+**Vérification FACAD** : recherches web sur les deux titres exacts Commons ne donnent que **les deux originaux**, sans annotation experte de ces mêmes images (<https://commons.wikimedia.org/wiki/File:Cephalometric_radiograph.JPG>, <https://commons.wikimedia.org/wiki/File:A_lateral_cephalogram_without_true_vertical.jpg>). Documentation Facad <https://www.facad.com/wp/tracing/> indique placement / correction manuel des repères et non un goldset livré pour ces JPG ; manuel <https://www.facad.com/dox/dox313/FacadTracingRefMan.pdf> précise la nécessité de calibrer pour les distances. Résultat : `FACAD_SAME_IMAGE_GOLDSET=NOT_FOUND`, **erreur en px non mesurée**, aucune équivalence FACAD déclarée.
+
+**Portée STRICTE** : création locale d'artefacts externes de revue uniquement. **Aucun changement aux composants applicatifs**, tokens CSS du thème, moteur de calcul, PDF clinique, `master`, PR clinique DRAFT #1212, aucune fusion/EXE/Vercel. La branche PR de test #1213 DRAFT reste documentaire et de harness. La remise des PNG/PDF n'est pas un FUE produit du HEAD documentaire.
+
+**GitHub runs HEAD de la PR #1213 `036275151f5bfe2557bc565bfb67bcd9b2f1ae4d` au relevé** : [CI Scope #42019506353](https://github.com/hraaaaf/Digital_crown/actions/runs/42019506353) SUCCESS, [frontend TEST build #42019506295](https://github.com/hraaaaf/Digital_crown/actions/runs/42019506295) SUCCESS, [R14 audited HOLD #42019506160](https://github.com/hraaaaf/Digital_crown/actions/runs/42019506160) SUCCESS, [FUE-H #42019506217](https://github.com/hraaaaf/Digital_crown/actions/runs/42019506217) SUCCESS ; [FUE-P1 #42019506051](https://github.com/hraaaaf/Digital_crown/actions/runs/42019506051) FAIL, [FUE-P2 #42019506230](https://github.com/hraaaaf/Digital_crown/actions/runs/42019506230) FAIL, [UI Human Visual Approval #42019501727](https://github.com/hraaaaf/Digital_crown/actions/runs/42019501727) FAIL/NOT APPROVED. **Aucun verdict full-green**.
+
+**Gates HOLD maintenus** : `clinical_validation_available=false`, Wits `CANDIDATE_ONLY`, McNamara `HOLD-MCNAMARA-SCALE`, Z `HOLD-Z-ORIENTATION`, PDF clinique `INCOMPLETE`, 0/10 FUE cabinet réels. **Next** : praticien examine points/anatomie A+B, annote les erreurs, fournit ou produit via FACAD de vrais tracés experts des mêmes images ; introduire arcs + layout dans le **code React réel** en héritant des tokens thème, sur branche indépendante avec captures FUE React, réparer FUE-P1 / sélecteurs avant de prétendre à une validation utilisateur.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST V2 6 images arcs/labels, 2 PDF (8 pages), source-locked, zéro chevauchement technique, concordance FACAD en attente.**
+
+### 44. PRE — 2026-11-05 — audit PR historiques des vrais tracés Céphalo
+
+**Rappel précis du praticien :** « Regarde les anciens PR cephalo y avait bien des tracés effectués ». Ne pas réinventer arcs/tracés si les anciens PR et composants apportent déjà une implémentation saine. Inventorier les PR historiques (notamment #878 R23-E/F Focus, #1003 R23-G UI parity, #1198 Steiner/COM V1 et R15/F5), les fichiers React SVG/constructeurs qui ont réellement existé, leur présence éventuelle sur le HEAD clinique #1212 `aa7fb556...`, captures/FUE exact SHA et le statut des validations humaines. Différencier tracés graphiques, constructions calculées, Focus au survol et véritables tracés experts ; ne pas confondre « UI approuvée » et « précision clinique certifiée ».
+
+**Entrée** : SHA branche DRAFT #1213 avant passe `036275151f5bfe2557bc565bfb67bcd9b2f1ae4d` (ou SHA courant du fichier canonique au moment de l'écriture); branche clinique #1212 reste DRAFT, master intouché. Document unique `docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md`. Audit/documentation seulement, aucune modification produit, merge, Vercel ni EXE.
+
+**Critères** : identifier PR, SHA, preuves et noms de fichiers concrets ; vérifier le code HEAD actuel avant toute proposition ; choisir réutilisation/remise en service plutôt que nouveau moteur parallèle ; préserver tokens du thème, source-lock, gates de non-fabrication, `clinical_validation_available=false`, 0/10 FUE réels et UI Human Approval non transférable.
+
+**POST** à remplir avec résultats des PR, conclusions, recommandation de suite et statut CI réel.
+
+### 44. POST — 2026-11-05 — verdict sur anciens PR Céphalo et moteur de tracé
+
+**Demande vérifiée dans le code source et l'historique GitHub, sans nouvelle modification produit** : le praticien a raison, **les vrais tracés existaient déjà dans la vraie UI React**. Les planches externes SVG/PIL Steiner/Tweed/COM réalisées dans cette conversation ne sont pas un remplacement acceptable de ce moteur. Avant d'écrire un nouveau renderer, réemployer l'implémentation existante, évaluer ses guards, et faire une capture dans le navigateur du HEAD testé.
+
+**PR historiques vérifiées** :
+- [#878](https://github.com/hraaaaf/Digital_crown/pull/878) OPEN DRAFT head `b593e56e4fd488701a982fcaeef245a27c14f939` : R23-E/F **tracés SVG interactifs + édition 38 repères + Focus par analyse + zoom partagé + étiquettes intelligentes**; fichier `frontend/src/features/ortho/CephaloTracingLayerBase.tsx`, `CephaloTracingLayer.tsx`, `components/cephaloLabelLayout.ts`, `cephaloConstructionViewport.ts`, `cephaloAngleRecognition.ts`, tests. Le run de **validation visuelle R23-E** [#38967093654](https://github.com/hraaaaf/Digital_crown/actions/runs/38967093654) est réellement `COMPLETED/SUCCESS` au `c5ea5000a6f1a52e8d2da168638b3e118d00dbeb` (16 octobre 2026), **seulement ce SHA** ; aucune approbation valide automatiquement sur head R23-F ni #1212; artifacts anciens non accessibles dans ce run à la consultation (`artifacts=[]`).
+- [#911](https://github.com/hraaaaf/Digital_crown/pull/911) OPEN DRAFT head `d86d2963e3b31e6cacc2b77838f93d509460dfd1` : projections read-only R23-G2 de protocoles, pas autorité clinique autonome.
+- [#1003](https://github.com/hraaaaf/Digital_crown/pull/1003) OPEN DRAFT head `4996b26a7392e8d45258295f875c9d090ed3962d` : COM10 read-only avec **Focus seulement si preuve mesurée active et même source** ; `lines: []` quand aucune géométrie autorisée — pas de faux SVG.
+- [#1198](https://github.com/hraaaaf/Digital_crown/pull/1198) OPEN DRAFT head `99f653cea1e73f9b7d740e4e08e1280e2f78df36` : sélection V1 limitée **COM Digital Crown et Steiner complet 1953+1959 (15 facteurs, PAS 15/15 calculés certifiés)**, synchronisée entre tracé, Workbench et clinique ; anciens choix hors V1 refusés. Il manque des landmarks source/manuels pour une partie de Steiner.
+- [#458](https://github.com/hraaaaf/Digital_crown/pull/458) et [#477](https://github.com/hraaaaf/Digital_crown/pull/477) MERGED : studio scientifique R15/R15bis, mise en page et tokens sémantiques ; ne pas confondre avec moteur de plans. [#620](https://github.com/hraaaaf/Digital_crown/pull/620) MERGED : **superposition longitudinale** F5 de 2 périodes, méthode distincte d'un tracé latéral Steiner/Tweed sur une radio.
+
+**HEAD clinique actuel de comparaison** : PR #1212 DRAFT `aa7fb5569c00b8a22b6493a4b729fab29a9674f4`. Les vrais SVG subsistent dans [`frontend/src/features/ortho/CephaloTracingLayerBase.tsx`](https://github.com/hraaaaf/Digital_crown/blob/aa7fb5569c00b8a22b6493a4b729fab29a9674f4/frontend/src/features/ortho/CephaloTracingLayerBase.tsx#L290-L419): branches `showSteiner` SN, NA, NB ; `showTweed` FH Po_anatomic→Or, Go→Me, L1 apex/incisal ; autres selon garde. Le wrapper [`CephaloTracingLayer.tsx`](https://github.com/hraaaaf/Digital_crown/blob/aa7fb5569c00b8a22b6493a4b729fab29a9674f4/frontend/src/features/ortho/CephaloTracingLayer.tsx#L259-L324) rend **COM, McNamara, Ricketts** `referenceHold` (baseAnalysis `r23-reference-hold`), et code `const showCom = false` : l'ancienne géométrie COM est volontairement désactivée tant qu'elle n'est pas source-certifiée ; les multiples JSX `data-r19-construction` toujours présents sont donc **inaccessibles en COM**. Le wrapper initialise `mode='com'` par défaut sans `activeAnalysis` externe. C'est une cause source et prouvée de visualisation **repères sans traits COM** ; pas la preuve d'une disparition du moteur.
+
+**Régressions/migrations de présentation** : ancien `cephaloConstructionViewport.ts` et ancien `components/cephaloLabelLayout.ts` de #878 ne sont **pas présents** au HEAD #1212, tandis que `getCephaloZoomViewBox` a été réimplémenté dans le Base et `CephaloLandmarkReticles.tsx` embarque désormais une autre collision-évitement inline pour les labels ; donc ne pas restaurer naïvement deux versions concurrentes. Le même `cephaloAngleRecognition.ts` reste identique (`sha 4c857516db4f443bf77325a6fda48b03fe837667`), et `CephaloTracingLayerBase.tsx` a changé (`c370d54...` ancien / `a720634...` actuel). Panneau V1 [`Step1Cephalo.tsx`](https://github.com/hraaaaf/Digital_crown/blob/aa7fb5569c00b8a22b6493a4b729fab29a9674f4/frontend/src/features/ortho/components/Step1Cephalo.tsx#L128-L149) fournit **déjà** `<select id="cephalo-ready-analysis">` `V1_CEPHALO_PROTOCOLS` à deux options (`com`, `steiner`).
+
+**Cause du FUE-P1 FAIL contrôlée à la ligne près** : [`frontend/scripts/fue-ceph-p1-authenticated.mjs`](https://github.com/hraaaaf/Digital_crown/blob/aa7fb5569c00b8a22b6493a4b729fab29a9674f4/frontend/scripts/fue-ceph-p1-authenticated.mjs#L87-L104) attend encore `['all','steiner','tweed','mcnamara','com','ricketts']` et échoue avec `Missing protocol select options ["com","steiner"]`. Ce **contrôle d'acceptation est devenu obsolète** après le contrat V1 #1198 ; l'observation actuelle ne démontre **pas** que les deux options COM/Steiner sont absentes : **elles sont bien les deux options trouvées**. Aligner le harness sur exactement les deux modes, valider l'exclusion des autres et prendre de véritables screenshots de **l'affichage Steiner dans React** avant de rouvrir un sujet produit.
+
+**Garde clinique de provenance sur les deux téléradios exactes** : `source-locked-38-points.json` du run ONNX réel [#42011785804](https://github.com/hraaaaf/Digital_crown/actions/runs/42011785804) confirme chacun des deux : `Po` et `Or` existent, mais **pas `Po_anatomic`**, repère distinct explicitement exigé par le rendu Tweed historique (`showTweed seg(poAnatomic,or_,'fh',...)`). Ne jamais remplacer `Po_anatomic` par `Po` silencieusement pour produire un faux FH Tweed. **COM** peut devenir un renderer visuel uniquement après audit source de ses constructions et décision clinique explicite ; ne pas se contenter de passer `showCom=true`.
+
+**Plan de réemploi net** :
+1) Corriger seulement l'attente obsolète du FUE-P1 sur branche isolée et obtenir des captures véritables du renderer React **Steiner**, incluant la visibilité SN/NA/NB et les points, sur les 2 images source ; donner au praticien des captures BEFORE/AFTER au **même SHA de code testé**.
+2) Réutiliser le Base + pont Focus existants, sans duplicata Python dans l'application. Ne porter vers le courant les fonctions de clipping/étiquettes du R23-E que si les tests visuels prouvent un vrai manque (il existe déjà un autre layout collision dans `CephaloLandmarkReticles`). Tout style doit hériter des tokens sémantiques du thème.
+3) Garder COM `referenceHold` tant qu'une preuve source-exacte n'autorise pas chaque construction ; arc d'angle uniquement pour géométrie autorisée et même source, pas de contour/classe simulé. Garder PO_anatomic manquant et mm/calibration `NOT_AVAILABLE`.
+
+**Verdict : ancien moteur à RÉUTILISER, pas à réécrire.** Prochain lot = HARNESS V1 FIX + capture Native React Steiner × A/B ; pas de changement produit pendant cet audit. PR #1213 DRAFT et #1212/master intacts hors écriture documentaire dans le canonique. Aucune validation clinique : `clinical_validation_available=false`, Wits candidate, McNamara/Z HOLD, PDF officiel INCOMPLETE, 0/10 FUE cabinet réels. Approbation UI R23-E ancien SHA non transférable.
+
+**Dernière mise à jour canonique : 05/11/2026 — audit PR historiques #878/#911/#1003/#1198 et composants React actuels, correction de la cause FUE-P1 identifiée ; aucun nouveau code produit.**
+
+### 45. PRE — 2026-11-05 — correction FUE-P1 V1 et captures React Steiner ANUG/Challiyan
+
+**GO praticien** : rectifier le harness FUE-P1 obsolète et récupérer les vrais tracés React Steiner sur les deux vraies radios publiques via FUE-H authentifié (pas Photoshop/Python). Moteur actuel sur base clinique #1212 SHA `aa7fb5569c00b8a22b6493a4b729fab29a9674f4` contient déjà dans `CephaloTracingLayerBase.tsx` les segments SN/NA/NB sous `data-cephalo-line-key`. Le test `frontend/scripts/fue-ceph-p1-authenticated.mjs` compare à tort le sélecteur V1 à `['all','steiner','tweed','mcnamara','com','ricketts']` alors que `cephaloV1ProtocolScope.ts` n'autorise exactement que `com` et `steiner` depuis #1198 ; ne pas forcer les anciens modes dans l'UI.
+
+**Plan borné** : (1) vérifier dans FUE-P1 présence exacte et sélection persistante des deux modes V1, labels de manque de preuve ; pas de prétention à la couverture complète COM/Steiner ; (2) utiliser le FUE-H réel avec JPEG ANUG/Challiyan vérifiés SHA et SRPose38 source authentifié pour capturer, si possible, un état **Steiner natif** et les 3 lignes SN/NA/NB sur le même SVG base, et un état COM réellement protégé, en produisant un artefact Actions PNG + JSON noms/SHA ; (3) rerun exact SHA et lire logs/artefacts ; (4) documenter vrais résultats, y compris FAIL éventuel, dans canonique et Notion. 
+
+**Contraintes** : ne pas ajouter de dessin géométrique parallèle, ne pas réactiver `showCom=false`, ne jamais assimiler Po et Po_anatomic pour Tweed, aucune calibration mm synthétique, aucun diagnostic ni validation clinique ; conserver thème et composants actuels ; branche PR #1213 DRAFT, PR #1212/master inchangés, pas de Vercel/EXE/merge. `clinical_validation_available=false`, PDF clinique INCOMPLETE, FUE cabinet réel 0/10.
+
+**POST :** à renseigner strictement à partir des captures React réelles et logs/actions, pas des dessins externes.
+
+### 45. POST — 2026-11-05 — code FUE V1 corrigé, preuves native React soumises à la CI (PENDING)
+
+**Code poussé sur PR #1213 DRAFT uniquement** : (a) commit `22d0149c97aa37efb09a9048fd43e18bb9c06d99` dans `frontend/scripts/fue-ceph-p1-authenticated.mjs` pour remplacer l'assertion des six anciens modes par la vérification **exactement des deux modes V1 activables COM et Steiner** ; COM SVG en HOLD (aucune ancienne géométrie), Steiner SN/NA/NB réel au DOM, captures 03/04. Le contrôle protocole est placé **après** les tests d'interactions/correction/document pour ne pas modifier le jeu de repères pendant les gestes. (b) commit `49d1015c50ff71429346e4b75c88036e33f71e18` dans `frontend/scripts/fue-ceph-r23h-first-use.mjs` : parcours FUE-H original conservé, puis pour chaque image ANUG/Challiyan l'application React doit sélectionner Steiner via l'interface V1, vérifier chaque `<motion.line data-cephalo-line-key="sn|na|nb">` et les 6 coordonnées d'extrémités contre les 38 points GET authentifiés de la **même étude** à une tolérance de 0,05 px. Capture complète page `05-real-react-steiner-{anug,challiyan}.png` et SVG natif `06-real-react-steiner-svg-{anug,challiyan}.png` ; rapports JSON avec identification étude/source, noms d'images et segments. Échec de preuve = FAIL, aucun dessin de substitution.
+
+**Statut CI de ces modifications, NE PAS SURDÉCLARER** : [FUE-H #42035537992](https://github.com/hraaaaf/Digital_crown/actions/runs/42035537992), [FUE-P1 #42035537973](https://github.com/hraaaaf/Digital_crown/actions/runs/42035537973), [FUE-P2 #42035537966](https://github.com/hraaaaf/Digital_crown/actions/runs/42035537966), [frontend test #42035538025](https://github.com/hraaaaf/Digital_crown/actions/runs/42035538025), [R14 #42035538000](https://github.com/hraaaaf/Digital_crown/actions/runs/42035538000) : jobs **QUEUED** au dernier relevé sur HEAD code `49d1015...`; [Scope #42035537963](https://github.com/hraaaaf/Digital_crown/actions/runs/42035537963) **IN_PROGRESS** ; aucun résultat exact SHA prétendu. Le run pré-correctif [FUE-H #42034966138](https://github.com/hraaaaf/Digital_crown/actions/runs/42034966138) sur ancien SHA `cd25e1...` a confirmé **FUE-H 6/6 PASS** mais **FUE-P1 5/6 FAIL** avec `Missing protocol select options ["com","steiner"]` — cela prouve précisément le défaut du harness, **pas** la réussite des nouveaux tests. Les nouveaux PNG ne sont ni téléchargés ni inspectés à ce stade ; ne pas les annoncer livrés. Le commit POST documentaire peut déclencher ses propres CI de SHA différent ; ne pas transférer des statuts entre commits.
+
+**Contrat sécurité conservé** : COM `showCom=false`, métriques non prouvées cachées ; jamais `Po` alias de `Po_anatomic`, Tweed native non validé, ni mm calibrés, ni publication PDF patient, ni contours inventés. Aucune modification du code produit, ni thème, master, PR clinique #1212, merge, EXE, Vercel. `clinical_validation_available=false`, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF clinique INCOMPLETE, 0/10 FUE cabinet réels.
+
+**NEXT** : relever les résultats exacts HEAD, récupérer l'artefact `ceph-r23h-first-use`, lire `react_steiner` et inspecter les 4 véritables PNG natifs (2 pages + 2 SVG) ANUG/Challiyan ; réparer si les lignes échouent, sans ajouter de moteur parallèle. Une correction de harness qui compile n'est **pas encore** une FUE validée tant que cette preuve manque.
+
+**Dernière mise à jour canonique 05/11/2026 — POST patch tests/harness, CI queued, captures non certifiées.**
+
+### 46. PRE — 2026-11-05 — FUE-H rouge uniquement à cause de l'assertion de nombre de captures
+
+**Signalement praticien** : « FUE-H IS RED TOUT LE RESTE EST VERT ». Diagnostic vérifié au SHA exact `6f56dafe04ff663d363e2ee9d310a4345e6e4665` : [FUE-H #42036596943](https://github.com/hraaaaf/Digital_crown/actions/runs/42036596943) conclut **FAIL** à la seule étape finale `Publish exact-HEAD public original to ONNX38 proof summary` ; le log Python précise `<stdin> line 8 AssertionError`, qui correspond **exactement** à `assert len(report['screenshots'])==5` dans `.github/workflows/ceph-r23h-fue-first-use.yml` lignes 155-199. Or après ajout des deux screenshots React native `05-real-react-steiner-anug/challiyan.png`, les images page passent de 5 à **7**, et les quatre images SVG (2 avant + 2 Steiner) sont dans `report.svg_screenshots` séparément. Le parcours navigateur a réellement **6/6 PASS** et traces `R23H_NATIVE_REACT_STEINER challiyan` et `anug` PASS : source lock SN/NA/NB. Artifact émis malgré le step rouge : ID `13419397151`, 16 fichiers, run #42036596943.
+
+**Autres runs SHA `6f56dafe...`** : FUE-P1 #42036597040 SUCCESS (6/6), FUE-P2 #42036596939 SUCCESS (phantom synthétique, non clinique), frontend #42036597099 SUCCESS, Scope #42036596732 SUCCESS, R14 HOLD #42036596763 SUCCESS. Human Visual Approval #42036590517 FAIL : volontaire, approbation humaine non obtenue ; ne pas le présenter vert ni contourné.
+
+**Correction ciblée autorisée** : remplacer le nombre d'images page figé par une assertion exacte sur les **7 noms attendus**, vérification indépendante des **4 SVG natifs** et des **2 rapports React Steiner**, provenance/source hash pour A+B ; mettre à jour le résumé Actions ; ne modifier aucun code clinique ou module de dessin. Ne pas changer les gates; produire preuve exact nouveau SHA, déployer/réintégrer uniquement sur autorisation explicite (non donnée). PR #1213 DRAFT, #1212 et master intacts, `clinical_validation_available=false` et 0/10 FUE cabinet réels.
+
+**POST** uniquement après commit correction workflow et lecture des CI.
+
+### 46. POST — 2026-11-05 — FUE-H publication réparée, vraie preuve navigateur contrôlée localement, CI du nouveau SHA en file
+
+**Diagnostic confirmé au SHA d'entrée `6f56dafe04ff663d363e2ee9d310a4345e6e4665`** : [workflow FUE-H #42036596943](https://github.com/hraaaaf/Digital_crown/actions/runs/42036596943) est rouge **uniquement** sur `Publish exact-HEAD public original to ONNX38 proof summary` ; log `File "<stdin>", line 8, AssertionError` => `assert len(report['screenshots'])==5`. À ce moment le véritable FUE-H avait pourtant ses 6/6 checks PASS, et les deux traces `R23H_NATIVE_REACT_STEINER challiyan/anug SEGMENTS_SN_NA_NB_SOURCE_LOCKED_NONCLINICAL` étaient PASS. L'étape d'archivage `actions/upload-artifact` a quand même publié l'artefact #13419397151, 16 fichiers zip (SHA256 du zip `0979740fc0d010c3424acc3bc666640c6aa30843625ce916cd0f9264892c5bca`).
+
+**Correction minimale poussée** : commit [`6f71474745ebef0c1aacdbc470218a362479e2c3`](https://github.com/hraaaaf/Digital_crown/commit/6f71474745ebef0c1aacdbc470218a362479e2c3) dans **le seul workflow** `.github/workflows/ceph-r23h-fue-first-use.yml`. L'étape de publication ne présume plus cinq PNG : exige **exactement 7 captures de page** (pré-import 1, uploads 2, reopens 2, nouveau Steiner React 2), **exactement 4 captures SVG** (2 initiales, 2 Steiner), fichiers existants >10000 octets, **2 études A/B avec les vrais SHA de sources**, `renderer=DIGITAL_CROWN_AUTHENTICATED_REACT_SVG`, `source_lock=AUTHENTICATED_GET_AFTER_REAL_UI_UPLOAD`, `model=SOTA_ONNX_38`, statut `uncalibrated=true` / `expert_verified=false` et trois segments SN/NA/NB par étude. Le résumé Actions est corrigé à 7+4 captures. **Aucun contrôle supprimé, aucun seuil de vérification anatomique abaissé.** Aucun changement au moteur, UI, PDF officiel, schéma ou thème.
+
+**Preuve physique supplémentaire** : artefact GitHub [#13419397151](https://github.com/hraaaaf/Digital_crown/actions/runs/42036596943/artifacts/13419397151) réellement téléchargé. Le ZIP contient exactement 16 fichiers, deux `05-real-react-steiner-{anug,challiyan}.png`, deux `06-real-react-steiner-svg-{anug,challiyan}.png`, `report.json`, `source-locked-38-points.json`, pages et radios 38 points. Vérification locale du script de publication **sur le ZIP original extrait : PASS** pour 7 pages, 4 SVG, présence physique (non vides), 2 cas source hashés et authentifiés, SN/NA/NB 6 extrémités par image avec écart **0,0 px** aux coords récupérées. Capture SVG affichée et inspectée pour A et B : **défaut visuel réel** — certains traits/annotations sont prolongés très loin du champ utile / recouvrent les dents et la face, rendu loin du target premium ; ce défaut visuel n'annule pas la preuve source mais réclame un sous-lot renderer SVG/clip/layout distinct avec validation humaine.
+
+**Statuts GitHub** : sur le SHA précédent `6f56dafe...` : [P1 #42036597040](https://github.com/hraaaaf/Digital_crown/actions/runs/42036597040) SUCCESS 6/6, [P2 #42036596939](https://github.com/hraaaaf/Digital_crown/actions/runs/42036596939) SUCCESS synthétique non-clinique 6/6, [frontend #42036597099](https://github.com/hraaaaf/Digital_crown/actions/runs/42036597099) SUCCESS, [R14 #42036596763](https://github.com/hraaaaf/Digital_crown/actions/runs/42036596763) SUCCESS, [Scope #42036596732](https://github.com/hraaaaf/Digital_crown/actions/runs/42036596732) SUCCESS. [Human Visual Approval #42036590517](https://github.com/hraaaaf/Digital_crown/actions/runs/42036590517) FAILURE/NOT APPROVED (indépendant). Nouveau HEAD patch workflow `6f714747...` : [FUE-H #42044846877](https://github.com/hraaaaf/Digital_crown/actions/runs/42044846877) **QUEUED au dernier contrôle**, P1 #42044846884 QUEUED, P2 #42044846823 QUEUED, frontend #42044847130 QUEUED, Scope #42044847104 PENDING ; aucune certification exact SHA prétendue. Le commit documentaire POST engendrera encore un SHA distinct dont la CI devra être jugée séparément.
+
+**NO-GO inchangé** : PR #1213 DRAFT / #1212 clinical DRAFT / master intact. `clinical_validation_available=false`, aucune validation FACAD même cliché, 0/10 FUE patients réels, pas de calibration physique ni PDF patient admissible, COM HOLD, Po_anatomic manquant pour Tweed, Wits CANDIDATE_ONLY, McNamara/Z HOLD, PDF clinique INCOMPLETE. Aucun merge/deploy/EXE.
+
+**NEXT** : vérifier la fin du [FUE-H #42044846877](https://github.com/hraaaaf/Digital_crown/actions/runs/42044846877) exact SHA patch, comparer l'artefact natif source. Une fois ce gate vert, faire **un lot graphique React** dédié pour raccourcir les traits extrêmes et éviter les masquages de l'anatomie, avec thèmes/token hérités et captures BEFORE/AFTER. Ne pas lier validation visuelle à la simple réussite du CI.
+
+**Dernière mise à jour canonique 05/11/2026 — FUE-H rouge expliqué, workflow réparé sans contournement et assertions de preuve du ZIP vérifiées localement ; CI encore à certifier.**
+
+### 47. PRE — 2026-11-05 — V1 Steiner native SVG cleanup (hide off-protocol overlays, no geometry rewrite)
+
+**Utilisateur « Go » après correction FUE-H** : vérifier à jour FUE-H puis nettoyer la véritable superposition SVG de l'app (pas la planche Python). À l'entrée, la PR #1213 DRAFT est au SHA \`05cdfced45f303df3dc5e8e15e0665b5e662865e\`. FUE-H [#42044846877](https://github.com/hraaaaf/Digital_crown/actions/runs/42044846877) sur le commit workflow \`6f714747...\` = SUCCESS, alors que [FUE-H #42045645883](https://github.com/hraaaaf/Digital_crown/actions/runs/42045645883) du HEAD documentaire est encore IN_PROGRESS au relevé. UI Human Visual Approval n'est PAS obtenue ; ne pas transférer le PASS d'un SHA à l'autre.
+
+**Défaut visuel reproduit sur images réelles** (artefact [#13419397151](https://github.com/hraaaaf/Digital_crown/actions/runs/42036596943/artifacts/13419397151)) : 2 captures SVG natif \`06-real-react-steiner-svg-anug/challiyan.png\` montrent des diagonales étendues partant hors du cliché et traversant la bouche et le fond. Les trois segments Steiner SN/NA/NB proprement ancrés dans les 38 repères ONNX sont pourtant corrects, FUE-H 6/6 PASS sur la capture. Le code historique \`frontend/src/features/ortho/CephaloTracingLayerBase.tsx\` au SHA base \`aa7fb556...\` affiche **sans limitation de protocole** \`francfortLineExtended\` (vecteur multiplié ×10), \`mcNamaraLine\` (vecteur ×1000), projections A′/B′ et tissus mous en mode Steiner. Ce sont des overlays visuels non demandés par Steiner. Les masquer pour Steiner n'efface aucune donnée source.
+
+**Pass minimal à implémenter** : conserver le renderer React existant, les 3 lignes SVG et leurs coordonnées, la sécurité COM HOLD et le futur Tweed sans faux Po_anatomic ; empêcher le mode Steiner de rendre des plans \`francfortLineExtended\`/\`mcNamaraLine\`/projections A′ B′/zones incisorales hors protocole ; ne pas modifier les calculs, la calibration, le parser, la DB, les repères. Préserver mode \`all\` historique et modes spécifiques avec guards explicites, palette du thème existante, tests FUE-H négatifs de traits hors-source. Produire de vraies captures React A+B et comparer BEFORE/AFTER aux mêmes JPEG et points. **Tout QA basé sur un nouveau SHA exact et contrôles humains explicites.**
+
+**Blocages** : \`clinical_validation_available=false\`, PO_anatomic absent des 2 radios, COM showCom=false, Wits candidate, McNamara/Z HOLD, PDF clinique INCOMPLETE, 0/10 FUE patients réels, aucune comparaison FACAD goldset. Aucun merge, Vercel, EXE ou validation visuelle auto. **POST seulement après commits + runs + examen des images.**
+
+### 47. POST — 2026-11-05 — suppression des overlays hors protocole dans Steiner natif React (CI AFTER en file)
+
+**PRE** : §47 sur SHA \`34b999401ef36e5421a31cbdf0449947ccf1a6a3\`. Baseline visuelle **réel BEFORE** : artefact original FUE-H #13419397151 du run #42036596943, 2 captures SVG natives \`06-real-react-steiner-svg-anug.png\`/\`...challiyan.png\`. Ce rendu montrait une diagonale McNamara et une Francfort étendue, alors que les données S/N/A/B et les 3 segments Steiner étaient cohérents au GET source.
+
+**Code changé, PR test #1213 DRAFT uniquement** :
+- Commit [\`8b9a3ab7228c1dbd84907159129664288ca3c062\`](https://github.com/hraaaaf/Digital_crown/commit/8b9a3ab7228c1dbd84907159129664288ca3c062) : \`frontend/src/features/ortho/CephaloTracingLayerBase.tsx\` conserve \`showSteiner\` et les 3 segments sources SN/NA/NB. Ajoute \`steinerOnly\` dans le renderer, et trois gardes protocolaires de présentation : \`showFrankfortReference\` = \`all|tweed|mcnamara\`, \`showMcNamaraReference\` = \`all|mcnamara\`, \`showTweedIncisorZones\` = \`all|tweed\`. Les lignes étendues Frankfort (×10) et McNamara (×1000), A′/B′ et les wedges incisifs non Steiner ne sont plus rendus pour Steiner. La surface du profil mou ancien n'est plus superposée à Steiner; le mode \`all\` garde son rendu antérieur. Champs DOM de provenance \`data-cephalo-reference-line\` pour les lignes prolongées **seulement dans les modes autorisés**.
+- Commit [\`f4dc4ff3e085de3b509265dba618f4536838d53e\`](https://github.com/hraaaaf/Digital_crown/commit/f4dc4ff3e085de3b509265dba618f4536838d53e) : \`frontend/scripts/fue-ceph-r23h-first-use.mjs\` continue à capturer *les vraies radios via l'authentification, l'ONNX et le renderer React*. Après chaque sélection de Steiner, rejette les \`[data-cephalo-reference-line]\` et la légende « McNamara » ; parcourt les lignes SVG et refuse toute coordonnée non finie ou sortant du cadre image natif A \`2272×1818\`, B \`1000×1255\`. L'assertion positive sur SN, NA, NB contre les 38 repères persistés avec 0,05 px demeure. \`report.react_steiner\` expose \`off_protocol_lines=0\` et \`out_of_image_lines=0\` si vraiment observés.
+- Vérification **statique de code** au SHA \`f4dc4ff3\`: contrôles programmatiques **7/7 PASS** (seg Steiner conservés, gardes exactes, soft tissue + zones non-Steiner exclues, tests FUE négatifs présents). **Ceci ne prouve PAS encore la compilation TS/React ou le visuel AFTER.**
+
+**CI & preuves** :
+- Baseline avant changement (HEAD \`05cdfced45f303df3dc5e8e15e0665b5e662865e\`) totalement validée du point de vue des workflows techniques : [FUE-H #42045645883](https://github.com/hraaaaf/Digital_crown/actions/runs/42045645883) SUCCESS, FUE-P1 #42045645844 SUCCESS, FUE-P2 #42045645876 SUCCESS *synthetic nonclinical*, frontend #42045645839 SUCCESS, Scope #42045645796 SUCCESS, R14 #42045645805 SUCCESS. **Human Visual Approval #42045639088 FAILURE**, non auto-approuvé.
+- Nouvelle preuve AFTER sur code SHA \`f4dc4ff3\` **non terminée** au relevé : [FUE-H #42047650164](https://github.com/hraaaaf/Digital_crown/actions/runs/42047650164) QUEUED, [FUE-P1 #42047650051](https://github.com/hraaaaf/Digital_crown/actions/runs/42047650051) QUEUED, [FUE-P2 #42047649955](https://github.com/hraaaaf/Digital_crown/actions/runs/42047649955) QUEUED, [frontend #42047650232](https://github.com/hraaaaf/Digital_crown/actions/runs/42047650232) QUEUED, [Scope #42047650189](https://github.com/hraaaaf/Digital_crown/actions/runs/42047650189) PENDING ; Theme Wave09 IN_PROGRESS, Wave10/11 QUEUED, UI Human Approval QUEUED. **NO FALSE GREEN**, la correction ne peut recevoir ni note visuelle chiffrée ni certification jusqu'à récupération et inspection des nouveaux PNG A/B. Le présent POST documentaire produira un SHA supplémentaire : ne pas transférer CI entre SHAs.
+
+**Données / sécurité** : aucune formule, donnée landmark, échelle mm, diagnostic, endpoint API, schéma DB, PDF clinique, source ONNX, algorithme d'inférence, couleur thème ou token modifié. Aucun merge, déploiement Vercel ou EXE. Le tracé COM non source-verrouillé reste \`showCom=false\`, Tweed reste hors V1 et sans fausse substitution Po→Po_anatomic. \`clinical_validation_available=false\`, 0/10 FUE cabinet réel, Wits candidate, McNamara/Z HOLD, PDF clinique INCOMPLETE, aucun goldset FACAD same-image.
+
+**NEXT** : lire les résultats du FUE-H exact HEAD corrigé et les 2 captures \`06-real-react-steiner-svg-A/B\` AFTER ; comparer réellement aux deux captures BEFORE, puis valider 390/430/768/1280 et faire signer human visual gate par le praticien sans autosignature. En cas d'échec du nouveau test, corriger l'élément SVG spécifique au diagnostic sans effacer l'assertion.
+**Dernière mise à jour canonique : 05/11/2026 — POST correction React Steiner + test négatif source-safe ; CI AFTER en file, pas de certification visuelle par anticipation.**
+
+
+### 48. PRE — 2026-11-05 — vraie source du FUE-H rouge : lignes dentaires anatomiques SVG (pas McNamara)
+
+**Statut au HEAD d'entrée** PR #1213 DRAFT `05e591d12ae3d8c6c90ae6d6f53572b99a2a9fab` : [FUE-H #42048279963](https://github.com/hraaaaf/Digital_crown/actions/runs/42048279963) **FAIL**, [FUE-P1 #42048279965](https://github.com/hraaaaf/Digital_crown/actions/runs/42048279965) **FAIL**, [FUE-P2 #42048279986](https://github.com/hraaaaf/Digital_crown/actions/runs/42048279986) **FAIL**, même cause par dépendance FUE-H. [Build #42048280029](https://github.com/hraaaaf/Digital_crown/actions/runs/42048280029) SUCCESS ; Scope #42048279985 SUCCESS ; R14 #42048279962 SUCCESS ; Theme Waves 9/10/11 SUCCESS. Human Visual Approval #42048270791 FAIL — gate manuel non satisfait. Logs FUE-H : 5 étapes PASS et échec de réouverture sur `Steiner SVG contains out-of-frame construction lines [{"key":null,"values":[-22,0,22,0]},{"key":null,"values":[0,-2000,0,2000]}]` ×2. S, N, A et B ne sont pas en cause.
+
+**Cause exacte prouvée en code** : `frontend/src/features/ortho/components/AnatomicalTooth.tsx` lignes 36-63 définit deux lignes **en repère local** d'un groupe `transform=translate/rotate/scale`, d'où les coordonnées brutes `-22..22` et `-2000..2000`. `CephaloTracingLayerBase.tsx` les rend encore en mode Steiner pour les deux incisives ; la ligne ×2000 peut polluer visuellement le cliché, et le test FUE-H `svg.locator('line')` attribue à tort des valeurs locales non transformées directement au repère image. Les valeurs ne sont **pas** des McNamara ni une preuve de points ONNX erronés.
+
+**Correction source-safe** : ne pas contourner le test ni modifier les coordonnées médicales. Pour Steiner, retirer seulement les **deux décorations dentaires à axe infini** et les remplacer par les vrais segments `U1_apex → U1_incisal` et `L1_apex → L1_incisal`, en réemployant `seg` + couleurs sémantiques existantes. Conserver les protocoles historiques hors Steiner, les points éditables et les segments S–N, N–A, N–B. Faire exiger par FUE-H les **5** segments natifs SN/NA/NB/U1/L1 et leurs extrémités contre le GET authentifié 38 points ; garder zéro débordement des lignes restantes. Aligner le workflow de résumé d'artifact sur les 5 segments. PAS de saut d'étape via filter des lignes ni abandon de contrôle géométrique.
+
+**Périmètre sécurité** : correctif UI non diagnostique et test uniquement, aucune migration, aucun changement de calcul/ONNX, calibration mm nulle, `clinical_validation_available=false`, COM HOLD, Wits CANDIDATE_ONLY, McNamara/Z HOLD, Tweed Po_anatomic non satisfait, PDF clinique INCOMPLETE, 0/10 FUE cabinet réel. Pas de merge ni déploiement Vercel. Tests et vrais screenshots sur nouveau SHA puis §48 POST + Notion.
+
+
+### 48. POST — 2026-11-05 — suppression des axes dentaires infinis de Steiner, cinq lignes source-lock, CI en cours
+
+**Cause réellement démontrée**, sur le SHA d'entrée `05e591d12ae3d8c6c90ae6d6f53572b99a2a9fab` : les runs FUE-H [#42048279963](https://github.com/hraaaaf/Digital_crown/actions/runs/42048279963) FAIL, P1 #42048279965 FAIL, P2 #42048279986 FAIL. Les logs montrent cinq contrôles FUE-H PASS et l'échec `FRESH_SECOND_BROWSER_REOPEN_BOTH_SOURCES`, sur les éléments SVG `[-22,0,22,0]` et `[0,-2000,0,2000]` exactement tracés dans le composant `frontend/src/features/ortho/components/AnatomicalTooth.tsx` (lignes 47–55) deux fois, via `transform: translate/rotate/scale`. Pas une panne ONNX ou sécurité ; il s'agit de deux axes dentaires décoratifs infiniment prolongés et détectés par les nouveaux tests qui ne distinguaient pas les coordonnées locales du dessin global.
+
+**Correction produit source-safe** commit [`1cefac7467589359a5720a95c0d535a590f13e9d`](https://github.com/hraaaaf/Digital_crown/commit/1cefac7467589359a5720a95c0d535a590f13e9d) : dans **le renderer existant** `frontend/src/features/ortho/CephaloTracingLayerBase.tsx` uniquement, Steiner autorise maintenant les cinq plans `sn,na,nb,u1,l1` ; U1 et L1 sont des segments finis et directement source-anchored `U1_apex → U1_incisal` et `L1_apex → L1_incisal`, réutilisant la fonction `seg` et les couleurs du thème `P.u1`, `P.l1`. `AnatomicalTooth` n'est plus rendu **en Steiner seulement** ; autres modes historiques inchangés, points et édition conservés, aucune modification du component universel AnatomyTooth ni de ses méthodes de déplacement.
+
+**Preuves FUE durcies** : commit [`04030438fac062478ee3890d419dae99c9028c3d`](https://github.com/hraaaaf/Digital_crown/commit/04030438fac062478ee3890d419dae99c9028c3d) dans `frontend/scripts/fue-ceph-r23h-first-use.mjs` : pour **les deux** radios réelles, exiger maintenant les **5 lignes réelles `data-cephalo-line-key=sn,na,nb,u1,l1`** et contrôler leurs deux coordonnées d'extrémités contre les 38 points API GET authentifiés (tolérance 0,05 px). Conserve le test négatif « aucun trait hors protocole, aucune ligne à coordonnée hors du cliché ». Log PASS positif devient `SEGMENTS_SN_NA_NB_U1_L1_SOURCE_LOCKED_NONCLINICAL`. Commit [`bb7e2b8fa8205226ba9b59e9202c3252f6eade35`](https://github.com/hraaaaf/Digital_crown/commit/bb7e2b8fa8205226ba9b59e9202c3252f6eade35) : la publication `.github/workflows/ceph-r23h-fue-first-use.yml` exige désormais réellement les cinq segments dans les deux rapports JSON, en conservant les vérifications strictes des captures et des SHA JPEG originaux. Aucun filtrage du DOM, aucune diminution de contrôles.
+
+**Vérification pré-CI** : la lecture directe des trois fichiers HEAD `bb7e2b8...` a confirmé 4/4 invariants présents : nouveaux segments natifs U1/L1, anciens Tooth infinis désactivés en Steiner, FUE-H vérifie cinq lignes, résumé Actions vérifie cinq lignes. Le code TypeScript/React n'est déclaré compilé ni fonctionnel par ce contrôle statique.
+
+**Actions GitHub au dernier relevé sur SHA `bb7e2b8...`** : [FUE-H #42056581429](https://github.com/hraaaaf/Digital_crown/actions/runs/42056581429) QUEUED ; [FUE-P1 #42056581527](https://github.com/hraaaaf/Digital_crown/actions/runs/42056581527) IN_PROGRESS (installation dépendances) ; [FUE-P2 #42056581563](https://github.com/hraaaaf/Digital_crown/actions/runs/42056581563) QUEUED ; Scope #42056581454 QUEUED ; nouveaux build/frontend, R14, Theme Waves également QUEUED. Le run du code pré-dernier SHA `04030438` [build #42056515815](https://github.com/hraaaaf/Digital_crown/actions/runs/42056515815) SUCCESS ; **ne pas transférer ce SUCCESS au SHA `bb7e2b8`**. [UI Human Visual Approval #42056575524](https://github.com/hraaaaf/Digital_crown/actions/runs/42056575524) FAILURE (gate manuel) et aucun utilisateur n'a approuvé le rendu AFTER. Le POST documentaire peut créer un nouveau SHA ; la CI de ce SHA sera l'autorité finale.
+
+**NEXT** : vérifier le nouvel FUE-H réel exact SHA et son artefact `05-real-react-steiner-A/B`, `06-real-react-steiner-svg-A/B`. Produire une comparaison visuelle BEFORE/AFTER et tests zoom/pointdrag, puis soumettre à validation humaine ; en cas d'échec corriger sans falsifier les angles/repères. Pas de merge ni Vercel ; aucune preuve clinique expert. `clinical_validation_available=false`, 0/10 FUE cabinet réel, COM HOLD, Po_anatomic distinct de Po, PDF clinique INCOMPLETE, Wits candidate, McNamara/Z HOLD.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §48 code + test + résumé cinq lignes, CI en cours ; aucune note visuelle après à ce stade.**
+
+
+### 49. PRE — 2026-11-05 — FUE réel zoom/pan/drag Steiner sur 2 radios A+B
+
+**Autorisation** : « Go » du propriétaire pour la passe de test zoom / déplacement manuel et preuves visuelles préparatoires **uniquement**. Ceci n'est pas la signature Human Visual Approval, ni GO merge/Vercel/EXE/activation clinique.
+
+**Baseline** : PR #1213 DRAFT OPEN `test/ceph-v1-facad-two-public-radios-20261105`, HEAD d'entrée `a54216ed2397247e93ce5975c871ef86d1426d96`. [FUE-H #42057053298](https://github.com/hraaaaf/Digital_crown/actions/runs/42057053298) SUCCESS 6/6 ; [P1 #42057053440](https://github.com/hraaaaf/Digital_crown/actions/runs/42057053440) SUCCESS ; [P2 #42057053421](https://github.com/hraaaaf/Digital_crown/actions/runs/42057053421) SUCCESS ; [build TEST #42057053333](https://github.com/hraaaaf/Digital_crown/actions/runs/42057053333) SUCCESS ; Scope/R14 SUCCESS, Human Visual Approval non accordée. Deux radios publiques ANUG/Challiyan, 38 landmarks source GET chacun, 5 segments Steiner stricts `sn,na,nb,u1,l1`, aucun hors cadre. **Aucune étude réelle de patient de cabinet**.
+
+**Goal / preuve** : exécuter dans Playwright sur l'authentique Cephalo Step1 après le parcours ONNX/SVG : zoom 100/150/200 %, pan/reset, alignement des lignes Steiner aux 38 landmarks au zoom, drag d'un point avec recalcul du tracé et contrôle des autres points, evidence UI 390/430/768/1280/1600 quand supportée. Préserver les assertions source-lock et le non-débordement SVG, la palette héritée et les protections auth/tenant. Distinguer vue zoomée et écriture persistée ; ne jamais tirer une interprétation clinique de deux sources publiques.
+
+**NEXT** : ajouter et exécuter des assertions ciblées, inspecter les images AFTER et les artifacts du SHA final ; si défaut réel, ne pas alléger le test ; POST seulement avec résultat réel et limites. `clinical_validation_available=false`, COM HOLD, PDF clinique INCOMPLETE, 0/10 FUE patients cabinet.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §49 ; tests zoom/drag PAS ENCORE exécutes sur le nouveau HEAD.**
+
+
+### 49. POST — 2026-11-05 — FUE P1 zoom 200%, pan, responsive et drag mono-landmark : code intégré, CI non encore conclue
+
+**Travail effectué** : à partir du PRE `1c4ad43196398486b3edd2785065bdab35fd8c81`, commit [230700249e693ea1fbe650d6b6047dfffa8e9ab9](https://github.com/hraaaaf/Digital_crown/commit/230700249e693ea1fbe650d6b6047dfffa8e9ab9) modifie **un seul fichier de test** `frontend/scripts/fue-ceph-p1-authenticated.mjs` : sur vrai Cabinet React de la fixture T2, sélectionner Steiner, exiger exactement les 5 lignes `sn/na/nb/u1/l1`, comparer leurs coordonnées SVG inchangées à chaque 125/150/175/200%, tester pan droit/bas et reset viewBox, interdire toute modification aux 38 repères GET, enregistrer les captures à 100%,150%,200% + pan, puis des screenshots 390/430/768/1280. Le FUE-P1 existant continue le pointer-drag, undo/redo, Save puis reload; l'assertion supplémentaire exige qu'un seul landmark parmi 38 ait changé. **Zéro code produit, source ONNX, formule, DB, token thème, garde sécurité ou workflow modifié.**
+
+**Etat CI pour le HEAD de code 2307002 au relevé** :
+- [CI Scope Gate #42063594365](https://github.com/hraaaaf/Digital_crown/actions/runs/42063594365) COMPLETED/SUCCESS ;
+- [CEPH R23-H FUE-H genuine first UI uploads with pinned SRPose38 (experimental) #42063590898](https://github.com/hraaaaf/Digital_crown/actions/runs/42063590898) IN_PROGRESS ;
+- [CEPH FUE-P2 real calibrated synthetic phantom to draft PDF (nonclinical) #42063590994](https://github.com/hraaaaf/Digital_crown/actions/runs/42063590994) IN_PROGRESS ;
+- [CEPH V1 LOT1 isolated frontend TEST build (NO DEPLOY) #42063591282](https://github.com/hraaaaf/Digital_crown/actions/runs/42063591282) COMPLETED/SUCCESS ;
+- [CEPH V1 R14 audited hold receipts (NO DEPLOY) #42063591299](https://github.com/hraaaaf/Digital_crown/actions/runs/42063591299) IN_PROGRESS ;
+- [CEPH FUE-P1 genuine authenticated journey beyond prior FUE-H (nonclinical) #42063591070](https://github.com/hraaaaf/Digital_crown/actions/runs/42063591070) IN_PROGRESS ;
+
+**Verdict strict** : le build TEST est SUCCESS s'il est indiqué ci-dessus; les nouveaux tests zoom/drag/viewport sont **NOT YET VERIFIED** tant que le job FUE-P1 exact HEAD n'a pas produit rapport et captures. Le présent POST documentaire change encore le HEAD; ne pas transférer l'ancienne CI au nouveau SHA. Une défaillance est un résultat utile, jamais un motif pour assouplir la sécurité. Human Visual Approval **non obtenu**, approbation du propriétaire interdite par auto-simulation. `clinical_validation_available=false`, 0/10 FUE réels cabinet, COM HOLD, PDF clinique INCOMPLETE. PR #1213 toujours DRAFT, aucun merge/Vercel/EXE.
+
+**NEXT exact** : lire les runs FUE-H, P1, P2 et TEST build après le POST sur SHA exact, inspecter JSON/snapshots P1 ; corriger seulement un défaut démontré et refaire preuve. Si tout est vert, soumettre visuels au propriétaire sans présumer son approbation.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §49, tests renforcés enregistrés, verdict CI FUE-P1 en attente de preuves.**
+
+
+### 50. POST — 2026-11-05 — CI technique vérifiée au HEAD `3bae5545`, captures P1 et gate visuel humain séparé
+
+**Fait vérifié depuis le POST §49** : PR [#1213](https://github.com/hraaaaf/Digital_crown/pull/1213) OPEN/DRAFT, HEAD **exact** `3bae5545cb86e1641a4a6e2e43b3e187e05622b9` ; 9 workflows techniques exécutés **COMPLETED/SUCCESS** : [FUE-H #42064107508](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107508), [FUE-P1 #42064107584](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107584), [FUE-P2 #42064107409](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107409), [frontend TEST build #42064107231](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107231), [CI Scope #42064107551](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107551), [R14 #42064107596](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107596), [Theme09 #42064107250](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107250), [Theme10 #42064107548](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107548) et [Theme11 #42064107619](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107619). M6-I [#42064107348](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107348) **SKIPPED**, hors scope ; ne pas présenter comme un dixième SUCCESS.
+
+**Preuve de l'exécution réelle** : logs Actions H `R23H_RESULT ... {passed:6,failed:[],studies:2,errors:[]}`, P1 `FUE_P1_RESULT FUE_P1_REAL_UI_SAFE_PARTIAL__DOCUMENT_BLOCKED_CALIBRATION {passed:6,failed:[],clinical_go:false}`, P2 `FUE_P2_RESULT FUE_P2_FULL_WIZARD_PDF_SYNTHETIC_DESIGN_ONLY_NONCLINICAL_PASS {passed:6,errors:[],clinical_release:false}`. Artefact P1 [#13433042066](https://github.com/hraaaaf/Digital_crown/actions/runs/42064107584/artifacts/13433042066), archive ZIP de 28 fichiers, SHA256 **`bb8db82a358e85ae05a9993303a3f755a7f095f5c3965820d60fa2abdf874957`** vérifié localement. Son `ceph-fue-p1-authenticated/report.json` à SHA exact : six checks PASS, `errors=[]`, Steiner natif 5 lignes `sn/na/nb/u1/l1`, zoom 100→125→150→175→200%, pan, reset, géométrie de source inchangée, viewports 390/430/768/1280, drag d'un seul landmark, undo/redo, SAVE/RELOAD réels PASS. Photos UI `05a/b/c`, `05d` 390/430/768/1280 et `06-correction-saved` inspectées ; voir les archives GitHub pour la preuve brute. **Pas de note visuelle clinique ni signature du propriétaire déduite de ces screenshots automatisés.**
+
+**Verdict borné** : **LOT 1/4 CI/FUE technique GREEN au HEAD de code `3bae5545`**, mais **LOT 1/4 scientifique/clinical et Human Visual Approval NO-GO** tant que le praticien n'a pas validé les rendus ; `clinical_validation_available=false`, 0/10 FUE patients cabinet, FACAD same-image goldset absent, calibration vraie et PDF clinique restent à démontrer ; COM HOLD et McNamara/Z HOLD. FUE-P2 concerne **un fantôme synthétique design-only**, pas un patient clinique.
+
+**Effet de cette écriture documentaire** : elle produira un **nouveau HEAD de documentation**, distinct de `3bae5545`. Les 9 SUCCESS listés plus haut **restent attribués à `3bae5545` uniquement** ; CI éventuelle du nouveau SHA doit être consultée de nouveau avant de revendiquer « all green exact-HEAD ». Aucun merge, Vercel, release/EXE ou autosignature.
+
+**NEXT** : présenter les captures et le rendu interactif au praticien, obtenir une approbation explicite et traçable liée au SHA ; sinon conserver la PR DRAFT. Après cela, seulement, organiser les FUE cliniques indépendantes et goldset scientifique.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §50, preuve CI technique 9/9 green au HEAD `3bae5545`; gate humain et clinique OPEN.**
+
+
+### 51. PRE — 2026-11-05 — audit contradictoire « chaque analyse » ≠ cinq traits Steiner
+
+**Question du praticien** : exigence d'un bilan céphalométrique complet avant diagnostic ; ne pas présenter les 5 segments FUE `sn/na/nb/u1/l1` comme un Steiner intégral. **HEAD d'entrée** PR #1213 DRAFT `7fa3b602cad079c0d282b363d00db9bea55f9af4`. Autorisation de lecture/audit et mise à jour documentaire seulement ; **pas de modification de formules, modèle ONNX, modes V1, diagnostic, données, thème, merge, Vercel ou EXE**.
+
+**Constats initiaux sourcés au code exact** : `frontend/src/features/ortho/cephaloV1ProtocolScope.ts` n'autorise en V1 que `COM` et `STEINER`; `Step1Cephalo.tsx` affiche exclusivement ces deux valeurs et désactive l'ancien `all`. `CephaloAnalysisWorkbenchPanel.tsx` définit une liste Steiner de **15** IDs et Tweed/Merrifield **4**, mais aucune présence dans cette liste ne garantit une valeur disponible. `CephaloR23G4ReferencePanel.tsx` est une **référence contrôlée et non certifiée** pour COM 10 / McNamara 13 / Ricketts Atlas 33 et Gregoret 13 ; ces panneaux ne sont pas activés comme sélections cliniques V1. `cephalo_protocol_projection.py` n'invente aucune géométrie ni norme; les autres analyses restent fail-closed sans identité/chaîne de preuves. L'étape 3 conserve des zones de notes praticien et des valeurs descriptives sans diagnostic automatique.
+
+**Goal de cette passe** : dresser pour chaque famille V1/référence/hors V1 la composition exacte, disponibilité effective, dépendance landmarks/calibration, déficit de tracé/document et non-certification. Lire aussi les documents de complétude en distinguant audits anciens des contrats runtime actuels. **NEXT** : POST exact par analyse, pas un GO clinique fictif. `clinical_validation_available=false`; 0/10 FUE cabinet réel, Human Visual Approval pending.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §51 audit complétude ; aucune nouvelle validation scientifique déclarée.**
+
+
+### 51. POST — 2026-11-05 — état exact de CHAQUE analyse : composition ≠ calcul ≠ diagnostic
+
+**Source de vérité audité** sur le HEAD documentaire PRE `3ecebfbad82bf72258817e5af166fb88500863c8` (code identique à `7fa3b60`) : `frontend/src/features/ortho/cephaloV1ProtocolScope.ts`, `components/Step1Cephalo.tsx`, `components/Step3Clinical.tsx`, `components/CephaloAnalysisWorkbenchPanel.tsx`, `components/CephaloR23G4ReferencePanel.tsx`, `backend/services/cephalo_runtime_evidence.py`, `cephalo_runtime_chain.py`, `cephalo_protocol_projection.py`, `cephalo_steiner_protocol_evidence.py`, `cephalo_canonical_analysis_v2.py`, profils `backend/data/cephalometry/*protocol_profile_v1.json` et `clinical_reference_profiles_v1.json`, plus audits de complétude historiques. **Aucun changement produit ni algorithme lors de cette passe.**
+
+**V1 réellement sélectionnable : 2 analyses seulement** — COM Digital Crown et Steiner. `analysis='all'` est un fallback historique désactivé dans le selector et n'est pas une union source-lockée. `Step3Clinical.tsx` propose seulement COM/STEINER, champs descriptifs et notes praticien sans synthèse diagnostique autonome.
+
+**Steiner : 15 mesures définies (11 BASE 1953 + 4 extension 1959), PAS 15 valeurs garanties.** SNA/SNB/ANB ; U1–NA°/mm, L1–NB°/mm, inter-incisif, plan occlusal–SN, SN–GoGn, L1–GoGn ; SND, Pog–NB mm, L1–D line mm/°. Les angles principaux peuvent disposer de preuve typée ; lignes mm nécessitent calibration prouvée ; d'autres nécessitent `Gn_anatomic`, `D_Steiner_1959`, `U1_facial_surface`, `L1_facial_surface`, `Occ_Steiner_Ant/Post`, `Pog_hard`. Les identifiants automatiques homonymes ne sont pas des équivalents historiques autorisés. L'UI déclare `15` lignes et `n/15` calculées, éventuellement NC. Le FUE-H strict de **cinq segments** `sn,na,nb,u1,l1` ne couvre pas les 15 constructions et encore moins leur validité clinique. Le champ `final_gate=SATISFIED` dans le profil est un **gate de composition/source-lock** de la bibliothèque, pas une approbation anatomique individuelle ou clinique ; le label « Steiner complet 1953 + 1959 » doit préciser l'état de calcul et de validation réelle.
+
+**COM Digital Crown : 10 facteurs de synthèse historiques internes, pas une analyse de référence scientifique universelle** : surplomb, recouvrement, IMPA, U1/FH, inter-incisif, FMA/angle de Tweed, A′B′, A→Nperp, B→Nperp, profondeur faciale DC. Mélange de constructions dental/Tweed/CRANIOM/DC, souvent calibrées pour les mm, version legacy Po-Or. `B→Nperp` ≠ Pog→Nperp de McNamara ; `U1/FH` ≠ FMIA du triangle Tweed. L'onglet COM est V1 accessible, mais référence R23-G4 en lecture seule avec valeurs NULL/NC si preuve runtime absente et aucune norme diagnostique universelle.
+
+**Tweed–Merrifield : 4 mesures définies, NON sélectionnable en V1** : FMA, IMPA, FMIA et angle Z de Merrifield (distinct de Tweed). Variante DC `Po_anatomic–Or / Go–Me`, **pas stricte équivalence historique ear-rod Tweed 1954**. Po détecté automatique ≠ Po_anatomic source-autoritaire ; Merrifield Z orientation V1 en revue et sans classification automatique. Profil final_gate=OPEN. Présence de code et du tableau Workbench historique ≠ mode cliniquement disponible.
+
+**McNamara 1984 : 13 facteurs documentés au ledger, NON sélectionnable en V1** : A–Nperp, SNA, Co–Gn, Co–A, différentiel Co–Gn − Co–A, ANS–Me, FH/mandibulaire, facial axis, Pog–Nperp, U1/A vertical, L1/A–Pog, pharynx supérieur/inférieur. Dans les 13 contrats, **5 ont une mention explicite BLOCKED/IMPLEMENTATION_MISSING** : facial axis, deux mesures dentaires à surfaces exactes et deux mesures voies aériennes ; les 8 autres ne sont PAS toutes garanties mesurables car calibration/anatomie/GET requis. Vue R23-G4 lecture seule, pas diagnostic.
+
+**Ricketts : deux variantes de protocole hors sélection V1, non interchangeables** : Atlas 2009 **33 facteurs = 10 EXECUTABLE + 23 CONDITIONAL_EXECUTABLE dans la définition de bibliothèque** ; Gregoret résumé **13 = 7 EXECUTABLE + 6 CONDITIONAL_EXECUTABLE**. L'étiquette EXECUTABLE ne garantit **pas** valeur disponible chez un patient (Po anatomique, Pt_Ricketts, Xi/Pm/CF, identité molaire/canine exacte, plan occlusal, calibration, orientation). Les profils R23-G4 sont lecture seule et n'autorisent ni classification ni source géométrique imaginaire. **Pas de pipeline radiographique PA/frontale ni validité transversale par seule radio latérale.**
+
+**Wits/Downs/autres** : Wits Jacobson reste non promu en protocole V1 ; ancien `Wits_Appraisal` quarantaine faute de plan occlusal/version et signe fiables. Downs possède au moins deux géométries angulaires (facial angle / Y axis) typées, pas analyse autonome complète V1. « Toutes analyses » n'est ni fusion exhaustive, ni consensus scientifique ou interprétation dentaire autorisée.
+
+**Système de diagnostic** : `cephalo_runtime_evidence.py` écrit des champs `findings/diagnoses/problems/objectives/treatment_options/validations/final_plans` **vides** ; `Step3Clinical.tsx` propose des mesures descriptives et des zones de saisie libre avec mention d'origine historique non vérifiée ; `cephalo_r15_clinical_studio.py` conserve `clinical_validation_available=false` sans snapshot praticien autoritatif ; `cephalo_pdf_projection.py` conditionne la sortie complète à `clinical_validation_available` et zéro blockers. FUE-H/P1/P2 9 workflows verts au SHA antérieur `3bae5545` **ne sont PAS une validation de toutes les méthodes ni d'un PDF diagnostique complet** ; P2 = fantôme nonclinique.
+
+**Verdict** : une interface doit séparer `PROFILE_DEFINED`, `MEASUREMENT_AVAILABLE`, `LANDMARK_VERIFIED`, `CALIBRATED`, `NORM_APPLICABLE`, `EXPERT_APPROVED`, `CLINICAL_COMPLETE`, avec numérateur/denominateur par patient et raison NC. Priorité scientifique : complétude effective et visibilité du Steiner (mesures, géométries, preuve source et rapport) et clarifier statut COM V1 avant ouverture d'autres méthodes ; puis Tweed/Merrifield, McNamara, Ricketts versionnés, Wits/Downs, puis synthèse multi-analyses selon preuves. Un diagnostic orthodontique complet requiert en plus examen clinique, occlusion, profil/tissus mous, croissance, imagerie appropriée et validation praticien ; pas de diagnostic automatisé depuis 38 landmarks latéraux.
+
+**Limites** : audit de composition code/runtime, **pas** exécution d'une nouvelle radio patient avec inspection des `n/15`, et aucune mesure clinique individuelle réalisée. Pas de merge, Vercel, EXE ni déclaration de GO clinique. Ce POST crée un SHA documentaire distinct ; CI du SHA précédent ne lui est pas attribuable sans recontrôle.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §51, matrice de complétude exacte ; nonclinical/clinical HOLD maintenu.**
+
+
+### 52. PRE — 2026-11-05 — Steiner 15/15 runtime per actual ONNX38 public fullfilms
+
+**Demande / autorisation** : « Next » après diagnostic d'incomplétude. Contrôle du fichier canonique unique **avant** passe, HEAD initial de PR DRAFT #1213 `48beec3b9641a37c59cb0411182ccfd5fc690627`, audits §51 et Roadmap/AGENTS lus. Notion PRE55 enregistré. Aucun déplacement des gates cliniques.
+
+**Constat précis** : `frontend/scripts/fue-ceph-r23h-first-use.mjs` prouve deux radio authentiques publiques (ANUG 2014 et Challiyan 2023), 38 landmarks via ONNX38 réel, image SHA/original, persistance autorisée, UI native React SVG Steiner 5 axes et sécurité entre cabinets ; **ne publie aucune grille des 15 mesures individuelles issues du read-path actif**. `backend/routers/cephalo_analysis_read.py` retourne `project_runtime_chain_read_path` dans `out.angles_data`; `cephalo_protocol_projection.py` expose `scientific_read_path.protocol_profiles.steiner.rows` (11 base + 4 extension), `availability_status`, valeur ou null, measurement refs, source method et classification_authority false ; `cephalo_runtime_chain.py` valide la chaîne active.
+
+**Goal / Success observable** : ajouter au FUE-H (sans modifier le produit médical, backend ni les formules) un audit indépendant depuis **GET authentifié réellement persisté et rouvert** sur **chacun des deux clichés**, sauvegardé comme JSON machine-readable dans l'artefact existant : les 15 identités uniques exactes, ordonnées, `AVAILABLE` seulement si valeur numérique finie + provenance méthode/measurement et `NC` si indisponibilité, absence de millimètres inventés quand calibration non vérifiée, aucun statut normatif clinique. Le script doit **échouer sur une contradiction de sécurité** mais **ne pas transformer l'absence d'un point nécessaire en un faux défaut clinique**. Zéro patient vrai, zéro diagnostic, zéro inférence de norme.
+
+**Plan** : instrumenter `frontend/scripts/fue-ceph-r23h-first-use.mjs` avec garde read-path et rapport par radio, CI H/P1/P2 exact SHA ; relever `n/15` seulement d'un `report.json` GitHub Actions réellement exécuté. Même si le test devient vert, FUE clinique 0/10, FACAD same-image absent, Human Visual Approval OPEN. Déploiement/Fusion/EXE non autorisés.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §52, témoin réel 15/15 à créer, aucun résultat patient revendiqué.**
+
+
+### 52. POST — 2026-11-05 — FUE-H 15/15 Steiner authentifié ajouté sur deux radios publiques, verdict CI encore ouvert
+
+**Modification réellement poussée** : [commit `4517fd55c4357763510abd3ddeac8098fa4f685f`](https://github.com/hraaaaf/Digital_crown/commit/4517fd55c4357763510abd3ddeac8098fa4f685f), **seulement** `frontend/scripts/fue-ceph-r23h-first-use.mjs` (test/playwright FUE-H), aucune modification du moteur, ONNX, UI, thème, base ou PDF. Contrôle ajouté `STEINER_15_READPATH_COVERAGE` après les deux véritables réouvertures dans le navigateur et GETs autorisés, sans injection de landmarks/mesures. Source via `GET /api/ia/analyses/{id}` → `scientific_read_path` `authority=EVIDENCE_GRAPH_V1`, `active_chain=VERIFIED`, `protocol_profiles.steiner`, `STEINER_STATIC_PROTOCOL_PROFILE_V1` source-lock. Correspondance stricte des 15 IDs en ordre, vérification `AVAILABLE` = numérique fini avec `measurement_refs` et `value_authority_method_id`; `NC` = valeur null; toutes `classification_authority=false`; aucune mesure `_MM_` autorisée tant que `is_calibrated=false`. Résultats par ANUG/Challiyan avec SHA-256 image, compte `available_count/nc_count`, identités/statuts/méthodes/refs et contexte NC, fichier nouveau `artifacts/ceph-r23h-first-use/steiner-15-coverage.json` et copie dans `report.json`. La CI H/ P1 / P2 utilise le même script réel; l'archive H l'exposera.
+
+**Résultat établi AUJOURD'HUI** : la couverture instrumentée est commitée et le script relu après commit, mais **aucun résultat réel n/15 n'a encore été produit ou observé sur ce nouvel exact HEAD** ; les runs étaient QUEUED juste après le commit. Ne pas inventer « 15/15 calculés », ni même une valeur disponible. La présence de 15 colonnes/IDs source-locked ne prouve pas les 15 mesures cliniques exactes. Aucun bilan normatif, diagnostic, classification, goldset expert, approbation visuelle ou PDF clinique autorisé. Les deux clichés restent publics, patient fictif et environnement T2 disposable ; **0/10 FUE cabinet réel**.
+
+**Runs associés au commit de test `4517fd55` au premier relevé** : [FUE-H #42073619787](https://github.com/hraaaaf/Digital_crown/actions/runs/42073619787) QUEUED, [FUE-P1 #42073619680](https://github.com/hraaaaf/Digital_crown/actions/runs/42073619680) QUEUED, [FUE-P2 #42073619648](https://github.com/hraaaaf/Digital_crown/actions/runs/42073619648) QUEUED, [Build #42073619833](https://github.com/hraaaaf/Digital_crown/actions/runs/42073619833) QUEUED, [Scope #42073620062](https://github.com/hraaaaf/Digital_crown/actions/runs/42073620062) QUEUED, R14/Theme09/10/11 QUEUED ; M6-I SKIPPED hors scope. Résultat 9/9 vert ancien uniquement HEAD `48beec3`, **pas transféré** à `4517fd55` ni au futur commit documentaire POST.
+
+**Risques encore OPEN** : statut réel NC expliqué de façon prudente ; `nc_context` pour mm associe calibration non vérifiée mais ne prétend **pas** identifier l'unique cause si landmark requis aussi absent ; pour angles, absence ou invalidité de source ne permet aucune inférence anatomique. La preuve H donne les n/15 disponibles *techniquement* sur deux clichés, pas la précision des repères ni la parité avec FACAD/goldset sur mêmes images, et ne débloque ni travaux ultérieurs ni clinique.
+
+**NEXT concret** : obtenir l'artefact exact-HEAD et reporter les comptes ANUG/Challiyan avec 15 lignes chacune ; isoler les NC par origine de preuve, cible bornée par source, calibration réelle et validation praticien, avec FUE adversariale négative. Aucun merge, déploiement Vercel ni EXE.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §52, test H Steiner 15/15 ajouté, n/15 exact observé en attente de CI.**
+
+
+### 53. PRE — 2026-11-05 — lecture indépendante de l’artefact FUE-H exact HEAD (Go)
+
+**Sources relues avant conclusion** : PR #1213 DRAFT HEAD \`dee9ac93ae45c1b4db47f53bb9cbe9532549b837\` ; canonique §52 ; Notion PRE56. FUE-H [#42073826915](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826915) **SUCCESS** et archive [#13437698027](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826915/artifacts/13437698027), ZIP SHA256 \`57708828e040f6c448d79c9fc887d474a46b4e1f3afe79f093a595c2128f24bf\` **égal au digest GitHub**. Source interne \`steiner-15-coverage.json\` \`head=dee9ac93...\`; \`report.json\` \`errors=[]\` et check \`STEINER_15_READPATH_COVERAGE: PASS\`. Deux images publiques sourcées par SHA256 et traitement réel ONNX38, patient T2 fictif, 0 patient clinique.
+
+**Objectif** : contrôler les 30 cellules de mesure, classifier les NC par contrat de point et calibration, établir les priorités de prochaine FUE sans inventer 15/15, sans altérer les formules ni diagnostiquer.
+
+### 53. POST — 2026-11-05 — Steiner observé 6/15 ANUG, 6/15 Challiyan : 9 NC expliqués
+
+**Preuve** : [FUE-H #42073826915](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826915) et \`steiner-15-coverage.json\` téléchargé, extrait et vérifié localement ; tête source \`dee9ac93ae45c1b4db47f53bb9cbe9532549b837\` ; schéma \`CEPH_STEINER_15_NONCLINICAL_V1\`, \`clinical_release=false\`, \`source=AUTHENTICATED_GET\`. Runs **9/9 SUCCESS** à ce SHA, M6-I SKIPPED hors scope : H [#42073826915](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826915), P1 [#42073827296](https://github.com/hraaaaf/Digital_crown/actions/runs/42073827296), P2 [#42073827032](https://github.com/hraaaaf/Digital_crown/actions/runs/42073827032), frontend [#42073826830](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826830), Scope [#42073826918](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826918), R14 [#42073826781](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826781), Theme09 [#42073827093](https://github.com/hraaaaf/Digital_crown/actions/runs/42073827093), Theme10 [#42073826748](https://github.com/hraaaaf/Digital_crown/actions/runs/42073826748), Theme11 [#42073827403](https://github.com/hraaaaf/Digital_crown/actions/runs/42073827403).
+
+**30 résultats du read-path actif, 15 identités ordonnées sur les deux clichés** (aucun résultat clinique validé) :
+
+| Steiner / canonical ID | ANUG | Challiyan | Disponibilité des deux |
+|---|---:|---:|---|
+| SNA · \`M_SNA_DEG_V1\` | 79,1° | 79,9° | AVAILABLE |
+| SNB · \`M_SNB_DEG_V1\` | 77,7° | 74,6° | AVAILABLE |
+| ANB · \`M_ANB_DEG_V1\` | 1,4° | 5,3° | AVAILABLE |
+| U1–NA angle · \`M_U1_NA_DEG_V1\` | 32,5° | 20,8° | AVAILABLE |
+| U1–NA mm · \`M_U1_NA_MM_V1\` | NC | NC | NOT_COMPUTABLE |
+| L1–NB angle · \`M_L1_NB_DEG_V1\` | 34,6° | 34,2° | AVAILABLE |
+| L1–NB mm · \`M_L1_NB_MM_V1\` | NC | NC | NOT_COMPUTABLE |
+| Inter-incisif · \`M_INTERINCISAL_DEG_V1\` | 111,4° | 119,6° | AVAILABLE |
+| Plan occlusal–SN · \`M_OCCLUSAL_PLANE_SN_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+| SN–GoGn · \`M_SN_GOGN_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+| L1–GoGn · \`M_L1_GOGN_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+| SND · \`M_SND_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+| Pog–NB mm · \`M_POG_NB_MM_V1\` | NC | NC | NOT_COMPUTABLE |
+| L1–D-line mm · \`M_L1_DLINE_MM_V1\` | NC | NC | NOT_COMPUTABLE |
+| L1–D-line angle · \`M_L1_DLINE_DEG_V1\` | NC | NC | NOT_COMPUTABLE |
+
+**Scores bornés** : ANUG **6 AVAILABLE / 9 NC / 15** ; Challiyan **6 / 9 / 15**. 6/15 = **40 % de couverture de rangées calculées sur ces deux clichés non calibrés**, **pas l'avancement global du lot ni l'exactitude orthodontique**. Les six disponibles sont des angles produits par ONNX38 non expert-vérifiés. Aucun résultat mm n'est exposé, conformément à \`is_calibrated=false\` et \`mm_per_pixel=null\`.
+
+**Causes techniques identifiées via les contrats du backend** \`backend/services/cephalo_steiner_protocol_evidence.py\` et \`steiner_protocol_profile_v1.json\`, plus les 38 IDs exacts de l'artefact (les 38 contiennent \`Gn\` et \`D_point\` mais **pas** \`Gn_anatomic\` ni \`D_Steiner_1959\`) :
+
+- **Quatre NC en mm** : \`U1–NA mm\` = \`U1_facial_surface\` explicite + calibration ; \`L1–NB mm\` = \`L1_facial_surface\` explicite + calibration ; \`Pog–NB mm\` = \`Pog_hard\` (seul alias \`Pog→Pog_hard\` sur modèle certifié) + calibration ; \`L1–D mm\` = \`L1_facial_surface\`, \`D_Steiner_1959\`, \`Gn_anatomic\` + calibration. La calibration manquante est un blocker certain pour les quatre ; absence des surfaces/D/Gn est un blocker additionnel pour les cas concernés, **sans inférer qu'une présence nominale du détecteur suffit**.
+- **Cinq NC angulaires** : plan occlusal–SN exige \`Occ_Steiner_Ant\` + \`Occ_Steiner_Post\` exacts ; SN–GoGn et L1–GoGn exigent \`Gn_anatomic\` ; SND exige \`D_Steiner_1959\` ; L1–D° exige \`D_Steiner_1959\` + \`Gn_anatomic\`. Aucun de ces points n'est automatiquement substituable par \`D_point\`, \`Gn\` détecté ou un plan occlusal approximatif. Leur null est une **protection scientifique**, pas neuf défauts de formules démontrés.
+- **Source UI existante** : \`frontend/src/features/ortho/cephaloSteinerProtocol.ts\` expose **six identités à placer manuellement ou selon construction contrôlée** (\`Gn_anatomic\`, \`U1_facial_surface\`, \`L1_facial_surface\`, \`D_Steiner_1959\`, \`Occ_Steiner_Ant\`, \`Occ_Steiner_Post\`) ; \`Step1CephaloBase.tsx\` a un handler de placement explicite et une calibration manuelle. **Existence de ce code ≠ preuve que placement→save→reload→recalcul débloque une mesure sur cliché réel**. Ce parcours n'est pas encore FUE-certifié pour les six identités.
+- Le rapport FUE-H \`nc_context\` est intentionnellement générique, **pas un diagnostic automatique des raisons exactes par la chaîne** ; les dépendances ci-dessus sont déduites des contrats sources et de l'absence d'IDs autoritaires, non des champs \`nc_context\` seuls.
+
+**Prochain sous-lot recommandé, dans cet ordre** : 1) FUE interactive réelle de placement des six identités, sauvegarde et reload sur fixture/clique image autorisée, avec provenance sans alias ; test négatif de déplacement/absence/doublons ; 2) calibration **uniquement** sur un fantôme de référence physique connu ou source cliniquement étalonnée autorisée (jamais inventer une distance sur ANUG/Challiyan) et maintien des mm à NC sinon ; 3) vérifier recalcul stable, 15 géométries/tracés et transmission du rapport ; 4) contrôle expert sur goldset indépendant (mêmes images) et validation humaine séparée. Ne pas promettre 15/15 en clinique simplement avec le placement.
+
+**Périmètre exécuté** : audit complet de l'artefact existant, ZIP vérifié avec digest GitHub, fichiers indépendants de lecture/export ; **aucune modification du produit** ni du modèle, aucune image patient privé, aucun merge, Vercel, EXE ou signature clinique. La présente mise à jour **documentaire** génère un nouveau HEAD : les 9 SUCCESS cités restent attachés au SHA de preuve \`dee9ac93\`, pas automatiquement au SHA documentaire ultérieur.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §53, couverture Steiner 6/15 sur ANUG et Challiyan, prochain FUE six placements/correction.**
+
+
+### 54. PRE — 2026-11-05 — audit source 38 canaux SRPose → identités Steiner, auto-first sans aliases inventés
+
+**Mission GO** : auditer l'intégralité des 38 sorties SRPose38 et comparer la provenance d'index, leur ID Digital Crown, les définitions anatomiques verrouillées et les dépendances exactes des 15 lignes du Steiner. Proposer le chemin d'automatisation défendable avant une quelconque mutation clinique, sans imposer la pose manuelle de six points par défaut. Notion **PRE57** enregistré ; HEAD de départ `399941cecd77f4315e63f816ea5353ae147a4954` dans PR #1213 DRAFT, non mergée ; `AGENTS.md` et roadmap V1 lus.
+
+**Sources techniques retenues** : `backend/services/srpose38_contract.py` (dictionnaire 0..37), `docs/SRPOSE38_LANDMARK_CONTRACT.md` (table officielle CL index/name/ID, ambiguïtés), `docs/audits/CEPHALO_SRPOSE38_PROVENANCE.md` (audit source checkpoint exact et limitation sémantique), `docs/audits/CEPHALO_VNEXT_LOT03_LANDMARK_ATLAS.md` (cohérence d'IDs), `backend/services/cephalo_landmark_identity_bridge.py` (alias versionnés fail-closed), `backend/services/cephalo_steiner_protocol_evidence.py` et profil Steiner `backend/data/cephalometry/steiner_protocol_profile_v1.json`.
+
+**Point critique établi d'emblée** : modèle ONNX SRPose38 certifié en parité et exact ordre 38 canaux, **mais son checkpoint source publié nomme les catégories numériquement 0–37 sans définir leurs identités anatomiques** (audit de provenance du 15/09/2026). L'inventaire local nomme 38 points ; il ne constitue **pas** une validation anatomique exhaustive des canaux du modèle. Le modèle livre `Gn`, `D_point` et `U6/L6` génériques, non les ancres `Gn_anatomic`, `D_Steiner_1959`, `Occ_Steiner_Ant/Post` ou les surfaces coronaires requises. Ne pas dégrader les protections, ne pas créer de mm sans étalon réel, aucune adaptation produit sans définition autoritative.
+
+**Success observable** : liste exhaustive 38/38, matrice dépendances 15/15 et verdict par groupe `DIRECT_GEOMETRY_CURRENT`, `ALIAS_ONLY_IF_PROVEN`, `CONSTRUCTION_SOURCE_LOCK_REQUIRED`, `MISSING_NEW_LANDMARK`, `CALIBRATION_REQUIRED`; recommandations de FUE pour l'auto-first avec alternatives vérifiables. Pas de merge, Vercel, EXE, données patients ni diagnostic ; validation clinique HOLD.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §54, étude 38 points en cours.**
+
+
+### 54. POST — 2026-11-05 — Audit 38/38 SRPose et 15/15 Steiner : auto-first, véritables gaps distingués
+
+**FUE-0 exécuté sur les sources du HEAD PRE `6132b56ed03f423ceb5c3e70cf86a9a105951ce6`** : parsing indépendant de `backend/services/srpose38_contract.py` vs la table `docs/SRPOSE38_LANDMARK_CONTRACT.md`. **38 entrées, index 0–37 contigus, 38/38 IDs Digital Crown identiques dans le même ordre, zéro collision/mismatch.** Profil `steiner_protocol_profile_v1.json` : **15 identifiants uniques (11 BASE 1953 + 4 EXTENSION 1959)**. Ceci démontre la cohérence **locale** code ↔ contrat documentaire, PAS une validation anatomique amont du checkpoint.
+
+**Important — objection du praticien résolue** : une fois les coordonnées de landmarks anatomiquement corrects connues, droites, plans, angles et projections se construisent de façon déterministe ; aucun marquage manuel systématique ni LLM ne doit être requis. Le moteur possède déjà des formules pour les 15 facteurs. La difficulté résiduelle porte sur les **identités et certains points géométriques non fournis**, plus calibration pour les mm.
+
+**Matrice exhaustive de disposition des 38 canaux (usage Steiner uniquement, pas certification médicale)** :
+
+| Index ONNX | ID logiciel exact | Portée dans ce Steiner 15 |
+|---:|---|---|
+| 00 | `S` | `GEOMETRY_INPUT_CURRENT` |
+| 01 | `N` | `GEOMETRY_INPUT_CURRENT` |
+| 02 | `Or` | `NOT_USED_IN_STEINER15` |
+| 03 | `Po` | `NOT_USED_IN_STEINER15` |
+| 04 | `A` | `GEOMETRY_INPUT_CURRENT` |
+| 05 | `B` | `GEOMETRY_INPUT_CURRENT` |
+| 06 | `Pog` | `ALIAS_POG_HARD_CONDITIONAL` |
+| 07 | `Me` | `NOT_USED_IN_STEINER15` |
+| 08 | `Gn` | `NEEDS_EXACT_STEINER_IDENTITY` |
+| 09 | `Go` | `GO_VARIANT_HOLD` |
+| 10 | `L1_incisal` | `GEOMETRY_INPUT_CURRENT` |
+| 11 | `U1_incisal` | `GEOMETRY_INPUT_CURRENT` |
+| 12 | `Ls_soft` | `NOT_USED_IN_STEINER15` |
+| 13 | `Li_soft` | `NOT_USED_IN_STEINER15` |
+| 14 | `Sn_soft` | `NOT_USED_IN_STEINER15` |
+| 15 | `Pog_soft` | `NOT_USED_IN_STEINER15` |
+| 16 | `PNS` | `NOT_USED_IN_STEINER15` |
+| 17 | `ANS` | `NOT_USED_IN_STEINER15` |
+| 18 | `Ar` | `NOT_USED_IN_STEINER15` |
+| 19 | `D_point` | `NEEDS_EXACT_STEINER_IDENTITY` |
+| 20 | `U1_apex` | `GEOMETRY_INPUT_CURRENT` |
+| 21 | `L1_apex` | `GEOMETRY_INPUT_CURRENT` |
+| 22 | `Cm` | `NOT_USED_IN_STEINER15` |
+| 23 | `Ptm` | `NOT_USED_IN_STEINER15` |
+| 24 | `Co` | `NOT_USED_IN_STEINER15` |
+| 25 | `Prn` | `NOT_USED_IN_STEINER15` |
+| 26 | `Ba` | `NOT_USED_IN_STEINER15` |
+| 27 | `PT_point` | `NOT_USED_IN_STEINER15` |
+| 28 | `Bo` | `NOT_USED_IN_STEINER15` |
+| 29 | `Ls2` | `NOT_USED_IN_STEINER15` |
+| 30 | `Li2` | `NOT_USED_IN_STEINER15` |
+| 31 | `Gn_soft` | `NOT_USED_IN_STEINER15` |
+| 32 | `Me_soft` | `NOT_USED_IN_STEINER15` |
+| 33 | `G_soft` | `NOT_USED_IN_STEINER15` |
+| 34 | `N_soft` | `NOT_USED_IN_STEINER15` |
+| 35 | `C_point` | `NOT_USED_IN_STEINER15` |
+| 36 | `U6` | `GENERIC_MOLAR_SEMANTIC_HOLD` |
+| 37 | `L6` | `GENERIC_MOLAR_SEMANTIC_HOLD` |
+
+**Synthèse exhaustive** : 8 canaux alimentent actuellement les six angles calculés ; `Go` est requis par des angles bloqués et conserve un hold de **variante de Gonion** ; `Pog` peut être projeté conditionnellement en `Pog_hard` via `cephalo_landmark_identity_bridge.py` seulement avec provenance SRPose38 certifiée ; `Gn` et `D_point` sont **2 canaux candidats à une équivalence anatomique ciblée, non prouvée** ; `U6`/`L6` sont des molaires **génériques** ne prouvant ni cuspide exacte ni plan occlusal Steiner ; les **24 autres** n'alimentent aucune des 15 mesures actives. La somme des catégories = **38/38**. Aucune identité supplémentaire ne doit être créée par ressemblance de nom.
+
+**Matrice exhaustive des 15 mesures sur les deux radios publiques réelles ONNX38 (preuve FUE-H HEAD `dee9ac93`)** :
+
+
+| Facteur | Code | Cas publics | Dépendance qui bloque l'automatisation manquante |
+|---|---|---|---|
+| SNA | M_SNA_DEG_V1 | AVAILABLE 2/2 | S,N,A par mapping local ; expertise goldset non faite |
+| SNB | M_SNB_DEG_V1 | AVAILABLE 2/2 | S,N,B ; même réserve |
+| ANB | M_ANB_DEG_V1 | AVAILABLE 2/2 | S,N,A,B ; même réserve |
+| U1–NA° | M_U1_NA_DEG_V1 | AVAILABLE 2/2 | U1 apex/incisal,N,A ; même réserve |
+| U1–NA mm | M_U1_NA_MM_V1 | NC 2/2 | U1_facial_surface explicite absent + calibration physique manquante |
+| L1–NB° | M_L1_NB_DEG_V1 | AVAILABLE 2/2 | L1 apex/incisal,N,B ; même réserve |
+| L1–NB mm | M_L1_NB_MM_V1 | NC 2/2 | L1_facial_surface explicite absent + calibration |
+| Inter-incisif | M_INTERINCISAL_DEG_V1 | AVAILABLE 2/2 | 2 axes incisifs ; même réserve |
+| Occlusal–SN | M_OCCLUSAL_PLANE_SN_DEG_V1 | NC 2/2 | Occ_Steiner_Ant/Post absents ; construction précise 1953 non matérialisée automatiquement |
+| SN–GoGn | M_SN_GOGN_DEG_V1 | NC 2/2 | Gn_anatomic absent ; Gn détecteur similaire en nom, contrat exact non prouvé ; version Go à clarifier |
+| L1–GoGn | M_L1_GOGN_DEG_V1 | NC 2/2 | Gn_anatomic absent ; version Go à clarifier |
+| SND | M_SND_DEG_V1 | NC 2/2 | D_Steiner_1959 absent ; D_point non équivalent attesté |
+| Pog–NB mm | M_POG_NB_MM_V1 | NC 2/2 | Pog_hard alias conditionnel existant, calibration absente |
+| L1–D mm | M_L1_DLINE_MM_V1 | NC 2/2 | L1_facial_surface + D_Steiner_1959 + Gn_anatomic + calibration |
+| L1–D° | M_L1_DLINE_DEG_V1 | NC 2/2 | D_Steiner_1959 + Gn_anatomic dans contrat de construction ; axe perp. à GoGn |
+
+
+**Différence essentielle** : les six ancres Steiner absentes du mapping direct sont `Gn_anatomic`, `D_Steiner_1959`, `U1_facial_surface`, `L1_facial_surface`, `Occ_Steiner_Ant`, `Occ_Steiner_Post`. `Pog_hard` est un 7e ID absent du mapping brut mais dispose déjà de **l'alias versionné conditionnel** `Pog → Pog_hard`. La règle actuelle `EXPLICIT_ONLY_CANONICAL_IDENTITIES` bloque légitimement `Gn_anatomic`. L'UI permet un secours manuel mais ne prouve pas un parcours clinique autosuffisant.
+
+**Autorité de la source, recoupée avec sources publiques** :
+- `docs/audits/CEPHALO_SRPOSE38_PROVENANCE.md` (audit 15/09/2026) a vérifié le repo source du checkpoint exact SRPose/CL-Detection : dataset MMPose déclaré sous numéros `0..37`, **sans nomenclature anatomique** associée à ces numéros. Le mapping `S,N,...L6` est un contrat **local**, historiquement annoncé sans table primaire attachée ; `LEGACY_LOCAL_MAPPING / SOURCE_LOCK_REQUIRED`. La table locale cohérente 38/38 ne ferme **pas** cette incertitude.
+- Article du challenge `https://arxiv.org/html/2409.15834v1` : 600 clichés / 38 landmarks ; la figure 3 **illustre** leur anatomie mais, sans lien vérifiable à la **numérotation des annotations effectivement entraînées**, l'image ne certifie pas les couples index→identité du checkpoint.
+- Site `https://cl-detection2023.grand-challenge.org/` et dépôt `https://github.com/5k5000/CLdetection2023` : inscription/accord nécessaires pour le dataset, README modèle confirme 38 canaux, dataset représenté par `landmark_1...38` ; il faut obtenir l'annotation native officielle/validation indépendante pour autoriser de nouveaux mappings cliniques.
+- `docs/audits/CEPHALO_VNEXT_LOT03_LANDMARK_ATLAS.md` définit `Gn` anatomique candidat mais non automatiquement promu, `U6/L6` sans spécification de cuspides, `Occ_Ant/Post` **compatibilité** non universelle ; `docs/audits/CEPHALO_VNEXT_LOT06_MUST_HAVE_SOURCE_LOCK.md` bloque explicitement `Gn→Gn_anatomic` sans source.
+- `backend/services/cephalo_steiner_protocol_evidence.py` et `cephalo_steiner_geometry.py` prouvent la présence d'opérateurs déterministes existants, pas leur résultat avec landmarks manquants.
+
+**Vérités mathématiques utiles** : sur cliché **non calibré**, au plus **11 mesures angulaires / 15** pourraient être calculées **si** toutes les identités/source-locks et constructions occlusales sont vérifiées et obtenues automatiquement. Les **4 distances mm** restent non calculables sans provenance métrologique vraie, même avec tous les landmarks. Si seules les 2 identités `Gn_anatomic` et `D_Steiner_1959` devenaient démontrablement disponibles et la variante `Go` résolue, **quatre angles supplémentaires** seraient théoriquement débloqués (`SN–GoGn`, `L1–GoGn`, `SND`, `L1–D°`), soit **10/15 théoriques non calibrés**, pas un résultat observé ni une autorisation d'alias. Le plan occlusal–SN resterait NC faute de construction automatisée source-lockée. L'expression 10/15/11/15 est une **borne conditionnelle**, pas un score FUE.
+
+**NEXT recommandé — sans overengineering / sans modifier le moteur** :
+1. **P0, source de vérité sur le détecteur** : obtenir l'original `train-gt.json`/manuel des 38 catégories avec correspondance index↔anatomie et protocole, ou créer un jeu expert indépendant avec revue praticien, version/hash ; prioriser la définition des canaux 8 (`Gn`), 19 (`D_point`), 9 (`Go`) et, en parallèle, tracer précisément la provenance des huit points qui donnent les six angles courants. Ne pas renommer toutes les données historiques.
+2. **P1, automatisation des angles** : **seulement après la preuve sémantique**, ajouter les promotions `Gn_anatomic` et `D_Steiner_1959` **versionnées et testées**, puis matérialiser `OCCLUSAL_PLANE_STEINER_1953_V1` avec points dentaire exacts, géométrie validée et fixtures golden. Interdire les raccourcis `U6/L6 ≡ cuspide mésiovestibulaire`.
+3. **P2, mesures linéaires** : acquérir/localiser automatiquement les surfaces faciales coronaires `U1_facial_surface`, `L1_facial_surface` via anatomie/modèle/segmentation autorisée (les apex/incisal seuls ne prouvent pas ces surfaces), puis intégrer la calibration **réelle source/étalon**. Ne pas inventer de mm depuis un JPEG public non calibré.
+4. **P3, FUE clinique contrôlée** : 2 clichés publics + fantôme physique calibré, save/reload et recalcul, preuves source-ref/version, tests négatifs de faux alias, puis comparaison du même cliché à un jeu expert et approbation praticien. La correction manuelle demeure **facultative et traçable**.
+
+**Verdict** : **38/38 mapping informatique cohérent, 0/38 canal anatomiquement certifié par ce contrôle statique, 6/15 AVAILABLE sur chacun des deux cas publics, 9/15 NC corrects, zéro faux GO clinique.** Le « 0/38 certifié par ce contrôle » ne prétend **pas** que les 38 coordonnées sont fausses ni qu'aucun travail antérieur de définition clinique n'existe ; il marque seulement ce que le **test d'index local** ne valide pas. **Aucune nouvelle liaison anatomique activée**, pas de code produit, merge, déploiement Vercel, sortie cabinet ou patient réel.
+
+**Preuve finale du POST** : ajout documentaire au seul fichier canonique `docs/audits/CEPH_V1_LOT1_SCIENCE_APPROVAL_FUE_PREFLIGHT.md`, Notion PRE57 / POST57 ; GitHub CI du HEAD POST à revérifier séparément de la preuve FUE-H `dee9ac93`.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §54, matrice SRPose 38/38 et Steiner 15/15, automatisation priorisée sans faux alias.**
+
+
+### 55. PRE — 2026-11-05 — décision propriétaire : poids ONNX38 = source opérationnelle du tracé
+
+**Décision utilisateur, explicite** : « valide les points du poids c'est notre base de travail, on capitalise dessus c'est notre source de vérité ». Digital Crown adopte **les 38 coordonnées sorties du modèle ONNX exact pin** comme **source de vérité d'ingénierie pour les constructions géométriques et tests**, en conservant leurs IDs bruts `S,N,...Gn,D_point...`, coordonnées subpixel, image originale et model SHA. Arrêter de bloquer la progression de calcul technique en recherchant systématiquement une équivalence clinique upstream. La décision est une **autorité d'exécution technique de travail**, pas une certification clinique externe ni une autorisation de forcer des alias dans le ledger clinique officiel.
+
+**Base source** : source model `srpose38-tta-1024.onnx` SHA256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb`, mapping local `SOTA_LANDMARKS_MAPPING` 38/38 ordonné, FUE-H déjà attesté sur 2 radios publiques ANUG et Challiyan au HEAD `dee9ac93ae45c1b4db47f53bb9cbe9532549b837`. Archive `13437698027` contenant `source-locked-38-points.json` depuis GET authentifié + 2 images numérotées réellement examinées. 38 points distincts dans les bounds des deux clichés, modèle pin, 0 fausse calibration. Recalcul indépendant en mémoire de six angles depuis ces 38 coordonnées, concordance au dixième avec les six `AVAILABLE` du GET ; quatre autres angles géométriques issus des coordonnées déjà présentes (`Gn`, `D_point`), **exploratoires / non cliniques**. Source des repères = poids, pas nouvelles annotations manuelles.
+
+**GOAL** : valoriser immédiatement le modèle acquis en ajoutant à la **preuve FUE-H non clinique** les quatre angles supplémentaires calculés depuis les points bruts, réutiliser strictement les fonctions géométriques existantes, garder la sortie clinique inchangée `6/15 AVAILABLE` tant que les identities historiques restent sous gate ; garder 4 mm NC sans calibration et occlusal NC sans ancrage sûr ; figer hash source, version de formule, images d'origine, empêcher l'invention de points ou de mm. Tests CI avec valeurs et provenance ; aucune modification ONNX ou produit médical ; zéro mise en production/merge.
+
+**FUE PRE** : [PR #1213](https://github.com/hraaaaf/Digital_crown/pull/1213) DRAFT, HEAD initial `f7f1f8bae6eca86bcb8191b75b30025fa9168381`, Notion PRE58 enregistré ; `AGENTS.md`, roadmap V1 et canonique §54 relus ; CI sur ce HEAD à relever après changement. FUE-H au HEAD `dee9ac93` précédemment 9/9 workflow SUCCESS ; preuves limitées à ce SHA.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §55, ONNX38 choisi source d'ingénierie technique, 4 angles exploratoires à certifier sans clinique.**
+
+
+### 55. POST — 2026-11-05 — 38 landmarks des poids ONNX fixés comme vérité d'ingénierie, 4 angles supplémentaires calculés sans manuel
+
+**Décision prise suite à objection explicite propriétaire** : **le poids `srpose38-tta-1024.onnx` SHA-256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb`, et ses 38 coordonnées en pixels d'origine après GET authentifié, sont la base de vérité opérationnelle du tracé technique Digital Crown.** On capitalise immédiatement sur les points réellement détectés, sans obliger de ressaisir ou replacer six landmarks pour calculer des droites et des angles. Cette décision remplace comme priorité la quête répétitive d'une table amont pour toutes les **opérations de géométrie de recherche** ; elle ne transforme pas les estimations ONNX en diagnostic approuvé ni en preuve de parité clinique.
+
+**FUE-0 locale, sur source FUE-H réellement observée** : archive FUE-H #13437698027 du SHA `dee9ac93ae45c1b4db47f53bb9cbe9532549b837`, ZIP SHA-256 `57708828e040f6c448d79c9fc887d474a46b4e1f3afe79f093a595c2128f24bf`; `source-locked-38-points.json` complet : deux études ANUG/Challiyan, **76/76 coordonnées finies et dans les bounds image** (38 par radio), 38 IDs distincts par radio, image/poids hashes fixés, non calibrées. Deux planches complètes `fullfilm-anug-38points-numerotes.png` et `fullfilm-challiyan-38points-numerotes.png` inspectées visuellement ; l'alignement spatial global est exploitable pour les travaux exploratoires, **sans score d'erreur expert ni certificat clinique**. Recalcul mathématique indépendant six mesures `SNA/SNB/ANB/U1–NA°/L1–NB°/inter-incisif` à partir de ces coordonnées : **6/6 valeurs concordent au dixième** avec `steiner-15-coverage.json` sur chacun des deux clichés.
+
+**Nouveau résultat concret, 4 angles supplémentaires depuis les points BRUTS du modèle** (lignes exactes calculées en test hors interprétation historique, sans ajouter de landmarks manuels, aucune distance mm inventée) :
+
+| Angle modèle issu des poids | ANUG | Challiyan | Entrées brutes |
+|---|---:|---:|---|
+| `MODEL_SN_GOGN_DEG` | 32,70° | 32,87° | S,N,Go,Gn |
+| `MODEL_L1_GOGN_DEG` | 75,77° | 73,20° | L1_apex,L1_incisal,Go,Gn |
+| `MODEL_SND_DEG` | 75,86° | 71,97° | S,N,D_point |
+| `MODEL_L1_VS_GOGN_NORMAL_DEG` | 14,23° | 16,80° | L1_apex,L1_incisal,Go,Gn |
+
+**Contrat explicitement séparé** : ces quatre valeurs ont le statut `MODEL_NATIVE_EXPERIMENTAL_ONLY`. Elles sont entièrement calculées à partir des 38 points ONNX, mais **ne portent pas les labels cliniques source-certifiés** `Gn_anatomic` ou `D_Steiner_1959` ; le quatrième angle est la direction perpendiculaire à Go-Gn, qui ne dépend mathématiquement pas de la position du point D, bien que le contrat complet de preuve D-line en demande l'identité. **6 mesures historiquement AVAILABLE + 4 angles modèles exploratoires ≠ 10/15 Steiner cliniquement validés**. Le read-path médical reste exactement à 6/15 AVAILABLE sur ces clichés non calibrés, et ses neuf NC ne sont pas falsifiés.
+
+**Changements GitHub prouvés** :
+1. [commit test `d3ba3498a555e2977b51c69fc40ab168e1a9bb26`](https://github.com/hraaaaf/Digital_crown/commit/d3ba3498a555e2977b51c69fc40ab168e1a9bb26) : `scripts/ceph_r23h_fullfilm_review.py` réutilise **exclusivement les fonctions géométriques déjà existantes** `steiner_sn_mp_deg_v1`, `steiner_l1_gogn_deg_v1`, `steiner_snd_deg_v1` et `steiner_l1_dline_deg_v1`. Vérifie **l'ordre exact des 38 IDs contre `SOTA_LANDMARKS_MAPPING`**, réutilise les pixels exacts, rejette résultat non fini/hors domaine, crée `artifacts/ceph-r23h-first-use/model-native-4-steiner-angles.json`, lié HEAD, SHA modèle et SHA radio, `clinical_release=false`. Aucun moteur, base, modèle, interface, document clinique ou formule de production modifiés.
+2. [commit harness `aec4bf60d2d0ee42f9a16d6a9e1e993ba180ca49`](https://github.com/hraaaaf/Digital_crown/commit/aec4bf60d2d0ee42f9a16d6a9e1e993ba180ca49) : `.github/workflows/ceph-r23h-fue-first-use.yml` vérifie réellement la production de l'artefact expérimental pour les deux clichés, 4 mesures finies chacun et `clinical_authority=false` ; aucune colonne/valeur n'est injectée dans `steiner-15-coverage.json`.
+
+**Gates à la clôture de cette passe** : FUE-0 local sur les anciennes coordonnées ONNX **PASS** (6 angles déjà disponibles réconciliés, 4 angles modèles candidats calculés), **CI nouveau HEAD au premier relevé QUEUED**, [FUE-H #42083529511](https://github.com/hraaaaf/Digital_crown/actions/runs/42083529511), [FUE-P1 #42083529608](https://github.com/hraaaaf/Digital_crown/actions/runs/42083529608), [FUE-P2 #42083529669](https://github.com/hraaaaf/Digital_crown/actions/runs/42083529669), [Scope #42083529579](https://github.com/hraaaaf/Digital_crown/actions/runs/42083529579), [build #42083529777](https://github.com/hraaaaf/Digital_crown/actions/runs/42083529777). Les 9 PASS antérieurs à `dee9ac93` ne sont **pas** ceux des commits actuels. Le présent POST produit un HEAD documentaire distinct : revérifier les CI propres à ce dernier SHA.
+
+**NEXT** : lire le nouveau JSON GitHub CI exact HEAD une fois `SUCCESS` pour confirmer les quatre angles modèle sur les 2 images ; afficher automatiquement les résultats **dans un espace de travail expérimental distinct**, puis décider la promotion au protocole Steiner historique seulement après un contrôle sur mêmes images par orthodontiste ; ouvrir travail de construction du plan occlusal et une calibration physique conforme pour 4 mm. L'objectif maintenant est **d'exploiter les points des poids**, pas de solliciter une pose manuelle par défaut. Aucune autorisation donnée pour fusion, Vercel, EXE, données cabinet, normes ou décisions cliniques.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §55, ONNX38 vérité d'ingénierie, 4 angles automatiques supplémentaires calculés, CI HEAD final à contrôler.**
+
+
+### 56. PRE — 2026-11-05 — reprise immédiate / réparer la CI FUE-H du modèle ONNX38
+
+**Mission** : après l'ordre « Non vas y reprend », désactiver le rappel différé et poursuivre immédiatement la preuve exacte des quatre angles expérimentaux calculés depuis les poids ONNX38. Canonique §55 relu ; Notion PRE59 ajouté. PR #1213 toujours DRAFT, départ `0e54e82d83eec0fe48ab4a1eb5c95e8343813a23`.
+
+**Preuve d'échec déterministe** : [FUE-H #42083922038](https://github.com/hraaaaf/Digital_crown/actions/runs/42083922038) FAILURE alors que huit autres jobs SUCCESS et M6-I SKIPPED hors périmètre. Log job `127443857623` : `R23H_RESULT ... passed=7, failed=[], studies=2` — upload, ONNX, GET authentifié, 38 landmarks et Steiner 15 lignes ont passé. L'étape suivante `Produce whole-film 38-landmark numbered review boards` a lancé `python scripts/ceph_r23h_fullfilm_review.py` et échoué à la ligne 142 sur `ModuleNotFoundError: No module named 'backend'`. Cause : exécution d'un fichier sous `scripts/` sans ajout de la racine dans le chemin d'import Python. L'archive [#13443847560](https://github.com/hraaaaf/Digital_crown/actions/runs/42083922038/artifacts/13443847560) a les 17 pièces en amont mais pas `model-native-4-steiner-angles.json`.
+
+**Correction bornée prévue** : dans le workflow FUE-H remplacer l'appel direct du fichier Python par `python -m scripts.ceph_r23h_fullfilm_review` depuis la racine checkout, en conservant tous les arguments, les validations sécuritaires et la source ONNX38. Aucun changement de formules ni des identités, aucun nouveau landmark, calibration inventée, UI ou résultat clinique. FUE = PASS H sur SHA exact avec JSON 2 études × 4 angles, non-clinique ; P1/P2/build/scope sans régression ; PR/Notion/document mis à jour après.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §56, import de rapport FUE-H à corriger.**
+
+
+### 56. POST — 2026-11-05 — chemin d'import FUE-H réparé, run exact HEAD lancé
+
+**Cause racine établie dans log GitHub** : FUE-H [#42083922038](https://github.com/hraaaaf/Digital_crown/actions/runs/42083922038), SHA `0e54e82d83eec0fe48ab4a1eb5c95e8343813a23`, **FAILURE** dans l'étape whole-film source-lockée : `ModuleNotFoundError: No module named 'backend'` dans `scripts/ceph_r23h_fullfilm_review.py:142`, à la première importation des fonctions de géométrie, après 7/7 checks FUE réel et sauvegarde/lecture d'études réussis. Artefact H avait 17 fichiers mais pas le nouveau JSON à quatre angles.
+
+**Correction effectivement commitée** : [`61afb5da2b857d34d49d50270545c4265a2c541c`](https://github.com/hraaaaf/Digital_crown/commit/61afb5da2b857d34d49d50270545c4265a2c541c) change **une seule ligne** de `.github/workflows/ceph-r23h-fue-first-use.yml` : `python scripts/ceph_r23h_fullfilm_review.py` → `python -m scripts.ceph_r23h_fullfilm_review`. Les args `--input/--sources/--output` et tous les tests restent inchangés, les imports backend seront résolus depuis la racine checkout ; aucun modification du moteur, formule, ONNX, UI, thème, données patient ou résultat médical.
+
+**Contrôle post-écriture** : PR #1213 encore DRAFT/non mergée ; vérification par `fetch_file` de la ligne exacte `python -m scripts.ceph_r23h_fullfilm_review`. Nouveau run [FUE-H #42095864408](https://github.com/hraaaaf/Digital_crown/actions/runs/42095864408) **QUEUED** au dernier relevé, plus [FUE-P1 #42095864438](https://github.com/hraaaaf/Digital_crown/actions/runs/42095864438), [FUE-P2 #42095864402](https://github.com/hraaaaf/Digital_crown/actions/runs/42095864402), [isolated frontend TEST build #42095864607](https://github.com/hraaaaf/Digital_crown/actions/runs/42095864607), [CI Scope Gate #42095864642](https://github.com/hraaaaf/Digital_crown/actions/runs/42095864642), R14 #42095864365, Themes09/10/11 #42095864387/#42095864551/#42095864612 QUEUED, M6-I SKIPPED. **Aucun PASS affirmé pour ce nouveau SHA : la réussite exige H SUCCESS et présence JSON avec 2×4 angles.** Le présent POST documentaire ajoutera un commit et un HEAD distinct qui doit être vérifié indépendamment.
+
+**Livraison bornée du passage** : import FUE identifié et corrigé, chaîne de traçage fondée exclusivement sur 38 coordonnées originales ONNX38 conservée, 4 angles exploratoires non cliniques inchangés, read-path Steiner officiel continue 6/15 sur les deux radios non calibrées ; pas de faux 10/15 cliniques, ni diagnostic ni étalon fictif. **NEXT** : lire le run et télécharger `model-native-4-steiner-angles.json` exact SHA, puis auditer l'exposition dans un espace de travail expérimental séparé, sans merge ni deployment.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §56, correctif import CLI FUE-H poussé, CI exacte en attente.**
+
+
+### 57. PRE — 2026-11-05 — gate bloquant captures humaines à approuver (propriétaire)
+
+**Instruction explicite** : « Pas d’approbation sans captures à approuver ». CI verte = seulement succès de l'automatisation, **jamais approbation des rendus**. Statut imposé : `HUMAN_VISUAL_APPROVAL_REQUIRED / HOLD` jusqu'à réception et décision *explicite* du propriétaire sur les captures, et gates cliniques indépendants avant tout usage clinique. Aucune approbation déduite du silence ; PR #1213 DRAFT et non mergée ; zéro Vercel, EXE ou mutation cabinet.
+
+**PRE vérifié** : HEAD Git `96d507cd381ac278a28b3d62e39a57bf6eb1a369`, 9/9 workflows requis SUCCESS (FUE-H #42096123950, P1 #42096123998, P2 #42096124046, build #42096123951, Scope #42096124085, R14 #42096123995, Theme09/10/11), M6-I SKIPPED hors scope. [Artefact H #13448099375](https://github.com/hraaaaf/Digital_crown/actions/runs/42096123950/artifacts/13448099375), digest `sha256:a4eb65874e0bf535c2d9de930ee04e85cc16d80fada3184ddb5b47d838b3789f`. Preuve source exact SHA ; le statut humain n'est **PAS APPROVED**.
+
+**Contrat du paquet visuel à présenter** : captures *réelles* ANUG et Challiyan comprenant image native entière avec 38 repères ONNX, + interface applicative/overlay SVG tracé. Indiquer SHA du modèle/source, HEAD, échelle, statut recherche et limites (absence de calibration mm) ; les afficher à l'utilisateur avant décision. En cas de modification d'UI, demander des **BEFORE/AFTER à viewports identiques** 390×844, 768×1024 et 1280×900, comparaison côte-à-côte ; pas de validation sur captures absentes ou non appariées. FUE-H vérifie les artefacts techniques ; revue visuelle humaine distincte.
+
+**Action après PRE** : inspecter ZIP FUE-H, auditer réellement les images et le JSON 2×4 angles, présenter les captures existantes avec invitation explicite « approuver/refuser » ; poster résultat POST §57 puis Notion POST60 ; ne pas écrire `APPROVED` sans réponse. Un seul canonique GitHub pour ce lot.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §57, images + approbation obligatoires.**
+
+
+### 57. POST — 2026-11-05 — FUE-H SUCCESS, captures authentifiées présentées, approbation visuelle EN ATTENTE
+
+**CI exacte avant PRE documentaire** : [FUE-H #42096123950](https://github.com/hraaaaf/Digital_crown/actions/runs/42096123950), HEAD de preuve `96d507cd381ac278a28b3d62e39a57bf6eb1a369`, **SUCCESS**. Les 9 workflows requis de ce SHA (H/P1/P2/frontend/Scope/R14/themes09–11) sont SUCCESS, M6-I SKIPPED. PR #1213 reste DRAFT, jamais fusionnée. L'ajout documentaire §57 PRE crée son propre SHA distinct ; ne jamais transférer le succès de CI d'un SHA à un autre.
+
+**Preuves effectivement téléchargées et relues** : [artefact ZIP H #13448099375](https://github.com/hraaaaf/Digital_crown/actions/runs/42096123950/artifacts/13448099375) SHA-256 archive `a4eb65874e0bf535c2d9de930ee04e85cc16d80fada3184ddb5b47d838b3789f` (digest du provider indépendant confirmé sur octets téléchargés). 18 fichiers, dont 13 PNG réelles, `report.json` 7/7 PASS avec `errors=[]`, `fullfilm-review-index.json`, `source-locked-38-points.json`, `steiner-15-coverage.json`, et **`model-native-4-steiner-angles.json` présent** avec deux radios et quatre angles expérimentaux par radio. `clinical_release=false`, `historical_aliases_certified=false`, `available_official_steiner_rows_modified=false` ; 6/15 AVAILABLE et 9/15 NC dans read-path médical par cliché. Les 38 repères sont source-locked au modèle ONNX et à chaque image ; absence de calibration physique et de goldset anatomique.
+
+**Captures réelles à soumettre au propriétaire pour examen et approbation séparée** :
+- `05-real-react-steiner-anug.png` — UI réelle React 1600×1000, radio ANUG, panneau Steiner 6/15 et tracé des lignes ;
+- `05-real-react-steiner-challiyan.png` — UI réelle React 1600×1000, autre radio, même parcours ;
+- `fullfilm-anug-38points-numerotes.png` — image entière non recadrée originale 2272×1818 avec les 38 coordonnées numérotées/calque de revue ;
+- `fullfilm-challiyan-38points-numerotes.png` — original 1000×1255, 38 points ;
+- `06-real-react-steiner-svg-anug.png` et `06-real-react-steiner-svg-challiyan.png` — fragments réels de l'overlay SVG ; disponibles dans l'archive.
+
+**Revue critique de l'agent (ne vaut PAS validation du propriétaire)** : les captures UI disent `Steiner complet (1953 + 1959)` mais affichent seulement `6/15 mesures calculées` ; le libellé doit clarifier qu'il s'agit d'un *profil 15 facteurs partiellement calculé*, pas d'une analyse complète achevée. Les six tuiles `Gn anatomique / U1 surface faciale / L1 surface faciale / D Steiner / Occlusal antérieur / Occlusal postérieur` indiquent encore `À placer`, contradictoires avec l'objectif **ONNX38 auto-first sans six placements obligatoires**. Les quatre angles modèles supplémentaires sont prouvés dans le JSON expérimental mais **ne sont pas dessinés dans cet écran** ; les captures ne prouvent donc pas leur intégration UI. L'écran 1600×1000 montre aussi bandeau supérieur/titre coupé partiellement et un toast qui masque une partie du panneau au bas de l'écran. Ces observations sont des **points à corriger avant approbation du rendu final**, pas des erreurs géométriques démontrées.
+
+**Gate explicite ACTIVE** : `HUMAN_VISUAL_APPROVAL_REQUIRED / NOT_APPROVED`, captures à présenter dans le chat à l'utilisateur ; lui demander avis explicite sur (1) emplacement des 38 points et (2) lisibilité/layout/tracés de l'UI. Même si l'utilisateur approuve la capture actuelle, toute future modification du rendu exige BEFORE/AFTER à viewports identiques 390×844 / 768×1024 / 1280×900 + captures et confirmation distincte. Le grand lot clinique reste HOLD ; aucune autorisation de merge, deploy, EXE, patient réel ou décision médicale.
+
+**NEXT** : recueillir approbation/refus explicite des captures ; si refus ou corrections demandées, effectuer une passe UI limitée et photographier before/after + tests responsive, puis nouvelle revue humaine. `FUE-H SUCCESS` ne signifie pas `VISUAL APPROVED`.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §57, screenshots à approuver, statut NOT_APPROVED.**
+
+
+### 58. PRE — 2026-11-05 — cadrage fonctionnel Céphalo end-to-end, deux analyses (aucun code)
+
+**Ordre du praticien** : arrêter de traiter Céphalo comme 38 numéros sur une radio. Nouvelle cible : les 38 points issus du poids ONNX identifiés par leurs noms, calibrage dès qu'une réglette graduée fiable est présente, sélection précoce de l'analyse (puis filtrage contextualisé des landmarks/lignes/plans/angles/mm), analyse des moulages structurée par onboarding, diagnostic détaillé et synthétique, plan de traitement rédigé/validé par le praticien, `Créer bilan` puis `Aperçu` et archivage. **Deux analyses réellement complètes dans la première livraison**, à choisir explicitement. Les chiffres seuls dans le paquet de preuve H sont des IDs de board QA et non une UX acceptable.
+
+**Règles incontournables — acquises, non « propositions »** : couleurs (UI **et** géométrie) dérivées des tokens du thème actif, jamais une palette module autonome hardcodée ; conserver tous les acquis de Digital Crown, pas de from scratch ; **définir et valider toutes les spécifications avant la réconciliation technique** ; capture-rendu BEFORE/AFTER et approbation humaine explicite obligatoires ; poids ONNX38 opérationnel source des coordonnées pour la géométrie, correction ponctuelle traçable facultative ; pas d'activation diagnostique/treatment en automatique sans contexte clinique et validation praticien. Les 4 mm non calibrés restent indisponibles, jamais estimés.
+
+**PRE lecture réelle** : PR #1213 DRAFT, HEAD `39524b1b6a78600331229d559cdf126d9e04bc40`, canonique §57 PRE/POST relu et Notion PRE61 ajouté. Existant à inventorier sans modifier : `CephaloWorkspace.tsx` (4 étapes), `Step1CephaloBase.tsx` (ONNX, overlay, calibration), `CephaloLandmarkReticles.tsx` (noms compacts et collisions, à distinguer du board QA numéroté), `CephaloAnalysisWorkbenchPanel.tsx` (sélecteur de 6 familles), `Step2Occlusal.tsx` (DDM et rapports), `Step3Clinical.tsx` (CVM, denture, diagnostic/notes), `Step4Documents.tsx` (brouillon/preview/archive), `calibration_service.py` (candidat réglette en zone haute uniquement), `cephalo_auto_calibration_gate.py` (étalon physique profilé), `cephaloTheme.ts` (tokens partiels, fallback chromatique), `orthoExpertSystem.ts` et `bilan_ortho_engine.py` (aucune décision de traitement autonome).
+
+**Goal** : produire dans cette passe un tableau « déjà existant / écart produit / décision proposée », un parcours cible utilisable et une liste minimale de choix cliniques à approuver ; PAS de reconciliation ni implémentation. **Success** : décisions séparées des hypothèses, protocole de calibration sans tricherie, deux profils candidats motivés, bornes de rapport/diagnostic/plan, thèmes et gate screenshots. GitHub et Notion POST à la fin.
+
+**Dernière mise à jour canonique : 05/11/2026 — PRE §58, atelier de conception, zéro code.**
+
+
+### 58. POST — 2026-11-05 — Architecture fonctionnelle cible Céphalo V1 : COM et Steiner (proposition, zéro code)
+
+**Nature de la passe** : inventaire source réel + atelier de conception ; **aucune réconciliation ni développement produit**, aucune approbation, aucun changement moteur ni norme, aucun merge ou déploiement. Les propositions suivantes sont **non approuvées** tant que l'utilisateur n'a pas tranché les détails.
+
+#### Décisions explicites du propriétaire — ACQUISES
+
+1. Poids SRPose38 / 38 coordonnées comme **source de travail du tracé** ; les points affichés sur la radio doivent porter leur **nom anatomique** et non leur numéro d'ordre. La numérotation 01..38 des planches FUE-H constitue une **preuve QA**, pas l'UI cible.
+2. L'analyse choisie doit filtrer automatiquement **les points, lignes, plans, angles et mesures propres à ce protocole** ; le besoin final dépasse la simple superposition de 38 points.
+3. Détecter les graduations d'une réglette et calibrer lorsque sa **longueur physique est déterminable** ; sans preuve de mm réelle, garder les mesures linéaires indisponibles. Éviter l'étalonnage inventé et les conclusions cliniques non fondées.
+4. Deux analyses **complètes** seulement en première livraison, puis flux intégral radio → points / calibration / analyse choisie → moulages (onboarding structuré à définir) → diagnostic détaillé puis résumé → plan de traitement → Créer bilan / Aperçu / archive.
+5. **ZÉRO couleur de module codée en dur** : tout état UI + tracé hérite des tokens sémantiques du thème choisi, y compris contrastes/états. Pas de reconstruction from scratch. **Finir la définition des fonctionnalités avant toute réconciliation technique**.
+6. Validation visuelle propriétaire **obligatoire sur captures authentiques BEFORE/AFTER** aux mêmes viewports ; FUE verte ne vaut jamais approbation.
+
+#### Source code audit — EXISTANT, à réutiliser
+
+| Source | Ce qui existe réellement | Gap de design/implémentation à traiter plus tard |
+|---|---|---|
+| `srpose38_contract.py`, `cephalo_service.py`, R23-H FUE | Poids ONNX38 pin, 38 points avec IDs, sauvegarde/lecture, captures de 2 cas publics | rendre les noms réellement visibles sur l'image produit plutôt que board QA numéroté ; conserver identité et édition ponctuelle traçable |
+| `CephaloLandmarkReticles.tsx` | IDs anatomiques, noms compacts, collisions, focus/hover et déplacement | modes d'affichage noms/protocole et lisibilité, étiquetage non ambigu sans 38 noms superposés |
+| `cephaloVisualSemantics.ts`, `CephaloTracingLayerBase.tsx`, Workbench | moteur de plans/axes et famille scientifique de couleurs, sélecteur visuel, tracés existants | choix **unique** d'analyse qui alimente le viewer, métriques, overlay, PDF ; couleurs des familles actuellement basées sur des **hex littéraux fixes** même si mêlés à `--text-main` ; refactor en tokens **du thème global**, sans palette autonome |
+| `cephaloCalibration.ts`, `Step1CephaloBase.tsx`, `calibration_service.py`, `cephalo_auto_calibration_gate.py` | états `UNCALIBRATED/CANDIDATE_UNVERIFIED/AUTO_VERIFIED/CLINICIAN_CONFIRMED/MANUAL_TWO_POINT/LEGACY_VERIFIED`; candidat de graduations et workflow de calibration avec profil physique versionné | détecteur actuel recherche **une réglette verticale dans les 30% supérieurs** et n'infère pas les mm à partir de graduations seules ; élargir une fois spécifié les cas d'image/règle ; capturer l'espacement connu, profil/fiabilité, zoom, mm/px et validation |
+| `cephaloV1ProtocolScope.ts`, `Step3Clinical.tsx`, `CephaloAnalysisWorkbenchPanel.tsx` | Deux modes V1 cliniques **COM Digital Crown + Steiner 1953/1959** ; sélecteur placé dans Step3 alors que viewer autorise d'autres analyses | unifier source de sélection **dès Step1** et ne livrer que 2 profils décidés ; résorber « Steiner complet » trompeur quand 6/15 affichés |
+| `Step2Occlusal.tsx` | DDM max/mand, formes d'arcade, classes molaires/canines R/G, subdivisions | mode onboarding guidé progressif, surplomb/recouvrement/ligne médiane/crossbites selon choix ; **audit obligatoire** des constantes `107` et `90` actuellement dans `calcDDMReelle`, non admissibles comme normes implicites |
+| `Step3Clinical.tsx`, `orthoExpertSystem.ts`, `bilan_ortho_engine.py` | observations, CVM/denture explicites, notes diagnostiques/plan éditables ; déduction automatique de plan et de classe désactivée | séparer données mesurées / observations du praticien / diagnostic structuré signé / résumé lisible, sans diagnostic IA non corroboré, aucune décision thérapeutique autonome |
+| `Step4Documents.tsx`, `CephaloWorkspace.tsx` | quatre étapes, sauvegarde, brouillon PDF, aperçu `LivePreview`, prévalidation / archivage | flux clair `Créer bilan → Aperçu → Valider/archiver`, même protocole/mesures/calibration au viewer, au diagnostic et au PDF ; vérifier que la preview n'est pas une validation clinique |
+
+**Fait scientifique utile** : 38 points ONNX et **six** Steiner actuellement `AVAILABLE` (sur 2 JPEG publics non calibrés), **quatre angles supplémentaires expérimentaux** calculés dans JSON `model-native-4-steiner-angles.json`. La première version sera dite **complète** seulement si **toutes les mesures obligatoires de chacun des deux profils** ont une sortie justifiée sur un cliché approprié et un dispositif d'échec explicite sinon. Pas de 15/15 imaginaire sans surfaces coronaires, calibration mm et constructions spécifiques. La calibration de règle doit distinguer **repérage des traits** de **connaissance de la distance physique** et tenir compte de l'échelle du plan radiographique.
+
+#### Proposition de parcours — à approuver
+
+1. **Céphalométrie > importer** : image originale, lecture ONNX38 + identité source et sauvegarde ; UI **vrais noms**, mode **Analyse** défaut limité aux points pertinents, mode **Tous les repères** facultatif.
+2. **Céphalométrie > calibrer** : détection réglette/traits; si profil de graduations millimétriques versionné/étalonné, proposition `AUTO_VERIFIED` avec segment superposé + contrôle praticien ; sinon demander longueur réelle (deux marques + mm connu) ou garder `NON CALIBRÉ` et poursuivre en version partielle **sans mesures mm**. La méthode, échelle, image et correction sont persistées.
+3. **Céphalométrie > protocole / tracé** : sélectionner **un** des deux protocoles V1, faire apparaître points strictement utiles + plans/lignes/angles/mesures ; modes `Points / Constructions / Angles / Mesures / Tout`, sélection mesure ↔ surbrillance des mêmes traits sur radio ; avertir des valeurs `NC`. Changer d'analyse change la vue, **pas** les 38 coordonnées source, ni l'identité historique de l'étude.
+4. **Moulages/occlusion** : mini-onboarding conditionnel dans Step2 existant : denture, arcades et DDM (sources et unités), classes molaires/canines droite/gauche, lignes médianes, surplomb/recouvrement, occlusion transverse/croisée et autres champs uniquement s'ils sont cliniquement utiles ; autosave/reprise et `non évalué` explicite. Aucune mesure inventée.
+5. **Synthèse clinique** : cartes `Mesures objectives` + `Examen des moulages` + `Observations praticien`, puis **diagnostic détaillé multi-axes** (squelettique, vertical, dentaire, occlusal, tissus mous selon données), **résumé du diagnostic** éditable/validé ; séparé de l'inférence automatique.
+6. **Stratégie / Documents** : problème/objectif thérapeutique/options/choix/plan saisis et **validés par praticien** ; bouton `Créer bilan`, `Aperçu` du PDF puis validation/archivage, y compris image des constructions exactes du protocole et provenance des points/calibration. Le brouillon partiel est identifiable ; une analyse **complète** n'est déclarée qu'avec tous les critères déterminés et satisfaits.
+
+**UI recommandée sans repartir de zéro** : garder le stepper actuel en 4 blocs `Céphalométrie` (3 sous-passes), `Moulages`, `Diagnostic`, `Plan & Bilan`. Sur desktop, radio principale à gauche et panneau protocole/constructions/mesures à droite ; radio et résultats en deux onglets sur mobile, contrôles persistants. Couleurs = tokens d'application pour toutes les familles (y compris états et courbes); aucun nouvel hex local. Sélecteur de protocole unique, avant calcul, non un doublon dans Step3.
+
+#### Deux analyses — recommandation, PAS décision utilisateur
+
+Le code `cephaloV1ProtocolScope.ts` borne **déjà** la V1 à `COM Digital Crown` et `Steiner complet (1953 + 1959)`. **Recommandation** : garder précisément **COM + Steiner** pour ne pas disperser le chantier ; ne pas démarrer Tweed/McNamara/Ricketts dans ce premier lot complet. `COM` = convention locale alignée CRANIOM dans `CEPHALO_ANALYSIS_DEPENDENCY_MATRIX.md`, avec nuances historiques/normatives à préserver ; ne pas confondre la composition COM avec Tweed ou McNamara. Le propriétaire doit confirmer le duo et la **liste finale des mesures obligatoires par protocole**, calibrations et données requises avant implémentation.
+
+#### Questions ouvertes, dans cet ordre (max 1 question au propriétaire par passe)
+
+1. **Duo initial** : confirmation de **COM Digital Crown + Steiner 1953/1959** plutôt qu'un autre duo.
+2. **Calibration** : formats d'images visés (JPEG/PNG avec règle, DICOM si réellement requis), type réel de réglette physique/espacement et situations sans règle.
+3. **Protocole complet** : liste figée des mesures obligatoires pour chaque analyse, définition des points additionnels stricts, gestion `NC` et preuves de précision.
+4. **Moulages** : champs obligatoires vs conditionnels, précision requise par denture ; design de l'onboarding par une capture cible soumise à approbation.
+5. **Diagnostic et bilan** : sections, niveau d'assistance rédactionnelle sans LLM runtime, signature finale, PDF et source d'archive ; au moins une capture desktop/mobile BEFORE/AFTER à chaque sous-lot.
+6. **Enfin seulement** : réconciliation technique et lotissement d'exécution, série FUE bout en bout ; zéro GO avant captures et accord explicite.
+
+**Gate à la clôture de cette discussion** : `SPEC_DISCOVERY / NOT_APPROVED / NO_CODE`, décision clinique inchangée, aucun merge/déploiement ni patients. Les PRE/POST §58 documentent le cadrage (la présente mise à jour documentaire change HEAD et doit avoir sa propre CI).
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §58, atelier produit complet, choix duo ouvert, NO CODE.**
+
+
+### 59. PRE — 2026-11-05 — atelier Étape 1 : céphalométrie utilisateur (SPEC, zéro produit)
+
+**Owner instruction** : reprendre depuis §58 et Notion POST 61 ; construire un véritable parcours clinique plutôt qu'une simple superposition ONNX38. Les quatre décisions acquises (§58) sont conservées, images BEFORE refusées, duo COM Digital Crown + Steiner 1953/1959 toujours **recommandé/non approuvé**.
+
+**Baseline contrôlée** : PR #1213 DRAFT, HEAD de lecture `67b29d984579ae201378c7f025e7c4065206c3f6` ; neuf workflows pertinents SUCCESS sur ce HEAD (FUE-H, P1, P2, frontend TEST, Scope, R14, Theme09–11), M6-I SKIPPED. Ce succès est non clinique et sans approbation visuelle. `CEPHALO_DIAGNOSTIC_SPEC.md` et contrat `SRPOSE38_LANDMARK_CONTRACT.md` relus ; détail §58 présent ; Notion PRE 62 écrit.
+
+**Goal / Success** : figer en proposition testable le comportement Céphalométrie (import, 38 repères anatomiques, états de provenance/correction, calibration et limites, choix protocole, constructions/mesures, vue et export) et ses critères d'acceptation, sans décider un seuil, une norme ou un traitement. **Gate** : SPEC_DISCOVERY / NO_CODE / NOT_APPROVED ; ne toucher ni au runtime, ni à la CI, ni aux patients, ni à master, ni aux déploiements. **NEXT** : consigner §59 POST et Notion POST 62 ; demander l'arbitrage sur COM + Steiner et les limites de calibration avant de spécifier les étapes 2/3/4.
+
+
+### 59. POST — 2026-11-05 — spécification fonctionnelle candidate Step1 « Céphalométrie »
+
+**Statut : SPEC_DISCOVERY / DRAFT / OWNER_APPROVAL_PENDING — AUCUN CODE PRODUIT.** Préserve §58 et toutes les décisions déjà acquises. Le produit, le bilan et les captures réelles restent NOT_APPROVED. Le duo COM Digital Crown + Steiner 1953/1959 est recommandé, **non accepté par supposition** ; analyses supplémentaires existantes non supprimées, mais hors cible de complétude V1.
+
+#### 59-A. Contrat d'usage et séquence, sans nouveau wizard indépendant
+
+Conserver les 4 étapes de `CephaloWorkspace.tsx`. Définir dans **Étape 1 / Céphalométrie** quatre sous-tâches cohérentes (un même dossier persisté) :
+
+1. **Importer / vérifier le cliché** : original intact, association au dossier déjà ouvert, modalité profil, orientation, dimensions, date/provenance disponibles, upload local autorisé ; erreur/radio non conforme = statut explicite, pas de tracé affirmé. Réouverture de la même étude identique.
+2. **Détecter / contrôler les repères** : 38 sorties SRPose38 associées au contrat exact indices 0..37 ↔ IDs anatomiques ; affichage sur radio de `S, N, Or, Po, A, B, Go, Gn, ...`, pas de numéros de canaux. Statuts par point `AI_CANDIDATE / CLINICIAN_CONFIRMED / MANUAL_CORRECTION / NOT_EVALUABLE` comme spécification d'interface candidate, à réconcilier ultérieurement avec les vrais états persistés. Mode défaut = repères nécessaires à l'analyse choisie ; `Tous les 38` pour inspection volontaire. Désambiguïsation collisions par décalage de labels / connecteurs et focus/hover/clavier ; rendu fidèle au repère natif malgré zoom/crop. Correction facultative tracée (ancien/nouveau, auteur, date) et recalcul de toutes les mesures dépendantes sans modifier les indépendantes.
+3. **Étalonner / qualifier** : détecter réglette ou graduations candidates et montrer la zone/segment sélectionnés sur image entière ; ne jamais inférer mm à partir du nombre de traits seuls. Présenter trois distinctions visibles : `RÉGLETTE DÉTECTÉE` (image seulement), `ÉCHELLE DÉTERMINÉE` (longueur réelle étayée par profil étalon/calibrage manuel), `CALIBRATION VÉRIFIÉE` (méthode, échelle effective, géométrie/magnification appropriée et confirmation selon preuve). Si non étalonné ou grossissement incertain, **mm indisponibles**, angles 2D indépendants du mm restant techniquement candidats sous réserve de points, orientation et conventions. Alternative deux marques + distance physique documentée ; conserver le parcours non calibré partiel. DICOM Pixel Spacing ne vaut pas automatiquement correction du grossissement.
+4. **Choisir analyse / tracer / contrôler** : sélecteur unique en Step1 ; COM ou Steiner cible V1 sous réserve d'approbation. L'analyse active pilote le graphe de dépendances `landmarks → constructions → lignes/plans → angles/distances → résultats` ; panneaux `Points / Constructions / Mesures` et `Vue combinée` facultative. Sélectionner une mesure met en évidence sur la radio **exactement** ses repères, segments, arcs et l'unité ; revenir au protocole conserve les 38 coordonnées brutes et leurs corrections. Mesure manquante/degénérée/convention non prouvée = `NON CALCULABLE` avec cause précise (pas zéro) ; norme manquante = valeur géométrique conservée mais interprétation non proposée. Le système ne transforme jamais un résultat en diagnostic ou traitement sans praticien.
+
+#### 59-B. Critères de complétude explicites par protocole
+
+Une analyse n'est dite **définie complètement** que lorsque chaque ligne du protocole versionné a ID, définition, source de formule, points/constructions, convention et signe, unité, règle calibration, contraintes qualité, gestion des absences, méthode de calcul, tracé réel et présence/parité UI/API/PDF. Chaque **cas patient** a indépendamment couverture `N disponibles / N attendues` et statut de validation clinique. Ne jamais présenter `Steiner complet` comme 15/15 calculées : sur les 2 JPEG publics, read-path médical encore 6/15 AVAILABLE ; 4 angles en `MODEL_NATIVE_EXPERIMENTAL_ONLY` sans promotion automatique. Ancrages Steiner additionnels (p. ex. surfaces incisives, points D / Gn construits, extrémités du plan occlusal) nécessitent une définition source précise ; pas d'alias automatique fondé sur proximité des noms.
+
+#### 59-C. UI, thème, accessibilité, états
+
+Desktop : cliché prioritaire + panneau protocole/mesures ; mobile : vue radio et onglet résultats sans perdre l'orientation et sans overlays encombrants. Pas de 38 étiquettes affichées en permanence sur le mode principal. Séparer visuellement point IA candidat, point modifié, construction, mesure impossible et confirmation praticien sans dépendre uniquement de la couleur. `cephaloVisualSemantics.ts` / `cephaloTheme.ts` devront **plus tard** hériter exclusivement de tokens sémantiques du thème global pour traits, points, arcs, focus, seuils, alertes et surface — aucun HEX local. Les valeurs brutes, calibrages, positions et états doivent rester identiques après changement de thème ou analyse. Aucun changement de code durant cette passe.
+
+#### 59-D. Critères observables et batterie FUE future (NON EXÉCUTÉE)
+
+- FUE-01 : image correcte → 38 IDs contractuels uniques persistés → les étiquettes anatomiques du mode `Tous` sont lisibles au zoom, jamais des numéros de canaux ; contrôle sur 2 images publiques non patient.
+- FUE-02 : COM↔Steiner change les seules couches actives ; coordonnées, corrections et historique inchangés ; sélection d'une mesure surligne uniquement ses dépendances réellement calculées.
+- FUE-03 : JPEG sans règle / traits sans étalon → aucune valeur mm ; angles géométriques séparés, NC motivé ; règle avec profil physique connu et grossissement adéquat → échelle et preuves visibles, revue humaine.
+- FUE-04 : inversion miroir/crop/ratio d'aspect/repère sensible manquant/dégénérescence → pas de mesure fausse et aucun `0` de repli ; correction contrôlée entraîne recalcul transitif.
+- FUE-05 : chaque rang COM/Steiner apparaît au viewer, avec calcul ou cause d'indisponibilité + source/convention ; PDF même ID/unité/état/rendu que l'écran, y compris brouillon partiel.
+- FUE-06 : thèmes globalement actifs, 390×844 / 430 / 768×1024 / 1280×900, zoom texte 200 %, souris/tactile/clavier : labels/tracés accessibles, capture BEFORE/AFTER par viewport et accord propriétaire explicite.
+- FUE-07 : pas de patient réel en artifact/log/GitHub/Notion ; aucune interprétation clinique ni plan retenu sans praticien, aucun appel LLM runtime ; cohérence backend/frontend/stockage démontrée dans le lot autorisé ultérieur.
+
+**Gate actuel** : tests FUE ci-dessus **NOT RUN**, aucun FUE d'une nouvelle interface n'existe ; l'ancien run du HEAD précédent ne certifie pas cette spécification. Aucune implémentation ni réconciliation technique autorisée avant arbitrages fonctionnels sur les 4 étapes.
+
+**Décisions encore ouvertes, ordre** : 1) confirmer/rejeter officiellement COM + Steiner comme duo V1 ; 2) cadrer formats/réglette/étalon ; 3) figer toutes les lignes COM et Steiner et leur provenance ; 4) spécifier Moulages ; 5) Diagnostic ; 6) Plan/Bilan et signature ; **ensuite seulement** réconciliation technique et lotissement. Notion POST 62 à synchroniser. **Dernière mise à jour canonique : 05/11/2026 — POST §59, Step1 SPEC CANDIDATE, NO CODE.**
+
+
+### 60. PRE — 2026-11-05 — validation propriétaire du duo V1 et calibration (SPEC ONLY)
+
+**Décision utilisateur acquise** : « Je valide COM Digital Crown + Steiner 1953/1959 comme les deux analyses V1. Continuons les spécifications fonctionnelles sans implémentation. » Désormais **PROJECT_LOCKED pour le choix de duo V1**, en conservant les autres filtres/analyses historiques comme existants hors objectif de complétude initiale. Cette validation **ne couvre pas** la liste fine des mesures, les normes, les constructions manquantes, le rendu, la calibration clinique, les captures ou un déploiement.
+
+**État technique contrôlé avant écriture** : PR #1213 OPEN/DRAFT, HEAD `9c7e0d7fc67973e0a1023b75d37dba76d260392f`; neuf workflows pertinents COMPLETED/SUCCESS sur ce HEAD (FUE-H, FUE-P1, FUE-P2, frontend TEST build, Scope, R14, Theme09/10/11), M6-I SKIPPED. Canonique §59 POST relu, Notion PRE63 enregistré. SUCCESS technique ne signifie ni approbation visuelle ni validité clinique.
+
+**GOAL/SUCCESS/PROOF** : spécifier les scénarios de calibration, états de preuve, actions et refus ciblés, avec une question minimale de cadrage (formats de radios + réglette réellement disponible) ; vérifier compatibilité avec le parcours COM+Steiner sans coder, retester ou réconcilier. **SOURCE SCIENTIFIQUE candidate** : DICOM PS3.3 courant §10.7 (https://dicom.nema.org/medical/DICOM/current/output/chtml/part03/sect_10.7.html), notamment Pixel Spacing, Imager Pixel Spacing, GEOMETRY et FIDUCIAL, et limites de profondeur/grossissement. **GATE** : SPEC_DISCOVERY / NO_CODE / NOT_APPROVED, aucun patient, merge ou Vercel.
+
+
+### 60. POST — 2026-11-05 — duo COM + Steiner verrouillé ; calibration Step1 spécifiée en candidate
+
+**DECISION PROJECT_LOCKED — uniquement choix du duo** : COM Digital Crown + Steiner (1953/1959) sont les deux analyses cibles V1. Cette décision provient de la confirmation explicite du propriétaire du 05/11/2026. Conserver les autres familles existantes sans les traiter comme parcours complets V1. Ne pas modifier le produit ni inférer une validation du protocole historique intégral, des normes, des landmarks ONNX ou des captures.
+
+**Calibration — DESIGN PROPOSAL / NOT YET APPROVED (et pas une règle clinique activée)**
+
+**S-01 — Origine** : préserver l'original, son format, sa géométrie raster, orientation, dimensions, empreinte d'intégrité et toute métadonnée exploitable. Les formats cibles JPEG/PNG et DICOM restent à arbitrer selon la vraie pratique et la capacité vérifiée ultérieurement ; DICOM est une source possible de données, pas une garantie de calibration.
+
+**S-02 — Détection candidate** : examiner le cliché entier afin de localiser une ou plusieurs réglettes/gradations candidates indépendamment de l'ancienne ROI verticale 30% supérieure ; afficher cadre/segment détecté à l'échelle native, zoom et origine sans recadrer le cliché. Les candidats multiples, incomplets, obliques, rééchantillonnés, distordus ou contradictoires gardent le statut non vérifié. La présence de traits n'identifie ni distance réelle ni position dans la géométrie d'acquisition.
+
+**S-03 — Trois niveaux explicitement distincts** :
+- `RULER_DETECTED` / « Réglette détectée » : graduations candidates localisées ; unité/longueur réelles inconnues ; aucune distance mm autorisée sur cette seule preuve.
+- `SCALE_DETERMINED` / « Échelle déterminée » : longueur physique connue, profil d'étalon traçable ou deux marques avec distance mm documentée (ou métadonnées DICOM qualifiées), calcul de conversion selon géométrie image ; l'échelle dans le plan de la réglette peut être numérique sans garantir des distances anatomiques exactes.
+- `CALIBRATION_VERIFIED` / « Calibration vérifiée » : fiabilité des métadonnées, orientation/ratio, unité, mode GEOMETRY/FIDUCIAL ou fiducial physique, position relative de l'étalon au plan anatomique, éventuel grossissement, méthode/limites et approbation qualifiée contrôlées pour les distances concernées ; ces conditions ne sont **pas** déduites uniquement de la détection automatique. Les états internes existants `UNCALIBRATED/CANDIDATE_UNVERIFIED/AUTO_VERIFIED/CLINICIAN_CONFIRMED/MANUAL_TWO_POINT/LEGACY_VERIFIED` sont **à réconcilier plus tard** sans changer le runtime actuellement.
+- `UNCALIBRATED`, `AMBIGUOUS` et `INVALIDATED` sont des issues explicites, pas des preuves supplémentaires.
+
+**S-04 — Méthodes fonctionnelles candidates** :
+1) profil d'étalon physique identifié et versionné + graduations mesurables + géométrie pertinente → proposition de conversion ; 2) opérateur sélectionne exactement deux graduations et renseigne leur distance physique connue ainsi que provenance et plan de référence → échelle candidate manuelle ; 3) DICOM natif avec `Pixel Spacing (0028,0030)`, `Imager Pixel Spacing (0018,1164)`, `Pixel Spacing Calibration Type (0028,0A02)`, `Pixel Spacing Calibration Description (0028,0A04)` si présents → qualification distincte de la correction de grossissement et du repère FIDUCIAL/GEOMETRY ; 4) aucune preuve fiable → poursuite du parcours sans distances en mm. **Aucun facteur de grossissement ni pas de graduation choisi arbitrairement.** Même la méthode manuelle n'atteste pas automatiquement la profondeur anatomique.
+
+**S-05 — Affichage minimal** : bandeau `Échelle non vérifiée / Réglage proposé / Calibration vérifiée`, segment(s) visibles sur radio, origine (`étalon / saisie manuelle / DICOM`), valeur et unité mm/pixel uniquement lorsque déterminées, orientation et avertissement sur grossissement, identité/date de la vérification. Boutons `Confirmer selon preuve`, `Corriger`, `Continuer sans mesures mm`. Un simple clic de confirmation ne doit pas transformer une preuve géométriquement insuffisante en « vérifiée » ; exiger la justification et l'action du praticien lorsque pertinente.
+
+**S-06 — Mesures / effets aval** : sans calibration anatomiquement applicable, les distances mm sont `NON_CALCULABLE: CALIBRATION_UNVERIFIED` et l'export indique la même limite. Les angles 2D peuvent rester techniquement calculables si repères, conventions et géométrie/ratio d'aspect sont fiables ; image anisotropiquement étirée ou miroir non résolu bloque également les angles affectés. Une modification/invalidité d'échelle déclenche recalcul transitif/versionné des distances, normes et sections dépendantes du diagnostic et du PDF ; conserver l'historique. Aucune mesure remplacée par zéro, aucun choix thérapeutique automatisé.
+
+**S-07 — Règles de progression** : le praticien peut poursuivre vers Moulages avec une étude partielle et non calibrée, mais le dashboard et le projet de bilan indiquent les mesures absentes ; l'application ne qualifie ni COM ni Steiner comme « cas complet » lorsque des critères requis manquent. La validation de l'étude et du plan thérapeutique reste une action clinique humaine séparée.
+
+**Référence scientifique candidate contrôlée** : DICOM PS3.3 2026c, §10.7 « Basic Pixel Spacing Calibration Macro » https://dicom.nema.org/medical/DICOM/current/output/chtml/part03/sect_10.7.html ; valeurs Pixel Spacing ordonnées rangée/colonne, correction GEOMETRY vs FIDUCIAL, même profondeur/central ray, et absence d'indication fiable si métadonnées de calibration manquantes. `TECH_PRIMARY` pour la lecture de DICOM, **non** preuve de validité clinique d'un fichier importé et non norme orthodontique universelle.
+
+**Future battery FUE-CAL (NOT RUN)** :
+- CAL-01 JPEG/PNG sans règle ni métadonnées : 0 mm, angles contrôlés séparément, poursuite en « incomplet ».
+- CAL-02 faux traits / règle tronquée / 2 candidats contradictoires : candidat seulement, refus `VERIFIED`.
+- CAL-03 graduation sans longueur réelle connue : `RULER_DETECTED`, pas d'échelle arbitraire.
+- CAL-04 deux marques + valeur mm attestée : `SCALE_DETERMINED` ; pas de `CALIBRATION_VERIFIED` sans preuve géométrique pertinente.
+- CAL-05 DICOM Imager Pixel Spacing seul / correction non décrite : pas de preuve anatomique par magie.
+- CAL-06 calibrage anisotrope, zoom, crop, miroir, double-resize : vérifier les transformations indépendamment (angle et distance ne doivent pas avoir de faux PASS).
+- CAL-07 correction manuelle de l'échelle après mesure : recalcul dépendant, revue UI/API/DB/PDF, conservation de l'historique.
+- CAL-08 états d'échec/accessibilité/thèmes : statut textuel visible, couleurs issues uniquement de tokens du thème global, FUE réelle à valider plus tard par captures BEFORE/AFTER et approbation humaine.
+
+**OPEN / une seule question au propriétaire ensuite** : sur les téléradiographies réellement importées, y a-t-il habituellement une réglette graduée physiquement référencée dans le cliché, ou surtout des JPEG/PNG sans réglette ? La réponse définit le flux par défaut ; demander ensuite le format des sources et des profils d'acquisition/DICOM si nécessaire, avant la matrice complète COM/Steiner.
+
+**GATE / résultat** : décision duo validée ; calibration **candidate**, non approuvée ; études/mesures V1 et captures **non cliniquement validées** ; aucun code, test clinique, patient, merge ou déploiement. Batterie FUE-CAL non exécutée. **NEXT** : confirmer le cas de réglette dominant, préciser ses données réelles, puis couvrir les mesures exactes COM/Steiner avant Moulages, Diagnostic et Bilan. **Dernière mise à jour canonique : 05/11/2026 — POST §60, SPEC_ONLY.**
+
+
+### 61. PRE — 2026-11-05 — parcours COM+Steiner : matrice fonctionnelle des mesures (SPEC ONLY)
+
+**Demande propriétaire** : « Alors » après validation de COM Digital Crown + Steiner 1953/1959 et cadrage calibration ; poursuivre utilement sans réitérer une question déjà posée ou passer au code. **Hypothèse de conception uniquement** : l'étape d'import doit gérer la présence ET l'absence d'une réglette, sans présumer de ce que le cabinet reçoit le plus souvent.
+
+**Vérifications** : PR #1213 OPEN/DRAFT, HEAD documentaire pré-passe `81595ddc49d97d84ce118e706eabbca2c09a8a24`. §60 POST relu. Documents additionnels lus : `docs/CEPHALO_ANALYSIS_DEPENDENCY_MATRIX.md` (12 lignes COM historiques), `docs/CEPHALO_CONSTRUCTION_REGISTRY.md` (A'B', Francfort et ambigüités Gi/Gs, orientation du regard) et §54 du présent canonique (15 facteurs Steiner, 6/15 AVAILABLE, 9/15 NC sur deux JPEG publics; pas de validation anatomique clinique 38/38). Notion PRE 64 enregistré.
+
+**GOAL/SUCCESS** : construire un inventaire fonctionnel **non-clinique et non final** des deux catalogues, distinguer construction source-verrouillée, entrée ONNX candidate, mesures mm, états et justification d'absence, puis préparer l'arbitrage portant sur la portée exacte de COM ; aucun ajout de norme ou formule. **GATE** : SPEC_DISCOVERY / NO_CODE / NOT_APPROVED, aucun changement produit, aucun merge ou déploiement.
+
+
+### 61. POST — 2026-11-05 — inventaire COM + Steiner, exigences de complétude (CANDIDATE / SPEC ONLY)
+
+**Statut** : le duo COM Digital Crown + Steiner 1953/1959 reste **PROJECT_LOCKED** par décision explicite. La calibration du §60 demeure **candidate**, non approuvée ; elle doit fonctionner avec **et sans réglette** par choix de robustesse de la future interface, sans présumer le type de cliché dominant et sans accorder de calibration mm implicite. Aucun nouveau code produit, aucune validation normative, visuelle, thérapeutique ou clinique.
+
+#### 61-A — Trois niveaux de vérité à préserver
+
+1. **Catalogue inventorié** : références et IDs présents dans les documents existants ; n'est pas une preuve que la composition de l'analyse historique est exhaustive.
+2. **Protocole entièrement spécifié** : liste finale de facteurs démontrée par sources primaires/versionnées avec formule, landmarks/points construits, constructions exactes, unité, conditions d'applicabilité/étalonnage, norme éventuellement pertinente et déclinaison UI/PDF. La source COM (CRANIOM) impose de rechercher l'intégralité originale ; les **12 lignes recensées** aujourd'hui ne permettent pas de déclarer un protocole historique « complet ».
+3. **Étude individuelle calculée/validée** : les résultats d'une image restent indépendamment `AVAILABLE`, `NOT_COMPUTABLE`, `CANDIDATE`, `HUMAN_GATE_REQUIRED`, etc. Un protocole historiquement documenté peut produire un cas partiel. `NOT_COMPUTABLE` n'est ni zéro ni absence clinique.
+
+#### 61-B — COM Digital Crown / famille CRANIOM — 12 entrées du référentiel historique (composition finale À APPROUVER)
+
+| Catégorie | Facteurs documentés | Unité | Condition/limite distincte |
+|---|---|---|---|
+| Dento-alvéolaire | Surplomb ; Recouvrement | mm | Projection d'incisives/plan orienté, échelle réelle vérifiée ; documentation candidate |
+| Dento-alvéolaire | Inclinaison incisive mandibulaire / plan mandibulaire ; Inclinaison incisive maxillaire / Francfort ; Angle inter-incisif | degrés | Axe incisif disponible mais choix du plan mandibulaire Downs/variante nécessite source/identité ; Francfort Po-Or source défini |
+| Squelettique AP | A'B' sur Francfort ; A / verticale de Nasion ; B / verticale de Nasion ; profondeur faciale S / verticale de Nasion | mm | Projections versionnées Po–Or, S/N/A/B ; calibration pour valeurs mm et contrôle des conventions/signes/source |
+| Squelettique vertical | Forme faciale CRANIOM SN / mandibulaire Downs ; Forme mandibulaire CRANIOM Ar–Gi–Gs–Me | degrés | Downs ne s'assimile pas à GoGn ; Gi et Gs absents des 38 canaux, aucune promotion de Go |
+| Suivi / posture | A''B'' selon le regard horizontal | mm | Orientation naturelle de tête / protocole photographique requis ; non calculable sinon |
+
+**Réserve scientifique** : il s'agit d'un inventaire extrait de `docs/CEPHALO_ANALYSIS_DEPENDENCY_MATRIX.md`, daté historiquement et non d'un inventaire validé ligne par ligne de la méthode originale. Le projet identifie historiquement COM à CRANIOM (Bonnefont et collaborateurs, publications 2010/2011), source cohorte de 83 jeunes adultes Classe I non traités. Aucune valeur normative ne doit être généralisée à toutes populations/âges ; registres de source/population et vérification clinicien avant activation. Le champ COM ne doit pas fusionner silencieusement Tweed, Steiner ou McNamara.
+
+#### 61-C — Steiner 1953/1959 — 15 facteurs dans le profil source (11 base + 4 extension)
+
+| Groupe fonctionnel | Facteurs du profil documentaire | Statut sur les deux JPEG publics non calibrés (HEAD historique §54) |
+|---|---|---|
+| Sagittal osseux | SNA, SNB, ANB | 3 AVAILABLE, expertise anatomique non prouvée |
+| Incisives et axe | U1–NA° ; L1–NB° ; angle inter-incisif | 3 AVAILABLE, même réserve |
+| Incisives / rapports linéaires | U1–NA mm ; L1–NB mm | 2 NC : surfaces coronaires faciales exactes absentes + échelle mm |
+| Relations au plan SN/mandibulaire | Occlusal–SN ; SN–GoGn ; L1–GoGn | 3 NC : plan occlusal exact non identifié et/ou Gn_anatomic + variante Go |
+| Extension / symphyse | SND ; Pog–NB mm ; L1–D mm ; L1–D° | 4 NC : D_Steiner_1959, Gn_anatomic, surfaces coronaires, calibration selon mesure |
+
+Total **15/15 lignes recensées**, dont **6/15 AVAILABLE** et **9/15 NOT_COMPUTABLE** sur les deux radios témoins au snapshot §54 ; ceci **n'est pas** une validation clinique ou anatomique. Quatre angles ONNX calculés expérimentalement plus tard dans FUE-H ne sont **pas** promus automatiquement parmi les 15 mesures médicales.
+
+**Six identités/constructions spécifiques à traiter sans alias arbitraire** : `Gn_anatomic` ≠ automatiquement `Gn`; `D_Steiner_1959` ≠ `D_point`; `U1_facial_surface` et `L1_facial_surface` ≠ point incisif seul ; `Occ_Steiner_Ant` / `Occ_Steiner_Post` ≠ centroïdes génériques `U6/L6`. `Pog_hard` est un alias conditionnel versionné supplémentaire, pas une libre synonymie. Source de ce tableau : §54 POST du présent canonique, pas une nouvelle observation de patient.
+
+#### 61-D — Contrat écran du catalogue, à approuver
+
+- **Sélecteur V1 unique** : COM / Steiner dans Step1 ; aucune duplication de choix dans Step3 ; historique du choix conservé par étude.
+- **Toutes les lignes attendues** de l'analyse choisie figurent dans le panneau `Mesures`, regroupées par sagittal / vertical / dentaire / tissus mous si effectivement prévus par le protocole. Pour chaque mesure : nom/ID/version, valeur, unité, calculable/non-calculable et **raison**, source normative éventuelle distincte, état de confirmation, clic = repères et construction exacts sur la radio.
+- **Mesures angulaires** sans mm possibles sous contrôle géométrie/landmarks ; **distances mm** refusées jusqu'à preuve d'étalonnage appliquée à la structure mesurée. Une règle trouvée ne satisfait pas cette preuve.
+- **Correction ciblée** : seulement les points/étalons qui bloquent une mesure ; clic du statut ouvre correction avec provenance, ancien/nouveau, auteur, validation ; recalcul des descendants transitifs et propagation jusqu'à PDF, sans changer les indépendants.
+- **Un cas partiel peut continuer** vers Moulages et produire un **brouillon** avec lacunes explicites ; « analyse complète » n'est pas un badge fondé sur la présence des titres, et « étude validée » exige toujours praticien + preuves adéquates.
+- **Thème** : couleurs de points/plans/valeurs/alertes hériteront des tokens sémantiques globaux ; aucun hex local à réintroduire plus tard.
+
+#### 61-E — Arbitrages restants et contrôles futurs
+
+**Question clinique prioritaire pour la suite** : le premier périmètre COM est-il le **protocole original CRANIOM** avec inventaire exhaustif à confirmer à partir de ses publications, ou **COM Digital Crown personnalisé** composé des mesures historiques documentées ? Les deux ne peuvent être annoncés équivalents sans preuve ; proposer par défaut de garder COM comme profil nommé du produit, tout en documentant sa filiation CRANIOM et en interdisant l'étiquette « CRANIOM complet » tant que la composition n'est pas contrôlée.
+
+**FUE future (NON RUN)** : parcourir chacun des 12 items recensés COM et 15 Steiner dans le panneau ; sélectionner mesure → mettre en évidence dépendances exactes ; supprimer volontairement point Go/Gn/D/surface/incisal/étalon → déclencher NC motivé et ne pas altérer mesures indépendantes ; corriger point/échelle → recalcul + persistance PDF/DB ; changer COM↔Steiner → rendu filtré/coordonnées conservées ; vérifier intégrité de source et absence de patient réel dans les artefacts ; contrôles 390/430/768/1280 et zoom 200 % ; obtenir capture BEFORE/AFTER et accord praticien. Oracles géométriques indépendants et concordance scientifique source/version nécessaires avant GO.
+
+**Résultat/limite** : inventaire **documenté, non cliniquement approuvé** ; 12 COM = état documentaire à réconcilier avec la source originale, 15 Steiner = profil projet source attesté, 6/15 disponible seulement au snapshot référencé. FUE actuel NOT RUN ; no code, no merge, no deploy. **NEXT** : arbitrer le périmètre COM, puis compléter la preuve du catalogue, définir les interactions Moulages et Diagnostic/Plan/Bilan, finir toutes les specs avant réconciliation technique.
+
+**Dernière mise à jour canonique : 05/11/2026 — POST §61, matrice COM+Steiner candidate.**
+
+
+### 62. PRE — 2026-11-05 — reprise onboarding Moulages/occlusion (SPEC ONLY)
+
+**Instruction propriétaire :** « On reprend notre onboarding !? » après validation COM + Steiner, cadrage calibrage et inventaire §61 ; reprendre les **questions fonctionnelles cliniques dans les quatre étapes actuelles** sans implémentation. Le différend de périmètre COM strict CRANIOM vs profil Digital Crown est laissé OPEN et n'empêche pas de cadrer l'onboarding transversal.
+
+**Baseline / preuve** : PR #1213 OPEN/DRAFT, HEAD `e4c15e0248c13e4b13476ea499c9bb14c15dfe78` ; le présent canonique §61 relu ; Notion PRE65 enregistré. Existant documenté §58 : `Step2Occlusal.tsx` contient DDM max/mand, forme d'arcade, classe molaire/canine D/G et subdivision. Constantes `107`/`90` liées à DDM à auditer, jamais traitées comme références approuvées à ce stade.
+
+**GOAL** : définir Step2 comme onboarding conditionnel, avec denture, provenance des examens/modèles, saisie sans données imposées, DDM avec valeurs/méthodes sourcées, rapports D/G, surplomb/recouvrement, transverse, milieux et observations ; parcours partiel sauvegardable. **Success** : chaque question a une condition d'apparition, unité et statut non évalué explicites, aucune inférence ni traitement automatique. **Gate** : SPEC_DISCOVERY / NOT_APPROVED / NO_CODE ; pas de code, CI, patients, merge ou Vercel déclenchés intentionnellement par un lot produit.
+
+
+### 62. POST — 2026-11-05 — onboarding Moulages et occlusion : parcours fonctionnel candidat
+
+**Statut** : `SPEC_DISCOVERY / DRAFT / HUMAN_GATE_REQUIRED / NO_CODE`. Quatre étapes globales inchangées : Céphalométrie → Moulages & occlusion → Diagnostic → Plan & Bilan. Cadrage de la **Step2 existante**, sans écran assistant indépendant, sans décision thérapeutique automatique ni activation clinique. Duo COM Digital Crown + Steiner 1953/1959 toujours `PROJECT_LOCKED`; composition exacte historique COM encore à arbitrer séparément.
+
+#### 62-A. Séquence d'onboarding proposée (non approuvée)
+
+| Sous-passe | Question / saisie | Condition d'affichage | Statut/provenance |
+|---|---|---|---|
+| 1. Denture | temporaire, mixte, permanente, non déterminée ; âge / stade uniquement s'il est déjà documenté dans dossier | toujours, avant calculs dépendants des dents présentes | saisi/confirmé par praticien ; aucune dentition déduite de l'âge seul |
+| 2. Disponibilité | examen clinique, moulages physiques, scan numérique exploitable, photographies d'appoint, aucun modèle ; date/source | toujours ; plusieurs sources possibles | une photo seule ne vaut pas un moulage mesurable ; les données non observables restent NON_EVALUE |
+| 3. Arcades / espace | maxillaire et mandibulaire séparés ; forme d'arcade ; encombrement/diastèmes observés ; DDM (espace disponible, espace nécessaire, méthode, unité mm et résultat signé si définissable) | si mesure documentée de chaque arcade ; en denture mixte, demander méthode d'estimation des dents non éruptées et source applicable avant DDM | pas de conversion automatique depuis `107`/`90` legacy sans norme source/version/population ; une DDM non mesurée ne devient pas 0 |
+| 4. Relations sagittales | molaire droite/gauche + canine droite/gauche : I/II/III/non évaluable, subdivisions si observées, absences/éruption/anomalie si affectent l'évaluation | seulement si denture, dents index et occlusion permettent une classification pertinente ; si dent absent ou relation non observable, marquer NON_EVALUABLE au côté concerné | provenance examen clinique ou modèle ; ne pas forcer symétrie D=G |
+| 5. Vertical/transverse | overjet et overbite en mm si mesurés ; béance et supraclusion observées ; lignes médianes (déviation D/G + mesure) ; occlusion croisée antérieure/postérieure, côté, ciseaux, déviation fonctionnelle, courbe de Spee, asymétrie selon données | bloc de base visible, sous-questions uniquement si anomalie/mesure pertinente ; champs numériques facultatifs quand aucune valeur étayée | séparer observation qualitative et mesure documentée ; pas de diagnostic automatique à partir d'un seul critère |
+| 6. Vérification | synthèse D/G, arcades, valeurs, unités, sources, champs non évalués et éventuelles contradictions | fin d'étape | sauvegarde brouillon et reprise ; confirmation clinique praticien traçable distincte de validation finale du diagnostic |
+
+**Règles conditionnelles P0** :
+- Sans moulages, saisir uniquement ce que l'examen clinique permet réellement ; masquer les mesures de modèle requérant un étalon ou déclarer NON_EVALUABLE. Ne pas empêcher de poursuivre le dossier.
+- En denture mixte, demander quelles dents sont présentes et la méthode applicable avant toute prédiction ou DDM ; aucune taille coronaire calculée d'après un seuil implicite.
+- Classes molaire/canine droite/gauche totalement indépendantes ; si dent index absente/non éruptée, ne pas forcer classe ou subdivision. 
+- Mesures d'overjet/overbite/lignes médianes : distinguer unité numérique et observation qualitative ; ne jamais mettre `0` par défaut.
+- Gestion des éléments non évalués/non observés : `NON_EVALUE`, `NON_APPLICABLE`, `A_CONFIRM`, `CONFIRME_PAR_PRATICIEN` sont des états de concept, à réconcilier avec les vrais contrats de persistance uniquement **après** fin des specs.
+- Le compte rendu doit conserver provenance, côté, denture, méthode, date, auteur, correction et statut ; aucune conclusion classe squelettique/indication thérapeutique issue automatiquement de la classe molaire.
+
+#### 62-B. UX compacte proposée
+
+Step2 = un **panneau unique progressif**, question courante bien identifiée et retour arrière sans perte de réponse ; résumé d'arcades et côtés constamment accessible ; champs cachés conditionnellement sans effacer leur valeur historique si non pertinente (marquer état / version) ; bouton `Continuer vers diagnostic` même lorsque des données sont manquantes, avec résumé explicite des omissions. Règles UX/couleurs héritées des tokens globaux, jamais HEX locaux, accessibilité clavier/zoom et touch. Ne pas imposer une page par question si cela augmente le nombre de clics ; la progressivité est principalement la révélation conditionnelle dans Step2 existante.
+
+#### 62-C. Batterie FUE prévue — NON EXECUTEE
+
+- FUE-M01 denture permanente, deux modèles mesurés : deux arcades et quatre rapports D/G éditables et persistés.
+- FUE-M02 denture mixte : méthode estimation requise pour DDM concernée ; sans preuve, état NON_EVALUE et aucune valeur numérique fictive.
+- FUE-M03 molaire manquante d'un seul côté / canine non éruptée : aucune classe automatique côté absent, autre côté conservé.
+- FUE-M04 sans moulages : parcours clinique partiel avec absence de mesure, pas de blocage ni d'invention, état retrouvé après réouverture.
+- FUE-M05 DDM en mm avec données contradictoires ou unités manquantes : calcul suspendu, source et conflit visibles ; constantes historiques 107/90 jamais activées par défaut.
+- FUE-M06 modification de mesure/latéralité : mise à jour seulement des dépendances, historique et bilan/aperçu identiques.
+- FUE-M07 contradictions molaires/canines, déviation/occlusion croisée, saisis qualitatives : ne pas produire de diagnostic autonome.
+- FUE-M08 navigation réversible, non-effacement des saisies, thème actif, 390/430/768/1280, 200% zoom texte, clavier/tactile, BEFORE/AFTER réelles sur UI autorisée, validation du praticien.
+
+**Arbitrage unique proposé ensuite** : confirmer comme première question du parcours la **denture** plutôt que la disponibilité du modèle. L'ordre « denture d'abord » est recommandé car il conditionne la pertinence des relations dentaires, les méthodes DDM et les champs. Ce n'est pas encore une décision du propriétaire.
+
+**Proof/limitations** : spécification candidate dans ce seul fichier, FUE-M01..08 NON RUN, aucun changement logiciel, aucun patient, merge, Vercel ou approbation des captures. **NEXT** : arbitrage de l'ordre d'entrée Step2, puis préciser les questions conditionnelles et poursuivre Step3/Step4 en atelier, avant réconciliation technique. **Dernière mise à jour canonique : 05/11/2026 — POST §62, onboarding Moulages SPEC ONLY.**
+
+
+### 63. PRE — 2026-11-05 — exploration de la denture mixte : questions conditionnelles de Step2 (SPEC ONLY)
+
+**Demande :** « Pour notre conception de l'onboarding Moulages, prenons l'exemple d'une denture mixte. Montre-moi les questions conditionnelles suivantes, sans coder. » Considérer l'exemple comme un **parcours hypothétique**, non patient et non validation de l'écran. Le propriétaire ne change pas la décision de V1 COM Digital Crown + Steiner 1953/1959.
+
+**Baseline :** PR #1213 OPEN/DRAFT, HEAD avant PRE `9fedc1e3594593993bdac871a88f4d818a107761`, canonique §62 POST relu, Notion PRE66 écrit. Hériter de Step2 existante, pas de nouvel assistant ; protocoles/DDL mixtes et valeurs `107/90` ne sont pas des règles validées.
+
+**GOAL/SUCCESS :** montrer questions concrètes et embranchements liés à l'existence de modèle mesurable, au statut des dents temporaires/permanentes, aux 1ères molaires permanentes et canines par côté, à l'espace/DDM sourcé, aux observations verticales/transverses, et à la revue. Toutes les branches écartées doivent être explicitement `NON_EVALUE` ou `NON_APPLICABLE`, pas `NORMAL`. Mettre en évidence le cas de modèle absent, les champs absents, le passage en brouillon partiel, et préparer une batterie FUE négative. **Gate** : SPEC_ONLY / HUMAN_APPROVAL_PENDING / NO_CODE / NO_MERGE / NO_DEPLOY.
+
+
+### 63. POST — 2026-11-05 — simulation conditionnelle concrète : denture mixte, questions 2–7
+
+**Portée** : démonstration de comportement produit sur une denture mixte hypothétique, **pas de données d'un vrai patient**, ni approbation médicale, ni code, ni nouvelle formule. Le praticien a choisi `DENTURE_MIXTE` en question 1 de Step2. Navigation dans le panneau existant; aucune nouvelle page indépendante. Tous les déclencheurs ci-dessous sont une **proposition à approuver**.
+
+| Écran/Question | Texte visible au praticien | Réponses / sources | Question suivante conditionnelle |
+|---|---|---|---|
+| Q2 | « Sur quelles données repose l'examen de l'occlusion ? » | examen clinique + moulages physiques/scan exploitable ; clinique seule ; photos seulement ; aucune donnée. Sources multiples et date disponibles, ne pas confondre photo et modèle mesurable | si modèle mesurable : branche DDM chiffrée autorisée **si données/méthode réellement renseignées** ; sinon observations qualitatives/mesures documentées indépendamment, DDM `NON_EVALUE`, ne pas forcer upload |
+| Q3 | « Quelles dents permanentes sont présentes et évaluables, par arcade/côté ? » | premières molaires permanentes D/G, incisives permanentes, canines permanentes, dents temporaires restantes, absence/extraction/non-éruption/doute ; statut de l'occlusion | si première molaire permanente du côté évaluée et en rapport exploitable : montrer Q5 classe molaire **pour ce côté seulement**. Sinon `NON_EVALUABLE`. Si canine permanente non éruptée, **ne pas imposer classe canine permanente** ; observation de rapports temporaires si pertinente et documentée |
+| Q4 | « Souhaites-tu quantifier l'encombrement ou les espaces ? » | arcades maxillaire/mandibulaire séparées : dimensions mesurées, espace disponible et nécessaire, méthode de mesure, dents prises en compte, unité mm, provenance ; méthode d'estimation explicite et versionnée des dents non éruptées | avec modèle fiable et données complètes/méthode applicable : proposer DDM sourcée. Sans modèle, estimation ou source valide : seulement encombrement/diastèmes observés, DDM numérique `NON_EVALUE` ; éviter `0` et constantes legacy `107/90` |
+| Q5 | « Quelle relation occlusale est observable à droite et à gauche ? » | molaires droite/gauche puis canines droite/gauche, classe I/II/III uniquement **quand classification pertinente**, côté, source et obstacle ; possibilité non évaluable/non applicable | affichage des relations uniquement si dents de référence/côté en occlusion et classification justifiée ; subdivisions ouvertes uniquement lorsque documentées. Aucune symétrie D/G automatique |
+| Q6 | « Observe-t-on un surplomb/recouvrement, un articulé croisé, une asymétrie ou une déviation fonctionnelle ? » | observation qualitative d'abord, puis si mesure étayée surplomb/recouvrement en mm, béance/supraclusion, ligne médiane D/G + amplitude, croisé antérieur/postérieur et côté/dents, ciseaux, observations fonctionnelles et courbe de Spee si source/conditions permettent | si `croisé` : demander secteur et côté ; si `déviation des milieux` : demander max/mand, sens, mm **si mesuré** ; si `déviation fonctionnelle` : observation clinique/praticien requise, jamais déduite du moulage statique |
+| Q7 | « Vérifier les données avant Diagnostic » | synthèse par arcade et par côté, valeurs/unités/sources/méthodes, `CONFIRME`, `A_CONFIRM`, `NON_EVALUE`, `NON_APPLICABLE`, contradictions à corriger | bouton `Continuer vers diagnostic` possible sur brouillon partiel avec lacunes explicites ; état de confirmation de Step2 n'est pas validation du diagnostic ni du plan |
+
+**Exemple narratif S-A** : denture mixte ; examen clinique + modèles mesurables ; premières molaires permanentes D/G évaluables ; canines permanentes non éruptées ; espace mandibulaire mesurable mais méthode d'estimation des canines/prémolaires non éruptées absente ; articulé croisé postérieur observé à droite. Le panneau propose les rapports molaires D/G et les questions de secteur/dents pour le croisé D ; ne force pas les classes des canines permanentes ; conserve DDM mandibulaire `NON_EVALUE` tant que les dimensions/méthode ne permettent pas le calcul. Les valeurs/faits sont **exemple fictif**, pas des observations d'image.
+
+**Exemple S-B** : denture mixte, examen clinique seulement, première molaire D non évaluable / G évaluable. On demande uniquement la relation molaire G si elle est documentée, affiche D `NON_EVALUABLE`, ne chiffre pas DDM par défaut, tout en pouvant saisir une observation clinique d'encombrement et poursuivre.
+
+**Exemple S-C** : photos seules sans examen clinique actif ni modèle calibré. Les éléments réellement visibles peuvent être rapportés comme observations non confirmées avec provenance photo ; relations, déviations fonctionnelles et distances non vérifiables restent `NON_EVALUE`. Le parcours reste enregistrable.
+
+**Gates produit / clinique** :
+- Pas de déduction de denture à partir de l'âge, de relation canine permanente à partir de canines temporaires ni de relation molaire à partir d'une dent absente.
+- `Classe I`, `aucune anomalie`, `DDM 0`, `surplomb 0`, `recouvrement 0` ne sont **jamais des valeurs par défaut**.
+- Les méthodes de prédiction denture mixte (si utilisées plus tard) doivent être nommées, sourcées, adaptées aux dents disponibles et validées séparément ; leur présence dans une liste ne valide ni seuil ni population.
+- Une saisie conditionnellement masquée à la suite d'un changement de denture/source reste historisée avec statut `STALE/REVIEW` selon le contrat ultérieur, sans contaminer diagnostic/PDF.
+- Overlays, surlignages et états héritent du thème global; aucune couleur hex locale. Zéro LLM runtime, diagnostic/traitement sous contrôle praticien.
+- Préserver une seule Step2 progressant en six sous-passes au maximum après Q1; pouvoir revenir sans perdre réponses et voir le résumé à tout moment.
+
+**FUE-MIX future — NON RUN** :
+1. Mx-01 S-A : modèles mesurables et 6 permanentes D/G présentes → questions molaires activées sans imposer canines permanentes.
+2. Mx-02 méthode de DDM manquante → résultat numérique bloqué, observations qualitatives conservées, `NON_EVALUE` dans UI/PDF.
+3. Mx-03 dent permanente absente d'un seul côté → classification bloquée côté absent seulement, pas de duplication.
+4. Mx-04 sans moulages et photo seule → pas de mm inventés ni d'observation fonctionnelle affirmée, brouillon sauvegardable.
+5. Mx-05 croisé postérieur D → secteur/côté révélés ; retrait de l'observation masque questions sans conserver de diagnostic actif obsolète.
+6. Mx-06 modification Q2/Q3 après DDM ou classe saisie → invalidation des dépendances obsolètes et synthèse de revue, pas de suppression opaque.
+7. Mx-07 synthèse Q7 : absence de classes, DDM, mesures et provenance se répercutent identiquement dans le brouillon clinique et futur bilan.
+8. Mx-08 UX/tokens a11y 390/430/768/1280 px, zoom 200 %, clavier, toucher, états non dépendants de la couleur, capture BEFORE/AFTER et validation clinicien.
+
+**Décision ouverte prioritaire** : approuver le séquencement `Denture → Sources → Dents évaluables → Arcades/DDM → Rapports bilatéraux → Vertical/transverse/fonctionnel → Vérification`. Ce n'est pas une approbation par défaut de l'exemple S-A. Le parcours documenté peut ensuite nourrir Step3 Diagnostic et Step4 Plan/Bilan **une fois la spécification entière approuvée**, avant toute réconciliation technique.
+
+**GATE final** : `SPEC_DISCOVERY / CANDIDATE / HUMAN_APPROVAL_REQUIRED / NO_CODE` ; aucun FUE exécuté pour cette interface, aucun cas patient, aucun merge/déploiement. **Dernière mise à jour canonique : 05/11/2026 — POST §63, onboarding denture mixte, questions conditionnelles candidate.**
+
+
+### 64. PRE — 2026-11-05 — correction fonctionnelle DDM réelle : clinique + céphalométrique
+
+**Instruction propriétaire (autorité clinique de périmètre)** : « La DDM réelle = DDM clinique + DDM céphalo ! Regarde sur le web ! ». La précédente Step2 §62-63 ne décrivait correctement que la composante moulages ; ne plus représenter la DDM réelle comme un nombre exclusivement issu du modèle.
+
+**Baseline vérifiée** : PR #1213 OPEN/DRAFT, HEAD de lecture `4ddd005c14275dc79308762c780ff8b3db41218f`, §63 POST relu. Notion PRE67 écrit. Duo V1 COM Digital Crown + Steiner 1953/1959 maintenu. Aucun code produit autorisé.
+
+**Littérature consultée — sources et limites** :
+1. *L'Orthodontie Française*, « La forme des dents. Un élément incontournable du diagnostic » (https://stm.cairn.info/revue-l-orthodontie-francaise-2020-1-page-7) : DDM ≠ encombrement uniquement, prendre en compte inclinaison/position incisive et courbe de Spee ; valeur signée + excès d'espace / – défaut d'espace.
+2. Thèse clinique Oran 1, Nabi Fatima épouse Benali (2022), §4.2.1–4.2.3 (https://apidspace.univ-oran1.dz/server/api/core/bitstreams/0ac7613b-803d-4ba4-b969-58bd531036ea/content) : DDM apparente = encombrement + nivellement Spee ; DDM réelle = apparente + effet du repositionnement de l'incisive mandibulaire **décidé par praticien**, au regard des critères céphalométriques, fonctionnels et esthétiques. **Contrôle web screenshot PDF non disponible (cache miss)**, texte extrait uniquement ; corroboration indépendante par dépôt universitaire UMMTO (https://dspace.ummto.dz/server/api/core/bitstreams/60fa8cd2-55f0-470d-a1e3-a59e281e1f45/content).
+3. Regragui et al., *International Orthodontics* 2010, https://doi.org/10.1016/j.ortho.2009.12.005 : méthode de discordance espace disponible - espace nécessaire sur moulages, échantillon **adulte** de Rabat ; ce papier ne prouve pas l'algorithme complet de DDM réelle ni estimation en denture mixte.
+4. PMC8600854 : conversions « mouvement de l'incisive → gain de place » simples ne sont pas systématiquement validées, ne pas en dériver un multiplicateur clinique arbitraire.
+
+**GOAL / SUCCESS** : spécifier par nom clinique de l'app `DDM_CLINIQUE + DDM_CEPHALO = DDM_REELLE` comme **somme algébrique de composantes exprimées dans le même espace, mêmes unités, même arcade, signe/version tracés**. Documenter sous-contenu Spee, estimations denture mixte, objectif incisif explicite non autonome, absence d'échelle/précision, et interdiction d'afficher un nombre faussement complet. Prouver uniquement cette correction de spec via §64 POST + Notion POST67 et batterie FUE prévue NOT RUN.
+
+**GATE** : SOURCE_CONSISTENT / FORMULA_DETAILS_PENDING_REVIEW / SPEC_ONLY / NO_CODE / HUMAN_SIGNOFF_REQUIRED ; ni changement runtime ni patient, merge, Vercel.
+
+
+### 64. POST — 2026-11-05 — correction de l'onboarding : DDM RÉELLE = DDM CLINIQUE + DDM CÉPHALO (SPEC)
+
+**Décision clinique de périmètre utilisateur :** le parcours V1 Digital Crown doit modéliser explicitement `DDM réelle = DDM clinique + DDM céphalométrique`. Ce **principe de composition** est accepté comme instruction du propriétaire ; les méthodes de quantification et les conventions de signe **ne sont pas encore cliniquement approuvées**. La correction invalide la représentation implicite de §62/63 où la DDM de moulage semblait suffire pour conclure à la DDM réelle. Conserver §62/63 comme historique, le présent §64 prévaut.
+
+#### 64-A. Modèle clinique de référence — notation métier à afficher
+
+`DDM_REELLE_MM = DDM_CLINIQUE_MM + DDM_CEPHALOMETRIQUE_MM`
+
+**Définir la terminologie avant l'addition** :
+- **DDM clinique / apparente**, en pratique surtout mandibulaire pour la construction classique : discordance signée `espace disponible − espace nécessaire` (encombrement en négatif) **plus une correction d'espace chiffrée pour le nivellement de la courbe de Spee lorsque la méthode choisie l'inclut**, avec espace physique, méthode, unité, niveau de preuve et statut du praticien. Une DDM seulement `ED−EN` ne doit **pas** être présentée comme complète si la correction Spee exigée n'est pas déterminée ; séparer `DDM_ENCOMBREMENT`, `SPEE_SPACE_IMPACT`, et `DDM_CLINIQUE`.
+- **DDM céphalométrique** : **impact spatial signé en millimètres** du repositionnement **proposé et approuvé** de l'incisive mandibulaire, interprétant la céphalométrie **avec examen clinique, fonctions, esthétique et contraintes biologiques**. `IMPA`, `L1-NB`, etc. ne sont pas **une** DDM céphalométrique en mm ; une différence d'angle ou déplacement linéaire de l'incisive ne se convertit pas directement en espace d'arcade au moyen d'une constante arbitraire. Une politique de conversion doit être documentée/scientifiquement prouvée et choisie pour l'étude.
+- **DDM réelle** : somme algébrique des **deux effets sur l'espace d'arcade** signés, de même unité et convention, pour la **même arcade** et le même scénario d'objectif incisif. Ne pas confondre signe numérique de déplacement anatomique et signe d'impact en espace disponible. `0` est un résultat mesuré/étayé, jamais repli par défaut.
+- **Cadre scientifique / réserve** : la littérature sur DDM apparente et réelle cadre principalement le **repositionnement incisif inférieur/mandibulaire**, non un automatisme généralisé à une DDM supérieure. Pour maxillaire, garder discordance d'arcade distincte et ne présenter `DDM_REELLE_MAXILLAIRE` qu'après protocole de calcul spécifiquement justifié et approuvé.
+- **Denture mixte** : le calcul d'espace nécessaire peut dépendre d'une méthode d'estimation vérifiable pour canines et prémolaires non éruptées, avec statut de maturité, dents prises en compte, leeway-space/potentiel de croissance **séparés des données effectivement mesurées**. Une projection future est `ESTIMATE / FORECAST` et non une certitude de `DDM réelle` actuelle. La courbe de Spee et la pertinence d'un objectif d'inclinaison peuvent être encore indéterminées : `INSUFFICIENT_DATA` est une issue normale.
+
+#### 64-B. Parcours d'onboarding corrigé (ne pas créer une cinquième étape)
+
+| Zone existante | Saisie/lecture | Résultat affiché |
+|---|---|---|
+| **Step1 Céphalométrie** | Points/analyses COM ou Steiner, géométrie et calibration qualifiées ; statut des mesures incisives utilisables ; **jamais** objectif thérapeutique déduit de la norme | données céphalométriques objective, limites, proposition de déplacement/objectif incisif **à renseigner/valider par praticien ultérieurement** |
+| **Step2 Moulages / occlusion** | Q2 sources, Q3 denture évaluée, Q4 espace disponible et nécessaire, correction Spee si documentée, DDM d'encombrement et **DDM clinique / apparente** ; autres rapports D/G, vertical/transverse | carte `DDM clinique` avec composantes, convention de signe, statut et lacunes, plus `DDM céphalo : en attente de définition/validation de l'objectif`; PAS de chiffre DDM réelle prématuré |
+| **Step3 Diagnostic / synthèse** | Le praticien prend connaissance de l'axe incisif, de la position, du contexte fonctionnel/esthétique, **définit le repositionnement incisif cible** et approuve le calcul de l'effet en espace avec méthode/version traçable ; vérifie compatibilité même arcade/unité/signe | calcul `DDM clinique + DDM céphalo = DDM réelle` uniquement si les deux nombres et toutes leurs dépendances sont `VERIFIED`; sinon `DDM réelle : NON CALCULABLE / À COMPLÉTER` et cause |
+| **Step4 Plan et bilan** | plan signé et validé par praticien, aperçu PDF | bloc de trois DDM/éléments + méthode, provenance, statut et hypothèses visibles ; ne pas proposer extractions/expansion/RAP comme décision automatique selon une somme |
+
+**UX** : présenter trois lignes distinctes `DDM clinique` / `DDM céphalo` / `DDM réelle`, avec sous-lignes (encombrement ED−EN et Spee) et statut. La valeur finale doit toujours être **cachée/remplacée par non calculable** quand une composante chiffrée, méthode, ou signe manque ; ne pas montrer un 0, valeur de secours ou simple `DDM clinique` renommée `réelle`. Résultat cliquable pour ouvrir sa dépendance (modèles/Spee, cliché/objectif incisif, validation). Les couleurs viennent exclusivement des tokens du thème global.
+
+#### 64-C. Conventions + lecture contrôlée, sans normes nouvelles
+
+- **Convention signée candidate** `ED−EN` : manque de place `négatif`, excès `positif`, concordant avec Regragui et al. (2010) et L'Orthodontie Française. Les contributions Spee et incisive doivent être transformées en **impact sur ce même espace**, sans réutiliser naïvement signe de profondeur ou déplacement anatomique ; documenter formule/protocole en source primaire et preuve. **La convention d'écran exacte reste à approuver**.
+- **Référence documentaire** : *L'Orthodontie Française*, « La forme des dents. Un élément incontournable du diagnostic », https://stm.cairn.info/revue-l-orthodontie-francaise-2020-1-page-7, confirme qu'il ne faut pas réduire DDM à l'encombrement ; la position incisive et Spee comptent.
+- **Référence académique secondaire** : Thèse Oran 1 (Nabi Fatima épouse Benali, 2022), https://apidspace.univ-oran1.dz/server/api/core/bitstreams/0ac7613b-803d-4ba4-b969-58bd531036ea/content, §4.2 : `DDM apparente = encombrement + Spee`, `DDM réelle = apparente + repositionnement de l'incisive inférieure décidé par praticien`. **Texte web consulté, capture screenshot du PDF non accessible (cache miss), pas de vérification visuelle du PDF** ; corroboration par dépôt universitaire UMMTO, https://dspace.ummto.dz/server/api/core/bitstreams/60fa8cd2-55f0-470d-a1e3-a59e281e1f45/content.
+- **Référence mesure moulages** : Regragui et al., *International Orthodontics* 8(1), 2010, DOI `10.1016/j.ortho.2009.12.005`, 30 moulages de patients **adultes** à Rabat, `ED−EN`. Ne pas étendre ses résultats à un modèle d'estimation denture mixte.
+- **Risque de coefficient** : https://pmc.ncbi.nlm.nih.gov/articles/PMC8600854/ met en garde contre relations fixes simplificatrices entre encombrement, position et inclinaison incisive. Aucune nouvelle constante. Les `107`/`90` anciens sont en audit, interdiction de les considérer comme références normatives validées ou conversion mm.
+- **Calcul/plan non autorisés** : deux mesures peuvent être anatomiquement correctes sans produire un objectif de position d'incisive. Le praticien décide du projet et l'atteste ; la DDM réelle n'impose **aucun** type de traitement, extraction, décapage, expansion ou plan.
+
+#### 64-D. FUE DDM futurs — NOT RUN, préalables à toute qualification
+
+1. `DDM-01` clinique signée seule (ED/EN et Spee source-présents), sans objectif incisif : clinique affichée, céphalo `EN ATTENTE`, réelle `NC`.
+2. `DDM-02` céphalo angulaire disponible sans calibration mm ou conversion approuvée : aucun impact spatial mm, réelle `NC`.
+3. `DDM-03` repositionnement incisif cible renseigné mais non validé par praticien : finale `NC`, pas de plan autonome.
+4. `DDM-04` deux effets spatiaux numériquement déterminés, même unité/arcade/convention, sources et accord du praticien : somme **algébrique** conforme oracle externe, pas de conversion implicite ni de valeur issue de norme fixe.
+5. `DDM-05` denture mixte avec méthode d'estimation non éruptées absente / courbe de Spee indisponible : DDM clinique partielle, vraie DDM réelle `NC`.
+6. `DDM-06` correction ED/EN, Spee, point céphalo, calibration ou objectif incisif : invalidation transitivement correcte de toutes les valeurs en aval, sauvegarde et bilan cohérents, historique.
+7. `DDM-07` maxillaire versus mandibulaire : aucune addition inter-arcade ni application automatique du repositionnement mandibulaire à la DDM maxillaire.
+8. `DDM-08` fichier patient absent/simulation non clinique, pas de LLM runtime, UI/rapport/PDF trois composantes, thème tokens globaux, 390/430/768/1280 + 200% et captures BEFORE/AFTER avec approbation propriétaire.
+
+**VERDICT** : Principe de l'addition **fonctionnellement accepté sur instruction du praticien et cohérent avec les publications**, **quantification et cible incisive NON APPROUVÉES**, aucune DDM réelle clinique calculée ni rapport activé. Prochain arbitrage nécessaire : la dénomination `DDM clinique` doit-elle **inclure** la correction Spee (recommandé pour correspondre à `DDM apparente`), ou l'afficher en sous-terme distinct à sommer avant DDM céphalo ? Les deux représentations sont équivalentes mathématiquement si la convention est strictement versionnée, mais peuvent produire un double comptage si fusionnées sans règle.
+
+**GATE** : SPEC_DISCOVERY / REVIEW_REQUIRED / NO_CODE / NO_MERGE / NO_DEPLOY. **NEXT** : valider la définition exacte des 3 composants et la convention de signe, puis poursuivre les écrans Step2–Step3 en restant spec-only. **Dernière mise à jour canonique : 05/11/2026 — POST §64, DDM réelle corrigée.**
+
+
+### 65. PRE — 2026-11-05 — recherche web : vraie méthode de calcul DDM céphalométrique Steiner vs Tweed
+
+**Demande propriétaire** : « Attends attends tu sais comment on calcule la ddm cephalo !? Regarde sur le net ! ». Revoir §64 (DDM réelle = clinique + céphalo) en corrigeant la phrase ambiguë « pas de conversion à coefficient fixe » : une **règle historique chiffrée existe**, mais la justesse clinique/prédictive pour chaque patient ne doit pas être déclarée acquise. Restons en SPEC_ONLY.
+
+**Baseline** : canonique §64 POST et Notion POST67 relus ; PR #1213 DRAFT/OPEN, HEAD documentaire précédent `50ab17d22a7bf346967fc1596ecb5e3f4f4d29a9`. Notion PRE68 écrit.
+
+**SOURCES WEB confirmées (ne pas fusionner les écoles)** :
+- **Steiner original** : Cecil C. Steiner, « The Use of Cephalometrics as an Aid to Planning and Assessing Orthodontic Treatment », *Am J Orthod*, 1960, 46(10):721–735 https://bbo.org.br/bbo/files/bibliografia/artigos/56_The_use_of_cep_halometrics.pdf . Texte p.729 confirme : reculer l'incisive mandibulaire de 7 mm réduit de 14 mm le périmètre total, 7 mm par hémiarcade, poste « Relocation 1 ». Attention : Steiner ajustait préalablement la position initiale de l'incisive pour corriger la malposition isolée / forme d'arcade.
+- **Steiner enseigné** : https://www.gsortho.ma/blog/boite-de-steiner/ et https://www.gsortho.ma/outils/chevrons-de-steiner/ : `RI_MM = 2 × [i-NB_final_target_MM − i-NB_initial_adjusted_MM]`, projections de la « boîte » et chevrons ; cible construite puis individualisée avec ANB, incisions et menton, jamais valeur générique.
+- **Tweed-Merrifield** : revue méthodologique https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/espace-total-tweed-merrifield/ : convention `0.8 mm` d'espace d'arcade par degré de repositionnement FMIA/IMPA. **Ceci ne remplace pas Steiner** dans les analyses V1. Bornes normatives variant selon références, à choisir explicitement avant tout éventuel mode Tweed futur.
+- **Prudence empirique** : https://pubmed.ncbi.nlm.nih.gov/16764682/ rapporte une précision de prévision Steiner insuffisante comme unique fondement du choix thérapeutique.
+- **HAS/ANAES** 2002 https://www.has-sante.fr/upload/docs/application/pdf/orthodontie_rap.pdf p.29 : DDM modèle `ED−EN`, mesure/prédiction possible en denture mixte, estimations des prémolaires limitées ; ne soutient PAS en elle-même la formule Steiner/Tweed.
+
+**LIMITATION DE PREUVE** : consultation HTML et texte extrait des PDF via recherche web ; appels `screenshot` PDF HAS et PDF Steiner 1960 ont retourné cache miss/erreur. Aucune capture PDF visuelle vérifiée ; ne pas présenter les PDFs comme relus image par image.
+
+**GOAL/SUCCESS** : corriger la future UX, source-versionner la conversion historique propre à Steiner, afficher les signes, la correction de forme d'arcade et la méthode de détermination du but incisif, bloquer le calcul si `L1–NB_MM` ou calibration/cible manque, séparer Spee du RI dans la boîte. **GATE** : recherche/SPÉCIFICATION uniquement ; aucune formule exécutée en clinique, aucun code, merge, CI clinique ou Vercel.
+
+
+### 65. POST — 2026-11-05 — DDM céphalo : Steiner ×2 et Tweed–Merrifield ×0,8, formules distinctes
+
+**VERDICT après recherche** : correction chiffrée enseignée **confirmée par source primaire Steiner 1960**, corroborée par supports de formation : la règle historique n'est **pas** « indéfinie » : `RI_STEINER_MM = 2 × (L1_to_NB_TARGET_MM − L1_to_NB_INITIAL_ADJUSTED_MM)`, avec la convention d'espace signée `+ = gain potentiel`, `− = consommation d'espace`. Exemple fictif : initiale 7 mm, cible 4 mm, écart `−3 mm` → `RI = −6 mm` sur les deux hémiarcades. **Cette formule est une convention géométrique clinique de planification, pas une prédiction clinique assurée ni une règle pour une arcade maxillaire.**
+
+#### Source primaire et subtilité indispensable
+
+Steiner, 1960, *The Use of Cephalometrics as an Aid to Planning and Assessing Orthodontic Treatment* (article original, Am J Orthod 46:721–735), https://bbo.org.br/bbo/files/bibliografia/artigos/56_The_use_of_cep_halometrics.pdf : `−7 mm` de recul incisif de **11→4 mm après ajustement de forme d'arcade** donne `−14 mm` de périmètre d'arcade au poste « Relocation 1 » ; l'incisive initiale **avait été mesurée à 13 mm**, et l'auteur a retranché 2 mm pour l'envisager alignée dans une forme d'arcade acceptable. Donc :
+- l'incisive initiale brute `i-NB_initial_measured` et sa valeur ajustée selon l'alignement/forme d'arcade `i-NB_initial_adjusted` sont deux informations **séparées** ; ne pas utiliser arbitrairement la première dans une équation conçue pour la seconde ;
+- il faut un **objectif i-NB** individualisé d'après chevrons et examen praticien, avec la méthodologie source. Ne pas forcer `i-NB cible = 4 mm`.
+- les chevrons Steiner utilisent notamment ANB, I–NA, i–NB, Pog–NB, hypothèses de croissance/position squelettique ; leur fonctionnement exact est un **sous-protocole de planification à spécifier et versionner** (l'actuel profil 15 mesures de géométrie ne suffit pas à lui seul pour déclarer la boîte « calculable »).
+- l'étude https://pubmed.ncbi.nlm.nih.gov/16764682/ relève une fiabilité prédictive insuffisante de Steiner en tant que seule base de décision thérapeutique. Utiliser la projection en **simulation contrôlée** et non « optimum automatique ».
+
+#### Tweed est une méthode différente, même si la formule conventionnelle est simple
+
+Revue https://doi.org/10.18231/j.ijodr.2022.038 et https://www.gsortho.ma/blog/espace-total-tweed-merrifield/ : `|RI_TWEED_MM| = 0.8 (mm/degree) × |FMIA_TARGET_DEG − FMIA_MEASURED_DEG|` (ou IMPA avec les conventions de signe équivalentes si FMA inchangé). Exemple FMA 26°, FMIA 57°, FMIA cible 67° ⇒ angle à redresser de 10° ⇒ consommation `−8 mm`. **Coefficient conventionnel**, seuils FMIA/FMA variables selon écoles (67/68°, limites 22/28° vs 20/30°), **ne PAS réactiver automatiquement Tweed** dans la V1 COM + Steiner, ne pas fusionner les deux méthodes ni importer « valeurs normales » universelles. Les constantes `107/90` legacy ne sont pas certifiées par cette découverte et restent en audit.
+
+#### UI / comportement V1 (SPEC CANDIDATE, NON APPROUVÉ)
+
+- **Step1 Céphalométrie** : fournir `L1_to_NB_initial_mm` uniquement si définition exacte `L1_facial_surface` + source anatomique SRPose38 / correction humaine contrôlée + calibration géométrique mm vérifiée. Sur deux JPEG publics sans calibration, `M_L1_NB_MM_V1` reste NC au snapshot §54 ; la formule `×2` ne doit **pas** faire passer le moteur de 6/15 à 7/15.
+- **Step2 Moulages** : `encombrement ED−EN` mesuré/estimé, forme d'arcade et ajustement initial Steiner s'il est nécessaire, Spee et provenance ; distinguer la **boîte de Steiner** où `encombrement`, `repositionnement incisif (RI)` et `courbe de Spee` sont trois lignes distinctes. La décision antérieure sur Spee « inclus dans clinique » n'était **pas approuvée** ; proposer des sous-postes conservés séparés et une vue de total sans double comptage.
+- **Step3 Diagnostic / objectif praticien** : déterminer selon chevrons Steiner la cible `i–NB` et enregistrer le choix de compromis `initial mesuré→initial ajusté→cible projetée→cible retenue par clinicien`, unités et date ; après vérifications, afficher `RI = 2 × (cible − initial ajusté)`, détailler résultat signé avec variante source `STEINER_LOWER_ARCH_RELOCATION_1_1960`. La **DDM réelle** peut alors être synthétisée en additionnant la DDM clinique définie/étayée et cette correction sans Spee en double. Aucune décision d'extraction, d'ancrage ou d'appareil automatisée.
+- **Step4 Bilan** : montrer valeur source, cible, correction du positionnement initial, conversion ×2, signe, hypothèses, Spee et enveloppe d'applicabilité ; si un lien manque afficher `NON CALCULABLE` + cause, jamais `0`, jamais masquer une extrapolation de denture mixte.
+- **Protocoles** : DUO V1 COM Digital Crown + Steiner 1953/1959 **déjà verrouillé** ; l'article historique de planification Steiner 1960 est une **référence complémentaire proposée** pour sa boîte/chevrons, ne modifie pas sans accord la liste 15/15 du profil géométrique. L'option Tweed est **comparaison documentaire uniquement**, pas troisième analyse V1.
+- **Métrologie / UI** : tous les mm exigent leur origine et étalon, tous les traits/couleurs via tokens du thème global, zéro runtime LLM.
+
+#### Batterie FUE-ST (future / NOT RUN)
+
+- ST-01 : initial `7 mm`, ajustement `0`, cible `4 mm` → `−6 mm` ; ratio et signe vérifiés sur oracle.
+- ST-02 : cas source Steiner `13 mm mesuré`, `11 mm ajusté`, `4 mm cible` → `−14 mm` et non `−18 mm`; ne pas confondre les deux états de la dent.
+- ST-03 : seule ANB/IMPA/FMIA connue sans `i-NB mm` valide → RI Steiner `NC` (angle seul ne suffit pas pour mode Steiner).
+- ST-04 : cible générée par chevrons mais non validée par praticien → RI prévisionnel identifiable, jamais « final clinique » / pas de plan autonome.
+- ST-05 : témoin Tweed 10°×0,8 = 8 mm de coût d'espace, **n'entre jamais dans la somme Steiner**, y compris si un autre sous-module historique garde Tweed.
+- ST-06 : changer calibration, point incisif, correction de forme, cible ou denture → invalidation/recalcul dirigé, historique.
+- ST-07 : Spee présent séparément dans boîte Steiner et éventuellement inclus par définition explicite dans DDM clinique : jamais deux fois dans total.
+- ST-08 : denture mixte, germes non mesurés et prévisions de croissance → état `ESTIMÉ / NON ÉVALUÉ` ; pas de faux « définitif », contrôle clinique humain, UI/PDF même provenance.
+- ST-09 : thème tokens globaux, aucun patient réel en test/artifacts, FUE futurs avant/après 390/430/768/1280 + zoom 200%, aucun run de ces scénarios encore réalisé.
+
+**PREUVE ET GATES** : article Steiner original **texte extrait et audité via web**, appels screenshot PDF Steiner et HAS ont échoué `cache miss`; ne pas prétendre inspection graphique authentifiée des figures. Confirmations pédagogiques GS Ortho, revue Tweed 2022, étude de valeur prédictive indépendante. Nous pouvons donc **spécifier** ces formules historiques ; pas d'implémentation, de recalcul rétrospectif patient, de certification médicale, de merge ou de déploiement. **NEXT** : valider le mode de détermination cible via chevrons Steiner et la correction de forme d'arcade ; régler la présentation boîte de Steiner des lignes Spee ; poursuivre étape 2 puis 3/4. **Dernière mise à jour canonique : 05/11/2026 — POST §65, DDM céphalo précisée, SPEC ONLY.**
+
+
+### 66. PRE — 2026-11-05 — McNamara : position incisive et contribution d'espace, ne pas confondre avec Steiner (SPEC ONLY)
+
+**Instruction propriétaire :** « Mmm et mcnamara fait comment !? » (après §65 POST sur la correction `2× Δ(i–NB)` de Steiner). Rechercher ce que McNamara (1984) définit effectivement, ses constructions dento-squelettiques et si une **formule de DDM céphalométrique indépendante** existe réellement dans ce protocole.
+
+**Baseline contrôlée :** PR #1213 OPEN/DRAFT, HEAD `22238f372d97471a02846091fb9d112e38148ba1`, §65 POST relu ; Notion PRE69 écrit. Deux analyses V1 COM Digital Crown + Steiner 1953/1959 verrouillées, McNamara pas sélectionnée en V1. Ne pas ajouter par réponse à une question une analyse/valeur clinique exécutée.
+
+**Sources web** : McNamara JA Jr, « A method of cephalometric evaluation », *Am J Orthod* 1984;86(6):449–469, DOI `10.1016/S0002-9416(84)90352-X`, https://pubmed.ncbi.nlm.nih.gov/6594933/ ; texte intégral indexé via reproduction tierce https://pdfcoffee.com/a-method-of-cephalometric-evaluation-mcnamara-1984-pdf-free.html ; mesure définie dans analyse McNamara https://pmc.ncbi.nlm.nih.gov/articles/PMC8018756/ et revue https://pmc.ncbi.nlm.nih.gov/articles/PMC8770963/ ; dépendance de l'espace à la forme d'arcade selon Mutinelli et al., *Eur J Orthod* 2000 https://pubmed.ncbi.nlm.nih.gov/10822884/. Reproduction tierce ≠ validation graphique de l'original.
+
+**Goal / success** : décrire une mesure clinique `L1 facial surface→A–Pog` (historique 1–3 mm antérieurs dans contexte facial équilibré), le recalage de la ligne après repositionnement mandibulaire projeté, et la différence entre changement de repère squelettique et déplacement réel de l'incisive. Donner un verdict de spécification sans inventer `McNamara = 2 × ΔA–Pog`. **Gate : SPEC ONLY, NO_CODE, NO_APPROVAL, FUE_NOT_RUN**, pas de merge/déploiement.
+
+
+### 66. POST — 2026-11-05 — McNamara (1984) : A–Pog avec référence squelettique projetée, pas de « DDM ×2 » propre à McNamara prouvée
+
+**Statut : synthèse scientifique documentaire, non spécification approuvée d'une troisième analyse V1.**
+
+**1. Position incisive de McNamara :**
+- Référence inférieure : `A–Pog`, droite du point A au Pogonion osseux (ne pas utiliser Pog_soft). Mesure signée **perpendiculaire** entre la surface vestibulaire/coronaire de l'incisive mandibulaire et la ligne, en mm, positive en avant. McNamara 1984 rapporte environ **+1 à +3 mm** pour une face équilibrée, contexte normatif historique, pas cible universelle. Notamment le texte original reproduit mentionne +1,5 mm dans un standard Bolton et +2,3 à +2,7 mm dans échantillon Ann Arbor. Les distributions varient et la norme seule ne prescrit pas une cible pour un patient.
+- Référence supérieure : bord facial de l'incisive maxillaire vs verticale depuis point A **perpendiculaire à Frankfort** (et non NA de Steiner), environ **+4 à +6 mm** dans la publication, cadre normatif historique. Cette mesure n'est pas une composante indépendante de DDM clinique.
+- Contexte squelettique : McNamara évalue les bases via N-perpendiculaire, longueurs Co–A et Co–Gn, différence maxillo-mandibulaire, hauteur faciale inférieure ANS–Me ; l'incisive ne se lit pas isolément. La **cible** de L1 peut dépendre de la correction/du développement des bases et de facteurs fonctionnels/esthétiques.
+
+**2. Référence dynamique, nuance déterminante pour l'onboarding :**
+- Si l'on envisage un déplacement squelettique mandibulaire, McNamara décrit soit la superposition d'un tracé mandibulaire projeté, soit la construction d'un nouveau `A–Pog` en déplaçant géométriquement le point A dans le sens opposé au déplacement mandibulaire prévu afin d'approximer le repère projeté. Il re-mesure la position de L1 vis-à-vis du **nouveau** A–Pog, avec une position incisive projetée dans certains cas de l'ordre de **1 à 2 mm antérieurs**.
+- **La différence `(L1–A-Pog)_cible − (L1–A-Pog)_initiale` entre deux droites de référence squelettique qui changent n'est pas, en général, la translation physique de la dent ni la variation du périmètre d'arcade.** Ne pas la multiplier mécaniquement par 2.
+
+**3. Comment transformer une stratégie McNamara en estimation d'espace si un jour autorisée :**
+- Étape `mesure initiale` : même image/calibration, A, Pog_hard anatomiquement source-verrouillés, `L1_facial_surface` explicite ; fichier de contexte clinique et classification faciale. Ni `L1_incisal` seul, ni `Pog_soft` ni `Pog_hard` supposé équivalent sans preuve ne sont des alias libres.
+- Étape `projection` : praticien renseigne scénario squelettique et pose/valide A–Pog projeté, puis sa **position cible incisive** par rapport à la nouvelle ligne. Faire le transfert dans un référentiel spatial commun pour isoler `déplacement réel mandibulaire-incisif` de la variation de ligne de référence.
+- Étape `impact spatial` : une méthode séparée et sourcée pour projeter le mouvement réel de L1 en variation d'espace d'arcade, sensible à forme d'arcade, mécanique, tipping et hypothèses ; **pas de coefficient « McNamara ×2 » démontré comme formule propre à la publication de 1984** dans les sources lues. Les modèles géométriques de Mutinelli et al. (2000) varient selon la forme : environ 1,21–2,07 mm de changement de longueur d'arcade par mm de déplacement dans le modèle, ce qui constitue une démonstration de sensibilité, **pas un multiplicateur clinique directement autorisé**.
+- Si les preuves géométriques ou méthode d'espace manquent, `DEPLACEMENT_PREVISIONNEL / NON_EVALUE`, `DDM_CEPHALO_MCNAMARA_NOT_DEFINED`, sans produire de DDM réelle numérique; un objectif incisif ne valide jamais automatiquement une extraction ou appareil.
+
+**Comparatif décisionnel avec analyses V1 :**
+
+| | Steiner (déjà V1) | McNamara (référence documentaire non V1) |
+|---|---|---|
+| Repère incisive inférieure | surface vestibulaire de L1 à `NB` | surface vestibulaire de L1 à `A–Pog` |
+| Situation squelettique projetée | chevrons/objectif incisif dans boîte, cible individualisée | reconstruire A–Pog relatif à la correction des bases, puis objectif incisif |
+| « DDM céphalo » | convention de planification Steiner `RI=2×(i–NB cible−i–NB initiale ajustée)` avec preuves et avertissements §65 | **pas de formule universelle autonome ×2 attribuable à McNamara 1984** trouvée ; conversion d'un mouvement réel vers espace = sous-méthode distincte |
+| Conséquence | simulation clinique sous validation praticien et calibration mm vérifiée | ne pas intégrer silencieusement une variante McNamara sous le nom Steiner |
+
+**Sources principales vérifiées** :
+- McNamara JA Jr. *A method of cephalometric evaluation.* Am J Orthod 1984;86:449–469. DOI `10.1016/S0002-9416(84)90352-X`, PubMed https://pubmed.ncbi.nlm.nih.gov/6594933/ ; texte article via transcription tierce https://pdfcoffee.com/a-method-of-cephalometric-evaluation-mcnamara-1984-pdf-free.html (**reproduction secondaire à utiliser avec prudence**, et article primaire intégral non authentifié via éditeur).
+- Étude contrôlant les variables « Lower incisor to A–Po » vs « Upper incisor to Point A vertical », https://pmc.ncbi.nlm.nih.gov/articles/PMC8018756/ ; revue systématique sur repères d'incisive https://pmc.ncbi.nlm.nih.gov/articles/PMC8770963/.
+- Mutinelli, Manfredi, Cozzani (2000), *A mathematic-geometric model to calculate variation in mandibular arch form*, *Eur J Orthod* 22:113–125, DOI `10.1093/ejo/22.2.113`, https://pubmed.ncbi.nlm.nih.gov/10822884/ ; variations d'espace selon forme/mécanique (résultat de modèle, pas prescription clinique).
+
+**Future FUE-MCN (NOT RUN)** : (1) L1→A–Pog trace/label exacts, pas L1→NB ; (2) absence L1_facial_surface/Pog_hard/mm calibration bloque mm ; (3) déplacement de A–Pog squelettique sans déplacement dentaire ⇒ **pas** de faux chiffre de gain/perte d'espace ; (4) tout scénario dentaire corrigé réinitialise les projections dépendantes et requiert revue humaine ; (5) aucun multiplicateur ×2 détourné de Steiner ; (6) archivage de contexte/versions sans patient réel ni LLM, état NC dans bilan ; (7) responsive, tokens thème, a11y/200% avec preuves UI après futur GO.
+
+**GOAL/GATE** : réponse documentaire à la question, méthode clinique non activée, **ne pas modifier le choix propriétaire COM Digital Crown + Steiner 1953/1959**. Ne pas ajouter McNamara à la V1, ni code, merge, Vercel, ni nouvelle source de normes. **NEXT** : fermer les détails de la boîte Steiner / DDM et progresser dans le parcours conditionnel denture mixte, puis diagnostic/bilan. **Dernière mise à jour canonique : 05/11/2026 — POST §66, comparaison McNamara/Steiner SPEC_ONLY.**
+
+
+### 67. PRE — 2026-11-05 — audit « 2,5 pour 1 » incisor advancement : mm vs degrés (SPEC ONLY)
+
+**Question propriétaire** : « Moi j’ai eu dans ma formation d’ortho que 2.5 mm correspond à un mm je sais pas d’où ça sort ». Le couple `2,5` vs `1` possède **au moins deux interprétations différentes** attestées : (a) 1 mm avancée incisive mandibulaire pouvant produire jusqu'à 2,5 mm d'espace dans certaines modélisations (ratio mm/mm), et (b) **2,5°** de vestibuloversion pour ~1 mm d'avancée du bord incisif (angle/deplacement), enseignement MBT. Ne pas déclarer que l'utilisateur voulait l'une précisément sans clarifier l'unité de sa formation.
+
+**Baseline** : PR #1213 OPEN/DRAFT HEAD documentaire `8955b6c960fac17253885ce3e2e4959ebafce279`, canonique §66 POST relu ; Notion PRE70 enregistré. Duo COM Digital Crown + Steiner 1953/1959 reste verrouillé. Aucune formule runtime, patient, merge ou déploiement.
+
+**Sources web** : Laura Duncan, *The Proclination of Mandibular Incisors in Non-extraction Crowded Invisalign Cases*, MSc University of Manitoba (2015), p.80 https://mspace.lib.umanitoba.ca/bitstream/1993/30613/3/duncan_laura.pdf dit que 1 mm d'avancée incisive inférieure peut créer **jusqu'à 2,5 mm d'espace** ; texte PDF accessible, capture screenshot web demandée et échouée `cache miss`. Germane et al. AJODO 1991 (https://pubmed.ncbi.nlm.nih.gov/1815557/) modélisent le gain de périmètre ; une reproduction du papier et une table universitaire rapportent **1,04 mm de gain sur le premier mm incisif**, pas la constante 2,5. MBT 2001 repris par Daniel Richmond https://orthoinsummary.com/blog/space-analysis-how-incisor-movement-impacts-the-space-analysis-part-3/ : `2.5 degrees / 1 mm incisal edge advancement`, tipping approximatif d'une dent de 22 mm ; https://www.nature.com/articles/s41368-025-00350-2 confirme 1 mm ou 2,5°. Steiner 1960 et Royal London utilisent comme **convention de planification** 1 mm AP ↔ environ 2 mm périmètre. Aghera/Chung https://pubmed.ncbi.nlm.nih.gov/25636558/ ~1,66 mm/mm maxillaire, Yitschaky et al. https://pubmed.ncbi.nlm.nih.gov/26991841/ trouve une relation multifactorielle à grande variabilité (1 mm crowding resolved ↔ 0,2 mm AP protrusion + 0,5° proclination en moyenne), non interchangeable avec une conversion causale pure.
+
+**GOAL/SUCCESS** : rechercher l'origine plausible, expliquer les deux unités et limites, dissocier ratio historique enseigné de norme validée, éviter tout coefficient ×2,5 dans V1 sans définition, méthode/version et approbation. **GATE** : SPEC_DISCOVERY / NO_CODE / FUE_NOT_RUN / NO_CLINICAL_GO.
+
+
+### 67. POST — 2026-11-05 — le « 2,5 pour 1 » retrouvé : deux conversions non interchangeables
+
+**Verdict scientifique/documentaire (NON-CLINICAL)** : Le souvenir `2,5 mm ↔ 1 mm` est plausible et possède une occurrence **quasiment textuelle** dans la thèse Laura O. Duncan, University of Manitoba, MSc 2015, §6.2 p.80 : « 1 mm protrusion of the lower anterior teeth can create as much as 2.5 mm of space », référant à Germane 1991 et Pandis 2010. Cela rapporte **un maximum possible**, pas un rapport moyen ni le résultat démontré de toutes les méthodes ni une « règle McNamara ». Source https://mspace.lib.umanitoba.ca/bitstream/1993/30613/3/duncan_laura.pdf ; extraction PDF vérifiée mais screenshot web `cache miss`, pas de confirmation graphique.
+
+**Différence avec l'enseignement MBT** : Une autre formule de ratio `2,5 / 1` est géométrique et contient **un angle**, pas deux longueurs : selon MBT McLaughlin–Bennett–Trevisi (2001), `2,5°` de vestibuloversion ~ `1 mm` d'avancement de bord incisif inférieur (modèle de bascule sur dent de longueur ≈22 mm). Repris dans https://orthoinsummary.com/blog/space-analysis-how-incisor-movement-impacts-the-space-analysis-part-3/ et https://www.nature.com/articles/s41368-025-00350-2. Cela ne signifie **pas** « 2,5 mm de périmètre créés » ; changement d'inclinaison et déplacement AP dépendent de géométrie et mécanique.
+
+**Confrontation avec résultats primaires / niveaux de preuve** :
+- Germane et al., AJODO 1991, 100(5):421–427, DOI `10.1016/0889-5406(91)70081-7`, https://pubmed.ncbi.nlm.nih.gov/1815557/, modèle mathématique et avancement incisif plus efficace que expansion molaire ; transcription de son tableau / compilation académique indique **+1,04 mm de périmètre pour le premier mm d'avancée incisive**, +6,03 mm pour 5 mm d'avancée dans ce modèle, non `2,5 mm` par mm universel. Confrontation nécessaire : la thèse Duncan « as much as 2.5 mm » ne suffit pas pour affirmer que l'article Germane valide `1:2,5` dans toutes conditions ; source reproduite https://id.scribd.com/document/501374901/germane1991 et reprise universitaire https://oaktrust.library.tamu.edu/bitstreams/32d2b644-3f09-4ac7-a9d7-d29349428c97/download.
+- Règle de planification **Steiner 1960 / Ricketts 1982** et Royal London : `1 mm avancée AP ≈ 2 mm de périmètre` (heuristique de traitement, avec limites).
+- Modélisation maxillaire dans *AJODO*, 2015, https://pubmed.ncbi.nlm.nih.gov/25636558/ : +1,66 mm moyen de périmètre maxillaire par +1 mm protrusion, sur modèle ellipsoïde ; ce n'est pas applicable directement à l'arcade mandibulaire.
+- Étude clinique Yitschaky et al. 2016, https://pubmed.ncbi.nlm.nih.gov/26991841/ : résolution d'1 mm de crowding associée en moyenne à +0,2 mm de protrusion L1–A–Pog et +0,5° de proclination mais grande variabilité et influence de plusieurs mécanismes ; **ne pas inverser automatiquement cette régression pour déclarer 1 mm protrusion = 5 mm créés**.
+
+**Matrice de sens (une ligne par unité)** :
+| Rapport | Numérateur | Dénominateur | Source/confiance | Usage clinique candidat |
+|---|---|---|---|---|
+| `2,5 mm / 1 mm` | gain d'espace **possible au maximum** | avancée AP incisive inférieure | thèse MSc 2015 citant études, interprétation exacte du maximum non recoupée dans original Germane | **comparateur/hypothèse de formation**, pas automatisme V1 |
+| `2,5° / 1 mm` | inclinaison de la dent | déplacement AP du bord incisif | MBT / modèle géométrique, sensibilité au pivot/longueur | explicatif, **ne pas convertir tout changement d'IMPA en mm sans géométrie patient** |
+| `2 mm / 1 mm` | variation d'espace/perimètre de l'arcade | déplacement AP incisif | Steiner 1960/Ricketts 1982/Royal London planning, convention historique | **Steiner boîte comme simulation** avec position initiale ajustée, cible et praticien, §65 |
+| `1,66 mm / 1 mm` | périmètre maxillaire modélisé | avancée incisive supérieure | modèle *AJODO* 2015 | contexte comparateur, **pas coefficient mandibulaire** |
+
+**Décision produit** : **aucune approbation du propriétaire pour utiliser ×2,5** ; il est prématuré d'attribuer cette règle à McNamara, CRANIOM ou à Steiner. Le vrai protocole approuvé reste COM Digital Crown + Steiner 1953/1959 ; la boîte Steiner peut proposer son propre coefficient ×2 sous accord clinique et source. Pour modèle mixte, valeurs mesurées/estimées, projet incisif et effets sur DDM restent distincts. Changement de coefficient = version de méthode et revue des dépendances, jamais variable hardcodée dans UI/traitement. Les thèmes restent des tokens globaux, 0 LLM runtime.
+
+**Batterie FUE-2P5 candidate (NON RUN)** : (1) un champ de degré ne devient jamais mm ; (2) mode Steiner 1 mm AP cible → 2 mm espace uniquement si méthode/objectif/calibration valides ; (3) tentative ×2,5 sans méthode source/version → refus et indication `UNVERIFIED_METHOD` ; (4) variation modèle forme d'arcade/croissance/denture mixte → ne pas promettre valeur unique ; (5) résultat clinique non confondu avec prédiction thérapeutique ; (6) PDF/UI source/units/signes cohérents, pas de patient réel, responsive et thème, revue propriétaire avant GO.
+
+**Une seule question de clarification clinique pour le prochain tour** : dans la formation, les `2,5` étaient-ils des **millimètres d'espace gagnés pour un millimètre d'avancée**, ou des **degrés de bascule incisive pour un millimètre d'avancée** ? Si doute, demander la diapo/support du cours et ne pas inventer attribution.
+
+**GATE / RESULT** : origine plausible retrouvée et limitée, aucune règle V1 modifiée, aucune intervention frontend/backend, no merge/deploy/clinical validation, FUE_NOT_RUN. **Dernière mise à jour canonique : 05/11/2026 — POST §67, étude 2,5/1 SPEC_ONLY.**
+
+
+### 68. PRE — 2026-11-06 — onboarding mixte : modèle DDM par défaut + adaptations (SPEC ONLY)
+
+**Instruction propriétaire** : « Tu me proposes quoi alors !? On valide un modele par défaut et on propose des modifs !? Continuons notre onboarding on doit detziller un peu ». Cadrer le choix d'un modèle clinique candidat par défaut, les corrections humaines auditables et un parcours **précis** denture mixte, sans code. La proposition n'est PAS une approbation explicite du propriétaire d'un coefficient déjà opérationnel.
+
+**Baseline** : PR #1213 OPEN/DRAFT sur `test/ceph-v1-facad-two-public-radios-20261105`, HEAD avant passe `3d909ef0124adb502f4d8d30fc49740ef2e807bf` ; canonique §67 POST relu ; Notion PRE71 ajouté. Deux analyses V1 seules verrouillées : COM Digital Crown + Steiner 1953/1959. La comparaison 2,5°/mm d'espace issue des modèles Mutinelli n'est pas une équation universelle.
+
+**Preuves consultées** : Mutinelli et al., *Eur J Orthod* 2000, https://pubmed.ncbi.nlm.nih.gov/10822884/ (gain d'arcade sensible à la forme et au mouvement) ; étude de validation Moyers/Tanaka-Johnston sur denture mixte, 2025, https://pmc.ncbi.nlm.nih.gov/articles/PMC12724357/ (variabilité individuelle), synthèse https://pmc.ncbi.nlm.nih.gov/articles/PMC12034339/ (limites des références de population), source historique Steiner 1960 https://orthodonticatheneum.com/wp-content/uploads/2023/04/1960_Steiner-Use-of-cephalometrics-in-planning-orthodontic-treatment.pdf (forme d'arcade, relocation et boîte clinique). Les sources doivent être distinguées des choix ergonomiques conçus ici.
+
+**GOAL/SUCCESS** : proposer modèle par défaut explicite, changement de méthode versionné, espace clinique/prediction d'éruption/Spee/leeway et repositionnement incisif toujours distincts, garde-fous des données manquantes, 6 à 7 sections conditionnelles de la Step2 existante et passage Step3, exemples non patients, FUE futures. **Gate** : SPEC_DISCOVERY / HUMAN_APPROVAL_PENDING / NO_CODE / no merge/Vercel.
+
+
+### 68. POST — 2026-11-06 — onboarding V1 denture mixte détaillé et modèle DDM par défaut (CANDIDATE / NO CODE)
+
+**Règle de gouvernance** : le propriétaire propose « un modèle par défaut et des modifications » ; le schéma ci-dessous est **RECOMMANDÉ, PAS ENCORE VALIDÉ**, ne change ni runtime ni prescriptions. L'onboarding reste dans **quatre étapes** : 1 Céphalométrie, 2 Moulages/occlusion, 3 Diagnostic, 4 Plan/Bilan. Seules analyses V1 validées : COM Digital Crown + Steiner 1953/1959 ; module de planification Steiner 1960 reste un **sous-protocole complémentaire candidat**, pas troisième analyse.
+
+#### 68-A — Choix du modèle par défaut et variantes proposées
+
+1. **Par défaut : « Steiner — repositionnement incisif »**, affichage source-versionné, correction céphalométrique par `2 × (L1–NB cible − L1–NB initiale ajustée)` en **mm d'effet d'espace**, seulement si L1–NB facial surface/étalon qualifié, correction de forme d'arcade explicitée, cible incisive et praticien confirmés. Si mesure, conversion ou cible manque : `NON_CALCULABLE` avec cause, et NON `0`. Les chevrons proposés par Steiner constituent une aide au choix, non décision automatique. Ne pas présenter une simulation comme « résultat clinique définitif ».
+2. **Alternative « estimation géométrique individualisée »** : choisir une méthode de projection source-versionnée avec forme d'arcade, mouvement incisif, points d'appui et limites connus et validés ; méthode Mutinelli 2000 est un **comparateur**, pas une fonction numérique V1 déjà qualifiée.
+3. **Alternative « contribution clinique manuelle »** : praticien renseigne en mm l'effet attendu sur l'espace, avec provenance/méthode/justification et date. Le système affiche `ESTIMATION CLINICIEN`, pas `AUTOMATIQUE STEINER`.
+4. Ne **pas** proposer un simple slider universel de `° par mm` comme méthode clinique par défaut. La relation « 2,5° / 1 mm de DDM » est **un ordre de grandeur possible** pour un modèle d'arcade/bascule (Mutinelli 2000) et est différente de la règle MBT « 2,5° / 1 mm d'avance du bord incisif ». Le mode sélectionné ne se transforme jamais silencieusement en un autre.
+5. **Les données source peuvent être corrigées** : position incisive initiale, correction de forme, cible, stade dentaire, mesures ED/EN, courbe de Spee et statut leeway ; chaque correction archive auteur/avant/après/méthode et invalide/recalcule uniquement les dépendants, incluant Step3/PDF. Aucune norme historique/constante legacy `107/90` activée par défaut.
+
+#### 68-B — Parcours concret denture mixte : 7 blocs conditionnels dans la Step2 EXISTANTE
+
+| Bloc | Question visible | Réponses utiles | Déclencheurs et interdictions |
+|---|---|---|---|
+| **01 Denture** | « Denture temporaire, mixte ou permanente ? » → **mixte choisie** ; « quelles dents restent temporaires ? » | dentition et statut éruption par quadrant, 6 permanentes D/G, incisives inférieures permanentes, canines/prémolaires présentes ou non, pertes précoces, anomalies | aucun âge ne classe automatiquement la dentition ; dent absente = ni largeur `0` ni classe occlusale normale ; limiter la saisie aux dents pertinentes, odontogramme détaillé facultatif |
+| **02 Sources** | « Quelles données possèdes-tu ? » | examen clinique, modèles physiques/scan mesurable, photographies, radios intraorales mesurables, téléradio calibrée si disponible | si source insuffisante, conserver constat qualitatif mais ne pas inventer des mm ; ne pas exiger de radiographie supplémentaire pour débloquer une fiche, décision d'imagerie clinique |
+| **03 Espace et prédiction** | « Quel espace est disponible et quelles tailles dentaires sont connues ou à estimer ? » | ED maxillaire et mandibulaire mesurés, largeur mésio-distale des dents éruptées, canines/prémolaires non éruptées : mesure radiographique qualifiée, méthode statistique **sélectionnée explicitement** (Moyers percentile exact, Tanaka-Johnston source), ou entrée clinique motivée | jamais prédire sans les entrées nécessaires ; population/percentile et incertitude signalées ; choisir méthode par arcade (pas deux méthodes superposées) ; résultat `DDM_ENCOMBREMENT = ED−EN` signé, `ESTIMÉ` quand EN prédit, pas certifié définitif |
+| **04 Spee et espace de transition** | « Courbe de Spee pertinente et mesurable ? Les molaires temporaires résiduelles permettent-elles d'envisager un leeway space ? » | Spee (absente/non évaluable/mesurée, profondeur et méthode si pertinent), espace de transition/leeway par quadrant **mesuré ou estimé**, conservation projetée oui/non/indéterminée | **Spee** : impact sur l'espace si méthode validée, pas constante automatique ; **leeway** : potentiel anatomique distinct de l'espace effectivement conservé. Un leeway hypothétique ne s'ajoute pas à la DDM réelle actuelle et ne s'ajoute pas deux fois à un scénario prévisionnel. Ne pas supposer que le praticien prescrira un mainteneur |
+| **05 Occlusion sagittale** | « Relations molaires et canines observables à D/G ? » | molaires permanentes D/G Classe I/II/III si réellement évaluables ; canines permanentes classables uniquement si éruptées/occlusion adaptée ; dentition temporaire décrite séparément, asymétrie/subdivision | aucun copier-coller automatique D/G, aucune classe forcée si dent absente/non-éruptée, angle ANB ne déduit pas classe molaire clinique |
+| **06 Vertical, transversal et fonctionnel** | « Surplomb/recouvrement, articulé croisé, milieux et déviation fonctionnelle ? » | mesures mm avec source si observées, déviation des milieux D/G, crossbite antérieur/postérieur avec côté et dents, béance, ciseaux, forme d'arcade, éléments fonctionnels cliniques | champ « mm » seulement si mesure fiable ; si croisé oui → demander côté/secteur, si shift fonctionnel oui → examen clinique obligatoire ; sans examen fonctionnel : `NON_EVALUE` |
+| **07 Vérification** | « Souhaites-tu confirmer et passer au diagnostic ? » | synthèse par arcade/côté, mesure vs estimation, statut/limitations, source/date, réouverture/correction | poursuivre sur brouillon partiel permis ; avertissement lacunes, aucune DDM réelle finale ni suggestion extraction/expansion sans Step3 praticien |
+
+**Règle de progressivité** : afficher blocs suivants conditionnellement, sans multiplier les pages. Mettre ED/EN côté arcade et relation D/G visibles simultanément quand disponibles. Un champ masqué parce que sa condition devient fausse perd son statut actif, mais la version historique n'est pas supprimée silencieusement. UI responsive 390/430/768/1280, clavier/tactile/zoom 200%, couleurs uniquement via tokens sémantiques globaux.
+
+#### 68-C — Parcours inter-étapes de la DDM, avec limites propres à la denture mixte
+
+- **Step1 Céphalométrie** : `L1–NB_MM` seulement avec point facial incisif anatomiquement source-verrouillé, calibration pertinente et mesure fiable ; ces conditions restent NC sur deux JPEG témoins. Si indisponible, le reste de l'onboarding fonctionne.
+- **Step2 Moulages** : produire une carte **État de l'espace** avec `ED`, `EN mesuré/estimé`, `DDM encombrement ED−EN`, `impact Spee` séparément, `DDM clinique` si la définition choisie intègre les deux, et **leeway potentiel** en panneau d'hypothèse non automatiquement additionné. Ne pas additionner Spee deux fois. La dénomination exacte de DDM clinique incluant Spee demeure soumise à accord propriétaire.
+- **Step3 Diagnostic** : proposer préselection `Méthode de planification : Steiner`. Demander/afficher `L1–NB initial mesuré`, `initial ajusté forme arcade`, `cible i–NB projetée par chevrons et facteurs cliniques`, `cible retenue`, puis `effet RI signé ×2` **après validation humaine**. Si mode manuel, saisir `effet mm` avec justification ; si méthode géométrique, source / géométrie et preuve exigées. Calculer `DDM RÉELLE = DDM CLINIQUE + CORRECTION CÉPHALO` uniquement si termes compatibles (même arcade mandibulaire, millimètres signés, stade et période de référence, provenance).
+- **Step4 Bilan** : triptyque `DDM clinique / DDM céphalo / DDM réelle` plus postes détaillés `encombrement / Spee / leeway scénario`, niveaux de confiance et résultats par arcade, méthodes/versions et validations. Un résultat `ESTIMÉ` ou `HYPOTHÉTIQUE` demeure ainsi dans le PDF. Le maxillaire possède son propre bilan d'arcade, **sans réutiliser par défaut le déplacement incisif mandibulaire Steiner**.
+
+**Exemple entièrement fictif NON CLINIQUE (cohérence des signes)** : espace disponible mandibulaire `ED=64 mm`, nécessaire estimé `EN=69 mm` → encombrement `−5 mm`; impact Spee `−1 mm` *si mesuré/méthode validée* → DDM clinique `−6 mm`; L1–NB initiale ajustée `5 mm`, cible décidée `4 mm` → RI Steiner `−2 mm`; **DDM réelle projetée = `−8 mm`**. Si l'estimation EN, Spee ou RI n'est pas disponible/validée, ne pas produire `−8 mm`; indiquer `À COMPLÉTER` avec sous-termes manquants. Leeway non ajouté automatiquement ; exemple ne prescrit aucun traitement.
+
+#### 68-D — Batterie FUE prochaine (définie, NON RUN)
+
+- FUE-MX-D01 : cas mixte avec 6 permanentes D/G, canines non éruptées, molaires évaluables → questions conditionnelles pertinentes, sans classes canines permanentes inventées.
+- FUE-MX-D02 : modèles mesurés et EN prédit par Moyers/Tanaka choisi → méthode, percentile/population, incertitude et état ESTIMÉ affichés ; jamais EN chiffré sans entrées.
+- FUE-MX-D03 : retrait de la méthode EN ou de Spee → DDM clinique/reelle invalidée, pas remplacée par `0`, historique intact.
+- FUE-MX-D04 : leeway mesuré et conservateur projeté → potentiel distinct du gain effectif et sans double comptage de ED/EN ni Spee.
+- FUE-MX-D05 : L1–NB mm absent, 2 JPEG publics non calibrés → RI Steiner et DDM réelle NC, aucune fausse mesure.
+- FUE-MX-D06 : source hypothétique calibrée, `5→4` mm → effet `−2` mm avec oracle ; sortie finale `−8` uniquement pour termes d'exemple complet.
+- FUE-MX-D07 : demande de coefficient `2,5°/mm d'espace` → avertissement modèle non universel ; refus de l'activer sans méthode explicitement définie/versionnée.
+- FUE-MX-D08 : changer méthode/cible/classe dentition après évaluation → statut revue, recalcul transitif et PDF cohérent, sans faux clinique validé.
+- FUE-MX-D09 : croisements D/G, dent non éruptée, photos sans modèles, brouillon partiel, aucun diagnostic autonome.
+- FUE-MX-D10 : thèmes globaux, 0 LLM runtime, aucun patient réel GitHub/CI, a11y et captures BEFORE/AFTER à valider par propriétaire ultérieurement.
+
+**Décisions ouvertes, non bloquantes pour avancer** : accepter `Steiner` comme **méthode de planification préselectionnée** (et non simple coefficient en dur), Spee comme sous-poste de DDM clinique sans double comptage, choix explicite de méthode EN en denture mixte (recommandation : mesures individuelles fiables d'abord, méthodes statistiques uniquement si nécessaires avec provenance). L'acceptation de la direction « modèle par défaut et modifications » ne constitue PAS à elle seule validation des calculs cliniques.
+
+**GATE / PREUVE** : SPEC_ONLY / HUMAN_APPROVAL_PENDING, FUE ci-dessus NOT RUN. Aucun code produit, merge, Vercel, patient ni sortie clinique. **NEXT** : faire approuver l'ordre des questions et les garde-fous, puis détailler Step3 Diagnostic et Step4 Bilan avant réconciliation technique. **Dernière mise à jour canonique : 06/11/2026 — POST §68, onboarding mixte et modèle par défaut candidat.**
+
+
+### 69. PRE — 2026-11-06 — validation fonctionnelle Step2 ; ouverture onboarding Step3 Diagnostic (SPEC ONLY)
+
+**Validation propriétaire explicite** : « Okay je valide continuons » après proposition Step2 progressive et modèle de planification Steiner par défaut avec modifications. Interprétation minimale et fidèle : **direction du workflow validée**, sans inventer une approbation scientifique de chaque coefficient, de la règle 2,5°/mm ou des méthodes statistiques spécifiques. L'objectif incisif et la DDM réelle restent des décisions de simulation vérifiées par praticien.
+
+**Baseline** : §68 POST présent et relu, PR #1213 OPEN/DRAFT, HEAD pré-passe `c609a39d2873b8291b19f301cf3215c69a51a10a`; Notion PRE72 enregistré. §58 POST confirme l'étape existante `Step3Clinical.tsx` avec notes modifiables, déductions automatiques de plan/classe désactivées, à ne pas réactiver. **Pas de code produit.**
+
+**DECISION_LOCKED (fonction UX)** : Step2 denture mixte à sections conditionnelles, statut mesuré/estimé/non évalué, DDM clinique avec Spee sans double compte et leeway distinct ; contribution céphalométrique **mode Steiner présélectionné** avec changement de méthode ou correction humaine motivée. **NON VALIDÉ** : 2,5°→1 mm universel, type de dentition inféré automatiquement, méthodes prédictives sans population/version, choix de traitement, normes ou tous résultats en mm de 2 JPEG publics.
+
+**GOAL** : détailler Step3 Diagnostic, depuis sources Céphalométrie et Moulages jusqu'au diagnostic multi-axes structuré et résumé, avec lecture des contradictions, statut de DDM projetée, prudence sur croissance, tissus mous, fonctionnel, et explicite séparation constat / interprétation / décision humaine. **SUCCESS** : questions conditionnelles, champs exacts, preuve visible, brouillon possible, une liste de problèmes priorisés que le praticien confirme ; futurs FUE sans exécution. **GATE** : SPEC_ONLY / NO_CODE / NO_MERGE / NO_VERCEL / NOT_CLINICALLY_APPROVED.
+
+
+### 69. POST — 2026-11-06 — Step3 Diagnostic orthodontique : onboarding progressif structuré, NON AUTOMATIQUE (CANDIDATE)
+
+**Décision acquise / limite de sa portée** : approbation par « Okay je valide continuons » de la **direction UX Step2** + modèle de planification Steiner préselectionné et modifiable/traçable. Les calculs numériques, profils historiques, cibles, bibliothèques de normes, exactitude des repères et tests FUE restent soumis à validation séparée. **Ne pas traiter le diagnostic ci-dessous comme déjà approuvé** : cet atelier en donne une proposition fonctionnelle.
+
+**Rappel de l'étape 3 existante** : `Step3Clinical.tsx` contient observations et notes éditables ; `orthoExpertSystem.ts` et `bilan_ortho_engine.py` existent mais les déductions automatiques de plans/classes ont été désactivées. Le produit conserve un stepper à **quatre** étapes, Step3 n'est pas une duplication de Step1 et ne crée pas une 5e étape « IA ». Les modes COM Digital Crown et Steiner 1953/1959 restent ceux de Step1. Aucun LLM runtime.
+
+#### 69-A — Contrat clinique en trois couches
+
+1. **CONSTAT / MESURE** : référence source visible (photo, radio, modèle, examen clinique) ; valeur, unité, date, méthode/version/qualité, état `MESURE / ESTIME / NON_EVALUE / A_CONTROLER`. Ce niveau est **non interprétatif**.
+2. **INTERPRETATION CLINIQUE PROPOSEE PAR PRATICIEN** : hypothèse squelettique, dentaire, fonctionnelle ou esthétique, fondée sur plusieurs observations et limitations connues. Choix explicite `COMPATIBLE / A_CONFIRMER / NON_CONCLUANT`; ne pas automatiquement classer la base squelettique à partir d'ANB seul, la relation molaire à partir d'ANB, une cause d'occlusion croisée à partir d'une photo, ou une croissance à partir de l'âge.
+3. **DIAGNOSTIC ET RESUME VALIDES PAR PRATICIEN** : liste d'anomalies ou problèmes priorisés, phrases éditables et datées, source/raison/contradictions, action humaine de confirmation. Une hypothèse non vérifiée ne se transforme pas en diagnostic validé à la sauvegarde ou à l'export.
+
+#### 69-B — Parcours Step3 : six blocs visibles au bon moment
+
+| Bloc | Questions du praticien | Préremplissage proposé / condition | Sortie clinique |
+|---|---|---|---|
+| **D1. Dossier et fiabilité** | « Quelles données puis-je interpréter ? » | Afficher résumé Step1 Céphalo (COM/Steiner, couverture N attendues/valables, angles, mm si réellement calibrés) + Step2 (denture, ED/EN, DDM mesurée/estimée, Spee/leeway séparés, occlusion D/G), sans deviner normalités. Un avertissement précis si des données manquent ou se contredisent. | Sources révisables, données exploitées/non évaluées, pas de faux taux de complétude |
+| **D2. Base squelettique** | « Quel diagnostic squelettique sagittal et vertical retiens-tu ? » | Montre SNA/SNB/ANB et constructions propres à l'analyse sélectionnée **si source/verrouillage scientifique OK** ; montrer verticalité SN–GoGn ou autres mesures seulement si leur construction est qualifiée. Classes I/II/III osseuses ou non concluantes **saisies/confirmées** par praticien avec note; pas de déduction automatique d'un seuil ANB. | Interprétations sagittale et verticale, preuve, limites, contradictions possibles |
+| **D3. Dento-alvéolaire / DDM** | « Quels sont les problèmes d'espace, d'inclinaison incisive et leurs conséquences ? » | DDM d'encombrement, éventuelle correction Spee, leeway potentiel séparé, position incisive angulaire et linéaire si calculable ; mode Steiner préselectionné pour **simulation** de la correction céphalométrique. Reprendre `L1–NB initial mesuré`, `initial ajusté forme d'arcade`, `cible envisagée` et `cible retenue/praticien`, mode manuellement justifié ou méthodologie individualisée si choisie. L'état DDM réelle = `PROJETEE` seulement si toutes preuves compatibles ; sinon `NON_CALCULABLE`. | DDM réelle projetée **en mm signés** ou absence motivée ; diagnostic d'encombrement distinct de la stratégie de repositionnement |
+| **D4. Occlusion / rapports dentaires** | « Quelle synthèse occlusale retiens-tu ? » | Afficher rapports molaires et canins D/G, surplomb/recouvrement, sens des déviations de milieux, croisés/ciseaux/secteur ; si dent permanente non éruptée ou examen non disponible = `NON_EVALUE`, jamais classe I par défaut. Différencier `classe molaire` observée et `classe squelettique` interprétée, autoriser leur discordance sans auto-correction. | Diagnostic dentaire/occlusal documenté, avec asymétries et limites |
+| **D5. Fonction, croissance et esthétique** | « Quels éléments cliniques complémentaires sont documentés ? » | Question conditionnelle sur examen fonctionnel (décalage en fermeture, ventilation/respiration, habitudes, ATM si examiné), tissus mous/photos fiables et acceptées, hygiène/parodonte/contexte biologiques documentés ; éventuel stade de croissance **seulement si un examen/méthode dédiée a été réalisé**, ne pas inférer CVM depuis la denture mixte ni l'âge. Si non évalué, ne pas afficher une conclusion normale. | Observations et hypothèses séparées, problèmes fonctionnels/aesthétiques selon preuve, critères à vérifier |
+| **D6. Liste de problèmes et résumé** | « Quels problèmes sont retenus et dans quel ordre de priorité ? » | Synthèse modifiable : priorité clinique/urgence, hypothèse vs établie, source principale, éléments discordants, contexte de denture mixte et hypothèses prospectives, champ libre de conclusion praticien. Liste de problèmes préstructurée mais **sans diagnostic IA inféré** ; notes/phrases de catalogue neutres, jamais du texte libre génératif LLM. | Diagnostic détaillé + résumé concis signé (praticien/auteur/date/version), transfert vers Step4 en statut brouillon ou validé |
+
+**UX et décision manuelle** : `Réviser les données`, `Ajouter observation`, `Marquer non évalué`, `Confirmer hypothèse`, `Valider diagnostic`, `Continuer vers Plan/Bilan` (y compris brouillon partiel avec alerte). Ne pas confondre sauvegarder une note, confirmer un constat, ou valider le diagnostic. Le diagnostic validé ne vaut pas signature du plan thérapeutique. Aucune méthode de DDM (×2 Steiner ou méthode géométrique) ne détermine automatiquement extraction/stripping/expansion.
+
+**Dépendances et conflits à rendre visibles** :
+- Classe molaire II à droite / classe squelettique I possible dans un cas clinique donné : ce ne sont pas des sorties contradictoires nécessairement; elles décrivent des axes distincts. Signaler une **différence de domaines**, pas un « bug ».
+- Céphalo non calibrée : angles admissibles selon géométrie et points, distances L1–NB/RI/DMM réelle `NC`, sans bloquer le reste du diagnostic.
+- DDM denture mixte estimée : label `ESTIMATION`, source percentile/méthode, pas une DDM définitive ; leeway potentiel pas une quantité d'espace déjà acquise.
+- Les informations clinicien/parents ne se substituent pas aux observations. Déclarer `NON_EVALUE` si examen requis absent.
+- Un changement dans Step1 ou Step2 invalide uniquement les **hypothèses et bilans dépendants**, avec contexte historique ; jamais laisser un ancien diagnostic « confirmé » si les preuves de support ont été modifiées.
+
+#### 69-C — Scénario d'écran fictif (aucun patient)
+
+**Entrées fictives** : denture mixte, molaires permanentes observables droite et gauche ; canines permanentes non éruptées ; classe molaire I côté gauche, II côté droit **déclarées uniquement comme observation occlusale** ; articulé croisé postérieur droit **décrit cliniquement** ; EN d'une arcade **prédit** via méthode et percentile affichés, ED mesuré, courbe de Spee non évaluée ; radio JPEG sans calibration pertinente, donc `L1–NB mm NC`.
+**Rendu honnête** : panneau D1 signale data estimée et calibration manquante ; D2 sagittal squelettique `NON_CONCLUANT` si mesures/hypothèses insuffisantes, D3 affiche `DDM encombrement estimée` mais `DDM réelle NON CALCULABLE`, D4 garde rapports molaires G/D non symétriques et crossbite D ; D5 ne prétend pas à déviation fonctionnelle ni stade de croissance déterminé ; D6 propose une **liste de constats à vérifier par le praticien**, sans traitement. Cet exemple n'est ni un diagnostic clinique réel ni un conseil patient.
+
+#### 69-D — Batterie FUE-DX future (NOT RUN)
+
+- DX-01 Step1 sans mm, Step2 complet modèles : DDM réelle NC, diagnostic clinique partiel possible, aucune valeur zéro de secours.
+- DX-02 leeway estimé + Spee non évalué : ni espace inventé ni double compte ; étiquette de données estimées traverse résumé/PDF.
+- DX-03 rapports molaires asymétriques D=II, G=I et ANB compatible I : distinguer classe dentaire vs squelettique, aucune conversion automatique.
+- DX-04 canines permanentes absentes : aucune classification canine permanente assignée ni brouillon masquant cette lacune.
+- DX-05 source clinique fonctionnelle absente : déviation fonctionnelle `NON_EVALUE`, pas diagnostic automatique.
+- DX-06 croissance indéterminée en denture mixte : ni CVM ni croissance résiduelle numérique inventés.
+- DX-07 objectif incisif retenu puis modifié : recalcul de RI et DDM réelles dépendantes, rétrogradation des diagnostics validés dépendants vers `A_REVOIR`, historique auteur/date.
+- DX-08 résumé détaillé et court sont indépendamment éditables; sauvegarde `BROUILLON` ≠ `VALIDATION_PRATICIEN`, transfert Step4 préserve la nuance.
+- DX-09 unité, côté et provenance visibles pour chaque constat/diagnostic/PDF; résister à données source contradictoires, comparateurs Steiner/McNamara non fusionnés.
+- DX-10 a11y clavier/tactile, zoom 200%, viewports 390/430/768/1280, tokens thème global (zéro hex module), FUE screenshot BEFORE/AFTER avec approbation propriétaire ultérieure, 0 LLM et patient réel en artefacts.
+
+**Question prochaine pour propriétaire, non bloquante** : confirmer que Step3 présente **la liste de problèmes priorisés, puis un résumé final éditable**, plutôt qu'un paragraphe diagnostic généré automatiquement. Les problèmes peuvent être réordonnés, avec preuve et statut ; aucun LLM runtime.
+
+**Résultat/gate** : seule la **direction Step2/mode préselectionné** vient d'être explicitement validée. Cette nouvelle Step3 est `DRAFT_SPEC_NOT_APPROVED`. Les dix FUE-DX sont **à exécuter plus tard**, non certifiés. Pas de code, patient réel, merge, Vercel ou traitement automatique. **Dernière mise à jour canonique : 06/11/2026 — POST §69, Step3 Diagnostic candidat.**
+
+
+### 70. PRE — 2026-11-06 — COM: conclusions conditionnelles (SPEC ONLY)
+
+Demande praticien : utiliser la fiche photographiée « Fiche de mesures céphalométriques du C.O.M. » pour proposer des règles déterministes du type si A et B, alors constat C. Ne pas utiliser des chiffres manuscrits comme vérité patient. Baseline : PR #1213 DRAFT, HEAD `e93faa81eaba85a021ff83bb7dddf529dbdc6e00`, §69 POST relu, Notion PRE73 enregistré.
+
+GOAL : distinguer plage centrale, compensation, hors compensation, puis hypothèses combinées et signature clinique ; tenir compte de l'âge, des unités, constructions et sources. Extrait de la fiche : surplomb et recouvrement 1,5–3 mm ; i/mandibulaire 90±5, compensation 80–100° ; I/Francfort 107±5, compensation 97–120° ; angle Tweed 26±4 ; A/N verticale, B/N verticale et A’B’ avec références 9 ans et adulte. Le seuil central de l'angle interincisif est illisible : ne pas l'activer. Source extérieure de contexte : Bonnefont et al. 2010/2011, cohorte 83 jeunes adultes classe I ; ne pas généraliser les normes. Aucun code, merge, déploiement ou FUE exécuté.
+
+
+### 70. POST — 2026-11-06 — COM : règles automatiques sur fiche fournie (SPEC ONLY)
+
+**Direction clinique proposée** : l'image fournie « Fiche de mesures céphalométriques du C.O.M. » permet de définir un moteur **déterministe** « si conditions alors constat/hypothèse », sans LLM runtime, qui sépare clairement **1. constat objectif comparé au document, 2. hypothèse clinique multi-mesures, 3. conclusion confirmée par le praticien**. La photo est une source primaire du présent atelier, **pas** une preuve d'exhaustivité/validation des normes de la méthode originale CRANIOM. Ne pas intégrer photo ou champs manuscrits comme données patient. Articles Bonnefont et al. 2010/2011, https://www.cambridge.org/core/journals/journal-of-dentofacial-anomalies-and-orthodontics/article/abs/new-method-for-the-utilization-of-cephalometric-measurements-in-orthodontics-or-how-standard-deviations-can-sometimes-be-the-practitioners-false-friends-part-1/ACEE13FF9BD566F6577CAC9E151C4265 : cohorte 83 jeunes adultes Classe I non traités, extrêmes statistiques pertinents ; ne pas généraliser les référentiels sans provenance.
+
+**Mesures réellement lisibles sur la fiche et règles source-bound candidates** :
+- `COM_OVERJET` surplomb normal **1,5–3 mm** ; `COM_OVERBITE` recouvrement normal **1,5–3 mm**. Si valeur fiable >3 : « supérieur à la plage imprimée » ; ne pas diagnostiquer sa cause automatiquement.
+- `COM_L1_MAND_ANGLE` normale **90°±5° = [85;95]**, compensation **[80;100]**. Trois états distincts : dans normale centrale, hors normale mais dans compensation, hors compensation. Exemple **98°** ⇒ **hors centrale / dans compensation**, sans étiquette pathologique.
+- `COM_U1_FRANKFORT_ANGLE` normale **107°±5° = [102;112]**, compensation **[97;120]**. Idem. Exemple **104°** ⇒ dans centrale.
+- `COM_INTERINCISAL` moyenne imprimée **131°**, compensation **120–142°** ; chiffre `±` central peu lisible, statut **SOURCE_UNCLEAR / ne pas activer** la centrale sans photo originale plus nette.
+- `COM_TWEED_ANGLE` référence **26°±4° = [22;30]**. Exemple 33° confirmé ⇒ supérieur de **3°** à la borne de la fiche ; ne pas annoncer automatiquement « hyperdivergent » avant définition exacte de la construction.
+- `COM_APRIME_BPRIME` plage **9 ans [1;7,4] mm**, **adulte [−0,8;5,4] mm** ; `COM_A_NVERT` 9 ans [−0,5;6,1], adulte [−0,7;5,3] mm ; `COM_B_NVERT` 9 ans [−6;3], adulte [−4,9;4,9] mm ; `COM_S_NVERT` 9 ans [56,3;66,3], adulte [65,3;75,3] mm. **Ne pas** interpoler silencieusement ces références à un enfant de tout âge en denture mixte et ne pas utiliser les mm sans calibration pertinente.
+
+**Règles conditionnelles multi-variables** :
+1. `A_NVERT=+7` et `B_NVERT=−8` **chez un adulte relevant explicitement des références du tableau** ⇒ deux constats : A au-dessus de +5,3 ; B au-dessous de −4,9 ; suggérer au plus **« décalage sagittal des bases à explorer, notamment par A'B' et examen clinique »**. L'annotation manuscrite « Type II » présente sur la fiche n'établit **pas** les seuils de déduction automatique I/II/III. Règle de typologie `DISABLED_UNTIL_SCIENCE_LOCK`.
+2. `surplomb=8` mm confirmé et `L1_MAND_ANGLE=98°` qualifié ⇒ deux constats séparés (« surplomb augmenté », « inclinaison dans zone de compensation »), **sans** affirmer que la compensation explique le surplomb.
+3. `U1_FRANKFORT=104°` et `L1_MAND=98°` ⇒ normale centrale de la première mesure et compensation de la seconde, pas de diagnostic automatique de compensation osseuse.
+4. Si point ou plan mal identifié, mm non calibrés, norme d'âge non admissible, protocole non sélectionné ou champ manquant, **état non calculable** et aucune conclusion « normal ».
+5. Un changement de point/radio/calibration/norme/groupe d'âge/valeur **invalide uniquement les constats, hypothèses et diagnostics dépendants** ; revue praticien obligatoire avant réactivation dans le PDF.
+
+**Contrat Step3 UX** : chaque constat montre valeur, unité, plages centrale et compensation avec source/date/version/population, résultat et bouton « Pourquoi ? » ⇒ points et tracés radio surlignés. Les hypothèses multi-mesures sont marquées **SUGGÉRÉ / À CONFIRMER**, acceptables/rejetables/éditables avec justification ; seuls diagnostics validés par praticien entrent comme tels dans résumé et bilan, sinon laisser les hypothèses distinctes. Textes modèles médicaux **versionnés et revus**, sans génération libre et sans seuil médical hardcodé dans la présentation ; tokens de thème global, pas d'hex local.
+
+**FUE futurs (NON RUN)** : R01–R02 valeurs frontières normale/compensation ; R03 surplomb >3 ; R04 33° au-dessus de Tweed ; R05 A7 et B−8 avec adulte applicable ⇒ 2 constats et hypothèse pas « Type II » autonome ; R06 âge non couvert (ex. 12 ans) ⇒ pas de norme inventée ; R07 défaut mm/landmarks ⇒ NC ; R08 correction ⇒ `A_REVALIDER` ; R09 interincisal centrale illisible ⇒ blocage ; R10 COM distinct Steiner, thème, zoom 200%, captures BEFORE/AFTER et signature clinicien.
+
+**STATUT** : CANDIDATE / SCIENTIFIC_SOURCE_LOCK_PENDING / NO_CODE / NO_MERGE / NO_DEPLOY / NO_FUE_RUN. **NEXT** : approuver cette architecture de suggestions et obtenir la page de la fiche contenant les critères originaux de classification des décalages osseux types I, II et III ; puis finaliser Step3 et passer à Step4. **Dernière mise à jour canonique : 06/11/2026 — POST §70 règles COM.**
+
+
+### 71. PRE — 2026-11-06 — Recherche source COM/CRANIOM : types osseux I, II, III par A'B' (SPEC ONLY)
+
+**Mission** : « Okay go » après demande de retrouver la règle de classification squelettique A'B' puis approfondir le diagnostic COM. Le choix deux analyses COM Digital Crown + Steiner 1953/1959 ne change pas ; aucun code ni GO clinique.
+
+**Baseline** : PR #1213 OPEN/DRAFT, HEAD avant PRE `9e5651e168a04ae0e02ea198393009a1fddadef8`, présent canonique §70 POST relu. Notion PRE74 enregistré. L'ancien statut `TYPE_I_II_III_DISABLED_UNTIL_SCIENCE_LOCK` provenait d'un manque de sources de typologie, pas d'une impossibilité fondamentale.
+
+**Nouvelles sources documentaires** : TP SLOT « Téléradiographie, céphalométrie et DDM », p.27 https://www.slot-concept.com/bases/slot_communication_pdf/7/fichier.pdf, mesure A'B' = A et B projetés orthogonalement sur Francfort, intervalles 9 ans [1 ; 7,4] mm, adultes [-0,8 ; 5,4] mm ; et transcription d'un exposé de méthode CRANIOM https://fr.scribd.com/document/795096178/Fi-Chier (section classification osseuse, environ lignes 1000–1042) explicitant : type I entre +1 et +7,4 mm à 9 ans, type II si >+7,4, type III si <+1 à 9 ans ; type III si <-0,8 adulte. Adulte >+5,4 = type II par extension symétrique du tableau, à marquer `INTERPRETATION_A_CONFIRM` tant que seuil adulte explicite en toutes lettres n'est pas trouvé. Convention + = A antérieur à B, - = inverse.
+
+**Limites preuves** : screenshot PDF via web tenté p.26 et 31 → erreurs cache miss, donc source PDF uniquement par texte indexé ; Scribd est une reproduction tierce, non la publication éditeur authentifiée. Les normes de la fiche COM photographiée ne sont pas identiques à tous les tableaux CRANIOM pédagogiques : stocker profil/version par source, ne pas écraser 90°±5 et compensation 80–100 par extrêmes CRANIOM 78–114. Publication Bonnefont 2010/2011 = cohorte de 83 jeunes adultes Classe I ; ni norme universelle ni population marocaine validée.
+
+**GOAL** : matrice explicite des seuils, états `TYPE_PROPOSE` vs `CONFIRME`, retenue proche des bornes, conventions, absence de calibration, âge/interpolation, classification dent vs os et règles causales A/B prudentes. FUE ciblées définies NON RUN. **GATE** : SPEC_ONLY, no code, merge, Vercel, patient, ni activation de diagnostic autonome.
+
+
+### 71. POST — 2026-11-06 — CLASSIFICATION CRANIOM/COM A'B' sourcée : type osseux I / II / III (SPEC ONLY)
+
+**Résultat RECHERCHE / MAJ du verdict §70** : une source pédagogique spécifique CRANIOM décrivant explicitement la typologie I/II/III a été retrouvée, et corroborée par un second support présentant les normes par âge. Il n'est plus correct de dire que la source de **toute** classification manque : les critères **9 ans** sont explicites. Cette découverte constitue **une avancée de couverture documentaire**, pas une approbation clinique de toutes les populations ni une preuve que l'implémentation actuelle sait mesurer A'B' en mm.
+
+**Sources et niveau de preuve** :
+- TP SLOT « Téléradiographie, repérage de structures, céphalométrie et DDM », support CRANIOM p.27, https://www.slot-concept.com/bases/slot_communication_pdf/7/fichier.pdf, texte indexé lignes 878–889 : `A'B'` est la projection orthogonale des points **A et B** sur le plan de **Francfort (Po–Or)** ; à **9 ans** moyenne +4,2 ±3,2 et plage **[+1 ; +7,4] mm** ; **adulte** moyenne +2,3 ±3,1 et plage **[−0,8 ; +5,4] mm** ; rubrique « Type I ; Type II Type III ».
+- Document pédagogique CRANIOM détaillé reproduit sur Scribd « Méthode innovante en céphalométrie orthodontique », https://fr.scribd.com/document/795096178/Fi-Chier, texte lignes ~1000–1040 : si A en AVANT B, `A'B'` positif ; **à 9 ans** type I pour +1 à +7,4 ; type II au-delà de +7,4 ; type III en deçà de +1. Le texte cite aussi `−0,8` comme limite inférieure adulte, mais le seuil `>+5,4` du type II adulte est **inféré de la plage du TP**, non confirmé explicitement en prose dans le passage cité. Scribd est reproduction tierce, à ne pas présenter comme original éditeur authentifié.
+- Contexte scientifique : Bonnefont, Casteigt, Ernoult, Sorel (2010/2011), https://www.cambridge.org/core/journals/journal-of-dentofacial-anomalies-and-orthodontics/article/abs/new-method-for-the-utilization-of-cephalometric-measurements-in-orthodontics-or-how-standard-deviations-can-sometimes-be-the-practitioners-false-friends-part-1/ACEE13FF9BD566F6577CAC9E151C4265, cohorte de **83 jeunes adultes Classe I**, présentation osseuse comme **typologie** et non anomalie pathologique. Attention : les références à **9 ans** des supports pédagogiques ne doivent pas être attribuées sans preuve à cette cohorte de jeunes adultes.
+- Les appels `web.run screenshot` du PDF TP aux pages 26 et 31 ont échoué `cache miss`; le contenu texte/index a été consulté, **aucune capture originale de ces pages n'est revendiquée**. La photo COM fournie par praticien reste une source spécifique et non la garantie de version CRANIOM exhaustive.
+
+#### 71-A — Tableau de règles pédagogiques candidates, référentiel versionné obligatoire
+
+| Profil normatif choisi | `A'B'` calculable, même plan/cliché, mm signés | Résultat typologique `PROPOSE` |
+|---|---|---|
+| **référence 9 ans explicitement justifiée** | `A'B' < +1 mm` | `TYPE_III_PROPOSE` |
+| idem | `+1 <= A'B' <= +7,4 mm` | `TYPE_I_PROPOSE` |
+| idem | `A'B' > +7,4 mm` | `TYPE_II_PROPOSE` |
+| **référence adulte explicitement justifiée** | `A'B' < -0,8 mm` | `TYPE_III_PROPOSE` par grille du TP et texte Scribd |
+| idem | `−0,8 <= A'B' <= +5,4 mm` | `TYPE_I_PROPOSE` via plage adulte, **mapping de type** à valider cliniquement |
+| idem | `A'B' > +5,4 mm` | `TYPE_II_PROPOSE` par extrapolation explicite du seuil supérieur du tableau adulte, **règle en attente de validation clinique** |
+| **âge/référentiel intermédiaire NON SOUCÉ (ex. denture mixte 12 ans)** | toutes valeurs | `REFERENCE_AGE_NON_ETABLIE` : pas de classification chiffrée produite silencieusement. |
+
+**Convention géométrique et test de cohérence source** : choisir `x` antérieur positif sur le vecteur unitaire Francfort, points A et B anatomiquement certifiés : `A'B' = dot(A−B, unit_Frankfort) × scale_mm`. Si les distances séparées **A/N-verticale** et **B/N-verticale** ont effectivement été mesurées comme coordonnées sagittales sur **la même verticale de Nasion perpendiculaire à Francfort**, alors `A'B' = A_NVERT - B_NVERT` au même facteur d'échelle. Ne **jamais** déduire l'identité à partir de deux valeurs provenant de clichés/repères/signaux différents ; la comparaison direct/indirect est un **contrôle de cohérence**, pas un bypass de calibration. Po–Or, A/B et étalonnage mm sont nécessaires et indépendamment source-verrouillés.
+
+**Exemple SYNTHÉTIQUE adulte et préconditions satisfaites** : `A_NVERT=+7 mm` et `B_NVERT=−8 mm` (même cliché, référentiel et signe) ⇒ `A'B'=+15 mm`, valeur > +5,4 ; **TYPE II SQUELETTIQUE PROPOSÉ** selon grille adulte pédagogique, **non diagnostic confirmé**. Les deux contributions positionnelles A et B sont également hors de leurs intervalles adultes respectifs, ce qui justifie **une revue des deux positions maxillo-mandibulaires** ; ne pas assigner automatiquement « rétrognathie causale mandibulaire » ou thérapie, le référentiel crânien et l'examen facial doivent être analysés. Un A'B' de +15 mesuré directement doit concorder avec la recomposition, sinon bloquer.
+
+**Attention mesures proches des seuils** : le texte CRANIOM discute une imprécision possible de l'ordre de 2 mm sur les distances linéaires et 3° sur les mesures angulaires, **ce qui est une assertion des auteurs et non une tolérance validée par notre ONNX/métrologie**. Digital Crown doit paramétrer un `REVIEW_BORDERLINE` à partir de l'incertitude réelle qualifiée et d'un profil source-versionné ; **ne pas hardcoder ±2 mm sans étude de précision**. Les états d'intervalle/arrondi doivent respecter les valeurs non arrondies et afficher les valeurs de mesure.
+
+#### 71-B — Conclusion fonctionnelle Step3 : moteur à trois niveaux
+
+1. **AUTO_FACT** : A'B' signé en mm et référence/qualité visibles ; code de plage et distance à la borne ; si hors âge/calibration/sources/points indisponibles, `NON_CALCULABLE` ou `REFERENCE_NON_ETABLIE`.
+2. **RULE_SUGGESTION** : typologie I/II/III issue de la table **si source et profil d'âge approuvés**, marquée `SUGGESTION_TYPLOGIQUE` + bouton « Pourquoi ? » montrant la ligne sourcée et le tracé Po–Or/A/B. Bords/incertitude = `A_CONTROLER`, jamais classification silencieuse.
+3. **CLINICIAN_SIGNOFF** : praticien accepte, modifie ou rejette, après examen occlusal, facial, fonctionnel et autres mesures. **TYPE SQUELETTIQUE** distinct de la **CLASSE DENTAIRE** ; aucune conclusion thérapeutique automatiquement dérivée. Seul le résumé diagnostique signé affiche `diagnostic confirmé`.
+4. **Règles combinées COM** : quand A'B' propose II et positions A/B hors bornes compatibles, proposer une **synthèse nuancée** (« décalage sagittal de type II avec positions maxillaire/mandibulaire à analyser ») et montrer les deux facteurs ; si données discordantes, alerter, pas classer un type sur la seule annotation manuscrite. Si des éléments cliniques sont absents, conserver `HYPOTHESE`, non un diagnostic définitif.
+5. **Versions normatives distinctes** : le tableau COM utilisateur (ex. i/mandibulaire 90±5 et compensation 80–100) **diffère** de références CRANIOM plus tardives (extrêmes 78–114 pour incisive inférieure, 97,5–130,1 pour supérieure). Ne pas fusionner ces plages : profil `COM_FICHE_PRATICIEN` vs référence pédagogique `CRANIOM_COURSE` identifiables, sélection/version explicites ; ne pas activer 9 ans comme norme générale des enfants.
+
+#### 71-C — Batterie FUE de décision/QA (NON RUN)
+
+- `COM-TYP01` 9 ans `0,9/1,0/7,4/7,5` mm ⇒ III/I/I/II sous tolérances strictement documentaires, jusqu'à revue des limites frontières.
+- `COM-TYP02` adulte `−0,9/−0,8/5,4/5,5` mm ⇒ III/I/I/II **candidat mapping adulte soumis validation scientifique/clinique**.
+- `COM-TYP03` 12 ans denture mixte sans modèle d'âge adapté ⇒ `REFERENCE_NON_ETABLIE`, pas de classe auto.
+- `COM-TYP04` A +7, B −8, même référentiel ⇒ A'B' +15 ; si mesure directe diverge hors incertitude qualifiée ⇒ `CONFLICT`, diagnostic bloqué.
+- `COM-TYP05` photo/radio sans mm, Po/Or/A/B incorrects, interpolation pixel sans métrologie ou visage tourné ⇒ `NON_CALCULABLE` avec explication.
+- `COM-TYP06` seuil très voisin, erreur de repères/inférence non quantifiée ⇒ `A_CONTROLER`, pas de validation silencieuse.
+- `COM-TYP07` même classe molaire / type osseux discordants ⇒ champs séparés, pas de diagnostic harmonisé automatiquement.
+- `COM-TYP08` changer normes/version/âge/point/calibration ⇒ invalidation transitivement correcte, conservation historique, résumé PDF `A_REVALIDER`.
+- `COM-TYP09` différences de profils incisifs de la photo COM vs tables CRANIOM : blocage mélange de sources, jamais remplacement de normes.
+- `COM-TYP10` textes explicables, sources et état humain, accessibilité 390/430/768/1280 + zoom 200%, token thème global, aucun LLM/runtime patient dans les FUE; captures BEFORE/AFTER et accord utilisateur requis.
+
+**VERDICT/GATE** : la règle **9 ans** est désormais **SOURCE_FOUND / CANDIDATE**, sa qualification clinique et métrologique reste **NON APPROUVÉE**. Mapping **adulte** logique d'après les bornes, mais **SOURCE_EXPLICITNESS_GAP** pour la borne supérieure de type II et validations cliniques. Le choix « COM Digital Crown + Steiner 1953/1959 » reste intact, aucune nouvelle norme actée par défaut ni implémentation. **NEXT** : proposer au praticien ce moteur de typologie COM en suggestion avec critères visibles, puis finir Step3 et commencer Step4 Plan/Bilan après décision. **Dernière mise à jour canonique : 06/11/2026 — POST §71, typologie osseuse COM sourcée.**
+
+
+### 72. PRE — 2026-11-06 — Step4 Plan de traitement et Bilan : contrat fonctionnel (SPEC ONLY)
+
+**Reprise** : suite au §71 POST CRANIOM/COM, l'utilisateur demande de poursuivre. Le périmètre demeure **atelier de spécification**, sans nouvelle approbation de seuil clinique, ni code produit, ni données patient. Notion **PRE75** enregistré avant cette passe.
+
+**Baseline** : PR #1213 OPEN/DRAFT ; branche `test/ceph-v1-facad-two-public-radios-20261105` ; HEAD avant cette passe `d52ac327380f2f14d8c93b4ba410ad177bb6b8aa`. Contrat du §69 Step3 = liste de problèmes + diagnostic et résumé éditables ; §64–68 DDM clinique/céphalo/réelle et décisions incisives sont documentés ; §71 type squelettique proposé seulement et mapping adulte non approuvé. Aucun nouveau FUE COM exécuté.
+
+**GOAL observable** : établir exactement ce que Step4 reçoit de Step1/2/3, ce qui reste à confirmer par le praticien, la séparation décision diagnostique versus thérapeutique, le flux `Plan → Créer bilan → Aperçu → Valider/archiver`, l'invalidation et une batterie FUE vérifiable. **STOP** : ne pas générer un plan à partir du seul type I/II/III ni forcer un diagnostic final par défaut. **GATE** : SPEC_CANDIDATE / HUMAN_APPROVAL_REQUIRED / NO_RUNTIME / NO_MERGE / NO_DEPLOY / FUE_NOT_RUN.
+
+
+### 72. POST — 2026-11-06 — Step4 Plan de traitement et Bilan : contrat de bout en bout (SPEC ONLY)
+
+**Verdict atelier** : Step4 peut être **conçu** sans prescrire automatiquement. Il est alimenté par des objets cliniques versionnés et des constats identifiés, mais il ne transforme jamais une catégorie squelettique COM, un ANB, une DDM ou une classe dentaire en décision thérapeutique. La confirmation Step3, la validation du plan et l'approbation du document sont **trois actions distinctes**, imputables au praticien, non à un calcul automatisé. Ceci est une **proposition de fonctionnement, pas une approval propriétaire du design**.
+
+#### 72-A — Entrées et restrictions
+
+| Source | Ce que Step4 peut afficher | Ce qui est interdit ou demeure conditionnel |
+|---|---|---|
+| **Step1 — téléradiographie et mesures** | Cliché/étude et date, analyse choisie (duo V1 **COM Digital Crown** / **Steiner 1953/1959**), points/mesures fiables, unités, calibration, corrections et provenance ; valeurs non calculables explicitées | Aucun mm à partir de JPEG non étalonné, aucune norme d'âge implicite, aucun « normal » pour donnée absente ; ne pas appeler « analyses complètes » des profils à mesures manquantes |
+| **Step2 — moulages / examen occlusal** | Denture, arcade, ED/EN, encombrement, Spee, DDM **clinique / correction céphalo / réelle**, statut estimé versus mesuré, côté droit/gauche, observations fonctionnelles réellement relevées | Pas de DDM réelle chiffrée si composante / unité / signe / méthode / objectif incisif requis manque ; pas de double compte Spee ou du leeway ; pas de conversion classe dentaire → type osseux |
+| **Step3 — diagnostic** | Liste de problèmes ordonnable, constats sourcés, hypothèses distinguées, diagnostic et résumé explicitement **confirmés** par clinicien, auteur/date/version et éventuels conflits | Une suggestion COM A'B' de type II ne devient **jamais** un diagnostic confirmé sans action praticien ; mapping adulte I/II/III reste science-lock pending ; âge non couvert = référence non établie |
+| **Décision humaine** | Objectifs, options, arbitrages, étapes, risques, besoins interdisciplinaires, contrôle et contention **saisis ou approuvés par le praticien** | Ne pas autopréconiser extraction, stripping, expansion, distalisation, chirurgie, appareillage, indication radiologique, objectifs incisifs ou durée sur un seuil céphalo |
+
+**Contrat de provenance minimal** pour toute donnée diagnostique affichée : ID d'étude, date de cliché, version de la mesure et du tracé, méthode/formule, calibration/unité/signe, référence normative (source/version/âge/population/applicabilité), état de vérification, état de validation humaine, lien vers la construction ou observation originelle. Si élément critique manque : champ **NON ÉVALUABLE**, **NON CALCULABLE**, **REFERENCE NON ETABLIE** ou **À REVALIDER** ; ne jamais afficher « zéro » comme remplacement d'absence.
+
+#### 72-B — Plan de traitement : édition clinique (pas recommandations cachées)
+
+**Proposition d'écran, trois blocs** :
+
+1. **Problèmes retenus** — reprendre uniquement les constats et diagnostics confirmés depuis Step3, avec possibilité de consulter les suggestions séparément sans les promouvoir automatiquement. Priorisation, résumé et source restent consultables et modifiables par un praticien autorisé ; toute modification du diagnostic est tracée.
+2. **Objectifs définis par le praticien** — par problème retenu : objectif clinique formulé par le praticien, contexte biologique/croissance si connu, limitations et préférence du patient documentée lorsqu'elle existe. Aucun objectif prérempli comme vérité médicale par le moteur.
+3. **Stratégie et suivi** — options/alternative(s), choix raisonné par le praticien, séquence thérapeutique, gestion des risques et des incertitudes, coopérations interdisciplinaires/avis externes quand documentés, contention/suivi à décider, information et consentement dans leur propre état. Aucun mode de traitement n'est choisi par défaut en fonction d'une typologie ou d'une DDM.
+
+**Actions** : Enregistrer brouillon ; Retour au diagnostic ; Ajouter/modifier objectif ; Documenter alternative ou risque ; **Valider le plan** (action nominative distincte, horodatée et auditée). Un diagnostic confirmé **n'autorise pas** à déduire une signature du plan. Un plan peut rester **NON DÉCIDÉ** sans empêcher de sauvegarder les constats diagnostiques.
+
+#### 72-C — Bilan orthodontique et documents
+
+**Parcours fonctionnel candidat** :
+\`Données sources Step1/2 → Step3 liste de problèmes et résumé → Step4 Plan (brouillon ou validé) → Créer bilan → Aperçu → Vérification des éléments → Valider/signature clinique → Archiver une version\`.
+
+**Sections proposées du Bilan** : (a) identification patient dans stockage cabinet seulement ; date et motif documentés, (b) examens cliniques réellement renseignés et examens non effectués explicités, (c) examen d'imagerie et qualité/calibration, (d) mesures retenues et profils normatifs versionnés avec limites, (e) occlusion et modèles avec DDM clinique/céphalo/réelle par arcade quand calculables, (f) problèmes, éléments discordants et diagnostic confirmé par praticien, (g) plan thérapeutique **uniquement si décidé/validé**, sinon libellé « plan non arrêté », (h) date/version/auteur/signature et mentions de statut. Le résumé lisible n'efface jamais les réserves nécessaires.
+
+**Deux rendus conditionnels, sans se contredire** : dossier détaillé cabinet avec provenance des calculs et incertitudes ; bilan communicable signé par praticien, qui omet par défaut les hypothèses non validées et les suggestions de classe. Un **brouillon PDF** est clairement estampillé *BROUILLON — NON VALIDÉ*. L'aperçu n'est ni signature ni archivage. Un bilan diagnostique peut être validé séparément si le praticien n'a pas encore décidé le plan : il porte alors explicitement **« plan non arrêté »**, jamais un plan vide présenté comme thérapeutique approuvée.
+
+**Version et invalidation** : modifier photo/tracé, point, calibration, âge/profil de norme, DDM, objectif incisif ou observation entraîne un recalcul **transitif ciblé** des mesures, constats, propositions et bilans **dépendants** et leur passage à \`A_REVALIDER\`; l'ancien document signé reste **archive historique immuable** avec état \`REMPLACE / RÉVISION REQUISE\` selon le motif, jamais réécrit silencieusement. Un nouveau bilan nécessite un nouvel aperçu et une nouvelle signature. Les mesures indépendantes ne sont pas invalidées sans raison. Historique utilisateur/date/ancienne et nouvelle version requis.
+
+**Interdits transversaux** : aucune donnée patient dans GitHub, Notion, artefacts CI ou moteur distant ; application local-first et ZERO LLM runtime ; permissions cabinet/clinicien applicables à chaque lecture, modification, signature et export. UI : tokens sémantiques du thème uniquement, pas de couleurs codées en dur.
+
+#### 72-D — Écran fictif de cohérence (aucune donnée réelle)
+
+**Mesures synthétiques d'un adulte** : A/N-verticale = +7 mm, B/N-verticale = −8 mm, même cliché, même plan Francfort, étalonnage crédible, points corrects ⇒ A'B' = +15 mm. Une ligne Step3 peut montrer **« type squelettique II suggéré selon grille adulte pédagogique CRANIOM — mapping adulte à confirmer scientifiquement »**, **NON VALIDÉ**. Le plan Step4 **reste vide** tant que le praticien ne saisit pas ses décisions. Si les seuils adultes ne sont pas approuvés, **aucune classe II ne doit transiter comme diagnostic confirmé**, même en présence de +15 mm ; la mesure sagittale peut figurer parmi les données avec sa réserve. Classe molaire observée sur moulages demeure un champ différent. Un PDF de diagnostic non validé est un brouillon, non un document clinique signé.
+
+#### 72-E — Machine d'états proposée, à valider fonctionnellement
+
+| Élément | États autorisés candidats | Transition protégée |
+|---|---|---|
+| Constat mesuré | \`VERIFIED_TECH\` / \`NON_CALCULABLE\` / \`A_CONTROLER\` | seulement après contrôle de sa provenance et métrologie ; techniquement fiable ≠ validé cliniquement |
+| Hypothèse typologique | \`SUGGERE\` / \`REJETE\` / \`A_REVALIDER\` | source/population approuvées et acceptation humaine avant diagnostic |
+| Diagnostic Step3 | \`BROUILLON\` / \`CONFIRME_PRATICIEN\` / \`A_REVALIDER\` | signature nominative ; changements amont rebasculent le dépendant |
+| Plan | \`NON_DECIDE\` / \`BROUILLON\` / \`VALIDE_PRATICIEN\` / \`A_REVALIDER\` | aucune transition automatique depuis le diagnostic |
+| Bilan / PDF | \`BROUILLON\` / \`APERCU\` / \`SIGNE_ARCHIVE\` / \`REMPLACE\` | signature et snapshot des preuves ; jamais transformer aperçu en final automatiquement |
+
+Les noms de ces états sont **spécification indicative**, à réconcilier avec les types/API/DB réels avant tout code. **Décision design à soumettre au propriétaire** : privilégier « liste de problèmes → objectifs de traitement manuels → choix de stratégie → bilan prévisualisé » plutôt qu'un générateur de plan à partir des classes COM.
+
+#### 72-F — Batterie FUE Step4 (à exécuter, NON RUN)
+
+1. **PT-01** : typologie COM 9 ans proposée et non confirmée ⇒ Step4 ne renseigne **aucune** thérapeutique et bilan final n'affirme pas « diagnostic confirmé ».
+2. **PT-02** : adulte A'B' +15, mapping adulte non approuvé ⇒ mesure conservée, type II **non promu** à diagnostic signé.
+3. **PT-03** : denture mixte 12 ans sans norme source ⇒ \`REFERENCE_NON_ETABLIE\` visible dans Step3, aperçu et bilan.
+4. **PT-04** : DDM clinique présente mais correction céphalo inconnue ⇒ DDM réelle **NON CALCULABLE**, pas de zéro ni simple copie clinique.
+5. **PT-05** : classes molaire gauche/droite discordantes et hypothèse osseuse différente ⇒ domaines séparés, ni erreur forcée ni traitement auto.
+6. **PT-06** : confirmer diagnostic puis enregistrer plan non décidé ⇒ diagnostic signé distinct, plan \`NON_DECIDE\`, bilan diagnostique possible avec mention explicite.
+7. **PT-07** : créer et modifier un plan brouillon ⇒ objectifs, alternative et risques manuels conservés ; aucun protocole d'extraction/expansion/stripping préchoisi.
+8. **PT-08** : changement de calibration, Po/Or/A/B ou référentiel COM après signature ⇒ descendants seulement \`A_REVALIDER\`, archive signée immuable, nouvel aperçu/signature requis.
+9. **PT-09** : aperçu du PDF ≠ validé ; export final sans autorisation ou sans signature ⇒ refus, pas d'artefact clinique final.
+10. **PT-10** : parité valeur/unité/source/statut entre UI, API, stockage local et PDF ; source absente = refus explicite.
+11. **PT-11** : cabinet/utilisateur non autorisé ne peut lire, valider ni exporter le bilan d'autrui ; aucune PHI dans logs/CI/Notion/GitHub.
+12. **PT-12** : parcours à 390/430/768/1280, zoom 200 %, clavier/focus, thèmes à tokens hérités ; captures BEFORE/AFTER authentiques et validation humaine de l'UX si implémentée.
+
+**GATE réel** : **SPEC_ONLY / STEP3_DIRECTION_UNAPPROVED / ADULT_COM_MAPPING_UNAPPROVED / HUMAN_CLINICAL_APPROVAL_REQUIRED / FUE 0/12 EXECUTED / NO_RUNTIME / NO_MERGE / NO_VERCEL**. La spécification ne prouve pas l'existence en production de ces états, écrans, signaux ni documents. Même des tests futurs verts ne constitueraient pas une validation clinique. L'activation dépendra d'un lot d'implémentation séparé, d'oracles indépendants, d'une revue clinique et de la décision du praticien.
+
+**NEXT exact** : faire valider les deux choix fonctionnels « Step3 liste de problèmes + résumé éditable » et « Step4 objectifs/stratégie manuels, bilan diagnostique possible sans plan », puis seulement établir les contrats API/UI/DB/PDF et sélectionner un FUE-I/G exécutable. **Dernière MAJ canonique : 06/11/2026 — POST §72, Step4 Plan et Bilan candidat.**
+
+
+### 73. PRE/POST — 2026-11-06 — Nouveau contrat PDF Bilan orthodontique professionnel (SPEC ONLY)
+
+**Instruction clinique propriétaire** : « Le PDF doit être professionnel et scientifiquement correct ; il ne doit pas montrer ce qui ne marche pas, plutôt ce qu'on a fait pour arriver à ce diagnostic et à ce plan de traitement. » La demande impose de **séparer un rapport clinique lisible du journal technique**, mais ne justifie **jamais** de masquer une incertitude **déterminante** pour la sécurité d'une conclusion.
+
+**PRE baseline vérifiée** : PR #1213 OPEN/DRAFT à HEAD \`576528ccd9a08814d8cfe69eefc0de31f6658fd7\`, §72 POST ; Notion PRE78. Document FUE-P2 réel : \`15_Bilan_Synthetique_Brouillon_Non_Signe.pdf\`, **quatre pages**, format A4 ; page 1 affiche identité « Dr. Nom Prénom », patient synthétique, « document incomplet », tracé absent, puis liste brute ; pages 1-3 contiennent COM DC legacy / Tweed / Steiner / McNamara / Ricketts / Downs, valeurs non qualifiées, doublons, « méthode non précisée » et « non calculable ». Page 4 : examen des moulages / diagnostic / plan tous non validés. Ceci est **un artefact de smoke-test technique**, **pas** un document clinique professionnel acceptable. \`backend/services/cephalo_pdf_projection.py\` comporte une projection typée avec contrôle fail-closed ; l'UI renderer doit impérativement filtrer et hiérarchiser plutôt que vider indistinctement sa payload brute dans le PDF.
+
+**Références d'organisation (benchmark, pas normes marocaines obligatoires)** : AAPD, Management of the Developing Dentition and Occlusion in Pediatric Dentistry, révision 2024 : examen clinique, enregistrements diagnostiques, synthèse de problèmes, objectifs et plan séquentiel ; https://www.aapd.org/research/oral-health-policies--recommendations/management-of-the-developing-dentition-and-occlusion-in-pediatric-dentistry/ ; AAPD, Recordkeeping, mise à jour 2026 : https://www.aapd.org/research/oral-health-policies--recommendations/record-keeping/ ; British Orthodontic Society, Orthodontic Records: Collection and Management (2022), section 5, consultation et décisions reconstructibles, alternatives/risques, plan et auteur : https://bos.org.uk/wp-content/uploads/2023/06/Records-Advice-Sheet-new-version-30-11-2022-2.pdf.pagespeed.ce.eCe2jfeSmq.pdf. La copie PDF BOS a pu être consultée textuellement mais le screenshot distant a retourné un cache miss : pas de certification de la mise en page de la source.
+
+#### 73-A — Deux sorties distinctes, aucune vérité inventée
+
+| Flux | Destinataire et objectif | Contenu | Statut |
+|---|---|---|---|
+| **BILAN CLINIQUE** (document final) | Patient/correspondant et archive cabinet : exposer **comment les observations conduisent au diagnostic puis aux objectifs et au traitement choisi** | Données confirmées pertinentes ; méthodes et mesures **sélectionnées**, diagnostic signé, raisons des objectifs, options/risques pertinents, stratégie décidée et suivi, identité/date/version/signature | Générable uniquement sur gate clinique et autorisation ; zéro moteur prescripteur |
+| **ANNEXE CLINIQUE DE PREUVES** (interne, option export professionnel ciblé) | Clinicien / audit du dossier : pouvoir reconstruire ce qui a fondé une décision | Référence à étude, clichés, points, méthodes et versions, âge/population/calibration, mesures source retenues, corrections, alternatives, désaccords, historisation, décisions signées | RBAC ; ne pas exposer par défaut au patient ni aux artefacts CI |
+| **JOURNAL TECHNIQUE** (local) | Diagnostic du logiciel, QA et support | Erreurs d'upload, pointeurs manquants, chemins internes, IDs legacy, listes de méthode bloquées, statut réseau, logs, CI | Jamais introduit dans le bilan clinique ; confidentialité et accès contrôlés |
+
+#### 73-B — Ordre du bilan patient cible
+
+**Page 1 — Bilan diagnostique argumenté** :
+1. En-tête cabinet authentique/configurable, identité patient, date et praticien. Aucun placeholder « Dr Nom Prénom » dans un document signé.
+2. Motif et contexte cliniquement documentés, concis.
+3. **Éléments de preuve retenus** sous 3 à 4 blocs : examen clinique facial/intraoral/fonctionnel, modèles/occlusion et DDM par arcade si applicables, imagerie, 2 à 5 mesures de l'analyse V1 **explicitement sélectionnée** (COM Digital Crown **ou** Steiner 1953/1959). Conserver nom de mesure, valeur, unité et une méthode/reference brève quand utile ; jamais un dump multidiscipline ni une série brute par défaut.
+4. **Raisonnement** : constat 1 + constat 2 + correspondance ou divergence pertinente ⇒ interprétation prudente, documentée, éditable/confirmée par praticien. Ne pas présenter corrélation comme causalité.
+5. **Diagnostic retenu** : description osseuse / dento-alvéolaire / occlusale / fonctionnelle suivant preuves et disponibilité, problème principal et problèmes associés hiérarchisés ; signature clinique requise. Typologie COM adult I/II/III non approuvée ne peut y entrer automatiquement.
+
+**Page 2 — Plan thérapeutique justifié** (uniquement si plan clinique **validé distinctement**) :
+6. Tableau compact **problème confirmé → objectif du praticien → critère clinique de suivi**.
+7. Technique/option retenue **rédigée et validée par le praticien** avec raison explicite, contraintes/préférences pertinentes, alternatives effectivement discutées, bénéfices/risques et réserves déterminantes.
+8. Séquence par phases **réelles** seulement (préparation, active, finition, contention et contrôles si effectivement décidées), indicateurs de suivi, adaptation si nécessaire.
+9. Information/consentement selon processus cabinet, auteur, date, version, signature. Signature d'un bilan **≠** consentement au traitement si consentement requis séparément.
+
+**Ne jamais forcer deux pages** si le contenu justifié ne tient pas lisiblement ; pagination A4 automatique sans tableau coupé ni taille microscopique. Les sections optionnelles non pertinentes sont omises plutôt que remplies de « non calculable ». Le gabarit et les accents visuels **héritent de tokens globaux de thème** dans l'implémentation, jamais de couleurs de module codées en dur. Le prototype autonome joint à la conversation est uniquement une **maquette illustratrice** ; il n'implémente pas les tokens de Digital Crown.
+
+#### 73-C — Filtrage scientifique fail-closed (règle de priorité)
+
+1. **Mesure valide et pertinente** : afficher uniquement si image/repères/calibration quand nécessaire, méthode/signature/unité, profil normatif, version et plausibilité/contradictions sont vérifiés **au niveau nécessaire pour soutenir la conclusion** ; sélection et autorité cliniques tracées. Pas d'angle ou de mm « legacy » sans méthode ni de valeur invraisemblable utilisée comme preuve.
+2. **Élément facultatif indisponible et non utilisé pour diagnostiquer** : omission du PDF patient (pas « non calculable »/« méthode non précisée ») ; traçabilité dans l'annexe ou le dossier interne.
+3. **Élément indispensable au diagnostic/plan mais non fiable ou source absente** : **bloquer l'émission/signature du bilan final correspondant**, identifier le besoin de réévaluation dans l'UI praticien ; ne pas fabriquer une mesure ou une conclusion pour remplir le PDF.
+4. **Incertitude clinique réellement pertinente** (par ex. diagnostic différentiel non résolu, risque/limite anatomique qui change la stratégie) : doit rester mentionnée de manière clinique intelligible dans le document concerné, ou rendre sa signature impossible jusqu'à résolution. **« Ne pas montrer ce qui ne marche pas » ne signifie pas cacher un risque clinique.**
+5. **Diagnostic confirmé, mais plan non arrêté** : seul un **bilan diagnostique signé** peut être généré, **sans** section « plan validé » ni stratégie fictive. Le document « bilan + plan » requiert signature **distincte** du plan et indication des alternatives/risques si pertinents.
+6. **Dossier draft** : rester dans l'UI ; si export de travail autorisé, filigrane **BROUILLON / NON SIGNÉ** lisible ; jamais archivé ou transmis comme clinique final. Aucun PDF réel n'est généré silencieusement.
+7. Les valeurs et positions osseuses COM / classes dentaires sont deux domaines distincts ; la DDM clinique/céphalo/réelle ne devient pas un plan d'extractions ; aucune classe de traitement générée depuis un angle ou A'B' isolé.
+
+**Chaîne de traçabilité pour chaque assertion du rapport** : \`étude/média → observation ou mesure validée → constat retenu → interprétation / diagnostic confirmé → problème → objectif choisi → option décidée avec justification → étape thérapeutique → identité et date des signatures\`. Les IDs, sources détaillées, comparaisons alternatives, dérogations et erreurs éventuelles restent dans le dossier local pour audit. L'archivage signe un **snapshot immuable** ; toute donnée critique modifiée entraîne une nouvelle révision, jamais la réécriture cachée du PDF signé.
+
+#### 73-D — Modèle tangible et vérification
+
+**Prototype illustratif A4, deux pages, créé hors application** : \`DigitalCrown_BilanOrthodontique_Cible_SPECIMEN.pdf\` (conversation), avec sections « Motif », « Éléments retenus pour le diagnostic », « Synthèse diagnostique argumentée », « Objectifs », « Stratégie et justification », « Séquence / contrôle », « Information / signature ». **Champs volontairement génériques**, aucune valeur de patient, aucun diagnostic ni traitement fabriqué ; preuve de **cible typographique** seulement. Le rendu des deux pages a été inspecté visuellement après correction d'un problème de marge sur la seconde page. Pas de revendication de test moteur ni de validation du workflow produit.
+
+**Batterie FUE documentaire de passage à l'implémentation, TOUS NOT RUN** :
+- \`PDF-PRO01\` : un cas avec diagnostic/praticien/plan signés et preuves cohérentes → bilan orienté « justification », pas de dump brut.
+- \`PDF-PRO02\` : 200 métriques techniques dont seulement 4 pertinentes qualifiées → 4 max dans le corps, autres en dossier/annexe pertinente.
+- \`PDF-PRO03\` : valeur non calculable **optionnelle** → aucune ligne d'erreur technique dans le document patient, preuve conservée localement.
+- \`PDF-PRO04\` : donnée **essentielle** absente/non calibrée → export final bloqué, erreur visible uniquement dans UI praticien, pas de diagnostic ou plan inventé.
+- \`PDF-PRO05\` : erreur source/valeur suspecte/contradiction → ne pas utiliser pour soutenir le diagnostic, passage en revue clinique.
+- \`PDF-PRO06\` : diagnostic validé, plan non décidé → bilan diagnostique possible si conditions remplies, sans plan fictif.
+- \`PDF-PRO07\` : plan signé, justification/alternatives/risques déterminants absents → bloquer version « plan final » si éléments requis par dossier non attestés.
+- \`PDF-PRO08\` : révision après signature → snapshot ancien immuable, nouvelle version/revalidation, parité UI/API/PDF.
+- \`PDF-PRO09\` : sélection V1 COM **ou** Steiner ; aucun mélange Ricketts/McNamara/Tweed ou source normative « legacy » implicite, quel que soit le format des données entrantes.
+- \`PDF-PRO10\` : A4, pagination, lisibilité, signature, thèmes hérités, 200% UX aperçu, permissions d'export et vérification des clichés/cas synthétiques en FUE-I/G.
+
+**POST / verdict** : **DIRECTION CLINIQUE DU FORMAT REÇUE** (non validation visuelle du prototype ni GO de mise en production), **SPEC_ONLY**, aucun changement de code PDF/runtime, aucun patient, aucun merge ni déploiement. **PR #1213** reste DRAFT ; toute modification documentaire du HEAD exige un nouveau contrôle CI exact-HEAD et une approbation visuelle à renouveler ; anciens PASS ne se transportent pas à un nouveau SHA. **NEXT** : arbitrage du prototype, puis lot séparé d'implémentation PDF avec test de projection/renderer et FUE sur données synthétiques, sans activation scientifique non approuvée. **Dernière MAJ canonique : 06/11/2026 — POST §73, architecture PDF « raisonnement clinique → plan décidé ».**
+
+
+### 74. PRE/POST — 06/11/2026 — CIBLE FINALE : Dossier clinique unique et bilan orthodontique A4 en 4 parties
+
+**Décision du propriétaire, explicite et prioritaire** : deux livrables liés, et non un PDF autonome à deux pages :
+- **A. Dossier Clinique du patient** : contient sa médiathèque, les images/radios/documents reçus, moulages et études, et les documents produits ; réutilise les splits et le récepteur d'acquisition des lots existants.
+- **B. Bilan Orthodontique** : document **A4**, héritant strictement des modèles/tokens et du système en-tête, pied de page, identité du cabinet et QR code des autres documents. Structure en **quatre parties métier obligatoires**, nombre de pages libre : (1) céphalométrie + tracé, analyse dento-alvéolaire et squelettique ; (2) examen des moulages et des images ; (3) bilan diagnostic et diagnostic final ; (4) plan de traitement.
+
+#### 74-A — Lots exacts retrouvés et gardes
+
+| Besoin | Lot et sources vérifiées | Vérité de statut |
+|---|---|---|
+| **Médiathèque** | **LOT C — Media Core**, sections C1–C7 : backend/models_media_core.py (ClinicalAsset), backend/routers/media_core.py (import, liste, contenu), frontend/src/features/patients/components/PatientMediaTimeline.tsx. Ancienne roadmap docs/competitive/LOT_C_MEDIA_CORE.md ; audit docs/clinic/audits/V1_05_F0_ORTHO_JOURNEY_GAP_MATRIX.md confirme que C4/C5/C6/C7 étaient existants au constat V1-05. | Storage clinique unique, scoped cabinet/patient, encrypted, provenance et timepoints T0/T1/Tn. La roadmap C plus ancienne dit C4 encore ACTIVE : elle est historique, pas la preuve finale du runtime actuel. Refaire un FUE complet sur le vrai HEAD avant approbation. **Ne pas reconstruire Media Core.** |
+| **Réception des fichiers radiographiques/photos externes** | **V1.5-LOT06 Imaging Acquisition Gateway** : PR #851, branche isolée, HEAD vérifié 4d1391e7e3faab09966202a3cb6ad93e49d92d6e, OPEN/DRAFT ; contrat docs/quality/V15_06_IMAGING_ACQUISITION_GATEWAY_CONTRACT.md lu sur cette branche. | **NO-GO clinique / pas d'import automatisé prouvé**. Agent local/hot-folder en laboratoire, association patient/RDV et reçus atomiques serveur encore sujets à gate. Pas d'annonce de réception de périphérique réelle ou de support DICOM/TWAIN certifié. |
+| **Splits** | **V1.5-LOT07 Desktop Experience / MultiView** : frontend/src/features/multiview/R3SplitWorkspace.tsx, studioLayouts.ts ; surfaces dossier, imagerie, galerie, cephalo, photos, documents, traitement. | Split = composition UI, **pas autorité d'accès**. Permissions backend, patient actif unique, purge du dossier A au passage à B, états par instance et limites de largeur desktop. Ne pas forcer MultiView sur Pocket. |
+| **Homonymes à écarter** | Les **Céphalo 2.0 LOT06/LOT07** concernent respectivement le moteur scientifique et l'Orthodontic Case/Tracing Workbench. | Ne pas les confondre avec V1.5-LOT06 acquisition et V1.5-LOT07 MultiView. |
+| **Modèle PDF** | backend/services/generators/bilan_ortho_gen.py utilise **déjà** A4 et hérite de backend/services/base_template.py et base_template_core.py ; backend/services/document_factory.py propage CabinetConfig. | Le master template d'en-tête, pied, QR et options de cabinet **existe** : le réutiliser, sans nouveau thème. Le **contenu** actuel (dump de valeurs, validations absentes, trace manquante) reste impropre à un bilan final professionnel. |
+
+#### 74-B — Dossier Clinique : une vue, une vérité de stockage
+
+Dossier accessible uniquement au praticien/staff autorisé sur **employer_id + patient_id**, une racine patient unique, reliée au Patient Journey existant. Sections/espaces composables : Médiathèque (photos, radios, pano, RVG, fichiers, T0/T1, sources), Imagerie/Céphalométrie et ses études, Moulages/observations, Documents entrants et PDF signés, Synthèse clinique, Plan de traitement. Réutiliser les modules réels, pas une deuxième base d'assets.
+
+Flux entrant **après** certification future du LOT06 : source appareil / hot-folder -> quarantine/contrôle bytes -> association patient/RDV avec confirmation humaine si ambigu -> ticket d'import sécurisé et permission -> **ClinicalAsset canonique** + reçu serveur idempotent -> timeline Media Core -> sélection explicite du média par praticien pour l'étude. Le patient actuellement ouvert n'est **jamais** une preuve d'identité de la capture. Tant que LOT06 NO-GO, ce flux automatique demeure désactivé ; l'import manuel Media Core déjà autorisé reste distinct.
+
+LOT07 permet Dossier + Médiathèque, Céphalo + Photos, ou vues T0/T1 dans des splits, mais ne doit pas autoriser simultanément deux patients, stocker des données médicales dans les préférences de disposition, partager un zoom/édition de façon ambiguë, ni contourner les permissions serveur. La comparaison ne fabrique aucune évolution scientifique.
+
+Le PDF final signé est archivé via **DocumentArchive/versioning existant** puis visible **par référence autorisée** dans le Dossier Clinique et, si événement métier pertinent, la chronologie Patient Journey. Pas de copie de bytes comme une seconde source clinique, ni création d'une table media parallèle. Les médias source et études conservent IDs/version/date/provenance. L'annexe de preuves scientifiques reste interne et séparée du PDF transmis.
+
+#### 74-C — Bilan Orthodontique A4 : quatre parties exactes
+
+**I — CÉPHALOMÉTRIE + TRACÉ, analyses dento-alvéolaire et squelettique.** Cliché latéral sélectionné de l'étude, tracé réel dont points/orientation/échelle ont été vérifiés (pas d'overlay inventé). Sous-parties lisibles :
+- **Analyse dento-alvéolaire** : incisives et rapports dentaires effectivement mesurés/observés, unités, référence et méthode si utilisées.
+- **Analyse squelettique** : relations sagittales, verticales, maxillo-mandibulaires selon COM ou Steiner V1 réellement sélectionné, interprétations patient/spécificité de référentiel validées. Ne pas confondre classe dentaire et type squelettique ; pas de type II auto depuis CRANIOM adulte non approuvé.
+- Sélection de mesures significatives pour **expliquer** le raisonnement, pas dump des 200 valeurs ou 5 analyses hétérogènes.
+
+**II — EXAMEN DES MOULAGES ET DES IMAGES.** Moulages/scans intraoraux, observations des arcades, DDM par arcade avec distinction clinique/céphalo/réelle, classe d'Angle droite/gauche si examinée, rapports transversaux et verticaux observés ; photos extra- et intra-orales, panoramique ou RVG seulement lorsque pertinentes. Chaque illustration a sa date, modalité, source et légende clinique. Un document entrant non interprété n'est pas automatiquement une preuve diagnostique.
+
+**III — BILAN DIAGNOSTIQUE + DIAGNOSTIC FINAL.** Liste priorisée des problèmes et argumentation **constats de I/II -> interprétation -> diagnostic**, différenciation dento-alvéolaire/squelettique/fonctionnelle selon preuves, texte édité et **confirmé par praticien**. Incertitude qui change la conclusion : examen complémentaire ou blocage du statut final, jamais conclusion fabriquée pour rendre le PDF élégant.
+
+**IV — PLAN DE TRAITEMENT.** **Problème retenu -> objectif clinique -> option sélectionnée et justification -> alternatives/risques appropriés -> séquence et contrôle**. Entièrement déterminé/validé par praticien. Aucun appareil, chirurgie, extraction, stripping, expansion, objectif incisif, timing ni protocole inféré automatiquement des mesures. Diagnostic confirmé != plan validé. Si plan non décidé, un **bilan diagnostique seul** peut être signé (si suffisamment étayé), mais pas un bilan « plan de traitement validé » fictif.
+
+**Contrat de forme obligatoire** : A4 portrait, **4 parties ≠ 4 pages** ; pages additionnelles si nécessaires pour images/tracé et pagination lisible. En-tête, pied de page, coordonnées et identifiants cabinet, logos, fonts, marges, choix de template et QR **par le moteur BaseTemplate/CabinetConfig existant**, avec mêmes tokens/mêmes settings des autres documents ; **aucune palette hex supplémentaire hardcodée**. QR selon paramètres existants : VCARD/SITE/other selon choix et disponibilité ; QR de VALIDATION/PAYMENT uniquement si vraie archive/identifiant vérifiable et route/permissions valides, jamais un faux DOC-TEMP ou un lien direct aux données cliniques privées. Signature du praticien, date et version de rapport ; signature du bilan != recueil automatique du consentement thérapeutique.
+
+**Filtre scientifique** : garder dans dossier interne ce qui ne fonctionne pas et les preuves/audits ; omettre du PDF patient l'indisponibilité d'une mesure facultative **non utilisée** ; si une donnée **essentielle** au diagnostic/plan manque ou est non validée, **bloquer le document signé correspondant** ou présenter explicitement une véritable limite clinique pertinente. Aucun patient ne doit recevoir un diagnostic présenté certain par suppression d'un avertissement déterminant.
+
+**État réel du code inspecté** : bilan_ortho_gen.py A4 existe, mais contient actuellement un bloc « Tracé céphalométrique non disponible », des listes de mesures et une section II « en attente ». backend/services/cephalo_pdf_media.py charge des médias autorisés, aujourd'hui surtout T0, et n'autorise pas des chemins externes arbitraires. **Il faut réellement relier l'étude, la trace sélectionnée, les moulages et les preuves signées par IDs**, pas substituer une image générique ou le dernier fichier importé. La maquette PDF à deux pages précédente demeure seulement une illustration et **n'est plus le contrat fonctionnel final**.
+
+#### 74-D — Batterie FUE transverse à exécuter (NON RUN)
+
+1. **DC-DOS-01** : Dossier Clinique patient A, patient B, cabinet B ; aucune fuite asset, blob URL, cache, split ou document ; purge à changement de patient.
+2. **DC-DOS-02** : import manuel radio/photo/document vers Media Core ; visibilité unique timeline et split (source ID identique) ; aucun doublon d'asset ou de stockage.
+3. **DC-DOS-03** : source V1.5-LOT06 ambiguë, appareil non certifié ou reçu absent -> quarantine/no-write ; ne pas prétendre qu'un workflow labo est une acquisition clinique validée.
+4. **DC-DOS-04** : sélection explicite de T0 et T1, radio+analyse cohérentes, séparation de deux viewers et de leurs modifications ; source étrangère refusée.
+5. **DC-PDF-01** : A4 4 parties I/II/III/IV dans l'ordre, vrai tracé sourcé, dento-alvéolaire et squelettique distincts, moulages et photos sourcés, diagnostics et plan confirmés.
+6. **DC-PDF-02** : PDF sur les templates actifs Swiss/Clinical/Royal/Modern/Heritage de test et paramètres cabinet ; en-tête/pied/QR identiques aux autres PDF, signatures et marges A4, saut de page propre, pas de couleurs codées en dur.
+7. **DC-PDF-03** : QR validation sans ID final -> aucun QR trompeur ; ID archivé/signé valide -> QR route contrôlée ; aucun accès ouvert au dossier par connaissance de QR.
+8. **DC-PDF-04** : preuve diagnostique non fiable/âge référentiel absent/calibration erronée -> export final refusé ; échec facultatif non décisif -> omission du PDF, traçabilité conservée localement.
+9. **DC-PDF-05** : diagnostic validé et plan non décidé -> bilan diagnostique autorisé sans plan fictif ; plan validé -> justification tracée ; révision source après signature -> nouvelle version, archive historique immuable.
+10. **DC-E2E-01** : parcours authentifié Dossier -> Média/Étude/Moulages -> I/II/III/IV -> aperçu/validation/archivage -> Dossier, capturé BEFORE/AFTER en Desktop + impression A4, revue humaine clinique/visuelle. Splits LOT07 selon politique Desktop-only.
+
+**POST §74** : décision métier consolidée, dépendances exactes identifiées, modèle de PDF commun déjà présent et lacunes explicites. **SPEC_ONLY / FUE 0/10 / NOT CLINICALLY APPROVED / LOT06 DRAFT-NO-GO / NO PRODUCT RUNTIME CHANGES / NO MERGE / NO VERCEL.** La présence d'un composant n'est pas une preuve de son parcours de bout en bout. **NEXT** : implémentation distincte Dossier référentiel + PDF I/II/III/IV, tests exact HEAD et validation praticien. **Dernière MAJ canonique : 06/11/2026 — POST §74.**
+
+### 75. PRE/POST — 06/11/2026 — Première tranche d'implémentation réelle Dossier Clinique + PDF A4 quatre parties (GO propriétaire)
+
+**PRE** : GO utilisateur « Okay go », PR #1213 OPEN/DRAFT, baseline HEAD `5340250e3c9ef078cfcb65dddb61e99444b49e9a`, canonique §74 relu, Notion PRE81 créé. **Périmètre exécuté** : implémenter le raccordement UI canonique et le premier rendu 4 parties réel en sortie PDF, **sans merge, sans Vercel et sans autorité thérapeutique inventée**.
+
+**Code poussé réellement sur la branche PR #1213** (HEAD comportemental avant POST §75 : `015603cf79c31c94c2f3da3649b8ae6d407690af`) :
+1. `frontend/src/features/patients/PatientDetailsInner.tsx` : **Dossier clinique** dans l'onglet clinique existant, bouton contrôlé pour monter la médiathèque unique `PatientMediaTimeline patientId readOnly`, liens vers Imagerie/Médiathèque et Documents/Archives existants. Lecture des données via les endpoints Media Core déjà protégés, aucun nouveau store, fichier ou modèle ORM. Réinitialise la présence du panneau sur changement de patient ; child `key={id}`, suppression/annulation attendue des requêtes dans le viewer existant. Thèmes UI hérités des tokens et composants du cabinet. UX du panneau à valider sur captures ; pas encore MultiView directement depuis cet onglet, mais l'Imagerie renvoie à la surface où le split V1.5-07 est opt-in.
+2. `backend/services/cephalo_pdf_projection.py` : ajoute la **version de présentation** `CLINICAL_FOUR_PART_A4_V1` à la projection serveur typée (n'affecte pas les normes, les valeurs de l'étude ni les gates R15).
+3. `backend/services/generators/bilan_ortho_gen.py` : route **uniquement** cette projection d'autorité backend vers le nouveau rendu quatre parties ; les anciennes projections R17 restent compatibles pour les anciens tests/fallback. Ne pas prétendre que l'ancien renderer est le rendu final clinique.
+4. `backend/services/generators/cephalo_four_part_report.py` (nouveau) : **véritable ReportLab A4**, quatre sections métier I/II/III/IV dans l'ordre, en-tête/pied/logo/QR depuis `BaseTemplate.draw_static_elements`, couleurs depuis `CabinetConfig` + token global `NAVY_BLUE` ; aucune palette de module figée. Sélection prudente de mesures **typiquement vérifiées** `EVIDENCE_GRAPH_V1`, `AVAILABLE`, valeur numérique finie, calibration présente lorsque requise ; séparation dento-alvéolaire vs squelettique sans classifier ni interpréter. Radio et photos sont prises dans le flux de bytes autorisés existant `cephalo_pdf_media`, sans URL arbitraire ni import duplicatif. Une source non calculable facultative n'est pas déversée dans le PDF. Un QR `VALIDATION/PAYMENT` sans identifiant archivé est désactivé. Rendu provisoire explicitement **« BROUILLON — NON SIGNÉ »** et sans diagnostic ni plan auto, même si une entrée fausse prétend `document_state=COMPLETE`. Ce rendu ne sait **pas encore** inclure un tracé scientifique final ou un diagnostic/plan de traitement signés : leurs snapshots praticien persistés et leurs sources doivent être raccordés dans le sous-lot suivant, il n'est pas sûr d'inventer un tracé depuis 38 points ONNX non expertisés.
+5. `backend/tests/test_cephalo_four_part_report.py` : trois tests synthétiques nouveaux, filtrage des mesures invalides, génération PDF effective et ordre I–IV, aucun dump R13 ni plan client, maintien brouillon sur fausse validation, couleurs config. `.github/workflows/ceph-fourpart-a4-targeted.yml` : nouveau workflow exact-HEAD **NO DEPLOY**, exécute les 3 tests et les régressions R17, produit les pages PNG/ PDF synthétiques en artifact. Aucun patient réel.
+
+**Dépendances non implémentées / ne pas surdéclarer** :
+- **LOT C Media Core** déjà monté en lecture seule dans le nouvel onglet ; **V1.5-LOT06 Imaging Acquisition Gateway PR #851 toujours DRAFT/NO-GO**, donc aucune arrivée automatique de radio depuis appareil. **V1.5-LOT07 MultiView** accessible depuis Imagerie, mais pas fusionné en tant que surface complète dans cette nouvelle composition clinique ; le seul fait de lier les onglets n'est pas une certification de split.
+- **Tracé clinique final** : le frontend `CephaloTracingLayer` génère du SVG interactif, mais il n'existe pas de preuve de version PDF persistée/clinicien-signée exposée par le loader ; n'imprime pas un faux tracé. **Moulages, DDM, diagnostic final et plan thérapeutique** : aucun snapshot final signé validé par R15 n'est exposé aujourd'hui (`clinical_validation_available=False` dans le R15 studio réel). Les parties II, III, IV sont des structures de brouillon, **pas** un bilan clinique achevé.
+- Il reste le chaînage réel `média -> étude/tracé/moulages -> findings -> diagnostic confirmé -> plan décidé -> signature/version/archive -> Dossier clinique`, puis une FUE authentifiée avec preuves BEFORE/AFTER. Les 10 tests du §74 restent **NON RUN** comme FUE transverses. Les nouveaux tests Python sont **écrits mais NON déclarés PASS** tant que workflow GitHub exact-HEAD n'a pas rendu son verdict.
+
+**CI lancée sur HEAD comportemental** : [Four-Part A4 #42194478416](https://github.com/hraaaaf/Digital_crown/actions/runs/42194478416), [Frontend build #42194478309](https://github.com/hraaaaf/Digital_crown/actions/runs/42194478309), [Scope #42194478352](https://github.com/hraaaaf/Digital_crown/actions/runs/42194478352), FUE-P1 #42194478201 et FUE-P2 #42194478230 ; au relevé ils sont QUEUED. Le POST du fichier canonique lui-même change le HEAD et déclenche de nouvelles preuves exact-SHA ; ne pas transporter le statut d'un run ancien vers ce nouveau HEAD. L'ancien Human Visual Approval reste insuffisant.
+
+**POST/Verdict** : **PREMIER CODE REALISÉ, A4 4 PARTS EN BROUILLON + REUSE DU MEDIA CORE UI** / **PAS DE BILAN SIGNABLE** / **FUE CLINIQUE 0/10** / **CI EN ATTENTE** / **NO MERGE / NO DEPLOY**. **NEXT** : vérifier les résultats de ce SHA, corriger les tests si rouges, recevoir les captures A4 synthétiques, créer un contrat de snapshot clinique réellement signé et une projection de tracé vérifiée ; FUE d'isolation A→B et parité QR/bandeaux avant approbation. **Dernière mise à jour canonique : 06/11/2026 — POST §75.**
+
+### 76. PRE/POST — 2026-11-06 — FUE A4 exact-HEAD : deux erreurs de fixture corrigées
+
+**PRE** : après l'implémentation du dossier clinique et du premier A4 quatre parties (§75), la nouvelle CI [Four-Part A4 #42194907539](https://github.com/hraaaaf/Digital_crown/actions/runs/42194907539) sur HEAD `28c302d1e20cb152bc2b2b3414e10c5245aaef82` s'est terminée **FAILURE : 25 PASS / 2 FAIL**. Les deux échecs ont la même cause et surviennent **avant le rendu du PDF** : fixture `backend/tests/test_cephalo_four_part_report.py::_vm` omet `clinical_data` alors que `CephaloAnalysisResult` l'exige. Le schéma `backend/schemas/clinical.py` confirme que `schemas.ClinicalData()` est un objet vide admissible, sans information diagnostique inventée. Notion PRE82 consigné.
+
+**Action exécutée** : commit [`e51f1e81bee652f7f76fa102b2e765a21caff983`](https://github.com/hraaaaf/Digital_crown/commit/e51f1e81bee652f7f76fa102b2e765a21caff983) : un seul champ `clinical_data=schemas.ClinicalData()` ajouté au fixture synthétique ; aucune modification de logique clinique, API, sécurité, PDF ou traitement, aucun patient réel. Fichier de test relu sur ce SHA.
+
+**POST / preuve CI actuelle** : nouveau run [Four-Part A4 #42196259873](https://github.com/hraaaaf/Digital_crown/actions/runs/42196259873) **QUEUED**, [CI Scope #42196259519](https://github.com/hraaaaf/Digital_crown/actions/runs/42196259519) PENDING, [Frontend test #42196259828](https://github.com/hraaaaf/Digital_crown/actions/runs/42196259828), [FUE P1 #42196259672](https://github.com/hraaaaf/Digital_crown/actions/runs/42196259672), [FUE P2 #42196259856](https://github.com/hraaaaf/Digital_crown/actions/runs/42196259856) QUEUED ; M6-I #42196259883 SKIPPED. **Ne pas déclarer GREEN avant le verdict exact-HEAD.** Ce commit documentaire génère encore un nouveau HEAD : les résultats antérieurs seront historiques, pas preuve du nouveau SHA.
+
+**Portée obtenue à ce stade** : Dossier Clinique => accès en lecture à PatientMediaTimeline de LOT C et liens imagerie/documents, sans base parallèle ; PDF A4 de travail I–IV via BaseTemplate/CabinetConfig, QR validation sans faux identifiant, mesures typées sélectionnées, pas de diagnostic/plan forgé. **Le PDF n'est PAS signable.** Tracé final validé, moulages signés, plan/diagnostic praticien et archivage de fin de chaîne restent à raccorder. V1.5-LOT06 acquisition physique encore NO-GO. FUE interlots §74 NON RUN ; approbation visuelle/non-clinique humaine non donnée. **Pas de merge ni de déploiement.**
+
+**NEXT** : inspecter la nouvelle CI ciblée et les captures PDF du run quand disponibles ; corriger tout nouvel échec reproductible, puis passer aux snapshots signés et FUE patients A/B/tenant/QR/print. **Dernière MAJ canonique : 06/11/2026 — POST §76 ; Chantier Digital Crown Orthodontie, Lot V1 3/4, Sous-lot Dossier Clinique et PDF A4 quatre parties, PR #1213.**
+
+### 77. PRE/POST — 06/11/2026 — Première liaison de preuves Media Core datées → bilan A4, sécurité patient préservée
+
+**GO propriétaire** : poursuite de la PR #1213 à partir de CHECKPOINT83 Notion et §76 du même canonique ; Notion PRE84 notifié **avant** toute écriture. Baseline GitHub contrôlée : `7044d57b22e27455c7c1028bcea85fbd70438cbd`, CI ciblée 27/27 PASS mais gate Human Visual Approval non validé. Aucun merge, aucun Vercel.
+
+**Code réellement commité sur branche de PR #1213** :
+1. `backend/services/cephalo_pdf_media.py` : les **photos T0 de Media Core** reçues de `build_ortho_media_record` conservent leur `asset_id`, `captured_at` affichable et `timepoint=T0` jusqu'au renderer A4. Contrôle défensif de la réponse du record patient/timepoint et de la photo source `ORTHO_MEDIA_RECORD_V1`, slot, `source_kind=UPLOAD`, MIME, ID entier positif et `captured_at` natif datetime. Lecture uniquement par `read_clinical_asset_bytes` filtrée tenant/patient/id, déjà déchiffrement et SHA côté Storage. Une photo échouant un contrôle n'est pas rendue comme preuve, mais signalée à l'UI/dossier dans `media_unavailable`. Pas de deuxième table, pas de copie de fichiers, pas de média client arbitraire.
+2. `backend/services/generators/cephalo_four_part_report.py` : Partie II ajoute une **galerie clinique A4 compacte** (extra- / intra-buccale) avec date d'acquisition et temps T0 de chaque photo vérifiée, avec légendes ; l'ID média et le stockage ne sont pas imprimés dans le document patient. Les couleurs et header/footer/QR continuent d'hériter du `BaseTemplate` et de `CabinetConfig`, aucune palette supplémentaire. La partie I indique désormais le n° et la révision de l'étude uniquement si `analysis_id`/`analysis_revision` sont des entiers valides et que la chaîne active de preuve est vérifiée. **Ce n'est pas une signature scientifique.**
+3. `backend/tests/test_cephalo_four_part_report.py` : **4 tests** ajoutés (date/source conservées, patient A→B refusé, fausse provenance refusée, photos datées rendues sans ID interne, étude/révision conditionnées à preuve). Le nombre réel de nouvelles fonctions de test est **4** : `test_media_core_photo_provenance_is_preserved_without_new_storage`, `test_media_core_photo_loader_rejects_wrong_patient_or_unverified_provenance`, `test_four_part_a4_prints_only_dated_canonical_photos_and_no_asset_identifiers`, `test_four_part_a4_displays_only_verified_study_and_revision`. Fixture JPEG généré uniquement dans les tests.
+4. `.github/workflows/ceph-fourpart-a4-targeted.yml` : le workflow exact-HEAD écoute désormais la modification du loader Media Core et imprime en plus un **specimen synthétique A4 avec huit images JPG fictives**, T0/date et captures PNG par page sous le nom `synthetic-with-dated-photos-unsigned.pdf`. Ces rectangles sont des placeholders QA non cliniques, aucune photo réelle ni faux diagnostic. L'ancien specimen sans photo est conservé.
+
+**Commits de la passe** : `3d8a813` (loader provenance), `2360d8d` (A4 daté), `3243c7a` (tests), `522d8e8` (fixture correction), `8539f79` (CI gallery), `abb88ab` (étude/révision), `d46a888` (test provenance de l'étude). Le HEAD avant POST documentaire est `d46a888849d55fc8e24db25bc702d82511a7018d`.
+
+**Statut des FUE** : quatre tests unitaires ajoutés, mais **leur verdict exact-HEAD était PENDING/QUEUED** lors de cette annotation ; `DC-DOS-01..04`, `DC-PDF-01..05`, `DC-E2E-01` demeurent **NON RUN comme batterie inter-lots**, aucun certificat clinique. Workflow [Four-Part A4 #42224418854](https://github.com/hraaaaf/Digital_crown/actions/runs/42224418854) QUEUED ; [Scope #42224418968](https://github.com/hraaaaf/Digital_crown/actions/runs/42224418968) PENDING ; [FUE-P1 #42224419020](https://github.com/hraaaaf/Digital_crown/actions/runs/42224419020), [FUE-P2 #42224418959](https://github.com/hraaaaf/Digital_crown/actions/runs/42224418959), [frontend build #42224418939](https://github.com/hraaaaf/Digital_crown/actions/runs/42224418939) QUEUED au relevé. Le POST documentaire modifie à nouveau le SHA ; seul le **dernier SHA** sera admissible aux gates.
+
+**Gates encore indispensables** : lien radiographie↔étude et vrai SVG/tracé expert signé ; moulages/scans et mesures cliniques vérifiées ; diagnostic final et plan **décidés et attestés par le praticien**, non auto-générés ; enregistrement d'un snapshot auditable, version d'archive, QR VALIDATION avec ID réel ; check d'isolation runtime tenant A/B + media T1/Tn ; image FUE réelle avec patient/surface authentifiée ; V1.5 LOT06 Imaging Gateway toujours DRAFT/NO-GO. La nouvelle galerie T0 **ne suffit pas à déclarer le bilan scientifiquement complet ou signable**. **PR #1213 reste DRAFT et Human Visual Approval NOT GRANTED.**
+
+**Verdict POST §77** : Implémentation de la **première chaîne vérifiée de provenance photo Media Core → quatre parties A4** ; tests et captures automatisées ajoutés, **résultats CI non présumés** ; aucun merge, aucun déploiement. **NEXT** : contrôler exact-HEAD, examiner screenshots de l'artefact A4 multi-images, puis poursuivre la persistance du tracé et des décisions cliniques avec validation humaine. **Dernière MAJ canonique : 06/11/2026 — POST §77 · Digital Crown Orthodontie / Lot V1 3/4 / Sous-lot preuves datées Dossier Clinique → PDF / PR #1213.**
+
+
+### 78. PRE/POST — 06/11/2026 — Projection PDF clinique depuis le graphe typé audité, jamais depuis texte libre legacy
+
+**PRE** : autorisation « Go » suite à §77 / Notion CHECKPOINT85, Notion **PRE86** inséré AVANT toute écriture, canonique GitHub **unique §77 relu** au HEAD `885467cd68dc9e099e8eef34425fe7415b095ed3` / blob `e3f39f94acfe37d5e8921a62e418cf20d6565cd5`. Les 31/31 tests du lot précédent étaient SUCCESS, mais l'approbation visuelle humaine et les 10 FUE inter-lots demeuraient ouvertes. **Pas de merge ni Vercel.**
+
+**Fait code — chaîne clinique auditable (tranche verticale)** :
+1. **`backend/services/cephalo_pdf_clinician_evidence.py` (nouveau, sans table)** : après `validate_case_evidence_graph`, extrait de `_evidence_graph_v1` persisté dans `CephaloAnalysis.angles_data` uniquement des diagnostics en état `ACCEPTED/EDITED` munis de l'audit `ClinicianValidationEvidence` EXACT (praticien/horodatage/cible/action), avec preuve de soutien et **sans missing/opposing/contradiction** ; aucun `PROPOSED` n'est présenté comme final. Pour un plan, exige une **unique** `FinalPlanEvidence`, option `CLINICIAN_SELECTED` sans missing gate, audit option+plan, diagnostics et objectifs validés, références cohérentes : restitue **objectifs/critères, phases/procédures/dispositifs/contrôles, bénéfices/limites/risques, contention**, strictement comme données rédigées/acceptées dans le graphe. Sinon `plan=None`. Pas de nouveau moteur thérapeutique ni de génération automatique.
+2. **`backend/services/cephalo_pdf_projection.py`** : branche la projection auditable au **patient/case/analysis_id/revision** de l'étude sélectionnée seulement après typed graph et chaîne scientifique validés ; `clinician_evidence` est **facultatif et non signant**. Une preuve clinique illisible ne produit **aucun diagnostic ni plan**, sans corrompre l'état indépendant de la chaîne des mesures (régression R17 préservée).
+3. **`backend/services/generators/cephalo_four_part_report.py`** : sections III/IV du vrai A4 consommant l'information clinique à identité/étude/révision/autorité exactes, texte **échappé** en Paragraph ReportLab ; lisibilité diagnostique argumentée par preuve clinique, plan avec phases/risques existants. `clinical_data` et `ai_diagnostic` client libre **non utilisés**. Même avec un graphe audité et un plan existant, sortie toujours **« BROUILLON — NON SIGNÉ »** — validation de la source ≠ signature officielle du PDF. En absence de preuve, texte de travail reste explicite.
+4. **`backend/tests/test_cephalo_four_part_report.py`** : tests synthétiques reprenant `_valid_graph` de l'infrastructure pour vérifier l'extraction d'une chaîne **auditée** (diagnostic, objectif, phase et risques) et les refus **mauvais patient, mauvais cas, audits absents, injection de clinique cross-patient**, puis génération du PDF exact A4. Les décisions contenues dans les fixtures sont **explicitement synthétiques et non cliniques**.
+5. **`.github/workflows/ceph-fourpart-a4-targeted.yml`** : écoute ce nouveau service et génère un troisième artifact de démonstration `synthetic-audited-unsigned.pdf` et PNG `audited-draft-page-XX.png` avec **diagnostic/plan synthétiques audités**, en plus des deux PDFs antérieurs. **Ce n'est pas une certification clinique.**
+
+**Commits comportementaux** : `063d8d6` helper audits, `c82c2ec` projection typed, `170f28e` renderer III/IV, `d9d7278` tests, `46ab205` chemin CI, `c6adcf0` fixture CI auditée, `ed39c59` isolation de la projection clinique facultative, `69768b1` ajout bénéfices/limites/risques, `a3e2c86` affichage, `875daaf` test risques. HEAD de code juste avant cette annotation `875daaf595040167b44f8c5ae6578ecf2f28122f`.
+
+**CI — résultats réellement vérifiés, ne pas confondre les SHAs** :
+- Intermédiaires [#42230432349](https://github.com/hraaaaf/Digital_crown/actions/runs/42230432349) et [#42230507462](https://github.com/hraaaaf/Digital_crown/actions/runs/42230507462) ont fini **FAILURE 32 PASS / 1 FAIL** : l'audit clinique optionnel ajoutait à tort `clinician_audit_projection_incoherent` à la **chaîne scientifique** dans un test R17 instrumenté. Le commit `ed39c59` supprime cette influence sur `blocking_gates` ; en cas d'audit non résolu, seules les conclusions cliniques sont absentes. **Correctif codé, pas encore certifié SUCCESS sur HEAD final**.
+- Sur `875daaf`, [CI Scope #42231221161](https://github.com/hraaaaf/Digital_crown/actions/runs/42231221161) **SUCCESS**, [Four-Part A4 #42231221153](https://github.com/hraaaaf/Digital_crown/actions/runs/42231221153) QUEUED, frontend #42231220958, FUE P1 #42231220942, FUE P2 #42231221352, thèmes 09/10/11 QUEUED au dernier contrôle, M6-I #42231221008 SKIPPED. Ne pas surdéclarer PASS tant que le test + rendu screenshot exact HEAD final ne sont pas terminés. Le commit documentaire POST déclenchera un nouveau SHA : revérifier ce SHA comme autorité.
+
+**Ce que cette passe n'a PAS fait** :
+- **Tracé céphalométrique anatomique expert et validé** : aujourd'hui `CephaloTracingLayer` est une représentation frontend et les points SRPose38 ne sont pas cliniquement certifiés. Aucun asset de tracé signé, lié en pixel/source/échelle/révision au PDF ne peut être fabriqué. Pas d'overlay fictif inséré.
+- **Examen des moulages validé** : `ORTHO_MODEL_HOOKS` sont `VALIDATOR_NOT_IMPLEMENTED`; les anciens `clinical_data.resume_moulages` ne sont PAS des observations auditées. Ne pas promouvoir une mesure DDM/moulage via données legacy.
+- **R15/R14 et PDF final signé** : le studio actuel ne résout pas la signature clinique document, et la route `POST /patients/{id}/pdf` accepte un flux d'archive scientifique P2ter historique dont le titre peut être « Bilan ... Plan » même lorsque le nouveau rendu porte **BROUILLON NON SIGNÉ**. **Risque d'étiquetage d'un brouillon archivé en document officiel : à auditer/fermer avant validation patient finale**, sans casser à l'aveugle les contrats P2ter ; ne pas considérer `archive=True` comme signature. QR VALIDATION reste désactivé sans véritable ID validé. 
+- **LOT06 Imaging Gateway** DRAFT/NO-GO ; LOT07 splits composition ≠ autorisation ; **batterie FUE transverse DC-DOS/DC-PDF/DC-E2E : 0/10** ; Human Visual Approval non donné.
+
+**POST §78 / verdict** : une projection réelle du **graphe clinique audité -> sections III/IV du brouillon A4** existe ; les tests sont écrits, **leur verdict exact-HEAD en attente**. **Aucune activation clinique, aucune nouvelle donnée médicale, aucune fusion, aucun Vercel.** NEXT : obtenir le verdict CI du SHA final et le PDF artifact synthétique, corriger les régressions si besoin, puis produire véritable traçé signé et pipeline moulages/diagnostic/plan final, verrou d'archivage signé et les dix FUE inter-lots. **Dernière MAJ canonique : 06/11/2026 — POST §78 · Digital Crown Orthodontie / Lot V1 3/4 / Sous-lot preuves cliniques auditées → A4 / PR #1213.**
+
+
+### 79. POST — 06/11/2026 — Revue PDF authentique, correction de pagination clinique, régression R17 levée
+
+**Contexte de fin de passe** : après §78/Notion POST86, un run **intermédiaire corrigé** [Four-Part A4 #42230925088](https://github.com/hraaaaf/Digital_crown/actions/runs/42230925088) sur `ed39c59375342d5237a9ab50937693772023d8c1` a atteint **SUCCESS / 33 tests Python PASS**, avec artifact GitHub ID `13510750425` (331921 octets), `synthetic-audited-unsigned.pdf` et captures `audited-draft-page-01/02.png`. Ce succès prouve que l'isolation de la projection clinique ne rompt plus les anciens tests R17 **sur ce SHA**, pas que le dernier code de pagination et risques est certifié.
+
+**Inspection visuelle des captures CI** : PDF authentique **2 pages A4**, quatre parties et photographies synthétiques datées T0 ; les champs diagnostiques/plan n'y contiennent que les textes artificiels « Synthetic ... » issus d'un graphe validé et audité dans les fixtures, jamais des décisions d'un patient réel. Le rapport est **BROUILLON NON SIGNÉ**. La première page plaçait **III Diagnostic** au bas de page et la deuxième démarrait seule **IV Plan** : séparation peu professionnelle qui nuisait à la continuité de lecture.
+- `backend/services/generators/cephalo_four_part_report.py` commit `9f606b5` : ajoute `CondPageBreak(8.5 * cm)` avant III pour garder diagnostic et démarrage de plan sur une page commune lorsque la galerie photo remplit presque le premier A4. Il s'agit exclusivement d'une règle de pagination, sans modification médicale ni palette couleur, et les textes très longs peuvent toujours paginer naturellement.
+- `backend/tests/test_cephalo_four_part_report.py` commit `5e8a71c` : test de non-orphelin sur PDF avec 8 photos T0 et graphe audité, vérifie qu'III et IV se trouvent sur la page finale avec brouillon non signé.
+- Le test existant du graphe a aussi été complété pour vérifier la présence des champs de source `risks/limits/benefits/procedures` dans le PDF ; aucun risque prescrit par moteur.
+
+**Etat des limitations** : cette séparation visuelle corrigée n'implique aucune signature clinique ; pas de tracé expert ni validation des moulages, pas de signature R14/R15, pas de QR VALIDATION sans vraie archive. L'ancien `archive=True` peut créer un PDF marqué BROUILLON dans une archive typée rapport : résolution métier obligatoire avant GO de document final. Media Core/LOT06/LOT07 n'ont subi aucune migration ni rupture de stockage.
+
+**PRE/POST et preuves** : canonique unique lu avant la passe §77, mis à jour §78 après première implémentation, et nouveau POST §79 pour la correction visuelle ; Notion PRE86 et POST86 déjà réalisés. Dernier HEAD code AVANT cette annotation `5e8a71c3711c1b4de609a215d4e69e5affb1d19c`. Les runs de ce HEAD étaient encore QUEUED au moment du constat, donc **aucune affirmation « dernier SHA GREEN »**. Après ce commit documentaire, refaire les contrôles exact HEAD. PR reste OPEN/DRAFT, Human Visual Approval non donné, FUE transverses 0/10, aucun merge ni Vercel.
+
+**NEXT** : inspecter artifact et tests exact HEAD de ce changement de pagination, puis implémenter l'extraction de tracé certifié et le recueil des observations des moulages, un snapshot de validation finale humain et le verrou d'archive officielle, avant les 10 FUE et approbation. **GOAL** : récit clinique I→II→III→IV documenté et scientifiquement soutenu, signé par un praticien réel. **Dernière MAJ canonique : 06/11/2026 — POST §79 · Digital Crown Orthodontie / Lot V1 3/4 / Sous-lot PDF A4 clinique audité et pagination / PR #1213.**
+
+
+### 80. POST — 06/11/2026 — Harmonisation A4 sur les tokens du moteur documentaire commun
+
+**Demande utilisateur** : en-tête/pied de page identiques aux documents du cabinet, logo et identité issus de CabinetConfig, couleurs héritées du thème sélectionné, aucun thème A4 parallèle.
+
+**Audit** : `document_factory.py` transmet déjà toutes les colonnes `CabinetConfig` au `CephaloViewModel`; `cephalo_four_part_report.py` utilise déjà `BaseTemplate.draw_static_elements` sur chaque page pour logo, en-tête, pied de page et QR (désactivé sans validation). L'artefact synthétique précédent ne contient pas de vrai logo/coordonnées configurés : **ne pas le présenter comme une preuve de branding réel**.
+
+**Changement ciblé PR #1213** : `ecb0be2` retire le fallback local NAVY_BLUE et lit `primary_color`, `secondary_color`, `accent_color` par le même `generator._get_val` et les mêmes valeurs par défaut que `BaseTemplate.draw_static_elements`; sous-titres via accent, titre/tableaux via primary, texte secondaire via secondary. `9522e9d` ajoute un test PyMuPDF sur les couleurs effectivement rendues dans un PDF synthétique. **Pas de valeurs de palette clinique indépendantes**, pas de changement de signature ni de diagnostic.
+
+**Statut** : commits poussés sur la branche de la PR, **CI exact HEAD encore à contrôler** ; captures réelles du thème de cabinet/logo/footer à obtenir avant approbation visuelle. **Aucune fusion, aucun déploiement.** FUE multi-thèmes et logo/footer sur configuration réelle non validées. NEXT : vérifier CI et artefacts PDF exact HEAD, comparer deux thèmes avec branding réel, valider FUE puis approbation humaine. GOAL : document A4 conforme au système documentaire commun, sans divergence de thème.
+
+
+### 81. POST — 06/11/2026 — Contrat de branding A4 partagé
+
+**PRE et source canonique** : §80 consulté à l'ouverture de cette passe ; Notion PRE92 enregistré. Demande utilisateur : bilan A4 conforme aux autres documents avec logo, en-tête/pied et palette du thème actif, aucune couleur métier codée en dur.
+
+**Runs du premier HEAD `f4e9065`** : A4 #42243539030 **FAILURE : 34 PASS / 1 FAIL**. Le test du sous-titre accent échouait réellement car `subhead.textColor` restait `primary` ; il ne fallait pas affaiblir le test. Correction product `5a66436` : `subhead.textColor = accent`, test strict conservé `b2d580a`.
+
+**Travail de la passe** : le générateur utilise `BaseTemplate.draw_static_elements` pour les templates communs du cabinet (logo, informations, en-tête, pied, QR selon contrat) et `generator._get_val(config, primary_color/secondary_color/accent_color)` pour les tokens du contenu. Les tests `test_cephalo_four_part_report.py` sont étendus au rendu de deux configurations **Swiss** et **Clinical** avec logo PNG synthétique, identité et coordonnées fictives, et couleurs distinctes fournies par `cabinet_config`, sans configurer une palette propre au bilan. Le workflow `.github/workflows/ceph-fourpart-a4-targeted.yml` produit également ces deux PDFs et leurs PNG dans l'artifact, et valide logo / adresse / téléphone / état brouillon. Les assertions de l'état « BROUILLON » s'appliquent au document entier ; l'en-tête et le pied se vérifient par page, car la continuation d'un PDF ne répète pas le titre du corps. Commits de test/workflow : `d63ef6f`, `04f43f0`, `040dd84`, `6407854`.
+
+**Vérification CI** : sur le HEAD code `64078542fd428c3330415e6b5f7f08c7e7ee90b2`, [CI Scope Gate #42245570114](https://github.com/hraaaaf/Digital_crown/actions/runs/42245570114) **SUCCESS** ; [A4 #42245570060](https://github.com/hraaaaf/Digital_crown/actions/runs/42245570060) **QUEUED** au dernier contrôle ; les deux PDF/PNG ne sont donc **pas encore vérifiés**, ne pas affirmer PASS / preuve visuelle finale. [Human Visual Approval #42245564313](https://github.com/hraaaaf/Digital_crown/actions/runs/42245564313) non approuvé. La vraie identité et le logo du cabinet ne sont pas chargés dans la fixture ; seuls des artefacts synthétiques sont prévus. Pas de signature clinique, pas de feu vert patient, pas d'archive officielle, pas de merge, pas de déploiement.
+
+**FUE restants** : (1) A4 CI PASS et captation des deux thèmes, (2) inspection visuelle réelle du logo et du pied de page sur les deux rendus et absence de chevauchement, (3) configuration cabinet réelle en préprod puis avis humain, (4) FUE transverses CEPh/DC-PDF en attente. **NEXT** : lire le log A4 final dès disponibilité, corriger toute régression, récupérer l'artefact et contrôler les PNG, puis mettre à jour le statut du canonique/Notion. **GOAL** : branding entièrement hérité, démontré sur A4, sans approbation clinique implicite.

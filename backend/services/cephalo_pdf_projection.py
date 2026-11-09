@@ -10,6 +10,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from backend.services.cephalo_r15_clinical_studio import build_r15_clinical_studio_snapshot
+from backend.services.cephalo_pdf_clinician_evidence import project_audited_clinician_evidence
 from backend.services.cephalo_runtime_chain import (
     project_runtime_chain_read_path,
     validate_active_runtime_chain,
@@ -111,6 +112,25 @@ def build_cephalo_pdf_projection(
     if typed_projection_verified and (type(source_revision) is not int or source_revision <= 0):
         projection_blockers.append("analysis_revision_unverified")
 
+    # A clinical statement or final plan is projected only from the exact
+    # selected typed patient/case revision AND its persisted clinician audits.
+    # Legacy client text and historical R11/R13 stage summaries are never used.
+    clinician_evidence = None
+    if typed_projection_verified and type(source_revision) is int and source_revision > 0:
+        try:
+            clinician_evidence = project_audited_clinician_evidence(
+                graph,
+                patient_id=patient_id,
+                case_id=graph_payload.get("case_id"),
+                analysis_id=analysis_id,
+                revision=source_revision,
+            )
+        except (ValueError, TypeError, KeyError, AttributeError):
+            # Optional human narrative is fail-closed, not a new gate on the
+            # separately verified scientific measurement chain. No untrusted
+            # diagnosis or plan can be rendered if its audit cannot be read.
+            clinician_evidence = None
+
     blockers = sorted(
         set(studio.get("blocking_gates") or []) | set(projection_blockers)
     )
@@ -128,6 +148,8 @@ def build_cephalo_pdf_projection(
 
     return {
         "contract_version": CEPHALO_PDF_PROJECTION_VERSION,
+        # The actual cabinet PDF uses one four-part A4 layout; scientific gates unchanged.
+        "layout_version": "CLINICAL_FOUR_PART_A4_V1",
         "patient_id": patient_id,
         "analysis_id": analysis_id,
         "analysis_revision": source_revision if type(source_revision) is int and source_revision > 0 else None,
@@ -144,4 +166,5 @@ def build_cephalo_pdf_projection(
         "blocking_gates": blockers,
         "clinical_validation_available": bool(studio.get("clinical_validation_available")),
         "clinical_validation_reason": studio.get("clinical_validation_reason"),
+        "clinician_evidence": clinician_evidence,
     }
