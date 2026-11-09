@@ -306,6 +306,14 @@ def test_j7_real_guided_restore_smoke_fail_restores_wal_and_media(lab, monkeypat
     assert final["status"] == "rolled_back"
     assert final["rollback"] == "passed"
     assert _read_truth(lab["target"]) == ["BEFORE_FAKE", "WAL_COMMITTED_FAKE_ONLY"]
+    # Critical oracle: the COMMITTED WAL marker created *after prepare* must
+    # still exist after DB+media rescue. Checking only the original truth rows
+    # would falsely pass if the worker silently dropped the rescue WAL.
+    with closing(sqlcipher.connect(str(lab["target"]))) as restored:
+        restored.execute("PRAGMA key = '" + FAKE_SQLCIPHER_KEY + "'")
+        assert restored.execute(
+            "SELECT marker FROM FAKE_ONLY_WAL_MARKER"
+        ).fetchone() == ("WAL_ONLY_FAKE",)
     assert (lab["media"] / "FAKE_PREVIOUS.bin").read_bytes() == \
         b"FAKE_OLD_IMAGE_NO_PATIENT"
     assert not (lab["media"] / "fake-images" / "AFTER_FAKE_RADIO.bin").exists()
