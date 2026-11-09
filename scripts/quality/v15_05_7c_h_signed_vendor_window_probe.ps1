@@ -1,14 +1,11 @@
 # LOT05.7C-H - official trial GUI launch observation, GitHub-hosted ephemeral Windows only.
 # Requires a proven synthetic interactive desktop on the SAME runner.
-# Default is read-only. The optional bounded wizard switch can request one
-# owner-authorized Install message; never accept EULA or complete a setup.
+# READ ONLY signed publisher verification. No executable Install-click code.
 # Never run on a cabinet PC or access real patient data.
 [CmdletBinding()]
 param(
-  [switch]$LaunchSetupWizardOnly,
   [switch]$ReadOnlyElevationProbe,
-  [switch]$ReadOnlyButtonOwnershipProbe,
-  [switch]$LaunchSetupWizardViaPhysicalInputOnly
+  [switch]$ReadOnlyButtonOwnershipProbe
 )
 
 Set-StrictMode -Version Latest
@@ -45,7 +42,7 @@ $report = [ordered]@{
   installer_win32_install_enabled = $false
   installer_win32_install_in_vendor_bounds = $false
   installer_win32_install_semantic_button_proven = $false
-  install_wizard_probe_requested = [bool]($LaunchSetupWizardOnly -or $LaunchSetupWizardViaPhysicalInputOnly)
+  install_wizard_probe_requested = $false
   read_only_elevation_probe_requested = [bool]$ReadOnlyElevationProbe
   vendor_window_token_queryable = $false
   vendor_window_token_elevated = $null
@@ -63,23 +60,7 @@ $report = [ordered]@{
   install_wizard_probe_guard_passed = $false
   install_button_invocation_attempted = $false
   install_button_message_delivered = $false
-  physical_input_probe_requested = [bool]$LaunchSetupWizardViaPhysicalInputOnly
-  physical_input_hit_target_verified = $false
-  physical_input_events_accepted = 0
-  physical_input_native_last_error = $null
   setup_wizard_new_window_observed = $false
-  post_click_screen_read_only_probe_requested = [bool]$LaunchSetupWizardViaPhysicalInputOnly
-  post_click_screen_new_hwnd_verified = $false
-  post_click_screen_process_lineage_bound = $false
-  post_click_screen_uia_queryable = $false
-  post_click_screen_title_setup_wizard = $false
-  post_click_screen_title_license_terms = $false
-  post_click_screen_uia_welcome_setup = $false
-  post_click_screen_uia_next_control = $false
-  post_click_screen_uia_back_control = $false
-  post_click_screen_uia_license_terms = $false
-  post_click_screen_uia_element_count = 0
-  post_click_screen_kind = 'UNCLASSIFIED'
   db_service_preexisting = $false
   db_service_created_observed = $false
   licence_or_eula_accepted = $false
@@ -542,301 +523,8 @@ public static class Lot05InitialInstallerCapture {
       $report.initial_installer_window_png_captured = $false
     }
   }
-  # Explicitly bounded owner-authorized synthetic/demo VM action.
-  # The official trial instructions specify that Install FIRST opens the Setup
-  # Wizard. This probe stops at that first screen, without any EULA acceptance,
-  # wizard Next/Finish/confirmation, MariaDB configuration or patient access.
-  if ($LaunchSetupWizardOnly -or $LaunchSetupWizardViaPhysicalInputOnly) {
-    if (-not $report.installer_win32_install_semantic_button_proven -or
-        $report.installer_win32_install_candidate_count -ne 1 -or
-        -not $report.installer_uia_new_server_option_observed -or
-        -not $report.official_binary_authenticode_valid -or
-        -not $report.synthetic_gui_prerequisite_verified -or
-        $installerHwnd -eq [IntPtr]::Zero -or
-        $null -eq $installHwnd -or
-        $installHwnd -eq [IntPtr]::Zero) {
-      throw 'INSTALL_WIZARD_PROBE_GUARDS_NOT_MET'
-    }
-    $existingDbService = @(
-      Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue
-    )
-    if ($existingDbService.Count -gt 0) {
-      $report.db_service_preexisting = $true
-      throw 'ISOLATED_VM_REQUIRES_NO_DATABASE_SERVICE'
-    }
-    if ($LaunchSetupWizardViaPhysicalInputOnly -and (
-        -not $ReadOnlyButtonOwnershipProbe -or
-        -not $report.install_button_owner_queryable -or
-        -not $report.install_button_window_still_valid -or
-        -not $report.install_button_native_class_verified -or
-        -not $report.install_button_parent_chain_contains_vendor_window -or
-        $report.install_button_same_process_as_vendor_window -ne $true -or
-        $report.install_button_same_thread_as_vendor_window -ne $true -or
-        $report.install_button_same_process_as_runner -ne $false)) {
-      throw 'PHYSICAL_INPUT_OWNER_GUARD_NOT_PROVEN'
-    }
-    $report.install_wizard_probe_guard_passed = $true
-    # Snapshot all vendor-rooted main HWNDs before any one-shot click:
-    # a new vendor HWND must NOT have been present before this interaction.
-    $priorVendorWindowHandles = @(
-      foreach ($knownId in @($knownIds | Select-Object -Unique)) {
-        $priorProc = Get-Process -Id $knownId -ErrorAction SilentlyContinue
-        if ($null -ne $priorProc -and
-            $priorProc.MainWindowHandle -ne [IntPtr]::Zero) {
-          [long]$priorProc.MainWindowHandle.ToInt64()
-        }
-      }
-    )
-    $postClickNewHwnd = [IntPtr]::Zero
-
-    if ($LaunchSetupWizardViaPhysicalInputOnly) {
-      # One owner-authorized, native mouse down/up at the exact child Button.
-      # No UIA fallback, no WM_COMMAND or BM_CLICK, no alternate coordinates,
-      # no key shortcuts, no permission escalation and NO SECOND ATTEMPT.
-      if ([IntPtr]::Size -ne 8) { throw 'X64_WINDOWS_REQUIRED_NO_CLICK' }
-      Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class Lot05OneShotMouseInput {
-  [StructLayout(LayoutKind.Sequential)]
-  public struct Rect {
-    public int Left, Top, Right, Bottom;
-  }
-  [StructLayout(LayoutKind.Sequential)]
-  public struct Point {
-    public int X, Y;
-  }
-  [StructLayout(LayoutKind.Sequential)]
-  public struct MouseInput {
-    public int dx, dy;
-    public uint mouseData, dwFlags, time;
-    public UIntPtr dwExtraInfo;
-  }
-  [StructLayout(LayoutKind.Explicit, Size=40)]
-  public struct Input {
-    [FieldOffset(0)] public uint type;
-    [FieldOffset(8)] public MouseInput mouse;
-  }
-  [DllImport("user32.dll", SetLastError=true)]
-  public static extern bool SetForegroundWindow(IntPtr hwnd);
-  [DllImport("user32.dll")]
-  public static extern IntPtr GetForegroundWindow();
-  [DllImport("user32.dll", SetLastError=true)]
-  public static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
-  [DllImport("user32.dll", SetLastError=true)]
-  public static extern bool SetCursorPos(int x, int y);
-  [DllImport("user32.dll")]
-  public static extern IntPtr WindowFromPoint(Point point);
-  [DllImport("user32.dll")]
-  public static extern short GetAsyncKeyState(int vk);
-  [DllImport("user32.dll", SetLastError=true)]
-  private static extern uint SendInput(uint count, [In] Input[] input, int cbSize);
-  public static uint ClickOnce() {
-    Input down = new Input();
-    down.type = 0;
-    down.mouse.dwFlags = 0x0002;
-    Input up = new Input();
-    up.type = 0;
-    up.mouse.dwFlags = 0x0004;
-    return SendInput(2, new Input[] { down, up }, Marshal.SizeOf(typeof(Input)));
-  }
-}
-'@
-      $buttonBounds = New-Object Lot05OneShotMouseInput+Rect
-      $vendorBounds = New-Object Lot05OneShotMouseInput+Rect
-      if (-not [Lot05OneShotMouseInput]::GetWindowRect(
-          $installHwnd, [ref]$buttonBounds) -or
-          -not [Lot05OneShotMouseInput]::GetWindowRect(
-          $installerHwnd, [ref]$vendorBounds)) {
-        throw 'PHYSICAL_INPUT_BOUNDS_UNAVAILABLE_NO_CLICK'
-      }
-      $clickX = [int][Math]::Floor(
-        ($buttonBounds.Left + $buttonBounds.Right) / 2)
-      $clickY = [int][Math]::Floor(
-        ($buttonBounds.Top + $buttonBounds.Bottom) / 2)
-      if ($buttonBounds.Right -le $buttonBounds.Left -or
-          $buttonBounds.Bottom -le $buttonBounds.Top -or
-          $clickX -le $vendorBounds.Left -or
-          $clickX -ge $vendorBounds.Right -or
-          $clickY -le $vendorBounds.Top -or
-          $clickY -ge $vendorBounds.Bottom) {
-        throw 'PHYSICAL_INPUT_BAD_GEOMETRY_NO_CLICK'
-      }
-      $null = [Lot05OneShotMouseInput]::SetForegroundWindow($installerHwnd)
-      Start-Sleep -Milliseconds 250
-      if ([Lot05OneShotMouseInput]::GetForegroundWindow() -ne $installerHwnd) {
-        throw 'PHYSICAL_INPUT_FOREGROUND_REFUSED_NO_CLICK'
-      }
-      if (([Lot05OneShotMouseInput]::GetAsyncKeyState(1) -band 0x8000) -ne 0) {
-        throw 'PHYSICAL_INPUT_BUTTON_ALREADY_DOWN_NO_CLICK'
-      }
-      if (-not [Lot05OneShotMouseInput]::SetCursorPos($clickX, $clickY)) {
-        throw 'PHYSICAL_INPUT_CURSOR_POSITION_REFUSED_NO_CLICK'
-      }
-      $point = New-Object Lot05OneShotMouseInput+Point
-      $point.X = $clickX
-      $point.Y = $clickY
-      Start-Sleep -Milliseconds 100
-      if ([Lot05OneShotMouseInput]::WindowFromPoint($point) -ne $installHwnd -or
-          [Lot05OneShotMouseInput]::GetForegroundWindow() -ne $installerHwnd -or
-          -not [Lot05ReadOnlyInstallerWin32]::IsWindowVisible($installHwnd) -or
-          -not [Lot05ReadOnlyInstallerWin32]::IsWindowEnabled($installHwnd)) {
-        throw 'PHYSICAL_INPUT_HIT_TEST_REFUSED_NO_CLICK'
-      }
-      $report.physical_input_hit_target_verified = $true
-      $report.install_button_invocation_attempted = $true
-      $report.physical_input_events_accepted = [int](
-        [Lot05OneShotMouseInput]::ClickOnce()
-      )
-      $report.physical_input_native_last_error =
-        [Runtime.InteropServices.Marshal]::GetLastWin32Error()
-      if ($report.physical_input_events_accepted -ne 2) {
-        throw 'PHYSICAL_INPUT_NOT_DELIVERED_NO_RETRY'
-      }
-    } else {
-    # BM_CLICK via bounded SendMessageTimeout: the exact identified native
-    # Button child only. No simulated coordinates, keys, UIA fallback or UAC
-    # circumvention. A failed delivery is a strict stop (no second attempt).
-    Add-Type -TypeDefinition @'
-using System;
-using System.Runtime.InteropServices;
-public static class Lot05WizardSingleClick {
-  [DllImport("user32.dll", SetLastError=true)]
-  public static extern IntPtr SendMessageTimeout(
-    IntPtr hwnd, uint message, IntPtr wparam, IntPtr lparam,
-    uint flags, uint timeoutMs, out IntPtr result);
-  [DllImport("user32.dll", SetLastError=true)]
-  public static extern bool SetForegroundWindow(IntPtr hwnd);
-  [DllImport("user32.dll")]
-  public static extern IntPtr GetForegroundWindow();
-}
-'@
-    $null = [Lot05WizardSingleClick]::SetForegroundWindow($installerHwnd)
-    Start-Sleep -Milliseconds 200
-    if ([Lot05WizardSingleClick]::GetForegroundWindow() -ne $installerHwnd) {
-      throw 'SIGNED_INSTALLER_NOT_FOREGROUND_NO_CLICK'
-    }
-    $output = [IntPtr]::Zero
-    $report.install_button_invocation_attempted = $true
-    $delivered = [Lot05WizardSingleClick]::SendMessageTimeout(
-      $installHwnd, [uint32]0x00F5, [IntPtr]::Zero, [IntPtr]::Zero,
-      [uint32]2, [uint32]1500, [ref]$output
-    )
-    $report.install_button_message_delivered = (
-      $delivered -ne [IntPtr]::Zero
-    )
-    if (-not $report.install_button_message_delivered) {
-      throw 'INSTALL_BUTTON_MESSAGE_TIMEOUT_NO_RETRY'
-    }
-
-    }
-    # After ONE click observe ONLY window existence in the launcher process
-    # tree; never capture its content/titles or interact with the wizard.
-    # A dialog could be EULA/UAC: presence is recorded but NOT accepted.
-    for ($probeCycle = 0; $probeCycle -lt 25; $probeCycle++) {
-      Start-Sleep -Seconds 1
-      $allChildren = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
-      for ($depth = 0; $depth -lt 3; $depth++) {
-        foreach ($childProc in $allChildren) {
-          if ($knownIds -contains [int]$childProc.ParentProcessId -and
-              -not ($knownIds -contains [int]$childProc.ProcessId)) {
-            $knownIds += [int]$childProc.ProcessId
-          }
-        }
-      }
-      foreach ($childId in $knownIds) {
-        $childProcess = Get-Process -Id $childId -ErrorAction SilentlyContinue
-        if ($null -eq $childProcess -or
-            $childProcess.MainWindowHandle -eq [IntPtr]::Zero) { continue }
-        $newHwnd = $childProcess.MainWindowHandle
-        if ($newHwnd -ne $installerHwnd -and
-            $priorVendorWindowHandles -notcontains [long]$newHwnd.ToInt64()) {
-          $postClickNewHwnd = $newHwnd
-          $report.setup_wizard_new_window_observed = $true
-          $report.post_click_screen_new_hwnd_verified = $true
-          $report.post_click_screen_process_lineage_bound = ($knownIds -contains [int]$childProcess.Id)
-          break
-        }
-      }
-      if ($report.setup_wizard_new_window_observed) { break }
-    }
-    # Read-only and bounded semantic inventory of NEW publisher window.
-    # Never emit raw UI title, control text, screenshots, HWND, PID or patients.
-    if ($LaunchSetupWizardViaPhysicalInputOnly -and
-        $report.post_click_screen_new_hwnd_verified -and
-        $report.post_click_screen_process_lineage_bound -and
-        $postClickNewHwnd -ne [IntPtr]::Zero) {
-      try {
-        $postRoot = [System.Windows.Automation.AutomationElement]::FromHandle($postClickNewHwnd)
-        if ($null -ne $postRoot) {
-          $report.post_click_screen_uia_queryable = $true
-          $rootTitle = [string]$postRoot.Current.Name
-          $report.post_click_screen_title_setup_wizard = [bool](
-            $rootTitle -match '(?i)\b(Setup Wizard|Open Dental Setup|OpenDental Setup)\b'
-          )
-          $report.post_click_screen_title_license_terms = [bool](
-            $rootTitle -match '(?i)\b(Licen[sc]e Agreement|Terms and Conditions|EULA)\b'
-          )
-          $postControls = $postRoot.FindAll(
-            [System.Windows.Automation.TreeScope]::Descendants,
-            [System.Windows.Automation.Condition]::TrueCondition
-          )
-          $limitPost = [Math]::Min([int]$postControls.Count, 150)
-          $report.post_click_screen_uia_element_count = $limitPost
-          for ($ix = 0; $ix -lt $limitPost; $ix++) {
-            $postElement = $postControls.Item($ix)
-            $postName = [string]$postElement.Current.Name
-            $postKind = [string]$postElement.Current.ControlType.ProgrammaticName
-            if ($postName -match '(?i)\b(Welcome to.*(?:Setup|Install)|Setup Wizard|Choose (?:the )?(?:installation|setup) type|Server Installation)\b') {
-              $report.post_click_screen_uia_welcome_setup = $true
-            }
-            if ($postKind -match 'Button' -and $postName -match '(?i)^\s*&?Next(?:\s*>+)?\s*$') {
-              $report.post_click_screen_uia_next_control = $true
-            }
-            if ($postKind -match 'Button' -and $postName -match '(?i)^\s*(?:<+)?\s*&?Back\s*$') {
-              $report.post_click_screen_uia_back_control = $true
-            }
-            if ($postName -match '(?i)\b(Licen[sc]e Agreement|Terms and Conditions|I (?:do |have read and )?agree|Accept (?:the )?(?:terms|licen[sc]e)|EULA)\b') {
-              $report.post_click_screen_uia_license_terms = $true
-            }
-          }
-        }
-      } catch {
-        # The unreadable screen is UNKNOWN; never certify by inference.
-        $report.post_click_screen_uia_queryable = $false
-      }
-      $report.post_click_screen_kind = if (
-          $report.post_click_screen_title_license_terms -or
-          $report.post_click_screen_uia_license_terms) {
-        'LICENSE_TERMS_VISIBLE_STOP'
-      } elseif ($report.post_click_screen_title_setup_wizard -and
-                ($report.post_click_screen_uia_welcome_setup -or
-                 $report.post_click_screen_uia_next_control)) {
-        'SETUP_WIZARD_SEMANTICALLY_PROVEN'
-      } elseif ($report.post_click_screen_title_setup_wizard -or
-                $report.post_click_screen_uia_welcome_setup) {
-        'SETUP_WIZARD_INDICATED_ONLY'
-      } elseif ($report.post_click_screen_uia_next_control -and
-                $report.post_click_screen_uia_back_control) {
-        'WIZARD_NAVIGATION_OBSERVED_UNIDENTIFIED'
-      } else {
-        'UNCLASSIFIED_VENDOR_WINDOW'
-      }
-    }
-    $newDbService = @(
-      Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue
-    )
-    $report.db_service_created_observed = ($newDbService.Count -gt 0)
-    # No false claim of completed install, even if Win32 message delivered.
-    $report.status = if ($report.setup_wizard_new_window_observed) {
-      'FIRST_WIZARD_WINDOW_OBSERVED_NO_LICENSE_ACCEPTED_NO_IMPORT'
-    } else {
-      'INSTALL_BUTTON_MESSAGE_DELIVERED_WIZARD_NOT_PROVEN'
-    }
-  }
-  if ($report.official_trial_window_title_allowlisted -and
-      -not $LaunchSetupWizardOnly -and
-      -not $LaunchSetupWizardViaPhysicalInputOnly) {
+  # End read-only signed publisher inspection: no button invocation.
+  if ($report.official_trial_window_title_allowlisted) {
     $report.status = 'SIGNED_OFFICIAL_VENDOR_GUI_LAUNCHER_WINDOW_OBSERVED_ONLY'
   } elseif (-not $report.official_trial_window_title_allowlisted) {
     $report.status = 'SIGNED_TRIAL_EXECUTED_BUT_GUI_WINDOW_NOT_PROVEN'
@@ -860,6 +548,6 @@ public static class Lot05WizardSingleClick {
   )
 }
 Write-Host ('LOT05_H_SIGNED_VENDOR_WINDOW_PROBE=' + $report.status)
-Write-Host 'LOT05_H_SINGLE_WIZARD_FIRST_SCREEN_ONLY_NO_EULA_ACCEPTANCE_NO_IMPORT'
+Write-Host 'LOT05_H_READ_ONLY_NO_INSTALL_NO_IMPORT'
 # SUCCESS means bounded probe finished. Artifact JSON determines truth.
 exit 0
