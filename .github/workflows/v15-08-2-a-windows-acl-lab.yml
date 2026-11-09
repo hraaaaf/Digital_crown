@@ -69,9 +69,15 @@ jobs:
           python -m pytest -q queue_core/tests --junitxml=queue-core-windows-acl-lab.xml
           if ($LASTEXITCODE -ne 0) { throw 'QUEUE_CORE_TEST_FAILURE' }
       - name: Windows real ACL smoke on RUNNER_TEMP only
-        shell: pwsh
+        # The production helper launches Windows PowerShell 5.1. Invoke it
+        # from Windows PowerShell, not a nested PowerShell 7 module environment.
+        shell: powershell
         run: |
           $ErrorActionPreference = 'Stop'
+          Import-Module Microsoft.PowerShell.Security -ErrorAction Stop
+          $probe = Get-Acl -LiteralPath $env:RUNNER_TEMP -ErrorAction Stop
+          if (-not $probe) { throw 'HOST_ACL_MODULE_PROBE_FAILED' }
+          Write-Output 'WINPS51_GET_ACL_PRECHECK_PASS'
           @'
           import os
           import shutil
