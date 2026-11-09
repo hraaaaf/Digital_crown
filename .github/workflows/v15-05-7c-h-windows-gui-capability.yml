@@ -1,4 +1,4 @@
-name: LOT05 05.7C-H Synthetic BM_CLICK WinForms Forensic Probe (NO VENDOR)
+name: LOT05 05.7C-H Signed Installer HWND Ownership (READ ONLY)
 
 on:
   pull_request:
@@ -14,9 +14,9 @@ permissions:
 
 jobs:
   synthetic-windows-gui-capability:
-    name: Synthetic WinForms native button BM_CLICK forensic proof (NO VENDOR)
+    name: Native Install button owner thread/process observation (NO CLICK)
     runs-on: windows-2022
-    timeout-minutes: 7
+    timeout-minutes: 16
     steps:
       - uses: actions/checkout@v4
         with:
@@ -48,25 +48,51 @@ jobs:
           path: ${{ runner.temp }}/lot05-7c-h-gui-capability-metadata-only.json
           if-no-files-found: error
           retention-days: 5
-      - name: Assert synthetic BM_CLICK Win32 result and real event handler (never vendor)
+      - name: Validate signed vendor observation script offline PowerShell syntax
+        shell: pwsh
+        run: |
+          $errors = @()
+          $tokens = $null
+          $path = './scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1'
+          $null = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw 'VENDOR_OWNERSHIP_PROBE_AST_INVALID' }
+          Write-Host 'LOT05H_READ_ONLY_VENDOR_OWNERSHIP_AST_VALID'
+      - name: Observe official signed installer native HWND ownership (NO CLICK)
+        shell: pwsh
+        run: |
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1' -ReadOnlyButtonOwnershipProbe
+          if ($LASTEXITCODE -ne 0) { throw 'READ_ONLY_OWNER_PROBE_FAILED' }
+      - name: Fail closed on vendor HWND ownership evidence or any installer action
         shell: pwsh
         run: |
           $ErrorActionPreference = 'Stop'
-          $path = Join-Path $env:RUNNER_TEMP 'lot05-7c-h-gui-capability-metadata-only.json'
-          if (-not (Test-Path -LiteralPath $path)) { throw 'SYNTHETIC_BM_CLICK_JSON_REQUIRED' }
+          $path = Join-Path $env:RUNNER_TEMP 'lot05-7c-h-official-vendor-gui-window-metadata-only.json'
+          if (-not (Test-Path -LiteralPath $path)) { throw 'READ_ONLY_OWNER_JSON_REQUIRED' }
           $v = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
-          if (-not $v.source_is_synthetic -or
-              $v.attempted_vendor_install -or
-              $v.attempted_vendor_export -or
-              $v.gui_capability -cne 'SYNTHETIC_WINFORMS_KEYBOARD_ROUNDTRIP_PROVEN' -or
-              -not $v.synthetic_bm_click_candidate_created -or
-              -not $v.synthetic_bm_click_requested -or
-              -not $v.synthetic_bm_click_returned_nonzero -or
-              -not $v.synthetic_bm_click_handler_fired -or
-              -not $v.synthetic_bm_click_proven -or
-              $v.publisher_gui_csv_export_verified -or
+          if (-not $v.official_binary_authenticode_valid -or
+              -not $v.official_binary_sha256_pinned -or
+              -not $v.read_only_button_ownership_probe_requested -or
+              -not $v.installer_win32_install_semantic_button_proven -or
+              -not $v.install_button_owner_queryable -or
+              -not $v.install_button_window_still_valid -or
+              -not $v.install_button_native_class_verified -or
+              -not $v.install_button_parent_chain_contains_vendor_window -or
+              $v.install_button_invocation_attempted -or
+              $v.install_button_message_delivered -or
+              $v.licence_or_eula_accepted -or
+              $v.clicked_wizard_next -or
+              $v.database_installed -or
+              $v.db_service_created_observed -or
               $v.import_permitted -or
               $v.target_rows_written -ne 0) {
-            throw 'SYNTHETIC_BM_CLICK_ROUNDTRIP_NOT_PROVEN_FAIL_CLOSED'
+            throw 'VENDOR_OWNER_EVIDENCE_NOT_PROVEN_OR_UNSAFE_FAIL_CLOSED'
           }
-          Write-Host 'LOT05H_NATIVE_BM_CLICK_PROVEN_ON_SYNTHETIC_WINFORMS_ONLY_NO_VENDOR'
+          Write-Host 'LOT05H_READ_ONLY_BUTTON_OWNER_VERIFIED_NO_CLICK_NO_EULA_NO_DB'
+      - name: Upload ONLY sanitized official vendor GUI ownership metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-h-official-vendor-button-ownership-metadata-only
+          path: ${{ runner.temp }}/lot05-7c-h-official-vendor-gui-window-metadata-only.json
+          if-no-files-found: warn
+          retention-days: 5
