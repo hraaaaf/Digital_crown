@@ -7,7 +7,8 @@
 param(
   [switch]$LaunchSetupWizardOnly,
   [switch]$ReadOnlyElevationProbe,
-  [switch]$ReadOnlyButtonOwnershipProbe
+  [switch]$ReadOnlyButtonOwnershipProbe,
+  [switch]$LaunchSetupWizardViaPhysicalInputOnly
 )
 
 Set-StrictMode -Version Latest
@@ -44,7 +45,7 @@ $report = [ordered]@{
   installer_win32_install_enabled = $false
   installer_win32_install_in_vendor_bounds = $false
   installer_win32_install_semantic_button_proven = $false
-  install_wizard_probe_requested = [bool]$LaunchSetupWizardOnly
+  install_wizard_probe_requested = [bool]($LaunchSetupWizardOnly -or $LaunchSetupWizardViaPhysicalInputOnly)
   read_only_elevation_probe_requested = [bool]$ReadOnlyElevationProbe
   vendor_window_token_queryable = $false
   vendor_window_token_elevated = $null
@@ -62,6 +63,10 @@ $report = [ordered]@{
   install_wizard_probe_guard_passed = $false
   install_button_invocation_attempted = $false
   install_button_message_delivered = $false
+  physical_input_probe_requested = [bool]$LaunchSetupWizardViaPhysicalInputOnly
+  physical_input_hit_target_verified = $false
+  physical_input_events_accepted = 0
+  physical_input_native_last_error = $null
   setup_wizard_new_window_observed = $false
   db_service_preexisting = $false
   db_service_created_observed = $false
@@ -529,7 +534,7 @@ public static class Lot05InitialInstallerCapture {
   # The official trial instructions specify that Install FIRST opens the Setup
   # Wizard. This probe stops at that first screen, without any EULA acceptance,
   # wizard Next/Finish/confirmation, MariaDB configuration or patient access.
-  if ($LaunchSetupWizardOnly) {
+  if ($LaunchSetupWizardOnly -or $LaunchSetupWizardViaPhysicalInputOnly) {
     if (-not $report.installer_win32_install_semantic_button_proven -or
         $report.installer_win32_install_candidate_count -ne 1 -or
         -not $report.installer_uia_new_server_option_observed -or
@@ -547,8 +552,124 @@ public static class Lot05InitialInstallerCapture {
       $report.db_service_preexisting = $true
       throw 'ISOLATED_VM_REQUIRES_NO_DATABASE_SERVICE'
     }
+    if ($LaunchSetupWizardViaPhysicalInputOnly -and (
+        -not $ReadOnlyButtonOwnershipProbe -or
+        -not $report.install_button_owner_queryable -or
+        -not $report.install_button_window_still_valid -or
+        -not $report.install_button_native_class_verified -or
+        -not $report.install_button_parent_chain_contains_vendor_window -or
+        $report.install_button_same_process_as_vendor_window -ne $true -or
+        $report.install_button_same_thread_as_vendor_window -ne $true -or
+        $report.install_button_same_process_as_runner -ne $false)) {
+      throw 'PHYSICAL_INPUT_OWNER_GUARD_NOT_PROVEN'
+    }
     $report.install_wizard_probe_guard_passed = $true
 
+    if ($LaunchSetupWizardViaPhysicalInputOnly) {
+      # One owner-authorized, native mouse down/up at the exact child Button.
+      # No UIA fallback, no WM_COMMAND or BM_CLICK, no alternate coordinates,
+      # no key shortcuts, no permission escalation and NO SECOND ATTEMPT.
+      if ([IntPtr]::Size -ne 8) { throw 'X64_WINDOWS_REQUIRED_NO_CLICK' }
+      Add-Type -TypeDefinition @'
+using System;
+using System.Runtime.InteropServices;
+public static class Lot05OneShotMouseInput {
+  [StructLayout(LayoutKind.Sequential)]
+  public struct Rect {
+    public int Left, Top, Right, Bottom;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  public struct Point {
+    public int X, Y;
+  }
+  [StructLayout(LayoutKind.Sequential)]
+  public struct MouseInput {
+    public int dx, dy;
+    public uint mouseData, dwFlags, time;
+    public UIntPtr dwExtraInfo;
+  }
+  [StructLayout(LayoutKind.Explicit, Size=40)]
+  public struct Input {
+    [FieldOffset(0)] public uint type;
+    [FieldOffset(8)] public MouseInput mouse;
+  }
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern bool SetForegroundWindow(IntPtr hwnd);
+  [DllImport("user32.dll")]
+  public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern bool GetWindowRect(IntPtr hwnd, out Rect rect);
+  [DllImport("user32.dll", SetLastError=true)]
+  public static extern bool SetCursorPos(int x, int y);
+  [DllImport("user32.dll")]
+  public static extern IntPtr WindowFromPoint(Point point);
+  [DllImport("user32.dll")]
+  public static extern short GetAsyncKeyState(int vk);
+  [DllImport("user32.dll", SetLastError=true)]
+  private static extern uint SendInput(uint count, [In] Input[] input, int cbSize);
+  public static uint ClickOnce() {
+    Input down = new Input();
+    down.type = 0;
+    down.mouse.dwFlags = 0x0002;
+    Input up = new Input();
+    up.type = 0;
+    up.mouse.dwFlags = 0x0004;
+    return SendInput(2, new Input[] { down, up }, Marshal.SizeOf(typeof(Input)));
+  }
+}
+'@
+      $buttonBounds = New-Object Lot05OneShotMouseInput+Rect
+      $vendorBounds = New-Object Lot05OneShotMouseInput+Rect
+      if (-not [Lot05OneShotMouseInput]::GetWindowRect(
+          $installHwnd, [ref]$buttonBounds) -or
+          -not [Lot05OneShotMouseInput]::GetWindowRect(
+          $installerHwnd, [ref]$vendorBounds)) {
+        throw 'PHYSICAL_INPUT_BOUNDS_UNAVAILABLE_NO_CLICK'
+      }
+      $clickX = [int][Math]::Floor(
+        ($buttonBounds.Left + $buttonBounds.Right) / 2)
+      $clickY = [int][Math]::Floor(
+        ($buttonBounds.Top + $buttonBounds.Bottom) / 2)
+      if ($buttonBounds.Right -le $buttonBounds.Left -or
+          $buttonBounds.Bottom -le $buttonBounds.Top -or
+          $clickX -le $vendorBounds.Left -or
+          $clickX -ge $vendorBounds.Right -or
+          $clickY -le $vendorBounds.Top -or
+          $clickY -ge $vendorBounds.Bottom) {
+        throw 'PHYSICAL_INPUT_BAD_GEOMETRY_NO_CLICK'
+      }
+      $null = [Lot05OneShotMouseInput]::SetForegroundWindow($installerHwnd)
+      Start-Sleep -Milliseconds 250
+      if ([Lot05OneShotMouseInput]::GetForegroundWindow() -ne $installerHwnd) {
+        throw 'PHYSICAL_INPUT_FOREGROUND_REFUSED_NO_CLICK'
+      }
+      if (([Lot05OneShotMouseInput]::GetAsyncKeyState(1) -band 0x8000) -ne 0) {
+        throw 'PHYSICAL_INPUT_BUTTON_ALREADY_DOWN_NO_CLICK'
+      }
+      if (-not [Lot05OneShotMouseInput]::SetCursorPos($clickX, $clickY)) {
+        throw 'PHYSICAL_INPUT_CURSOR_POSITION_REFUSED_NO_CLICK'
+      }
+      $point = New-Object Lot05OneShotMouseInput+Point
+      $point.X = $clickX
+      $point.Y = $clickY
+      Start-Sleep -Milliseconds 100
+      if ([Lot05OneShotMouseInput]::WindowFromPoint($point) -ne $installHwnd -or
+          [Lot05OneShotMouseInput]::GetForegroundWindow() -ne $installerHwnd -or
+          -not [Lot05ReadOnlyInstallerWin32]::IsWindowVisible($installHwnd) -or
+          -not [Lot05ReadOnlyInstallerWin32]::IsWindowEnabled($installHwnd)) {
+        throw 'PHYSICAL_INPUT_HIT_TEST_REFUSED_NO_CLICK'
+      }
+      $report.physical_input_hit_target_verified = $true
+      $report.install_button_invocation_attempted = $true
+      $report.physical_input_events_accepted = [int](
+        [Lot05OneShotMouseInput]::ClickOnce()
+      )
+      $report.physical_input_native_last_error =
+        [Runtime.InteropServices.Marshal]::GetLastWin32Error()
+      if ($report.physical_input_events_accepted -ne 2) {
+        throw 'PHYSICAL_INPUT_NOT_DELIVERED_NO_RETRY'
+      }
+    } else {
     # BM_CLICK via bounded SendMessageTimeout: the exact identified native
     # Button child only. No simulated coordinates, keys, UIA fallback or UAC
     # circumvention. A failed delivery is a strict stop (no second attempt).
@@ -584,6 +705,7 @@ public static class Lot05WizardSingleClick {
       throw 'INSTALL_BUTTON_MESSAGE_TIMEOUT_NO_RETRY'
     }
 
+    }
     # After ONE click observe ONLY window existence in the launcher process
     # tree; never capture its content/titles or interact with the wizard.
     # A dialog could be EULA/UAC: presence is recorded but NOT accepted.
@@ -621,7 +743,8 @@ public static class Lot05WizardSingleClick {
     }
   }
   if ($report.official_trial_window_title_allowlisted -and
-      -not $LaunchSetupWizardOnly) {
+      -not $LaunchSetupWizardOnly -and
+      -not $LaunchSetupWizardViaPhysicalInputOnly) {
     $report.status = 'SIGNED_OFFICIAL_VENDOR_GUI_LAUNCHER_WINDOW_OBSERVED_ONLY'
   } elseif (-not $report.official_trial_window_title_allowlisted) {
     $report.status = 'SIGNED_TRIAL_EXECUTED_BUT_GUI_WINDOW_NOT_PROVEN'
