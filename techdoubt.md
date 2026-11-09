@@ -1,3 +1,7 @@
+### LOT08.2-A — 2026-11-09 — Independent source-review PASS, physical gate still OPEN
+
+Current source `44bc6fc639332796f064dbf18a59a4f8b5c3333f` (PR #1238), separate Codex read-only **delta review** vs previously fully reviewed SHA 09f3d40e: no actionable defect. Direct Windows Python 3.12 53/53 PASS postcommit, compileall PASS, worktree clean; both SDDL parsed by Windows native API in memory, CLI fails closed via Remote Desktop. The real privileged physical-console first admin creation, secure filesystem ACL install and recovery positive-path FUE-I are NOT_RUN and must not be certified from mock tests. Keep DRAFT, no merge/cabinet deployment or 08.2-B until safe physical LAB proof and owner gate. Full report `docs/v1.5/V15_08_2_A_SECURITY_REVIEW_20261109.md`.
+
 ### LOT08.2-A — 2026-11-09 — Independent review P2 expired session retention
 
 Separate Codex CLI read-only review of candidate 09f3d40e found P2: expired session digest rows persisted indefinitely. Fix deletes expired digests within serialized login transaction even for denied logins; regression proves deletion and absence of token resurrection. **53/53 Windows Python 3.12 synthetic tests pass**, compileall and diff-check pass. Source must be reviewed on the next SHA before merge. Audit TTL/purge and future G3 still require design, not claimed in A.
