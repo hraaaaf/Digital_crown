@@ -90,7 +90,8 @@ def _crash_refresh_wal(path: Path) -> None:
         "db.execute(\"PRAGMA key = '\"+sys.argv[2]+\"'\"); "
         "db.execute('PRAGMA journal_mode=WAL'); "
         "db.execute('PRAGMA wal_autocheckpoint=0'); "
-        "db.execute('UPDATE truth SET value=value WHERE id=2'); "
+        "db.execute('CREATE TABLE IF NOT EXISTS FAKE_ONLY_WAL_MARKER(marker TEXT)'); "
+        "db.execute(\"INSERT INTO FAKE_ONLY_WAL_MARKER VALUES ('WAL_ONLY_FAKE')\"); "
         "db.commit(); os._exit(0)\n"
     )
     result = subprocess.run(
