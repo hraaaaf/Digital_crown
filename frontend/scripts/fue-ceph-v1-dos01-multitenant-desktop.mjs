@@ -514,7 +514,7 @@ try {
     // real Cabinet R3 split. Neither a screenshot nor a synthetic DOM mock.
     for(const kind of ['photo','radio']) {
       const item=media.locator('[data-testid="media-asset-rail"] article[data-clinical-asset-id="'+uploaded[kind].id+'"]');
-      await item.getByRole('button',{name:'Ajouter ? la comparaison'}).click();
+      await item.getByRole('button',{name:/^Ajouter.*comparaison$/i}).click();
     }
     const compare=media.locator('[data-testid="media-compare-panel"]');
     await compare.waitFor({state:'visible',timeout:20000});
