@@ -1,5 +1,15 @@
 # STATE — DigitalCrown
 
+## LOT08.2-B — FUE-FIRST remplacement gate reviewer — 2026-11-09 — B-2 FUE-0 PASS / B OPEN
+
+- **Décision utilisateur :** la revue indépendante systématique est substituée par le FUE approprié, conformément à SKILLS.md FUE-first ; les contrôles SEC/data/révocation restent obligatoires selon les risques. Pas de revue artificielle ni de sign-off humain inventé.
+- **Base vérifiée :** PR #1239 DRAFT au SHA de départ `43581796b4c57223ddd734f8b2d35bc68ab2be72`; base master `324afd13487acf7ff29223f077451927b54b8178`.
+- **FUE-0 exécuté sur Windows Python 3.12 :** nouveau `queue_core/tests/test_fue_08_2_b.py` : 3/3 PASS (SQLite réel isolé : reprise, revoke/A recovery, concurrence sérialisée, fail-closed rôle corrompu). Suite complète `py -3.12 -m pytest -q queue_core/tests` : **89 PASSED**, compileall et diff-check PASS.
+- **Protocole et limites :** `docs/v1.5/V15_08_2_B_FUE0_20261109.md` ; données fictives, pas de clinique, FUE-I/G indisponible (routes/API/SSE pas encore implémentés). Tests physiques exclusif LOT10. Aucune fusion/déploiement accordé.
+- **Next exact :** confirmer la CI au HEAD final de ce checkpoint FUE puis traiter l'intégration des contrôles d'autorisation aux vraies commandes/flux dans un sous-lot distinct ; le lot B reste OPEN. Aucune validation FUE-G ou produit affirmée.
+
+
+
 ## LOT08.2-B — B-2 persistance opérateurs candidate — 2026-11-09 — OPEN / NO MERGE
 
 - **GO owner 2026-11-09 :** poursuivre B-2 exclusivement après B-1 au HEAD `e0363e055fd4b31b3903b105229445e7252e1078` de PR #1239 DRAFT. Aucun GO de merge, déploiement, installation ou activation clinique.
