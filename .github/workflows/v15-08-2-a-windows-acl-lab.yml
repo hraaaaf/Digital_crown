@@ -1,0 +1,113 @@
+name: V1.5-08.2-A Windows ACL synthetic LAB
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/v15-08-2-a-windows-acl-lab.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: v15-08-2-a-acl-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows-acl-synthetic:
+    name: Windows runner ACL + Queue Core regression (NOT physical gate)
+    runs-on: windows-latest
+    timeout-minutes: 15
+    env:
+      PYTHONDONTWRITEBYTECODE: '1'
+      PYTHONUTF8: '1'
+    steps:
+      - name: Checkout exact PR source SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Establish tested SHA and synthetic-only boundary
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -ne $env:EXPECTED_SHA) { throw 'EXACT_SHA_MISMATCH' }
+          if (-not $env:RUNNER_TEMP) { throw 'RUNNER_TEMP_REQUIRED' }
+          "EXACT_HEAD=$env:EXPECTED_SHA" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+          "PHYSICAL_LOCAL_CONSOLE_GATE=NOT_RUN" | Out-File -FilePath $env:GITHUB_STEP_SUMMARY -Append
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated Queue Core dependencies
+        shell: pwsh
+        run: |
+          python -m pip install 'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+      - name: Windows real ACL smoke on RUNNER_TEMP only
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          @'
+          import os
+          import shutil
+          import uuid
+          from pathlib import Path
+          from queue_core.security.windows_cli import (
+              _secure_win32_create, _verify_acl, _no_reparse,
+          )
+          from queue_core.security.windows_console import LocalConsoleRequired
+
+          root = Path(os.environ["RUNNER_TEMP"]) / ("digital-crown-acl-" + uuid.uuid4().hex)
+          db = root / "local_auth.sqlite"
+          unsafe = Path(os.environ["RUNNER_TEMP"]) / ("digital-crown-unsafe-" + uuid.uuid4().hex)
+          try:
+              _secure_win32_create(root, directory=True)
+              _no_reparse(root)
+              _verify_acl(root)
+              _secure_win32_create(db, directory=False)
+              _no_reparse(db)
+              _verify_acl(db, allow_inherited=True)
+              print("REAL_TEMP_DIRECTORY_AND_FILE_ACL_VERIFIED")
+              unsafe.mkdir()
+              try:
+                  _verify_acl(unsafe)
+              except LocalConsoleRequired:
+                  print("UNTRUSTED_ACL_REFUSED")
+              else:
+                  raise AssertionError("INSECURE_ACL_WAS_ACCEPTED")
+          finally:
+              # Only CI-generated disposable names under RUNNER_TEMP.
+              for item in (unsafe, root):
+                  if item.exists():
+                      shutil.rmtree(item)
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'REAL_TEMP_ACL_SMOKE_FAILED' }
+      - name: Verify CI/redirected CLI is refused without ProgramData side effects
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $auth = Join-Path $env:ProgramData 'DigitalCrownQueueCore'
+          $existedBefore = Test-Path -LiteralPath $auth
+          $output = (& python -m queue_core.security.windows_cli status 2>&1 | Out-String)
+          $exit = $LASTEXITCODE
+          if ($exit -ne 2 -or $output -notmatch 'INTERACTIVE_CONSOLE_REQUIRED') {
+            throw 'REDIRECTED_CLI_FAIL_CLOSED_NOT_PROVEN'
+          }
+          if ((Test-Path -LiteralPath $auth) -ne $existedBefore) {
+            throw 'AUTH_STORE_SIDE_EFFECT'
+          }
+          Write-Output 'NON_INTERACTIVE_CLI_REFUSED_NO_SIDE_EFFECT'
+      - name: Run full Queue Core synthetic tests on Windows Python 3.12
+        shell: pwsh
+        run: |
+          python -m pytest -q queue_core/tests --junitxml=queue-core-windows-acl-lab.xml
+          if ($LASTEXITCODE -ne 0) { throw 'QUEUE_CORE_TEST_FAILURE' }
+      - name: Retain non-sensitive JUnit report only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: queue-core-windows-acl-lab-${{ github.event.pull_request.head.sha || github.sha }}
+          path: queue-core-windows-acl-lab.xml
+          if-no-files-found: warn
