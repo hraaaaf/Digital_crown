@@ -1,3 +1,4 @@
+import { StrictMode } from 'react';
 import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { StationPatientIdentity } from './StationPatientIdentity';
@@ -35,6 +36,23 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     vi.mocked(stationPatientSessionService.purge).mockResolvedValue(undefined);
     vi.mocked(stationPatientSessionService.availableDocuments).mockResolvedValue({ documents: [] });
     vi.mocked(stationPatientSessionService.requestStaffAssistance).mockResolvedValue({ status: 'STAFF_NOTIFIED', alertId: 7 });
+  });
+
+  it('issues exactly one real creation intent under React StrictMode effect replay', async () => {
+    vi.mocked(stationPatientSessionService.status).mockResolvedValue({
+      status: 'pending', sessionId: 'session-1',
+      expiresAt: new Date(Date.now() + 120_000).toISOString(),
+    });
+    const mounted = render(
+      <StrictMode>
+        <StationPatientIdentity onBack={vi.fn()} backLabel="Retour" />
+      </StrictMode>,
+    );
+    await screen.findByAltText('QR d’identification Patient Companion');
+    expect(stationPatientSessionService.create).toHaveBeenCalledTimes(1);
+    expect(stationPatientSessionService.purge).not.toHaveBeenCalled();
+    mounted.unmount();
+    await waitFor(() => expect(stationPatientSessionService.purge).toHaveBeenCalledWith('session-1'));
   });
 
   it('shows one-shot QR/NFC handoff and never claims arrival before identification', async () => {
@@ -313,6 +331,8 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     });
     const onBack = vi.fn();
     const rendered = render(<StationPatientIdentity purpose="documents" onBack={onBack} backLabel="Retour" />);
+    // Ensure the request is truly in flight before testing late-response purge.
+    await waitFor(() => expect(stationPatientSessionService.create).toHaveBeenCalledTimes(1));
     fireEvent.click(screen.getByRole('button', { name: 'Retour' }));
     rendered.unmount();
     resolveCreate({
@@ -359,6 +379,7 @@ describe('StationPatientIdentity V1.5-03.3/03.4', () => {
     const onBack = vi.fn();
     const rendered = render(<StationPatientIdentity purpose="documents" onBack={onBack} backLabel="Retour" />);
     // The loading state cannot initiate a second creation; navigate away instead.
+    await waitFor(() => expect(stationPatientSessionService.create).toHaveBeenCalledTimes(1));
     rendered.unmount();
     resolveFirst({
       sessionId: 'obsolete-generation',

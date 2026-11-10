@@ -181,8 +181,20 @@ export const StationPatientIdentity = ({
   useEffect(() => {
     mountedRef.current = true;
     const generation = ++generationRef.current;
-    void createSession(generation);
+
+    // React StrictMode can mount, clean up, and remount this effect in one
+    // synchronous development pass. Issuing both POSTs races the single-active
+    // Station session invariant and can leave the kiosk in an error state.
+    // Deferring the first POST by one macrotask allows StrictMode's first
+    // cleanup to cancel it. Real unmounts still invalidate pending responses,
+    // which are purged by createSession's generation guard.
+    const createTimer = window.setTimeout(() => {
+      if (mountedRef.current && generation === generationRef.current) {
+        void createSession(generation);
+      }
+    }, 0);
     return () => {
+      window.clearTimeout(createTimer);
       mountedRef.current = false;
       ++generationRef.current;
       if (sessionRef.current) requestPurge(sessionRef.current);
