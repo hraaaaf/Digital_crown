@@ -269,8 +269,7 @@ public static class Lot05DemoGuiWindow {
               $root=$allWindows.Item($j)
               if(-not $ids.Contains([int]$root.Current.ProcessId)){continue}
               $items=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
-                (New-Object System.Windows.Automation.PropertyCondition(
-                  [System.Windows.Automation.AutomationElement]::NameProperty,[string]'Choose Database')))
+                [System.Windows.Automation.Condition]::TrueCondition)
               for($k=0;$k -lt [Math]::Min($items.Count,10);$k++){
                 $el=$items.Item($k)
                 if([string]$el.Current.Name -ceq 'Choose Database' -and
