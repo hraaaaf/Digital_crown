@@ -8,6 +8,10 @@ on:
       - "backend/tests/test_cephalo_runtime_evidence.py"
       - "backend/tests/test_cephalo_auto_calibration_route.py"
       - "backend/tests/test_cephalo_auto_calibration_transition.py"
+      - "backend/tests/test_cephalo_calibration_evidence.py"
+      - "backend/tests/test_cephalo_calibration_route_provenance.py"
+      - "backend/tests/test_cephalo_r6_tweed_merrifield.py"
+      - "backend/tests/test_cephalo_runtime_chain.py"
       - ".github/workflows/ceph-j1b1-canonical-identity-safety-lab.yml"
       - "scripts/ci/ceph_j1b1_canonical_identity_lab.py"
   workflow_dispatch:
@@ -74,6 +78,10 @@ jobs:
             backend/tests/test_cephalo_landmark_refinement_service.py \
             backend/tests/test_cephalo_auto_calibration_transition.py \
             backend/tests/test_cephalo_auto_calibration_route.py \
+            backend/tests/test_cephalo_calibration_evidence.py \
+            backend/tests/test_cephalo_calibration_route_provenance.py \
+            backend/tests/test_cephalo_r6_tweed_merrifield.py \
+            backend/tests/test_cephalo_runtime_chain.py \
             backend/tests/test_cephalo_calibration_current_source.py \
             backend/tests/test_cephalo_calibration_recalibration.py \
             backend/tests/test_cephalo_vnext_lot06_canonical_analysis_v2.py | tee ceph-j1b1-real-backend-results.log
