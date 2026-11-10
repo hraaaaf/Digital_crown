@@ -612,6 +612,49 @@ jobs:
           if ($proc) { Stop-Process -Id $nativePid -Force; Start-Sleep -Seconds 3 }
           if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) { throw 'NATIVE_TEST_SERVER_STILL_LISTENING' }
           Write-Output 'FIRST_NATIVE_PROCESS_TERMINATED_BEFORE_REOPEN'
+      - name: FUE-3 synthetic SQLCipher sealed-file backup / restore after full shutdown
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $temp=[IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+          $profile=[IO.Path]::GetFullPath($env:CEPH_J21_FUE_PROFILE)
+          if (-not $profile.StartsWith($temp+'\',[StringComparison]::OrdinalIgnoreCase) -or
+              -not $profile.EndsWith(('ceph-j21-native-fue-'+$env:GITHUB_RUN_ID))) {
+            throw 'FUE_BACKUP_UNSAFE_PROFILE'
+          }
+          if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) {
+            throw 'FUE_BACKUP_LIVE_PROCESS_REFUSED'
+          }
+          $db=Join-Path $profile 'ceph-j21-scene-app-fue.sqlite3'
+          if (-not (Test-Path -LiteralPath $db) -or
+              (Test-Path -LiteralPath ($db+'-wal'))) {
+            throw 'FUE_BACKUP_MISSING_DB_OR_UNCHECKPOINTED_WAL'
+          }
+          $backupDir=Join-Path $temp ('ceph-j21-backup-fue-'+$env:GITHUB_RUN_ID)
+          if(Test-Path -LiteralPath $backupDir){throw 'FUE_BACKUP_ROOT_ALREADY_EXISTS'}
+          $null=New-Item -ItemType Directory -Path $backupDir
+          $copy=Join-Path $backupDir 'synthetic-encrypted-db-copy'
+          Copy-Item -LiteralPath $db -Destination $copy -ErrorAction Stop
+          $original=(Get-FileHash -LiteralPath $db -Algorithm SHA256).Hash.ToLower()
+          $copied=(Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash.ToLower()
+          if($original -ne $copied){throw 'FUE_BACKUP_COPY_DIGEST_CHANGED'}
+          $header=[IO.File]::ReadAllBytes($copy)
+          $first=[Text.Encoding]::ASCII.GetString($header,0,[Math]::Min(16,$header.Length))
+          if($first.StartsWith('SQLite format 3')){throw 'FUE_BACKUP_PLAINTEXT_SQLITE_REFUSED'}
+          Remove-Item -LiteralPath $db -Force
+          Copy-Item -LiteralPath $copy -Destination $db -ErrorAction Stop
+          $restored=(Get-FileHash -LiteralPath $db -Algorithm SHA256).Hash.ToLower()
+          if($restored -ne $original){throw 'FUE_BACKUP_RESTORE_DIGEST_CHANGED'}
+          $proof=@{
+            scope='NONCLINICAL_SQLCIPHER_FILE_FUE_ONLY'; source_sha=$env:PRODUCT_HEAD;
+            original_sha256=$original; encrypted_backup_sha256=$copied;
+            restored_sha256=$restored; on_disk_encrypted=$true;
+            clinical_backup_certified=$false; clinical_restore_certified=$false;
+          } | ConvertTo-Json -Depth 3
+          $proof | Set-Content (Join-Path $env:CEPH_J21_EVIDENCE_DIR 'synthetic-backup-roundtrip.json') -Encoding utf8
+          Remove-Item -LiteralPath $backupDir -Recurse -Force
+          if(Test-Path -LiteralPath $backupDir){throw 'FUE_BACKUP_SECRET_COPY_NOT_DELETED'}
+          Write-Output ('CEPH_NATIVE_FUE_SQLCIPHER_BACKUP_RESTORE_SHA_PASS '+$restored)
       - name: Restart same native EXE, prove persisted scene SHA and user access denial
         shell: pwsh
         run: |
@@ -653,6 +696,15 @@ jobs:
           one=json.loads((root/'phase-edit.json').read_text())
           two=json.loads((root/'phase-reopen.json').read_text())
           assert one['status']==two['status']=='PASS'
+          assert one['actual_digital_crown_shell']['real_workspace']
+          assert two['actual_digital_crown_shell']['real_workspace']
+          assert one['audit']['outsider_read_http']==two['audit']['outsider_read_http']==403
+          assert one['audit']['same_cabinet_other_patient_http']==two['audit']['same_cabinet_other_patient_http']==404
+          assert one['audit']['stale_cas_replay_http']==two['audit']['stale_cas_replay_http']==409
+          backup=json.loads((root/'synthetic-backup-roundtrip.json').read_text())
+          assert backup['on_disk_encrypted'] and backup['clinical_backup_certified'] is False
+          assert backup['clinical_restore_certified'] is False
+          assert backup['original_sha256']==backup['encrypted_backup_sha256']==backup['restored_sha256']
           assert one['scene_sha256']==two['scene_sha256']
           assert one['audit']['parent_scene_sha256'] and one['audit']['revision']==two['audit']['revision']==2
           assert len(one['viewport_proofs'])==8 and len(two['viewport_proofs'])==1
