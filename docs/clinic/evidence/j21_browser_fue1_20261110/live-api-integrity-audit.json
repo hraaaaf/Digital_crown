@@ -1,0 +1,28 @@
+{
+  "scene_http": 200,
+  "asset_http": 200,
+  "anonymous_http": 401,
+  "wrong_patient_http": 404,
+  "scene_revision": 2,
+  "scene_sha256": "90ab75fcf639d18dfd01b423500c975adc3d01e14b21fa19e73cf92af8d68f85",
+  "parent_sha256": "9da9a0c351fb74ac57950eea9f67b641a0fa7f7a5462ecc3f600af2f9878d89b",
+  "original_sha256": "d18e1f863c91a2876cbb2c979951ec0117ddcd039bc6f3d91011213292429787",
+  "actual_original_sha256": "d18e1f863c91a2876cbb2c979951ec0117ddcd039bc6f3d91011213292429787",
+  "edited_first_point": {
+    "id": "A",
+    "x": 46,
+    "origin": "PRACTITIONER_EDIT"
+  },
+  "measurements": [
+    {
+      "id": "SNA",
+      "status": "UNAVAILABLE",
+      "value": null
+    }
+  ],
+  "clinical_release": false,
+  "scientific_digest_source_certified": false,
+  "desktop_fue_verified": false,
+  "landmarks_count": 38,
+  "status": "PASS"
+}

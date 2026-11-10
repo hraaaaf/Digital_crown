@@ -1,0 +1,837 @@
+name: CEPH-PREMIUM J2.1 M2-M6 detached source transforms + CAS + genuine film LAB FUE
+
+on:
+  pull_request:
+    branches:
+      - test/ceph-premium-j21m1-scene-contract-20261109
+    paths:
+      - backend/services/ceph_premium_pixel_transform_lab.py
+      - backend/services/ceph_premium_scene_ledger_lab.py
+      - backend/services/ceph_premium_scene_source_lab.py
+      - backend/schemas/cephalo_premium_scene_contract.py
+      - backend/tests/test_ceph_premium_j21m1_scene_contract.py
+      - backend/tests/test_ceph_premium_j21_m2m5_lab.py
+      - backend/tests/test_ceph_j21_m4_real_jwt_fue.py
+      - backend/models_ceph_premium_scene_fue.py
+      - backend/services/ceph_premium_scene_app_fue.py
+      - backend/routers/ceph_premium_scene_app_fue.py
+      - backend/tests/test_ceph_j21_scene_app_fue.py
+      - frontend/src/features/ortho/cephPremiumSceneFUEClient.ts
+      - frontend/src/features/ortho/cephPremiumSceneFUEClient.test.ts
+      - frontend/src/features/ortho/components/CephPremiumSceneFUEViewer.tsx
+      - frontend/src/features/ortho/components/CephPremiumSceneFUEViewer.test.tsx
+      - scripts/ceph_premium_j21_m6_lab_preview.py
+      - .github/workflows/ceph-premium-j21-m2m6-fue.yml
+      - .github/workflows/ceph-j21-native-fue-windows.yml
+      - scripts/ci/ceph_j21_native_fue_app.py
+      - scripts/ci/ceph_j21_native_fue_browser.cjs
+      - frontend/fue-j21-native/**
+      - frontend/vite.ceph-j21-native-fue.config.ts
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+jobs:
+  m2-m5-parallel:
+    name: ${{ matrix.lane }} isolated contract & negative gates
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - lane: M2-coordinate-transforms
+            pattern: m2_
+          - lane: M3-revisions-CAS
+            pattern: m3_
+          - lane: M4-byte-source
+            pattern: m4_
+          - lane: M5-adversarial-security
+            pattern: m5_
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      LAB_PATTERN: ${{ matrix.pattern }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Minimal separate contract dependencies
+        run: python -m pip install pydantic==2.6.3 pytest==9.0.3 Pillow==11.3.0
+      - name: Test this lane only (no backend registration)
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          import os,pytest
+          from scripts.ceph_premium_j21m1_scene_fue import namespace,load_source
+          namespace('backend','backend')
+          namespace('backend.services','backend/services')
+          namespace('backend.schemas','backend/schemas')
+          load_source('backend.services.srpose38_contract','backend/services/srpose38_contract.py')
+          assert os.environ['LAB_PATTERN'] in ('m2_','m3_','m4_','m5_')
+          rc=pytest.main(['--noconftest','-q','--disable-warnings',
+                          'backend/tests/test_ceph_premium_j21_m2m5_lab.py',
+                          '-k',os.environ['LAB_PATTERN']])
+          if rc:raise SystemExit(rc)
+          print('CEPH_PREMIUM_LANE_PASS',os.environ['LAB_PATTERN'])
+          PY
+
+  isolated-lab-gates:
+    needs: [m2-m5-parallel]
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      CEPH_PUBLIC_SOURCE_IMAGE: /tmp/j21-public/anug.jpg
+      CEPH_J1_COORDS_JSON: /tmp/j21-prior/source-locked-38-points.json
+      CEPH_J21_EVIDENCE_DIR: artifacts/ceph-j21-m2m6
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Verify exact HEAD + no production/runtime injection
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          paths=('backend/__init__.py','backend/main.py',
+                 'backend/routers/__init__.py','backend/schemas/__init__.py')
+          for p in paths:
+              if Path(p).exists():
+                  content=Path(p).read_text(encoding='utf8')
+                  assert 'ceph_premium_pixel_transform_lab' not in content
+                  assert 'ceph_premium_scene_ledger_lab' not in content
+                  assert 'ceph_premium_scene_source_lab' not in content
+          print('NO_PROD_SCENE_RUNTIME_REGISTRATION_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install minimal isolated dependencies
+        run: |
+          python -m pip install pydantic==2.6.3 pytest==9.0.3 Pillow==11.3.0
+      - name: Restore public ORIGINAL film with pinned digest
+        run: |
+          mkdir -p /tmp/j21-public
+          curl -fL --retry 3 --retry-delay 2 --max-time 120 -A 'DigitalCrown-PublicFUE/1.0'             'https://upload.wikimedia.org/wikipedia/commons/6/66/Cephalometric_radiograph.JPG'             -o /tmp/j21-public/anug.jpg
+          echo 'ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6  /tmp/j21-public/anug.jpg' | sha256sum -c -
+          test "$(stat -c%s /tmp/j21-public/anug.jpg)" = '399879'
+      - name: Restore prior J1 genuine ONNX coordinates exact SHA
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          mkdir -p /tmp/j21-prior
+          gh run download 42685230506 --repo "$GITHUB_REPOSITORY"             --name ceph-premium-j1-real-onnx-3137fa4c1611d47e4d71906cf5e4542cc8b01b49             --dir /tmp/j21-prior
+          echo '4c7c459ae0e612606ebdeba72752839d8718af834b50ab631e5cc98de818bdbe  /tmp/j21-prior/source-locked-38-points.json' | sha256sum -c -
+      - name: Run all strict M1-M5 contract / security test cases
+        run: |
+          python - <<'PY'
+          import pytest
+          from scripts.ceph_premium_j21m1_scene_fue import namespace,load_source
+          namespace('backend','backend')
+          namespace('backend.services','backend/services')
+          namespace('backend.schemas','backend/schemas')
+          load_source('backend.services.srpose38_contract','backend/services/srpose38_contract.py')
+          rc=pytest.main([
+              '--noconftest','-q','--disable-warnings',
+              'backend/tests/test_ceph_premium_j21m1_scene_contract.py',
+              'backend/tests/test_ceph_premium_j21_m2m5_lab.py',
+          ])
+          if rc:raise SystemExit(rc)
+          print('CEPH_J21_M1_M5_DETACHED_LAB_TESTS_GREEN')
+          PY
+      - name: Genuine ANUG pixels + J1 ONNX point replay lab 1280/1600
+        run: |
+          python -m scripts.ceph_premium_j21_m6_lab_preview
+      - name: Independent source, scene, preview, clinical-hold audit
+        run: |
+          python - <<'PY'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ['CEPH_J21_EVIDENCE_DIR'])
+          r=json.loads((root/'m6-report.json').read_text(encoding='utf8'))
+          assert r['head']==os.environ['PRODUCT_HEAD']
+          assert r['prior_onnx_head']=='3137fa4c1611d47e4d71906cf5e4542cc8b01b49'
+          assert r['source_sha256']=='ede247cdc573719cd25c928110543978f962f43e296adb1f875cdd45b3fc7ee6'
+          assert r['coords_sha256']=='4c7c459ae0e612606ebdeba72752839d8718af834b50ab631e5cc98de818bdbe'
+          assert r['points']==38 and r['scene_reopened']
+          assert r['real_authenticated_dc_dos05_binding'] is False
+          assert r['mock_binding_envelope'] is True
+          assert r['native_desktop_fue_complete'] is False
+          assert r['new_onnx_inference'] is False and r['clinical_release'] is False
+          for p in r['views']:
+              f=root/p['filename']
+              assert f.is_file() and hashlib.sha256(f.read_bytes()).hexdigest()==p['sha256']
+              assert p['max_roundtrip_error']<1e-7
+          print('CEPH_J21_LAB_PREVIEWS_REAL_SOURCE_CERTIFIED_DESKTOP_HOLD')
+          PY
+      - name: Publish exact HEAD nonclinical lab proof
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-premium-j21-m2m6-lab-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-j21-m2m6/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  m4-real-jwt-encrypted-source-fue:
+    name: M4 real HTTP JWT + AES-GCM source FUE (synthetic only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC_DOS05_FUE_ONLY: '1'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      SECRET_KEY: ceph-j21-m4-synthetic-jwt-only-test-key-20261110
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact HEAD and no production media-router wiring
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          code=Path('backend/routers/__init__.py').read_text(encoding='utf8')
+          assert 'cephalo_study_media_binding' not in code
+          print('M4_ISOLATED_ROUTER_ONLY_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend FUE dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/m4-fue-dependencies.txt
+          pip install -r /tmp/m4-fue-dependencies.txt
+          python -m pip check
+      - name: Synthetic real FastAPI JWT, encrypted on-disk original, tamper denial and A/B/X security regression
+        run: |
+          mkdir -p artifacts/ceph-j21-m4-auth
+          python -m pytest -q --tb=short --maxfail=1 -o addopts='' \
+            backend/tests/test_ceph_j21_m4_real_jwt_fue.py \
+            backend/tests/test_dc_dos05_study_media_fue.py \
+            --junitxml=artifacts/ceph-j21-m4-auth/pytest-junit.xml
+      - name: Assert 2 tests passed on this exact HEAD and document hold
+        run: |
+          python - <<'PY'
+          import json, os, xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('artifacts/ceph-j21-m4-auth/pytest-junit.xml')
+          root=ET.parse(p).getroot()
+          suites=[root] if root.tag=='testsuite' else list(root.findall('.//testsuite'))
+          assert sum(int(x.get('tests','0')) for x in suites)==2
+          assert sum(int(x.get('failures','0'))+int(x.get('errors','0'))+int(x.get('skipped','0')) for x in suites)==0
+          report={'head':os.environ['PRODUCT_HEAD'],'case_id':'CEPH-J21-M4',
+                  'tests_passed':2,'synthetic_only':True,'real_http_jwt':True,
+                  'encrypted_original_tamper_denied':True,'patient_b_cabinet_x_refused':True,
+                  'desktop_fue_complete':False,'clinical_release':False,
+                  'production_router_mounted':False,'migration_executed':False}
+          (p.parent/'m4-fue-report.json').write_text(json.dumps(report,sort_keys=True,indent=2),encoding='utf8')
+          print('CEPH_J21_M4_REAL_JWT_ENCRYPTED_SOURCE_API_PASS_DESKTOP_HOLD')
+          PY
+      - name: Publish synthetic M4 API evidence (never clinical media)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-m4-real-jwt-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-j21-m4-auth/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  m3-authenticated-scene-app-fue:
+    name: M3 scene app SQLite+JWT reopen FUE (synthetic only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      SECRET_KEY: ceph-j21-scene-app-synthetic-20261110
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exact HEAD and no clinic router or schema registration
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          for f in ('backend/__init__.py', 'backend/routers/__init__.py', 'backend/main.py'):
+              t=Path(f).read_text(encoding='utf-8')
+              assert 'ceph_premium_scene_app_fue' not in t, f
+              assert 'models_ceph_premium_scene_fue' not in t, f
+          print('CEPH_J21_SCENE_NO_PRODUCTION_REGISTRATION_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend FUE dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/m3-scene-fue-dependencies.txt
+          pip install -r /tmp/m3-scene-fue-dependencies.txt
+          python -m pip check
+      - name: Real JWT and disposable application DB import-edit-close-reopen negative FUE
+        run: |
+          mkdir -p artifacts/ceph-j21-scene-app
+          python -m pytest backend/tests/test_ceph_j21_scene_app_fue.py -q --maxfail=1 --tb=short -o addopts='' \
+            --junitxml=artifacts/ceph-j21-scene-app/pytest-junit.xml
+      - name: Verify exact HEAD pass and publish nonclinical proof
+        run: |
+          python - <<'PY'
+          import os,json,xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('artifacts/ceph-j21-scene-app/pytest-junit.xml')
+          root=ET.parse(p).getroot()
+          suites=[root] if root.tag=='testsuite' else list(root.findall('.//testsuite'))
+          assert sum(int(x.get('tests','0')) for x in suites)==2
+          assert sum(int(x.get('failures','0'))+int(x.get('errors','0'))+int(x.get('skipped','0')) for x in suites)==0
+          report={'head':os.environ['PRODUCT_HEAD'],'case_id':'CEPH-J21-M3-APP-FUE',
+              'tests_passed':2,'synthetic_only':True,'app_db_file_reopened':True,
+              'real_http_jwt':True,'cas_and_tamper_denied':True,'tenant_refusal':True,
+              'source_verified_via_dc_dos05':True,'clinic_db_migrated':False,
+              'clinical_release':False,'desktop_fue_complete':False}
+          (p.parent/'report.json').write_text(json.dumps(report,sort_keys=True,indent=2),encoding='utf8')
+          print('CEPH_J21_SCENE_APP_DB_JWT_FUE_GREEN_DESKTOP_HOLD')
+          PY
+      - name: Upload test-only evidence (no database or patient image)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-m3-scene-app-jwt-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-j21-scene-app/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  m2-react-svg-scene-fue-contract:
+    name: M2 React SVG scene-pixel / source-lock contract (mock-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_CEPH_J21_SCENE_FUE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exact HEAD and no clinical runtime registration
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          src=Path('frontend/src')
+          forbidden=('cephPremiumSceneFUEClient', 'CephPremiumSceneFUEViewer')
+          exempt={
+              'cephPremiumSceneFUEClient.ts', 'cephPremiumSceneFUEClient.test.ts',
+              'CephPremiumSceneFUEViewer.tsx', 'CephPremiumSceneFUEViewer.test.tsx',
+          }
+          for f in src.rglob('*'):
+              if not f.is_file() or f.suffix not in ('.ts', '.tsx') or f.name in exempt:
+                  continue
+              text=f.read_text(encoding='utf-8')
+              assert not any(x in text for x in forbidden), f
+          print('CEPH_J21_REACT_CANDIDATE_NOT_MOUNTED_IN_APP_PASS')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated frontend dependencies without scripts
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Source-pixel scene validator and React mock consumer tests
+        working-directory: frontend
+        run: |
+          mkdir -p artifacts/ceph-j21-react-fue
+          npx vitest run \
+            src/features/ortho/cephPremiumSceneFUEClient.test.ts \
+            src/features/ortho/components/CephPremiumSceneFUEViewer.test.tsx \
+            --reporter=default \
+            --reporter=junit --outputFile.junit=artifacts/ceph-j21-react-fue/junit.xml
+      - name: Validate six tests and publish explicitly mock-only evidence
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json,os,xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('artifacts/ceph-j21-react-fue/junit.xml')
+          root=ET.parse(p).getroot()
+          suites=[root] if root.tag=='testsuite' else list(root.findall('.//testsuite'))
+          assert sum(int(x.get('tests','0')) for x in suites)==6
+          assert sum(int(x.get('failures','0'))+int(x.get('errors','0'))+int(x.get('skipped','0')) for x in suites)==0
+          report={'head':os.environ['PRODUCT_HEAD'],'case_id':'CEPH-J21-REACT-FUE-0',
+              'tests_passed':6,'mocked_backend':True,'not_mounted_in_clinical_ui':True,
+              'native_desktop_fue_complete':False,'clinical_release':False}
+          (p.parent/'report.json').write_text(json.dumps(report,sort_keys=True,indent=2),encoding='utf8')
+          print('CEPH_J21_REACT_SVG_MOCK_FUE0_PASS_DESKTOP_HOLD')
+          PY
+      - name: Upload mock-only frontend evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-react-svg-fue0-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/artifacts/ceph-j21-react-fue/
+          if-no-files-found: warn
+          retention-days: 7
+
+  native-synthetic-fue:
+    name: Windows native FUE test-only EXE + true JWT/SQLite/AES-GCM/browser
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+      CI: 'true'
+      CEPH_J21_NATIVE_FUE_ONLY: GITHUB_WINDOWS_J21_SYNTHETIC_FUE_ONLY
+      VITE_CEPH_J21_NATIVE_FUE: 'true'
+      # The lab EXE listens on 8879, not the certified clinic port 8005.
+      # Only this unmounted FUE frontend build receives this fixed origin.
+      VITE_API_URL: 'http://127.0.0.1:8879'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Bind ephemeral FUE paths in step context (runner.temp not valid in job env)
+        shell: pwsh
+        run: |
+          "CEPH_J21_EVIDENCE_DIR=$env:RUNNER_TEMP/ceph-j21-native-evidence" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "CEPH_J21_FUE_PROFILE=$env:RUNNER_TEMP/ceph-j21-native-fue-$env:GITHUB_RUN_ID" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          # Scene FUE runtime *requires* its DB under Python's tempfile root.
+          # GitHub RUNNER_TEMP may be on D: while Windows TEMP/TMP are on C:.
+          # Align them in this one disposable job; never weaken the Python guard.
+          "TEMP=$env:RUNNER_TEMP" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TMP=$env:RUNNER_TEMP" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+      - name: Assert immutable head, official release guard and no prod wiring
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:PRODUCT_HEAD) { throw 'WRONG_HEAD' }
+          if ($env:PRODUCT_HEAD -notmatch '^[0-9a-f]{40}$') { throw 'INVALID_HEAD' }
+          $spec=Get-Content DigitalCrown.spec -Raw
+          if (-not $spec.Contains('verify_installable_release_directory')) { throw 'OFFICIAL_CERTIFICATION_GUARD_MISSING' }
+          $launch=Get-Content run.py -Raw
+          if (-not $launch.Contains('_verify_frozen_release_certification()')) { throw 'OFFICIAL_STARTUP_GUARD_MISSING' }
+          foreach($file in @('backend/main.py','backend/routers/__init__.py','frontend/src/App.tsx','frontend/src/main.tsx')) {
+            $code=Get-Content $file -Raw
+            if ($code -match 'CephJ21NativeFUE|ceph_j21_native_fue_app|CephPremiumSceneFUEViewer|ceph_premium_scene_app_fue') {
+              throw "PRODUCTION_ROUTE_OR_UI_INJECTION: $file"
+            }
+          }
+          if (Test-Path $env:CEPH_J21_FUE_PROFILE) { throw 'REUSING_EXISTING_TEST_PROFILE_REFUSED' }
+          python -c "import pathlib,os,tempfile; a=pathlib.Path(tempfile.gettempdir()).resolve(strict=True); b=pathlib.Path(os.environ['RUNNER_TEMP']).resolve(strict=True); assert a==b, 'Python tempfile root differs from GitHub isolated runner root'; print('CEPH_J21_GITHUB_WINDOWS_TEMPFILE_ROOT_MATCH_PASS')"
+          if ($LASTEXITCODE -ne 0) { throw 'ISOLATED_TEMP_ROOT_PRECONDITION_FAILED' }
+          if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) {
+            throw 'TEST_LOOPBACK_PORT_ALREADY_BOUND'
+          }
+          Write-Output 'EXACT_HEAD_NO_RELEASE_OR_PRODUCTION_BYPASS_PASS'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install backend deps in an isolated Windows Python venv
+        shell: pwsh
+        run: |
+          $venv=Join-Path $env:RUNNER_TEMP 'j21-native-venv'
+          python -m venv $venv
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_VENV_CREATION_FAILED' }
+          $py=Join-Path $venv 'Scripts/python.exe'
+          & $py -m pip install --upgrade pip
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_VENV_PIP_FAILED' }
+          & $py -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_VENV_TORCH_CPU_FAILED' }
+          $req=Get-Content requirements.txt | Where-Object { $_ -notmatch '^(torch|torchvision|torchaudio)([<=>].*)?$' }
+          $req | Set-Content "$env:RUNNER_TEMP/j21-native-requirements.txt"
+          & $py -m pip install -r "$env:RUNNER_TEMP/j21-native-requirements.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_VENV_REQUIREMENTS_FAILED' }
+          & $py -m pip install "pyinstaller==6.16.0" "pytest==9.0.3"
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_VENV_BUNDLER_FAILED' }
+          & $py -m pip check
+          if ($LASTEXITCODE -ne 0) { throw 'ISOLATED_APPLICATION_DEPENDENCY_CONFLICT' }
+          (Join-Path $venv 'Scripts') | Out-File -FilePath $env:GITHUB_PATH -Append -Encoding utf8
+          Write-Output 'WINDOWS_NONCLINICAL_FUE_VENV_DEPENDENCY_PASS'
+      - name: Compile dedicated FUE-only frontend (never official frontend/dist)
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx vite build --config vite.ceph-j21-native-fue.config.ts --mode ceph-j21-native-fue
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_FUE_ONLY_VITE_BUILD_FAILED' }
+          if (-not (Test-Path 'dist-ceph-j21-native-fue/index.html')) { throw 'NO_NONCLINICAL_TEST_PAGE' }
+          if ($env:VITE_CEPH_J21_NATIVE_FUE -ne 'true') { throw 'NATIVE_BUILD_FLAG_MISSING' }
+          if ($env:VITE_API_URL -ne 'http://127.0.0.1:8879') { throw 'WRONG_NONCLINICAL_FUE_API_ORIGIN' }
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright-core@1.56.1
+          if ($LASTEXITCODE -ne 0) { throw 'PLAYWRIGHT_CORE_INSTALL_FAILED' }
+      - name: Build clearly non-installable native test executable
+        shell: pwsh
+        run: |
+          python -m PyInstaller --clean --noconfirm --onedir --console --name DigitalCrown-J21-FUE-LAB `
+            --add-data "frontend/dist-ceph-j21-native-fue;fue-ui" `
+            --add-data "backend/data/cephalometry;backend/data/cephalometry" `
+            --hidden-import backend.models_ceph_premium_scene_fue `
+            --hidden-import backend.routers.ceph_premium_scene_app_fue `
+            --hidden-import backend.routers.cephalo_study_media_binding `
+            --hidden-import backend.tests.p2ter_bridge_synthetic_support `
+            --hidden-import backend.tests.test_ceph_j21_m4_real_jwt_fue `
+            --collect-submodules passlib.handlers `
+            --hidden-import passlib.handlers.bcrypt `
+            --hidden-import bcrypt `
+            --hidden-import uvicorn.logging `
+            --hidden-import uvicorn.loops.auto `
+            --hidden-import uvicorn.protocols.http.auto `
+            --hidden-import uvicorn.lifespan.off `
+            scripts/ci/ceph_j21_native_fue_app.py
+          if ($LASTEXITCODE -ne 0) { throw 'FUE_NONCLINICAL_PYINSTALLER_FAILED' }
+          $exe='dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe'
+          if (-not (Test-Path $exe)) { throw 'FUE_LAB_EXE_MISSING' }
+          # The analysis loader reads multiple fixed protocol profiles in
+          # sequence. Only the nine version-controlled non-patient data assets
+          # below may be shipped with this LAB-only executable.
+          $sourceDir='backend/data/cephalometry'
+          $embeddedDir='dist/DigitalCrown-J21-FUE-LAB/_internal/backend/data/cephalometry'
+          $expected=@(
+            'classification_rules.yaml',
+            'clinical_reference_profiles_v1.json',
+            'measurement_definitions.yaml',
+            'normative_profiles.yaml',
+            'plausibility_bounds.yaml',
+            'ricketts_atlas2009_complete33_protocol_profile_v1.json',
+            'ricketts_gregoret13_protocol_profile_v1.json',
+            'steiner_protocol_profile_v1.json',
+            'tweed_merrifield_protocol_profile_v1.json'
+          )
+          $sourceNames=@(Get-ChildItem -LiteralPath $sourceDir -File | Select-Object -ExpandProperty Name | Sort-Object)
+          $bundleNames=@(Get-ChildItem -LiteralPath $embeddedDir -File | Select-Object -ExpandProperty Name | Sort-Object)
+          if ((@($sourceNames) -join '|') -ne (@($expected | Sort-Object) -join '|')) {
+            throw 'UNREVIEWED_CEPHALO_DATA_IN_REPOSITORY_REFUSED'
+          }
+          if ((@($bundleNames) -join '|') -ne (@($expected | Sort-Object) -join '|')) {
+            throw 'MISSING_OR_UNREVIEWED_CEPHALO_DATA_IN_FUE_BUNDLE'
+          }
+          foreach($fileName in $expected){
+            $original=(Get-FileHash -LiteralPath (Join-Path $sourceDir $fileName) -Algorithm SHA256).Hash
+            $embedded=(Get-FileHash -LiteralPath (Join-Path $embeddedDir $fileName) -Algorithm SHA256).Hash
+            if($original -ne $embedded){throw ('CEPHALO_RESOURCE_SHA_MISMATCH: '+$fileName)}
+          }
+          Write-Output 'CEPH_J21_NATIVE_FUE_ALL_9_STATIC_PROTOCOL_RESOURCES_SHA_PASS'
+          if (Test-Path 'dist/DigitalCrown/DigitalCrown.exe') { throw 'REFUSING_OFFICIAL_INSTALLABLE_NAME' }
+          $badFiles=@(Get-ChildItem 'dist/DigitalCrown-J21-FUE-LAB' -Recurse -File |
+            Where-Object { $_.Name -match '^\.env($|\.)|^clinical_vault.db$|^installable-certification.json$' })
+          if ($badFiles.Count -gt 0) { throw 'SECRETS_OR_CERTIFICATION_IN_LAB_PACKAGE' }
+          Write-Output ('FUE_ONLY_EXE_SHA256='+(Get-FileHash $exe -Algorithm SHA256).Hash)
+      - name: Assert runtime denies non-CI / unintended launch
+        shell: pwsh
+        run: |
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          $old=$env:CEPH_J21_NATIVE_FUE_ONLY
+          $env:CEPH_J21_NATIVE_FUE_ONLY='DISABLED'
+          try {
+            & $exe initialize
+            $deniedExitCode=$LASTEXITCODE
+            if ($deniedExitCode -eq 0) { throw 'FUE_EXECUTABLE_ACCEPTED_MISSING_GATE' }
+            if (Test-Path $env:CEPH_J21_FUE_PROFILE) { throw 'WRONG_GATE_CREATED_FILES' }
+            # A non-zero exit is the expected safety refusal. pwsh otherwise
+            # propagates the last native command's exit code to GitHub Actions.
+            $global:LASTEXITCODE=0
+          } finally { $env:CEPH_J21_NATIVE_FUE_ONLY=$old }
+          Write-Output 'NONCLINICAL_EXE_FAIL_CLOSED_PASS'
+      - name: Initialize disposable synthetic app DB, JWT owner and encrypted radio
+        shell: pwsh
+        run: |
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          & $exe initialize
+          if ($LASTEXITCODE -ne 0) { throw 'SYNTHETIC_NATIVE_FIXTURE_INITIALIZATION_FAILED' }
+          if (-not (Test-Path "$env:CEPH_J21_FUE_PROFILE/ceph-j21-scene-app-fue.sqlite3")) { throw 'SYNTHETIC_DB_ABSENT' }
+          if (-not (Test-Path "$env:CEPH_J21_FUE_PROFILE/fixture-id.json")) { throw 'SYNTHETIC_FIXTURE_REPORT_ABSENT' }
+      - name: Start native executable, browser edit/CAS save and responsive BEFORE/AFTER
+        shell: pwsh
+        run: |
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          $proc=Start-Process $exe -ArgumentList 'serve' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/j21-native-stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/j21-native-stderr.log"
+          $proc.Id | Out-File "$env:RUNNER_TEMP/j21-native-process-id.txt" -Encoding ascii
+          $ready=$false
+          for($i=0;$i -lt 75;$i++){
+            if ($proc.HasExited) { break }
+            try {
+              $res=Invoke-WebRequest 'http://127.0.0.1:8879/__ceph_fue/' -UseBasicParsing -TimeoutSec 2
+              if ($res.StatusCode -eq 200) { $ready=$true; break }
+            } catch {}
+            Start-Sleep -Seconds 2
+          }
+          if (-not $ready) {
+            # Only bounded startup failure markers from the synthetic app;
+            # never upload private profile env, JWT, or entire server logs.
+            $errFile="$env:RUNNER_TEMP/j21-native-stderr.log"
+            if (Test-Path -LiteralPath $errFile) {
+              Get-Content -LiteralPath $errFile -Tail 60 |
+                Where-Object { $_ -match 'CEPH_NATIVE_FUE_FAIL_CLOSED|ModuleNotFoundError|ImportError|FileNotFoundError|Error loading ASGI app|ERROR:|Traceback' } |
+                Select-Object -Last 12 | ForEach-Object {
+                  Write-Output ('NATIVE_FUE_SAFE_STARTUP_DIAGNOSTIC '+$_.Substring(0,[Math]::Min(240,$_.Length)))
+                }
+            }
+            $proc.Refresh()
+            if ($proc.HasExited) { Write-Output ('NATIVE_FUE_PROCESS_EXIT_CODE='+$proc.ExitCode) }
+            throw 'NATIVE_FUE_UI_NOT_READY'
+          }
+          $env:NODE_PATH=(Join-Path $env:GITHUB_WORKSPACE 'frontend/node_modules')
+          node scripts/ci/ceph_j21_native_fue_browser.cjs edit
+          if ($LASTEXITCODE -ne 0) { throw 'REAL_NATIVE_BROWSER_EDIT_FAILED' }
+      - name: Fully terminate native FUE EXE
+        shell: pwsh
+        run: |
+          $pidFile="$env:RUNNER_TEMP/j21-native-process-id.txt"
+          if (-not (Test-Path $pidFile)) { throw 'NATIVE_PROCESS_ID_MISSING' }
+          $nativePid=[int](Get-Content $pidFile)
+          $proc=Get-Process -Id $nativePid -ErrorAction SilentlyContinue
+          if ($proc) { Stop-Process -Id $nativePid -Force; Start-Sleep -Seconds 3 }
+          if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) { throw 'NATIVE_TEST_SERVER_STILL_LISTENING' }
+          Write-Output 'FIRST_NATIVE_PROCESS_TERMINATED_BEFORE_REOPEN'
+      - name: FUE-3 synthetic SQLCipher sealed-file backup / restore after full shutdown
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $temp=[IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+          $profile=[IO.Path]::GetFullPath($env:CEPH_J21_FUE_PROFILE)
+          if (-not $profile.StartsWith($temp+'\',[StringComparison]::OrdinalIgnoreCase) -or
+              -not $profile.EndsWith(('ceph-j21-native-fue-'+$env:GITHUB_RUN_ID))) {
+            throw 'FUE_BACKUP_UNSAFE_PROFILE'
+          }
+          if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) {
+            throw 'FUE_BACKUP_LIVE_PROCESS_REFUSED'
+          }
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          & $exe checkpoint
+          if($LASTEXITCODE -ne 0){throw 'FUE_BACKUP_SQLCIPHER_CHECKPOINT_FAILED'}
+          Write-Output 'CEPH_J21_FUE_CHECKPOINT_COMPLETED_WHILE_SERVER_STOPPED'
+          $db=Join-Path $profile 'ceph-j21-scene-app-fue.sqlite3'
+          if (-not (Test-Path -LiteralPath $db) -or
+              (Test-Path -LiteralPath ($db+'-wal'))) {
+            throw 'FUE_BACKUP_MISSING_DB_OR_UNCHECKPOINTED_WAL'
+          }
+          $backupDir=Join-Path $temp ('ceph-j21-backup-fue-'+$env:GITHUB_RUN_ID)
+          if(Test-Path -LiteralPath $backupDir){throw 'FUE_BACKUP_ROOT_ALREADY_EXISTS'}
+          $null=New-Item -ItemType Directory -Path $backupDir
+          $copy=Join-Path $backupDir 'synthetic-encrypted-db-copy'
+          Copy-Item -LiteralPath $db -Destination $copy -ErrorAction Stop
+          $original=(Get-FileHash -LiteralPath $db -Algorithm SHA256).Hash.ToLower()
+          $copied=(Get-FileHash -LiteralPath $copy -Algorithm SHA256).Hash.ToLower()
+          if($original -ne $copied){throw 'FUE_BACKUP_COPY_DIGEST_CHANGED'}
+          $header=[IO.File]::ReadAllBytes($copy)
+          $first=[Text.Encoding]::ASCII.GetString($header,0,[Math]::Min(16,$header.Length))
+          if($first.StartsWith('SQLite format 3')){throw 'FUE_BACKUP_PLAINTEXT_SQLITE_REFUSED'}
+          Remove-Item -LiteralPath $db -Force
+          Copy-Item -LiteralPath $copy -Destination $db -ErrorAction Stop
+          $restored=(Get-FileHash -LiteralPath $db -Algorithm SHA256).Hash.ToLower()
+          if($restored -ne $original){throw 'FUE_BACKUP_RESTORE_DIGEST_CHANGED'}
+          $proof=@{
+            scope='NONCLINICAL_SQLCIPHER_FILE_FUE_ONLY'; source_sha=$env:PRODUCT_HEAD;
+            original_sha256=$original; encrypted_backup_sha256=$copied;
+            restored_sha256=$restored; on_disk_encrypted=$true;
+            clinical_backup_certified=$false; clinical_restore_certified=$false;
+          } | ConvertTo-Json -Depth 3
+          $proof | Set-Content (Join-Path $env:CEPH_J21_EVIDENCE_DIR 'synthetic-backup-roundtrip.json') -Encoding utf8
+          Remove-Item -LiteralPath $backupDir -Recurse -Force
+          if(Test-Path -LiteralPath $backupDir){throw 'FUE_BACKUP_SECRET_COPY_NOT_DELETED'}
+          Write-Output ('CEPH_NATIVE_FUE_SQLCIPHER_BACKUP_RESTORE_SHA_PASS '+$restored)
+      - name: Restart same native EXE, prove persisted scene SHA and user access denial
+        shell: pwsh
+        run: |
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          $proc=Start-Process $exe -ArgumentList 'serve' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/j21-reopened-stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/j21-reopened-stderr.log"
+          $proc.Id | Out-File "$env:RUNNER_TEMP/j21-native-process-id.txt" -Encoding ascii
+          $ready=$false
+          for($i=0;$i -lt 75;$i++){
+            if ($proc.HasExited) { break }
+            try {
+              $res=Invoke-WebRequest 'http://127.0.0.1:8879/__ceph_fue/' -UseBasicParsing -TimeoutSec 2
+              if ($res.StatusCode -eq 200) { $ready=$true; break }
+            } catch {}
+            Start-Sleep -Seconds 2
+          }
+          if (-not $ready) {
+            $errFile="$env:RUNNER_TEMP/j21-reopened-stderr.log"
+            if (Test-Path -LiteralPath $errFile) {
+              Get-Content -LiteralPath $errFile -Tail 60 |
+                Where-Object { $_ -match 'CEPH_NATIVE_FUE_FAIL_CLOSED|ModuleNotFoundError|ImportError|FileNotFoundError|Error loading ASGI app|ERROR:|Traceback' } |
+                Select-Object -Last 12 | ForEach-Object {
+                  Write-Output ('REOPENED_NATIVE_SAFE_DIAGNOSTIC '+$_.Substring(0,[Math]::Min(240,$_.Length)))
+                }
+            }
+            $proc.Refresh()
+            if ($proc.HasExited) { Write-Output ('REOPENED_NATIVE_PROCESS_EXIT_CODE='+$proc.ExitCode) }
+            throw 'RESTARTED_NATIVE_FUE_NOT_READY'
+          }
+          $env:NODE_PATH=(Join-Path $env:GITHUB_WORKSPACE 'frontend/node_modules')
+          node scripts/ci/ceph_j21_native_fue_browser.cjs reopen
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_PROCESS_RESTART_REOPEN_FAILED' }
+      - name: Independently verify screenshots and nonclinical report
+        shell: pwsh
+        run: |
+          @'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ['CEPH_J21_EVIDENCE_DIR'])
+          one=json.loads((root/'phase-edit.json').read_text())
+          two=json.loads((root/'phase-reopen.json').read_text())
+          assert one['status']==two['status']=='PASS'
+          assert one['actual_digital_crown_shell']['real_workspace']
+          assert two['actual_digital_crown_shell']['real_workspace']
+          assert one['audit']['outsider_read_http']==two['audit']['outsider_read_http']==403
+          assert one['audit']['same_cabinet_other_patient_http']==two['audit']['same_cabinet_other_patient_http']==404
+          assert one['audit']['stale_cas_replay_http']==two['audit']['stale_cas_replay_http']==409
+          backup=json.loads((root/'synthetic-backup-roundtrip.json').read_text())
+          assert backup['on_disk_encrypted'] and backup['clinical_backup_certified'] is False
+          assert backup['clinical_restore_certified'] is False
+          assert backup['original_sha256']==backup['encrypted_backup_sha256']==backup['restored_sha256']
+          assert one['scene_sha256']==two['scene_sha256']
+          assert one['audit']['parent_scene_sha256'] and one['audit']['revision']==two['audit']['revision']==2
+          assert len(one['viewport_proofs'])==8 and len(two['viewport_proofs'])==1
+          for result in (one,two):
+              assert result['synthetic_only'] and result['clinical_release'] is False
+              assert result['native_signed_installable_certified'] is False
+              for p in result['viewport_proofs']:
+                  assert hashlib.sha256((root/p['file']).read_bytes()).hexdigest()==p['sha256']
+          print('WINDOWS_NONCLINICAL_NATIVE_EXE_REAL_BROWSER_CAS_RESTART_SHA_PASS')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'INDEPENDENT_NATIVE_FUE_EVIDENCE_FAILED' }
+      - name: Prepare labeled non-installable build manifest (no secret)
+        if: success()
+        shell: pwsh
+        run: |
+          $exe='dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe'
+          if ((git rev-parse HEAD) -ne $env:PRODUCT_HEAD) { throw 'FUE_MANIFEST_SOURCE_SHA_MISMATCH' }
+          $edit=Get-Content "$env:CEPH_J21_EVIDENCE_DIR/phase-edit.json" -Raw | ConvertFrom-Json
+          $reopen=Get-Content "$env:CEPH_J21_EVIDENCE_DIR/phase-reopen.json" -Raw | ConvertFrom-Json
+          $backup=Get-Content "$env:CEPH_J21_EVIDENCE_DIR/synthetic-backup-roundtrip.json" -Raw | ConvertFrom-Json
+          if($edit.status -ne 'PASS' -or $reopen.status -ne 'PASS' -or
+             $edit.scene_sha256 -ne $reopen.scene_sha256 -or
+             $edit.audit.outsider_read_http -ne 403 -or
+             $edit.audit.same_cabinet_other_patient_http -ne 404 -or
+             $edit.audit.stale_cas_replay_http -ne 409 -or
+             $backup.clinical_backup_certified -ne $false -or
+             $backup.original_sha256 -ne $backup.restored_sha256 -or
+             $edit.actual_digital_crown_shell.real_workspace -ne $true -or
+             $reopen.actual_digital_crown_shell.real_workspace -ne $true) {
+            throw 'NATIVE_FUE_PROVENANCE_MATRIX_NOT_VERIFIED'
+          }
+          # A verifiable SHA-bound nonclinical CI certificate is NOT the
+          # provenance-verified INSTALLABLE_CERTIFIED clinical release.
+          $manifest=@{
+            head=$env:PRODUCT_HEAD; status='LAB_FUE_CI_VERIFIED_NONCLINICAL';
+            build_run_id=$env:GITHUB_RUN_ID;
+            is_installable_certified=$false;
+            native_executable_sha256=(Get-FileHash $exe -Algorithm SHA256).Hash.ToLower();
+            real_digital_crown_mainlayout_fue=$true;
+            jwt_sqlcipher_aesgcm_cas_restart=$true;
+            abx_denials_verified=$true; sealed_file_restore_fue=$true;
+            scene_sha256=$edit.scene_sha256;
+            original_sha256=$edit.audit.actual_original_sha256;
+            clinical_release=$false; production_route_mounted=$false;
+            clinical_backup_certified=$false;
+            clinical_anatomy_certified=$false;
+            local_only=$true; signed=$false; deploy=$false; synthetic_db_cleaned_before_artifact=$true
+          } | ConvertTo-Json -Depth 4
+          $manifest | Set-Content "$env:CEPH_J21_EVIDENCE_DIR/native-build-manifest.json" -Encoding utf8
+          'LAB TEST BINARY ONLY. NOT CERTIFIED, SIGNED, INSTALLABLE OR APPROVED FOR PATIENT DATA. REQUIRES GITHUB WINDOWS RUNNER FLAGS.' |
+            Set-Content 'dist/DigitalCrown-J21-FUE-LAB/NONCLINICAL_NOT_INSTALLER.txt' -Encoding utf8
+      - name: Remove synthetic DB/media, keys, process and browser test remnants
+        if: always()
+        shell: pwsh
+        run: |
+          $pidFile="$env:RUNNER_TEMP/j21-native-process-id.txt"
+          if (Test-Path $pidFile) {
+            $nativePid=[int](Get-Content $pidFile)
+            $p=Get-Process -Id $nativePid -ErrorAction SilentlyContinue
+            if($p){ Stop-Process -Id $nativePid -Force; Start-Sleep -Seconds 3 }
+          }
+          $profile=[IO.Path]::GetFullPath($env:CEPH_J21_FUE_PROFILE)
+          $temp=[IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+          if (-not $profile.StartsWith($temp+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'UNSAFE_CLEANUP_PATH' }
+          if (Test-Path $profile) { Remove-Item -LiteralPath $profile -Force -Recurse }
+          if (Test-Path $profile) { throw 'SYNTHETIC_SECRETS_OR_DB_NOT_REMOVED' }
+          $running=@(Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue)
+          if($running.Count){ throw 'LOCAL_TEST_SERVER_NOT_STOPPED' }
+          Write-Output 'SYNTHETIC_TEST_DB_MEDIA_KEYS_CLEANED_AND_NATIVE_EXE_STOPPED'
+      - name: Upload only nonclinical screenshots and test proof (no PHI)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-native-windows-test-proof-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/ceph-j21-native-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload clearly labeled disposable FUE-only EXE (never release)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LAB-ONLY-NOT-INSTALLABLE-DigitalCrown-J21-${{ github.event.pull_request.head.sha }}
+          path: dist/DigitalCrown-J21-FUE-LAB/
+          if-no-files-found: error
+          retention-days: 1
+
+  native-shell-vite-preflight:
+    name: Real Digital Crown MainLayout in FUE-only bundle — NO DEPLOY
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_CEPH_J21_NATIVE_FUE: 'true'
+      VITE_API_URL: 'http://127.0.0.1:8879'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify no clinical registration or altered release policy
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          ! grep -q 'CephPremiumSceneFUEViewer' frontend/src/App.tsx
+          grep -q 'verify_installable_release_directory' DigitalCrown.spec
+          grep -q 'MainLayout' frontend/fue-j21-native/main.tsx
+      - name: Compile genuine shell in isolated FUE build without network fonts
+        shell: bash
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx vite build --config vite.ceph-j21-native-fue.config.ts --mode ceph-j21-native-fue
+          test -f dist-ceph-j21-native-fue/index.html
+          grep -Rq 'data-ceph-j21-real-shell' dist-ceph-j21-native-fue/assets
+          if grep -Rq 'fonts.googleapis.com' dist-ceph-j21-native-fue; then
+            echo 'REFUSING_NONLOCAL_EXTERNAL_FONT_IN_FUE_BUNDLE'
+            exit 1
+          fi
+          echo 'GENUINE_DESKTOP_MAINLAYOUT_FUE_ONLY_VITE_PREBUILD_PASS'
