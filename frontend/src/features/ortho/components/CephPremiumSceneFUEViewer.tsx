@@ -182,7 +182,7 @@ export const CephPremiumSceneFUEViewer: React.FC<Props> = ({ patientId, studyId 
         {draft.landmarks.map(p => (
           <g key={p.id}>
             <circle data-ceph-point={p.id} cx={p.x} cy={p.y} r={selectedPoint === p.id ? 6 : 4}
-              fill="none" stroke={p.origin === 'PRACTITIONER_EDIT' ? '#ffd43b' : '#55ddff'} strokeWidth="2" />
+              fill="transparent" pointerEvents="all" stroke={p.origin === 'PRACTITIONER_EDIT' ? '#ffd43b' : '#55ddff'} strokeWidth="2" />
             <text x={p.x + 6} y={p.y - 4} fill="#55ddff" stroke="black" strokeWidth="0.5" fontSize="12">{p.id}</text>
           </g>
         ))}

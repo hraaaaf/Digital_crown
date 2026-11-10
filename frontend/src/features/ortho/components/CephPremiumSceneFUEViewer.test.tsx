@@ -79,6 +79,9 @@ describe('CephPremiumSceneFUEViewer (unmounted synthetic UI only)', () => {
     const svg = await screen.findByRole('img', { name: /Radiographie originale vérifiée/ });
     expect(svg.getAttribute('viewBox')).toBe('0 0 640 480');
     const marker = svg.querySelector('[data-ceph-point="S"]')!;
+    // Real Chromium hit-testing exposed that fill="none" made the center unclickable.
+    expect(marker.getAttribute("fill")).toBe("transparent");
+    expect(marker.getAttribute("pointer-events")).toBe("all");
     fireEvent.pointerDown(marker, { pointerId: 1 });
     fireEvent.keyDown(svg, { key: 'ArrowRight' });
     fireEvent.click(screen.getByRole('button', { name: /Sauvegarder puis relire/ }));
