@@ -36,5 +36,6 @@ def can_run_cephalo_auto_inference() -> bool:
 CEPHALO_AUTO_HOLD_REASON = (
     "Repérage céphalométrique automatique désactivé : "
     "validation anatomique et activation clinique non établies. "
-    "Aucune interprétation automatique n'a été effectuée."
+    "Aucune interprétation automatique n'a été effectuée. "
+    "Placement manuel des repères requis."
 )
