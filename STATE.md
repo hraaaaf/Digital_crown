@@ -1,3 +1,22 @@
+## DIGITAL CROWN — 10/11/2026 ~23:05 UTC — LOT08.2-I UPDATE : VERROU SRPOSE38 NATIF VERT / CODE CANDIDATE EN COURS
+
+**DECISION :** Le propriétaire conserve SRPose38 comme modèle à embarquer dans une future version Desktop et gère séparément les droits juridiques. Le lot courant s'occupe **uniquement** du verrou médical fail-closed et de l'intégrité du packaging ; ne pas demander à nouveau de preuve juridique pour avancer sur des tests techniques sûrs.
+
+**HEAD / périmètre vérifié :** [PR #1279 DRAFT](https://github.com/hraaaaf/Digital_crown/pull/1279) HEAD exact `bafcced99ac7a6fd10fc9074ed0c4061a3485186`, comparé à master `bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4` inchangé : **9 fichiers** bornés (gates services / tests / workflows, `scripts/check_lazy_pytorch_contract.py`, documentation), aucun modèle ONNX ni EXE ni migration, aucune donnée patient ni fusion.
+
+**PROUVÉ sur HEAD exact :**
+- [LOT08.2-I PR #42917551538](https://github.com/hraaaaf/Digital_crown/actions/runs/42917551538) et [push #42917542546](https://github.com/hraaaaf/Digital_crown/actions/runs/42917542546) **SUCCESS chacun 3 jobs/3** : source/scope, backend ciblé, déni natif Windows. Le moteur SRPose38 dans le package reste non activé cliniquement ; absence de mode produit override via env ; fallback CephLD-CCA interdit hors LAB et sortie vide non persistée.
+- [Portability P5 #42917551523](https://github.com/hraaaaf/Digital_crown/actions/runs/42917551523) **SUCCESS sur Windows et macOS**. Correctifs historiques sans affaiblir le HOLD : test `check_lazy_pytorch_contract` clarifié entre refus clinique total et WinError1455 de PyTorch en LAB isolé ; le message prévoit la pose **manuelle des repères** lorsque le moteur est désactivé.
+- Sur SHA exact, dernière inspection globale GitHub : **14 runs SUCCESS, 1 SKIPPED** biométrie, **0 FAILURE**, **1 in_progress** : [Cabinet CODE_CERTIFIED candidate regression #42917551292](https://github.com/hraaaaf/Digital_crown/actions/runs/42917551292). De ce run, PostgreSQL/rehearsal + frontend CI **SUCCESS**, full backend regression encore **in_progress**. C'est une régression candidate, **PAS** le workflow officiel CODE_CERTIFIED et aucun artifact installable.
+
+**Objectif LOT08.2-H acquis indépendamment :** [run #42910489876](https://github.com/hraaaaf/Digital_crown/actions/runs/42910489876) 2/2 SUCCESS sur vrai fichier SRPose38 ONNX, 267484931 octets, SHA256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb`, ORT CPU + sélection PyInstaller 1 fichier ; seul rapport métadonnées [#13805984797](https://github.com/hraaaaf/Digital_crown/actions/runs/42910489876/artifacts/13805984797), **sans republier les poids**.
+
+**GATES encore ouverts :** full backend du candidat en cours ; cette PR DRAFT n'est pas fusionnée, son code n'est **pas** CODE_CERTIFIED officiel. Aucune candidate Windows réellement assemblée avec ONNX n'a encore été vérifiée comme packagée. La correspondance scientifique des 38 canaux aux identités anatomiques J1.B1 reste non validée ; aucune activation clinique de la Céphalo autorisée. `LOT08 OPEN / NO_INSTALLABLE_GO`.
+
+**NEXT exact (effort estimé, non %)** : ⚡ inspecter conclusion full backend #42917551292 ; 🟡 préparer une FUE Windows Desktop jetable qui contrôle **le modèle véritable intégré**, le SHA depuis le package et le HOLD auto-inférence avec tests négatifs / sans patients ni publication du modèle ou de l'EXE ; 🟡 traiter les exigences d'un candidat CODE_CERTIFIED sur un master futur après human gate de merge ; 🔴 gate anatomique/usage clinique séparé. Aucun merge, déploiement, installation clinique ou migration sans GO spécifique.
+
+---
+
 ## DIGITAL CROWN — 10/11/2026 22:47 UTC — LOT08.2-I HEAD ACTUEL : PLACEMENT MANUEL EXPLICITE / CI EN FILE
 
 **PR DRAFT #1279** HEAD `bafcced99ac7a6fd10fc9074ed0c4061a3485186`, base `master@bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4` (CODE_CERTIFIED officiel SHA identique). Scope 9 fichiers exacts, aucun modèle, EXE, patient ou migration. Verrou d'inférence céphalo : refus dans produit figé `sys.frozen`/`_MEIPASS`, environnements non-LAB, DB non isolée et avant init ONNX/vision/legacy ; CephaloService refuse une sortie vide sans persister. Compromis produit intentionnel : SRPose38 sera embarqué mais ne sera **pas activé en clinique** avant gate médical séparé.
