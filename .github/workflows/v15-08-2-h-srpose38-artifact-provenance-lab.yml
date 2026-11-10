@@ -1,0 +1,143 @@
+name: LOT08.2-H genuine SRPose38 weight hash and Desktop packaging-selector LAB
+on:
+  push:
+    branches: [test/lot08-2-h-srpose38-verified-embedded-selection-lab-20261110]
+    paths:
+      - .github/workflows/v15-08-2-h-srpose38-artifact-provenance-lab.yml
+      - scripts/quality/lot08_2_h_srpose38_artifact_lab.py
+      - docs/quality/V15_08_2_H_SRPOSE38_WEIGHT_AND_EMBED_GATE.md
+  pull_request:
+    paths:
+      - .github/workflows/v15-08-2-h-srpose38-artifact-provenance-lab.yml
+      - scripts/quality/lot08_2_h_srpose38_artifact_lab.py
+      - docs/quality/V15_08_2_H_SRPOSE38_WEIGHT_AND_EMBED_GATE.md
+permissions:
+  contents: read
+  actions: read
+env:
+  CODE_CERTIFIED_MASTER_SHA: bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4
+  SOURCE_CEPH_ARTIFACT_RUN: '34281082926'
+  SOURCE_CEPH_ARTIFACT_ID: '10077697721'
+  DIGITALCROWN_ISOLATED_RUNTIME: '1'
+jobs:
+  code-only-negative-gates:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 25
+          persist-credentials: false
+      - name: Strict exact HEAD and three additive nonclinical files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          test "$(git rev-parse "$CODE_CERTIFIED_MASTER_SHA")" = "$CODE_CERTIFIED_MASTER_SHA"
+          git diff --name-only "$CODE_CERTIFIED_MASTER_SHA" HEAD | sort > actual.txt
+          cat > expected.txt <<'EOF'
+          .github/workflows/v15-08-2-h-srpose38-artifact-provenance-lab.yml
+          docs/quality/V15_08_2_H_SRPOSE38_WEIGHT_AND_EMBED_GATE.md
+          scripts/quality/lot08_2_h_srpose38_artifact_lab.py
+          EOF
+          diff -u expected.txt actual.txt
+          test ! -e dist/DigitalCrownSetup.exe
+          test ! -e backend/ai_models/srpose38-tta-1024.onnx
+          echo "LOT08H_THREE_FILE_EXACT_SOURCE_ONLY_PASS"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Negative controls for wrong name, byte size, SHA, symlink
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m scripts.quality.lot08_2_h_srpose38_artifact_lab --negative-only
+          echo "LOT08H_MISSING_MODEL_NOT_REPLACED_WITH_DUMMY=PASS"
+  genuine-weight-hash-and-selector:
+    runs-on: ubuntu-24.04
+    needs: code-only-negative-gates
+    timeout-minutes: 30
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Check official CODE_CERTIFIED still matches unchanged master exactly
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          gh api "repos/$GITHUB_REPOSITORY/branches/master" --jq '.commit.sha' > "$RUNNER_TEMP/lot08h-master-sha"
+          test "$(cat "$RUNNER_TEMP/lot08h-master-sha")" = "$CODE_CERTIFIED_MASTER_SHA"
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/42897412850" --jq '.conclusion' | grep -qx success
+          echo "LOT08H_CODE_CERTIFIED_MASTER_UNCHANGED_PASS"
+      - name: Verify provenance metadata of source GitHub artifact before downloading weight
+        shell: bash
+        run: |
+          set -euo pipefail
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_CEPH_ARTIFACT_RUN" > "$RUNNER_TEMP/lot08h-source-run.json"
+          gh api "repos/$GITHUB_REPOSITORY/actions/artifacts/$SOURCE_CEPH_ARTIFACT_ID" > "$RUNNER_TEMP/lot08h-source-artifact.json"
+          python - <<'PY'
+          import json, os
+          from pathlib import Path
+          d=Path(os.environ['RUNNER_TEMP'])
+          r=json.loads((d/'lot08h-source-run.json').read_text())
+          a=json.loads((d/'lot08h-source-artifact.json').read_text())
+          assert r['id']==34281082926 and r['conclusion']=='success' and r['status']=='completed'
+          assert a['id']==10077697721
+          assert a['workflow_run']['id']==34281082926
+          assert a['name']=='cephalo-srpose38-onnx-parity' and a['expired'] is False
+          assert a['digest']=='sha256:ad1caa8ee1474a1405305fc91a29eaa3c0c5b20572095faad0c2e63723284e17'
+          print("LOT08H_SOURCE_ARTIFACT_METADATA_PIN_PASS")
+          PY
+      - name: Download original existing GH artifact to disposable workspace ONLY
+        shell: bash
+        run: |
+          set -euo pipefail
+          SOURCE_DIR="$RUNNER_TEMP/lot08h-source-$GITHUB_RUN_ID"
+          echo "LOT08H_SOURCE_DIR=$SOURCE_DIR" >> "$GITHUB_ENV"
+          mkdir -p "$SOURCE_DIR"
+          gh run download "$SOURCE_CEPH_ARTIFACT_RUN" --repo "$GITHUB_REPOSITORY" --name cephalo-srpose38-onnx-parity --dir "$SOURCE_DIR"
+          test "$(find "$SOURCE_DIR" -type f | wc -l | tr -d ' ')" -eq 1
+          echo "LOT08H_SINGLE_MODEL_EXTRACTED_UNPUBLISHED_PASS"
+      - name: Install genuine ORT CPU for synthetic model inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --disable-pip-version-check 'onnxruntime==1.25.0' 'numpy==2.4.3'
+          python -m pip check
+      - name: Hash real ONNX, verify scientific pin and PyInstaller selection, CPU-only inference
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m scripts.quality.lot08_2_h_srpose38_artifact_lab \
+            --artifact-dir "$LOT08H_SOURCE_DIR" \
+            --expected-code-sha "$CODE_CERTIFIED_MASTER_SHA" \
+            --report "$RUNNER_TEMP/lot08h-proof.json"
+          grep -q '"installable_go": false' "$RUNNER_TEMP/lot08h-proof.json"
+          grep -q '"runtime_asset_zip_emitted": false' "$RUNNER_TEMP/lot08h-proof.json"
+          echo "LOT08H_ORIGINAL_SRPOSE38_CPU_PACKAGING_LAB_PASS_NO_REDISTRIBUTION"
+      - name: Upload META report only, no ONNX, no ZIP, no model weights
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08h-srpose38-integrity-only-no-model-bytes
+          path: ${{ runner.temp }}/lot08h-proof.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Explicitly clean isolated ONNX and scratch metadata
+        if: always()
+        shell: bash
+        run: |
+          SOURCE_DIR="$RUNNER_TEMP/lot08h-source-$GITHUB_RUN_ID"
+          if [ -d "$SOURCE_DIR" ]; then
+            rm -rf -- "$SOURCE_DIR"
+          fi
+          rm -f -- "$RUNNER_TEMP/lot08h-master-sha" "$RUNNER_TEMP/lot08h-source-run.json" "$RUNNER_TEMP/lot08h-source-artifact.json" "$RUNNER_TEMP/lot08h-proof.json"
+          echo "LOT08H_DISPOSABLE_SOURCE_AND_REPORT_CLEANED"
