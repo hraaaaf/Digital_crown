@@ -47,6 +47,12 @@ jobs:
           test "$(git hash-object queue_core/tests/test_kiosk_qr_lab_08_2_d.py)" = "4b423a36e2083572abc6c8b47ac6afc427d5382b"
           test "$(git hash-object queue_core/tests/test_qr_backup_restore_windows_08_2_d.py)" = "c091704d35ef88cabd24b4d3979062ee3a787af7"
           test "$(git hash-object scripts/quality/lot08_2_d_windows_acl_lab.ps1)" = "387aa3ed397952d57ba1ac67abed267c4c753fc8"
+          # Recheck the four inherited device blobs from the now-merged PR #1264.
+          # This verifies single-source ownership after master merge, without copying them.
+          test "$(git hash-object queue_core/security/device_pairing_lab.py)" = "c1a047953653f440e6d3030235fc77177aa4f7a9"
+          test "$(git hash-object queue_core/security/device_store_lab.py)" = "78b5bb3069aedc843551cce558643584314704ec"
+          test "$(git hash-object queue_core/tests/test_device_pairing_lab_08_2_c.py)" = "b5cbd5c8999acaee306f1a43b1a8dd4b1ce53c38"
+          test "$(git hash-object queue_core/tests/test_device_store_lab_08_2_c.py)" = "ad44b043bfad328f58a88c6f854463ae720c0829"
           test ! -e dist/DigitalCrownSetup.exe
           echo "RECONCILED_NINE_FILE_BOUNDED_DIFF_PASS=$GITHUB_SHA"
       - uses: actions/setup-python@v5
