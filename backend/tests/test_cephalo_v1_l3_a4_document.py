@@ -1,7 +1,7 @@
 """Céphalo V1 L3: A4 document skin, patient imagery, and safe preview contract."""
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 from io import BytesIO
 from types import SimpleNamespace
 
@@ -132,15 +132,20 @@ def test_media_reader_is_tenant_scoped_and_uses_only_verifiable_slots(monkeypatc
     monkeypatch.setattr(
         media, "build_ortho_media_record", lambda _db, **kwargs: (
             seen.append(("record", kwargs))
-            or {"patient_id": 42, "timepoint": "T0", "photo_slots": [
-                {"state": "FILLED", "slot_id": "EXTRA_PROFILE",
-                 "asset": {"asset_id": 123, "slot_id": "EXTRA_PROFILE",
-                           "source_kind": "UPLOAD", "timepoint": "T0",
-                           "provenance_schema_version": "ORTHO_MEDIA_RECORD_V1",
-                           "captured_at": datetime(2026, 11, 8),
-                           "mime_type": "image/jpeg"}},
-                {"state": "EMPTY", "slot_id": "INTRA_LEFT", "asset": None},
-            ]}
+            or {
+                "patient_id": 42, "timepoint": "T0",
+                "photo_slots": [
+                    {"state": "FILLED", "slot_id": "EXTRA_PROFILE",
+                     "asset": {
+                         "asset_id": 123, "mime_type": "image/jpeg",
+                         "slot_id": "EXTRA_PROFILE", "source_kind": "UPLOAD",
+                         "timepoint": "T0",
+                         "provenance_schema_version": media.ORTHO_MEDIA_SCHEMA_VERSION,
+                         "captured_at": datetime(2026, 11, 9, tzinfo=timezone.utc),
+                     }},
+                    {"state": "EMPTY", "slot_id": "INTRA_LEFT", "asset": None},
+                ],
+            }
         ),
     )
     monkeypatch.setattr(
@@ -190,3 +195,60 @@ def test_unverified_validation_qr_never_generates_doc_temp(tmp_path, monkeypatch
     output = generator.generate(vm, projection=_projection())
     assert output.endswith(".pdf")
     assert seen and all(row["qr_code_enabled"] is False for row in seen)
+
+
+@pytest.mark.parametrize(
+    ("record_patient_id", "record_timepoint"),
+    [(99, "T0"), (42, "T1")],
+)
+def test_media_reader_rejects_foreign_patient_or_timepoint_before_blob_access(
+    monkeypatch, record_patient_id, record_timepoint,
+):
+    """A stale/foreign T0 record must not permit any clinical blob read."""
+    monkeypatch.setattr(media, "_authorized_study_radio", lambda _: None)
+    monkeypatch.setattr(
+        media, "build_ortho_media_record",
+        lambda _db, **_kwargs: {
+            "patient_id": record_patient_id,
+            "timepoint": record_timepoint,
+            "photo_slots": [],
+        },
+    )
+    def forbidden_blob_read(_db, **_kwargs):
+        pytest.fail("A mismatched patient/timepoint MUST NOT read clinical bytes")
+    monkeypatch.setattr(media, "read_clinical_asset_bytes", forbidden_blob_read)
+    with pytest.raises(ValueError, match="Orthodontic media record identity mismatch"):
+        media.load_cephalo_pdf_media(
+            object(), employer_id=9, patient_id=42, image_original_path=None,
+        )
+
+
+def test_media_reader_never_reads_image_with_unverified_provenance(monkeypatch):
+    """A forged/derived image is unavailable, not printable evidence."""
+    monkeypatch.setattr(media, "_authorized_study_radio", lambda _: None)
+    monkeypatch.setattr(
+        media, "build_ortho_media_record",
+        lambda _db, **_kwargs: {
+            "patient_id": 42,
+            "timepoint": "T0",
+            "photo_slots": [{
+                "state": "FILLED",
+                "slot_id": "EXTRA_PROFILE",
+                "asset": {
+                    "asset_id": 123, "mime_type": "image/jpeg",
+                    "slot_id": "EXTRA_PROFILE", "source_kind": "DERIVED",
+                    "timepoint": "T0",
+                    "provenance_schema_version": media.ORTHO_MEDIA_SCHEMA_VERSION,
+                    "captured_at": datetime(2026, 11, 9, tzinfo=timezone.utc),
+                },
+            }],
+        },
+    )
+    def forbidden_blob_read(_db, **_kwargs):
+        pytest.fail("Unverified source image MUST NOT be read")
+    monkeypatch.setattr(media, "read_clinical_asset_bytes", forbidden_blob_read)
+    result = media.load_cephalo_pdf_media(
+        object(), employer_id=9, patient_id=42, image_original_path=None,
+    )
+    assert result["photos"] == []
+    assert result["media_unavailable"] == ["EXTRA_PROFILE"]

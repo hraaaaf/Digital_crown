@@ -1,0 +1,78 @@
+{
+    "marker":  "DIGITAL_CROWN_B7D_FRONTEND_MERGE_LAB_PROOF_NO_CLINICAL_GO",
+    "date":  "2026-11-09",
+    "pr":  1239,
+    "pr_source_head":  "c6954e6ec0c775c245754840ad532e6ed147640e",
+    "master_head":  "d4d2d144393fc884e01ca8734c1efa9fb0e0f2e3",
+    "synthetic_only":  true,
+    "patients_real":  "NONE",
+    "installation":  "NOT_RUN",
+    "human_visual_approval":  "REQUIRED",
+    "frontend_sequential_files":  5,
+    "frontend_sequential_tests":  42,
+    "frontend_sequential_failures":  0,
+    "frontend_runs":  {
+                          "value":  [
+                                        {
+                                            "item":  1,
+                                            "file":  "src/ClientFacingCopyCandidateAudit.test.ts",
+                                            "tests_passed":  13,
+                                            "exit":  0,
+                                            "proof_passed":  true,
+                                            "seconds":  58.9,
+                                            "log":  "test-01.log",
+                                            "sha256":  "5e851d65b569e4b930f88842f68ccb4de51141601e38cec7eed63698e57ed310"
+                                        },
+                                        {
+                                            "item":  2,
+                                            "file":  "src/test/mobileM4CDocumentContext.test.ts",
+                                            "tests_passed":  6,
+                                            "exit":  0,
+                                            "proof_passed":  true,
+                                            "seconds":  25.7,
+                                            "log":  "test-02.log",
+                                            "sha256":  "612a9f68465a44c8776c6b7822f645b85e680660d25beee45b4db18fe8fa8bb5"
+                                        },
+                                        {
+                                            "item":  3,
+                                            "file":  "src/test/v15HubRoutingContract.test.ts",
+                                            "tests_passed":  8,
+                                            "exit":  0,
+                                            "proof_passed":  true,
+                                            "seconds":  24.5,
+                                            "log":  "test-03.log",
+                                            "sha256":  "8ddc284b87eff3bd38ca67e58c1f76b6c4c31774b9c283efa70e0cdaf683bbf3"
+                                        },
+                                        {
+                                            "item":  4,
+                                            "file":  "src/features/admin/DocumentStudio/PrescriptionForm.g4Interactive.test.tsx",
+                                            "tests_passed":  7,
+                                            "exit":  0,
+                                            "proof_passed":  true,
+                                            "seconds":  45.2,
+                                            "log":  "test-04.log",
+                                            "sha256":  "103628252c8b81ce6dc4fbf97016bfa225fcb3bcf8a4c5ecb32ad40bdbd8913b"
+                                        },
+                                        {
+                                            "item":  5,
+                                            "file":  "src/features/patients/PatientDraftRouteGuard.test.tsx",
+                                            "tests_passed":  8,
+                                            "exit":  0,
+                                            "proof_passed":  true,
+                                            "seconds":  33.1,
+                                            "log":  "test-05.log",
+                                            "sha256":  "a7b9dff7cf32570b4d067c59c0eb3aa6ee3229a9d295d820641eff6d942f0297"
+                                        }
+                                    ],
+                          "Count":  5
+                      },
+    "backend_ceph_ortho":  "15_PASS_EXIT_0_ON_PREVIOUS_MASTER_WITH_UNCHANGED_CONFLICT_RESOLUTIONS",
+    "queue_core_initial":  "124_PASS_3_FAIL_MISSING_SPARSE_INSTALLER_FILE",
+    "queue_core_source_preflight_rerun":  "5_PASS_EXIT_0_AFTER_SPARSE_CHECKOUT_INSTALLER_ADDED",
+    "tsc_typecheck":  "PASS_EXIT_0_FINAL_MASTER_MERGE",
+    "source_files_conflicting":  5,
+    "conflict_blocks_resolved":  6,
+    "source_hash_retained_from_prior_master":  true,
+    "raw_logs_location":  "LOCAL_WINDOWS_TEST_WORKSPACE_NOT_COMMITTED",
+    "manifest_truth":  "LAB_ONLY_NOT_CI_OR_NATIVE_INSTALLABLE"
+}

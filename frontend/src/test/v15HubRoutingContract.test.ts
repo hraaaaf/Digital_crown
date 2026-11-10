@@ -98,7 +98,9 @@ describe('V1.5-00.2 Hub routing contract', () => {
     expect(controlCenter).toContain("databaseHttpStatus: dbResponse.status");
     expect(controlCenter).toContain("result.authHttpStatus === 423");
     expect(controlCenter).toContain("data-control-center-diagnosis={diagnosis}");
-    // Match the fail-closed failure classification on LF and CRLF checkouts.
+    // Normalize platform line endings; the exact fail-closed field ordering remains mandatory.
+    expect(controlCenter.replace(/\r\n/g, "\n")).toContain("crossOriginLimited: false,\n        failureKind:");
+    // Preserve master's generalized fail-closed parsing assertion too.
     expect(controlCenter).toMatch(/crossOriginLimited:\s*false,\s*failureKind:/);
     expect(controlCenter).toContain('Aucune réponse du service depuis ce poste');
     expect(controlCenter).toContain('Le serveur répond, mais le service Digital Crown est indisponible');

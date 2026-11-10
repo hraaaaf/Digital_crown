@@ -35,11 +35,20 @@ function renderForm(overrides: Record<string, unknown> = {}) {
 describe('PrescriptionForm G4 interactive controls', () => {
   it('applies each quick prescription through the preset boundary', () => {
     const props=renderForm();
-    for (const name of ['Post-Op Standard','Infection / Abcès','Parodontie','Urgence Douleur']) {
-      fireEvent.click(screen.getByRole('button',{name:new RegExp(name,'i')}));
+    const presets = ['Post-Op Standard', 'Infection / Abcès', 'Parodontie', 'Urgence Douleur'];
+    for (const [index, name] of presets.entries()) {
+      fireEvent.click(screen.getByRole('button', { name: new RegExp(name, 'i') }));
+      // Verify each individual clinical preset payload, not only total clicks.
+      expect(props.onApplyPreset).toHaveBeenNthCalledWith(
+        index + 1,
+        expect.objectContaining({
+          label: name,
+          drugs: expect.arrayContaining([expect.objectContaining({ name: expect.any(String) })]),
+        }),
+      );
     }
     expect(props.onApplyPreset).toHaveBeenCalledTimes(4);
-  });
+  }, 20_000); // Four jsdom interactions can exceed the default 5s under full-suite load.
 
   it('edits medication name, dosage and posology through explicit field callbacks', () => {
     const props=renderForm();
