@@ -212,7 +212,24 @@ def test_r6_creation_landmark_edit_and_calibration_keep_one_active_behavioral_ch
         "TWEED_FMA_CANONICAL_DEG_V2", "TWEED_FMIA_CANONICAL_DEG_V2",
         "MERRIFIELD_Z_CANONICAL_DEG_V2",
     }.issubset(set(r6_1))
-    assert all(item["availability_status"] == "AVAILABLE" for item in r6_1.values())
+    # The raw 38 AUTO channel labels still support their historical V1
+    # geometry only. They do NOT certify canonical anatomical identity.
+    legacy_r6 = {
+        "TWEED_FMA_DEG_V1", "TWEED_IMPA_DEG_V1", "TWEED_FMIA_DEG_V1",
+        "MERRIFIELD_Z_ANGLE_DEG_V1",
+    }
+    canonical_r6 = {
+        "TWEED_FMA_CANONICAL_DEG_V2", "TWEED_FMIA_CANONICAL_DEG_V2",
+        "MERRIFIELD_Z_CANONICAL_DEG_V2",
+    }
+    assert all(
+        r6_1[key]["availability_status"] == "AVAILABLE"
+        and r6_1[key]["value"] is not None for key in legacy_r6
+    )
+    assert all(
+        r6_1[key]["availability_status"] == "NOT_COMPUTABLE"
+        and r6_1[key]["value"] is None for key in canonical_r6
+    )
 
     edited = _raw({"Me": (12.0, 18.0)})
     result2 = CephaloEngine(mm_per_pixel=None).calculate_metrics(_point_map(edited))
@@ -228,6 +245,14 @@ def test_r6_creation_landmark_edit_and_calibration_keep_one_active_behavioral_ch
     r6_2 = _r6_measurements(revision2)
     assert r6_2["TWEED_FMA_DEG_V1"]["value"] != r6_1["TWEED_FMA_DEG_V1"]["value"]
     assert r6_2["TWEED_IMPA_DEG_V1"]["value"] != r6_1["TWEED_IMPA_DEG_V1"]["value"]
+    assert all(
+        r6_2[key]["availability_status"] == "NOT_COMPUTABLE"
+        and r6_2[key]["value"] is None for key in canonical_r6
+    )
+    assert all(
+        r6_2[key]["availability_status"] == "AVAILABLE"
+        and r6_2[key]["value"] is not None for key in legacy_r6
+    )
 
     calibrated_result = CephaloEngine(mm_per_pixel=0.2).calculate_metrics(_point_map(edited))
     revision3 = rebuild_evidence_after_manual_calibration(
@@ -246,6 +271,11 @@ def test_r6_creation_landmark_edit_and_calibration_keep_one_active_behavioral_ch
     assert {key: value["value"] for key, value in r6_3.items()} == {
         key: value["value"] for key, value in r6_2.items()
     }
+    assert {key: value["availability_status"] for key, value in r6_3.items()} == {
+        key: value["availability_status"] for key, value in r6_2.items()
+    }
+    # The scale-only transition cannot re-enable canonical angles.
+    assert all(r6_3[key]["value"] is None for key in canonical_r6)
     assert all(item["requires_calibration"] is False for item in r6_3.values())
     assert all(item["calibration_ref"] is None for item in r6_3.values())
 
