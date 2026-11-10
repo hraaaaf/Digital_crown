@@ -115,12 +115,17 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     explicit_identity_required = {
         "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
         "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
-        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
     }
     blocked = [item for item in measurements if item["method_id"] in explicit_identity_required]
     assert {item["method_id"] for item in blocked} == explicit_identity_required
     assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
     assert all(item["value"] is None for item in blocked)
+    # No evidence dependencies remain for Co-Gn: the builder omits the
+    # typed record; the display projection handles it as NOT_COMPUTABLE.
+    assert not any(
+        item["method_id"] == "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+        for item in measurements
+    )
     # A trusted physical scale unlocks *only* geometry whose exact landmark
     # identities are also present. Ricketts methods requiring manual anatomical
     # Po/Pog or other source-locked landmarks must stay NOT_COMPUTABLE.
