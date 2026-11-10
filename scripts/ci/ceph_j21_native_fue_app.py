@@ -54,6 +54,10 @@ def bootstrap_profile(root: Path, db_file: Path) -> None:
         "TELEMETRY_ENABLED": "false",
     }
     (root / "private-fixture-env.json").write_text(json.dumps(data), encoding="utf-8")
+    # main.py calls load_backend_env(), which refuses a missing explicit file.
+    # All values are artificial and bound to this disposable Github runner root.
+    lines = [f"{key}={json.dumps(value)}" for key, value in sorted(data.items())]
+    (root / "private-fixture.env").write_text("\n".join(lines) + "\n", encoding="utf-8")
 
 
 def load_profile(root: Path, db_file: Path) -> None:
@@ -75,8 +79,11 @@ def load_profile(root: Path, db_file: Path) -> None:
             and os.environ["DIGITALCROWN_ISOLATED_RUNTIME"] == "true"
             and os.environ["CEPH_J21_SCENE_APP_FUE_ONLY"] == "1"):
         raise RuntimeError("Test runtime guard absent")
-    # No config fallback to backend/.env or a historical %APPDATA% cabinet.
-    os.environ["DIGITALCROWN_ENV_FILE"] = str(root / "never-use-real-cabinet.env")
+    # No fallback to backend/.env or a historical %APPDATA% cabinet.
+    explicit = root / "private-fixture.env"
+    if not explicit.is_file() or explicit.is_symlink():
+        raise RuntimeError("Missing private synthetic env profile")
+    os.environ["DIGITALCROWN_ENV_FILE"] = str(explicit)
     os.environ["DIGITALCROWN_USER_DATA_DIR"] = str(root)
     os.environ["DIGITALCROWN_CONFIG_DIR"] = str(root)
     os.environ["DIGITALCROWN_RUNTIME_DIR"] = str(root)
@@ -103,6 +110,8 @@ def make_app(root: Path, db_file: Path, *, create_schema: bool):
     database.SessionLocal = Session
     clinical_asset_storage.get_media_root = lambda: root / "synthetic-media"
     if create_schema:
+        from backend.models_document_provenance_p3 import install_document_provenance_p3
+        install_document_provenance_p3()
         models.Base.metadata.create_all(bind=engine)
     else:
         from sqlalchemy import inspect
