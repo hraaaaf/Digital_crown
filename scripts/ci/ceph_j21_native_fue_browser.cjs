@@ -55,6 +55,28 @@ async function main() {
     if(first.status()!==200)throw Error('Native bundled FUE route returned '+first.status());
     await page.getByLabel('Mot de passe fictif').fill('TestPass123!');
     await page.getByRole('button',{name:/Connexion JWT réelle/}).click();
+    const realShell=page.locator('[data-ceph-j21-real-shell="true"]');
+    await realShell.waitFor({state:'visible',timeout:20000});
+    // This is the genuine, source-imported clinic shell: Sidebar + Header +
+    // protected content workspace, not a screenshot approximation or fake DOM.
+    const liveShell=page.locator('[data-cb01-workspace-shell]');
+    await liveShell.waitFor({state:'visible',timeout:20000});
+    const clinicLayout=await page.evaluate(()=>{
+      const root=document.querySelector('[data-ceph-j21-real-shell="true"]');
+      const workspace=root?.querySelector('[data-cb01-workspace-shell]');
+      return {
+        real_shell:!!root,
+        real_workspace:!!workspace,
+        main_count:root?.querySelectorAll('main').length||0,
+        navigation_count:root?.querySelectorAll('nav').length||0,
+        menu_buttons:root?.querySelectorAll('button[aria-label="Menu"]').length||0,
+      };
+    });
+    if(!clinicLayout.real_shell||!clinicLayout.real_workspace
+       ||clinicLayout.main_count<1||clinicLayout.menu_buttons<1) {
+      throw Error('GENUINE_DIGITAL_CROWN_MAINLAYOUT_MISSING:'+JSON.stringify(clinicLayout));
+    }
+    report.actual_digital_crown_shell=clinicLayout;
     const svg=page.locator('[data-ceph-j21-svg]');
     await svg.waitFor({state:'visible',timeout:18000}).catch(()=>{
       const apiFailures=report.api.filter(r=>r.status>=400).map(r=>({status:r.status,pathname:r.pathname}));
@@ -126,6 +148,8 @@ async function main() {
       };
     },{patientId:fixture.patient_id,studyId:fixture.study_id,assetId:fixture.asset_id});
     Object.assign(report,{audit,scene_sha256:audit.scene_sha256,status:'PASS'});
+    if(!report.actual_digital_crown_shell?.real_workspace)
+      throw Error('FUE_REPORT_MISSING_GENUINE_SHELL_PROOF');
     if(audit.scene_http!==200||audit.media_http!==200||audit.anon_http!==401
        ||![403,404].includes(audit.wrong_patient_http)
        ||audit.point_count!==38||audit.revision!==2||audit.edited_point?.x!==46
