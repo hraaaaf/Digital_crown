@@ -768,7 +768,7 @@ public static class Lot05WizardSingleClick {
         )
         $windowTitle = $titleBuffer.ToString()
         $isLicenseTitle = $windowTitle -match '(?i)(Licen[cs]e Agreement|EULA|Terms and Conditions)'
-        $isSetupTitle = $windowTitle -match '(?i)(Open\\s*Dental\\s*Setup|OpenDental\\s*Setup|Setup Wizard)'
+        $isSetupTitle = $windowTitle -match '(?i)(Open.?Dental.?Setup|Setup Wizard)'
         if ($newVendorHwnd -eq [IntPtr]::Zero -or $isLicenseTitle -or $isSetupTitle) {
           $newVendorHwnd = $maybeNewHwnd
           $newVendorPid = [int]$childProcess.Id
