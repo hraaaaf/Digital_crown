@@ -212,3 +212,59 @@ def test_canonical_fma_downstream_fails_closed_until_manual_attestation():
     )
     assert reviewed_fma.availability_status == AvailabilityStatus.AVAILABLE
     assert reviewed_fma.value is not None
+
+
+def test_partially_attested_film_does_not_unlock_fma():
+    """One reviewed Porion cannot launder three unreviewed SRPose landmarks."""
+    from backend.services.cephalo_canonical_analysis_v2 import (
+        materialize_canonical_analysis_v2_measurements,
+    )
+
+    originals = {
+        "Po": _auto("Po").model_copy(update={"x": 0.0, "y": 8.0}),
+        "Or": _auto("Or").model_copy(update={"x": 20.0, "y": 10.0}),
+        "Go": _auto("Go").model_copy(update={"x": 0.0, "y": 22.0}),
+        "Me": _auto("Me").model_copy(update={"x": 16.0, "y": 21.0}),
+    }
+    originals["Po"] = _attested(_manual("Po")).model_copy(
+        update={"x": 0.0, "y": 8.0}
+    )
+
+    scientific = project_canonical_landmark_identities(originals)
+    assert "Po_anatomic" in scientific
+    assert scientific["Po_anatomic"].availability_status == AvailabilityStatus.AVAILABLE
+    assert all(
+        scientific[key].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+        for key in ("Or", "Go", "Me")
+    )
+    # Projection has no write-through side effects to the persisted input.
+    assert all(
+        originals[key].availability_status == AvailabilityStatus.AVAILABLE
+        for key in originals
+    )
+
+    measurements = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:synthetic:partial",
+        landmarks=scientific,
+        mm_per_pixel=0.2,
+        calibration_ref="source:synthetic-calibration",
+    )
+    fma = next(
+        item for item in measurements
+        if item.method_id == "TWEED_FMA_CANONICAL_DEG_V2"
+    )
+    assert fma.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert fma.value is None
+
+
+def test_unreviewed_manual_and_unmatched_correction_are_not_canonical_inputs():
+    current = {
+        "Or": _manual("Or"),
+        "Go": _corrected("Go"),
+    }
+    scientific = project_canonical_landmark_identities(
+        current, previous_auto_landmarks=[_auto("Go", source="source:wrong-film")]
+    )
+    assert scientific["Or"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert scientific["Go"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert current["Or"].availability_status == AvailabilityStatus.AVAILABLE
