@@ -46,6 +46,14 @@ $r=[ordered]@{
   post_click_named_controls=@()
   post_click_chooser_candidate_count=0
   observed_window_bounds=@()
+  nested_chooser_window_observed=$false
+  nested_chooser_candidate_count=0
+  nested_chooser_bounds='NOT_OBSERVED'
+  nested_chooser_hwnd_present=$false
+  nested_chooser_captured_from='NONE'
+  nested_chooser_password_edits_redacted=0
+  nested_chooser_demo_selection_observed=$false
+  nested_chooser_unauthorized_notice_observed=$false
   chooser_window_captured=$false
   chooser_window_title='NOT_OBSERVED'
   chooser_window_size=$null
@@ -152,6 +160,114 @@ public static class Lot05DemoGuiWindow {
                 $entry=("$name"+"|"+$typ)
                 if($r.post_click_named_controls -notcontains $entry){
                   $r.post_click_named_controls+=,$entry
+                }
+              }
+            }
+          }catch{$r.uia_errors++}
+        }
+        # Vendor Choose Database is an UIA Child Window inside the signed
+        # top-level Open Dental main window, not an independent root window.
+        # Discover only exact named child windows after a verified menu click.
+        if($title -ceq 'Open Dental' -and $r.choose_database_menu_invoked -and
+           -not $r.chooser_window_captured){
+          try{
+            $children=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            $nested=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
+            for($j=0;$j -lt [Math]::Min(500,$children.Count);$j++){
+              $el=$children.Item($j)
+              if([int]$el.Current.ProcessId -ne $pidHere){continue}
+              $name=[string]$el.Current.Name
+              $type=[string]$el.Current.ControlType.ProgrammaticName
+              if($name -ceq 'Choose Database' -and $type -ceq 'ControlType.Window'){
+                $nested.Add($el)
+              }
+              if($name -match '(?i)Not authorized for' -and
+                 $name -match '(?i)Choose Database'){
+                $r.nested_chooser_unauthorized_notice_observed=$true
+              }
+            }
+            $r.nested_chooser_candidate_count=$nested.Count
+            if($nested.Count -eq 1){
+              $child=$nested[0]
+              $b=$child.Current.BoundingRectangle
+              $cw=[int]$b.Width;$ch=[int]$b.Height
+              $x=[int]$b.X;$y=[int]$b.Y
+              $r.nested_chooser_window_observed=$true
+              $r.chooser_window_title=[string]$child.Current.Name
+              $r.chooser_owner_pid_verified=([int]$child.Current.ProcessId -eq $pidHere)
+              $r.nested_chooser_bounds=("$x,$y,$cw,$ch")
+              $childHwnd=[IntPtr]([int]$child.Current.NativeWindowHandle)
+              $r.nested_chooser_hwnd_present=($childHwnd -ne [IntPtr]::Zero)
+              $winPid=[uint32]0
+              $handleOwned=$false
+              if($r.nested_chooser_hwnd_present){
+                $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($childHwnd,[ref]$winPid)
+                $handleOwned=([int]$winPid -eq $pidHere)
+              }
+              if($r.chooser_owner_pid_verified -and $r.nested_chooser_hwnd_present -and
+                 $handleOwned -and $cw -ge 600 -and $cw -le 900 -and
+                 $ch -ge 550 -and $ch -le 850){
+                # PrintWindow only for the verified owned native dialog HWND.
+                # No full-screen image, never screenshots of other windows.
+                $bmp=New-Object System.Drawing.Bitmap($cw,$ch)
+                try{
+                  $gfx=[System.Drawing.Graphics]::FromImage($bmp)
+                  try{
+                    $dc=$gfx.GetHdc()
+                    try{$printed=[Lot05DemoGuiWindow]::PrintWindow($childHwnd,$dc,[uint32]0)}
+                    finally{$gfx.ReleaseHdc($dc)}
+                  }finally{$gfx.Dispose()}
+                  if($printed){
+                    # Redact all Edit controls, not just the password, to avoid
+                    # exporting any database credentials in PNG artifacts.
+                    $edits=$child.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                      [System.Windows.Automation.Condition]::TrueCondition)
+                    $gfx=[System.Drawing.Graphics]::FromImage($bmp)
+                    try{
+                      for($e=0;$e -lt [Math]::Min(240,$edits.Count);$e++){
+                        $edit=$edits.Item($e)
+                        if([string]$edit.Current.ControlType.ProgrammaticName -ne 'ControlType.Edit'){continue}
+                        $br=$edit.Current.BoundingRectangle
+                        $xx=[Math]::Max(0,[int]($br.X-$x))
+                        $yy=[Math]::Max(0,[int]($br.Y-$y))
+                        $ww=[Math]::Min($cw-$xx,[int]$br.Width)
+                        $hh=[Math]::Min($ch-$yy,[int]$br.Height)
+                        if($ww -gt 0 -and $hh -gt 0){
+                          $gfx.FillRectangle([System.Drawing.Brushes]::Black,$xx,$yy,$ww,$hh)
+                          $r.nested_chooser_password_edits_redacted++
+                        }
+                      }
+                    }finally{$gfx.Dispose()}
+                    $bmp.Save($png,[System.Drawing.Imaging.ImageFormat]::Png)
+                    $sz=(Get-Item -LiteralPath $png).Length
+                    if($sz -gt 2200 -and $sz -le 6000000){
+                      $r.chooser_window_captured=$true
+                      $r.chooser_png_sha256=(Get-FileHash -LiteralPath $png -Algorithm SHA256).Hash.ToLowerInvariant()
+                      $r.chooser_window_size=("$cw"+"x"+"$ch")
+                      $r.nested_chooser_captured_from='OWNED_CHILD_HWND_PRINTWINDOW_WITH_EDIT_REDACTION'
+                    }
+                  }
+                }finally{$bmp.Dispose()}
+              }
+              # Read only non-sensitive control names/types. Never extract
+              # credentials or invoke connection/DB modification controls.
+              $sub=$child.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                [System.Windows.Automation.Condition]::TrueCondition)
+              for($z=0;$z -lt [Math]::Min(250,$sub.Count);$z++){
+                $el=$sub.Item($z)
+                if([int]$el.Current.ProcessId -ne $pidHere){continue}
+                $ct=[string]$el.Current.ControlType.ProgrammaticName
+                $nm=[string]$el.Current.Name
+                if($ct -eq 'ControlType.Edit'){$r.chooser_edit_count++}
+                if($ct -eq 'ControlType.ComboBox'){$r.chooser_combobox_count++}
+                if($ct -eq 'ControlType.Button'){$r.chooser_button_count++}
+                if($ct -eq 'ControlType.ComboBox' -and $nm -ceq 'demo'){
+                  $r.nested_chooser_demo_selection_observed=$true
+                }
+                if($nm -match '^(Server|Database|MySQL User|MySQL Password|OK|Cancel|Refresh|Choose Database)$' -and
+                   $r.chooser_safe_controls -notcontains $nm){
+                  $r.chooser_safe_controls+=,$nm
                 }
               }
             }
@@ -415,6 +531,11 @@ Write-Host ('LOT05_NATIVE_MENU_MAX_DESCENDANTS='+$r.menu_search_descendant_count
 Write-Host ('LOT05_NATIVE_POST_CLICK_WINDOWS='+($r.post_click_owned_windows -join ';'))
 Write-Host ('LOT05_NATIVE_POST_CLICK_CONTROLS='+($r.post_click_named_controls -join ';'))
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_TITLE='+$r.chooser_window_title)
+Write-Host ('LOT05_NATIVE_NESTED_CHOOSER_OBSERVED='+$r.nested_chooser_window_observed)
+Write-Host ('LOT05_NATIVE_NESTED_CHOOSER_BOUNDS='+$r.nested_chooser_bounds)
+Write-Host ('LOT05_NATIVE_NESTED_CHOOSER_HWND='+$r.nested_chooser_hwnd_present)
+Write-Host ('LOT05_NATIVE_DEMO_SELECTION_SEEN='+$r.nested_chooser_demo_selection_observed)
+Write-Host ('LOT05_NATIVE_CHOOSER_UNAUTHORIZED_NOTICE='+$r.nested_chooser_unauthorized_notice_observed)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
 Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
 if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
