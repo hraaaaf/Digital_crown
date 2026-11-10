@@ -125,7 +125,10 @@ async function viewportRun(viewport) {
         || data.profiles?.com?.rows?.length!==10)throw Error('Source/identity safety contract absent');
       comSourceRows = data.profiles.com.rows;
       sourceBackedComFocus=comSourceRows.find(row=>row.availability_status==='AVAILABLE'
-        && row.value!==null && row.focus_evidence?.landmark_ids?.length>0) ?? null;
+        && row.value!==null
+        && row.focus_evidence?.authority==='ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
+        && (row.focus_evidence?.landmark_ids?.length ?? 0)
+             + (row.focus_evidence?.construction_ids?.length ?? 0)>0) ?? null;
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
       await panel.waitFor({state:'visible'});
       const table=panel.locator('table[data-r23g4-row-count="10"]');
@@ -143,6 +146,10 @@ async function viewportRun(viewport) {
       if(!sourceBackedComFocus)throw Error('No available COM row with source Focus evidence to test');
       const factorId=sourceBackedComFocus.canonical_measurement_id;
       const expectedPoints=sourceBackedComFocus.focus_evidence.landmark_ids;
+      const expectedConstructions=sourceBackedComFocus.focus_evidence.construction_ids;
+      if(!Array.isArray(expectedPoints) || !Array.isArray(expectedConstructions)
+         || expectedPoints.length + expectedConstructions.length===0)
+        throw Error('Focus lacks real source landmarks AND constructions');
       const selected=panel.locator(`tbody tr[data-r23g4-factor="${factorId}"]`);
       if(await selected.count()!==1)throw Error('Exact source-backed COM row is absent');
       await page.evaluate(()=>{
@@ -153,18 +160,24 @@ async function viewportRun(viewport) {
       const evidence=selected.locator('[data-r23g4-focus-authority="verified-runtime"]');
       await evidence.waitFor({state:'visible'});
       const displayed=await evidence.innerText();
-      if(!displayed.includes(`Focus prouvé : ${expectedPoints.join(', ')}`)
-        || !displayed.includes('Aucun tracé inventé'))
-        throw Error('Displayed Focus differs from the exact source points or implies invented geometry');
-      await page.waitForFunction(expectedPoints=>window.__r23g4FocusEvents?.some(event=>
+      if(!displayed.includes('Focus prouvé :')
+        || !displayed.includes('Aucun tracé inventé')
+        || (expectedPoints.length>0 && !displayed.includes(`Focus prouvé : ${expectedPoints.join(', ')}`)))
+        throw Error('Displayed Focus differs from active evidence or implies invented geometry');
+      await page.waitForFunction(({points,constructions})=>window.__r23g4FocusEvents?.some(event=>
         event?.authority==='ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
-          && JSON.stringify(event.points)===JSON.stringify(expectedPoints)),expectedPoints);
+          && JSON.stringify(event.points)===JSON.stringify(points)
+          && JSON.stringify(event.constructionIds)===JSON.stringify(constructions)),
+        {points:expectedPoints,constructions:expectedConstructions});
       const event=await page.evaluate(()=>window.__r23g4FocusEvents.at(-1));
-      if(!event || JSON.stringify(event.points)!==JSON.stringify(expectedPoints)
+      if(!event
+        || JSON.stringify(event.points)!==JSON.stringify(expectedPoints)
+        || JSON.stringify(event.constructionIds)!==JSON.stringify(expectedConstructions)
         || !Array.isArray(event.lines) || event.lines.length!==0)
-        throw Error('Published Focus event differs from exact source points or contains invented lines');
+        throw Error('Focus event differs from exact source evidence or contains invented lines');
       await shot('after-com-source-backed-focus');
-      return {factor_id:factorId,points:expectedPoints,lines:event.lines,clinical_release:false};
+      return {factor_id:factorId,points:expectedPoints,constructions:expectedConstructions,
+        lines:event.lines,clinical_release:false};
     });
     else await check('NO_FABRICATED_FOCUS_ON_COM_HOLD', async()=>{
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
