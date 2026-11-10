@@ -1,0 +1,176 @@
+name: LOT08.2-I embedded SRPose38 default-deny and no-patient safety FUE
+on:
+  push:
+    branches: [fix/lot08-2-i-cephalo-embedded-safe-default-20261110]
+    paths:
+      - .github/workflows/v15-08-2-i-cephalo-embedded-failclosed.yml
+      - .github/workflows/cephalo-srpose38-runtime-parity.yml
+      - backend/services/cephalo_runtime_gate.py
+      - backend/services/sota_vision_service.py
+      - backend/services/vision_service.py
+      - backend/services/cephalo_service.py
+      - backend/tests/test_cephalo_runtime_activation_gate.py
+      - docs/quality/V15_08_2_I_CEPHALO_EMBEDDED_FAILCLOSED_GATE.md
+  pull_request:
+    paths:
+      - .github/workflows/v15-08-2-i-cephalo-embedded-failclosed.yml
+      - .github/workflows/cephalo-srpose38-runtime-parity.yml
+      - backend/services/cephalo_runtime_gate.py
+      - backend/services/sota_vision_service.py
+      - backend/services/vision_service.py
+      - backend/services/cephalo_service.py
+      - backend/tests/test_cephalo_runtime_activation_gate.py
+      - docs/quality/V15_08_2_I_CEPHALO_EMBEDDED_FAILCLOSED_GATE.md
+permissions:
+  contents: read
+concurrency:
+  group: lot08-2-i-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pure-gate-and-source-scope:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    env:
+      ENVIRONMENT: production
+      DATABASE_URL: sqlite:///./clinical_vault.db
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact immutable base master and only eight additive safety files
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          BASE=bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4
+          test "$(git rev-parse "$BASE")" = "$BASE"
+          git diff --name-only "$BASE" HEAD | sort > actual.txt
+          cat > expected.txt <<'EOF'
+          .github/workflows/cephalo-srpose38-runtime-parity.yml
+          .github/workflows/v15-08-2-i-cephalo-embedded-failclosed.yml
+          backend/services/cephalo_runtime_gate.py
+          backend/services/cephalo_service.py
+          backend/services/sota_vision_service.py
+          backend/services/vision_service.py
+          backend/tests/test_cephalo_runtime_activation_gate.py
+          docs/quality/V15_08_2_I_CEPHALO_EMBEDDED_FAILCLOSED_GATE.md
+          EOF
+          diff -u expected.txt actual.txt
+          test ! -e backend/ai_models/srpose38-tta-1024.onnx
+          test ! -e dist/DigitalCrownSetup.exe
+          echo "LOT08I_EXACT_EIGHT_FILE_NO_MODEL_NO_INSTALLER_SCOPE_PASS"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Standalone real Python default-deny and frozen override-negative tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util, os, pathlib, sys
+          p=pathlib.Path('backend/services/cephalo_runtime_gate.py')
+          spec=importlib.util.spec_from_file_location('cephalo_gate_lab',p)
+          m=importlib.util.module_from_spec(spec);spec.loader.exec_module(m)
+          assert m.can_run_cephalo_auto_inference() is False
+          os.environ['ENVIRONMENT']='test'
+          os.environ['DATABASE_URL']='sqlite:///:memory:'
+          os.environ['DIGITALCROWN_ISOLATED_RUNTIME']='1'
+          assert m.can_run_cephalo_auto_inference() is True
+          sys.frozen=True
+          try: assert m.can_run_cephalo_auto_inference() is False
+          finally: del sys.frozen
+          os.environ['DATABASE_URL']='sqlite:///C:/Cabinet/clinical_vault.db'
+          os.environ.pop('GITHUB_ACTIONS',None)
+          assert m.can_run_cephalo_auto_inference() is False
+          print("LOT08I_DEFAULT_DENY_TEST_ONLY_SYNTHETIC_FROZEN_DENY_PASS")
+          PY
+      - name: Strict import and syntax review for all affected code (no patients)
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile \
+            backend/services/cephalo_runtime_gate.py \
+            backend/services/sota_vision_service.py \
+            backend/services/vision_service.py \
+            backend/services/cephalo_service.py \
+            backend/tests/test_cephalo_runtime_activation_gate.py
+          echo "LOT08I_PYTHON_COMPILATION_PASS"
+  native-windows-no-patient-frozen-denial:
+    needs: pure-gate-and-source-scope
+    runs-on: windows-2025
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Native Windows frozen simulation rejects even explicit LAB flags
+        shell: bash
+        env:
+          ENVIRONMENT: test
+          DIGITALCROWN_ISOLATED_RUNTIME: '1'
+          DATABASE_URL: sqlite:///:memory:
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import importlib.util, sys
+          s=importlib.util.spec_from_file_location('cephalo_gate_windows','backend/services/cephalo_runtime_gate.py')
+          m=importlib.util.module_from_spec(s);s.loader.exec_module(m)
+          assert m.can_run_cephalo_auto_inference() is True
+          sys.frozen = True
+          assert m.can_run_cephalo_auto_inference() is False
+          del sys.frozen
+          sys._MEIPASS = 'C:\\synthetic\\_internal'
+          try: assert m.can_run_cephalo_auto_inference() is False
+          finally: del sys._MEIPASS
+          print('LOT08I_NATIVE_WINDOWS_PACKAGED_PROCESS_DENY_PASS')
+          PY
+  targeted-backend-fue:
+    needs: pure-gate-and-source-scope
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: sqlite:///:memory:
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      SECRET_KEY: lot08i-synthetic-test-no-patient-secret-only
+      TELEMETRY_ENABLED: 'false'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install unchanged backend dependencies in disposable GitHub runner
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > "$RUNNER_TEMP/lot08i-req.txt"
+          python -m pip install -r "$RUNNER_TEMP/lot08i-req.txt" pytest pytest-asyncio
+          python -m pip check
+      - name: Prove clinical DENY, native model guard, no legacy fallback and no persistence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m pytest -q --maxfail=1 \
+            backend/tests/test_cephalo_runtime_activation_gate.py \
+            backend/tests/test_vision_service_lazy_pytorch.py \
+            backend/tests/test_srpose38_runtime_parity.py \
+            backend/tests/test_cephalo_service_evidence_persistence.py \
+            backend/tests/test_vision_apex_provenance.py
+          echo "LOT08I_TARGETED_BACKEND_CEPHALO_FAILCLOSED_SUCCESS"
+      - name: Cleanup synthetic temporary dependency list only
+        if: always()
+        shell: bash
+        run: rm -f -- "$RUNNER_TEMP/lot08i-req.txt"
