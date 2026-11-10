@@ -28,6 +28,18 @@ $report = [ordered]@{
   uia_tree_accessible = $false
   license_text_label_candidate_count = 0
   license_exact_button_candidate_count = 0
+  license_candidate_control_type = 'NOT_OBSERVED'
+  license_candidate_enabled = $false
+  license_candidate_offscreen = $null
+  license_candidate_owned_by_vendor = $false
+  license_candidate_invoke_supported = $false
+  license_candidate_legacy_supported = $false
+  license_candidate_parent_type = 'NOT_OBSERVED'
+  license_candidate_parent_invoke_supported = $false
+  license_candidate_button_ancestor = $false
+  license_candidate_bounding_nonempty = $false
+  observation_cycles = 0
+  action_classification = 'READ_ONLY_NO_ACTION'
   license_control_same_vendor_process = $false
   license_invoke_pattern_supported = $false
   view_license_invoked_once = $false
@@ -99,6 +111,7 @@ public static class Lot05ViewLicenseWin32 {
 
   for ($cycle=0; $cycle -lt 110; $cycle++) {
     Start-Sleep -Milliseconds 1100
+    $report.observation_cycles = $cycle + 1
     if (($cycle % 4) -eq 0) {
       $all = @(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
       for ($depth=0; $depth -lt 3; $depth++) {
@@ -133,7 +146,39 @@ public static class Lot05ViewLicenseWin32 {
           $it = $items.Item($idx)
           $name = [string]$it.Current.Name
           $type = [string]$it.Current.ControlType.ProgrammaticName
-          if ($name -match '(?i)Licen[cs]e') { $textCount++ }
+          if ($name -match '(?i)Licen[cs]e') {
+            $textCount++
+            if ($textCount -eq 1) {
+              # Bounded, non-PHI UIAutomation metadata, no raw text or control invocation.
+              $report.license_candidate_control_type = $type
+              $report.license_candidate_enabled = [bool]$it.Current.IsEnabled
+              $report.license_candidate_offscreen = [bool]$it.Current.IsOffscreen
+              $report.license_candidate_owned_by_vendor = ([int]$it.Current.ProcessId -eq [int]$pidValue)
+              $b = $it.Current.BoundingRectangle
+              $report.license_candidate_bounding_nonempty = ($b.Width -gt 0 -and $b.Height -gt 0)
+              $pattern = $null
+              $report.license_candidate_invoke_supported = [bool](
+                $it.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$pattern))
+              $pattern = $null
+              $report.license_candidate_legacy_supported = [bool](
+                $it.TryGetCurrentPattern([System.Windows.Automation.LegacyIAccessiblePattern]::Pattern,[ref]$pattern))
+              $walker = [System.Windows.Automation.TreeWalker]::RawViewWalker
+              $parent = $walker.GetParent($it)
+              if ($null -ne $parent) {
+                $report.license_candidate_parent_type = [string]$parent.Current.ControlType.ProgrammaticName
+                $pPattern = $null
+                $report.license_candidate_parent_invoke_supported = [bool](
+                  $parent.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$pPattern))
+                for ($depth=0; $depth -lt 5 -and $null -ne $parent; $depth++) {
+                  if ([string]$parent.Current.ControlType.ProgrammaticName -ceq 'ControlType.Button') {
+                    $report.license_candidate_button_ancestor = $true
+                    break
+                  }
+                  $parent = $walker.GetParent($parent)
+                }
+              }
+            }
+          }
           if ($type -eq 'ControlType.Button' -and
               $name -match '(?i)^\s*&?(?:View\s+)?Licen[cs]e(?:s)?\s*$' -and
               $it.Current.IsEnabled -and -not $it.Current.IsOffscreen -and
@@ -155,79 +200,16 @@ public static class Lot05ViewLicenseWin32 {
         $report.uia_tree_accessible = $false
       }
     }
-    if ($null -ne $control) { break }
+    if ($report.license_text_label_candidate_count -eq 1) { break }
   }
 
-  if ($null -eq $control) {
-    $report.status = 'VIEW_LICENSE_EXACT_BUTTON_NOT_FOUND_NO_CLICK'
+  # This iteration is ONLY a semantic read. Never invoke any identified control.
+  $report.status = if ($report.license_text_label_candidate_count -eq 1) {
+    'LICENSE_LABEL_UIA_SEMANTICS_OBSERVED_NO_CLICK'
   } else {
-    $invoke = $null
-    $canInvoke = $control.TryGetCurrentPattern(
-      [System.Windows.Automation.InvokePattern]::Pattern,
-      [ref]$invoke
-    )
-    $report.license_invoke_pattern_supported = [bool]$canInvoke
-    if (-not $canInvoke -or $null -eq $invoke) {
-      $report.status = 'VIEW_LICENSE_BUTTON_HAS_NO_INVOKE_PATTERN_NO_CLICK'
-    } else {
-      # Only one semantically verified View License control. Never Install/Accept.
-      $invoke.Invoke()
-      $report.view_license_invoked_once = $true
-      for ($i=0; $i -lt 45; $i++) {
-        Start-Sleep -Milliseconds 1000
-        $matched = New-Object 'System.Collections.Generic.List[System.IntPtr]'
-        $callback = [Lot05ViewLicenseWin32+EnumWindowsCallback]{
-          param([IntPtr]$wh, [IntPtr]$unused)
-          if (-not [Lot05ViewLicenseWin32]::IsWindowVisible($wh)) { return $true }
-          $winPid = [uint32]0
-          $null = [Lot05ViewLicenseWin32]::GetWindowThreadProcessId($wh,[ref]$winPid)
-          if ($knownIds -notcontains [int]$winPid) { return $true }
-          $sb = New-Object System.Text.StringBuilder(256)
-          $null = [Lot05ViewLicenseWin32]::GetWindowText($wh,$sb,$sb.Capacity)
-          if ($sb.ToString() -match '(?i)(Licen[cs]e|Agreement|Terms|EULA)' -and
-              $wh -ne $launcherHwnd) { [void]$matched.Add($wh) }
-          return $true
-        }
-        $null = [Lot05ViewLicenseWin32]::EnumWindows($callback,[IntPtr]::Zero)
-        if ($matched.Count -ne 1) { continue }
-        $win = $matched[0]
-        $report.licensed_window_title_observed = $true
-        $r = New-Object Lot05ViewLicenseWin32+RECT
-        if (-not [Lot05ViewLicenseWin32]::GetWindowRect($win,[ref]$r)) { break }
-        $w = [int]($r.Right - $r.Left)
-        $h = [int]($r.Bottom - $r.Top)
-        if ($w -lt 250 -or $h -lt 150 -or $w -gt 1600 -or $h -gt 1100) { break }
-        $bmp = New-Object System.Drawing.Bitmap($w,$h)
-        try {
-          $graphics = [System.Drawing.Graphics]::FromImage($bmp)
-          try {
-            $hdc = $graphics.GetHdc()
-            try {
-              $report.license_window_printwindow_success = [bool](
-                [Lot05ViewLicenseWin32]::PrintWindow($win,$hdc,[uint32]0)
-              )
-            } finally { $graphics.ReleaseHdc($hdc) }
-          } finally { $graphics.Dispose() }
-          if ($report.license_window_printwindow_success) {
-            $bmp.Save($screen,[System.Drawing.Imaging.ImageFormat]::Png)
-            if ((Get-Item -LiteralPath $screen).Length -gt 2048 -and
-                (Get-Item -LiteralPath $screen).Length -lt 6000000) {
-              $report.license_png_retained = $true
-              $report.window_only_dimensions = "$w" + "x" + "$h"
-            }
-          }
-        } finally { $bmp.Dispose() }
-        break
-      }
-      $report.status = if ($report.license_png_retained) {
-        'SIGNED_VENDOR_LICENSE_WINDOW_CAPTURED_NOT_ACCEPTED'
-      } elseif ($report.licensed_window_title_observed) {
-        'LICENSE_WINDOW_TITLE_ONLY_NO_VERIFIED_CAPTURE'
-      } else {
-        'VIEW_LICENSE_INVOKED_BUT_LICENSE_WINDOW_NOT_VERIFIED'
-      }
-    }
+    'LICENSE_LABEL_UIA_NOT_UNIQUELY_OBSERVED_NO_CLICK'
   }
+
 } catch {
   $report.status = 'SAFE_VIEW_LICENSE_PROBE_REFUSED_OR_FAILED'
   $report.refusal_code = 'VIEW_LICENSE_RUNTIME_FAILURE'
