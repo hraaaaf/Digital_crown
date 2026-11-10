@@ -136,7 +136,7 @@ public static class Lot05ServerReadWindow {
 }catch{
   $r.error_code='READONLY_VENDOR_SERVER_ORCHESTRATOR_FAIL_CLOSED'
 }finally{
-  foreach($pid in @($ids)){try{Stop-Process -Id $pid -Force -ErrorAction SilentlyContinue}catch{}}
+  foreach($childProcessId in @($ids)){try{Stop-Process -Id $childProcessId -Force -ErrorAction SilentlyContinue}catch{}}
   Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $extract -Recurse -Force -ErrorAction SilentlyContinue
   $r.created_database=(@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0)
