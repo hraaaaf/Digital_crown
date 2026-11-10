@@ -42,6 +42,9 @@ $r=[ordered]@{
   choose_database_click_hit_verified=$false
   choose_database_invoke_error_type='NONE'
   choose_database_click_source='NOT_ATTEMPTED'
+  post_click_owned_windows=@()
+  post_click_named_controls=@()
+  post_click_chooser_candidate_count=0
   observed_window_bounds=@()
   chooser_window_captured=$false
   chooser_window_title='NOT_OBSERVED'
@@ -128,6 +131,32 @@ public static class Lot05DemoGuiWindow {
         # Actual evidence from the previous exact-HEAD run shows 'Open Dental',
         # NOT 'Choose Database'. Capture that real official window without clicking.
         # Also continue observing for an exact Choose Database child/dialog title.
+        # Observe all signed-app-owned top-level windows after the verified
+        # menu click; no input or screenshots of unknown titles.
+        if($r.choose_database_menu_invoked -and $r.post_click_owned_windows.Count -lt 20){
+          $windowDesc=("$title"+"|"+[string]$w.Current.ControlType.ProgrammaticName+
+            "|"+[int]$w.Current.NativeWindowHandle)
+          if($r.post_click_owned_windows -notcontains $windowDesc){
+            $r.post_click_owned_windows+=,$windowDesc
+          }
+          try{
+            $desc=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            for($z=0;$z -lt [Math]::Min($desc.Count,200);$z++){
+              $el=$desc.Item($z)
+              if([int]$el.Current.ProcessId -ne $pidHere){continue}
+              $name=[string]$el.Current.Name
+              $typ=[string]$el.Current.ControlType.ProgrammaticName
+              if($name -match '(?i)(database|server|connect|mysql|demo)' -and
+                 $r.post_click_named_controls.Count -lt 30){
+                $entry=("$name"+"|"+$typ)
+                if($r.post_click_named_controls -notcontains $entry){
+                  $r.post_click_named_controls+=,$entry
+                }
+              }
+            }
+          }catch{$r.uia_errors++}
+        }
         $isChooser=($title -ceq 'Choose Database')
         $isApp=($title -ceq 'Open Dental')
         if(-not $isChooser -and -not $isApp){continue}
@@ -383,6 +412,8 @@ Write-Host ('LOT05_NATIVE_CHOOSE_DB_CLICK_HIT='+$r.choose_database_click_hit_ver
 Write-Host ('LOT05_NATIVE_CHOOSE_DB_ERROR_TYPE='+$r.choose_database_invoke_error_type)
 Write-Host ('LOT05_NATIVE_CHOOSE_DB_NAMED='+$r.choose_database_named_element_count)
 Write-Host ('LOT05_NATIVE_MENU_MAX_DESCENDANTS='+$r.menu_search_descendant_count)
+Write-Host ('LOT05_NATIVE_POST_CLICK_WINDOWS='+($r.post_click_owned_windows -join ';'))
+Write-Host ('LOT05_NATIVE_POST_CLICK_CONTROLS='+($r.post_click_named_controls -join ';'))
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_TITLE='+$r.chooser_window_title)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
 Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
