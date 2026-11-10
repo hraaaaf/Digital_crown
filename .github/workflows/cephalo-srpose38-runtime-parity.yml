@@ -24,7 +24,7 @@ jobs:
     # The research parity run is an isolated test; never a clinical runtime.
     env:
       ENVIRONMENT: test
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: 'sqlite:///:memory:'
       DIGITALCROWN_ISOLATED_RUNTIME: '1'
     steps:
       - uses: actions/checkout@v4
