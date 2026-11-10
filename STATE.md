@@ -1,3 +1,19 @@
+## DIGITAL CROWN — 10/11/2026 22:35 UTC — LOT08.2-I : CANDIDAT SRPose38 EMBARQUÉ MAIS INFÉRENCE CLINIQUE STRICTEMENT BLOQUÉE — CI PENDING
+
+**Décision/propriétaire** : droits/licences du checkpoint SRPose38 pris en charge par le propriétaire ; poursuivre les travaux techniques sans demander sa validation juridique. SRPose38 reste le poids à embarquer ultérieurement dans l'installable local. Aucun droit de diffusion présumé. La sécurité patient exige que la présence d'un modèle ne déclenche jamais automatiquement une inférence clinique non validée.
+
+**Résultat de code DRAFT (pas VALIDÉ CI)** : [PR #1279](https://github.com/hraaaaf/Digital_crown/pull/1279) HEAD exact `d28ae9aa0d2e22722849d4e88382abe3b568458d` sur master CODE_CERTIFIED `bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4`, toujours inchangé. Diff vérifié **8 fichiers** : module de gate stdlib, SOTA ONNX, Vision/legacy fallback, CephaloService empty nonpersistent, tests synthétiques, parité GitHub isolée, workflow Linux/Windows, guide. Pas de fichiers modèle / installer / patients ni d'écriture clinique.
+
+**Intention de sécurité testable** : `backend/services/cephalo_runtime_gate.py` DENY si `sys.frozen` ou `sys._MEIPASS`, `ENVIRONMENT` autre que `test/rehearsal`, non isolé ou base persistante locale. Seulement test SQLite en mémoire isolé ou SQLite sur runner GH Actions isolé. Verrou présent à la construction, à la prédiction et avant le fallback legacy PyTorch ; CephaloService refuse résultat vide avant persistence. Les variables d'environnement ne sont pas un GO clinique.
+
+**CI** : premier push de workflow [#42915402191](https://github.com/hraaaaf/Digital_crown/actions/runs/42915402191) et ancien workflow parité [#42915404086](https://github.com/hraaaaf/Digital_crown/actions/runs/42915404086) FAILED sans jobs (erreur YAML `DATABASE_URL: sqlite:///:memory:` : deux-points terminal non cité). Reproduit avec parseur YAML et corrigé par valeurs citées. GitHub a reconnu workflow `LOT08.2-I embedded SRPose38 default-deny and no-patient safety FUE` ; [run push #42915861212](https://github.com/hraaaaf/Digital_crown/actions/runs/42915861212) et [run PR #42915867892](https://github.com/hraaaaf/Digital_crown/actions/runs/42915867892) étaient PENDING / aucun job disponible au dernier contrôle. Pas de fausse validation sur ces runs ; suivre Scope, Linux, Windows, targeted backend et CI candidate.
+
+**PREUVE préexistante distincte** : [LOT08.2-H #42910489876](https://github.com/hraaaaf/Digital_crown/actions/runs/42910489876) 2/2 SUCCESS sur SRPose38 réel (267484931 octets, SHA256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb`, ORT CPU 38, PyInstaller sélecteur). N'est pas une validation clinique ni INSTALLABLE_CERTIFIED.
+
+**NEXT EXACT** : lire les jobs du nouveau HEAD #1279, diagnostiquer chaque échec. Quand les 3 jobs dédiés + tests produit exact HEAD sont verts, préparer un FUE de véritable empaquetage Desktop Windows isolé, embarquant l'ONNX sans publier poids/installeur et sans l'activer ; aucune fusion, déploiement, migration ou patient réel. `LOT08 OPEN / NO_INSTALLABLE_GO`.
+
+---
+
 ## DIGITAL CROWN — 10/11/2026 22:01 UTC — LOT08.2-H FINAL LAB TECHNIQUE VERT / CLINICAL HOLD
 
 **Résultat prouvé :** [PR DRAFT #1278](https://github.com/hraaaaf/Digital_crown/pull/1278) HEAD exact `12668fbe6474c6fa2f577c1212d51dee16d317e8` sur master `bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4` (CODE_CERTIFIED run #42897412850 toujours 6/6 SUCCESS). Compare master→HEAD : **3 fichiers additionnels LAB uniquement** : workflow, script test, document qualité. Aucun code clinique, ni scientific_assets.json, ni DigitalCrown.spec modifié. PR DRAFT/non fusionnée ; master inchangé.
