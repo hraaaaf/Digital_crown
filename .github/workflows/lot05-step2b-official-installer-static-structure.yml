@@ -2,7 +2,7 @@ name: LOT05 Step2B Official Installer Static Structure — NO EXECUTION
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     branches: [master]
     paths:
       - '.github/workflows/lot05-step2b-official-installer-static-structure.yml'
@@ -63,6 +63,14 @@ jobs:
             msi_candidate_count=0
             nested_exe_candidate_count=0
             legal_filename_candidate_count=0
+            msi_extraction_status='NOT_ATTEMPTED'
+            msi_sha256='UNKNOWN'
+            msi_readonly_database_status='NOT_ATTEMPTED'
+            msi_product_name='UNKNOWN'
+            msi_product_version='UNKNOWN'
+            msi_manufacturer='UNKNOWN'
+            msi_dialog_count_bounded=0
+            msi_license_dialog_name_count=0
             exe_started=$false
             installation_performed=$false
             eula_accepted=$false
@@ -106,9 +114,50 @@ jobs:
                 $report.sevenzip_list_status='FORMAT_UNSUPPORTED'
               }
             }
+            if ($report.sevenzip_list_status -eq 'PARSED' -and $report.msi_candidate_count -eq 1) {
+              # Signed, pinned publisher archive -> a single isolated MSI.
+              # 7z EXTRACTS BYTES ONLY; no msiexec, no application launch.
+              $extractDir=Join-Path $env:RUNNER_TEMP 'lot05-msi-static-extract'
+              $null=New-Item -ItemType Directory -Path $extractDir -Force
+              $null=& $sevenZip e $exe "-o$extractDir" '-ir!*.msi' '-y' 2>$null
+              $msiFiles=@(Get-ChildItem -LiteralPath $extractDir -Filter '*.msi' -File -ErrorAction SilentlyContinue)
+              if ($LASTEXITCODE -ne 0 -or $msiFiles.Count -ne 1) { throw 'ONE_MSI_EXTRACT_NOT_PROVEN' }
+              $msi=$msiFiles[0]
+              $report.msi_extraction_status='EXTRACTED_ONE_OFFICIAL_EMBEDDED_MSI'
+              $report.msi_sha256=(Get-FileHash -LiteralPath $msi.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              # Windows Installer database opened in mode 0 = READ ONLY.
+              $installer=New-Object -ComObject WindowsInstaller.Installer
+              $db=$installer.OpenDatabase($msi.FullName,0)
+              foreach($property in @('ProductName','ProductVersion','Manufacturer')) {
+                $v=$db.OpenView("SELECT Value FROM Property WHERE Property='$property'")
+                $v.Execute()
+                $rec=$v.Fetch()
+                $val='NOT_PRESENT'
+                if ($null -ne $rec) { $val=[string]$rec.StringData(1) }
+                if ($property -eq 'ProductName') { $report.msi_product_name=$val }
+                if ($property -eq 'ProductVersion') { $report.msi_product_version=$val }
+                if ($property -eq 'Manufacturer') { $report.msi_manufacturer=$val }
+                $v.Close()
+              }
+              $v=$db.OpenView('SELECT Dialog FROM Dialog')
+              $v.Execute()
+              for ($i=0;$i -lt 4000;$i++) {
+                $rec=$v.Fetch()
+                if ($null -eq $rec) { break }
+                $report.msi_dialog_count_bounded++
+                $name=[string]$rec.StringData(1)
+                if ($name -match '(?i)(Licen[cs]e|EULA|Agreement|Terms)') { $report.msi_license_dialog_name_count++ }
+              }
+              $v.Close()
+              $report.msi_readonly_database_status='MSI_PROPERTY_AND_DIALOG_TABLES_OPENED_READ_ONLY'
+              $db=$null
+              $installer=$null
+            }
             Write-Host 'LOT05_VENDOR_STATIC_SIGNATURE_PASS'
             Write-Host ('LOT05_STATIC_ARCHIVE_TYPE=' + ($report.container_types -join ','))
             Write-Host ('LOT05_STATIC_MSI_COUNT=' + $report.msi_candidate_count)
+            Write-Host ('LOT05_STATIC_MSI_DB_STATUS=' + $report.msi_readonly_database_status)
+            Write-Host ('LOT05_STATIC_LICENSE_DIALOG_COUNT=' + $report.msi_license_dialog_name_count)
           } catch {
             $report.error_code='READONLY_INSPECTION_FAIL_CLOSED'
           } finally {
