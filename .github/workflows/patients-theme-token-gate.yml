@@ -1,0 +1,54 @@
+name: Patients Semantic Theme P1 — Fail-Closed Synthetic CI
+on:
+  push:
+    branches:
+      - fix/patients-theme-tokens-phase1-20261025
+  pull_request:
+    branches:
+      - master
+    paths:
+      - frontend/src/features/patients/**
+      - .github/workflows/patients-theme-token-gate.yml
+permissions:
+  contents: read
+jobs:
+  patient-theme:
+    name: Patients tokens + critical workflow tests + TypeScript + build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 40
+    env:
+      CLOUD_AI_ENABLED: "false"
+      TELEMETRY_ENABLED: "false"
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install project dependencies
+        run: npm ci --no-audit --no-fund
+      - name: TypeScript component contracts
+        run: npx tsc --noEmit -p tsconfig.app.json
+      - name: Theme regression and existing draft-navigation / RVG truth tests
+        run: |
+          npx vitest run \
+            src/features/patients/patientsThemeTokens.phase1.test.ts \
+            src/features/patients/PatientDraftRouteGuard.test.tsx \
+            src/features/patients/patientDraftNavigationGate.test.tsx \
+            src/features/patients/RvgImaging.g4Interactive.test.tsx \
+            src/features/multiview/themeTokens.r2.test.ts \
+            --maxWorkers=1 --fileParallelism=false
+      - name: Build app without deployment
+        run: npm run build
+      - name: Limitations
+        if: success()
+        run: |
+          echo "Source-level tokens + targeted patient safety tests and build only." >> "$GITHUB_STEP_SUMMARY"
+          echo "No eight-theme browser captures, no Windows native 200% zoom and no real patient API writes." >> "$GITHUB_STEP_SUMMARY"
+          echo "Clinical approval and PR merge remain separate human gates." >> "$GITHUB_STEP_SUMMARY"

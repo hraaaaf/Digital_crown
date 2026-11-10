@@ -98,7 +98,7 @@ export const PatientSummaryHoverCard = ({ patientId, patientName, patientDossier
         exit={{ opacity: 0, scale: 0.97, y: 8 }}
         transition={{ duration: 0.18, ease: 'easeOut' }}
         style={{ position: 'absolute', top: frame.top, left: frame.left, width: frame.width, zIndex: 99999 }}
-        className="pointer-events-none flex max-w-[calc(100vw-24px)] select-none flex-col gap-4 rounded-[2rem] border border-border-main/80 bg-card-bg/95 p-5 font-sans text-text-main shadow-[0_20px_50px_rgba(0,0,0,0.15)] backdrop-blur-2xl dark:border-white/10 dark:bg-[#0f172a]/95"
+        className="pointer-events-none flex max-w-[calc(100vw-24px)] select-none flex-col gap-4 rounded-[2rem] border border-border-main/80 bg-card-bg/95 p-5 font-sans text-text-main shadow-elite backdrop-blur-2xl"
       >
         <div className="border-b border-border-main/50 pb-3">
           <p className="text-[9px] font-black uppercase tracking-widest text-text-muted">Repères du dossier</p>
@@ -116,11 +116,11 @@ export const PatientSummaryHoverCard = ({ patientId, patientName, patientDossier
         ) : (
           <div className="space-y-4 text-xs">
             {data.patient_summary.alerts?.length > 0 && (
-              <div className="flex items-start gap-2.5 rounded-xl border border-red-500/20 bg-red-500/10 p-3">
-                <ShieldAlert className="mt-0.5 flex-shrink-0 text-red-500" size={16} />
+              <div className="flex items-start gap-2.5 rounded-xl border border-danger-border bg-danger-surface p-3">
+                <ShieldAlert className="mt-0.5 flex-shrink-0 text-danger" size={16} />
                 <div>
-                  <h5 className="text-[10px] font-black uppercase tracking-wider text-red-500">Vigilance dossier</h5>
-                  <p className="mt-1 text-[10px] font-bold leading-normal text-red-500">{data.patient_summary.alerts.join(', ')}</p>
+                  <h5 className="text-[10px] font-black uppercase tracking-wider text-danger">Vigilance dossier</h5>
+                  <p className="mt-1 text-[10px] font-bold leading-normal text-danger">{data.patient_summary.alerts.join(', ')}</p>
                 </div>
               </div>
             )}
@@ -137,7 +137,7 @@ export const PatientSummaryHoverCard = ({ patientId, patientName, patientDossier
 
             <div className="grid grid-cols-2 gap-2">
               <div className="flex min-w-0 items-start gap-2 rounded-xl border border-border-main bg-card-bg p-2.5">
-                <Clock className="mt-0.5 flex-shrink-0 text-blue-500" size={14} />
+                <Clock className="mt-0.5 flex-shrink-0 text-info" size={14} />
                 <div className="min-w-0">
                   <span className="block text-[8px] font-black uppercase tracking-widest text-text-muted">Dernière visite</span>
                   {data.patient_summary.last_visit ? (
@@ -146,12 +146,12 @@ export const PatientSummaryHoverCard = ({ patientId, patientName, patientDossier
                 </div>
               </div>
               <div className="flex min-w-0 items-start gap-2 rounded-xl border border-border-main bg-card-bg p-2.5">
-                <Calendar className="mt-0.5 flex-shrink-0 text-emerald-500" size={14} />
+                <Calendar className="mt-0.5 flex-shrink-0 text-success" size={14} />
                 <div className="min-w-0">
                   <span className="block text-[8px] font-black uppercase tracking-widest text-text-muted">Prochain RDV</span>
                   {data.patient_summary.next_visit ? (
                     <><span className="mt-0.5 block truncate text-[10px] font-bold">{data.patient_summary.next_visit.motif || 'Soin'}</span><span className="mt-0.5 block font-mono text-[9px] text-text-muted">{new Date(data.patient_summary.next_visit.date).toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit' })} à {data.patient_summary.next_visit.time}</span></>
-                  ) : <span className="mt-0.5 block text-[10px] font-bold text-amber-600">Aucun RDV futur</span>}
+                  ) : <span className="mt-0.5 block text-[10px] font-bold text-warning">Aucun RDV futur</span>}
                 </div>
               </div>
             </div>
@@ -159,7 +159,7 @@ export const PatientSummaryHoverCard = ({ patientId, patientName, patientDossier
             {financialInsights.length > 0 && (
               <div className="space-y-1 border-t border-border-main/50 pt-3">
                 {financialInsights.map(i => (
-                  <div key={i.id} className={cn('flex items-start gap-2 rounded-xl border px-3 py-2 text-[10px]', i.type === 'financial_risk' ? 'border-amber-500/20 bg-amber-500/10 font-black text-amber-600' : 'border-primary/10 bg-primary/5 font-bold text-primary')}>
+                  <div key={i.id} className={cn('flex items-start gap-2 rounded-xl border px-3 py-2 text-[10px]', i.type === 'financial_risk' ? 'border-warning-border bg-warning-surface font-black text-warning' : 'border-primary/10 bg-primary/5 font-bold text-primary')}>
                     <DollarSign size={14} className="mt-0.5 flex-shrink-0" />
                     <span className="flex-1">{i.content}</span>
                   </div>
@@ -177,7 +177,7 @@ export const PatientSummaryHoverCard = ({ patientId, patientName, patientDossier
                       <div className="min-w-0 leading-tight">
                         <span className="block text-[9px] font-bold text-primary">{i.title}</span>
                         <p className="mt-0.5 text-[9px] font-medium leading-normal text-text-muted">{i.content}</p>
-                        <p className="mt-1 text-[8px] font-bold text-slate-400">{i.source_type === 'DETERMINISTIC' ? 'Source : dossier · règle déterministe' : 'Source : dossier'}</p>
+                        <p className="mt-1 text-[8px] font-bold text-text-muted">{i.source_type === 'DETERMINISTIC' ? 'Source : dossier · règle déterministe' : 'Source : dossier'}</p>
                       </div>
                     </div>
                   ))}
