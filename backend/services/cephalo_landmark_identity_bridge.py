@@ -82,7 +82,20 @@ def project_canonical_landmark_identities(
     previous_auto_landmarks: Sequence[LandmarkEvidence] = (),
 ) -> dict[str, LandmarkEvidence]:
     """Return additive canonical identity aliases without mutating legacy points."""
-    previous_auto = {item.landmark_id: item for item in previous_auto_landmarks}
+    previous_auto: dict[str, LandmarkEvidence] = {}
+    for item in previous_auto_landmarks:
+        if item.landmark_id in previous_auto:
+            raise CanonicalLandmarkIdentityError(
+                f"Ambiguous original automatic lineage for {item.landmark_id}"
+            )
+        previous_auto[item.landmark_id] = item
+
+    for key, item in landmarks.items():
+        if key != item.landmark_id:
+            raise CanonicalLandmarkIdentityError(
+                f"Landmark mapping key {key} mismatches evidence ID {item.landmark_id}"
+            )
+
     # The scientific view is deliberately narrower than the persisted legacy
     # points. Preserve all IDs/coordinates in the legacy snapshot, while blocking
     # calculations based on any unreviewed channel, even when OTHER inputs
