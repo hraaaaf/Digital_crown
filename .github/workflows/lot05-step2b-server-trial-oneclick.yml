@@ -93,7 +93,7 @@ jobs:
           Write-Host ('DEMO_QUERY_STATUS='+[string]$r.demo_schema_check)
           if(-not $r.server_launcher_install_clicked -or -not $r.mariadb_service_running -or
              -not $r.demo_schema_verified){throw 'MARIADB_DEMO_NOT_PROVEN'}
-      - name: Open signed Open Dental and capture real Choose Database on demo server
+      - name: Open signed Open Dental and observe genuine app or database chooser
         shell: pwsh
         run: |
           $env:LOT05_EXPECTED_SHA='${{ github.event.pull_request.head.sha }}'
@@ -107,12 +107,14 @@ jobs:
           path: ${{ runner.temp }}/lot05_native_demo_gui_probe.json
           retention-days: 7
           if-no-files-found: warn
-      - name: Publish only genuine native Choose Database screenshot
+      - name: Publish only signed native Open Dental/Choose Database windows
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lot05-native-demo-chooser-window-png
-          path: ${{ runner.temp }}/lot05_native_demo_choose_database.png
+          name: lot05-native-demo-signed-app-window-png
+          path: |
+            ${{ runner.temp }}/lot05_native_demo_choose_database.png
+            ${{ runner.temp }}/lot05_native_demo_open_dental_window.png
           retention-days: 7
           if-no-files-found: warn
       - name: Publish no-patient full-chain JSON evidence
