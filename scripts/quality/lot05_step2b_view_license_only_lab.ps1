@@ -232,8 +232,8 @@ public static class Lot05ViewLicenseWin32 {
   $report.status = 'SAFE_VIEW_LICENSE_PROBE_REFUSED_OR_FAILED'
   $report.refusal_code = 'VIEW_LICENSE_RUNTIME_FAILURE'
 } finally {
-  foreach ($pId in @($knownIds | Select-Object -Unique)) {
-    try { Stop-Process -Id $pId -Force -ErrorAction SilentlyContinue } catch {}
+  foreach ($childProcessId in @($knownIds | Select-Object -Unique)) {
+    try { Stop-Process -Id $childProcessId -Force -ErrorAction SilentlyContinue } catch {}
   }
   Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue
   $report.database_service_created = (@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0)
