@@ -261,8 +261,8 @@ jobs:
                               # Read ONLY each exact child button's caption/enabled/PID.
                               # Never inspect other window text or other processes.
                               $nativeNext=New-Object 'System.Collections.Generic.List[System.IntPtr]'
-                              $nativeCancel=0
-                              $nativeBackDisabled=0
+                              $nativeCancel=New-Object 'System.Collections.Generic.List[System.IntPtr]'
+                              $nativeBackDisabled=New-Object 'System.Collections.Generic.List[System.IntPtr]'
                               $parent=[IntPtr]([int]$w.Current.NativeWindowHandle)
                               if($parent -ne [IntPtr]::Zero){
                                 $cb=[Lot05CaptureSignedWindow+EnumChildCallback]{
@@ -273,29 +273,41 @@ jobs:
                                   $sb=New-Object System.Text.StringBuilder(140)
                                   $null=[Lot05CaptureSignedWindow]::GetWindowText($child,$sb,$sb.Capacity)
                                   $caption=$sb.ToString().Trim()
+                                  if([string]::IsNullOrWhiteSpace($caption)){
+                                    # GetWindowText cannot read child-control text across processes.
+                                    # WM_GETTEXT is a read-only, system-marshalled Win32 message.
+                                    $buffer=[Runtime.InteropServices.Marshal]::AllocHGlobal(512)
+                                    try{
+                                      for($j=0;$j -lt 512;$j++){[Runtime.InteropServices.Marshal]::WriteByte($buffer,$j,0)}
+                                      $out=[IntPtr]::Zero
+                                      $got=[Lot05CaptureSignedWindow]::SendMessageTimeout(
+                                        $child,[uint32]0x000D,[IntPtr]256,$buffer,[uint32]2,[uint32]900,[ref]$out)
+                                      if($got -ne [IntPtr]::Zero){$caption=([Runtime.InteropServices.Marshal]::PtrToStringUni($buffer)).Trim()}
+                                    }finally{[Runtime.InteropServices.Marshal]::FreeHGlobal($buffer)}
+                                  }
                                   if($caption -match '(?i)^Next\s*>?$' -and
                                      [Lot05CaptureSignedWindow]::IsWindowEnabled($child) -and
                                      [Lot05CaptureSignedWindow]::IsWindowVisible($child)){
                                     $nativeNext.Add($child)
                                   }elseif($caption -match '(?i)^Cancel$' -and
                                            [Lot05CaptureSignedWindow]::IsWindowEnabled($child)){
-                                    $nativeCancel++
+                                    $nativeCancel.Add($child)
                                   }elseif($caption -match '(?i)^<?\s*Back$' -and
                                            -not [Lot05CaptureSignedWindow]::IsWindowEnabled($child)){
-                                    $nativeBackDisabled++
+                                    $nativeBackDisabled.Add($child)
                                   }
                                   return $true
                                 }
                                 $null=[Lot05CaptureSignedWindow]::EnumChildWindows($parent,$cb,[IntPtr]::Zero)
                               }
                               $r.native_next_button_candidate_count=$nativeNext.Count
-                              $r.native_cancel_candidate_count=$nativeCancel
-                              $r.native_back_disabled_count=$nativeBackDisabled
+                              $r.native_cancel_candidate_count=$nativeCancel.Count
+                              $r.native_back_disabled_count=$nativeBackDisabled.Count
                               $hwnd=[IntPtr]::Zero
                               if($nextCandidates.Count -eq 1 -and $cancelCount -eq 1 -and $disabledBack){
                                 $hwnd=[IntPtr]([int]$nextCandidates[0].Current.NativeWindowHandle)
                                 $r.next_control_source='UIAUTOMATION'
-                              }elseif($nativeNext.Count -eq 1 -and $nativeCancel -eq 1 -and $nativeBackDisabled -eq 1){
+                              }elseif($nativeNext.Count -eq 1 -and $nativeCancel.Count -eq 1 -and $nativeBackDisabled.Count -eq 1){
                                 $hwnd=$nativeNext[0]
                                 $r.next_control_source='WIN32_CHILD_BUTTONS'
                                 $r.welcome_back_disabled=$true
