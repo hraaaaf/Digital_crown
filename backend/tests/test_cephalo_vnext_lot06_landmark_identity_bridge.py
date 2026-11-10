@@ -268,3 +268,63 @@ def test_unreviewed_manual_and_unmatched_correction_are_not_canonical_inputs():
     assert scientific["Or"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
     assert scientific["Go"].availability_status == AvailabilityStatus.NOT_COMPUTABLE
     assert current["Or"].availability_status == AvailabilityStatus.AVAILABLE
+
+
+def test_adversarial_mapping_key_must_equal_evidence_landmark_identity():
+    """A verified Co must never be promoted to Po_anatomic via a forged map key."""
+    with pytest.raises(CanonicalLandmarkIdentityError, match="mapping key"):
+        project_canonical_landmark_identities({"Po": _attested(_manual("Co"))})
+    with pytest.raises(CanonicalLandmarkIdentityError, match="mapping key"):
+        project_canonical_landmark_identities({"Po_anatomic": _attested(_manual("Co"))})
+
+
+def test_ambiguous_original_auto_lineage_never_selects_the_last_observation():
+    """Two competing SRPose records with the same ID cannot attest a correction."""
+    previous = [
+        _auto("Po"),
+        _auto("Po", source="source:synthetic-other-film"),
+    ]
+    with pytest.raises(CanonicalLandmarkIdentityError, match="Ambiguous original"):
+        project_canonical_landmark_identities(
+            {"Po": _corrected("Po")}, previous_auto_landmarks=previous,
+        )
+    # Do not accept the reversed order either.
+    with pytest.raises(CanonicalLandmarkIdentityError, match="Ambiguous original"):
+        project_canonical_landmark_identities(
+            {"Po": _corrected("Po")}, previous_auto_landmarks=list(reversed(previous)),
+        )
+
+
+def test_independently_attested_points_on_two_films_never_unlock_canonical_fma():
+    """Clinician stamps alone do not permit combining anatomical films."""
+    from backend.services.cephalo_canonical_analysis_v2 import (
+        materialize_canonical_analysis_v2_measurements,
+    )
+
+    coords = {"Po": (0, 8), "Or": (20, 10), "Go": (0, 22), "Me": (16, 21)}
+    current = {
+        key: _attested(
+            _manual(
+                key,
+                source=(
+                    "source:synthetic-first-film"
+                    if key in {"Po", "Or"} else "source:synthetic-other-film"
+                ),
+            )
+        ).model_copy(update={"x": float(x), "y": float(y)})
+        for key, (x, y) in coords.items()
+    }
+    projected = project_canonical_landmark_identities(current)
+    assert "Po_anatomic" in projected
+    measurements = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:synthetic:cross-film",
+        landmarks=projected,
+        mm_per_pixel=0.2,
+        calibration_ref="source:synthetic-calibration",
+    )
+    fma = next(
+        item for item in measurements
+        if item.method_id == "TWEED_FMA_CANONICAL_DEG_V2"
+    )
+    assert fma.availability_status == AvailabilityStatus.INVALID
+    assert fma.value is None
