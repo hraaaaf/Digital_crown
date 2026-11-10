@@ -649,10 +649,55 @@ jobs:
           Copy-Item -LiteralPath $copy -Destination $db -ErrorAction Stop
           $restored=(Get-FileHash -LiteralPath $db -Algorithm SHA256).Hash.ToLower()
           if($restored -ne $original){throw 'FUE_BACKUP_RESTORE_DIGEST_CHANGED'}
+          # A backed-up SQLCipher DB without its AES-GCM radiograph is NOT a
+          # usable patient-scene restore. Prove the encrypted media roundtrip
+          # independently before reopening the source image.
+          $mediaRoot=Join-Path $profile 'synthetic-media'
+          if(-not (Test-Path -LiteralPath $mediaRoot -PathType Container)){
+            throw 'FUE_MEDIA_BACKUP_SOURCE_MISSING'
+          }
+          $mediaFiles=@(Get-ChildItem -LiteralPath $mediaRoot -File -Recurse)
+          if($mediaFiles.Count -ne 1){throw 'FUE_MEDIA_FIXTURE_FILE_COUNT_NOT_ONE'}
+          $mediaFile=$mediaFiles[0].FullName
+          if($mediaFiles[0].Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)){
+            throw 'FUE_MEDIA_BACKUP_SYMLINK_REFUSED'
+          }
+          $relativeMedia=[IO.Path]::GetRelativePath($mediaRoot,$mediaFile)
+          if([IO.Path]::IsPathRooted($relativeMedia) -or
+             $relativeMedia.StartsWith('..')){throw 'FUE_MEDIA_BACKUP_PATH_ESCAPE'}
+          $cipherBytes=[IO.File]::ReadAllBytes($mediaFile)
+          if($cipherBytes.Length -lt 32 -or
+             [Text.Encoding]::ASCII.GetString($cipherBytes,0,4) -ne 'DCM1'){
+            throw 'FUE_MEDIA_BACKUP_NOT_DC_DOS05_CIPHERTEXT'
+          }
+          $mediaOriginal=(Get-FileHash -LiteralPath $mediaFile -Algorithm SHA256).Hash.ToLower()
+          Copy-Item -LiteralPath $mediaRoot -Destination $backupDir -Recurse -ErrorAction Stop
+          $backupMediaRoot=Join-Path $backupDir 'synthetic-media'
+          $mediaBackupFile=Join-Path $backupMediaRoot $relativeMedia
+          if(-not (Test-Path -LiteralPath $mediaBackupFile -PathType Leaf)){
+            throw 'FUE_MEDIA_BACKUP_FILE_NOT_FOUND'
+          }
+          $mediaCopied=(Get-FileHash -LiteralPath $mediaBackupFile -Algorithm SHA256).Hash.ToLower()
+          if($mediaCopied -ne $mediaOriginal){throw 'FUE_MEDIA_BACKUP_SHA_MISMATCH'}
+          Remove-Item -LiteralPath $mediaRoot -Recurse -Force
+          if(Test-Path -LiteralPath $mediaRoot){throw 'FUE_MEDIA_ORIGINAL_NOT_REMOVED_BEFORE_RESTORE'}
+          Copy-Item -LiteralPath $backupMediaRoot -Destination $mediaRoot -Recurse -ErrorAction Stop
+          $mediaRestoredFile=Join-Path $mediaRoot $relativeMedia
+          if(-not (Test-Path -LiteralPath $mediaRestoredFile -PathType Leaf)){
+            throw 'FUE_MEDIA_RESTORE_MISSING_FILE'
+          }
+          $mediaRestored=(Get-FileHash -LiteralPath $mediaRestoredFile -Algorithm SHA256).Hash.ToLower()
+          if($mediaRestored -ne $mediaOriginal){throw 'FUE_MEDIA_RESTORE_SHA_MISMATCH'}
+          $restoredMediaCount=@(Get-ChildItem -LiteralPath $mediaRoot -File -Recurse).Count
+          if($restoredMediaCount -ne 1){throw 'FUE_MEDIA_RESTORE_UNEXPECTED_EXTRA_FILES'}
           $proof=@{
-            scope='NONCLINICAL_SQLCIPHER_FILE_FUE_ONLY'; source_sha=$env:PRODUCT_HEAD;
+            scope='NONCLINICAL_SQLCIPHER_AND_AESGCM_MEDIA_FUE_ONLY'; source_sha=$env:PRODUCT_HEAD;
             original_sha256=$original; encrypted_backup_sha256=$copied;
             restored_sha256=$restored; on_disk_encrypted=$true;
+            encrypted_media_file_count=$restoredMediaCount;
+            encrypted_media_original_sha256=$mediaOriginal;
+            encrypted_media_backup_sha256=$mediaCopied;
+            encrypted_media_restored_sha256=$mediaRestored;
             clinical_backup_certified=$false; clinical_restore_certified=$false;
           } | ConvertTo-Json -Depth 3
           $proof | Set-Content (Join-Path $env:CEPH_J21_EVIDENCE_DIR 'synthetic-backup-roundtrip.json') -Encoding utf8
@@ -709,6 +754,8 @@ jobs:
           assert backup['on_disk_encrypted'] and backup['clinical_backup_certified'] is False
           assert backup['clinical_restore_certified'] is False
           assert backup['original_sha256']==backup['encrypted_backup_sha256']==backup['restored_sha256']
+          assert backup['encrypted_media_file_count']==1
+          assert backup['encrypted_media_original_sha256']==backup['encrypted_media_backup_sha256']==backup['encrypted_media_restored_sha256']
           assert one['scene_sha256']==two['scene_sha256']
           assert one['audit']['parent_scene_sha256'] and one['audit']['revision']==two['audit']['revision']==2
           assert len(one['viewport_proofs'])==8 and len(two['viewport_proofs'])==1
@@ -750,6 +797,7 @@ jobs:
             real_digital_crown_mainlayout_fue=$true;
             jwt_sqlcipher_aesgcm_cas_restart=$true;
             abx_denials_verified=$true; sealed_file_restore_fue=$true;
+            encrypted_media_restore_fue=$true;
             scene_sha256=$edit.scene_sha256;
             original_sha256=$edit.audit.actual_original_sha256;
             clinical_release=$false; production_route_mounted=$false;
