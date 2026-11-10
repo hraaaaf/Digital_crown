@@ -55,7 +55,7 @@ jobs:
           missing=[name for name,marker in required.items() if marker not in w]
           assert not missing, f"STOP: missing certified release source gates {missing}"
           assert 'CODE_CERTIFIED' in p and 'INSTALLABLE_CERTIFIED' in p
-          assert 'CODE_CERTIFIED n’est pas installable.' in p, 'STOP: installable warning removed'
+          assert '`CODE_CERTIFIED`' in p and 'n’est pas installable.' in p, 'STOP: installable warning removed'
           assert 'workflow_dispatch:' in w and '  push:' not in w, 'STOP: official certification must require manual dispatch'
           print('OFFICIAL_CODE_CERT_SOURCE_CONTRACT=PASS', len(required), 'markers')
           print('NO_PACKAGE_DISPATCH=TRUE')
