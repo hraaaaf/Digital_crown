@@ -23,12 +23,22 @@
 
 ## Success observable / preuve exigée
 
-- Scope GitHub : uniquement les **8 fichiers** annoncés, sans modèle, patient, migration, modification d'installateur ni fusion.
+- Scope GitHub : uniquement les **9 fichiers** annoncés, sans modèle, patient, migration, modification d'installateur ni fusion.
 - TEST Linux : environnement production même avec ONNX et flags d'activation → aucun chargement/session, aucune lecture patient ni fallback ; un moteur refusé retourne `FAILED` + repères vides + avertissement.
 - TEST Windows GitHub hébergé : processus simulé figé `sys.frozen` et `sys._MEIPASS` refuse même les flags LAB.
 - TEST backend : entrée synthétique SQLite mémoire autorisée en laboratoire ; refus du dépôt/écriture lorsqu'aucun repère valide.
 - Régression : tests SRPose38 geometry/runtime, lazy PyTorch, persistance Céphalo et apex, plus suites CI candidate. Aucun patient réel.
 - Ne pas publier ni retélécharger ONNX pour ce lot : **LOT08.2-H** a déjà validé les octets réels du modèle, sa sortie CPU 38 canaux et le sélecteur PyInstaller au [run #42910489876](https://github.com/hraaaaf/Digital_crown/actions/runs/42910489876), 2/2 SUCCESS ; méta-preuve [#13805984797](https://github.com/hraaaaf/Digital_crown/actions/runs/42910489876/artifacts/13805984797) sans poids.
+
+## Incident CI avéré et réparation ciblée
+
+La régression P5 `Portability P5 Native Dependency Certification` a échoué sur macOS et Windows (jobs `Native runtime + fail-closed`) parce que l'ancien `scripts/check_lazy_pytorch_contract.py` demandait `legacy_init_attempted=True` en environnement non isolé. Ce résultat était **correct avant** l'introduction du verrou clinique, mais devient **dangereux** en production : l'accès à PyTorch doit être refusé avant l'import.
+
+La correction ne supprime pas la preuve historique WinError 1455. Elle ajoute deux cas séparés et stricts :
+1. **Environnement cabinet** : aucune tentative, aucun import ni moteur chargé (même si le poids existe) ;
+2. **LAB SQLite mémoire** : `_initialize_legacy_engine` est bien appelé, `WinError 1455` est simulé sur `import torch` et les assertions initiales `legacy_init_attempted=True`, `torch/model=None`, `is_ready=False` restent obligatoires.
+
+Ce changement n'affaiblit pas les contrôles : il teste le refus d'essayer en clinique ET le refus de réussir après une erreur mémoire en LAB. Le gate de scope inclut désormais `scripts/check_lazy_pytorch_contract.py` : **9 fichiers**.
 
 ## Limites et prochain jalon
 
