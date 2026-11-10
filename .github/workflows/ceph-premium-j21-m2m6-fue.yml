@@ -416,6 +416,11 @@ jobs:
         run: |
           "CEPH_J21_EVIDENCE_DIR=$env:RUNNER_TEMP/ceph-j21-native-evidence" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
           "CEPH_J21_FUE_PROFILE=$env:RUNNER_TEMP/ceph-j21-native-fue-$env:GITHUB_RUN_ID" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          # Scene FUE runtime *requires* its DB under Python's tempfile root.
+          # GitHub RUNNER_TEMP may be on D: while Windows TEMP/TMP are on C:.
+          # Align them in this one disposable job; never weaken the Python guard.
+          "TEMP=$env:RUNNER_TEMP" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "TMP=$env:RUNNER_TEMP" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Assert immutable head, official release guard and no prod wiring
         shell: pwsh
         run: |
@@ -432,6 +437,8 @@ jobs:
             }
           }
           if (Test-Path $env:CEPH_J21_FUE_PROFILE) { throw 'REUSING_EXISTING_TEST_PROFILE_REFUSED' }
+          python -c "import pathlib,os,tempfile; a=pathlib.Path(tempfile.gettempdir()).resolve(strict=True); b=pathlib.Path(os.environ['RUNNER_TEMP']).resolve(strict=True); assert a==b, 'Python tempfile root differs from GitHub isolated runner root'; print('CEPH_J21_GITHUB_WINDOWS_TEMPFILE_ROOT_MATCH_PASS')"
+          if ($LASTEXITCODE -ne 0) { throw 'ISOLATED_TEMP_ROOT_PRECONDITION_FAILED' }
           if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) {
             throw 'TEST_LOOPBACK_PORT_ALREADY_BOUND'
           }
