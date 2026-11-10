@@ -332,3 +332,198 @@ def test_concurrent_revoke_cannot_commit_before_in_flight_authorized_command(loc
         assert len(s.scalars(select(QueueEventRecord).where(
             QueueEventRecord.visit_ref == "V1",
         )).all()) == 3
+
+
+def test_08_3_atomic_plan_guard_rejects_tampered_event_without_sql_write(local, monkeypatch):
+    """Real protected SQLite/auth transaction: malformed domain plan = zero writes."""
+    from dataclasses import replace
+    from sqlalchemy import func
+    from queue_core.service import authorized_queue as command_module
+
+    _, _, _, reception, _, _, _, svc, engine = local
+    real_check_in = command_module.check_in
+
+    def poisoned_check_in(*args, **kwargs):
+        valid = real_check_in(*args, **kwargs)
+        corrupted = replace(valid.events[1], tenant_id="CROSS_TENANT")
+        return replace(valid, events=(valid.events[0], corrupted))
+
+    monkeypatch.setattr(command_module, "check_in", poisoned_check_in)
+    with pytest.raises(QueueDomainError, match="ATOMIC_PLAN_EVENT_MISMATCH"):
+        svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+
+    with Session(engine) as session:
+        row = session.get(QueueVisitRecord, "V1")
+        assert row.status == "PLANNED" and row.version == 0
+        assert row.arrival_confirmed_at_utc is None
+        assert session.scalar(select(func.count()).select_from(QueueEventRecord)) == 0
+
+    # A later valid command must still succeed after the abort.
+    monkeypatch.setattr(command_module, "check_in", real_check_in)
+    valid = svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+    assert valid.status == "WAITING" and valid.version == 2
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
+
+
+def test_08_3_rollback_after_flush_and_restart_has_no_partial_arrival(local, monkeypatch):
+    """Inject failure after SQL changes are flushed, then reopen physical SQLite."""
+    from sqlalchemy import func
+    from queue_core.service import authorized_queue as command_module
+
+    _, _, _, reception, _, _, _, svc, engine = local
+    original_commit = svc._commit_plan
+
+    def crash_after_flush(db, row, plan, now):
+        original_commit(db, row, plan, now)
+        db.flush()  # State and both events reached SQLite, not COMMIT.
+        raise RuntimeError("SYNTHETIC_CRASH_BEFORE_COMMIT")
+
+    monkeypatch.setattr(svc, "_commit_plan", crash_after_flush)
+    with pytest.raises(RuntimeError, match="SYNTHETIC_CRASH_BEFORE_COMMIT"):
+        svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+
+    # A separate engine/connection tests the persisted view after the abort.
+    recovery_engine = create_engine(engine.url)
+    try:
+        with Session(recovery_engine) as s:
+            row = s.get(QueueVisitRecord, "V1")
+            assert row.status == "PLANNED" and row.version == 0
+            assert row.arrival_confirmed_at_utc is None
+            assert s.scalar(select(func.count()).select_from(QueueEventRecord)) == 0
+    finally:
+        recovery_engine.dispose()
+
+    monkeypatch.setattr(svc, "_commit_plan", original_commit)
+    value = svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+    assert value.status == "WAITING" and value.version == 2
+    with Session(engine) as s:
+        assert s.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
+
+
+def test_08_3_two_concurrent_commands_cannot_create_duplicate_arrival(local):
+    """Competing local sessions: exactly one version-0 check-in wins."""
+    from concurrent.futures import ThreadPoolExecutor
+    from sqlalchemy import func
+
+    _, _, _, reception, _, _, _, svc, engine = local
+
+    def check_in_once(_i):
+        try:
+            value = svc.perform(reception, HumanCommand.CHECK_IN, "V1",
+                                expected_version=0)
+            return value.status
+        except QueueDomainError as exc:
+            return exc.code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(check_in_once, (0, 1)))
+    assert sorted(outcomes) == ["VERSION_CONFLICT", "WAITING"]
+    with Session(engine) as s:
+        row = s.get(QueueVisitRecord, "V1")
+        assert row.status == "WAITING" and row.version == 2
+        assert s.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
+
+
+def test_08_3_real_os_process_kill_before_commit_rolls_back_and_recovers(local, tmp_path):
+    """OS-terminated separate Python process; rollback verified after real exit.
+
+    This tests an isolated SQLite QUEUE and auth DB with synthetic records, not
+    an application kill in a real dental cabinet or any power-loss claim.
+    """
+    import os
+    from pathlib import Path
+    import subprocess
+    import sys
+    import time
+
+    from sqlalchemy import func
+
+    _, _, _, reception, _, _, _, svc, engine = local
+    signal_file = tmp_path / "synthetic-child-flushed.marker"
+    child_code = r'''
+import os
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+from sqlalchemy import create_engine
+from queue_core.security.local_auth import LocalIdentityStore
+from queue_core.security.operator_store import LocalOperatorStore
+from queue_core.service.authorized_queue import AuthorizedLocalQueue, HumanCommand
+
+auth = LocalIdentityStore(
+    os.environ["DC_SYNTH_AUTH_PATH"],
+    clock=lambda: 1_800_000_000,
+    local_guard=lambda: None,
+)
+operators = LocalOperatorStore(auth, clock=lambda: 1_800_000_000)
+engine = create_engine("sqlite+pysqlite:///" + os.environ["DC_SYNTH_QUEUE_PATH"])
+service = AuthorizedLocalQueue(
+    operators, engine,
+    clock=lambda: datetime(2030, 2, 1, 10, tzinfo=timezone.utc),
+)
+original = service._commit_plan
+
+def flushed_and_blocked(db, row, plan, now):
+    original(db, row, plan, now)
+    db.flush()
+    Path(os.environ["DC_SYNTH_FLUSH_MARKER"]).write_text("AFTER_SQL_FLUSH_BEFORE_COMMIT")
+    time.sleep(120)  # Parent will terminate process; no exit or normal rollback.
+
+service._commit_plan = flushed_and_blocked
+service.perform(
+    os.environ["DC_SYNTH_RECEPTION_BEARER"],
+    HumanCommand.CHECK_IN, "V1", expected_version=0,
+)
+'''
+    child_env = os.environ.copy()
+    child_env.update({
+        "DC_SYNTH_AUTH_PATH": str(svc._operators.auth.path),
+        "DC_SYNTH_QUEUE_PATH": str(engine.url.database),
+        "DC_SYNTH_FLUSH_MARKER": str(signal_file),
+        "DC_SYNTH_RECEPTION_BEARER": reception,
+        "PYTHONDONTWRITEBYTECODE": "1",
+    })
+    repository_root = Path(__file__).resolve().parents[2]
+    process = subprocess.Popen(
+        [sys.executable, "-B", "-c", child_code],
+        cwd=repository_root, env=child_env,
+        stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+    )
+    try:
+        deadline = time.monotonic() + 20
+        while not signal_file.exists() and process.poll() is None and time.monotonic() < deadline:
+            time.sleep(0.05)
+        assert signal_file.is_file(), (
+            "The independent process did not reach SQL flush: "
+            + (process.stderr.read(1600).decode(errors="replace")
+               if process.poll() is not None else "timed out")
+        )
+        assert signal_file.read_text() == "AFTER_SQL_FLUSH_BEFORE_COMMIT"
+        assert process.poll() is None, "Child committed/exited before forced termination"
+        process.kill()  # Real SIGKILL on the GitHub Ubuntu runner.
+        assert process.wait(timeout=10) != 0
+    finally:
+        if process.poll() is None:
+            process.kill()
+            process.wait(timeout=10)
+        process.stdout.close()
+        process.stderr.close()
+
+    # Fresh SQLite engine after process death; no state change, no event leak.
+    recovered_engine = create_engine(engine.url)
+    try:
+        with Session(recovered_engine) as session:
+            visit = session.get(QueueVisitRecord, "V1")
+            assert visit.status == "PLANNED"
+            assert visit.version == 0
+            assert visit.arrival_confirmed_at_utc is None
+            assert session.scalar(select(func.count()).select_from(QueueEventRecord)) == 0
+    finally:
+        recovered_engine.dispose()
+
+    # The same application service must resume without a manual DB fix.
+    result = svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+    assert result.status == "WAITING" and result.version == 2
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
