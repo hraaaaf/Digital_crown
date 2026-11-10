@@ -6,6 +6,18 @@
 
 # STATE — DigitalCrown
 
+## LOT08.2-G — 2026-11-10 — INVENTAIRE RÉEL DES ASSETS REQUIS : REGISTRE ANALYSÉ, OCTETS LOCAUX NON VÉRIFIÉS
+
+**Source de vérité lue sur master bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4 :** backend/scientific_assets.json, blob 6ee96e9e816888349abea8384c32d01b6231d116, asset_policy external-not-versioned, **3 entrées** : (1) cephalo_sota ÉPINGLÉE, canonical_path backend/ai_models/srpose38-tta-1024.onnx, 267484931 octets, SHA256 a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb ; (2) cephalo_legacy NON ÉPINGLÉE ; (3) panoramic NON ÉPINGLÉE. Une entrée non épinglée ne constitue pas une validation scientifique, même si le futur ZIP en fige les octets.
+
+**Code certifié existant :** run officiel #42897412850 6 SUCCESS sur SHA master exact, artifact CODE_CERTIFIED #13802971225 digest archive 4302e9d3b22cf71b40619587d597c8939dddf4199d5322714f6e3851c9f611f4, attestation GitHub #65996882 log Rekor 3793453724 ; aucune signature re-vérifiée localement à ce stade.
+
+**Outils canoniques vérifiés :** backend/scripts/certify_runtime_assets.py prend --code-release-dir (ZIP CODE extrait), --ai-models-dir (root de fichiers scientifiques locaux), --output (runtime-assets-<SHA12>.zip). Il lit et vérifie le CODE_CERTIFIED, copie strictement la sélection runtime également retenue par DigitalCrown.spec, calcule tous les SHA256 et lie le ZIP à SHA code et digest backend/scientific_assets.json. backend/runtime_asset_certification.py vérifie manifest/certificat/fichiers, pins des assets connus et déclare les non-pinnés séparément. backend/scripts/create_release.ps1 exige ZIP CODE+runtime et gh attestation verify avec repo/workflow/ref/commit exacts avant composition ; n'active pas cabinet.
+
+**Blocage véridique :** absence d'accès autorisé aux OCTETS des modèles locaux dans le runner GitHub et dans les connecteurs de ce lot, aucun fichier source modèle ni bundle externe effectivement récupéré ou haché. Ne pas prétendre que le modèle de 267 MB est présent sur le poste ni que les deux non épinglés sont validés. AUCUNE composition INSTALLABLE_CERTIFIED n'a été lancée.
+
+**NEXT unique et exact :** sur l'ordinateur détenteur des assets autorisés, réaliser inventaire read-only du dossier backend/ai_models réel, vérifier présence/taille/SHA256 du srpose38-tta-1024.onnx comparés au registre, inventorier la sélection complète sans données patient ; confirmer provenance/autorisation des deux autres modèles. Extraire CODE_CERTIFIED #13802971225 dans dossier jetable, vérifier le contenu et l'attestation Sigstore, puis exécuter backend/scripts/certify_runtime_assets.py avec SHA strictement lié au CODE. Stop si absence, divergence, provenance ou autorisation insuffisante. Ne pas fusionner ni installer : NO_INSTALLABLE_GO.
+
 ## LOT08.2-G — 2026-11-10 — CODE_CERTIFIED OFFICIEL SUR MASTER : SIX JOBS SUCCESS / INSTALLABLE TOUJOURS BLOQUÉ
 
 **Goal atteint : CODE_CERTIFIED** pour master exact **bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4**. [Workflow officiel Cabinet Certified Release #42897412850](https://github.com/hraaaaf/Digital_crown/actions/runs/42897412850), workflow_dispatch manuel du propriétaire 2026-11-10 20:39:20 UTC, tentative 1, COMPLETED/SUCCESS à 20:59:27 UTC. GitHub HEAD master inchangé.
