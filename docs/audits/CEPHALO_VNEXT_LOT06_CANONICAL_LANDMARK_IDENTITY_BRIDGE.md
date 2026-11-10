@@ -36,20 +36,32 @@ explicitly expected that behavior.
   silently passing through unreviewed names.
 - Keep legacy/canonical collision errors and `Gn_anatomic` and
   `Pt_Ricketts` explicit-only.
-- Dependent analyses may now become `NOT_COMPUTABLE` when their only
-  source is an unvalidated automatically named point. This is the
-  intended safe failure, **not a new clinically validated diagnosis**.
+- The **scientific projection** copies every unreviewed AUTO or merely
+  OBSERVED MANUAL landmark as `availability_status=NOT_COMPUTABLE`:
+  no consumer of the canonical view may use numerical coordinates of
+  that channel, even if another landmark on the same film is reviewed.
+  MANUAL_CORRECTED must also match the original observation and film.
+  This copy-on-read restriction does **not** mutate the stored legacy
+  landmarks, image bytes or historical evidence graph.
+- Dependent canonical analyses and constructions must now become
+  `NOT_COMPUTABLE` when *any* required input is not clinician-attested;
+  a single reviewed `Po_anatomic` cannot launder unreviewed
+  `Or`, `Go`, or `Me` into a Tweed FMA.
+  This is the intended safe failure, **not a new clinically validated
+  diagnosis**. Legacy compatibility analyses are a separate code path
+  and do not acquire scientific authority from this projection.
 
 ## Proportional technical tests
 
 File: `backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py`
 
-10 synthetic pytest cases cover: auto hash never sufficient; spoofed
+13 synthetic pytest cases cover: auto hash never sufficient; spoofed
 clinical status on AUTO; missing clinician review; three explicit
 manual canonical aliases; precise same-ID/image/original-coordinate
 binding of corrections; wrong model SHA; unavailable and timezone-naive
 evidence; direct canonical injection; manually attested explicit
-canonical point; collision. No real images or patient records.
+canonical point; collision; mixed reviewed/unreviewed films and
+unreviewed manual evidence. No source image or actual patient used. No real images or patient records.
 
 Dedicated CI (test-only):
 `.github/workflows/ceph-j1b1-canonical-identity-safety-lab.yml`.
