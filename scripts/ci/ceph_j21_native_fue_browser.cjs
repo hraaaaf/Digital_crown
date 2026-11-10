@@ -116,7 +116,7 @@ async function main() {
         scene_http:sceneResp.status,media_http:fileResp.status,
         anon_http:anon.status,wrong_patient_http:wrong.status,
         scene_sha256:scene.scene_sha256,revision:scene.scene_revision,
-        first_point:scene.scene.landmarks[0],point_count:scene.scene.landmarks.length,
+        edited_point:scene.scene.landmarks.find(p=>p.id==='A'),point_count:scene.scene.landmarks.length,
         original_sha256:scene.scene.identity.original_sha256,
         actual_original_sha256:digest,
         parent_scene_sha256:scene.scene.identity.parent_scene_sha256,
@@ -128,8 +128,8 @@ async function main() {
     Object.assign(report,{audit,scene_sha256:audit.scene_sha256,status:'PASS'});
     if(audit.scene_http!==200||audit.media_http!==200||audit.anon_http!==401
        ||![403,404].includes(audit.wrong_patient_http)
-       ||audit.point_count!==38||audit.revision!==2||audit.first_point.x!==46
-       ||audit.first_point.origin!=='PRACTITIONER_EDIT'
+       ||audit.point_count!==38||audit.revision!==2||audit.edited_point?.x!==46
+       ||audit.edited_point?.origin!=='PRACTITIONER_EDIT'
        ||audit.actual_original_sha256!==fixture.original_sha256
        ||audit.original_sha256!==fixture.original_sha256
        ||audit.clinical_release!==false||audit.desktop_fue_verified!==false
