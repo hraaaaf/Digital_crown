@@ -55,3 +55,27 @@
 **C + 08.3 seulement après FUE-0 et FUE-I exact-head :** identité durable, droits Kiosk/Wall, retour de révocation, chargement serveur complet sous verrou, commit atomique et rejeu. **08.2-E** teste ensuite le parcours lié. **08.5–08.6** sont l'acceptation standalone FUE-G et résilience ; **LOT09** est le raccord clinique Digital Crown, **LOT10** les appareils physiques. Aucun QR de présence n'est utilisable dans la clinique à la date de ce document.
 
 **NO_GO invariant :** zéro patient réel, zéro migration, zéro installation, zéro déploiement, zéro modification de `master` depuis ce document. Ne pas confondre la validation de ce contrat documentaire avec une réussite de runtime.
+
+## Verrouillage transversal et commit 08.2-C → 08.3 (décision technique 2026-11-10)
+
+**Risque constaté — non résolu par les composants actuels :** l'auth humaine, les sessions Kiosk et les visites/événements sont dans trois fichiers SQLite séparés. La méthode `DurableDeviceStoreLab.require()` vérifie la session à un instant seulement : une révocation pourrait intervenir avant la commande Queue. Appeler `require()` puis `AuthorizedLocalQueue.perform()` pour faire un check-in Kiosk est **INTERDIT** tant que la transaction commune n'est pas réalisée.
+
+**Architecture cible (contrat, PAS implémentation) :**
+
+1. **Ordre global unique :** `auth BEGIN IMMEDIATE` → `devices BEGIN IMMEDIATE` → `queue BEGIN IMMEDIATE`. Ne jamais inverser cet ordre. L'API Kiosk devra utiliser des connexions déjà verrouillées au lieu de rappeler la méthode publique Queue qui reprendrait le verrou auth (deadlock possible).
+2. **Une seule base de mutations pour l'arrivée QR :** stocker le ticket QR (son empreinte), la consommation, la clé d'idempotence et la transition visite/événements dans **le SQLite Queue**. Une seule transaction Queue écrit la consommation et les faits ARRIVED + WAITING_ENTERED ; la base devices est seulement **lue sous verrou**, jamais modifiée pendant le check-in.
+3. **Revocation concurrente :** si la révocation a déjà committé avant la lecture de la session Kiosk sous verrou, check-in rejeté et zéro modification Queue. Si une arrivée tient déjà le verrou devices, la révocation attend son commit Queue ; les nouvelles opérations sont ensuite refusées.
+4. **Pas de fausse atomicité multi-DB :** des `commit()` séparés sur trois connexions ne garantissent pas de transaction distribuée. Le design évite ce besoin en plaçant toutes les mutations d'une arrivée dans **une seule DB**. Panne d'alimentation, ACL Windows et restauration restent des gates distincts.
+5. **Pas de QR runtime à ce stade :** #1264 apporte une identité persistée LAB avec `require()` ponctuel ; #1265 sécurise le chemin humain existant. Aucun des deux n'autorise encore à créer un endpoint QR ou à réutiliser une session échantillonnée sans verrou.
+
+**FUE de jonction exigées avant code QR :**
+
+- [ ] Révocation avant acquisition des verrous : 0 arrivée, 0 événement, 0 ticket consommé.
+- [ ] Arrivée tenant les verrous : révocation parallèle attend le commit, aucun instantané de droits périmé.
+- [ ] Panne entre consommation QR et deuxième événement : rollback atomique des trois objets dans SQLite Queue.
+- [ ] Deux appareils/processus et même QR : exactement un gagnant, aucun double ticket ; retries idempotents.
+- [ ] Mauvais tenant, Wall, token expiré ou QR NO_SHOW : refus générique, zéro fuite.
+- [ ] Détection de deadlock/timeout avec refus borné, aucun verrou conservé après exception.
+- [ ] Test OS kill puis relecture et reprise, et ensuite tests Windows ACL/backup/restore sans données patient.
+
+**Preuve partielle réellement disponible :** [GitHub Actions #42818314843](https://github.com/hraaaaf/Digital_crown/actions/runs/42818314843) au SHA `f6e4df6553826aca06d2f01fc83674baf5018634` : un second processus est effectivement terminé après SQL flush mais avant commit, puis Queue relue intacte, suivi d'un check-in réussi ; **145 tests PASS / 3 SKIPPED**. Cette preuve ne couvre pas encore les verrous croisés ou le QR.
