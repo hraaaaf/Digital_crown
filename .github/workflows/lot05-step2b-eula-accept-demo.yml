@@ -86,6 +86,23 @@ jobs:
           Write-Host ('LOT05_DESTINATION_NEXT_CANDIDATES='+[int]$m.destination_next_candidate_count)
           Write-Host ('LOT05_DESTINATION_NEXT_CLICKED='+[bool]$m.destination_next_clicked)
           Write-Host ('LOT05_DESTINATION_FOLLOWING_SCREEN_CAPTURED='+[bool]$m.destination_following_screen_captured)
+          Write-Host ('LOT05_INSTALL_READY_PAGE_PINNED='+[bool]$m.ready_to_install_exact_png_verified)
+          Write-Host ('LOT05_INSTALL_BUTTON_CANDIDATES='+[int]$m.install_button_candidates)
+          Write-Host ('LOT05_INSTALL_CLICK_SENT='+[bool]$m.install_click_sent)
+          Write-Host ('LOT05_INSTALL_OPEN_DENTAL_EXE_PRESENT='+[bool]$m.installed_exe_present)
+          Write-Host ('LOT05_INSTALL_OPEN_DENTAL_EXE_AUTHENTICODE='+[string]$m.installed_exe_authenticode_status)
+          Write-Host ('LOT05_INSTALL_FINISH_BUTTON_SEEN='+[bool]$m.completed_installer_finish_button_seen)
+          Write-Host ('LOT05_INSTALL_FINISH_WINDOW_CAPTURED='+[bool]$m.completed_installer_screen_captured)
+          if ($m.completed_installer_screen_captured -and $m.completed_installer_finish_button_seen -and $m.install_click_sent) {
+            $finishPng=Join-Path $env:RUNNER_TEMP 'lot05-step2b-after-install-finish-wizard-only.png'
+            if (-not (Test-Path -LiteralPath $finishPng) -or
+                (Get-Item -LiteralPath $finishPng).Length -gt 6000000 -or
+                (Get-FileHash -LiteralPath $finishPng -Algorithm SHA256).Hash.ToLowerInvariant() -cne $m.completed_installer_screen_sha256) {
+              throw 'OFFICIAL_INSTALL_FINISH_SCREEN_PROVENANCE_FAILED'
+            }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_INSTALL_FINISH_PNG_OK=1'
+          }
+
           if ($m.destination_following_screen_captured -and $m.destination_next_clicked -and
               $m.destination_screen_exact_png_verified) {
             $destPng=Join-Path $env:RUNNER_TEMP 'lot05-step2b-after-destination-next-window-only.png'
@@ -146,5 +163,14 @@ jobs:
         with:
           name: lot05-step2b-after-directory-next-window-only-png
           path: ${{ runner.temp }}/lot05-step2b-after-destination-next-window-only.png
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload official vendor Finish window if captured after Install
+        if: ${{ env.LOT05_INSTALL_FINISH_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-installed-finish-window-only-png
+          path: ${{ runner.temp }}/lot05-step2b-after-install-finish-wizard-only.png
           retention-days: 7
           if-no-files-found: error
