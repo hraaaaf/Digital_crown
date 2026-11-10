@@ -41,13 +41,16 @@ def bootstrap_profile(root: Path, db_file: Path) -> None:
     if root.exists():
         raise RuntimeError("Refusing to overwrite any pre-existing test profile")
     root.mkdir()
+    from backend.core.runtime_safety import database_target_fingerprint
+    synthetic_db_url = "sqlite:///" + db_file.as_posix()
     data = {
+        "DIGITALCROWN_ISOLATION_DB_FINGERPRINT": database_target_fingerprint(synthetic_db_url),
         "ENVIRONMENT": "test",
         "DIGITALCROWN_ISOLATED_RUNTIME": "true",
         "CEPH_J21_SCENE_APP_FUE_ONLY": "1",
         "DC_DOS05_FUE_ONLY": "1",
         "CEPH_J21_SCENE_APP_FUE_ROOT": str(root),
-        "DATABASE_URL": "sqlite:///" + db_file.as_posix(),
+        "DATABASE_URL": synthetic_db_url,
         "CABINET_MASTER_KEY_HEX": secrets.token_hex(32),
         "SECRET_KEY": secrets.token_hex(32),
         "CLOUD_AI_ENABLED": "false",
