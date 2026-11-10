@@ -213,28 +213,30 @@ class DurableDeviceStoreLab:
             c.commit()
         return bearer
 
-    def require(
-        self, bearer: str, *, tenant_id: str, capability: DeviceCapability,
+    def _active_session(
+        self, c: sqlite3.Connection, *, tenant: str,
+        digest: str, capability: DeviceCapability,
     ) -> VerifiedDevice:
-        tenant = _identifier(tenant_id)
-        digest = _fingerprint(bearer, "session-v1")
+        """Verify against an authoritative device row on the supplied connection."""
         if not isinstance(capability, DeviceCapability):
             raise DeviceIdentityError("DEVICE_CAPABILITY_DENIED")
-        with self._connect() as c:
-            row = c.execute(
-                """SELECT d.tenant_id,d.device_id,d.kind,d.revoked,
-                          d.generation,s.generation AS session_generation,
-                          s.expires_epoch
-                   FROM device_sessions s JOIN devices d
-                     ON d.tenant_id=s.tenant_id AND d.device_id=s.device_id
-                   WHERE s.digest=? AND s.tenant_id=?""",
-                (digest, tenant),
-            ).fetchone()
+        row = c.execute(
+            """SELECT d.tenant_id,d.device_id,d.kind,d.revoked,
+                      d.generation,s.generation AS session_generation,
+                      s.expires_epoch
+               FROM device_sessions s JOIN devices d
+                 ON d.tenant_id=s.tenant_id AND d.device_id=s.device_id
+               WHERE s.digest=? AND s.tenant_id=?""",
+            (digest, tenant),
+        ).fetchone()
         if (not row or row["revoked"]
             or row["generation"] != row["session_generation"]
             or self._now() >= row["expires_epoch"]):
             raise DeviceIdentityError("DEVICE_CAPABILITY_DENIED")
-        kind = DeviceKind(row["kind"])
+        try:
+            kind = DeviceKind(row["kind"])
+        except ValueError:
+            raise DeviceIdentityError("DEVICE_CAPABILITY_DENIED") from None
         capabilities = (
             frozenset({DeviceCapability.QR_REDEEM}) if kind is DeviceKind.KIOSK
             else frozenset({DeviceCapability.PUBLIC_QUEUE_READ})
@@ -242,6 +244,51 @@ class DurableDeviceStoreLab:
         if capability not in capabilities:
             raise DeviceIdentityError("DEVICE_CAPABILITY_DENIED")
         return VerifiedDevice(tenant, row["device_id"], kind, capabilities)
+
+    def require(
+        self, bearer: str, *, tenant_id: str, capability: DeviceCapability,
+    ) -> VerifiedDevice:
+        """Point-in-time read only; NOT a grant to perform a later mutation."""
+        tenant = _identifier(tenant_id)
+        digest = _fingerprint(bearer, "session-v1")
+        with self._connect() as c:
+            return self._active_session(c, tenant=tenant, digest=digest,
+                                        capability=capability)
+
+    @contextmanager
+    def _guarded_device_session(
+        self, bearer: str, *, tenant_id: str, capability: DeviceCapability,
+    ) -> Iterator[VerifiedDevice]:
+        """Protect a verified device against concurrent revoke until exit.
+
+        Internal preparation only. Locks auth -> devices, in that order.
+        NEVER invoke AuthorizedLocalQueue.perform() from inside this guard:
+        perform() would reenter the auth write lock and deadlock. A future
+        Kiosk service must pass prelocked auth/device connections and acquire
+        the Queue write lock as the final lock, committing all QR/visit/event
+        mutations together in the Queue database. No QR endpoint exists here.
+        """
+        tenant = _identifier(tenant_id)
+        digest = _fingerprint(bearer, "session-v1")
+        with self.operators.auth._connect() as identity:
+            identity.execute("BEGIN IMMEDIATE")
+            try:
+                with self._connect() as c:
+                    c.execute("BEGIN IMMEDIATE")
+                    try:
+                        principal = self._active_session(
+                            c, tenant=tenant, digest=digest,
+                            capability=capability,
+                        )
+                        yield principal
+                        c.commit()
+                    except BaseException:
+                        c.rollback()
+                        raise
+                identity.commit()
+            except BaseException:
+                identity.rollback()
+                raise
 
     def revoke(self, admin_token: str, *, tenant_id: str, device_id: str) -> None:
         tenant, device_id = _identifier(tenant_id), _identifier(device_id)
