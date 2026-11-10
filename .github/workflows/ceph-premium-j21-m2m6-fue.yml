@@ -404,6 +404,9 @@ jobs:
       CI: 'true'
       CEPH_J21_NATIVE_FUE_ONLY: GITHUB_WINDOWS_J21_SYNTHETIC_FUE_ONLY
       VITE_CEPH_J21_NATIVE_FUE: 'true'
+      # The lab EXE listens on 8879, not the certified clinic port 8005.
+      # Only this unmounted FUE frontend build receives this fixed origin.
+      VITE_API_URL: 'http://127.0.0.1:8879'
       CLOUD_AI_ENABLED: 'false'
       TELEMETRY_ENABLED: 'false'
     steps:
@@ -482,6 +485,7 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'NATIVE_FUE_ONLY_VITE_BUILD_FAILED' }
           if (-not (Test-Path 'dist-ceph-j21-native-fue/index.html')) { throw 'NO_NONCLINICAL_TEST_PAGE' }
           if ($env:VITE_CEPH_J21_NATIVE_FUE -ne 'true') { throw 'NATIVE_BUILD_FLAG_MISSING' }
+          if ($env:VITE_API_URL -ne 'http://127.0.0.1:8879') { throw 'WRONG_NONCLINICAL_FUE_API_ORIGIN' }
           npm install --no-save --ignore-scripts --no-audit --no-fund playwright-core@1.56.1
           if ($LASTEXITCODE -ne 0) { throw 'PLAYWRIGHT_CORE_INSTALL_FAILED' }
       - name: Build clearly non-installable native test executable
