@@ -6,6 +6,15 @@
 
 # STATE — DigitalCrown
 
+## LOT08 — 08.2-C / 08.3 / 08.2-D 08.4 PARALLEL DRAFT — 2026-11-10
+
+- **Décision / contexte** : propriétaire « Go then » autorise développement parallèle isolé après la fusion validée de 08.2-B. MASTER prouvé à l'ouverture : `027a82aca4cc37308f6323e759283c4ca0e45fad`. PR #1239 CLOSED/MERGED sur ce SHA ; 08.1, 08.2-A, 08.2-B fusionnés. Anciennes sections plus bas disant « #1239 DRAFT / NO MERGE » : historique, non état actuel.
+- **08.2-C, PR #1264 DRAFT** : branche `feat/v15-08-2-c-device-pairing-fue0-20261110`, HEAD `5e518bff419b907fabdf201b75ebe3dd4a788192` ; FUE-0 in-memory permissions Kiosk/Wall, one-shot pairing, TTL, revocation, nonces opaques. [Run #42811333305](https://github.com/hraaaaf/Digital_crown/actions/runs/42811333305) SUCCESS : 9 ciblés + 4 subtests, full Queue 133 PASS / 3 SKIPPED + 4 subtests. Autorité durable, vraie permission admin device.manage, console physique NON réalisées.
+- **08.3, PR #1265 DRAFT** : `feat/v15-08-3-atomic-commit-guard-fue0-20261110` ; garde d'atomicité branché dans le service SQLite existant sans deuxième moteur. [Run #42811339200](https://github.com/hraaaaf/Digital_crown/actions/runs/42811339200) SUCCESS : 17 ciblés + full Queue 141 PASS / 3 SKIPPED au SHA `fcda8e916876429680cc2bdb887eb5eb7d12864d`. Le test SQL de rollback avec injection d'événement malformé a été ajouté au HEAD plus récent `ef07f6ab5555fea7ed50c0b7efdff2880b5c68ca` ; CI exact-HEAD à vérifier séparément. Résilience/crash/restart et concurrence complètes NON closes.
+- **08.2-D / 08.4, PR #1266 DRAFT** : branche `docs/v15-08-2d-08-4-qr-api-contract-20261110`, contrat uniquement `docs/v1.5/V15_08_2D_08_4_QR_API_PARALLEL_CONTRACT_20261110.md` ; QR Queue APPOINTMENT opaque, une seule consommation, 15 min par défaut 5–30, transition ARRIVED + WAITING transactionnelle, séparé de Station 03.2, Patient QR 03.3 et Station arrivée 03.4. REST/SSE/webhooks, 7 jours d'idempotence, aucune API ni QR runtime livrée.
+- **Dépendances** : implémentation 08.2-D attend 08.2-C durable + 08.3 transactionnel. 08.2-E/08.5/08.6 attendent intégration et FUE. LOT09 raccord clinique des interfaces existantes ; LOT10 preuves appareils physiques. CODE_CERTIFIED officiel reporté jusqu'à clôture complète LOT08. Aucun merge de PR 1264–1266 ni activation, migration, déploiement, patient réel ou installateur. NO_INSTALLABLE_GO.
+- **NEXT** : inspecter CI exact-HEAD sur chaque PR, corriger RED, puis autorité durable Kiosk/Wall + tests reprise/atomicité et QR transactionnel. Pas de GO merge implicite. Notion contient l'historique actualisé.
+
 ## LOT08.2-B / B-7d — RED CONFLICTS RECONCILED / LAB FUE-I PASS — 2026-11-09
 
 - **Décision autorisée** : utilisateur « Go then », tests frontend B-7d sur le merge simulé et, après preuves de sécurité, réconciliation contrôlée de la **branche PR DRAFT #1239 uniquement**. Ne jamais merger la PR vers master, installer, créer une release, utiliser de vrais dossiers patient ou approuver automatiquement le visuel.
