@@ -2,7 +2,7 @@ name: LOT05 2B — Windows Hosted Desktop Session + Vendor Window Diagnostic (NO
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     branches: [master]
     paths:
       - '.github/workflows/lot05-step2b-hosted-desktop-diagnostic.yml'
@@ -45,6 +45,7 @@ jobs:
           & powershell.exe -NoProfile -NoLogo -STA -ExecutionPolicy Bypass -Command {
             $ErrorActionPreference='Stop'
             $outFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-hosted-desktop-diagnostic.json'
+            $imageFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-verified-vendor-window-only.png'
             $wrapper=Join-Path $env:RUNNER_TEMP 'lot05-publisher-signed-wrapper.exe'
             $folder=Join-Path $env:RUNNER_TEMP 'lot05-publisher-signed-extracted'
             $knownIds=New-Object 'System.Collections.Generic.HashSet[int]'
@@ -75,6 +76,13 @@ jobs:
               observed_process_descendants_bounded=0
               ui_observation_cycles=0
               ui_errors_count=0
+              screenshot_window_only_retained=$false
+              screenshot_vendor_owner_verified=$false
+              screenshot_title_allowlisted=$false
+              screenshot_printwindow_succeeded=$false
+              screenshot_dimensions=$null
+              screenshot_sha256=$null
+              screenshot_error_count=0
               clicked_install=$false
               clicked_next=$false
               accepted_eula=$false
@@ -87,6 +95,8 @@ jobs:
             try{
               Add-Type -AssemblyName UIAutomationClient -ErrorAction Stop
               Add-Type -AssemblyName UIAutomationTypes -ErrorAction Stop
+              Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+              Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Lot05CaptureSignedWindow { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect); [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd,IntPtr hdc,uint flags); }' -ErrorAction Stop
               $r.runner_session_id=[System.Diagnostics.Process]::GetCurrentProcess().SessionId
               $r.environment_user_interactive=[System.Environment]::UserInteractive
               $r.explorer_same_session=(@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object {$_.SessionId -eq $r.runner_session_id}).Count -gt 0)
@@ -156,7 +166,44 @@ jobs:
                         $owned++
                         if([string]::IsNullOrWhiteSpace($title)){$empty++}
                         elseif($title -match '(?i)(Licen[cs]e Agreement|EULA|Terms and Conditions)'){$license++}
-                        elseif($title -match '(?i)(Open.?Dental|Setup|Wizard)'){$setupCount++}
+                        elseif($title -match '(?i)(Open.?Dental|Setup|Wizard)'){
+                          $setupCount++
+                          if(-not $r.screenshot_window_only_retained -or $cycle -eq 10){
+                            try{
+                              $native=[IntPtr]([int]$w.Current.NativeWindowHandle)
+                              if($native -ne [IntPtr]::Zero){
+                                $rect=New-Object Lot05CaptureSignedWindow+Rect
+                                if([Lot05CaptureSignedWindow]::GetWindowRect($native,[ref]$rect)){
+                                  $width=[int]($rect.Right-$rect.Left)
+                                  $height=[int]($rect.Bottom-$rect.Top)
+                                  if($width -ge 250 -and $height -ge 150 -and $width -le 1600 -and $height -le 1100){
+                                    $r.screenshot_vendor_owner_verified=$true
+                                    $r.screenshot_title_allowlisted=$true
+                                    $bitmap=New-Object System.Drawing.Bitmap($width,$height)
+                                    try{
+                                      $graphics=[System.Drawing.Graphics]::FromImage($bitmap)
+                                      try{
+                                        $hdc=$graphics.GetHdc()
+                                        try{
+                                          $ok=[Lot05CaptureSignedWindow]::PrintWindow($native,$hdc,[uint32]0)
+                                        }finally{$graphics.ReleaseHdc($hdc)}
+                                      }finally{$graphics.Dispose()}
+                                      if($ok){
+                                        $r.screenshot_printwindow_succeeded=$true
+                                        $bitmap.Save($imageFile,[System.Drawing.Imaging.ImageFormat]::Png)
+                                        if((Get-Item -LiteralPath $imageFile).Length -gt 2048 -and (Get-Item -LiteralPath $imageFile).Length -lt 6000000){
+                                          $r.screenshot_window_only_retained=$true
+                                          $r.screenshot_dimensions=("$width"+"x"+"$height")
+                                          $r.screenshot_sha256=(Get-FileHash -LiteralPath $imageFile -Algorithm SHA256).Hash.ToLowerInvariant()
+                                        }
+                                      }
+                                    }finally{$bitmap.Dispose()}
+                                  }
+                                }
+                              }
+                            }catch{$r.screenshot_error_count++}
+                          }
+                        }
                         else{$other++}
                       }elseif($title -match '(?i)^Windows Installer'){$unownedMsi++}
                     }catch{$r.ui_errors_count++}
@@ -196,6 +243,8 @@ jobs:
             Write-Host ('LOT05_DESKTOP_EXPLORER_IN_SAME_SESSION='+$r.explorer_same_session)
             Write-Host ('LOT05_DESKTOP_UIA_ROOT='+$r.uia_root_accessible)
             Write-Host ('LOT05_DESKTOP_OWNED_WINDOWS='+$r.owned_window_count_max)
+            Write-Host ('LOT05_DESKTOP_WINDOW_ONLY_PNG='+$r.screenshot_window_only_retained)
+            Write-Host ('LOT05_DESKTOP_WINDOW_ONLY_CAPTURE_ERRORS='+$r.screenshot_error_count)
             Write-Host ('LOT05_DESKTOP_WINDOWS_TITLE_SETUP='+$r.owned_setup_title_window_count_max)
             Write-Host ('LOT05_DESKTOP_WINDOWS_UNEXPECTED_TITLE='+$r.owned_generic_title_window_count_max)
             Write-Host ('LOT05_DESKTOP_OUTSIDE_OWNER_MSI_WINDOWS='+$r.unowned_windows_installer_title_count_max)
@@ -205,6 +254,17 @@ jobs:
                $r.database_created -or $null -ne $r.error_code){throw 'HOSTED_DESKTOP_DIAGNOSTIC_NOT_PROVEN'}
           }
           if($LASTEXITCODE -ne 0){throw 'PROVENANCE_OR_DIAGNOSTIC_EXIT_NONZERO'}
+          $metadata=Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'lot05-step2b-hosted-desktop-diagnostic.json') -Raw | ConvertFrom-Json
+          if($metadata.screenshot_window_only_retained -and
+             $metadata.screenshot_vendor_owner_verified -and
+             $metadata.screenshot_title_allowlisted -and
+             $metadata.screenshot_printwindow_succeeded){
+            $png=Join-Path $env:RUNNER_TEMP 'lot05-step2b-verified-vendor-window-only.png'
+            if(-not (Test-Path -LiteralPath $png)){throw 'VERIFIED_VENDOR_PNG_MISSING'}
+            if((Get-FileHash -LiteralPath $png -Algorithm SHA256).Hash.ToLowerInvariant() -cne $metadata.screenshot_sha256){throw 'VERIFIED_VENDOR_PNG_HASH_MISMATCH'}
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_VENDOR_WINDOW_PNG_OK=1'
+            Write-Host 'LOT05_VERIFIED_SIGNED_VENDOR_WINDOW_PNG_PROVEN'
+          }
       - name: Publish metadata, no pictures and no patient data
         if: always()
         uses: actions/upload-artifact@v4
@@ -213,3 +273,12 @@ jobs:
           path: ${{ runner.temp }}/lot05-step2b-hosted-desktop-diagnostic.json
           retention-days: 7
           if-no-files-found: warn
+
+      - name: Publish verified publisher WINDOW ONLY PNG if captured
+        if: ${{ env.LOT05_VENDOR_WINDOW_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-verified-publisher-window-only-png
+          path: ${{ runner.temp }}/lot05-step2b-verified-vendor-window-only.png
+          retention-days: 7
+          if-no-files-found: error
