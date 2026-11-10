@@ -141,7 +141,7 @@ async function main() {
         {headers:auth,credentials:'omit'}
       );
       const outsiderForm=new URLSearchParams({
-        username:'j21-native-fue-outsider@cabinet.invalid',
+        username:'j21-native-fue-outsider@example.com',
         password:'TestPass123!',
       });
       const outsiderLogin=await fetch('/api/auth/login',{
