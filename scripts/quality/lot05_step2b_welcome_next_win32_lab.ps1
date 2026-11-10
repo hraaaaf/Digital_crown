@@ -51,6 +51,10 @@ $r=[ordered]@{
   native_button_pid_verified=$false
   next_control_source='NONE'
   next_click_attempted=$false
+  foreground_window_verified=$false
+  next_button_geometry_verified=$false
+  cursor_over_exact_next=$false
+  physical_mouse_events_sent=0
   next_click_acknowledged=$false
   next_click_cycle=-1
   pre_next_screenshot_sha256=$null
@@ -71,7 +75,7 @@ try{
   Add-Type -AssemblyName UIAutomationClient -ErrorAction Stop
   Add-Type -AssemblyName UIAutomationTypes -ErrorAction Stop
   Add-Type -AssemblyName System.Drawing -ErrorAction Stop
-  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Lot05CaptureSignedWindow { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect); [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd,IntPtr hdc,uint flags); [DllImport("user32.dll",SetLastError=true)] public static extern IntPtr SendMessageTimeout(IntPtr hwnd,uint msg,IntPtr wParam,IntPtr lParam,uint flags,uint timeout,out IntPtr result); public delegate bool EnumChildCallback(IntPtr hwnd,IntPtr user); [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hwnd,EnumChildCallback callback,IntPtr user); [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd,System.Text.StringBuilder sb,int capacity); [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid); }' -ErrorAction Stop
+  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Lot05CaptureSignedWindow { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect); [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd,IntPtr hdc,uint flags); [DllImport("user32.dll",SetLastError=true)] public static extern IntPtr SendMessageTimeout(IntPtr hwnd,uint msg,IntPtr wParam,IntPtr lParam,uint flags,uint timeout,out IntPtr result); [StructLayout(LayoutKind.Sequential)] public struct Pt { public int X,Y; } [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y); [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Pt pt); [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint buttons,UIntPtr extra); public delegate bool EnumChildCallback(IntPtr hwnd,IntPtr user); [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hwnd,EnumChildCallback callback,IntPtr user); [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd,System.Text.StringBuilder sb,int capacity); [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid); }' -ErrorAction Stop
   $r.runner_session_id=[System.Diagnostics.Process]::GetCurrentProcess().SessionId
   $r.environment_user_interactive=[System.Environment]::UserInteractive
   $r.explorer_same_session=(@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object {$_.SessionId -eq $r.runner_session_id}).Count -gt 0)
@@ -278,15 +282,49 @@ try{
                     $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($hwnd,[ref]$buttonPid)
                     $r.native_button_pid_verified=([int]$buttonPid -eq $winPid)
                     if($r.native_button_pid_verified){
-                      $r.pre_next_screenshot_sha256=$r.screenshot_sha256
-                      $r.next_click_attempted=$true
-                      $result=[IntPtr]::Zero
-                      $delivered=[Lot05CaptureSignedWindow]::SendMessageTimeout(
-                         $hwnd,[uint32]0x00F5,[IntPtr]::Zero,[IntPtr]::Zero,
-                         [uint32]2,[uint32]2500,[ref]$result)
-                      $r.next_click_acknowledged=($delivered -ne [IntPtr]::Zero)
-                      $r.clicked_next=$r.next_click_acknowledged
-                      $r.next_click_cycle=$cycle
+                      # Exactly one physical click on the proven WinForms Next HWND.
+                      # Confirm the button's Welcome-screen geometry and foreground.
+                      $wr=New-Object Lot05CaptureSignedWindow+Rect
+                      $br=New-Object Lot05CaptureSignedWindow+Rect
+                      if([Lot05CaptureSignedWindow]::GetWindowRect($parent,[ref]$wr) -and
+                         [Lot05CaptureSignedWindow]::GetWindowRect($hwnd,[ref]$br)){
+                        $ww=$wr.Right-$wr.Left
+                        $wh=$wr.Bottom-$wr.Top
+                        $bw=$br.Right-$br.Left
+                        $bh=$br.Bottom-$br.Top
+                        $cx=[int][Math]::Floor(($br.Left+$br.Right)/2)
+                        $cy=[int][Math]::Floor(($br.Top+$br.Bottom)/2)
+                        $rx=($cx-$wr.Left)/[double]$ww
+                        $ry=($cy-$wr.Top)/[double]$wh
+                        $r.next_button_geometry_verified=($ww -ge 480 -and $ww -le 700 -and
+                          $wh -ge 360 -and $wh -le 500 -and
+                          $bw -ge 55 -and $bw -le 110 -and $bh -ge 18 -and $bh -le 36 -and
+                          $rx -gt 0.62 -and $rx -lt 0.82 -and $ry -gt 0.87 -and $ry -lt 0.97)
+                        if($r.next_button_geometry_verified){
+                          $null=[Lot05CaptureSignedWindow]::SetForegroundWindow($parent)
+                          Start-Sleep -Milliseconds 300
+                          $r.foreground_window_verified=([Lot05CaptureSignedWindow]::GetForegroundWindow() -eq $parent)
+                          if($r.foreground_window_verified -and [Lot05CaptureSignedWindow]::SetCursorPos($cx,$cy)){
+                            Start-Sleep -Milliseconds 120
+                            $pt=New-Object Lot05CaptureSignedWindow+Pt
+                            $pt.X=$cx
+                            $pt.Y=$cy
+                            $r.cursor_over_exact_next=([Lot05CaptureSignedWindow]::WindowFromPoint($pt) -eq $hwnd)
+                            if($r.cursor_over_exact_next){
+                              $r.pre_next_screenshot_sha256=$r.screenshot_sha256
+                              $r.next_click_attempted=$true
+                              [Lot05CaptureSignedWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                              $r.physical_mouse_events_sent=1
+                              Start-Sleep -Milliseconds 75
+                              [Lot05CaptureSignedWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                              $r.physical_mouse_events_sent=2
+                              $r.next_click_acknowledged=$true
+                              $r.clicked_next=$true
+                              $r.next_click_cycle=$cycle
+                            }
+                          }
+                        }
+                      }
                     }
                   }
                 }catch{$r.screenshot_error_count++}
@@ -352,6 +390,10 @@ Write-Host ('LOT05_NEXT_NATIVE_CANCEL='+$r.native_cancel_candidate_count)
 Write-Host ('LOT05_NEXT_NATIVE_BACK_DISABLED='+$r.native_back_disabled_count)
 Write-Host ('LOT05_NEXT_CONTROL_SOURCE='+$r.next_control_source)
 Write-Host ('LOT05_NEXT_OWNER_PID_VERIFIED='+$r.native_button_pid_verified)
+Write-Host ('LOT05_NEXT_PHYSICAL_MOUSE_EVENTS='+$r.physical_mouse_events_sent)
+Write-Host ('LOT05_NEXT_GEOMETRY_VERIFIED='+$r.next_button_geometry_verified)
+Write-Host ('LOT05_NEXT_FOREGROUND_VERIFIED='+$r.foreground_window_verified)
+Write-Host ('LOT05_NEXT_CURSOR_ON_EXACT_BUTTON='+$r.cursor_over_exact_next)
 Write-Host ('LOT05_NEXT_SENT_ONCE='+$r.next_click_acknowledged)
 Write-Host ('LOT05_POST_NEXT_VISUAL_CHANGE='+$r.post_next_screenshot_changed)
 Write-Host ('LOT05_POST_NEXT_LICENSE_KEYWORD='+$r.post_next_license_keyword_seen)
