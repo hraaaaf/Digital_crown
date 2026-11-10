@@ -56,6 +56,9 @@ $r=[ordered]@{
   nested_chooser_unauthorized_notice_observed=$false
   demo_connect_attempted=$false
   demo_connect_ok_candidates=0
+  demo_connect_ok_visual_label_count=0
+  demo_connect_visual_ok_guard=$false
+  demo_connect_ok_click_source='NONE'
   demo_connect_button_evidence=@()
   demo_connect_demo_combo_count=0
   demo_connect_server_combo_count=0
@@ -296,11 +299,13 @@ public static class Lot05DemoGuiWindow {
                 # text value. The exact pinned PNG proves its value localhost.
                 $selectDemo=0;$selectLocal=0
                 $buttons=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
+                $okEnabledLabels=0
                 for($m=0;$m -lt [Math]::Min(250,$sub.Count);$m++){
                   $ctl=$sub.Item($m)
                   if([int]$ctl.Current.ProcessId -ne $pidHere){continue}
                   $n=[string]$ctl.Current.Name
                   $t=[string]$ctl.Current.ControlType.ProgrammaticName
+                  if($n -ceq 'OK' -and $ctl.Current.IsEnabled){$okEnabledLabels++}
                   if($t -eq 'ControlType.ComboBox' -and $n -ceq 'demo'){$selectDemo++}
                   if($t -eq 'ControlType.ComboBox' -and $n -match '^Server Name:'){$selectLocal++}
                   if($t -eq 'ControlType.Button'){
@@ -318,24 +323,52 @@ public static class Lot05DemoGuiWindow {
                   }
                 }
                 $r.demo_connect_ok_candidates=$buttons.Count
+                $r.demo_connect_ok_visual_label_count=$okEnabledLabels
                 $r.demo_connect_demo_combo_count=$selectDemo
                 $r.demo_connect_server_combo_count=$selectLocal
                 $r.demo_connect_form_authorization_blocked=$r.nested_chooser_unauthorized_notice_observed
+                # This vendor dialog renders a real native OK button visually
+                # but exposes it as a non-Button UIA control. The pinned exact
+                # screenshot SHA and dimensions are required before a single
+                # pixel coordinate derived from that screenshot can be clicked.
+                $r.demo_connect_visual_ok_guard=(
+                  $r.demo_connect_pinned_screenshot -and
+                  $r.nested_chooser_demo_selection_observed -and
+                  $selectDemo -eq 1 -and $selectLocal -eq 1 -and
+                  $okEnabledLabels -eq 1 -and
+                  $buttons.Count -eq 0 -and
+                  $r.chooser_owner_pid_verified -and $handleOwned -and
+                  $r.nested_chooser_bounds -ceq '142,26,739,676' -and
+                  $r.chooser_window_size -ceq '739x676' -and
+                  $r.chooser_safe_controls -contains 'OK')
                 if($r.demo_connect_pinned_screenshot -and
                    $r.nested_chooser_demo_selection_observed -and
                    $selectDemo -eq 1 -and $selectLocal -eq 1 -and
                    $r.chooser_owner_pid_verified -and $handleOwned -and
-                   $buttons.Count -eq 1){
-                  $btn=$buttons[0]
-                  $bo=$btn.Current.BoundingRectangle
-                  $bx=[int][Math]::Floor($bo.X+$bo.Width/2)
-                  $by=[int][Math]::Floor($bo.Y+$bo.Height/2)
-                  $r.demo_connect_ok_pid_and_geometry=(
-                    [int]$btn.Current.ProcessId -eq $pidHere -and
-                    $bo.Width -ge 45 -and $bo.Width -le 115 -and
-                    $bo.Height -ge 18 -and $bo.Height -le 42 -and
-                    $bx -ge ($x+$cw-150) -and $bx -le ($x+$cw) -and
-                    $by -ge ($y+$ch-90) -and $by -le ($y+$ch))
+                   ($buttons.Count -eq 1 -or $r.demo_connect_visual_ok_guard)){
+                  if($buttons.Count -eq 1){
+                    $btn=$buttons[0]
+                    $bo=$btn.Current.BoundingRectangle
+                    $bx=[int][Math]::Floor($bo.X+$bo.Width/2)
+                    $by=[int][Math]::Floor($bo.Y+$bo.Height/2)
+                    $r.demo_connect_ok_pid_and_geometry=(
+                      [int]$btn.Current.ProcessId -eq $pidHere -and
+                      $bo.Width -ge 45 -and $bo.Width -le 115 -and
+                      $bo.Height -ge 18 -and $bo.Height -le 42 -and
+                      $bx -ge ($x+$cw-150) -and $bx -le ($x+$cw) -and
+                      $by -ge ($y+$ch-90) -and $by -le ($y+$ch))
+                    $r.demo_connect_ok_click_source='UNIQUE_ENABLED_UIA_BUTTON'
+                  }elseif($r.demo_connect_visual_ok_guard){
+                    # OK center is (681,644) RELATIVE to the 739x676
+                    # pinned visual dialog; no arbitrary or reused desktop
+                    # coordinates. A live WindowFromPoint owner guard follows.
+                    $bx=[int]($x+681)
+                    $by=[int]($y+644)
+                    $r.demo_connect_ok_pid_and_geometry=(
+                      $bx -ge ($x+$cw-150) -and $bx -lt ($x+$cw) -and
+                      $by -ge ($y+$ch-90) -and $by -lt ($y+$ch))
+                    $r.demo_connect_ok_click_source='PINNED_SHA_DIALOG_OK_PID_FOREGROUND_HITTEST'
+                  }
                   if($r.demo_connect_ok_pid_and_geometry){
                     # Focus the owned application, never send keys to another PID.
                     $mainHwnd=[IntPtr]([int]$w.Current.NativeWindowHandle)
@@ -664,6 +697,8 @@ Write-Host ('LOT05_NATIVE_DEMO_SELECTION_SEEN='+$r.nested_chooser_demo_selection
 Write-Host ('LOT05_NATIVE_CHOOSER_UNAUTHORIZED_NOTICE='+$r.nested_chooser_unauthorized_notice_observed)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_OK_CANDIDATES='+$r.demo_connect_ok_candidates)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_VISUAL_GUARD='+$r.demo_connect_visual_ok_guard)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_OK_CLICK_SOURCE='+$r.demo_connect_ok_click_source)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_COMBO_COUNTS='+$r.demo_connect_demo_combo_count+','+$r.demo_connect_server_combo_count)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLICK='+$r.demo_connect_click_sent)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLOSED='+$r.demo_connect_dialog_closed_observed)
