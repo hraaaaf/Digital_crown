@@ -31,14 +31,14 @@ function FUEApp() {
     setError('')
     setLoading(true)
     try {
-      const form=new URLSearchParams({username:'j21-native-fue@cabinet.invalid',password})
+      const form=new URLSearchParams({username:'j21-native-fue@example.com',password})
       const response=await axios.post('/api/auth/login',form,{headers:{'Content-Type':'application/x-www-form-urlencoded'},withCredentials:true})
       if (!response.data?.access_token) throw new Error('Authentification JWT refusée')
       localStorage.setItem('token',response.data.access_token)
       // Exact real Digital Crown profile/store, not a fake owner injected into
       // MainLayout. This request still uses only the synthetic JWT and port 8879.
       const profile=await authService.getFullProfile()
-      if(!profile?.id || profile.email!=='j21-native-fue@cabinet.invalid'){
+      if(!profile?.id || profile.email!=='j21-native-fue@example.com'){
         localStorage.removeItem('token')
         throw new Error('Principal synthétique non vérifiable depuis le shell réel')
       }
