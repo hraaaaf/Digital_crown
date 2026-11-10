@@ -114,7 +114,7 @@ jobs:
           mkdir -p /tmp/j21-prior
           gh run download 42685230506 --repo "$GITHUB_REPOSITORY"             --name ceph-premium-j1-real-onnx-3137fa4c1611d47e4d71906cf5e4542cc8b01b49             --dir /tmp/j21-prior
           echo '4c7c459ae0e612606ebdeba72752839d8718af834b50ab631e5cc98de818bdbe  /tmp/j21-prior/source-locked-38-points.json' | sha256sum -c -
-      - name: Run 104 strict M1-M5 contract / security test cases
+      - name: Run all strict M1-M5 contract / security test cases
         run: |
           python - <<'PY'
           import pytest

@@ -1,14 +1,17 @@
-"""CEPH-PREMIUM J2.1-M3: append-only lab CAS revisions in an IN-MEMORY SQLite.
+"""CEPH-PREMIUM J2.1-M3: append-only lab CAS, in-memory by default.
 
-This is a disposable verification harness and NEVER registers ORM tables,
-prod routes or migrations. The clinic's real study/tenant authorization must be
-established separately by a trusted route before any future use.
+File persistence is permitted only in a disposable OS temp test root with three
+explicit FUE guards. It never mounts production tables, routes or migrations.
+Actual cabinet study authorization and Desktop persistence remain unverified.
 """
 from __future__ import annotations
 
 import hashlib
 import json
+import os
+from pathlib import Path
 import sqlite3
+import tempfile
 
 from backend.schemas.cephalo_premium_scene_contract import CephaloPremiumSceneDraft
 
@@ -18,10 +21,32 @@ class SceneCasError(ValueError):
 
 
 class SceneLabLedger:
-    def __init__(self, connection: sqlite3.Connection):
+    def __init__(self, connection: sqlite3.Connection, *,
+                 isolated_test_file_root: Path | None = None):
         files = [row[2] for row in connection.execute("PRAGMA database_list")]
         if any(name for name in files):
-            raise SceneCasError("Refusing disk or production sqlite connection")
+            # Disk persistence is ONLY an explicit, disposable FUE sandbox.
+            # No application DB, migrations, or production runtime registration.
+            if isolated_test_file_root is None:
+                raise SceneCasError("Refusing disk or production sqlite connection")
+            if not (os.environ.get("ENVIRONMENT") == "test"
+                    and os.environ.get("DIGITALCROWN_ISOLATED_RUNTIME") == "true"
+                    and os.environ.get("CEPH_J21_M3_PERSIST_FUE_ONLY") == "1"):
+                raise SceneCasError("Persistent scene FUE not enabled in isolated test runtime")
+            if len(files) != 1 or not files[0]:
+                raise SceneCasError("Attached or ambiguous SQLite files refused")
+            root = Path(isolated_test_file_root)
+            raw_file = Path(files[0])
+            temp_base = Path(tempfile.gettempdir()).resolve()
+            if root.is_symlink() or raw_file.is_symlink():
+                raise SceneCasError("Symlinked persistent FUE paths refused")
+            try:
+                safe_root = root.resolve(strict=True)
+            except (OSError, RuntimeError) as exc:
+                raise SceneCasError("Persistent FUE root not accessible") from exc
+            expected = safe_root / "ceph-j21-m3-fue.sqlite3"
+            if temp_base not in safe_root.parents or raw_file.resolve() != expected:
+                raise SceneCasError("Persistent scene FUE path outside disposable test root")
         self.db = connection
         self.db.execute(
             """CREATE TABLE IF NOT EXISTS ephemeral_scene_snapshots (

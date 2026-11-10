@@ -1,7 +1,7 @@
 """J2.1 M2/M3/M4/M5 isolated gates, all generated patients are fictitious.
 
 M2 transform roundtrips across 8 EXIF orientations and cropped viewports.
-M3 draft append-only CAS/replay in :memory: SQLite only; no prod migration.
+M3 CAS/replay in memory and optional guarded disposable disk FUE; no prod migration.
 M4 byte-level original image attestation; a mocked binding is NOT clinical auth.
 M5 refuses wrong patient/tenant/study, SHA/bytes/revisions and stale writes.
 """
@@ -294,3 +294,62 @@ def test_m5_cas_actor_scope_is_exact(forged_scope):
                       actor_employer_id=forged_scope[0],
                       actor_patient_id=forged_scope[1],actor_study_id=forged_scope[2])
     assert c.execute("SELECT count(*) FROM ephemeral_scene_snapshots").fetchone()[0]==0
+
+
+def test_m3_explicit_file_fue_reopens_revisions_and_refuses_corruption(monkeypatch, tmp_path):
+    # Disposable synthetic file only; the production DB path remains forbidden.
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
+    monkeypatch.setenv("CEPH_J21_M3_PERSIST_FUE_ONLY", "1")
+    store = tmp_path / "ceph-j21-m3-fue.sqlite3"
+    a = CephaloPremiumSceneDraft.model_validate(make_scene())
+    c = sqlite3.connect(store)
+    try:
+        ledger = SceneLabLedger(c, isolated_test_file_root=tmp_path)
+        sha = ledger.append(a, expected_parent_sha256=None,
+                            actor_employer_id=11, actor_patient_id=22, actor_study_id=33)
+        assert sha == a.sha256()
+    finally:
+        c.close()
+    try:
+        c = sqlite3.connect(store)
+        ledger = SceneLabLedger(c, isolated_test_file_root=tmp_path)
+        assert ledger.latest(employer_id=11, patient_id=22, study_id=33).sha256() == sha
+        assert ledger.latest(employer_id=11, patient_id=23, study_id=33) is None
+        b = _next_scene(a, change_landmark=True)
+        second = ledger.append(b, expected_parent_sha256=sha,
+                               actor_employer_id=11, actor_patient_id=22, actor_study_id=33)
+        with pytest.raises(SceneCasError, match="Stale"):
+            ledger.append(b, expected_parent_sha256=sha,
+                          actor_employer_id=11, actor_patient_id=22, actor_study_id=33)
+        c.close()
+        c = sqlite3.connect(store)
+        ledger = SceneLabLedger(c, isolated_test_file_root=tmp_path)
+        assert ledger.latest(employer_id=11, patient_id=22, study_id=33).sha256() == second
+        assert c.execute("SELECT count(*) FROM ephemeral_scene_snapshots").fetchone()[0] == 2
+        c.execute("UPDATE ephemeral_scene_snapshots SET payload='{}' WHERE scene_revision=2")
+        c.commit()
+        with pytest.raises(SceneCasError, match="digest corrupted"):
+            ledger.latest(employer_id=11, patient_id=22, study_id=33)
+    finally:
+        c.close()
+        store.unlink(missing_ok=True)
+
+
+def test_m3_disk_fue_denies_unscoped_root_or_missing_guard(monkeypatch, tmp_path):
+    path = tmp_path / "ceph-j21-m3-fue.sqlite3"
+    db = sqlite3.connect(path)
+    try:
+        monkeypatch.delenv("CEPH_J21_M3_PERSIST_FUE_ONLY", raising=False)
+        with pytest.raises(SceneCasError, match="not enabled"):
+            SceneLabLedger(db, isolated_test_file_root=tmp_path)
+        monkeypatch.setenv("CEPH_J21_M3_PERSIST_FUE_ONLY", "1")
+        monkeypatch.setenv("ENVIRONMENT", "test")
+        monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
+        other = tmp_path / "other"
+        other.mkdir()
+        with pytest.raises(SceneCasError, match="outside disposable"):
+            SceneLabLedger(db, isolated_test_file_root=other)
+    finally:
+        db.close()
+        path.unlink(missing_ok=True)
