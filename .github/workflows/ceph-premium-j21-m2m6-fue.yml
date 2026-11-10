@@ -16,6 +16,10 @@ on:
       - backend/services/ceph_premium_scene_app_fue.py
       - backend/routers/ceph_premium_scene_app_fue.py
       - backend/tests/test_ceph_j21_scene_app_fue.py
+      - frontend/src/features/ortho/cephPremiumSceneFUEClient.ts
+      - frontend/src/features/ortho/cephPremiumSceneFUEClient.test.ts
+      - frontend/src/features/ortho/components/CephPremiumSceneFUEViewer.tsx
+      - frontend/src/features/ortho/components/CephPremiumSceneFUEViewer.test.tsx
       - scripts/ceph_premium_j21_m6_lab_preview.py
       - .github/workflows/ceph-premium-j21-m2m6-fue.yml
   workflow_dispatch:
@@ -309,5 +313,151 @@ jobs:
         with:
           name: ceph-j21-m3-scene-app-jwt-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/ceph-j21-scene-app/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  m2-react-svg-scene-fue-contract:
+    name: M2 React SVG scene-pixel / source-lock contract (mock-only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_CEPH_J21_SCENE_FUE: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exact HEAD and no clinical runtime registration
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          src=Path('frontend/src')
+          forbidden=('cephPremiumSceneFUEClient', 'CephPremiumSceneFUEViewer')
+          exempt={
+              'cephPremiumSceneFUEClient.ts', 'cephPremiumSceneFUEClient.test.ts',
+              'CephPremiumSceneFUEViewer.tsx', 'CephPremiumSceneFUEViewer.test.tsx',
+          }
+          for f in src.rglob('*'):
+              if not f.is_file() or f.suffix not in ('.ts', '.tsx') or f.name in exempt:
+                  continue
+              text=f.read_text(encoding='utf-8')
+              assert not any(x in text for x in forbidden), f
+          print('CEPH_J21_REACT_CANDIDATE_NOT_MOUNTED_IN_APP_PASS')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated frontend dependencies without scripts
+        working-directory: frontend
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Source-pixel scene validator and React mock consumer tests
+        working-directory: frontend
+        run: |
+          mkdir -p artifacts/ceph-j21-react-fue
+          npx vitest run \
+            src/features/ortho/cephPremiumSceneFUEClient.test.ts \
+            src/features/ortho/components/CephPremiumSceneFUEViewer.test.tsx \
+            --reporter=default \
+            --reporter=junit --outputFile.junit=artifacts/ceph-j21-react-fue/junit.xml
+      - name: Validate six tests and publish explicitly mock-only evidence
+        working-directory: frontend
+        run: |
+          python - <<'PY'
+          import json,os,xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('artifacts/ceph-j21-react-fue/junit.xml')
+          root=ET.parse(p).getroot()
+          suites=[root] if root.tag=='testsuite' else list(root.findall('.//testsuite'))
+          assert sum(int(x.get('tests','0')) for x in suites)==6
+          assert sum(int(x.get('failures','0'))+int(x.get('errors','0'))+int(x.get('skipped','0')) for x in suites)==0
+          report={'head':os.environ['PRODUCT_HEAD'],'case_id':'CEPH-J21-REACT-FUE-0',
+              'tests_passed':6,'mocked_backend':True,'not_mounted_in_clinical_ui':True,
+              'native_desktop_fue_complete':False,'clinical_release':False}
+          (p.parent/'report.json').write_text(json.dumps(report,sort_keys=True,indent=2),encoding='utf8')
+          print('CEPH_J21_REACT_SVG_MOCK_FUE0_PASS_DESKTOP_HOLD')
+          PY
+      - name: Upload mock-only frontend evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-react-svg-fue0-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/artifacts/ceph-j21-react-fue/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  m2-m6-frontend-fue-contract:
+    name: React/SVG source-pixel consumer lab (NOT Desktop FUE)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_CEPH_J21_SCENE_FUE: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact HEAD and no active clinical/production consumer
+        run: |
+          test "$(git -C .. rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          for f in ('src/main.tsx', 'src/App.tsx',
+                    'src/features/ortho/components/Step1Cephalo.tsx',
+                    'src/features/ortho/components/Step1CephaloBase.tsx',
+                    'src/features/ortho/cephaloRepository.ts'):
+              code = Path(f).read_text(encoding='utf8')
+              assert 'CephPremiumSceneFUEViewer' not in code, f
+              assert 'cephPremiumSceneFUEClient' not in code, f
+          print('CEPH_SCENE_FRONTEND_NOT_REGISTERED_IN_CLINICAL_UI_PASS')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned frontend deps without postinstall side effects
+        run: npm ci --ignore-scripts --no-audit --no-fund
+      - name: Verify synthetic scene client and candidate SVG UX tests
+        run: |
+          mkdir -p artifacts/ceph-scene-react-fue
+          npx vitest run \
+            src/features/ortho/cephPremiumSceneFUEClient.test.ts \
+            src/features/ortho/components/CephPremiumSceneFUEViewer.test.tsx \
+            --reporter=junit --outputFile=artifacts/ceph-scene-react-fue/vitest-junit.xml
+      - name: Check all six strict frontend tests and explicit release hold
+        run: |
+          python - <<'PY'
+          import json, os, xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('artifacts/ceph-scene-react-fue/vitest-junit.xml')
+          root=ET.parse(p).getroot()
+          suites=[root] if root.tag=='testsuite' else list(root.findall('.//testsuite'))
+          tests=sum(int(x.get('tests','0')) for x in suites)
+          failed=sum(int(x.get('failures','0'))+int(x.get('errors','0'))
+                     +int(x.get('skipped','0')) for x in suites)
+          assert tests==6 and failed==0, (tests,failed)
+          report={'head':os.environ['PRODUCT_HEAD'],'case_id':'CEPH-J21-REACT-SVG-LAB',
+            'vitest_passed':6,'source_pixel_svg':True,'client_jwt_request_shape':True,
+            'real_e2e_desktop':False,'synthetic_only':True,
+            'clinical_release':False,'production_route_registered':False}
+          (p.parent/'report.json').write_text(json.dumps(report,sort_keys=True,indent=2),encoding='utf8')
+          print('CEPH_J21_REACT_SVG_TESTS_PASS_DESKTOP_HOLD')
+          PY
+      - name: Upload React/SVG test evidence (no patient media)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-react-svg-lab-${{ github.event.pull_request.head.sha || github.sha }}
+          path: frontend/artifacts/ceph-scene-react-fue/
           if-no-files-found: warn
           retention-days: 7
