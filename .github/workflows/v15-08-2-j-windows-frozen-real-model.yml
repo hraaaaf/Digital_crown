@@ -1,0 +1,138 @@
+name: LOT08.2-J Windows genuine SRPose38 PyInstaller frozen witness NO INSTALLER
+on:
+  push:
+    branches: [test/lot08-2-j-windows-frozen-real-onnx-20261110]
+    paths:
+      - .github/workflows/v15-08-2-j-windows-frozen-real-model.yml
+      - scripts/quality/lot08_2_j_win_frozen_witness.py
+      - docs/quality/V15_08_2_J_WINDOWS_FROZEN_REAL_MODEL_WITNESS.md
+permissions:
+  contents: read
+  actions: read
+concurrency:
+  group: lot08-2-j-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  actual-windows-frozen-witness:
+    runs-on: windows-2025
+    timeout-minutes: 45
+    env:
+      ENVIRONMENT: production
+      DATABASE_URL: sqlite:///C:/Cabinet/clinical_vault.db
+      DIGITALCROWN_ISOLATED_RUNTIME: 'false'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Strict source SHA, exact three files, untouched production installable gate
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ("$(git rev-parse HEAD)" -ne "${{ github.event.pull_request.head.sha || github.sha }}") { throw 'EXACT_HEAD_DRIFT' }
+          $base = 'e47f707bb087cba205351a652de5b397de151487'
+          if ("$(git rev-parse $base)" -ne $base) { throw 'BASE_SHA_DRIFT' }
+          $actual = @((git diff --name-only $base HEAD) | Sort-Object)
+          $expected = @(
+            '.github/workflows/v15-08-2-j-windows-frozen-real-model.yml'
+            'docs/quality/V15_08_2_J_WINDOWS_FROZEN_REAL_MODEL_WITNESS.md'
+            'scripts/quality/lot08_2_j_win_frozen_witness.py'
+          )
+          if (($actual -join '|') -ne ($expected -join '|')) {
+            Write-Host "Actual: $($actual -join ', ')"
+            throw 'LOT08J_EXACT_THREE_FILE_SCOPE_FAILED'
+          }
+          python scripts/quality/lot08_2_j_win_frozen_witness.py preflight
+          if ($LASTEXITCODE -ne 0) { throw 'PREFLIGHT_FAILED' }
+          Write-Host 'LOT08J_EXACT_SCOPE_AND_INSTALLABLE_SPEC_GATE_PRESERVED'
+      - name: Verify original GitHub run and artifact provenance before any ONNX download
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh api "repos/$env:GITHUB_REPOSITORY/actions/runs/34281082926" | Out-File -Encoding utf8 "$env:RUNNER_TEMP\lot08j-source-run.json"
+          if ($LASTEXITCODE -ne 0) { throw 'SOURCE_RUN_API_FAILED' }
+          gh api "repos/$env:GITHUB_REPOSITORY/actions/artifacts/10077697721" | Out-File -Encoding utf8 "$env:RUNNER_TEMP\lot08j-source-artifact.json"
+          if ($LASTEXITCODE -ne 0) { throw 'SOURCE_ARTIFACT_API_FAILED' }
+          python -c "import json,os,pathlib; r=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'lot08j-source-run.json').read_text(encoding='utf-8-sig')); a=json.loads((pathlib.Path(os.environ['RUNNER_TEMP'])/'lot08j-source-artifact.json').read_text(encoding='utf-8-sig')); assert (r['id'],r['head_sha'],r['conclusion'])==(34281082926,'39e3779d993224abe54382e8cddf09c08fafe2a0','success'); assert a['id']==10077697721 and a['expired'] is False and a['digest']=='sha256:ad1caa8ee1474a1405305fc91a29eaa3c0c5b20572095faad0c2e63723284e17'; print('LOT08J_GITHUB_SOURCE_METADATA_PIN_PASS')"
+          if ($LASTEXITCODE -ne 0) { throw 'SOURCE_METADATA_VERIFICATION_FAILED' }
+      - name: Download genuine ONNX into temporary private Windows runner, validate seven source files and production asset selector
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $ErrorActionPreference = 'Stop'
+          gh run download 34281082926 --repo "$env:GITHUB_REPOSITORY" --name cephalo-srpose38-onnx-parity --dir "$env:RUNNER_TEMP\lot08j-source"
+          if ($LASTEXITCODE -ne 0) { throw 'PINNED_ONNX_ARTIFACT_DOWNLOAD_FAILED' }
+          python scripts/quality/lot08_2_j_win_frozen_witness.py source "$env:RUNNER_TEMP\lot08j-source" "$env:RUNNER_TEMP\lot08j-source-run.json" "$env:RUNNER_TEMP\lot08j-source-artifact.json"
+          if ($LASTEXITCODE -ne 0) { throw 'MODEL_SOURCE_AND_SELECTOR_VERIFICATION_FAILED' }
+      - name: Install isolated PyInstaller (not DigitalCrown.spec) and compile nonclinical witness EXE
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          python -m pip install --disable-pip-version-check "pyinstaller==6.16.0"
+          if ($LASTEXITCODE -ne 0) { throw 'PYINSTALLER_SETUP_FAILED' }
+          python -m PyInstaller --noconfirm --clean --onedir --name DCSRPose38NoClinicalWitness --paths . --add-data "backend/ai_models/srpose38-tta-1024.onnx;backend/ai_models" --add-data "backend/services/cephalo_runtime_gate.py;backend/services" --add-data "backend/services/srpose38_contract.py;backend/services" --add-data "backend/runtime_asset_certification.py;backend" scripts/quality/lot08_2_j_win_frozen_witness.py
+          if ($LASTEXITCODE -ne 0) { throw 'FROZEN_WITNESS_BUILD_FAILED' }
+          Write-Host 'LOT08J_WINDOWS_REAL_ONEDIR_FROZEN_WITNESS_BUILT_NO_APP_NO_INSTALLER'
+      - name: Execute actual Windows frozen EXE, verify embedded 267MB SHA and deny with forged LAB flags
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $exe = 'dist\DCSRPose38NoClinicalWitness\DCSRPose38NoClinicalWitness.exe'
+          if (-not (Test-Path -LiteralPath $exe)) { throw 'ACTUAL_WINDOWS_EXE_NOT_BUILT' }
+          $output = & $exe 2>&1
+          $code = $LASTEXITCODE
+          $output | Out-File -Encoding utf8 "$env:RUNNER_TEMP\lot08j-positive-frozen.json"
+          if ($code -ne 0) { Write-Host $output; throw 'ACTUAL_FROZEN_MODEL_HASH_OR_CLINICAL_GATE_FAILED' }
+          Write-Host $output
+          Write-Host 'LOT08J_REAL_WINDOWS_FROZEN_EXE_MODEL_HASH_AND_DENY_PASS'
+      - name: Alter one byte inside the disposable packaged copy and require executable fail closed
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $model = 'dist\DCSRPose38NoClinicalWitness\_internal\backend\ai_models\srpose38-tta-1024.onnx'
+          python scripts/quality/lot08_2_j_win_frozen_witness.py tamper "$model"
+          if ($LASTEXITCODE -ne 0) { throw 'TEST_ONLY_PACKAGE_TAMPER_FAILED' }
+          $negative = & 'dist\DCSRPose38NoClinicalWitness\DCSRPose38NoClinicalWitness.exe' 2>&1
+          $code = $LASTEXITCODE
+          $negative | Out-File -Encoding utf8 "$env:RUNNER_TEMP\lot08j-negative-frozen.txt"
+          if ($code -eq 0) { throw 'TAMPERED_REAL_WINDOWS_EXE_ACCEPTED_BAD_ONNX' }
+          python scripts/quality/lot08_2_j_win_frozen_witness.py report "$env:RUNNER_TEMP\lot08j-positive-frozen.json" "$env:RUNNER_TEMP\lot08j-negative-frozen.txt"
+          if ($LASTEXITCODE -ne 0) { throw 'FROZEN_TAMPER_DENIAL_EVIDENCE_MISSING' }
+          Get-Content lot08j-win-frozen-meta.json
+      - name: Upload METADATA ONLY, never model bytes or frozen EXE
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08j-win-frozen-real-model-metadata-only
+          path: lot08j-win-frozen-meta.json
+          if-no-files-found: error
+          retention-days: 7
+      - name: Destroy nonclinical model copy, downloaded source, PyInstaller build and scratch files
+        if: always()
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $targets = @(
+            'backend\ai_models\srpose38-tta-1024.onnx',
+            'dist\DCSRPose38NoClinicalWitness',
+            'build\DCSRPose38NoClinicalWitness',
+            'DCSRPose38NoClinicalWitness.spec',
+            "$env:RUNNER_TEMP\lot08j-source",
+            "$env:RUNNER_TEMP\lot08j-source-run.json",
+            "$env:RUNNER_TEMP\lot08j-source-artifact.json",
+            "$env:RUNNER_TEMP\lot08j-positive-frozen.json",
+            "$env:RUNNER_TEMP\lot08j-negative-frozen.txt"
+          )
+          foreach ($target in $targets) {
+            if (Test-Path -LiteralPath $target) { Remove-Item -LiteralPath $target -Recurse -Force }
+          }
+          Write-Host 'LOT08J_RUNNER_MODEL_AND_SYNTHETIC_SCRATCH_CLEANED'
