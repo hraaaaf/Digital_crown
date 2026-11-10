@@ -12,6 +12,10 @@ on:
       - backend/tests/test_ceph_premium_j21m1_scene_contract.py
       - backend/tests/test_ceph_premium_j21_m2m5_lab.py
       - backend/tests/test_ceph_j21_m4_real_jwt_fue.py
+      - backend/models_ceph_premium_scene_fue.py
+      - backend/services/ceph_premium_scene_app_fue.py
+      - backend/routers/ceph_premium_scene_app_fue.py
+      - backend/tests/test_ceph_j21_scene_app_fue.py
       - scripts/ceph_premium_j21_m6_lab_preview.py
       - .github/workflows/ceph-premium-j21-m2m6-fue.yml
   workflow_dispatch:
@@ -234,5 +238,76 @@ jobs:
         with:
           name: ceph-j21-m4-real-jwt-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/ceph-j21-m4-auth/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  m3-authenticated-scene-app-fue:
+    name: M3 scene app SQLite+JWT reopen FUE (synthetic only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      SECRET_KEY: ceph-j21-scene-app-synthetic-20261110
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Exact HEAD and no clinic router or schema registration
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          for f in ('backend/__init__.py', 'backend/routers/__init__.py', 'backend/main.py'):
+              t=Path(f).read_text(encoding='utf-8')
+              assert 'ceph_premium_scene_app_fue' not in t, f
+              assert 'models_ceph_premium_scene_fue' not in t, f
+          print('CEPH_J21_SCENE_NO_PRODUCTION_REGISTRATION_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend FUE dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/m3-scene-fue-dependencies.txt
+          pip install -r /tmp/m3-scene-fue-dependencies.txt
+          python -m pip check
+      - name: Real JWT and disposable application DB import-edit-close-reopen negative FUE
+        run: |
+          mkdir -p artifacts/ceph-j21-scene-app
+          python -m pytest backend/tests/test_ceph_j21_scene_app_fue.py -q --maxfail=1 --tb=short -o addopts='' \
+            --junitxml=artifacts/ceph-j21-scene-app/pytest-junit.xml
+      - name: Verify exact HEAD pass and publish nonclinical proof
+        run: |
+          python - <<'PY'
+          import os,json,xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('artifacts/ceph-j21-scene-app/pytest-junit.xml')
+          root=ET.parse(p).getroot()
+          suites=[root] if root.tag=='testsuite' else list(root.findall('.//testsuite'))
+          assert sum(int(x.get('tests','0')) for x in suites)==2
+          assert sum(int(x.get('failures','0'))+int(x.get('errors','0'))+int(x.get('skipped','0')) for x in suites)==0
+          report={'head':os.environ['PRODUCT_HEAD'],'case_id':'CEPH-J21-M3-APP-FUE',
+              'tests_passed':2,'synthetic_only':True,'app_db_file_reopened':True,
+              'real_http_jwt':True,'cas_and_tamper_denied':True,'tenant_refusal':True,
+              'source_verified_via_dc_dos05':True,'clinic_db_migrated':False,
+              'clinical_release':False,'desktop_fue_complete':False}
+          (p.parent/'report.json').write_text(json.dumps(report,sort_keys=True,indent=2),encoding='utf8')
+          print('CEPH_J21_SCENE_APP_DB_JWT_FUE_GREEN_DESKTOP_HOLD')
+          PY
+      - name: Upload test-only evidence (no database or patient image)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-m3-scene-app-jwt-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-j21-scene-app/
           if-no-files-found: warn
           retention-days: 7
