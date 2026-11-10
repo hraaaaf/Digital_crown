@@ -117,19 +117,25 @@ def test_route_persists_operator_timestamp_and_typed_calibration_atomically(monk
         item for item in evidence["measurements"] if item["requires_calibration"]
     ]
     assert calibrated_measurements
-    explicit_identity_required = {"MCNAMARA_CO_GN_CANONICAL_MM_V2"}
-    blocked = [
-        item
-        for item in calibrated_measurements
-        if item["method_id"] in explicit_identity_required
+    # Manual scale calibration changes units, not source-landmark identity.
+    # No Co_anatomic/Gn_anatomic pair => no typed canonical Co-Gn measurement.
+    method_ids = {item["method_id"] for item in calibrated_measurements}
+    assert "MCNAMARA_CO_GN_CANONICAL_MM_V2" not in method_ids
+    canonical_mcnamara = [
+        item for item in calibrated_measurements
+        if item["analysis_id"] == "MCNAMARA"
+        and item["method_id"].endswith("_CANONICAL_MM_V2")
     ]
-    assert {item["method_id"] for item in blocked} == explicit_identity_required
-    assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
-    assert all(item["value"] is None for item in blocked)
+    assert canonical_mcnamara
+    assert all(item["availability_status"] == "NOT_COMPUTABLE"
+               and item["value"] is None and item["calibration_ref"] is None
+               for item in canonical_mcnamara)
+    # Historical V1 geometry is preserved for compatibility but not approved
+    # as an equivalent clinical canonical measurement.
     legacy = [
         item for item in calibrated_measurements
         if item["analysis_id"] in {"CRANIOM", "MCNAMARA"}
-        and item["method_id"] not in explicit_identity_required
+        and not item["method_id"].endswith("_CANONICAL_MM_V2")
     ]
     assert legacy
     assert all(item["availability_status"] == "AVAILABLE" and item["value"] is not None for item in legacy)
@@ -137,8 +143,8 @@ def test_route_persists_operator_timestamp_and_typed_calibration_atomically(monk
     assert ricketts
     assert all(item["value"] is None for item in ricketts if item["availability_status"] == "NOT_COMPUTABLE")
     by_method = {item["method_id"]: item for item in calibrated_measurements}
-    assert by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]["availability_status"] == "AVAILABLE"
-    assert by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]["value"] is not None
+    assert by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]["availability_status"] == "NOT_COMPUTABLE"
+    assert by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]["value"] is None
     assert by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]["availability_status"] == "NOT_COMPUTABLE"
     assert by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]["value"] is None
     assert {
