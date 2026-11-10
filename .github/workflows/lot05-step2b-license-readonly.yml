@@ -1,0 +1,139 @@
+name: LOT05 Step2B Vendor License Text ReadOnly From Signed Setup
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-license-readonly.yml'
+      - 'scripts/quality/lot05_step2b_license_text_readonly_lab.ps1'
+
+permissions:
+  contents: read
+
+jobs:
+  signed-vendor-welcome-next:
+    name: Read exact vendor EULA text only after one guarded Next, no acceptance
+    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-license-text-readonly-20261110' && github.run_attempt == 1 }}
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 12
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Exact SHA, two files only, Windows hosted admin, PowerShell AST
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}') {
+            throw 'DISPOSABLE_WINDOWS_EXACT_HEAD_REQUIRED'
+          }
+          $base = 'd4d2d144393fc884e01ca8734c1efa9fb0e0f2e3'
+          if ((git merge-base HEAD $base).Trim() -cne $base) { throw 'EXPECTED_MASTER_ANCESTOR_MISSING' }
+          $files = @(git diff --name-only $base HEAD)
+          $allowed = @(
+            '.github/workflows/lot05-step2b-license-readonly.yml',
+            'scripts/quality/lot05_step2b_license_text_readonly_lab.ps1'
+          )
+          if ($files.Count -ne 2 -or @($files | Where-Object { $allowed -cnotcontains $_ }).Count -ne 0) {
+            throw 'UNAUTHORIZED_CHANGED_FILE'
+          }
+          $admin = ([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator)
+          if (-not $admin) { throw 'ADMIN_REQUIRED' }
+          if (@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0) {
+            throw 'DB_ALREADY_INSTALLED'
+          }
+          $path = './scripts/quality/lot05_step2b_license_text_readonly_lab.ps1'
+          $tokens = $null
+          $errors = @()
+          $null = [System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors)
+          if ($errors.Count -ne 0) {
+            foreach ($e in $errors) { Write-Host ('AST_SYNTAX_ERROR_LINE_' + $e.Extent.StartLineNumber) }
+            throw 'INVALID_POWERSHELL_AST'
+          }
+          Write-Host 'LOT05_EXACT_HEAD_SCOPE_ADMIN_AND_POWERSHELL_AST_PASS'
+      - name: Execute isolated publisher signed Welcome Next safety-gated script
+        shell: pwsh
+        run: |
+          $env:LOT05_EXPECTED_SHA = '${{ github.event.pull_request.head.sha }}'
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/lot05_step2b_license_text_readonly_lab.ps1'
+          if ($LASTEXITCODE -ne 0) { throw 'VENDOR_WELCOME_NEXT_SCRIPT_FAILED_CLOSED' }
+      - name: Validate vendor provenance and optional changed window, never license acceptance
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $json = Join-Path $env:RUNNER_TEMP 'lot05-step2b-welcome-next-license-metadata.json'
+          if (-not (Test-Path -LiteralPath $json)) { throw 'NO_TRUSTED_METADATA' }
+          $m = Get-Content -LiteralPath $json -Raw -Encoding UTF8 | ConvertFrom-Json
+          if (-not $m.wrapper_hash_pinned -or -not $m.wrapper_authenticode_valid -or
+              -not $m.inner_setup_authenticode_valid -or -not $m.inner_setup_started_once -or
+              $m.clicked_install -or $m.accepted_eula -or $m.database_created -or
+              $m.patient_data_accessed -or $m.csv_exported -or $null -ne $m.error_code) {
+            throw 'GUARDS_OR_SIGNED_PUBLISHER_NOT_PROVEN'
+          }
+          Write-Host ('LOT05_GUARDED_WELCOME_EXACT=' + [bool]$m.welcome_title_exact_proven)
+          Write-Host ('LOT05_GUARDED_NATIVE_NEXT_COUNT=' + [int]$m.native_next_button_candidate_count)
+          Write-Host ('LOT05_GUARDED_NATIVE_BACK_DISABLED=' + [int]$m.native_back_disabled_count)
+          Write-Host ('LOT05_GUARDED_NEXT_SOURCE=' + [string]$m.next_control_source)
+          Write-Host ('LOT05_GUARDED_NEXT_ACK=' + [bool]$m.next_click_acknowledged)
+          Write-Host ('LOT05_GUARDED_POST_SCREEN_CHANGED=' + [bool]$m.post_next_screenshot_changed)
+          Write-Host ('LOT05_GUARDED_LICENSE_WINDOW_TITLE=' + [bool]$m.license_window_title_detected_after_next)
+          Write-Host ('LOT05_GUARDED_LICENSE_WINDOW_CAPTURED=' + [bool]$m.post_next_license_window_captured)
+          Write-Host ('LOT05_GUARDED_LICENSE_SCREEN_TEXT=' + [bool]$m.post_next_license_keyword_seen)
+          Write-Host ('LOT05_LICENSE_READONLY_TEXT_VERIFIED=' + [bool]$m.license_text_verified)
+          Write-Host ('LOT05_LICENSE_READONLY_TEXT_CHARACTERS=' + [int]$m.license_text_characters)
+          Write-Host ('LOT05_LICENSE_READONLY_TEXT_SOURCE=' + [string]$m.license_text_read_source)
+          Write-Host ('LOT05_LICENSE_READONLY_TEXT_TRUNCATED=' + [bool]$m.license_text_may_be_truncated)
+          if ($m.license_text_verified -and $m.post_next_license_window_captured -and
+              $m.license_window_title_detected_after_next -and $m.next_click_acknowledged) {
+            $licenseText = Join-Path $env:RUNNER_TEMP 'lot05-step2b-publisher-license-text-readonly.txt'
+            if (-not (Test-Path -LiteralPath $licenseText) -or
+                (Get-FileHash -LiteralPath $licenseText -Algorithm SHA256).Hash.ToLowerInvariant() -cne $m.license_text_sha256 -or
+                (Get-Item -LiteralPath $licenseText).Length -gt 250000) {
+              throw 'PUBLISHER_LICENSE_READONLY_TEXT_PROVENANCE_FAILED'
+            }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_LICENSE_TEXT_OK=1'
+          }
+
+          if ($m.next_click_acknowledged -and $m.post_next_screenshot_changed -and
+              $m.post_next_license_window_captured -and
+              $m.post_next_window_title_owned -and $m.screenshot_vendor_owner_verified -and
+              $m.screenshot_title_allowlisted -and $m.screenshot_printwindow_succeeded) {
+            $png = Join-Path $env:RUNNER_TEMP 'lot05-step2b-post-next-vendor-window-only.png'
+            if (-not (Test-Path -LiteralPath $png) -or
+                (Get-Item -LiteralPath $png).Length -gt 6000000 -or
+                (Get-FileHash -LiteralPath $png -Algorithm SHA256).Hash.ToLowerInvariant() -cne $m.post_next_screenshot_sha256) {
+              throw 'POST_NEXT_PNG_PROVENANCE_FAILED'
+            }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_POST_NEXT_PNG_OK=1'
+            Write-Host 'LOT05_CHANGED_POST_NEXT_VENDOR_WINDOW_PROVEN'
+          }
+          Write-Host 'LOT05_NO_EULA_ACCEPTANCE_NO_PATIENTS_NO_DB'
+      - name: Upload non-PHI observations
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-welcome-next-license-metadata-json
+          path: ${{ runner.temp }}/lot05-step2b-welcome-next-license-metadata.json
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Upload actual post-Next publisher window ONLY if distinct and owned
+        if: ${{ env.LOT05_POST_NEXT_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-license-readonly-window-only-png
+          path: ${{ runner.temp }}/lot05-step2b-post-next-vendor-window-only.png
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Preserve read-only publisher EULA TEXT if actual full control text verified
+        if: ${{ env.LOT05_LICENSE_TEXT_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-signed-vendor-license-text-readonly
+          path: ${{ runner.temp }}/lot05-step2b-publisher-license-text-readonly.txt
+          retention-days: 7
+          if-no-files-found: error
