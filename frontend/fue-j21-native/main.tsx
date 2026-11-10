@@ -2,6 +2,11 @@
 import React from 'react'
 import { createRoot } from 'react-dom/client'
 import axios from 'axios'
+import { BrowserRouter } from 'react-router-dom'
+import { MainLayout } from '../src/components/Layout/MainLayout'
+import { useAuthStore } from '../src/stores/useAuthStore'
+import { authService } from '../src/services/auth'
+import '../src/index.css'
 import { CephPremiumSceneFUEViewer } from '../src/features/ortho/components/CephPremiumSceneFUEViewer'
 import { assertSceneFUEDevGate } from '../src/features/ortho/cephPremiumSceneFUEClient'
 
@@ -30,6 +35,14 @@ function FUEApp() {
       const response=await axios.post('/api/auth/login',form,{headers:{'Content-Type':'application/x-www-form-urlencoded'},withCredentials:true})
       if (!response.data?.access_token) throw new Error('Authentification JWT refusée')
       localStorage.setItem('token',response.data.access_token)
+      // Exact real Digital Crown profile/store, not a fake owner injected into
+      // MainLayout. This request still uses only the synthetic JWT and port 8879.
+      const profile=await authService.getFullProfile()
+      if(!profile?.id || profile.email!=='j21-native-fue@cabinet.invalid'){
+        localStorage.removeItem('token')
+        throw new Error('Principal synthétique non vérifiable depuis le shell réel')
+      }
+      useAuthStore.getState().setUser(profile)
       setPassword('')
       setConnected(true)
     } catch (e) {setError(e instanceof Error?e.message:'Connexion refusée')}
@@ -47,7 +60,14 @@ function FUEApp() {
         <button type="submit" disabled={loading} style={{padding:12}}>Connexion JWT réelle (laboratoire)</button>
         {error&&<p role="alert">{error}</p>}
       </form>
-      : <CephPremiumSceneFUEViewer patientId={patientId} studyId={studyId}/>}
+      : <div data-ceph-j21-real-shell="true" style={{position:'fixed',inset:0,height:'100dvh',width:'100vw',zIndex:100,background:'#f5f7fb'}}>
+          <MainLayout>
+            <div data-ceph-j21-shell-fue="synthetic">
+              <p role="status" style={{fontWeight:700,color:'#a36a00'}}>SHELL DESKTOP RÉEL · FUE SYNTHÉTIQUE ISOLÉ · PAS DE SOINS</p>
+              <CephPremiumSceneFUEViewer patientId={patientId} studyId={studyId}/>
+            </div>
+          </MainLayout>
+        </div>}
   </main>
 }
-createRoot(document.getElementById('root')!).render(<FUEApp/>)
+createRoot(document.getElementById('root')!).render(<BrowserRouter><FUEApp/></BrowserRouter>)
