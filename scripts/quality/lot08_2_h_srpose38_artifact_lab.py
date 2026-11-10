@@ -9,6 +9,7 @@ from __future__ import annotations
 import argparse
 from contextlib import suppress
 import hashlib
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -28,6 +29,34 @@ UPSTREAM_ARTIFACT_SHA = "ad1caa8ee1474a1405305fc91a29eaa3c0c5b20572095faad0c2e63
 
 class UnsafeAsset(RuntimeError):
     pass
+
+
+def _load_exact_source_module(relative_path: str):
+    """Load only a stdlib-only verifier source file without backend package boot.
+
+    Importing backend.services.foo normally executes backend/__init__.py and
+    unrelated app/ORM imports, which are intentionally absent in this minimal
+    isolated runner. The checked source file is still the EXACT Git-tracked
+    implementation used by the product (scope gate forbids modifying it).
+    """
+    root = Path(__file__).resolve().parents[2]
+    fixed = {
+        "backend/services/srpose38_contract.py",
+        "backend/runtime_asset_certification.py",
+    }
+    if relative_path not in fixed:
+        raise UnsafeAsset("UNEXPECTED_VERIFIER_SOURCE")
+    path = root / relative_path
+    if not path.is_file() or path.is_symlink():
+        raise UnsafeAsset("VERIFIER_SOURCE_MISSING_OR_SYMLINK")
+    spec = importlib.util.spec_from_file_location(
+        "lot08h_source_" + path.stem, str(path)
+    )
+    if spec is None or spec.loader is None:
+        raise UnsafeAsset("VERIFIER_SOURCE_UNLOADABLE")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
 
 
 def sha256(path: Path) -> str:
@@ -56,10 +85,12 @@ def assert_single_file(root: Path, name: str, size: int, digest: str) -> Path:
 
 
 def assert_registry_identity(registry: Path) -> None:
-    from backend.services.srpose38_contract import (
-        SRPOSE38_MODEL_NAME, SRPOSE38_MODEL_SHA256, SRPOSE38_MODEL_SIZE_BYTES,
-    )
-    if (SRPOSE38_MODEL_NAME, SRPOSE38_MODEL_SHA256, SRPOSE38_MODEL_SIZE_BYTES) != (
+    contract = _load_exact_source_module("backend/services/srpose38_contract.py")
+    if (
+        contract.SRPOSE38_MODEL_NAME,
+        contract.SRPOSE38_MODEL_SHA256,
+        contract.SRPOSE38_MODEL_SIZE_BYTES,
+    ) != (
         MODEL, EXPECTED_HASH, EXPECTED_SIZE
     ):
         raise UnsafeAsset("RUNTIME_CONTRACT_DIFFERS_FROM_PIN")
@@ -81,19 +112,17 @@ def assert_registry_identity(registry: Path) -> None:
 
 def assert_packaging_selection(model_path: Path, registry: Path) -> dict:
     """Reproduce the exact DigitalCrown.spec file selector in a disposable tree."""
-    from backend.runtime_asset_certification import (
-        iter_runtime_asset_files, verify_pinned_registry_assets,
-    )
+    verifier = _load_exact_source_module("backend/runtime_asset_certification.py")
     with tempfile.TemporaryDirectory(prefix="lot08h-runtime-selector-") as tmp:
         root = Path(tmp)
         model_root = root / "backend" / "ai_models"
         model_root.mkdir(parents=True)
         shutil.copyfile(model_path, model_root / MODEL)
         shutil.copyfile(registry, root / "backend" / "scientific_assets.json")
-        selected = list(iter_runtime_asset_files(model_root))
+        selected = list(verifier.iter_runtime_asset_files(model_root))
         if [p.relative_to(model_root).as_posix() for p in selected] != [MODEL]:
             raise UnsafeAsset("PYINSTALLER_ASSET_SELECTOR_MISMATCH")
-        pinned, unpinned = verify_pinned_registry_assets(root)
+        pinned, unpinned = verifier.verify_pinned_registry_assets(root)
         if "cephalo_sota" not in pinned:
             raise UnsafeAsset("REAL_MODEL_REGISTRY_PIN_NOT_VERIFIED")
         if sorted(unpinned) != ["cephalo_legacy", "panoramic"]:
