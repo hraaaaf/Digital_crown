@@ -55,18 +55,57 @@ explicitly expected that behavior.
 
 File: `backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py`
 
-13 synthetic pytest cases cover: auto hash never sufficient; spoofed
+16 synthetic pytest cases cover: auto hash never sufficient; spoofed
 clinical status on AUTO; missing clinician review; three explicit
 manual canonical aliases; precise same-ID/image/original-coordinate
 binding of corrections; wrong model SHA; unavailable and timezone-naive
 evidence; direct canonical injection; manually attested explicit
 canonical point; collision; mixed reviewed/unreviewed films and
-unreviewed manual evidence. No source image or actual patient used. No real images or patient records.
+unreviewed manual evidence; adversarial mismatched dictionary key versus
+actual LandmarkEvidence.landmark_id; duplicate/competing original auto
+lineage independent of insertion order; and two clinically attested
+points on different images failing INVALID rather than producing FMA.
+No source image or actual patient used. No real images or patient records.
+
+### Adversarial technical review — 2026-11-10
+
+- Checked the four production-side call sites that materialize canonical V2
+  measurements: `cephalo_runtime_evidence.py`,
+  `cephalo_landmark_correction_evidence.py`,
+  `cephalo_calibration_evidence.py` and
+  `cephalo_auto_calibration_transition.py`. Each calls
+  `project_canonical_landmark_identities` before creating canonical V2
+  evidence. Historical V1 outputs remain a separate compatibility path.
+- Independently inspect exact-head
+  `cephalo_canonical_method_bridge.py`: historical
+  `TWEED_FMA_DEG_V1`, `TWEED_FMIA_DEG_V1`, legacy McNamara Co–A/Co–Gn
+  and Downs facial-angle V1 must not be silently promoted to the canonical
+  measurement ID without additional source evidence. The explicit
+  `TWEED_IMPA_DEG_V1` mapping is a previously versioned geometric
+  identity, **not an SRPose anatomical certification**.
+- The exported pure canonical V2 calculation function expects callers
+  to supply the *projected* scientific map. It is not itself a security
+  boundary against arbitrarily constructed raw LandmarkEvidence:
+  verify that every new production call site respects this precondition.
+  A future direct, unprojected call must trigger code review and tests.
+- Added runtime fail-closed guards against forged dictionary key/identity
+  mismatch and ambiguous duplicate automatic predecessor IDs; these were
+  not previously rejected. Test the controls on both Linux and
+  Windows 2022 GitHub-hosted runners.
+- Preserve the clinical gate: this adversarial technical review was
+  performed by the implementing assistant, **not an independent human
+  reviewer**, and is not an anatomic/clinical acceptance assessment.
 
 Dedicated CI (test-only):
 `.github/workflows/ceph-j1b1-canonical-identity-safety-lab.yml`.
 No model download, no remote clinical inference, no DB migration,
-no deployment.
+no deployment. The pure J1.B1 adversarial contract suite runs on both
+GitHub `ubuntu-latest` and `windows-2022`; broader backend integration
+runs on isolated Linux/SQLite. Existing native Windows SQLCipher and
+FUE-G04 workflows exercise encrypted persistence, crash replay and
+disposable backing stores, but **do not prove** an installed/signed
+Digital Crown Desktop executable, an actual clinic workstation or a
+real-patient restoration.
 
 ## HUMAN GATES / Integration blockers
 
