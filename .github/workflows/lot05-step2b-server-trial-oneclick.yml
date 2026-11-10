@@ -113,5 +113,7 @@ jobs:
             ${{ runner.temp }}/lot05-step2b-screen-after-eula-next-only.png
             ${{ runner.temp }}/lot05-step2b-after-destination-next-window-only.png
             ${{ runner.temp }}/lot05-step2b-after-install-finish-wizard-only.png
+            ${{ runner.temp }}/lot05-postinstall-last-setup.png
+            ${{ runner.temp }}/lot05-postinstall-last-server.png
           retention-days: 7
           if-no-files-found: warn
