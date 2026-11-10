@@ -1,0 +1,87 @@
+name: Cabinet release exact-master source preflight (NO PACKAGE) 2026-11-10
+
+# Diagnostic-only. The official Cabinet Certified Release workflow remains a
+# separate workflow_dispatch; this preflight MUST NOT produce any code release.
+on:
+  push:
+    branches:
+      - ci/cabinet-code-preflight-20261110
+    paths:
+      - .github/workflows/cabinet-code-preflight-20261110.yml
+
+permissions:
+  contents: read
+
+jobs:
+  read-only-preflight:
+    name: Frozen master SHA / safety contracts / NO_INSTALLABLE_GO
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: Checkout pinned master source, not diagnostic branch
+        uses: actions/checkout@v4
+        with:
+          ref: 027a82aca4cc37308f6323e759283c4ca0e45fad
+          persist-credentials: false
+
+      - name: Assert exact HEAD remains current master
+        shell: bash
+        run: |
+          set -euo pipefail
+          PINNED=027a82aca4cc37308f6323e759283c4ca0e45fad
+          test "$(git rev-parse HEAD)" = "$PINNED"
+          MASTER_NOW="$(git ls-remote origin refs/heads/master | cut -f1)"
+          test "$MASTER_NOW" = "$PINNED" || { echo "::error::STOP: master moved ($MASTER_NOW != $PINNED)"; exit 1; }
+          echo "MASTER_CURRENT_SHA=$MASTER_NOW"
+
+      - name: Assert certified workflow and immutable provenance contract without execution
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          w=Path('.github/workflows/cabinet-release-certification.yml').read_text(encoding='utf-8')
+          p=Path('docs/CABINET_CERTIFIED_RELEASE_POLICY.md').read_text(encoding='utf-8')
+          required={
+            'manual_only': 'workflow_dispatch:',
+            'exact_master': 'refs/heads/master',
+            'head_guard': 'CERTIFIED_SHA',
+            'master_guard': 'MASTER_SHA',
+            'required_jobs': 'needs: [preflight, backend, postgres18, frontend, legacy-standalone]',
+            'code_only_level': '"certification_level": "CODE_CERTIFIED"',
+            'no_installable_claim': '"installable": False',
+            'signed_manifest': 'actions/attest@v4',
+            'code_artifact': 'code-certified-',
+          }
+          missing=[name for name,marker in required.items() if marker not in w]
+          assert not missing, f"STOP: missing certified release source gates {missing}"
+          assert 'CODE_CERTIFIED' in p and 'INSTALLABLE_CERTIFIED' in p
+          assert 'CODE_CERTIFIED n’est pas installable.' in p, 'STOP: installable warning removed'
+          assert 'workflow_dispatch:' in w and '  push:' not in w, 'STOP: official certification must require manual dispatch'
+          print('OFFICIAL_CODE_CERT_SOURCE_CONTRACT=PASS', len(required), 'markers')
+          print('NO_PACKAGE_DISPATCH=TRUE')
+          PY
+
+      - name: Run read-only Queue LAB / installer safety preflight
+        shell: bash
+        run: |
+          set -euo pipefail
+          export PYTHONDONTWRITEBYTECODE=1
+          python -B scripts/v15_08_2_b_desktop_installable_preflight.py --expected-sha 027a82aca4cc37308f6323e759283c4ca0e45fad
+          python -B scripts/v15_08_2_b_desktop_installable_preflight.py --expected-sha 027a82aca4cc37308f6323e759283c4ca0e45fad --json | python -c "import json,sys; r=json.load(sys.stdin); assert len(r['source_checks'])==10 and r['source_status']=='PRESENT' and r['installable_ready'] is False and r['clinical_go'] is False; print('SOURCE_PRECHECK_10_10=PASS; NO_INSTALLABLE_GO=TRUE')"
+
+      - name: Certify five independent negative preflight tests
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check pytest==8.4.2
+          PYTHONDONTWRITEBYTECODE=1 python -B -m pytest -q -p no:cacheprovider queue_core/tests/test_installable_source_preflight_08_2_b.py
+
+      - name: No package and no patient data proof
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "027a82aca4cc37308f6323e759283c4ca0e45fad"
+          test ! -e dist/DigitalCrownSetup.exe
+          test ! -e installable-certification.json
+          echo "SOURCE_PINNED=027a82aca4cc37308f6323e759283c4ca0e45fad"
+          echo "SOURCE_ONLY_NO_PACKAGE=PASS"
+          echo "No clinical DB/files opened; no release or artifact uploaded."
