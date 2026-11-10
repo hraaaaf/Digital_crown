@@ -358,11 +358,11 @@ def test_auto_verified_success_does_not_require_clinician_confirmation(monkeypat
     ]
     assert ricketts_blocked, "synthetic auto landmarks must not imply anatomical identities"
     assert all(item["value"] is None for item in ricketts_blocked)
-    # SRPose-certified aliases Po_anatomic and Pog_hard permit A-Pog.
+    # An ONNX hash alone cannot certify Po/Pog anatomy or unlock A-Pog.
     by_method = {item["method_id"]: item for item in all_measurements}
     edge = by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]
-    assert edge["availability_status"] == "AVAILABLE"
-    assert edge["value"] is not None
+    assert edge["availability_status"] == "NOT_COMPUTABLE"
+    assert edge["value"] is None
     # Functional occlusal plane is absent: do not compute incisal extrusion.
     extrusion = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
     assert extrusion["availability_status"] == "NOT_COMPUTABLE"
