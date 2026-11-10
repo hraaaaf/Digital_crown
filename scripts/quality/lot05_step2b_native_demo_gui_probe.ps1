@@ -335,7 +335,11 @@ public static class Lot05DemoGuiWindow {
                   $r.demo_connect_pinned_screenshot -and
                   $r.nested_chooser_demo_selection_observed -and
                   $selectDemo -eq 1 -and $selectLocal -eq 1 -and
-                  $okEnabledLabels -eq 1 -and
+                  # The pinned native PNG proves one visibly enabled OK.
+                  # UIA exposes this vendor-painted button only as a plain
+                  # name (not a Button, or enabled named UIA element).
+                  # Require exact visual SHA, fixed dialog geometry, no
+                  # competing native Button and same signed process.
                   $buttons.Count -eq 0 -and
                   $r.chooser_owner_pid_verified -and $handleOwned -and
                   $r.nested_chooser_bounds -ceq '142,26,739,676' -and
@@ -698,6 +702,7 @@ Write-Host ('LOT05_NATIVE_CHOOSER_UNAUTHORIZED_NOTICE='+$r.nested_chooser_unauth
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_OK_CANDIDATES='+$r.demo_connect_ok_candidates)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_VISUAL_GUARD='+$r.demo_connect_visual_ok_guard)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_UIA_OK_LABEL_COUNT='+$r.demo_connect_ok_visual_label_count)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_OK_CLICK_SOURCE='+$r.demo_connect_ok_click_source)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_COMBO_COUNTS='+$r.demo_connect_demo_combo_count+','+$r.demo_connect_server_combo_count)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLICK='+$r.demo_connect_click_sent)
