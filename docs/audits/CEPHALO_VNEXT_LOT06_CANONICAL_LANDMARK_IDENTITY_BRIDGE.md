@@ -1,40 +1,83 @@
 # Cephalo LOT06 — canonical landmark identity bridge
 
-Status: IMPLEMENTATION CANDIDATE — fail-closed
+Status: **J1.B1 FAIL-CLOSED FIX CANDIDATE — DRAFT / NO MERGE / NONCLINICAL**
 
-## Decision
+## Technical safety finding
 
-Persisted legacy IDs `Po`, `Co`, `Gn`, `Pog` are not renamed.
+The legacy bridge allowed `Po → Po_anatomic`, `Co → Co_anatomic`
+and `Pog → Pog_hard` when it received a point carrying the *pinned
+SRPose38 model hash*. This establishes artifact provenance and
+numeric output parity, **not** that the neural channel refers to the
+named anatomical structure. The upstream checkpoint's MMPose labels
+are numeric `0..37`; the exact source-to-anatomy mapping is still
+classified `LEGACY_AUTO_UNVERIFIED`.
 
-For new scientific consumers, LOT06 may expose additive identities:
+This allowed unreviewed auto points to be projected to canonical
+identities and then consumed by calculations. The baseline test
+`test_certified_srpose_points_gain_only_source_locked_additive_identities`
+explicitly expected that behavior.
 
-- `Po → Po_anatomic`
-- `Co → Co_anatomic`
-- `Gn → Gn_anatomic`
-- `Pog → Pog_hard`
+## Proposed fail-closed candidate behavior (not activated)
 
-only when the point is produced by the exact certified SRPose38 model/pipeline, or
-when a manual revision has a previous certified SRPose38 observation of the same
-legacy point.
+- Preserve persisted legacy point IDs and all model/hash/ONNX metadata.
+- Keep `Po_anatomic`, `Co_anatomic`, `Pog_hard` aliases **disabled**
+  for any SRPose38 AUTO point, even if its hash is correct.
+- Permit an alias only when the legacy point is **MANUAL** and
+  `EvidenceStatus.CLINICIAN_VALIDATED` with operator ID and timezone-aware
+  validation timestamp; the same requirement applies to
+  `MANUAL_CORRECTED`.
+- Additionally require corrected points to reference the same ID,
+  same image, pinned numerical SRPose model provenance and unchanged
+  original auto coordinates (within 1e-6 px) through the previous
+  observation. Direct manual clinician attestations need no previous
+  automated point.
+- Reject canonical IDs supplied directly without clinician attestation,
+  including explicit-only `Gn_anatomic` / `Pt_Ricketts`, rather than
+  silently passing through unreviewed names.
+- Keep legacy/canonical collision errors and `Gn_anatomic` and
+  `Pt_Ricketts` explicit-only.
+- Dependent analyses may now become `NOT_COMPUTABLE` when their only
+  source is an unvalidated automatically named point. This is the
+  intended safe failure, **not a new clinically validated diagnosis**.
 
-## Evidence boundary
+## Proportional technical tests
 
-The SRPose38/DC contract fixes the channel names and Digital Crown mapping.
-Peer-reviewed cephalometric landmark literature independently defines:
+File: `backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py`
 
-- Porion as the superior/upper margin of the external auditory meatus;
-- Condylion as the posterosuperior point of the mandibular condyle;
-- Gnathion as an anteroinferior/midpoint bony-chin landmark depending on the
-  operational atlas, which must remain anatomic and never be substituted for a
-  constructed Gn;
-- Pogonion as the most anterior point of the bony chin/symphysis.
+10 synthetic pytest cases cover: auto hash never sufficient; spoofed
+clinical status on AUTO; missing clinician review; three explicit
+manual canonical aliases; precise same-ID/image/original-coordinate
+binding of corrections; wrong model SHA; unavailable and timezone-naive
+evidence; direct canonical injection; manually attested explicit
+canonical point; collision. No real images or patient records.
 
-Therefore this bridge binds identity class only. It does not authorize a machine
-porion, constructed Gn, soft-tissue Pog, or any analysis-specific alternative.
+Dedicated CI (test-only):
+`.github/workflows/ceph-j1b1-canonical-identity-safety-lab.yml`.
+No model download, no remote clinical inference, no DB migration,
+no deployment.
 
-## Compatibility
+## HUMAN GATES / Integration blockers
 
-Historical records retain their original IDs. A generic legacy point with no
-certified provenance remains generic and cannot satisfy a canonical consumer.
+1. The isolated tests **do not prove** complete downstream workflow
+   integration; the bridge is used by runtime evidence,
+   manual corrections, calibration and downstream measure builders.
+2. Before merging, run the broader integration/longitudinal/backup
+   test suite on identical HEAD and inspect whether historical cases
+   remain readable and genuinely non-evaluable calculations block
+   instead of falling back to legacy aliases.
+3. Independent technical review and clinical safety review are
+   required for this behavior change; **no direct merge, no
+   production deployment, no patient data in tests**.
+4. Scientific mapping J1.B1 remains `SOURCE_LOCK_REQUIRED` pending
+   external, authoritative evidence; passing CI cannot lift it.
 
-This bridge is additive evidence projection, not data migration.
+## Source evidence
+
+- Frozen runtime contract:
+  `backend/services/srpose38_contract.py`.
+- Source checkpoint:
+  `5k5000/CLdetection2023@18d17d1934970016e7610c4849311900b8d1f191`,
+  `mmpose_package/mmpose/configs/_base_/datasets/cephalometric.py`
+  (numeric names `0..37`).
+- Prior audit:
+  `docs/audits/CEPHALO_SRPOSE38_PROVENANCE.md`.
