@@ -10,6 +10,7 @@ on:
       - backend/services/vision_service.py
       - backend/services/cephalo_service.py
       - backend/tests/test_cephalo_runtime_activation_gate.py
+      - scripts/check_lazy_pytorch_contract.py
       - docs/quality/V15_08_2_I_CEPHALO_EMBEDDED_FAILCLOSED_GATE.md
   pull_request:
     paths:
@@ -20,6 +21,7 @@ on:
       - backend/services/vision_service.py
       - backend/services/cephalo_service.py
       - backend/tests/test_cephalo_runtime_activation_gate.py
+      - scripts/check_lazy_pytorch_contract.py
       - docs/quality/V15_08_2_I_CEPHALO_EMBEDDED_FAILCLOSED_GATE.md
 permissions:
   contents: read
@@ -40,7 +42,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Exact immutable base master and only eight additive safety files
+      - name: Exact immutable base master and only nine additive safety files
         shell: bash
         run: |
           set -euo pipefail
@@ -57,11 +59,12 @@ jobs:
           backend/services/vision_service.py
           backend/tests/test_cephalo_runtime_activation_gate.py
           docs/quality/V15_08_2_I_CEPHALO_EMBEDDED_FAILCLOSED_GATE.md
+          scripts/check_lazy_pytorch_contract.py
           EOF
           diff -u expected.txt actual.txt
           test ! -e backend/ai_models/srpose38-tta-1024.onnx
           test ! -e dist/DigitalCrownSetup.exe
-          echo "LOT08I_EXACT_EIGHT_FILE_NO_MODEL_NO_INSTALLER_SCOPE_PASS"
+          echo "LOT08I_EXACT_NINE_FILE_NO_MODEL_NO_INSTALLER_SCOPE_PASS"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
