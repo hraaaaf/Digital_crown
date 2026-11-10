@@ -2,7 +2,7 @@ name: LOT05 Step2B — Actual Embedded Open Dental Setup First Window Only
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     branches: [master]
     paths:
       - '.github/workflows/lot05-step2b-inner-setup-window-oneshot.yml'
