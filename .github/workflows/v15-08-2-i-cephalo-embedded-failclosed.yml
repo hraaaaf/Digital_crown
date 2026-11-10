@@ -115,7 +115,7 @@ jobs:
         env:
           ENVIRONMENT: test
           DIGITALCROWN_ISOLATED_RUNTIME: '1'
-          DATABASE_URL: sqlite:///:memory:
+          DATABASE_URL: 'sqlite:///:memory:'
         run: |
           set -euo pipefail
           python - <<'PY'
@@ -137,7 +137,7 @@ jobs:
     timeout-minutes: 50
     env:
       ENVIRONMENT: test
-      DATABASE_URL: sqlite:///:memory:
+      DATABASE_URL: 'sqlite:///:memory:'
       DIGITALCROWN_ISOLATED_RUNTIME: 'true'
       SECRET_KEY: lot08i-synthetic-test-no-patient-secret-only
       TELEMETRY_ENABLED: 'false'
