@@ -56,6 +56,10 @@ $r=[ordered]@{
   nested_chooser_unauthorized_notice_observed=$false
   demo_connect_attempted=$false
   demo_connect_ok_candidates=0
+  demo_connect_button_evidence=@()
+  demo_connect_demo_combo_count=0
+  demo_connect_server_combo_count=0
+  demo_connect_form_authorization_blocked=$false
   demo_connect_pinned_screenshot=$false
   demo_connect_ok_pid_and_geometry=$false
   demo_connect_ok_foreground_verified=$false
@@ -299,11 +303,24 @@ public static class Lot05DemoGuiWindow {
                   $t=[string]$ctl.Current.ControlType.ProgrammaticName
                   if($t -eq 'ControlType.ComboBox' -and $n -ceq 'demo'){$selectDemo++}
                   if($t -eq 'ControlType.ComboBox' -and $n -match '^Server Name:'){$selectLocal++}
-                  if($t -eq 'ControlType.Button' -and $n -ceq 'OK' -and $ctl.Current.IsEnabled){
-                    $buttons.Add($ctl)
+                  if($t -eq 'ControlType.Button'){
+                    $cb=$ctl.Current.BoundingRectangle
+                    if($r.demo_connect_button_evidence.Count -lt 8){
+                      # Log only button metadata; never input fields/passwords.
+                      $r.demo_connect_button_evidence+=,@{
+                        name=$n
+                        enabled=[bool]$ctl.Current.IsEnabled
+                        same_owner=([int]$ctl.Current.ProcessId -eq $pidHere)
+                        bounds=("$([int]$cb.X),$([int]$cb.Y),$([int]$cb.Width),$([int]$cb.Height)")
+                      }
+                    }
+                    if($n -ceq 'OK' -and $ctl.Current.IsEnabled){$buttons.Add($ctl)}
                   }
                 }
                 $r.demo_connect_ok_candidates=$buttons.Count
+                $r.demo_connect_demo_combo_count=$selectDemo
+                $r.demo_connect_server_combo_count=$selectLocal
+                $r.demo_connect_form_authorization_blocked=$r.nested_chooser_unauthorized_notice_observed
                 if($r.demo_connect_pinned_screenshot -and
                    $r.nested_chooser_demo_selection_observed -and
                    $selectDemo -eq 1 -and $selectLocal -eq 1 -and
@@ -646,6 +663,8 @@ Write-Host ('LOT05_NATIVE_NESTED_CHOOSER_HWND='+$r.nested_chooser_hwnd_present)
 Write-Host ('LOT05_NATIVE_DEMO_SELECTION_SEEN='+$r.nested_chooser_demo_selection_observed)
 Write-Host ('LOT05_NATIVE_CHOOSER_UNAUTHORIZED_NOTICE='+$r.nested_chooser_unauthorized_notice_observed)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_OK_CANDIDATES='+$r.demo_connect_ok_candidates)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_COMBO_COUNTS='+$r.demo_connect_demo_combo_count+','+$r.demo_connect_server_combo_count)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLICK='+$r.demo_connect_click_sent)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLOSED='+$r.demo_connect_dialog_closed_observed)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_POST_WINDOWS='+($r.demo_connect_post_dialog_names -join ';'))
