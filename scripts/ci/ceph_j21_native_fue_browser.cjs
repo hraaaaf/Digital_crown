@@ -122,7 +122,7 @@ async function main() {
       if(x!==46)throw Error('Scene not persisted through native executable restart');
       await shot('REOPENED-1280',1280);
     }
-    const audit=await page.evaluate(async ({patientId,studyId,assetId})=>{
+    const audit=await page.evaluate(async ({patientId,studyId,assetId,patientB,patientX})=>{
       const token=localStorage.getItem('token');
       if(!token)throw Error('No JWT stored in isolated browser');
       const auth={Authorization:'Bearer '+token};
@@ -134,9 +134,48 @@ async function main() {
       const digest=Array.from(new Uint8Array(hash),x=>x.toString(16).padStart(2,'0')).join('');
       const anon=await fetch(`/api/ia/analyses/${studyId}/premium-scene-fue?patient_id=${patientId}`,{credentials:'omit'});
       const wrong=await fetch(`/api/ia/analyses/${studyId}/premium-scene-fue?patient_id=999999`,{headers:auth});
+      // FUE A/B/X: authenticated owner A must not be able to bind study A to
+      // another patient B, while independent dentist X must be rejected.
+      const patientBReply=await fetch(
+        `/api/ia/analyses/${studyId}/premium-scene-fue?patient_id=${patientB}`,
+        {headers:auth,credentials:'omit'}
+      );
+      const outsiderForm=new URLSearchParams({
+        username:'j21-native-fue-outsider@cabinet.invalid',
+        password:'TestPass123!',
+      });
+      const outsiderLogin=await fetch('/api/auth/login',{
+        method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+        body:outsiderForm,credentials:'omit'
+      });
+      const outsiderData=await outsiderLogin.json();
+      if(outsiderLogin.status!==200||!outsiderData.access_token)
+        throw Error('Synthetic outsider JWT login failed in A/B/X FUE');
+      const outsiderAuth={Authorization:'Bearer '+outsiderData.access_token};
+      const outsiderRead=await fetch(
+        `/api/ia/analyses/${studyId}/premium-scene-fue?patient_id=${patientId}`,
+        {headers:outsiderAuth,credentials:'omit'}
+      );
+      const forgedXPatient=await fetch(
+        `/api/ia/analyses/${studyId}/premium-scene-fue?patient_id=${patientX}`,
+        {headers:outsiderAuth,credentials:'omit'}
+      );
+      // The exact already-committed revision 2 must never be accepted twice.
+      const staleReplay=await fetch(
+        `/api/ia/analyses/${studyId}/premium-scene-fue`,{
+          method:'POST',
+          headers:{...auth,'Content-Type':'application/json'},
+          credentials:'omit',
+          body:JSON.stringify({scene:scene.scene,expected_parent_sha256:scene.scene.identity.parent_scene_sha256})
+        }
+      );
       return {
         scene_http:sceneResp.status,media_http:fileResp.status,
         anon_http:anon.status,wrong_patient_http:wrong.status,
+        same_cabinet_other_patient_http:patientBReply.status,
+        outsider_read_http:outsiderRead.status,
+        outsider_wrong_study_http:forgedXPatient.status,
+        stale_cas_replay_http:staleReplay.status,
         scene_sha256:scene.scene_sha256,revision:scene.scene_revision,
         edited_point:scene.scene.landmarks.find(p=>p.id==='A'),point_count:scene.scene.landmarks.length,
         original_sha256:scene.scene.identity.original_sha256,
@@ -146,12 +185,19 @@ async function main() {
         desktop_fue_verified:scene.desktop_fue_verified,
         measurements:scene.scene.measurements.map(m=>({id:m.id,status:m.status,value:m.value}))
       };
-    },{patientId:fixture.patient_id,studyId:fixture.study_id,assetId:fixture.asset_id});
+    },{
+      patientId:fixture.patient_id,studyId:fixture.study_id,assetId:fixture.asset_id,
+      patientB:fixture.patient_b_id,patientX:fixture.patient_x_id,
+    });
     Object.assign(report,{audit,scene_sha256:audit.scene_sha256,status:'PASS'});
     if(!report.actual_digital_crown_shell?.real_workspace)
       throw Error('FUE_REPORT_MISSING_GENUINE_SHELL_PROOF');
     if(audit.scene_http!==200||audit.media_http!==200||audit.anon_http!==401
        ||![403,404].includes(audit.wrong_patient_http)
+       ||audit.same_cabinet_other_patient_http!==404
+       ||audit.outsider_read_http!==403
+       ||![403,404].includes(audit.outsider_wrong_study_http)
+       ||audit.stale_cas_replay_http!==409
        ||audit.point_count!==38||audit.revision!==2||audit.edited_point?.x!==46
        ||audit.edited_point?.origin!=='PRACTITIONER_EDIT'
        ||audit.actual_original_sha256!==fixture.original_sha256
