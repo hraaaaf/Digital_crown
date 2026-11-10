@@ -332,3 +332,35 @@ def test_concurrent_revoke_cannot_commit_before_in_flight_authorized_command(loc
         assert len(s.scalars(select(QueueEventRecord).where(
             QueueEventRecord.visit_ref == "V1",
         )).all()) == 3
+
+
+def test_08_3_atomic_plan_guard_rejects_tampered_event_without_sql_write(local, monkeypatch):
+    """Real protected SQLite/auth transaction: malformed domain plan = zero writes."""
+    from dataclasses import replace
+    from sqlalchemy import func
+    from queue_core.service import authorized_queue as command_module
+
+    _, _, _, reception, _, _, _, svc, engine = local
+    real_check_in = command_module.check_in
+
+    def poisoned_check_in(*args, **kwargs):
+        valid = real_check_in(*args, **kwargs)
+        corrupted = replace(valid.events[1], tenant_id="CROSS_TENANT")
+        return replace(valid, events=(valid.events[0], corrupted))
+
+    monkeypatch.setattr(command_module, "check_in", poisoned_check_in)
+    with pytest.raises(QueueDomainError, match="ATOMIC_PLAN_EVENT_MISMATCH"):
+        svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+
+    with Session(engine) as session:
+        row = session.get(QueueVisitRecord, "V1")
+        assert row.status == "PLANNED" and row.version == 0
+        assert row.arrival_confirmed_at_utc is None
+        assert session.scalar(select(func.count()).select_from(QueueEventRecord)) == 0
+
+    # A later valid command must still succeed after the abort.
+    monkeypatch.setattr(command_module, "check_in", real_check_in)
+    valid = svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+    assert valid.status == "WAITING" and valid.version == 2
+    with Session(engine) as session:
+        assert session.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
