@@ -85,6 +85,16 @@ def project_canonical_landmark_identities(
     projected = dict(landmarks)
     previous_auto = {item.landmark_id: item for item in previous_auto_landmarks}
 
+    # Reject pre-labelled canonical inputs that lack human attestation as well.
+    # This prevents an automatic point arriving under a canonical ID directly.
+    canonical_ids = set(CANONICAL_LANDMARK_ALIASES.values())
+    canonical_ids.update(EXPLICIT_ONLY_CANONICAL_IDENTITIES)
+    for canonical_id in canonical_ids.intersection(landmarks):
+        if not _is_explicitly_clinician_attested(landmarks[canonical_id]):
+            raise CanonicalLandmarkIdentityError(
+                f"Unreviewed canonical identity {canonical_id} is not allowed"
+            )
+
     for legacy_id, canonical_id in CANONICAL_LANDMARK_ALIASES.items():
         item = landmarks.get(legacy_id)
         if item is None:
