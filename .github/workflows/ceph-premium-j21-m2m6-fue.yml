@@ -11,6 +11,7 @@ on:
       - backend/schemas/cephalo_premium_scene_contract.py
       - backend/tests/test_ceph_premium_j21m1_scene_contract.py
       - backend/tests/test_ceph_premium_j21_m2m5_lab.py
+      - backend/tests/test_ceph_j21_m4_real_jwt_fue.py
       - scripts/ceph_premium_j21_m6_lab_preview.py
       - .github/workflows/ceph-premium-j21-m2m6-fue.yml
   workflow_dispatch:
@@ -161,5 +162,77 @@ jobs:
         with:
           name: ceph-premium-j21-m2m6-lab-${{ github.event.pull_request.head.sha || github.sha }}
           path: artifacts/ceph-j21-m2m6/
+          if-no-files-found: warn
+          retention-days: 7
+
+
+  m4-real-jwt-encrypted-source-fue:
+    name: M4 real HTTP JWT + AES-GCM source FUE (synthetic only)
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      DATABASE_URL: 'sqlite:///:memory:'
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DC_DOS05_FUE_ONLY: '1'
+      CABINET_MASTER_KEY_HEX: '0000000000000000000000000000000000000000000000000000000000000000'
+      SECRET_KEY: ceph-j21-m4-synthetic-jwt-only-test-key-20261110
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Assert exact HEAD and no production media-router wiring
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          python - <<'PY'
+          from pathlib import Path
+          code=Path('backend/routers/__init__.py').read_text(encoding='utf8')
+          assert 'cephalo_study_media_binding' not in code
+          print('M4_ISOLATED_ROUTER_ONLY_PASS')
+          PY
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install isolated backend FUE dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/m4-fue-dependencies.txt
+          pip install -r /tmp/m4-fue-dependencies.txt
+          python -m pip check
+      - name: Synthetic real FastAPI JWT, encrypted on-disk original, tamper denial and A/B/X security regression
+        run: |
+          mkdir -p artifacts/ceph-j21-m4-auth
+          python -m pytest -q --tb=short --maxfail=1 -o addopts='' \
+            backend/tests/test_ceph_j21_m4_real_jwt_fue.py \
+            backend/tests/test_dc_dos05_study_media_fue.py \
+            --junitxml=artifacts/ceph-j21-m4-auth/pytest-junit.xml
+      - name: Assert 2 tests passed on this exact HEAD and document hold
+        run: |
+          python - <<'PY'
+          import json, os, xml.etree.ElementTree as ET
+          from pathlib import Path
+          p=Path('artifacts/ceph-j21-m4-auth/pytest-junit.xml')
+          root=ET.parse(p).getroot()
+          suites=[root] if root.tag=='testsuite' else list(root.findall('.//testsuite'))
+          assert sum(int(x.get('tests','0')) for x in suites)==2
+          assert sum(int(x.get('failures','0'))+int(x.get('errors','0'))+int(x.get('skipped','0')) for x in suites)==0
+          report={'head':os.environ['PRODUCT_HEAD'],'case_id':'CEPH-J21-M4',
+                  'tests_passed':2,'synthetic_only':True,'real_http_jwt':True,
+                  'encrypted_original_tamper_denied':True,'patient_b_cabinet_x_refused':True,
+                  'desktop_fue_complete':False,'clinical_release':False,
+                  'production_router_mounted':False,'migration_executed':False}
+          (p.parent/'m4-fue-report.json').write_text(json.dumps(report,sort_keys=True,indent=2),encoding='utf8')
+          print('CEPH_J21_M4_REAL_JWT_ENCRYPTED_SOURCE_API_PASS_DESKTOP_HOLD')
+          PY
+      - name: Publish synthetic M4 API evidence (never clinical media)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-m4-real-jwt-${{ github.event.pull_request.head.sha || github.sha }}
+          path: artifacts/ceph-j21-m4-auth/
           if-no-files-found: warn
           retention-days: 7
