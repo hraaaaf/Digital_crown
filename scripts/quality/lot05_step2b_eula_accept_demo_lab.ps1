@@ -105,6 +105,16 @@ $r=[ordered]@{
   destination_following_screen_sha256=$null
   ready_to_install_exact_png_verified=$false
   install_button_candidates=0
+  install_back_candidates=0
+  install_cancel_candidates=0
+  install_owner_pid_verified=$false
+  install_button_bounds_verified=$false
+  install_button_rel_x=-1
+  install_button_rel_y=-1
+  install_geometry_gate_passed=$false
+  install_foreground_verified=$false
+  install_cursor_moved=$false
+  install_cursor_hit_exact_button=$false
   install_click_attempted=$false
   install_click_sent=$false
   install_physical_events_sent=0
@@ -417,32 +427,45 @@ try{
                   }
                   $null=[Lot05CaptureSignedWindow]::EnumChildWindows($parent,$cb,[IntPtr]::Zero)
                   $r.install_button_candidates=$installButtons.Count
+                  $r.install_back_candidates=$backCount
+                  $r.install_cancel_candidates=$cancelCount
                   if($installButtons.Count -eq 1 -and $backCount -eq 1 -and $cancelCount -eq 1){
                     $button=$installButtons[0]
                     $pidButton=[uint32]0
                     $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($button,[ref]$pidButton)
+                    $r.install_owner_pid_verified=([int]$pidButton -eq $winPid)
                     $wr=New-Object Lot05CaptureSignedWindow+Rect
                     $br=New-Object Lot05CaptureSignedWindow+Rect
                     if([int]$pidButton -eq $winPid -and
                        [Lot05CaptureSignedWindow]::GetWindowRect($parent,[ref]$wr) -and
                        [Lot05CaptureSignedWindow]::GetWindowRect($button,[ref]$br)){
+                      $r.install_button_bounds_verified=$true
                       $ww=$wr.Right-$wr.Left
                       $hh=$wr.Bottom-$wr.Top
                       $cx=[int][Math]::Floor(($br.Left+$br.Right)/2)
                       $cy=[int][Math]::Floor(($br.Top+$br.Bottom)/2)
                       $rx=($cx-$wr.Left)/[double]$ww
                       $ry=($cy-$wr.Top)/[double]$hh
+                      $r.install_button_rel_x=[Math]::Round($rx,3)
+                      $r.install_button_rel_y=[Math]::Round($ry,3)
+                      $r.install_geometry_gate_passed=($ww -ge 480 -and $ww -le 700 -and
+                         $hh -ge 360 -and $hh -le 500 -and
+                         $rx -gt 0.62 -and $rx -lt 0.82 -and $ry -gt 0.87 -and $ry -lt 0.97)
                       if($ww -ge 480 -and $ww -le 700 -and $hh -ge 360 -and $hh -le 500 -and
                          $rx -gt 0.62 -and $rx -lt 0.82 -and $ry -gt 0.87 -and $ry -lt 0.97){
                         $null=[Lot05CaptureSignedWindow]::SetForegroundWindow($parent)
                         Start-Sleep -Milliseconds 230
-                        if([Lot05CaptureSignedWindow]::GetForegroundWindow() -eq $parent -and
-                           [Lot05CaptureSignedWindow]::SetCursorPos($cx,$cy)){
+                        $r.install_foreground_verified=([Lot05CaptureSignedWindow]::GetForegroundWindow() -eq $parent)
+                        if($r.install_foreground_verified){
+                          $r.install_cursor_moved=[Lot05CaptureSignedWindow]::SetCursorPos($cx,$cy)
+                        }
+                        if($r.install_foreground_verified -and $r.install_cursor_moved){
                           Start-Sleep -Milliseconds 100
                           $pt=New-Object Lot05CaptureSignedWindow+Pt
                           $pt.X=$cx
                           $pt.Y=$cy
-                          if([Lot05CaptureSignedWindow]::WindowFromPoint($pt) -eq $button){
+                          $r.install_cursor_hit_exact_button=([Lot05CaptureSignedWindow]::WindowFromPoint($pt) -eq $button)
+                          if($r.install_cursor_hit_exact_button){
                             $r.install_click_attempted=$true
                             [Lot05CaptureSignedWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
                             $r.install_physical_events_sent=1
@@ -887,6 +910,16 @@ Write-Host ('LOT05_DESTINATION_NEW_SCREEN='+$r.destination_following_screen_capt
 Write-Host ('LOT05_DESTINATION_NEW_SCREEN_TITLE='+$r.destination_following_screen_title)
 Write-Host ('LOT05_INSTALL_READY_PAGE_PINNED='+$r.ready_to_install_exact_png_verified)
 Write-Host ('LOT05_INSTALL_BUTTON_CANDIDATES='+$r.install_button_candidates)
+Write-Host ('LOT05_INSTALL_BACK_CANDIDATES='+$r.install_back_candidates)
+Write-Host ('LOT05_INSTALL_CANCEL_CANDIDATES='+$r.install_cancel_candidates)
+Write-Host ('LOT05_INSTALL_OWNER_PID_VERIFIED='+$r.install_owner_pid_verified)
+Write-Host ('LOT05_INSTALL_BUTTON_BOUNDS_VERIFIED='+$r.install_button_bounds_verified)
+Write-Host ('LOT05_INSTALL_BUTTON_REL_X='+$r.install_button_rel_x)
+Write-Host ('LOT05_INSTALL_BUTTON_REL_Y='+$r.install_button_rel_y)
+Write-Host ('LOT05_INSTALL_GEOMETRY_GATE='+$r.install_geometry_gate_passed)
+Write-Host ('LOT05_INSTALL_FOREGROUND='+$r.install_foreground_verified)
+Write-Host ('LOT05_INSTALL_CURSOR_MOVED='+$r.install_cursor_moved)
+Write-Host ('LOT05_INSTALL_CURSOR_HIT_EXACT='+$r.install_cursor_hit_exact_button)
 Write-Host ('LOT05_INSTALL_CLICK_SENT='+$r.install_click_sent)
 Write-Host ('LOT05_INSTALL_APP_EXE_PRESENT='+$r.installed_exe_present)
 Write-Host ('LOT05_INSTALL_APP_EXE_SIGNED_STATUS='+$r.installed_exe_authenticode_status)
