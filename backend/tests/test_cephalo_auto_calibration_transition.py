@@ -200,25 +200,49 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
         "MCNAMARA_CO_GN_MM_V1",
         "MCNAMARA_ANS_ME_MM_V1",
     }.issubset(mcnamara_methods)
+    # A completely absent Co_anatomic + Gn_anatomic pair produces NO typed
+    # evidence. The UI/reference adapter must show NOT_COMPUTABLE, not a
+    # fabricated clinical value or zero-evidence measurement.
     assert {
         "MCNAMARA_CO_A_CANONICAL_MM_V2",
-        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
         "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
         "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
     }.issubset(mcnamara_methods)
+    assert "MCNAMARA_CO_GN_CANONICAL_MM_V2" not in mcnamara_methods
     assert all(item["requires_calibration"] is True for item in mcnamara)
-    blocked_co_gn = next(
+    canonical_mcnamara = [
         item for item in mcnamara
-        if item["method_id"] == "MCNAMARA_CO_GN_CANONICAL_MM_V2"
-    )
-    assert blocked_co_gn["calibration_ref"] is None
-    assert blocked_co_gn["value"] is None
-    available_mcnamara = [
-        item for item in mcnamara
-        if item["method_id"] != "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+        if item["method_id"].endswith("_CANONICAL_MM_V2")
     ]
-    assert all(item["calibration_ref"] == source["evidence_id"] for item in available_mcnamara)
-    assert all(item["value"] is not None for item in available_mcnamara)
+    assert canonical_mcnamara
+    assert all(
+        item["availability_status"] == "NOT_COMPUTABLE"
+        and item["value"] is None
+        and item["calibration_ref"] is None
+        for item in canonical_mcnamara
+    )
+    legacy_mcnamara = [
+        item for item in mcnamara
+        if not item["method_id"].endswith("_CANONICAL_MM_V2")
+    ]
+    assert legacy_mcnamara
+    assert all(item["calibration_ref"] == source["evidence_id"] for item in legacy_mcnamara)
+    assert all(item["value"] is not None for item in legacy_mcnamara)
+    from backend.services.cephalo_canonical_method_bridge import project_canonical_measurements
+    from backend.services.cephalo_protocol_projection import project_mcnamara_reference_protocol
+
+    canonical = project_canonical_measurements(
+        __import__("backend.schemas.cephalo_evidence", fromlist=["MeasurementEvidence"])
+        .MeasurementEvidence.model_validate(raw)
+        for raw in mcnamara
+    )["measurements"]
+    co_gn_row = next(
+        row for row in project_mcnamara_reference_protocol(canonical)["rows"]
+        if row["canonical_measurement_id"] == "M_CO_GN_ANATOMIC_MM_V1"
+    )
+    assert co_gn_row["availability_status"] == "NOT_COMPUTABLE"
+    assert co_gn_row["value"] is None
+    assert co_gn_row["measurement_refs"] == []
 
 
 def test_auto_calibration_preserves_corrected_landmark_and_current_refs_exactly():
