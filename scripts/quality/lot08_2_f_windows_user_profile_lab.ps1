@@ -56,13 +56,12 @@ try {
     if ($ownerReport.process_user_sid_verified -ne $true -or $ownerReport.synthetic_files_created_under_user_token -ne 3) {
         throw 'REAL_USER_TOKEN_OR_SQLITE_OWNERSHIP_FAILED'
     }
+    # Do not change ACL on an OPEN SQLite file: it is owned by the active
+    # standard-user process. The parent folder has an explicit owner/admin/SYSTEM
+    # DACL. Actual access denial is probed with guest token + Win32 CreateFileW.
     foreach ($name in @('auth-synthetic.sqlite','devices-synthetic.sqlite','queue-synthetic.sqlite')) {
         $p = Join-Path $root $name
         if (-not (Test-Path -LiteralPath $p -PathType Leaf)) { throw 'OWNER_CREATED_SQLITE_MISSING' }
-        & icacls.exe $p /inheritance:r | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw 'USER_DB_INHERITANCE_FAILED' }
-        & icacls.exe $p /grant:r '*S-1-5-18:F' '*S-1-5-32-544:F' ("*" + $ownerSid + ':M') | Out-Null
-        if ($LASTEXITCODE -ne 0) { throw 'USER_DB_GRANT_FAILED' }
     }
     & python.exe $source expect-refusal $root $clone COLD_SNAPSHOT_REQUIRES_STOPPED_OWNER
     if ($LASTEXITCODE -ne 0) { throw 'ACTIVE_OWNER_MUST_DENY_RESTORE' }
@@ -131,8 +130,18 @@ print("REAL_ACTIVE_USER_SQLITE_WRITER_LOCK=PASS")
     Remove-Item Env:DC08F_GUEST_PASSWORD -ErrorAction SilentlyContinue
     if ($guestCreated) { Remove-LocalUser -Name $guest -ErrorAction SilentlyContinue }
     if ($ownerCreated) { Remove-LocalUser -Name $owner -ErrorAction SilentlyContinue }
+    # The ephemeral owner created SQLite files under a restrictive DACL.
+    # Reclaim rights solely inside the random ProgramData fixture after
+    # stopping its process; never apply these commands to product paths.
+    if (Test-Path -LiteralPath $root) {
+        & takeown.exe /F $root /R /D Y | Out-Null
+        & icacls.exe $root /grant '*S-1-5-32-544:(OI)(CI)F' /T /C | Out-Null
+    }
     foreach ($p in @($root,$clone)) {
-        if (Test-Path -LiteralPath $p) { Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue }
+        for ($retry = 0; $retry -lt 8 -and (Test-Path -LiteralPath $p); $retry++) {
+            Remove-Item -LiteralPath $p -Recurse -Force -ErrorAction SilentlyContinue
+            if (Test-Path -LiteralPath $p) { Start-Sleep -Milliseconds 250 }
+        }
         if (Test-Path -LiteralPath $p) { throw 'DISPOSABLE_WINDOWS_LAB_CLEANUP_FAILED' }
     }
 }
