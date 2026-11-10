@@ -1,0 +1,59 @@
+name: LOT08.2-D QR atomic 3-lock FUE-I LAB 2026-11-10
+
+on:
+  push:
+    branches:
+      - feat/v15-08-2-d-qr-atomic-lab-20261110
+    paths:
+      - queue_core/**
+      - .github/workflows/v15-08-2-d-qr-join-lab-20261110.yml
+
+permissions:
+  contents: read
+
+jobs:
+  qr-atomic-joined-lab:
+    name: Auth+Device+Queue locks / QR one-use / revoke race / rollback
+    runs-on: ubuntu-latest
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Assert exact source and strictly LAB non-installable conditions
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_HEAD=$GITHUB_SHA"
+          echo "NO_REAL_PATIENT=TRUE"
+          echo "NO_INSTALLABLE_GO=TRUE"
+          test ! -e dist/DigitalCrownSetup.exe
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install bounded Queue Core test dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+          'fastapi==0.115.6' 'starlette==0.41.3'
+          'pydantic==2.6.3' 'httpx==0.28.1' 'anyio==4.12.1'
+      - name: FUE-I joined QR and three lock concurrent negative cases
+        run: >-
+          python -m pytest -q
+          queue_core/tests/test_kiosk_qr_lab_08_2_d.py
+          --maxfail=1 --junitxml=qr-join-fue.xml
+      - name: Full Queue Core regression LAB isolated
+        run: >-
+          python -m pytest -q queue_core/tests
+          --maxfail=1 --junitxml=qr-join-regression.xml
+      - name: Archive synthetic FUE proofs only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: v15-08-2-d-qr-join-fue-junit
+          path: |
+            qr-join-fue.xml
+            qr-join-regression.xml
+          if-no-files-found: warn
+          retention-days: 14
