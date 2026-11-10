@@ -508,8 +508,12 @@ jobs:
           $env:CEPH_J21_NATIVE_FUE_ONLY='DISABLED'
           try {
             & $exe initialize
-            if ($LASTEXITCODE -eq 0) { throw 'FUE_EXECUTABLE_ACCEPTED_MISSING_GATE' }
+            $deniedExitCode=$LASTEXITCODE
+            if ($deniedExitCode -eq 0) { throw 'FUE_EXECUTABLE_ACCEPTED_MISSING_GATE' }
             if (Test-Path $env:CEPH_J21_FUE_PROFILE) { throw 'WRONG_GATE_CREATED_FILES' }
+            # A non-zero exit is the expected safety refusal. pwsh otherwise
+            # propagates the last native command's exit code to GitHub Actions.
+            $global:LASTEXITCODE=0
           } finally { $env:CEPH_J21_NATIVE_FUE_ONLY=$old }
           Write-Output 'NONCLINICAL_EXE_FAIL_CLOSED_PASS'
       - name: Initialize disposable synthetic app DB, JWT owner and encrypted radio
