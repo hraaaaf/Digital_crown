@@ -6,6 +6,16 @@
 
 # STATE — DigitalCrown
 
+## LOT08.2-G — 2026-11-10 20:40 UTC — CABINET CERTIFIED RELEASE OFFICIEL DÉCLENCHÉ, EN COURS
+
+**Résultat vérifié** : après action manuelle du propriétaire, [workflow_dispatch #42897412850](https://github.com/hraaaaf/Digital_crown/actions/runs/42897412850) créé le 10 novembre 2026 à 20:39:20 UTC sur **master exact bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4**, attempt 1, status in_progress. Branche master inchangée.
+
+**Premiers jobs :** Exact immutable master HEAD SUCCESS ; Independent 14-script PostgreSQL 18 legacy-migration gate SUCCESS ; Backend full certification, PostgreSQL 18 upgrade + preservation et Frontend tests + production build encore en cours. Zéro artefact listé lors du contrôle initial. Cela ne prouve **pas** encore CODE_CERTIFIED ; attendre succès global terminal et attestation/archive sur SHA exact.
+
+**Notion :** page LOT08 et roadmap parent actualisées suite à la vérification.
+
+**NEXT exact :** inspecter le verdict complet, jobs et logs ; si SUCCESS, attestations GitHub/Sigstore et archive CODE_CERTIFIED + digest ; si FAILURE analyser et corriger avant tout nouveau run. Ensuite seulement valider les assets externes runtime même SHA en vue INSTALLABLE_CERTIFIED, après gates. Aucun merge, déploiement ou installable autorisé. LOT08 OPEN / NO_INSTALLABLE_GO.
+
 ## LOT08 — 2026-11-10 — LOT08.2-G CODE_CERTIFIED : TENTATIVE DE DÉCLENCHEMENT BLOQUÉE (ACTION HUMAINE PRÉCISE)
 
 **Dernier GO du propriétaire :** autorise à déclencher la certification CODE officielle sur `master` exact, puis à inventorier les assets certifiés correspondants. **Ne couvre pas** merge #1273/#1274/#1275, installation Windows réelle, migration clinique, restauration de données réelles ou activation du cabinet.
