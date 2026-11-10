@@ -144,7 +144,10 @@ def seed_scene(root: Path, app, Session) -> dict:
         patient_id, study_id = patient.id, study.id
         session.commit()
 
-    with TestClient(app, raise_server_exceptions=True) as client:
+    # Do not enter FastAPI lifespan here; it seeds/schedules real clinical
+    # services. A test-only client uses the isolated DB and no background jobs.
+    client = TestClient(app, raise_server_exceptions=True)
+    try:
         login = client.post("/api/auth/login", data={"username": USERNAME, "password": PASSWORD})
         if login.status_code != 200:
             raise RuntimeError("Synthetic JWT login failure")
@@ -197,6 +200,8 @@ def seed_scene(root: Path, app, Session) -> dict:
         }
         (root / "fixture-id.json").write_text(json.dumps(report, sort_keys=True), encoding="utf-8")
         return report
+    finally:
+        client.close()
 
 
 def mount_ui(app) -> None:
