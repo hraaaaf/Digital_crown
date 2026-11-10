@@ -242,7 +242,129 @@ try{
                           if($got -ne [IntPtr]::Zero){$caption=([Runtime.InteropServices.Marshal]::PtrToStringUni($buffer)).Trim()}
                         }finally{[Runtime.InteropServices.Marshal]::FreeHGlobal($buffer)}
                       }
-                      if($caption -match '(?i)^Next\s*>?$' -and
+                      # WinForms mnemonic names may be '&Next >' and '< &Back';
+                      # remove only the mnemonic marker, do not change the label.
+                      $caption=$caption.Replace([string]'&',[string]'').Trim()
+                      if($caption -match '(?i)^Next\s*>?
+                         [Lot05CaptureSignedWindow]::IsWindowEnabled($child) -and
+                         [Lot05CaptureSignedWindow]::IsWindowVisible($child)){
+                        $nativeNext.Add($child)
+                      }elseif($caption -match '(?i)^Cancel$' -and
+                               [Lot05CaptureSignedWindow]::IsWindowEnabled($child)){
+                        $nativeCancel.Add($child)
+                      }elseif($caption -match '(?i)^<?\s*Back$' -and
+                               -not [Lot05CaptureSignedWindow]::IsWindowEnabled($child)){
+                        $nativeBackDisabled.Add($child)
+                      }
+                      return $true
+                    }
+                    $null=[Lot05CaptureSignedWindow]::EnumChildWindows($parent,$cb,[IntPtr]::Zero)
+                  }
+                  $r.native_next_button_candidate_count=$nativeNext.Count
+                  $r.native_cancel_candidate_count=$nativeCancel.Count
+                  $r.native_back_disabled_count=$nativeBackDisabled.Count
+                  $hwnd=[IntPtr]::Zero
+                  if($nextCandidates.Count -eq 1 -and $cancelCount -eq 1 -and $disabledBack){
+                    $hwnd=[IntPtr]([int]$nextCandidates[0].Current.NativeWindowHandle)
+                    $r.next_control_source='UIAUTOMATION'
+                  }elseif($nativeNext.Count -eq 1 -and $nativeCancel.Count -eq 1 -and $nativeBackDisabled.Count -eq 1){
+                    $hwnd=$nativeNext[0]
+                    $r.next_control_source='WIN32_CHILD_BUTTONS'
+                    $r.welcome_back_disabled=$true
+                    $r.welcome_cancel_button_observed=$true
+                  }
+                  if($hwnd -ne [IntPtr]::Zero -and
+                     $r.screenshot_vendor_owner_verified -and $r.screenshot_title_allowlisted){
+                    $buttonPid=[uint32]0
+                    $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($hwnd,[ref]$buttonPid)
+                    $r.native_button_pid_verified=([int]$buttonPid -eq $winPid)
+                    if($r.native_button_pid_verified){
+                      $r.pre_next_screenshot_sha256=$r.screenshot_sha256
+                      $r.next_click_attempted=$true
+                      $result=[IntPtr]::Zero
+                      $delivered=[Lot05CaptureSignedWindow]::SendMessageTimeout(
+                         $hwnd,[uint32]0x00F5,[IntPtr]::Zero,[IntPtr]::Zero,
+                         [uint32]2,[uint32]2500,[ref]$result)
+                      $r.next_click_acknowledged=($delivered -ne [IntPtr]::Zero)
+                      $r.clicked_next=$r.next_click_acknowledged
+                      $r.next_click_cycle=$cycle
+                    }
+                  }
+                }catch{$r.screenshot_error_count++}
+              }
+              if($r.next_click_acknowledged -and $cycle -gt $r.next_click_cycle){
+                try{
+                  $texts=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                                    [System.Windows.Automation.Condition]::TrueCondition)
+                  for($n=0;$n -lt [Math]::Min(180,$texts.Count);$n++){
+                    if([string]$texts.Item($n).Current.Name -match '(?i)(license agreement|licence agreement|eula|terms and conditions)'){
+                      $r.post_next_license_keyword_seen=$true
+                      break
+                    }
+                  }
+                }catch{$r.ui_errors_count++}
+              }
+            }
+            else{$other++}
+          }elseif($title -match '(?i)^Windows Installer'){$unownedMsi++}
+        }catch{$r.ui_errors_count++}
+      }
+      $r.owned_window_count_max=[Math]::Max($r.owned_window_count_max,$owned)
+      $r.owned_blank_title_window_count_max=[Math]::Max($r.owned_blank_title_window_count_max,$empty)
+      $r.owned_setup_title_window_count_max=[Math]::Max($r.owned_setup_title_window_count_max,$setupCount)
+      $r.owned_generic_title_window_count_max=[Math]::Max($r.owned_generic_title_window_count_max,$other)
+      $r.owned_license_title_window_count_max=[Math]::Max($r.owned_license_title_window_count_max,$license)
+      $r.unowned_windows_installer_title_count_max=[Math]::Max($r.unowned_windows_installer_title_count_max,$unownedMsi)
+    }catch{$r.ui_errors_count++}
+  }
+  $r.diagnosis=if($r.owned_setup_title_window_count_max -gt 0 -or $r.owned_license_title_window_count_max -gt 0){
+    'VENDOR_WINDOW_TITLE_VISIBLE_NO_INPUT'
+  }elseif($r.owned_window_count_max -gt 0){
+    'VENDOR_WINDOW_PRESENT_BUT_UNEXPECTED_TITLE'
+  }elseif(-not $r.environment_user_interactive -or -not $r.explorer_same_session){
+    'NO_PROVEN_INTERACTIVE_USER_DESKTOP'
+  }elseif($r.inner_setup_exited_early){
+    'EMBEDDED_SETUP_EXITED_WITHOUT_OWNED_UI'
+  }else{'NO_OWNED_UI_WINDOW_IN_DESKTOP_SESSION'}
+}catch{
+  $r.error_code='FAIL_CLOSED_SETUP_OR_WINDOW_DIAGNOSTIC'
+  $r.diagnosis='NOT_PROVEN'
+}finally{
+  foreach($childId in @($knownIds)){
+    try{Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue}catch{}
+  }
+  Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
+  $r.database_created=(@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0)
+  [System.IO.File]::WriteAllText($outFile,($r|ConvertTo-Json -Depth 5),(New-Object System.Text.UTF8Encoding($false)))
+}
+Write-Host ('LOT05_DESKTOP_DIAGNOSIS='+$r.diagnosis)
+Write-Host ('LOT05_DESKTOP_RUNNER_SESSION='+$r.runner_session_id)
+Write-Host ('LOT05_DESKTOP_USER_INTERACTIVE='+$r.environment_user_interactive)
+Write-Host ('LOT05_DESKTOP_EXPLORER_IN_SAME_SESSION='+$r.explorer_same_session)
+Write-Host ('LOT05_DESKTOP_UIA_ROOT='+$r.uia_root_accessible)
+Write-Host ('LOT05_DESKTOP_OWNED_WINDOWS='+$r.owned_window_count_max)
+Write-Host ('LOT05_DESKTOP_WINDOW_ONLY_PNG='+$r.screenshot_window_only_retained)
+Write-Host ('LOT05_WELCOME_EXACT_TITLE='+$r.welcome_title_exact_proven)
+Write-Host ('LOT05_WELCOME_BACK_DISABLED='+$r.welcome_back_disabled)
+Write-Host ('LOT05_NEXT_CANDIDATES='+$r.next_button_candidate_count)
+Write-Host ('LOT05_NEXT_NATIVE_CANDIDATES='+$r.native_next_button_candidate_count)
+Write-Host ('LOT05_NEXT_NATIVE_CANCEL='+$r.native_cancel_candidate_count)
+Write-Host ('LOT05_NEXT_NATIVE_BACK_DISABLED='+$r.native_back_disabled_count)
+Write-Host ('LOT05_NEXT_CONTROL_SOURCE='+$r.next_control_source)
+Write-Host ('LOT05_NEXT_OWNER_PID_VERIFIED='+$r.native_button_pid_verified)
+Write-Host ('LOT05_NEXT_SENT_ONCE='+$r.next_click_acknowledged)
+Write-Host ('LOT05_POST_NEXT_VISUAL_CHANGE='+$r.post_next_screenshot_changed)
+Write-Host ('LOT05_POST_NEXT_LICENSE_KEYWORD='+$r.post_next_license_keyword_seen)
+Write-Host ('LOT05_DESKTOP_WINDOW_ONLY_CAPTURE_ERRORS='+$r.screenshot_error_count)
+Write-Host ('LOT05_DESKTOP_WINDOWS_TITLE_SETUP='+$r.owned_setup_title_window_count_max)
+Write-Host ('LOT05_DESKTOP_WINDOWS_UNEXPECTED_TITLE='+$r.owned_generic_title_window_count_max)
+Write-Host ('LOT05_DESKTOP_OUTSIDE_OWNER_MSI_WINDOWS='+$r.unowned_windows_installer_title_count_max)
+Write-Host 'LOT05_ONE_NEXT_MAX_NO_LICENSE_ACCEPTED_NO_PATIENTS'
+if(-not $r.wrapper_hash_pinned -or -not $r.wrapper_authenticode_valid -or
+   -not $r.inner_setup_authenticode_valid -or -not $r.inner_setup_started_once -or
+   $r.database_created -or $null -ne $r.error_code){throw 'HOSTED_DESKTOP_DIAGNOSTIC_NOT_PROVEN'}
+ -and
                          [Lot05CaptureSignedWindow]::IsWindowEnabled($child) -and
                          [Lot05CaptureSignedWindow]::IsWindowVisible($child)){
                         $nativeNext.Add($child)
