@@ -6,6 +6,7 @@ on:
       - "backend/services/cephalo_landmark_identity_bridge.py"
       - "backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py"
       - ".github/workflows/ceph-j1b1-canonical-identity-safety-lab.yml"
+      - "scripts/ci/ceph_j1b1_canonical_identity_lab.py"
   workflow_dispatch:
 
 permissions:
@@ -26,6 +27,6 @@ jobs:
       - name: "Install minimal test-only dependencies"
         run: python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.4.2" "pydantic==2.11.7"
       - name: "Compile source and regression tests"
-        run: python -m compileall -q backend/services/cephalo_landmark_identity_bridge.py backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py
+        run: python -m compileall -q backend/services/cephalo_landmark_identity_bridge.py backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py scripts/ci/ceph_j1b1_canonical_identity_lab.py
       - name: "Execute synthetic fail-closed cases (NO MODEL, NO PATIENT, NO DEPLOY)"
-        run: python -m pytest -q backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py
+        run: python scripts/ci/ceph_j1b1_canonical_identity_lab.py
