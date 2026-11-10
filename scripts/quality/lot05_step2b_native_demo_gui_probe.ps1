@@ -36,6 +36,12 @@ $r=[ordered]@{
   choose_database_menu_invoked=$false
   choose_database_menu_source='NOT_ATTEMPTED'
   choose_database_menu_cycle=-1
+  choose_database_click_attempted=$false
+  choose_database_click_owner_verified=$false
+  choose_database_click_foreground_verified=$false
+  choose_database_click_hit_verified=$false
+  choose_database_invoke_error_type='NONE'
+  choose_database_click_source='NOT_ATTEMPTED'
   observed_window_bounds=@()
   chooser_window_captured=$false
   chooser_window_title='NOT_OBSERVED'
@@ -305,16 +311,55 @@ public static class Lot05DemoGuiWindow {
             $r.choose_database_menu_candidates=$matches.Count
             $r.choose_database_menu_item_observed=($matches.Count -gt 0)
             if($matches.Count -eq 1){
+              # Native Windows menu item: exact control name/type/enabled,
+              # attached to the signed app PID, bounds from live UIA evidence.
+              # Avoid InvokePattern on a modal WinForms menu: invocation may
+              # stall the UIA RPC until its timeout. One physical click only
+              # when foreground and WindowFromPoint are both verified.
               $node=$matches[0]
-              $pattern=$null
-              if($node.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$pattern)){
-                ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
-                $r.choose_database_menu_invoked=$true
-                $r.choose_database_menu_source='UIA_INVOKE_UNIQUE_CHOOSE_DATABASE'
-                $r.choose_database_menu_cycle=$cycle
+              $bounds=$node.Current.BoundingRectangle
+              $ownerPid=[int]$node.Current.ProcessId
+              $cx=[int][Math]::Floor($bounds.X+$bounds.Width/2)
+              $cy=[int][Math]::Floor($bounds.Y+$bounds.Height/2)
+              $r.choose_database_click_owner_verified=($ownerPid -eq $pidHere -and
+                $ids.Contains($ownerPid) -and
+                $bounds.Width -ge 100 -and $bounds.Width -le 300 -and
+                $bounds.Height -ge 16 -and $bounds.Height -le 36 -and
+                $cx -ge 0 -and $cy -ge 0)
+              if($r.choose_database_click_owner_verified){
+                $point=New-Object Lot05DemoGuiWindow+Point
+                $point.X=$cx
+                $point.Y=$cy
+                $null=[Lot05DemoGuiWindow]::SetForegroundWindow($hwnd)
+                Start-Sleep -Milliseconds 160
+                $r.choose_database_click_foreground_verified=(
+                  [Lot05DemoGuiWindow]::GetForegroundWindow() -eq $hwnd)
+                if($r.choose_database_click_foreground_verified -and
+                   [Lot05DemoGuiWindow]::SetCursorPos($cx,$cy)){
+                  Start-Sleep -Milliseconds 90
+                  $hit=[Lot05DemoGuiWindow]::WindowFromPoint($point)
+                  $hitPid=[uint32]0
+                  if($hit -ne [IntPtr]::Zero){
+                    $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($hit,[ref]$hitPid)
+                  }
+                  $r.choose_database_click_hit_verified=([int]$hitPid -eq $pidHere)
+                  if($r.choose_database_click_hit_verified){
+                    $r.choose_database_click_attempted=$true
+                    [Lot05DemoGuiWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                    Start-Sleep -Milliseconds 85
+                    [Lot05DemoGuiWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                    $r.choose_database_menu_invoked=$true
+                    $r.choose_database_menu_source='LIVE_UIA_ITEM_PID_FOREGROUND_HITTEST_MOUSE'
+                    $r.choose_database_click_source='LIVE_UIA_ITEM_PID_FOREGROUND_HITTEST_MOUSE'
+                    $r.choose_database_menu_cycle=$cycle
+                  }
+                }
               }
             }
-          }catch{$r.uia_errors++}
+          }catch{
+            $r.uia_errors++
+            $r.choose_database_invoke_error_type=$_.Exception.GetType().Name
+          }
         }
       }catch{$r.uia_errors++}
     }
@@ -334,6 +379,8 @@ Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_SIZE='+$r.app_window_size)
 Write-Host ('LOT05_NATIVE_FILE_MENU_OPENED='+$r.file_menu_invoked)
 Write-Host ('LOT05_NATIVE_FILE_MENU_SOURCE='+$r.file_menu_source)
 Write-Host ('LOT05_NATIVE_CHOOSE_DB_MENU_INVOKED='+$r.choose_database_menu_invoked)
+Write-Host ('LOT05_NATIVE_CHOOSE_DB_CLICK_HIT='+$r.choose_database_click_hit_verified)
+Write-Host ('LOT05_NATIVE_CHOOSE_DB_ERROR_TYPE='+$r.choose_database_invoke_error_type)
 Write-Host ('LOT05_NATIVE_CHOOSE_DB_NAMED='+$r.choose_database_named_element_count)
 Write-Host ('LOT05_NATIVE_MENU_MAX_DESCENDANTS='+$r.menu_search_descendant_count)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_TITLE='+$r.chooser_window_title)
