@@ -1,3 +1,17 @@
+## DIGITAL CROWN — 10/11/2026 22:47 UTC — LOT08.2-I HEAD ACTUEL : PLACEMENT MANUEL EXPLICITE / CI EN FILE
+
+**PR DRAFT #1279** HEAD `bafcced99ac7a6fd10fc9074ed0c4061a3485186`, base `master@bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4` (CODE_CERTIFIED officiel SHA identique). Scope 9 fichiers exacts, aucun modèle, EXE, patient ou migration. Verrou d'inférence céphalo : refus dans produit figé `sys.frozen`/`_MEIPASS`, environnements non-LAB, DB non isolée et avant init ONNX/vision/legacy ; CephaloService refuse une sortie vide sans persister. Compromis produit intentionnel : SRPose38 sera embarqué mais ne sera **pas activé en clinique** avant gate médical séparé.
+
+**Correction précédente vérifiée :** P5 ancien HEAD `bf04024` macOS [#42916942362](https://github.com/hraaaaf/Digital_crown/actions/runs/42916942362) FAIL durant `python -m scripts.portability_p5_check --runtime --fail-closed` : `AssertionError: Cephalo missing-model path must require manual placement`. Le test de sécurité attend `manuel` ; message HOLD révisé sur SHA courant ajoute `Placement manuel des repères requis.`, et `test_cephalo_runtime_activation_gate.py` vérifie explicitement l'indication. Aucun assouplissement du gate, aucune activation, aucune suppression de test. Autre ancien échec P5 Windows/macOS WinError1455 déjà corrigé en test LAB isolé sans essais PyTorch en production.
+
+**CI courant encore non conclu** : [P5 #42917551523](https://github.com/hraaaaf/Digital_crown/actions/runs/42917551523), [LOT08.2-I PR #42917551538](https://github.com/hraaaaf/Digital_crown/actions/runs/42917551538), [LOT08.2-I push #42917542546](https://github.com/hraaaaf/Digital_crown/actions/runs/42917542546), [CODE candidate #42917551292](https://github.com/hraaaaf/Digital_crown/actions/runs/42917551292) tous QUEUED ou PENDING lors de ce contrôle. Ne pas attribuer d'anciens SUCCESS au nouveau SHA. CODE_CERTIFIED master reste validé et inchangé ; code candidat non certifié.
+
+**Juridique** : propriétaire prend en charge les droits du checkpoint ; ne pas bloquer les actions techniques internes à ce sujet ni demander une confirmation redondante. Cela ne constitue pas une autorisation de redistribution des octets ni une validation clinique, donc aucun modèle/EXE publié.
+
+**NEXT EXACT** : suivre verdict final 3 jobs dédiés Linux/Windows/backend, P5, CODE candidate sur `bafcced99` ; corriger si rouge, préparer FUE Windows isolé d'empaquetage SRPose38 avec modèle intégré + comportement auto-HOLD et rapport métadonnées seulement. Aucune fusion, installation cabinet, déploiement, migration ou patient réel. `LOT08 OPEN / NO_INSTALLABLE_GO`.
+
+---
+
 ## DIGITAL CROWN — 10/11/2026 22:44 UTC — LOT08.2-I : NATIVE PYTORCH CONTRACT SÉPARÉ EN CABINET DENY / LAB WINERROR, CI OUVERTE
 
 **État de code :** [PR #1279 DRAFT](https://github.com/hraaaaf/Digital_crown/pull/1279) HEAD `bf04024ec519db4a285ca4b0b10ed39a63d2f316` sur master `bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4`, inchangé. Diff **9 fichiers ciblés** (4 services backend, test backend, test contrat lazy PyTorch, deux workflows, guide). Pas de modèle ni installateur ni patient réel publié ; aucune migration ou fusion.
