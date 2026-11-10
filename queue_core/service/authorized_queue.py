@@ -29,6 +29,7 @@ from queue_core.persistence.models import (
     QueueEventRecord, QueueLine, QueueResource, QueueTenant,
     QueueVisitRecord, QueueVisitResource,
 )
+from queue_core.service.atomic_transition import validate_atomic_transition
 from queue_core.security.operator_store import LocalOperatorStore
 from queue_core.security.rbac import (
     AuthorizationError, Permission, QueueAuthorizer, TargetScope,
@@ -415,6 +416,9 @@ class AuthorizedLocalQueue:
                     current, at=now, actor_ref=actor, actor_kind=ActorKind.HUMAN,
                     reason_code=_audit_reason(reason_code), authorized=True,
                 )
+            # Fail closed before any SQL mutation: source scope, event count,
+            # actor, transition state and all versions must be coherent.
+            validate_atomic_transition(current, plan)
             self._commit_plan(db, row, plan, now)
             return QueueVisitView(
                 row.id, row.queue_id, plan.visit.status.value,
