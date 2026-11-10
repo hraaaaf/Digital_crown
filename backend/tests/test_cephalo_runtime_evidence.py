@@ -280,7 +280,7 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
     explicit_identity_required = {
         "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
         "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
-        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
+
         "STEINER_SN_GOGN_CANONICAL_DEG_V2",
         "STEINER_SND_CANONICAL_DEG_V2",
         "STEINER_U1_NA_CANONICAL_MM_V2",
@@ -294,6 +294,21 @@ def test_explicit_two_point_calibration_unlocks_craniom_linear_and_keeps_all_ang
     assert {x["method_id"] for x in blocked} == explicit_identity_required
     assert all(x["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value for x in blocked)
     assert all(x["value"] is None for x in blocked)
+    # With BOTH canonical Co and Gn absent, the typed builder cannot emit a
+    # MeasurementEvidence (which requires at least one evidence dependency).
+    # The presentation protocol MUST still show the absent row as NOT_COMPUTABLE.
+    assert not any(
+        x["method_id"] == "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+        for x in payload["measurements"]
+    )
+    from backend.services.cephalo_protocol_projection import project_mcnamara_reference_protocol
+    missing_co_gn = next(
+        row for row in project_mcnamara_reference_protocol([])["rows"]
+        if row["canonical_measurement_id"] == "M_CO_GN_ANATOMIC_MM_V1"
+    )
+    assert missing_co_gn["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value
+    assert missing_co_gn["value"] is None
+    assert missing_co_gn["measurement_refs"] == []
     orientation_required = {
         "RICKETTS_OVERBITE_FOP_CANONICAL_MM_V2",
         "RICKETTS_OCCLUSAL_PLANE_XI_CANONICAL_MM_V2",
