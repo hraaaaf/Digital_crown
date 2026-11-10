@@ -1,3 +1,17 @@
+## DIGITAL CROWN — 10/11/2026 22:44 UTC — LOT08.2-I : NATIVE PYTORCH CONTRACT SÉPARÉ EN CABINET DENY / LAB WINERROR, CI OUVERTE
+
+**État de code :** [PR #1279 DRAFT](https://github.com/hraaaaf/Digital_crown/pull/1279) HEAD `bf04024ec519db4a285ca4b0b10ed39a63d2f316` sur master `bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4`, inchangé. Diff **9 fichiers ciblés** (4 services backend, test backend, test contrat lazy PyTorch, deux workflows, guide). Pas de modèle ni installateur ni patient réel publié ; aucune migration ou fusion.
+
+**Incident reproductible sur ancien HEAD d28ae9 :** [P5 Native Dependency #42915867686](https://github.com/hraaaaf/Digital_crown/actions/runs/42915867686) échoué sur macOS+Windows à `check_lazy_pytorch_contract.py` ("Legacy fallback attempt was not recorded"). Nouveau verrou clinique empêche l'**essai même** en production, or test précédent supposait un essai. **Réparation non permissive :** `check_clinical_runtime_never_attempts_legacy_pytorch` exige un refus sans import ; `check_winerror_1455_fail_closed` vérifie toujours le legacy *en LAB isolé SQLite in-memory*, import torch retournant WinError 1455, `legacy_init_attempted=True`, `torch/model=None`, `is_ready=False`. Régression initiale ni annulée ni marquée verte.
+
+**CI exact HEAD restant :** P5 [#42916942362](https://github.com/hraaaaf/Digital_crown/actions/runs/42916942362) en cours ; dédié [#42916942438](https://github.com/hraaaaf/Digital_crown/actions/runs/42916942438) PENDING ; push dédié [#42916932317](https://github.com/hraaaaf/Digital_crown/actions/runs/42916932317) QUEUED ; régression CODE candidate [#42916942522](https://github.com/hraaaaf/Digital_crown/actions/runs/42916942522) QUEUED ; zéro échec actuel à ce constat mais **aucun succès global déclaré**. Ancien CODE_CERTIFIED sur master reste intact.
+
+**Règle propriétaire :** gestion des droits légaux par propriétaire, ne pas bloquer tests ni demander d'acte juridique ; ne pas redistribuer les poids ni activer inférence clinique sans validation médicalement fondée. Le modèle prévu est SRPose38 embarqué local, prouvé techniquement LOT08.2-H, mais cette branche n'est ni CODE_CERTIFIED ni INSTALLABLE_CERTIFIED.
+
+**NEXT exact :** vérifier tous les verdicts de ce SHA (Linux/Windows/backend + P5 + candidate), corriger si rouge ; si verts, lancer un FUE de packaging isolé sur runner Windows avec modèle SRPose38 temporaire, signature/hash et interdiction auto-inférence, rapport de preuves métadonnées uniquement. Aucun merge, installation clinique ni déploiement. `LOT08 OPEN / NO_INSTALLABLE_GO`.
+
+---
+
 ## DIGITAL CROWN — 10/11/2026 22:35 UTC — LOT08.2-I : CANDIDAT SRPose38 EMBARQUÉ MAIS INFÉRENCE CLINIQUE STRICTEMENT BLOQUÉE — CI PENDING
 
 **Décision/propriétaire** : droits/licences du checkpoint SRPose38 pris en charge par le propriétaire ; poursuivre les travaux techniques sans demander sa validation juridique. SRPose38 reste le poids à embarquer ultérieurement dans l'installable local. Aucun droit de diffusion présumé. La sécurité patient exige que la présence d'un modèle ne déclenche jamais automatiquement une inférence clinique non validée.
