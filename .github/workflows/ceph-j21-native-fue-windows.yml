@@ -1,0 +1,254 @@
+name: CEPH J2.1 Native Windows FUE LAB (NOT INSTALLABLE_CERTIFIED)
+
+on:
+  pull_request:
+    branches:
+      - test/ceph-premium-j21m1-scene-contract-20261109
+    paths:
+      - .github/workflows/ceph-j21-native-fue-windows.yml
+      - scripts/ci/ceph_j21_native_fue_app.py
+      - scripts/ci/ceph_j21_native_fue_browser.cjs
+      - frontend/fue-j21-native/**
+      - frontend/vite.ceph-j21-native-fue.config.ts
+      - frontend/src/features/ortho/cephPremiumSceneFUEClient.ts
+      - frontend/src/features/ortho/components/CephPremiumSceneFUEViewer.tsx
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  actions: read
+
+concurrency:
+  group: ceph-j21-native-fue-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-synthetic-fue:
+    name: Windows native FUE test-only EXE + true JWT/SQLite/AES-GCM/browser
+    if: github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+      CI: 'true'
+      CEPH_J21_NATIVE_FUE_ONLY: GITHUB_WINDOWS_J21_SYNTHETIC_FUE_ONLY
+      CEPH_J21_EVIDENCE_DIR: ${{ runner.temp }}/ceph-j21-native-evidence
+      CEPH_J21_FUE_PROFILE: ${{ runner.temp }}/ceph-j21-native-fue-${{ github.run_id }}
+      VITE_CEPH_J21_NATIVE_FUE: 'true'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Assert immutable head, official release guard and no prod wiring
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:PRODUCT_HEAD) { throw 'WRONG_HEAD' }
+          if ($env:PRODUCT_HEAD -notmatch '^[0-9a-f]{40}$') { throw 'INVALID_HEAD' }
+          $spec=Get-Content DigitalCrown.spec -Raw
+          if (-not $spec.Contains('verify_installable_release_directory')) { throw 'OFFICIAL_CERTIFICATION_GUARD_MISSING' }
+          $launch=Get-Content run.py -Raw
+          if (-not $launch.Contains('_verify_frozen_release_certification()')) { throw 'OFFICIAL_STARTUP_GUARD_MISSING' }
+          foreach($file in @('backend/main.py','backend/routers/__init__.py','frontend/src/App.tsx','frontend/src/main.tsx')) {
+            $code=Get-Content $file -Raw
+            if ($code -match 'CephJ21NativeFUE|ceph_j21_native_fue_app|CephPremiumSceneFUEViewer|ceph_premium_scene_app_fue') {
+              throw "PRODUCTION_ROUTE_OR_UI_INJECTION: $file"
+            }
+          }
+          if (Test-Path $env:CEPH_J21_FUE_PROFILE) { throw 'REUSING_EXISTING_TEST_PROFILE_REFUSED' }
+          if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) {
+            throw 'TEST_LOOPBACK_PORT_ALREADY_BOUND'
+          }
+          Write-Output 'EXACT_HEAD_NO_RELEASE_OR_PRODUCTION_BYPASS_PASS'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+          cache: pip
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install isolated backend test + bundling dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          $req=Get-Content requirements.txt | Where-Object { $_ -notmatch '^(torch|torchvision|torchaudio)([<=>].*)?$' }
+          $req | Set-Content "$env:RUNNER_TEMP/j21-native-requirements.txt"
+          python -m pip install -r "$env:RUNNER_TEMP/j21-native-requirements.txt"
+          python -m pip install "pyinstaller==6.16.0" "pytest==9.0.3"
+          python -m pip check
+      - name: Compile dedicated FUE-only frontend (never official frontend/dist)
+        working-directory: frontend
+        shell: pwsh
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx vite build --config vite.ceph-j21-native-fue.config.ts --mode ceph-j21-native-fue
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_FUE_ONLY_VITE_BUILD_FAILED' }
+          if (-not (Test-Path 'dist-ceph-j21-native-fue/index.html')) { throw 'NO_NONCLINICAL_TEST_PAGE' }
+          if ($env:VITE_CEPH_J21_NATIVE_FUE -ne 'true') { throw 'NATIVE_BUILD_FLAG_MISSING' }
+          npm install --no-save --ignore-scripts --no-audit --no-fund playwright-core@1.56.1
+          if ($LASTEXITCODE -ne 0) { throw 'PLAYWRIGHT_CORE_INSTALL_FAILED' }
+      - name: Build clearly non-installable native test executable
+        shell: pwsh
+        run: |
+          python -m PyInstaller --clean --noconfirm --onedir --console --name DigitalCrown-J21-FUE-LAB `
+            --add-data "frontend/dist-ceph-j21-native-fue;fue-ui" `
+            --hidden-import backend.models_ceph_premium_scene_fue `
+            --hidden-import backend.routers.ceph_premium_scene_app_fue `
+            --hidden-import backend.routers.cephalo_study_media_binding `
+            --hidden-import backend.tests.p2ter_bridge_synthetic_support `
+            --hidden-import backend.tests.test_ceph_j21_m4_real_jwt_fue `
+            --hidden-import uvicorn.logging `
+            --hidden-import uvicorn.loops.auto `
+            --hidden-import uvicorn.protocols.http.auto `
+            --hidden-import uvicorn.lifespan.off `
+            scripts/ci/ceph_j21_native_fue_app.py
+          if ($LASTEXITCODE -ne 0) { throw 'FUE_NONCLINICAL_PYINSTALLER_FAILED' }
+          $exe='dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe'
+          if (-not (Test-Path $exe)) { throw 'FUE_LAB_EXE_MISSING' }
+          if (Test-Path 'dist/DigitalCrown/DigitalCrown.exe') { throw 'REFUSING_OFFICIAL_INSTALLABLE_NAME' }
+          $badFiles=@(Get-ChildItem 'dist/DigitalCrown-J21-FUE-LAB' -Recurse -File |
+            Where-Object { $_.Name -match '^\.env($|\.)|^clinical_vault.db$|^installable-certification.json$' })
+          if ($badFiles.Count -gt 0) { throw 'SECRETS_OR_CERTIFICATION_IN_LAB_PACKAGE' }
+          Write-Output ('FUE_ONLY_EXE_SHA256='+(Get-FileHash $exe -Algorithm SHA256).Hash)
+      - name: Assert runtime denies non-CI / unintended launch
+        shell: pwsh
+        run: |
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          $old=$env:CEPH_J21_NATIVE_FUE_ONLY
+          $env:CEPH_J21_NATIVE_FUE_ONLY='DISABLED'
+          try {
+            & $exe initialize
+            if ($LASTEXITCODE -eq 0) { throw 'FUE_EXECUTABLE_ACCEPTED_MISSING_GATE' }
+            if (Test-Path $env:CEPH_J21_FUE_PROFILE) { throw 'WRONG_GATE_CREATED_FILES' }
+          } finally { $env:CEPH_J21_NATIVE_FUE_ONLY=$old }
+          Write-Output 'NONCLINICAL_EXE_FAIL_CLOSED_PASS'
+      - name: Initialize disposable synthetic app DB, JWT owner and encrypted radio
+        shell: pwsh
+        run: |
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          & $exe initialize
+          if ($LASTEXITCODE -ne 0) { throw 'SYNTHETIC_NATIVE_FIXTURE_INITIALIZATION_FAILED' }
+          if (-not (Test-Path "$env:CEPH_J21_FUE_PROFILE/ceph-j21-scene-app-fue.sqlite3")) { throw 'SYNTHETIC_DB_ABSENT' }
+          if (-not (Test-Path "$env:CEPH_J21_FUE_PROFILE/fixture-id.json")) { throw 'SYNTHETIC_FIXTURE_REPORT_ABSENT' }
+      - name: Start native executable, browser edit/CAS save and responsive BEFORE/AFTER
+        shell: pwsh
+        run: |
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          $proc=Start-Process $exe -ArgumentList 'serve' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/j21-native-stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/j21-native-stderr.log"
+          $proc.Id | Out-File "$env:RUNNER_TEMP/j21-native-process-id.txt" -Encoding ascii
+          $ready=$false
+          for($i=0;$i -lt 75;$i++){
+            if ($proc.HasExited) { break }
+            try {
+              $res=Invoke-WebRequest 'http://127.0.0.1:8879/__ceph_fue/' -UseBasicParsing -TimeoutSec 2
+              if ($res.StatusCode -eq 200) { $ready=$true; break }
+            } catch {}
+            Start-Sleep -Seconds 2
+          }
+          if (-not $ready) { throw 'NATIVE_FUE_UI_NOT_READY' }
+          $env:NODE_PATH=(Join-Path $env:GITHUB_WORKSPACE 'frontend/node_modules')
+          node scripts/ci/ceph_j21_native_fue_browser.cjs edit
+          if ($LASTEXITCODE -ne 0) { throw 'REAL_NATIVE_BROWSER_EDIT_FAILED' }
+      - name: Fully terminate native FUE EXE
+        shell: pwsh
+        run: |
+          $pidFile="$env:RUNNER_TEMP/j21-native-process-id.txt"
+          if (-not (Test-Path $pidFile)) { throw 'NATIVE_PROCESS_ID_MISSING' }
+          $nativePid=[int](Get-Content $pidFile)
+          $proc=Get-Process -Id $nativePid -ErrorAction SilentlyContinue
+          if ($proc) { Stop-Process -Id $nativePid -Force; Start-Sleep -Seconds 3 }
+          if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) { throw 'NATIVE_TEST_SERVER_STILL_LISTENING' }
+          Write-Output 'FIRST_NATIVE_PROCESS_TERMINATED_BEFORE_REOPEN'
+      - name: Restart same native EXE, prove persisted scene SHA and user access denial
+        shell: pwsh
+        run: |
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          $proc=Start-Process $exe -ArgumentList 'serve' -PassThru -RedirectStandardOutput "$env:RUNNER_TEMP/j21-reopened-stdout.log" -RedirectStandardError "$env:RUNNER_TEMP/j21-reopened-stderr.log"
+          $proc.Id | Out-File "$env:RUNNER_TEMP/j21-native-process-id.txt" -Encoding ascii
+          $ready=$false
+          for($i=0;$i -lt 75;$i++){
+            if ($proc.HasExited) { break }
+            try {
+              $res=Invoke-WebRequest 'http://127.0.0.1:8879/__ceph_fue/' -UseBasicParsing -TimeoutSec 2
+              if ($res.StatusCode -eq 200) { $ready=$true; break }
+            } catch {}
+            Start-Sleep -Seconds 2
+          }
+          if (-not $ready) { throw 'RESTARTED_NATIVE_FUE_NOT_READY' }
+          $env:NODE_PATH=(Join-Path $env:GITHUB_WORKSPACE 'frontend/node_modules')
+          node scripts/ci/ceph_j21_native_fue_browser.cjs reopen
+          if ($LASTEXITCODE -ne 0) { throw 'NATIVE_PROCESS_RESTART_REOPEN_FAILED' }
+      - name: Independently verify screenshots and nonclinical report
+        shell: pwsh
+        run: |
+          @'
+          import hashlib,json,os
+          from pathlib import Path
+          root=Path(os.environ['CEPH_J21_EVIDENCE_DIR'])
+          one=json.loads((root/'phase-edit.json').read_text())
+          two=json.loads((root/'phase-reopen.json').read_text())
+          assert one['status']==two['status']=='PASS'
+          assert one['scene_sha256']==two['scene_sha256']
+          assert one['audit']['parent_scene_sha256'] and one['audit']['revision']==two['audit']['revision']==2
+          assert len(one['viewport_proofs'])==8 and len(two['viewport_proofs'])==1
+          for result in (one,two):
+              assert result['synthetic_only'] and result['clinical_release'] is False
+              assert result['native_signed_installable_certified'] is False
+              for p in result['viewport_proofs']:
+                  assert hashlib.sha256((root/p['file']).read_bytes()).hexdigest()==p['sha256']
+          print('WINDOWS_NONCLINICAL_NATIVE_EXE_REAL_BROWSER_CAS_RESTART_SHA_PASS')
+          '@ | python -
+          if ($LASTEXITCODE -ne 0) { throw 'INDEPENDENT_NATIVE_FUE_EVIDENCE_FAILED' }
+      - name: Prepare labeled non-installable build manifest (no secret)
+        if: success()
+        shell: pwsh
+        run: |
+          $exe='dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe'
+          $manifest=@{
+            head=$env:PRODUCT_HEAD; status='SYNTHETIC_FUE_ONLY';
+            is_installable_certified=$false; native_executable_sha256=(Get-FileHash $exe -Algorithm SHA256).Hash.ToLower();
+            clinical_release=$false; production_route_mounted=$false;
+            local_only=$true; signed=$false; deploy=$false; synthetic_db_cleaned_before_artifact=$true
+          } | ConvertTo-Json
+          $manifest | Set-Content "$env:CEPH_J21_EVIDENCE_DIR/native-build-manifest.json" -Encoding utf8
+          'LAB TEST BINARY ONLY. NOT CERTIFIED, SIGNED, INSTALLABLE OR APPROVED FOR PATIENT DATA. REQUIRES GITHUB WINDOWS RUNNER FLAGS.' |
+            Set-Content 'dist/DigitalCrown-J21-FUE-LAB/NONCLINICAL_NOT_INSTALLER.txt' -Encoding utf8
+      - name: Remove synthetic DB/media, keys, process and browser test remnants
+        if: always()
+        shell: pwsh
+        run: |
+          $pidFile="$env:RUNNER_TEMP/j21-native-process-id.txt"
+          if (Test-Path $pidFile) {
+            $nativePid=[int](Get-Content $pidFile)
+            $p=Get-Process -Id $nativePid -ErrorAction SilentlyContinue
+            if($p){ Stop-Process -Id $nativePid -Force; Start-Sleep -Seconds 3 }
+          }
+          $profile=[IO.Path]::GetFullPath($env:CEPH_J21_FUE_PROFILE)
+          $temp=[IO.Path]::GetFullPath($env:RUNNER_TEMP).TrimEnd('\')
+          if (-not $profile.StartsWith($temp+'\',[StringComparison]::OrdinalIgnoreCase)) { throw 'UNSAFE_CLEANUP_PATH' }
+          if (Test-Path $profile) { Remove-Item -LiteralPath $profile -Force -Recurse }
+          if (Test-Path $profile) { throw 'SYNTHETIC_SECRETS_OR_DB_NOT_REMOVED' }
+          $running=@(Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue)
+          if($running.Count){ throw 'LOCAL_TEST_SERVER_NOT_STOPPED' }
+          Write-Output 'SYNTHETIC_TEST_DB_MEDIA_KEYS_CLEANED_AND_NATIVE_EXE_STOPPED'
+      - name: Upload only nonclinical screenshots and test proof (no PHI)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j21-native-windows-test-proof-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/ceph-j21-native-evidence/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload clearly labeled disposable FUE-only EXE (never release)
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: LAB-ONLY-NOT-INSTALLABLE-DigitalCrown-J21-${{ github.event.pull_request.head.sha }}
+          path: dist/DigitalCrown-J21-FUE-LAB/
+          if-no-files-found: error
+          retention-days: 1
