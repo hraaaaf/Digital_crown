@@ -6,6 +6,16 @@
 
 # STATE — DigitalCrown
 
+## LOT08 — 2026-11-10 — LOT08.2-G CODE_CERTIFIED : TENTATIVE DE DÉCLENCHEMENT BLOQUÉE (ACTION HUMAINE PRÉCISE)
+
+**Dernier GO du propriétaire :** autorise à déclencher la certification CODE officielle sur `master` exact, puis à inventorier les assets certifiés correspondants. **Ne couvre pas** merge #1273/#1274/#1275, installation Windows réelle, migration clinique, restauration de données réelles ou activation du cabinet.
+
+**Avant action, constat source vérifié :** `master@bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4` inchangé ; [workflow Cabinet Certified Release](https://github.com/hraaaaf/Digital_crown/actions/workflows/cabinet-release-certification.yml) exige `workflow_dispatch` depuis `refs/heads/master` et input `commit_sha` de 40 caractères **identique au HEAD courant**. Historique des runs `workflow_dispatch` : aucun nouveau CODE certifié sur ce SHA. Les succès PostgreSQL/PR et l'ancien CODE #40598411922 sur `98f0199dde54123d1caf3b41443c47a000c3b39f` ne constituent pas cette certification.
+
+**Tentative d'exécution réellement faite / blocage non contourné :** le connecteur GitHub expose les runs/artifacts en lecture et les changements repository/PR mais **aucun déclenchement de workflow**. Le Browser Chat connecté ne permet pas de piloter un navigateur (extension originaire absente) ; le connecteur Opera liste seulement un onglet page d'accueil et n'expose pas d'action click/form. Tentative d'ouvrir la page Actions via TinyFish sur profil utilisateur connecté, avec instruction stricte **workflow officiel, branche master, SHA ci-dessus, une seule soumission et aucun autre changement**, **REFUSÉE AVANT LE DÉMARRAGE** : porte-monnaie TinyFish insuffisant (-0,04 USD). Ce n'est PAS un GitHub run démarré. Aucun frais, aucun paiement/auto-reload lancé, aucune autre action GitHub, aucune release ni installation.
+
+**NEXT exact et solution gratuite préférée :** le propriétaire authentifié ouvre [Cabinet Certified Release](https://github.com/hraaaaf/Digital_crown/actions/workflows/cabinet-release-certification.yml), clique **Run workflow**, choisit **master**, saisit **`bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4`** dans `commit_sha`, valide une seule fois. Ensuite contrôler **run ID, HEAD, cinq gates, attestation Sigstore et artefact CODE_CERTIFIED** ; seulement après preuve, inventorier les modèles/assets runtime externes, certifier leur provenance/digest même SHA et composer un `INSTALLABLE_CERTIFIED` via la procédure officielle, sous human gates applicables. Ne jamais substituer le vieil artefact, un certificat fabriqué ou une CI PR verte. **LOT08 OPEN / NO_INSTALLABLE_GO / master inchangé**.
+
 ## LOT08 — 2026-11-10 — LOT08.2-G — GATE INSTALLABLE ET VRAI SQLCIPHER : FUE-LAB VALIDÉ, VM INSTALLATION BLOQUÉE
 
 **GO utilisateur** : autorisation de **préparer** une recette d'un vrai `INSTALLABLE_CERTIFIED` avec SQLCipher et rollback sur VM entièrement isolée, sans merge, installation d'artefact non certifié, données patients ni activation cabinet. La décision unique 08.2-G porte sur un gate **fail-closed de provenance exacte** et l'essai de primitives SQLCipher en CI jetable, pas sur une certification produit.
