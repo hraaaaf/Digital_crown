@@ -364,3 +364,62 @@ def test_08_3_atomic_plan_guard_rejects_tampered_event_without_sql_write(local, 
     assert valid.status == "WAITING" and valid.version == 2
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
+
+
+def test_08_3_rollback_after_flush_and_restart_has_no_partial_arrival(local, monkeypatch):
+    """Inject failure after SQL changes are flushed, then reopen physical SQLite."""
+    from sqlalchemy import func
+    from queue_core.service import authorized_queue as command_module
+
+    _, _, _, reception, _, _, _, svc, engine = local
+    original_commit = svc._commit_plan
+
+    def crash_after_flush(db, row, plan, now):
+        original_commit(db, row, plan, now)
+        db.flush()  # State and both events reached SQLite, not COMMIT.
+        raise RuntimeError("SYNTHETIC_CRASH_BEFORE_COMMIT")
+
+    monkeypatch.setattr(svc, "_commit_plan", crash_after_flush)
+    with pytest.raises(RuntimeError, match="SYNTHETIC_CRASH_BEFORE_COMMIT"):
+        svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+
+    # A separate engine/connection tests the persisted view after the abort.
+    recovery_engine = create_engine(engine.url)
+    try:
+        with Session(recovery_engine) as s:
+            row = s.get(QueueVisitRecord, "V1")
+            assert row.status == "PLANNED" and row.version == 0
+            assert row.arrival_confirmed_at_utc is None
+            assert s.scalar(select(func.count()).select_from(QueueEventRecord)) == 0
+    finally:
+        recovery_engine.dispose()
+
+    monkeypatch.setattr(svc, "_commit_plan", original_commit)
+    value = svc.perform(reception, HumanCommand.CHECK_IN, "V1", expected_version=0)
+    assert value.status == "WAITING" and value.version == 2
+    with Session(engine) as s:
+        assert s.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
+
+
+def test_08_3_two_concurrent_commands_cannot_create_duplicate_arrival(local):
+    """Competing local sessions: exactly one version-0 check-in wins."""
+    from concurrent.futures import ThreadPoolExecutor
+    from sqlalchemy import func
+
+    _, _, _, reception, _, _, _, svc, engine = local
+
+    def check_in_once(_i):
+        try:
+            value = svc.perform(reception, HumanCommand.CHECK_IN, "V1",
+                                expected_version=0)
+            return value.status
+        except QueueDomainError as exc:
+            return exc.code
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        outcomes = list(pool.map(check_in_once, (0, 1)))
+    assert sorted(outcomes) == ["VERSION_CONFLICT", "WAITING"]
+    with Session(engine) as s:
+        row = s.get(QueueVisitRecord, "V1")
+        assert row.status == "WAITING" and row.version == 2
+        assert s.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
