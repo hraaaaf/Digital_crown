@@ -121,8 +121,7 @@ public static class Lot05DemoGuiWindow {
         $isApp=($title -ceq 'Open Dental')
         if(-not $isChooser -and -not $isApp){continue}
         if($isChooser -and $r.chooser_window_captured){continue}
-        # Unlike the screenshot-only gate, navigation must run each cycle
-        # after discovery so that transient native popup menu items are found.
+        # Continue UIA menu discovery each cycle after main window evidence.
         if($isApp -and $cycle -notin @(8,20,40,65,95,110) -and
            -not ($r.app_window_captured -and -not $r.choose_database_menu_invoked)){
           continue
@@ -143,10 +142,7 @@ public static class Lot05DemoGuiWindow {
         if($width -lt 200 -or $width -gt 2200 -or $height -lt 120 -or $height -gt 1550){continue}
         $target=if($isChooser){$png}else{$appPng}
         $shouldPrint=($isChooser -or $cycle -in @(8,20,40,65,95,110))
-        if(-not $shouldPrint -and $isApp){
-          # Retain window handle and UI automation below, do not rewrite PNG
-          # on every observation cycle or after opening a menu.
-        }else{
+        if($shouldPrint){
         $bmp=New-Object System.Drawing.Bitmap($width,$height)
         try{
           $g=[System.Drawing.Graphics]::FromImage($bmp)
@@ -211,31 +207,7 @@ public static class Lot05DemoGuiWindow {
               if([int]$el.Current.ProcessId -ne $pidHere){continue}
               $name=[string]$el.Current.Name
               $type=[string]$el.Current.ControlType.ProgrammaticName
-              if($name -match '^(File|Setup|Reports|Choose Database)
-}catch{
-  $r.error_code='EXACT_DEMO_APP_GUI_DISCOVERY_FAIL_CLOSED'
-}finally{
-  # Do not terminate the MariaDB service. Only terminate the app we just started.
-  foreach($childPid in @($ids)){try{Stop-Process -Id $childPid -Force -ErrorAction SilentlyContinue}catch{}}
-  [System.IO.File]::WriteAllText($outFile,($r|ConvertTo-Json -Depth 4),(New-Object System.Text.UTF8Encoding($false)))
-}
-Write-Host ('LOT05_NATIVE_DEMO_APP_EXECUTED='+$r.app_process_started)
-Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CAPTURED='+$r.chooser_window_captured)
-Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_CAPTURED='+$r.app_window_captured)
-Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_SIZE='+$r.app_window_size)
-Write-Host ('LOT05_NATIVE_FILE_MENU_OPENED='+$r.file_menu_invoked)
-Write-Host ('LOT05_NATIVE_FILE_MENU_SOURCE='+$r.file_menu_source)
-Write-Host ('LOT05_NATIVE_CHOOSE_DB_MENU_INVOKED='+$r.choose_database_menu_invoked)
-Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_TITLE='+$r.chooser_window_title)
-Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
-Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
-if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
-   -not $r.app_exe_signature_valid -or -not $r.app_process_started -or
-   -not $r.choose_database_menu_invoked -or -not $r.chooser_window_captured -or
-   $null -ne $r.error_code){
-  throw 'NATIVE_DEMO_CHOOSE_DATABASE_DIALOG_NOT_PROVEN'
-}
- -and
+              if($name -match '^(File|Setup|Reports|Choose Database)$' -and
                  $r.file_menu_known_labels -notcontains $name -and $r.file_menu_known_labels.Count -lt 8){
                 $r.file_menu_known_labels+=,$name
               }
@@ -337,12 +309,15 @@ Write-Host ('LOT05_NATIVE_DEMO_APP_EXECUTED='+$r.app_process_started)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CAPTURED='+$r.chooser_window_captured)
 Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_CAPTURED='+$r.app_window_captured)
 Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_SIZE='+$r.app_window_size)
+Write-Host ('LOT05_NATIVE_FILE_MENU_OPENED='+$r.file_menu_invoked)
+Write-Host ('LOT05_NATIVE_FILE_MENU_SOURCE='+$r.file_menu_source)
+Write-Host ('LOT05_NATIVE_CHOOSE_DB_MENU_INVOKED='+$r.choose_database_menu_invoked)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_TITLE='+$r.chooser_window_title)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
 Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
 if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
    -not $r.app_exe_signature_valid -or -not $r.app_process_started -or
-   (-not $r.chooser_window_captured -and -not $r.app_window_captured) -or
+   -not $r.choose_database_menu_invoked -or -not $r.chooser_window_captured -or
    $null -ne $r.error_code){
-  throw 'NATIVE_DEMO_APP_WINDOW_NOT_PROVEN'
+  throw 'NATIVE_DEMO_CHOOSE_DATABASE_DIALOG_NOT_PROVEN'
 }
