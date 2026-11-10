@@ -166,3 +166,49 @@ def test_preexisting_canonical_identity_collision_fails_closed():
             "Po": _auto("Po"),
             "Po_anatomic": _attested(_manual("Po_anatomic")),
         })
+
+
+def test_canonical_fma_downstream_fails_closed_until_manual_attestation():
+    """Real measurement builder must not treat an auto model SHA as anatomic Po."""
+    from backend.services.cephalo_canonical_analysis_v2 import (
+        materialize_canonical_analysis_v2_measurements,
+    )
+
+    coords = {"Po": (0, 8), "Or": (20, 10), "Go": (0, 22), "Me": (16, 21)}
+
+    def _point(item, x, y):
+        return item.model_copy(update={"x": float(x), "y": float(y)})
+
+    auto_current = {key: _point(_auto(key), *xy) for key, xy in coords.items()}
+    auto_projected = project_canonical_landmark_identities(auto_current)
+    assert "Po_anatomic" not in auto_projected
+    auto_measures = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:synthetic:auto",
+        landmarks=auto_projected,
+        mm_per_pixel=0.2,
+        calibration_ref="source:synthetic-calibration",
+    )
+    auto_fma = next(
+        item for item in auto_measures
+        if item.method_id == "TWEED_FMA_CANONICAL_DEG_V2"
+    )
+    assert auto_fma.availability_status == AvailabilityStatus.NOT_COMPUTABLE
+    assert auto_fma.value is None
+
+    reviewed_current = {
+        key: _point(_attested(_manual(key)), *xy) for key, xy in coords.items()
+    }
+    reviewed_projected = project_canonical_landmark_identities(reviewed_current)
+    assert "Po_anatomic" in reviewed_projected
+    reviewed_measures = materialize_canonical_analysis_v2_measurements(
+        measurement_namespace="measurement:synthetic:manual",
+        landmarks=reviewed_projected,
+        mm_per_pixel=0.2,
+        calibration_ref="source:synthetic-calibration",
+    )
+    reviewed_fma = next(
+        item for item in reviewed_measures
+        if item.method_id == "TWEED_FMA_CANONICAL_DEG_V2"
+    )
+    assert reviewed_fma.availability_status == AvailabilityStatus.AVAILABLE
+    assert reviewed_fma.value is not None
