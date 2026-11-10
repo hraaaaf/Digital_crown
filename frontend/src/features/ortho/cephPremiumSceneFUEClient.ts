@@ -63,8 +63,19 @@ function fail(message: string): never {
 }
 
 export function assertSceneFUEDevGate(): void {
-  if (import.meta.env.DEV !== true || import.meta.env.VITE_CEPH_J21_SCENE_FUE !== 'true') {
-    fail('Disabled outside a deliberately isolated development session');
+  // The only packaged exception is a dedicated nonclinical FUE Vite build on
+  // GitHub-hosted Windows, with a separate entrypoint and loopback-only origin.
+  // A normal production build has a different MODE and remains fail-closed.
+  const nativeFUE = import.meta.env.MODE === 'ceph-j21-native-fue'
+    && import.meta.env.VITE_CEPH_J21_NATIVE_FUE === 'true'
+    && typeof window !== 'undefined'
+    && window.location.hostname === '127.0.0.1'
+    && window.location.port === '8879'
+    && window.location.pathname.startsWith('/__ceph_fue/');
+  const devFUE = import.meta.env.DEV === true
+    && import.meta.env.VITE_CEPH_J21_SCENE_FUE === 'true';
+  if (!devFUE && !nativeFUE) {
+    fail('Disabled outside an explicitly isolated FUE environment');
   }
 }
 
