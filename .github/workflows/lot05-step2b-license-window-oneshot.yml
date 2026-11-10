@@ -28,7 +28,8 @@ jobs:
           $ErrorActionPreference = 'Stop'
           if ((git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}') { throw 'EXACT_HEAD_REQUIRED' }
           if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows') { throw 'DISPOSABLE_WINDOWS_REQUIRED' }
-          $base = (git merge-base HEAD origin/master).Trim()
+          $base = 'd4d2d144393fc884e01ca8734c1efa9fb0e0f2e3'
+          if ((git merge-base HEAD $base).Trim() -cne $base) { throw 'EXPECTED_BASE_NOT_ANCESTOR' }
           $changed = @(git diff --name-only $base HEAD)
           $approved = @(
             'scripts/quality/lot05_step2b_official_license_window_one_shot_lab.ps1',
