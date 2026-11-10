@@ -1,0 +1,98 @@
+name: LOT08.2-E SCM actual identity and coherent SQLite snapshot FUE-LAB
+
+on:
+  push:
+    branches:
+      - feat/v15-08-2-e-windows-service-snapshot-fue0-20261110
+    paths:
+      - .github/workflows/v15-08-2-e-windows-service-snapshot-lab.yml
+      - queue_core/tests/test_snapshot_08_2_e.py
+      - scripts/quality/lot08_2_e_*
+  pull_request:
+    paths:
+      - .github/workflows/v15-08-2-e-windows-service-snapshot-lab.yml
+      - queue_core/tests/test_snapshot_08_2_e.py
+      - scripts/quality/lot08_2_e_*
+
+permissions:
+  contents: read
+
+jobs:
+  linux-crossprocess-snapshot:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 25
+      - name: Assert exact HEAD + bounded five-file additive-only LAB
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --name-only bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4 HEAD | sort > actual.txt
+          cat > expected.txt <<'EOF'
+          .github/workflows/v15-08-2-e-windows-service-snapshot-lab.yml
+          queue_core/tests/test_snapshot_08_2_e.py
+          scripts/quality/lot08_2_e_service_probe.py
+          scripts/quality/lot08_2_e_snapshot_lab.py
+          scripts/quality/lot08_2_e_windows_service_lab.ps1
+          EOF
+          diff -u expected.txt actual.txt
+          test ! -e dist/DigitalCrownSetup.exe
+          echo "LOT08_2_E_BOUNDED_FIVE_FILE_EXACT_HEAD_PASS=$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned regression dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+          'fastapi==0.115.6' 'starlette==0.41.3'
+          'pydantic==2.6.3' 'httpx==0.28.1' 'anyio==4.12.1'
+      - name: Full Queue Core regression with synthetic snapshot tests
+        run: python -m pytest -q queue_core/tests --maxfail=1 --junitxml=lot08e-linux-regression.xml
+      - name: Archive Linux synthetic FUE
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08e-linux-junit
+          path: lot08e-linux-regression.xml
+          if-no-files-found: warn
+          retention-days: 7
+
+  windows-real-scm-service-and-snapshot:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify no patient installable and HEAD exact
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'HEAD_MISMATCH' }
+          if (Test-Path 'dist/DigitalCrownSetup.exe') { throw 'INSTALLABLE_FORBIDDEN' }
+      - name: Install pinned pytest only for standard-library snapshot LAB
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check 'pytest==9.0.3'
+      - name: Cross-process active writer and fail-closed restore FUE
+        shell: pwsh
+        run: python -m pytest -q queue_core/tests/test_snapshot_08_2_e.py --maxfail=1 --junitxml=lot08e-windows-snapshot.xml
+      - name: Actual SCM service LocalService per-service SID NTFS proof
+        shell: pwsh
+        run: ./scripts/quality/lot08_2_e_windows_service_lab.ps1
+      - name: Archive sanitized lab evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08e-windows-service-and-snapshot-evidence
+          path: |
+            lot08e-windows-snapshot.xml
+            ${{ runner.temp }}/lot08_2_e_windows_real_service_evidence.json
+          if-no-files-found: warn
+          retention-days: 7
