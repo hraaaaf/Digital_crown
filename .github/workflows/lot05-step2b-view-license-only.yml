@@ -2,7 +2,7 @@ name: LOT05 Step2B Signed Vendor View License ONLY (NO INSTALL)
 
 on:
   pull_request:
-    types: [opened]
+    types: [opened, synchronize]
     branches: [master]
     paths:
       - '.github/workflows/lot05-step2b-view-license-only.yml'
@@ -60,6 +60,7 @@ jobs:
           if (-not $v.signed_binary_validated -or
               -not $v.trusted_publisher -or
               -not $v.vendor_launcher_started -or
+              $v.view_license_invoked_once -or
               $v.install_button_invoked -or
               $v.setup_wizard_next_invoked -or
               $v.license_accepted -or
@@ -73,6 +74,13 @@ jobs:
           }
           Write-Host ('LOT05_2B_VIEW_LICENSE_STATUS=' + $v.status)
           Write-Host ('LOT05_2B_LICENSE_LABEL_COUNT=' + [int]$v.license_text_label_candidate_count)
+          Write-Host ('LOT05_2B_LICENSE_CONTROL_TYPE=' + [string]$v.license_candidate_control_type)
+          Write-Host ('LOT05_2B_LICENSE_PARENT_TYPE=' + [string]$v.license_candidate_parent_type)
+          Write-Host ('LOT05_2B_LICENSE_VENDOR_OWNER=' + [bool]$v.license_candidate_owned_by_vendor)
+          Write-Host ('LOT05_2B_LICENSE_INVOKE_PATTERN=' + [bool]$v.license_candidate_invoke_supported)
+          Write-Host ('LOT05_2B_LICENSE_PARENT_INVOKE_PATTERN=' + [bool]$v.license_candidate_parent_invoke_supported)
+          Write-Host ('LOT05_2B_LICENSE_LEGACY_PATTERN=' + [bool]$v.license_candidate_legacy_supported)
+          Write-Host ('LOT05_2B_LICENSE_BUTTON_ANCESTOR=' + [bool]$v.license_candidate_button_ancestor)
           Write-Host ('LOT05_2B_EXACT_BUTTON_COUNT=' + [int]$v.license_exact_button_candidate_count)
           Write-Host ('LOT05_2B_VIEW_LICENSE_INVOKED=' + [bool]$v.view_license_invoked_once)
           Write-Host ('LOT05_2B_LICENSE_WINDOW_TITLE=' + [bool]$v.licensed_window_title_observed)
