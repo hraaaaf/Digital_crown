@@ -149,17 +149,19 @@ def self_test() -> None:
                 (root / MODEL).unlink()
         target = root / "target"
         target.write_bytes(b"abc")
-        alias = root / MODEL
+        one = root / "isolated-source"
+        one.mkdir()
+        alias = one / MODEL
         try:
             alias.symlink_to(target)
         except (OSError, NotImplementedError):
             pass
         else:
-            target.unlink()
             try:
-                assert_single_file(root, MODEL, 3, hashlib.sha256(b"abc").hexdigest())
-            except UnsafeAsset:
-                pass
+                assert_single_file(one, MODEL, 3, hashlib.sha256(b"abc").hexdigest())
+            except UnsafeAsset as err:
+                if str(err) != "MODEL_NOT_REGULAR_FILE":
+                    raise
             else:
                 raise UnsafeAsset("SYMLINK_ACCEPTED")
     print("LOT08H_NEGATIVE_FILE_SIZE_DIGEST_SYMLINK_GATES_PASS")
