@@ -219,7 +219,8 @@ try{
           # downstream Setup wizard was launched directly.
           if($knownIds.Contains($winPid) -and $title -ceq 'Open Dental Installer' -and
              -not $r.server_launcher_install_attempted){
-            $r.server_launcher_install_attempted=$true
+            # Wait for the fully rendered exact six-selection screenshot;
+            # a newly created but not yet painted window is not an attempt.
             $serverHwnd=[IntPtr]([int]$w.Current.NativeWindowHandle)
             $serverRect=New-Object Lot05CaptureSignedWindow+Rect
             if($serverHwnd -ne [IntPtr]::Zero -and
@@ -241,6 +242,7 @@ try{
                 }
               }finally{$bmp.Dispose()}
               if($r.server_launcher_exact_six_items_verified){
+                $r.server_launcher_install_attempted=$true
                 $installTargets=New-Object 'System.Collections.Generic.List[System.IntPtr]'
                 $cb=[Lot05CaptureSignedWindow+EnumChildCallback]{
                   param([IntPtr]$child,[IntPtr]$unused)
@@ -768,6 +770,7 @@ try{
               # whose owner is already in the signed Setup process tree.
               # Send a SINGLE BM_CLICK to UIA's uniquely identified Next button.
               if(-not $r.next_click_attempted -and $r.screenshot_window_only_retained -and
+                 $r.screenshot_sha256 -ceq '941808f7bcbb05eb22e11f98036a2fe092c1ec890a36164ae621e86a9119e7ea' -and
                  $title -ceq 'OpenDental (25.3.48) Setup'){
                 try{
                   $r.welcome_title_exact_proven=$true
