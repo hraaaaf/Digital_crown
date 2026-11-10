@@ -70,6 +70,8 @@ $r=[ordered]@{
   license_text_sha256=$null
   license_text_may_be_truncated=$false
   license_text_read_errors=0
+  license_native_text_controls_seen=0
+  license_native_classes_bounded=@()
   post_next_license_keyword_seen=$false
   clicked_install=$false
   clicked_next=$false
@@ -84,7 +86,7 @@ try{
   Add-Type -AssemblyName UIAutomationClient -ErrorAction Stop
   Add-Type -AssemblyName UIAutomationTypes -ErrorAction Stop
   Add-Type -AssemblyName System.Drawing -ErrorAction Stop
-  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Lot05CaptureSignedWindow { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect); [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd,IntPtr hdc,uint flags); [DllImport("user32.dll",SetLastError=true)] public static extern IntPtr SendMessageTimeout(IntPtr hwnd,uint msg,IntPtr wParam,IntPtr lParam,uint flags,uint timeout,out IntPtr result); [StructLayout(LayoutKind.Sequential)] public struct Pt { public int X,Y; } [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y); [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Pt pt); [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint buttons,UIntPtr extra); public delegate bool EnumChildCallback(IntPtr hwnd,IntPtr user); [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hwnd,EnumChildCallback callback,IntPtr user); [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd,System.Text.StringBuilder sb,int capacity); [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid); }' -ErrorAction Stop
+  Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Lot05CaptureSignedWindow { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect); [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd,IntPtr hdc,uint flags); [DllImport("user32.dll",SetLastError=true)] public static extern IntPtr SendMessageTimeout(IntPtr hwnd,uint msg,IntPtr wParam,IntPtr lParam,uint flags,uint timeout,out IntPtr result); [StructLayout(LayoutKind.Sequential)] public struct Pt { public int X,Y; } [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr hwnd); [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow(); [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y); [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Pt pt); [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint buttons,UIntPtr extra); public delegate bool EnumChildCallback(IntPtr hwnd,IntPtr user); [DllImport("user32.dll")] public static extern bool EnumChildWindows(IntPtr hwnd,EnumChildCallback callback,IntPtr user); [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hwnd,System.Text.StringBuilder sb,int capacity); [DllImport("user32.dll",CharSet=CharSet.Unicode)] public static extern int GetClassName(IntPtr hwnd,System.Text.StringBuilder sb,int capacity); [DllImport("user32.dll")] public static extern bool IsWindowEnabled(IntPtr hwnd); [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hwnd); [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hwnd,out uint pid); }' -ErrorAction Stop
   $r.runner_session_id=[System.Diagnostics.Process]::GetCurrentProcess().SessionId
   $r.environment_user_interactive=[System.Environment]::UserInteractive
   $r.explorer_same_session=(@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object {$_.SessionId -eq $r.runner_session_id}).Count -gt 0)
@@ -221,6 +223,56 @@ try{
                           $bestSource=$candidateSource
                         }
                       }catch{$r.license_text_read_errors++}
+                    }
+                    # Native read-only fallback: UIA can hide RichTextBox text behind
+                    # non-Edit control types. Enumerate exact owned HWND children,
+                    # allowlist only Edit/RichEdit class, then use WM_GETTEXT.
+                    if($bestText.Length -lt 400){
+                      $allNative=New-Object 'System.Collections.Generic.List[string]'
+                      $nativeCandidates=New-Object 'System.Collections.Generic.List[string]'
+                      $exactLicenseHwnd=[IntPtr]([int]$w.Current.NativeWindowHandle)
+                      if($exactLicenseHwnd -ne [IntPtr]::Zero){
+                        $nativeCb=[Lot05CaptureSignedWindow+EnumChildCallback]{
+                          param([IntPtr]$child,[IntPtr]$unused)
+                          try{
+                            $nativePid=[uint32]0
+                            $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($child,[ref]$nativePid)
+                            if([int]$nativePid -ne $winPid){return $true}
+                            $sb=New-Object System.Text.StringBuilder(180)
+                            $null=[Lot05CaptureSignedWindow]::GetClassName($child,$sb,$sb.Capacity)
+                            $cls=$sb.ToString()
+                            if($cls -notmatch '(?i)RichEdit|RichText|TextBox|Edit'){return $true}
+                            $allNative.Add($cls)
+                            $capacity=60000
+                            $ptr=[Runtime.InteropServices.Marshal]::AllocHGlobal($capacity*2)
+                            try{
+                              [Runtime.InteropServices.Marshal]::WriteInt16($ptr,0)
+                              [Runtime.InteropServices.Marshal]::WriteInt16($ptr,($capacity-1)*2,0)
+                              $outLength=[IntPtr]::Zero
+                              $ok=[Lot05CaptureSignedWindow]::SendMessageTimeout(
+                                $child,[uint32]0x000D,[IntPtr]$capacity,$ptr,
+                                [uint32]2,[uint32]1300,[ref]$outLength)
+                              $textLength=[int]$outLength.ToInt64()
+                              if($ok -ne [IntPtr]::Zero -and $textLength -gt 0 -and $textLength -lt $capacity){
+                                $str=[Runtime.InteropServices.Marshal]::PtrToStringUni($ptr,$textLength)
+                                if(-not [string]::IsNullOrWhiteSpace($str)){
+                                  $nativeCandidates.Add($str)
+                                }
+                              }
+                            }finally{[Runtime.InteropServices.Marshal]::FreeHGlobal($ptr)}
+                          }catch{}
+                          return $true
+                        }
+                        $null=[Lot05CaptureSignedWindow]::EnumChildWindows($exactLicenseHwnd,$nativeCb,[IntPtr]::Zero)
+                      }
+                      $r.license_native_text_controls_seen=[Math]::Max($r.license_native_text_controls_seen,$allNative.Count)
+                      $r.license_native_classes_bounded=@($allNative | Select-Object -Unique -First 5)
+                      foreach($candidate in $nativeCandidates){
+                        if($candidate.Length -gt $bestText.Length){
+                          $bestText=$candidate
+                          $bestSource='WIN32_RICHEDIT_WM_GETTEXT_READONLY'
+                        }
+                      }
                     }
                     if($bestText.Length -gt 200 -and
                        $bestText -match '(?i)Open\s+Dental' -and
@@ -497,6 +549,8 @@ Write-Host ('LOT05_LICENSE_TEXT_READONLY_CHARACTERS='+$r.license_text_characters
 Write-Host ('LOT05_LICENSE_TEXT_READONLY_SOURCE='+$r.license_text_read_source)
 Write-Host ('LOT05_LICENSE_TEXT_READONLY_TRUNCATED='+$r.license_text_may_be_truncated)
 Write-Host ('LOT05_LICENSE_TEXT_READONLY_ERRORS='+$r.license_text_read_errors)
+Write-Host ('LOT05_LICENSE_NATIVE_EDIT_CONTROLS_SEEN='+$r.license_native_text_controls_seen)
+Write-Host ('LOT05_LICENSE_NATIVE_EDIT_CLASS_TAGS='+($r.license_native_classes_bounded -join ','))
 Write-Host ('LOT05_POST_NEXT_LICENSE_KEYWORD='+$r.post_next_license_keyword_seen)
 Write-Host ('LOT05_DESKTOP_WINDOW_ONLY_CAPTURE_ERRORS='+$r.screenshot_error_count)
 Write-Host ('LOT05_DESKTOP_WINDOWS_TITLE_SETUP='+$r.owned_setup_title_window_count_max)
