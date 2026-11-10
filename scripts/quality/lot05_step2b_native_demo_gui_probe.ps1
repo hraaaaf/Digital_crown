@@ -54,6 +54,17 @@ $r=[ordered]@{
   nested_chooser_password_edits_redacted=0
   nested_chooser_demo_selection_observed=$false
   nested_chooser_unauthorized_notice_observed=$false
+  demo_connect_attempted=$false
+  demo_connect_ok_candidates=0
+  demo_connect_pinned_screenshot=$false
+  demo_connect_ok_pid_and_geometry=$false
+  demo_connect_ok_foreground_verified=$false
+  demo_connect_ok_hittest_verified=$false
+  demo_connect_click_sent=$false
+  demo_connect_click_cycle=-1
+  demo_connect_dialog_closed_observed=$false
+  demo_connect_post_checked=$false
+  demo_connect_post_dialog_names=@()
   chooser_window_captured=$false
   chooser_window_title='NOT_OBSERVED'
   chooser_window_size=$null
@@ -270,7 +281,98 @@ public static class Lot05DemoGuiWindow {
                   $r.chooser_safe_controls+=,$nm
                 }
               }
+              # STEP 3B: confirm the already selected local-only demo DB.
+              # The native chooser was captured at an identical SHA on the
+              # prior green exact-HEAD run, and demo is the only permitted DB.
+              if($r.chooser_window_captured -and -not $r.demo_connect_attempted){
+                $r.demo_connect_attempted=$true
+                $r.demo_connect_pinned_screenshot=(
+                  $r.chooser_png_sha256 -ceq '4bfb92b908e789b2ba3f27b201e3588d3f4a827bb8f16e4b9207221b8bac05f4')
+                $selectDemo=0;$selectLocal=0
+                $buttons=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
+                for($m=0;$m -lt [Math]::Min(250,$sub.Count);$m++){
+                  $ctl=$sub.Item($m)
+                  if([int]$ctl.Current.ProcessId -ne $pidHere){continue}
+                  $n=[string]$ctl.Current.Name
+                  $t=[string]$ctl.Current.ControlType.ProgrammaticName
+                  if($t -eq 'ControlType.ComboBox' -and $n -ceq 'demo'){$selectDemo++}
+                  if($t -eq 'ControlType.ComboBox' -and $n -ceq 'localhost'){$selectLocal++}
+                  if($t -eq 'ControlType.Button' -and $n -ceq 'OK' -and $ctl.Current.IsEnabled){
+                    $buttons.Add($ctl)
+                  }
+                }
+                $r.demo_connect_ok_candidates=$buttons.Count
+                if($r.demo_connect_pinned_screenshot -and
+                   $r.nested_chooser_demo_selection_observed -and
+                   $selectDemo -eq 1 -and $selectLocal -eq 1 -and
+                   $r.chooser_owner_pid_verified -and $handleOwned -and
+                   $buttons.Count -eq 1){
+                  $btn=$buttons[0]
+                  $bo=$btn.Current.BoundingRectangle
+                  $bx=[int][Math]::Floor($bo.X+$bo.Width/2)
+                  $by=[int][Math]::Floor($bo.Y+$bo.Height/2)
+                  $r.demo_connect_ok_pid_and_geometry=(
+                    [int]$btn.Current.ProcessId -eq $pidHere -and
+                    $bo.Width -ge 45 -and $bo.Width -le 115 -and
+                    $bo.Height -ge 18 -and $bo.Height -le 42 -and
+                    $bx -ge ($x+$cw-150) -and $bx -le ($x+$cw) -and
+                    $by -ge ($y+$ch-90) -and $by -le ($y+$ch))
+                  if($r.demo_connect_ok_pid_and_geometry){
+                    # Focus the owned application, never send keys to another PID.
+                    $null=[Lot05DemoGuiWindow]::SetForegroundWindow($hwnd)
+                    Start-Sleep -Milliseconds 180
+                    $foreground=[Lot05DemoGuiWindow]::GetForegroundWindow()
+                    $fgPid=[uint32]0
+                    if($foreground -ne [IntPtr]::Zero){
+                      $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($foreground,[ref]$fgPid)
+                    }
+                    $r.demo_connect_ok_foreground_verified=([int]$fgPid -eq $pidHere)
+                    $pt=New-Object Lot05DemoGuiWindow+Point
+                    $pt.X=$bx;$pt.Y=$by
+                    if($r.demo_connect_ok_foreground_verified -and
+                       [Lot05DemoGuiWindow]::SetCursorPos($bx,$by)){
+                      Start-Sleep -Milliseconds 90
+                      $hit=[Lot05DemoGuiWindow]::WindowFromPoint($pt)
+                      $hitPid=[uint32]0
+                      if($hit -ne [IntPtr]::Zero){
+                        $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($hit,[ref]$hitPid)
+                      }
+                      $r.demo_connect_ok_hittest_verified=([int]$hitPid -eq $pidHere)
+                      if($r.demo_connect_ok_hittest_verified){
+                        [Lot05DemoGuiWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                        Start-Sleep -Milliseconds 90
+                        [Lot05DemoGuiWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                        $r.demo_connect_click_sent=$true
+                        $r.demo_connect_click_cycle=$cycle
+                      }
+                    }
+                  }
+                }
+              }
             }
+          }catch{$r.uia_errors++}
+        }
+        if($title -ceq 'Open Dental' -and $r.demo_connect_click_sent -and
+           $cycle -gt $r.demo_connect_click_cycle -and
+           -not $r.demo_connect_post_checked){
+          try{
+            $subNow=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            $foundChooser=0
+            for($u=0;$u -lt [Math]::Min(500,$subNow.Count);$u++){
+              $el=$subNow.Item($u)
+              if([int]$el.Current.ProcessId -ne $pidHere){continue}
+              $nm=[string]$el.Current.Name
+              $ct=[string]$el.Current.ControlType.ProgrammaticName
+              if($nm -ceq 'Choose Database' -and $ct -ceq 'ControlType.Window'){$foundChooser++}
+              if($ct -ceq 'ControlType.Window' -and
+                 $r.demo_connect_post_dialog_names.Count -lt 10 -and
+                 $r.demo_connect_post_dialog_names -notcontains $nm){
+                $r.demo_connect_post_dialog_names+=,$nm
+              }
+            }
+            $r.demo_connect_dialog_closed_observed=($foundChooser -eq 0)
+            if($cycle -ge $r.demo_connect_click_cycle+4){$r.demo_connect_post_checked=$true}
           }catch{$r.uia_errors++}
         }
         $isChooser=($title -ceq 'Choose Database')
@@ -508,7 +610,7 @@ public static class Lot05DemoGuiWindow {
         }
       }catch{$r.uia_errors++}
     }
-    if($r.chooser_window_captured){break}
+    if($r.demo_connect_post_checked){break}
   }
 }catch{
   $r.error_code='EXACT_DEMO_APP_GUI_DISCOVERY_FAIL_CLOSED'
@@ -537,10 +639,15 @@ Write-Host ('LOT05_NATIVE_NESTED_CHOOSER_HWND='+$r.nested_chooser_hwnd_present)
 Write-Host ('LOT05_NATIVE_DEMO_SELECTION_SEEN='+$r.nested_chooser_demo_selection_observed)
 Write-Host ('LOT05_NATIVE_CHOOSER_UNAUTHORIZED_NOTICE='+$r.nested_chooser_unauthorized_notice_observed)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLICK='+$r.demo_connect_click_sent)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLOSED='+$r.demo_connect_dialog_closed_observed)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_POST_WINDOWS='+($r.demo_connect_post_dialog_names -join ';'))
 Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
 if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
    -not $r.app_exe_signature_valid -or -not $r.app_process_started -or
    -not $r.choose_database_menu_invoked -or -not $r.chooser_window_captured -or
+   -not $r.demo_connect_click_sent -or -not $r.demo_connect_post_checked -or
+   -not $r.demo_connect_dialog_closed_observed -or
    $null -ne $r.error_code){
-  throw 'NATIVE_DEMO_CHOOSE_DATABASE_DIALOG_NOT_PROVEN'
+  throw 'NATIVE_DEMO_CONNECT_CONFIRMATION_NOT_PROVEN'
 }
