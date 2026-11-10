@@ -83,6 +83,42 @@ describe('R23-G4 experimental reference reader, fail-closed', () => {
     expect(resolveR23G3RuntimeFocus(row)).toBeNull();
   });
 
+  it('permits construction-only Focus only with the exact active typed source, never invented lines', () => {
+    const data = payload();
+    const row: any = data.profiles.com.rows[0];
+    row.contract_state = 'SOURCE_LOCKED';
+    row.availability_status = 'AVAILABLE';
+    row.value = 2.3;
+    row.measurement_refs = ['measurement:synthetic:exact'];
+    row.value_authority_method_id = 'COM_CONSTRUCTION_ONLY_EXACT';
+    row.focus_evidence = {
+      authority: 'ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1',
+      canonical_measurement_id: row.canonical_measurement_id,
+      measurement_ref: 'measurement:synthetic:exact',
+      value_authority_method_id: 'COM_CONSTRUCTION_ONLY_EXACT',
+      landmark_ids: [],
+      construction_ids: ['construction:synthetic:exact'],
+      calibration_required: false,
+    };
+
+    expect(readCephaloR23G2Protocol(data, 'com')).not.toBeNull();
+    const focus = resolveR23G3RuntimeFocus(row);
+    expect(focus?.points).toEqual([]);
+    expect(focus?.constructionIds).toEqual(['construction:synthetic:exact']);
+    expect(focus?.lines).toEqual([]);
+    expect(focus?.authority).toBe('ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1');
+
+    row.focus_evidence.construction_ids = [];
+    expect(resolveR23G3RuntimeFocus(row)).toBeNull();
+    row.focus_evidence.construction_ids = ['construction:synthetic:exact'];
+    row.focus_evidence.measurement_ref = 'measurement:synthetic:wrong';
+    expect(resolveR23G3RuntimeFocus(row)).toBeNull();
+    row.focus_evidence.measurement_ref = 'measurement:synthetic:exact';
+    row.availability_status = 'NOT_COMPUTABLE';
+    row.value = null;
+    expect(resolveR23G3RuntimeFocus(row)).toBeNull();
+  });
+
   it('rejects duplicated source factor identifiers and absent complete source-lock', () => {
     const data = payload();
     data.profiles.ricketts_atlas2009.rows[1].canonical_measurement_id =
