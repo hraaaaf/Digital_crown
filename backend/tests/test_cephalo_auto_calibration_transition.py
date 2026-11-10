@@ -228,13 +228,12 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     assert legacy_mcnamara
     assert all(item["calibration_ref"] == source["evidence_id"] for item in legacy_mcnamara)
     assert all(item["value"] is not None for item in legacy_mcnamara)
+    from backend.schemas.cephalo_evidence import MeasurementEvidence
     from backend.services.cephalo_canonical_method_bridge import project_canonical_measurements
     from backend.services.cephalo_protocol_projection import project_mcnamara_reference_protocol
 
     canonical = project_canonical_measurements(
-        __import__("backend.schemas.cephalo_evidence", fromlist=["MeasurementEvidence"])
-        .MeasurementEvidence.model_validate(raw)
-        for raw in mcnamara
+        MeasurementEvidence.model_validate(raw) for raw in mcnamara
     )["measurements"]
     co_gn_row = next(
         row for row in project_mcnamara_reference_protocol(canonical)["rows"]
