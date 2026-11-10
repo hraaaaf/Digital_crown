@@ -128,7 +128,7 @@ def make_app(root: Path, db_file: Path, *, create_schema: bool):
     if not db_file.is_file():
         raise RuntimeError("Expected file-backed SQLCipher synthetic DB absent")
     with db_file.open("rb") as disk:
-        if disk.read(16) == b"SQLite format 3\\x00":
+        if disk.read(16).startswith(b"SQLite format 3"):
             raise RuntimeError("Plaintext SQLite header detected in native FUE")
     print("CEPH_J21_NATIVE_FUE_SQLCIPHER_DISK_ENCRYPTION_PASS", flush=True)
 
