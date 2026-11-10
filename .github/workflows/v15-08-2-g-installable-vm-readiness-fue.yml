@@ -164,6 +164,10 @@ jobs:
           if ($LASTEXITCODE -ne 3) { throw 'MISSING_INSTALLABLE_GATE_BYPASSED' }
           $r = Get-Content lot08g-windows-blocked.json -Raw | ConvertFrom-Json
           if ($r.verdict -ne 'BLOCKED_NO_INSTALLABLE_GO' -or $r.installable_go -ne $false) { throw 'RELEASE_GATE_BYPASSED' }
+          # GitHub-hosted pwsh appends an automatic 'exit $LASTEXITCODE' trailer.
+          # After ASSERTING the expected refusal code 3, clear only the shell
+          # status; this must never modify the gate or accept an installable.
+          $global:LASTEXITCODE = 0
           Write-Output 'LOT08G_WINDOWS_NO_INSTALLABLE_FAIL_CLOSED_PASS'
       - if: always()
         uses: actions/upload-artifact@v4
