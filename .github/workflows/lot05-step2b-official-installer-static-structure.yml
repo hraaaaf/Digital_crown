@@ -62,6 +62,8 @@ jobs:
             archive_entries_bounded=0
             msi_candidate_count=0
             nested_exe_candidate_count=0
+            nested_exe_archive_paths_bounded=@()
+            msi_archive_paths_bounded=@()
             legal_filename_candidate_count=0
             msi_extraction_status='NOT_ATTEMPTED'
             msi_sha256='UNKNOWN'
@@ -109,6 +111,15 @@ jobs:
                 $report.archive_entries_bounded=$entries.Count
                 $report.msi_candidate_count=@($entries | Where-Object { $_ -match '(?i)\.msi$' }).Count
                 $report.nested_exe_candidate_count=@($entries | Where-Object { $_ -match '(?i)\.exe$' }).Count
+                # Only official vendor package entry paths; at most 8, no patient records.
+                $report.nested_exe_archive_paths_bounded=@($entries |
+                  Where-Object { $_ -match '(?i)\.exe$' } |
+                  ForEach-Object { ($_ -split ' = ',2)[1] } |
+                  Select-Object -First 8)
+                $report.msi_archive_paths_bounded=@($entries |
+                  Where-Object { $_ -match '(?i)\.msi$' } |
+                  ForEach-Object { ($_ -split ' = ',2)[1] } |
+                  Select-Object -First 3)
                 $report.legal_filename_candidate_count=@($entries | Where-Object { $_ -match '(?i)(license|licence|eula|agreement|terms).*\.(txt|pdf|rtf|html?)$' }).Count
               } else {
                 $report.sevenzip_list_status='FORMAT_UNSUPPORTED'
@@ -158,6 +169,7 @@ jobs:
             Write-Host ('LOT05_STATIC_MSI_COUNT=' + $report.msi_candidate_count)
             Write-Host ('LOT05_STATIC_MSI_DB_STATUS=' + $report.msi_readonly_database_status)
             Write-Host ('LOT05_STATIC_LICENSE_DIALOG_COUNT=' + $report.msi_license_dialog_name_count)
+            Write-Host ('LOT05_STATIC_NESTED_EXE_NAMES=' + ($report.nested_exe_archive_paths_bounded -join ';'))
           } catch {
             $report.error_code='READONLY_INSPECTION_FAIL_CLOSED'
           } finally {
