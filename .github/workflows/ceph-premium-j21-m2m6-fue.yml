@@ -625,6 +625,10 @@ jobs:
           if (Get-NetTCPConnection -LocalPort 8879 -State Listen -ErrorAction SilentlyContinue) {
             throw 'FUE_BACKUP_LIVE_PROCESS_REFUSED'
           }
+          $exe=(Resolve-Path 'dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe').Path
+          & $exe checkpoint
+          if($LASTEXITCODE -ne 0){throw 'FUE_BACKUP_SQLCIPHER_CHECKPOINT_FAILED'}
+          Write-Output 'CEPH_J21_FUE_CHECKPOINT_COMPLETED_WHILE_SERVER_STOPPED'
           $db=Join-Path $profile 'ceph-j21-scene-app-fue.sqlite3'
           if (-not (Test-Path -LiteralPath $db) -or
               (Test-Path -LiteralPath ($db+'-wal'))) {
