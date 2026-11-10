@@ -429,7 +429,14 @@ try{
                   $r.install_button_candidates=$installButtons.Count
                   $r.install_back_candidates=$backCount
                   $r.install_cancel_candidates=$cancelCount
-                  if($installButtons.Count -eq 1 -and $backCount -eq 1 -and $cancelCount -eq 1){
+                  # The exact Ready-to-Install window is authenticated by the
+                  # SHA256 of its screenshot and by the signed vendor PID.
+                  # WinForms may omit captions of disabled sibling buttons from
+                  # GetWindowText (prior run: Install=1, Back=0, Cancel=0).
+                  # Never infer a target from those siblings. Instead require a
+                  # UNIQUE enabled Install HWND + PID + geometry + foreground +
+                  # hit-test. Reject ambiguous multiple Back/Cancel matches.
+                  if($installButtons.Count -eq 1 -and $backCount -le 1 -and $cancelCount -le 1){
                     $button=$installButtons[0]
                     $pidButton=[uint32]0
                     $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($button,[ref]$pidButton)
