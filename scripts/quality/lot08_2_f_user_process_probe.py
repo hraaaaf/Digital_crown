@@ -163,11 +163,20 @@ if __name__ == "__main__":
     mode = sys.argv[1]
     if mode == "owner" and len(sys.argv) == 4:
         run_as_owner(Path(sys.argv[2]), sys.argv[3])
-    elif mode == "guest" and len(sys.argv) == 5:
-        check_guest_denied(Path(sys.argv[2]), sys.argv[3], sys.argv[4])
+    elif mode == "guest" and len(sys.argv) == 4:
+        check_guest_denied(Path(sys.argv[2]), sys.argv[3], os.environ["DC08F_GUEST_PASSWORD"])
         print("WINDOWS_DIFFERENT_STANDARD_USER_READ_WRITE_DENIED_PASS")
     elif mode == "cold" and len(sys.argv) == 4:
         print("LOT08F_OFFLINE_COLD_CLONE_EPOCH=" +
               str(cold_restore_candidate(Path(sys.argv[2]), Path(sys.argv[3]))))
+    elif mode == "expect-refusal" and len(sys.argv) == 5:
+        try:
+            cold_restore_candidate(Path(sys.argv[2]), Path(sys.argv[3]))
+        except LabRefusal as exc:
+            if str(exc) != sys.argv[4]:
+                raise
+            print("LOT08F_COLD_RESTORE_REFUSED_" + str(exc) + "=PASS")
+        else:
+            raise LabRefusal("UNSAFE_COLD_RESTORE_WAS_ALLOWED")
     else:
         raise LabRefusal("LAB_MODE_OR_ARGUMENTS_INVALID")
