@@ -81,10 +81,16 @@ def test_srpose_snapshot_persists_analysis_scoped_evidence_and_does_not_silently
     assert payload["revision"] == 1
     assert payload["history"] == []
     assert len(payload["current_landmark_refs"]) == 38
-    assert len(payload["landmarks"]) == 41
-    assert {item["landmark_id"] for item in payload["landmarks"] if ":canonical:" in item["evidence_id"]} == {
-        "Po_anatomic", "Co_anatomic", "Pog_hard"
+    assert len(payload["landmarks"]) == 38
+    assert {item["landmark_id"] for item in payload["landmarks"] if ":canonical:" in item["evidence_id"]} == set()
+    assert not {"Po_anatomic", "Co_anatomic", "Pog_hard"} & {
+        item["landmark_id"] for item in payload["landmarks"]
     }
+    by_method = {item["method_id"]: item for item in payload["measurements"]}
+    for method in ("TWEED_FMA_CANONICAL_DEG_V2", "MCNAMARA_CO_A_CANONICAL_MM_V2"):
+        item = by_method[method]
+        assert item["availability_status"] == AvailabilityStatus.NOT_COMPUTABLE.value
+        assert item["value"] is None
     assert all(x["origin"] == LandmarkOrigin.SRPOSE38_AUTO.value for x in payload["landmarks"])
 
     craniom = [x for x in payload["measurements"] if x["analysis_id"] == "CRANIOM"]
@@ -218,13 +224,15 @@ def test_manual_revision_preserves_auto_points_and_full_previous_snapshot_histor
     assert second["history"][0]["constructions"] == first["constructions"]
     assert second["history"][0]["measurements"] == first["measurements"]
     origins = [x["origin"] for x in second["landmarks"]]
-    assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 41
+    assert origins.count(LandmarkOrigin.SRPOSE38_AUTO.value) == 38
     assert len(second["current_landmark_refs"]) == len(_points())
     canonical_manual = [
         x for x in second["landmarks"]
         if x["origin"] == LandmarkOrigin.MANUAL.value and ":canonical:" in x["evidence_id"]
     ]
-    assert {x["landmark_id"] for x in canonical_manual} == {"Po_anatomic"}
+    assert {x["landmark_id"] for x in canonical_manual} == set()
+    # An unreviewed MANUAL snapshot is not a clinician attestation.
+    assert all(x["evidence_status"] != "CLINICIAN_VALIDATED" for x in second["landmarks"] if x["origin"] == LandmarkOrigin.MANUAL.value)
     for construction in second["constructions"]:
         assert all(":r2:" in ref for ref in construction["landmark_refs"])
     validate_case_evidence_graph(_graph(second), patient_id=7, case_id=CASE_ID)
@@ -361,3 +369,21 @@ def test_manual_revision_preserves_image_orientation_evidence():
     assert second["image_orientations"] == with_orientation["image_orientations"]
     assert second["history"][-1]["image_orientations"] == with_orientation["image_orientations"]
     validate_case_evidence_graph(_graph(second), patient_id=7, case_id=CASE_ID)
+
+
+def test_srpose_snapshot_roundtrip_keeps_unverified_points_numeric_without_canonical_aliases():
+    """Readback of serialized typed evidence cannot acquire new anatomical aliases."""
+    import json
+
+    original = _initial()
+    saved = json.loads(json.dumps(original))
+    graph = _graph(saved)
+    validate_case_evidence_graph(graph, patient_id=7, case_id=CASE_ID)
+    assert len(graph.landmarks) == 38
+    assert {item.landmark_id for item in graph.landmarks} == set(SOTA_LANDMARKS_MAPPING.values())
+    by_method = {item.method_id: item for item in graph.measurements}
+    for method in ("TWEED_FMA_CANONICAL_DEG_V2", "MCNAMARA_CO_A_CANONICAL_MM_V2"):
+        assert by_method[method].availability_status == AvailabilityStatus.NOT_COMPUTABLE
+        assert by_method[method].value is None
+    assert saved["history"] == []
+    assert saved["revision"] == 1
