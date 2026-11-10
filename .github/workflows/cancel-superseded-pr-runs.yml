@@ -1,0 +1,136 @@
+name: CI Superseded PR Runs Cleanup
+
+# Trusted cleanup: no PR checkout, no code execution from an untrusted PR.
+# One-time activation on the isolated cleanup branch; future activation only
+# after this workflow is separately approved and merged to the default branch.
+on:
+  push:
+    branches:
+      - ci/cancel-superseded-runs-20261025
+    paths:
+      - .github/workflows/cancel-superseded-pr-runs.yml
+  pull_request_target:
+    types: [synchronize]
+
+permissions:
+  actions: write
+  pull-requests: read
+  contents: read
+
+concurrency:
+  group: ci-pr-run-cleanup-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cancel-superseded:
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Cancel only provably superseded same-PR runs
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const { owner, repo } = context.repo;
+            const full = owner + "/" + repo;
+            const isOneShot = context.eventName === "push";
+
+            // Only the requested PR #1083 is eligible during the one-shot push.
+            // On future pull_request_target synchronize, use the event's PR.
+            if (isOneShot && context.ref !== "refs/heads/ci/cancel-superseded-runs-20261025") {
+              throw new Error("Unexpected one-shot branch");
+            }
+            const prNumber = isOneShot ? 1083 : context.payload.pull_request?.number;
+            if (!Number.isSafeInteger(prNumber) || prNumber <= 0) {
+              throw new Error("Missing PR number; refusing cleanup");
+            }
+            const response = await github.rest.pulls.get({
+              owner, repo, pull_number: prNumber
+            });
+            const pr = response.data;
+            if (pr.state !== "open" || pr.head.repo.full_name !== full ||
+                pr.base.repo.full_name !== full) {
+              core.notice("PR is closed or is not a same-repository PR; no cancellations.");
+              return;
+            }
+            if (!isOneShot && context.payload.pull_request?.head.sha !== pr.head.sha) {
+              core.notice("PR updated again after the triggering event; newer cleanup owns it.");
+              return;
+            }
+            const currentSha = pr.head.sha;
+            const branch = pr.head.ref;
+
+            const runsById = new Map();
+            for (const status of ["queued", "in_progress", "pending", "waiting"]) {
+              for (let page = 1; page <= 8; page++) {
+                const data = (await github.rest.actions.listWorkflowRunsForRepo({
+                  owner, repo, branch, status, per_page: 100, page
+                })).data;
+                for (const run of data.workflow_runs) runsById.set(run.id, run);
+                if (data.workflow_runs.length < 100) break;
+                if (page === 8) throw new Error(
+                  "More than 800 runs in status " + status + "; refuse incomplete scan"
+                );
+              }
+            }
+            const candidates = [...runsById.values()].filter(run =>
+              run.event === "pull_request" &&
+              run.head_branch === branch &&
+              run.head_sha !== currentSha &&
+              run.repository?.full_name === full &&
+              ["queued", "pending", "waiting", "in_progress"].includes(run.status) &&
+              (run.pull_requests || []).some(link => link.number === prNumber)
+            );
+            if (candidates.length > 200) {
+              throw new Error("Unexpectedly large candidate set; require human review");
+            }
+            // Fail closed if a newer PR HEAD landed during enumeration.
+            const finalPr = (await github.rest.pulls.get({
+              owner, repo, pull_number: prNumber
+            })).data;
+            if (finalPr.head.sha !== currentSha || finalPr.state !== "open") {
+              core.warning("PR HEAD/state changed during scan. No cancellation executed.");
+              return;
+            }
+
+            core.info("PR #" + prNumber + " live HEAD " + currentSha +
+              "; stale candidates " + candidates.length +
+              "; branch " + branch + ".");
+            let cancelled = 0, alreadyFinished = 0, failed = 0;
+            for (const run of candidates) {
+              try {
+                await github.rest.actions.cancelWorkflowRun({
+                  owner, repo, run_id: run.id
+                });
+                cancelled++;
+                core.info("CANCEL requested " + run.id + " old HEAD " +
+                  run.head_sha + " " + run.name);
+              } catch (error) {
+                if ([404, 409, 422].includes(error.status)) {
+                  alreadyFinished++;
+                  core.info("Already finished or cancellation no longer possible: " + run.id);
+                } else {
+                  failed++;
+                  core.error("Cancellation failed for " + run.id +
+                    " HTTP " + error.status + ": " + error.message);
+                  if ([401, 403, 429].includes(error.status)) {
+                    throw error;
+                  }
+                }
+              }
+              // Avoid a burst of GitHub Actions API mutations.
+              await new Promise(resolve => setTimeout(resolve, 220));
+            }
+            await core.summary
+              .addHeading("Superseded PR runs cleanup")
+              .addTable([
+                [{data:"PR",header:true}, {data:"Live HEAD",header:true},
+                 {data:"Candidates",header:true}, {data:"Cancellation requested",header:true},
+                 {data:"Already finished",header:true}, {data:"Failed",header:true}],
+                [String(prNumber), currentSha, String(candidates.length),
+                 String(cancelled), String(alreadyFinished), String(failed)]
+              ])
+              .addRaw("Only same-repository pull_request runs tied to the same PR and an older SHA are eligible. All live-HEAD runs, workflow_dispatch, push, pull_request_target, release and finished runs are left untouched.")
+              .write();
+            if (failed) throw new Error(failed + " cancellations could not be requested");
