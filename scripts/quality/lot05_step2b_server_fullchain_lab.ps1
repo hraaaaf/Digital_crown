@@ -946,11 +946,6 @@ try{
   $r.error_code='FAIL_CLOSED_SETUP_OR_WINDOW_DIAGNOSTIC'
   $r.diagnosis='NOT_PROVEN'
 }finally{
-  foreach($childId in @($knownIds)){
-    try{Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue}catch{}
-  }
-  Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
-  Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
   $services=@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue)
   $r.database_created=($services.Count -gt 0)
   if($services.Count -eq 1){
@@ -978,6 +973,17 @@ try{
     $r.installed_exe_authenticode_status=[string](Get-AuthenticodeSignature -LiteralPath $installedExe).Status
   }
   [System.IO.File]::WriteAllText($outFile,($r|ConvertTo-Json -Depth 5),(New-Object System.Text.UTF8Encoding($false)))
+  # Preserve database service during and after inspection on this disposable runner.
+  # Do not kill MariaDB as a descendant of the vendor installer.
+  $dbServiceProcessIds=@(Get-CimInstance Win32_Service -ErrorAction SilentlyContinue |
+     Where-Object {$_.Name -eq 'MariaDB' -or $_.Name -like 'MySQL*'} |
+     ForEach-Object {[int]$_.ProcessId} | Where-Object {$_ -gt 0})
+  foreach($childId in @($knownIds)){
+    if($dbServiceProcessIds -contains [int]$childId){continue}
+    try{Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue}catch{}
+  }
+  Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
+  Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
 }
 Write-Host ('LOT05_DESKTOP_DIAGNOSIS='+$r.diagnosis)
 Write-Host ('LOT05_DESKTOP_RUNNER_SESSION='+$r.runner_session_id)
