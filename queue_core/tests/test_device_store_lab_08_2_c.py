@@ -242,3 +242,80 @@ def test_store_does_not_migrate_existing_unrelated_database(local):
             "SELECT name FROM sqlite_master WHERE type='table'"
         )}
     assert tables == {"unrelated"}
+
+
+def test_guarded_device_session_blocks_concurrent_revocation_until_release(local):
+    """Two SQLite connections serialize active device check and revocation."""
+    from threading import Event
+    from concurrent.futures import TimeoutError
+
+    now, operators, admin, _, store, path = local
+    store.initialize_lab()
+    _, bearer = _pair(store, admin)
+    verified = Event()
+    allow_exit = Event()
+    revoke_started = Event()
+    contender = DurableDeviceStoreLab(operators, path, clock=lambda: now[0])
+
+    def hold_authorization():
+        with store._guarded_device_session(
+            bearer, tenant_id="T1", capability=DeviceCapability.QR_REDEEM,
+        ) as device:
+            assert device.device_id == "K1"
+            verified.set()
+            assert allow_exit.wait(timeout=10)
+
+    def revoke_concurrently():
+        revoke_started.set()
+        contender.revoke(admin, tenant_id="T1", device_id="K1")
+
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        holding = pool.submit(hold_authorization)
+        assert verified.wait(timeout=8)
+        revocation = pool.submit(revoke_concurrently)
+        assert revoke_started.wait(timeout=8)
+        # AUTH -> DEVICE lease prevents revoke taking effect mid-authorization.
+        with pytest.raises(TimeoutError):
+            revocation.result(timeout=0.2)
+        allow_exit.set()
+        holding.result(timeout=10)
+        revocation.result(timeout=10)
+
+    with pytest.raises(DeviceIdentityError, match="DEVICE_CAPABILITY_DENIED"):
+        store.require(
+            bearer, tenant_id="T1", capability=DeviceCapability.QR_REDEEM,
+        )
+
+
+def test_guarded_device_session_denies_stale_or_wrong_tenant(local):
+    _, _, admin, _, store, _ = local
+    store.initialize_lab()
+    _, bearer = _pair(store, admin)
+    with pytest.raises(DeviceIdentityError, match="DEVICE_CAPABILITY_DENIED"):
+        with store._guarded_device_session(
+            bearer, tenant_id="T2", capability=DeviceCapability.QR_REDEEM,
+        ):
+            pytest.fail("cross-tenant device guard must not open")
+    store.revoke(admin, tenant_id="T1", device_id="K1")
+    with pytest.raises(DeviceIdentityError, match="DEVICE_CAPABILITY_DENIED"):
+        with store._guarded_device_session(
+            bearer, tenant_id="T1", capability=DeviceCapability.QR_REDEEM,
+        ):
+            pytest.fail("revoked device guard must not open")
+
+
+def test_guarded_device_session_exception_releases_both_locks(local):
+    _, _, admin, _, store, _ = local
+    store.initialize_lab()
+    _, bearer = _pair(store, admin)
+    with pytest.raises(RuntimeError, match="synthetic_abort"):
+        with store._guarded_device_session(
+            bearer, tenant_id="T1", capability=DeviceCapability.QR_REDEEM,
+        ):
+            raise RuntimeError("synthetic_abort")
+    # A crashed guarded operation must not strand either DB lock.
+    store.revoke(admin, tenant_id="T1", device_id="K1")
+    with pytest.raises(DeviceIdentityError, match="DEVICE_CAPABILITY_DENIED"):
+        store.require(
+            bearer, tenant_id="T1", capability=DeviceCapability.QR_REDEEM,
+        )
