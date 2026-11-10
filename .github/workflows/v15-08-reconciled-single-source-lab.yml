@@ -1,0 +1,121 @@
+name: LOT08 reconciled single-source QR + Windows FUE LAB
+
+on:
+  push:
+    branches:
+      - feat/v15-08-reconciled-single-source-lab-20261110
+    paths:
+      - .github/workflows/v15-08-reconciled-single-source-lab.yml
+      - queue_core/**
+      - scripts/quality/lot08_2_d_windows_acl_lab.ps1
+
+permissions:
+  contents: read
+
+jobs:
+  linux-queue-reconciliation:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 25
+      - name: Assert exact-head single-origin provenance and nine-file diff
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          git diff --name-only 88ebec4244519182ee6445056ba47702f305bd14 HEAD | sort > actual-files.txt
+          cat > expected-files.txt <<'EOF'
+          .github/workflows/v15-08-reconciled-single-source-lab.yml
+          queue_core/service/atomic_transition.py
+          queue_core/service/authorized_queue.py
+          queue_core/service/kiosk_qr_lab.py
+          queue_core/tests/test_atomic_transition_08_3.py
+          queue_core/tests/test_kiosk_qr_lab_08_2_d.py
+          queue_core/tests/test_qr_backup_restore_windows_08_2_d.py
+          queue_core/tests/test_service_auth_08_2_b.py
+          scripts/quality/lot08_2_d_windows_acl_lab.ps1
+          EOF
+          diff -u expected-files.txt actual-files.txt
+          test "$(git hash-object queue_core/service/atomic_transition.py)" = "d201dba2c2222bd68a67b5420447632ff3dee821"
+          test "$(git hash-object queue_core/service/authorized_queue.py)" = "35b2acdf8c8dfbdc1f8fafed800538f05c4f2011"
+          test "$(git hash-object queue_core/tests/test_atomic_transition_08_3.py)" = "910f5a05bd8b6d808ce17c42287019a83b54bc07"
+          test "$(git hash-object queue_core/tests/test_service_auth_08_2_b.py)" = "7f9b2fbe0e34189811cce7d897afc32228775c2e"
+          test "$(git hash-object queue_core/service/kiosk_qr_lab.py)" = "1c1e5471c3d8e7202f0aacb5673b7e862eafde41"
+          test "$(git hash-object queue_core/tests/test_kiosk_qr_lab_08_2_d.py)" = "4b423a36e2083572abc6c8b47ac6afc427d5382b"
+          test "$(git hash-object queue_core/tests/test_qr_backup_restore_windows_08_2_d.py)" = "c091704d35ef88cabd24b4d3979062ee3a787af7"
+          test "$(git hash-object scripts/quality/lot08_2_d_windows_acl_lab.ps1)" = "387aa3ed397952d57ba1ac67abed267c4c753fc8"
+          test ! -e dist/DigitalCrownSetup.exe
+          echo "RECONCILED_NINE_FILE_BOUNDED_DIFF_PASS=$GITHUB_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned Queue Core test dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+          'fastapi==0.115.6' 'starlette==0.41.3'
+          'pydantic==2.6.3' 'httpx==0.28.1' 'anyio==4.12.1'
+      - name: Full reconciled Queue Core regression on current HEAD
+        run: python -m pytest -q queue_core/tests --maxfail=1 --junitxml=reconciled-queue-full.xml
+      - name: Archive isolated JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08-reconciled-queue-linux-junit
+          path: reconciled-queue-full.xml
+          if-no-files-found: warn
+          retention-days: 7
+
+  windows-ntfs-and-restore:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Verify exact HEAD before any test
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'EXACT_HEAD_MISMATCH' }
+          if (Test-Path 'dist/DigitalCrownSetup.exe') { throw 'INSTALLABLE_FORBIDDEN' }
+      - name: Install pinned Queue Core test dependencies
+        shell: pwsh
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+          'fastapi==0.115.6' 'starlette==0.41.3'
+          'pydantic==2.6.3' 'httpx==0.28.1' 'anyio==4.12.1'
+      - name: Real Windows ACL and temporary local-user isolation
+        shell: pwsh
+        run: ./scripts/quality/lot08_2_d_windows_acl_lab.ps1
+      - name: Three-store synthetic backup and restore with negatives
+        shell: pwsh
+        run: >-
+          python -m pytest -q
+          queue_core/tests/test_qr_backup_restore_windows_08_2_d.py
+          --maxfail=1 --junitxml=reconciled-windows-restore.xml
+      - name: QR and device negative FUE-I on Windows
+        shell: pwsh
+        run: >-
+          python -m pytest -q
+          queue_core/tests/test_kiosk_qr_lab_08_2_d.py
+          queue_core/tests/test_device_store_lab_08_2_c.py
+          queue_core/tests/test_device_pairing_lab_08_2_c.py
+          --maxfail=1 --junitxml=reconciled-windows-security.xml
+      - name: Archive sanitized Windows LAB evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08-reconciled-windows-lab-evidence
+          path: |
+            ${{ runner.temp }}/lot08_2_d_windows_acl_evidence.json
+            reconciled-windows-restore.xml
+            reconciled-windows-security.xml
+          if-no-files-found: warn
+          retention-days: 7
