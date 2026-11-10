@@ -15,13 +15,21 @@ import argparse
 import json
 from pathlib import Path
 import re
-from typing import Any
+from typing import Any, Callable
 
-from backend.release_certification import (
-    ReleaseCertificationError,
-    verify_installable_release_directory,
+# Delay importing the real product verifier until a *complete* candidate is
+# present. A missing ZIP/artifact must fail-closed even in a minimal Windows CI
+# environment without any clinical/backend optional dependencies installed.
+# Do NOT replace this verifier with metadata-only checks for real candidates.
+REQUIRED_INSTALLABLE_FILES = (
+    "release-certification.json",
+    ".digitalcrown-release-sha",
+    "release-content.sha256",
+    "installable-certification.json",
+    "runtime-assets-certification.json",
+    "runtime-assets-content.sha256",
+    "github-attestation-verification.json",
 )
-from backend.runtime_asset_certification import RuntimeAssetCertificationError
 
 SHA_PATTERN = re.compile(r"^[0-9a-f]{40}$")
 VERDICT_BLOCKED = "BLOCKED_NO_INSTALLABLE_GO"
@@ -32,7 +40,12 @@ class GateRefusal(ValueError):
     pass
 
 
-def decide(candidate_dir: Path | None, exact_master_sha: str) -> dict[str, Any]:
+def decide(
+    candidate_dir: Path | None,
+    exact_master_sha: str,
+    *,
+    _test_verifier: Callable[[Path], dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     """Assess, never activate. Output intentionally has no paths or secret values."""
     if not isinstance(exact_master_sha, str) or not SHA_PATTERN.fullmatch(exact_master_sha):
         raise GateRefusal("EXACT_MASTER_SHA_REQUIRED")
@@ -58,12 +71,21 @@ def decide(candidate_dir: Path | None, exact_master_sha: str) -> dict[str, Any]:
         report["reason"] = "CANDIDATE_DIR_MISSING_OR_SYMLINK"
         return report
 
-    # An artifact with a suggestive name or a CODE_CERTIFIED code-only manifest
-    # MUST NOT bypass the canonical verification that checks code, external model
-    # bytes, attestation evidence, installable metadata and exact release file set.
+    # Refuse incomplete/forged metadata without importing any runtime modules.
+    # A complete-looking candidate still MUST pass the canonical full verifier.
+    if any((root / name).is_symlink() or not (root / name).is_file()
+           for name in REQUIRED_INSTALLABLE_FILES):
+        report["reason"] = "REQUIRED_INSTALLABLE_PROOF_FILES_MISSING_OR_UNSAFE"
+        return report
+
     try:
-        payload = verify_installable_release_directory(root)
-    except (ReleaseCertificationError, RuntimeAssetCertificationError, OSError, ValueError):
+        if _test_verifier is not None:
+            # Unit tests ONLY. Not exposed by the CLI, never a real certification.
+            payload = _test_verifier(root)
+        else:
+            from backend.release_certification import verify_installable_release_directory
+            payload = verify_installable_release_directory(root)
+    except (RuntimeError, OSError, ValueError, ImportError):
         report["reason"] = "CANONICAL_INSTALLABLE_VERIFIER_REFUSED"
         return report
 
