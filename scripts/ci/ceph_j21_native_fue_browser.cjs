@@ -38,7 +38,7 @@ async function main() {
     const url=`http://127.0.0.1:8879/__ceph_fue/?patient=${fixture.patient_id}&study=${fixture.study_id}`;
     const first=await page.goto(url,{waitUntil:'networkidle',timeout:45000});
     if(first.status()!==200)throw Error('Native bundled FUE route returned '+first.status());
-    await page.getByRole('textbox',{name:'Mot de passe fictif'}).fill('TestPass123!');
+    await page.getByLabel('Mot de passe fictif').fill('TestPass123!');
     await page.getByRole('button',{name:/Connexion JWT réelle/}).click();
     const svg=page.locator('[data-ceph-j21-svg]');
     await svg.waitFor({state:'visible',timeout:45000});
