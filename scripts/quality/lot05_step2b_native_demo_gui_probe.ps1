@@ -3,6 +3,7 @@
 $ErrorActionPreference='Stop'
 $outFile=Join-Path $env:RUNNER_TEMP 'lot05_native_demo_gui_probe.json'
 $png=Join-Path $env:RUNNER_TEMP 'lot05_native_demo_choose_database.png'
+$appPng=Join-Path $env:RUNNER_TEMP 'lot05_native_demo_open_dental_window.png'
 $r=[ordered]@{
   kind='LOT05_NATIVE_DEMO_GUI_DISCOVERY_FUE_I'
   exact_head=$env:LOT05_EXPECTED_SHA
@@ -13,6 +14,13 @@ $r=[ordered]@{
   session_verified=$false
   app_process_started=$false
   app_owned_window_titles=@()
+  app_window_captured=$false
+  app_window_title='NOT_OBSERVED'
+  app_window_size=$null
+  app_png_sha256=$null
+  app_window_owner_pid_verified=$false
+  app_window_last_cycle=-1
+  observed_window_bounds=@()
   chooser_window_captured=$false
   chooser_window_title='NOT_OBSERVED'
   chooser_window_size=$null
@@ -88,14 +96,29 @@ public static class Lot05DemoGuiWindow {
            $r.app_owned_window_titles.Count -lt 15){
           $r.app_owned_window_titles+=,$title.Substring(0,[Math]::Min(90,$title.Length))
         }
-        if($title -notmatch '(?i)^Choose Database$' -or $r.chooser_window_captured){continue}
-        $r.chooser_window_title=$title
-        $r.chooser_owner_pid_verified=$ids.Contains($pidHere)
+        # Actual evidence from the previous exact-HEAD run shows 'Open Dental',
+        # NOT 'Choose Database'. Capture that real official window without clicking.
+        # Also continue observing for an exact Choose Database child/dialog title.
+        $isChooser=($title -ceq 'Choose Database')
+        $isApp=($title -ceq 'Open Dental')
+        if(-not $isChooser -and -not $isApp){continue}
+        if($isChooser -and $r.chooser_window_captured){continue}
+        if($isApp -and $cycle -notin @(8,20,40,65,95,110)){continue}
+        if($isChooser){
+          $r.chooser_window_title=$title
+          $r.chooser_owner_pid_verified=$ids.Contains($pidHere)
+        }else{
+          $r.app_window_title=$title
+          $r.app_window_owner_pid_verified=$ids.Contains($pidHere)
+        }
         $hwnd=[IntPtr]([int]$w.Current.NativeWindowHandle)
         $rect=New-Object Lot05DemoGuiWindow+Rect
         if($hwnd -eq [IntPtr]::Zero -or -not [Lot05DemoGuiWindow]::GetWindowRect($hwnd,[ref]$rect)){continue}
         $width=[int]($rect.Right-$rect.Left);$height=[int]($rect.Bottom-$rect.Top)
-        if($width -lt 280 -or $width -gt 1300 -or $height -lt 180 -or $height -gt 950){continue}
+        if($r.observed_window_bounds.Count -lt 12){$r.observed_window_bounds+=,("$title"+" "+$width+"x"+$height)}
+        # Window-only vendor GUI, never desktop, screens or unrelated processes.
+        if($width -lt 200 -or $width -gt 2200 -or $height -lt 120 -or $height -gt 1550){continue}
+        $target=if($isChooser){$png}else{$appPng}
         $bmp=New-Object System.Drawing.Bitmap($width,$height)
         try{
           $g=[System.Drawing.Graphics]::FromImage($bmp)
@@ -105,16 +128,24 @@ public static class Lot05DemoGuiWindow {
             finally{$g.ReleaseHdc($dc)}
           }finally{$g.Dispose()}
           if($printed){
-            $bmp.Save($png,[System.Drawing.Imaging.ImageFormat]::Png)
-            if((Get-Item -LiteralPath $png).Length -gt 2200 -and
-               (Get-Item -LiteralPath $png).Length -le 6000000){
-              $r.chooser_window_captured=$true
-              $r.chooser_png_sha256=(Get-FileHash -LiteralPath $png -Algorithm SHA256).Hash.ToLowerInvariant()
-              $r.chooser_window_size=("$width"+"x"+"$height")
+            $bmp.Save($target,[System.Drawing.Imaging.ImageFormat]::Png)
+            $size=(Get-Item -LiteralPath $target).Length
+            if($size -gt 2200 -and $size -le 6000000){
+              $hash=(Get-FileHash -LiteralPath $target -Algorithm SHA256).Hash.ToLowerInvariant()
+              if($isChooser){
+                $r.chooser_window_captured=$true
+                $r.chooser_png_sha256=$hash
+                $r.chooser_window_size=("$width"+"x"+"$height")
+              }else{
+                $r.app_window_captured=$true
+                $r.app_png_sha256=$hash
+                $r.app_window_size=("$width"+"x"+"$height")
+                $r.app_window_last_cycle=$cycle
+              }
             }
           }
         }finally{$bmp.Dispose()}
-        if($r.chooser_window_captured){
+        if($isChooser -and $r.chooser_window_captured){
           $controls=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
                                 [System.Windows.Automation.Condition]::TrueCondition)
           for($k=0;$k -lt [Math]::Min($controls.Count,170);$k++){
@@ -144,11 +175,14 @@ public static class Lot05DemoGuiWindow {
 }
 Write-Host ('LOT05_NATIVE_DEMO_APP_EXECUTED='+$r.app_process_started)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CAPTURED='+$r.chooser_window_captured)
+Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_CAPTURED='+$r.app_window_captured)
+Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_SIZE='+$r.app_window_size)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_TITLE='+$r.chooser_window_title)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
 Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
 if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
    -not $r.app_exe_signature_valid -or -not $r.app_process_started -or
-   -not $r.chooser_window_captured -or $null -ne $r.error_code){
-  throw 'NATIVE_DEMO_CHOOSE_DATABASE_NOT_PROVEN'
+   (-not $r.chooser_window_captured -and -not $r.app_window_captured) -or
+   $null -ne $r.error_code){
+  throw 'NATIVE_DEMO_APP_WINDOW_NOT_PROVEN'
 }
