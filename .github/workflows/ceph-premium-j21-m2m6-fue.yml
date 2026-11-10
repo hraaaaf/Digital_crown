@@ -721,12 +721,38 @@ jobs:
         shell: pwsh
         run: |
           $exe='dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe'
+          if ((git rev-parse HEAD) -ne $env:PRODUCT_HEAD) { throw 'FUE_MANIFEST_SOURCE_SHA_MISMATCH' }
+          $edit=Get-Content "$env:CEPH_J21_EVIDENCE_DIR/phase-edit.json" -Raw | ConvertFrom-Json
+          $reopen=Get-Content "$env:CEPH_J21_EVIDENCE_DIR/phase-reopen.json" -Raw | ConvertFrom-Json
+          $backup=Get-Content "$env:CEPH_J21_EVIDENCE_DIR/synthetic-backup-roundtrip.json" -Raw | ConvertFrom-Json
+          if($edit.status -ne 'PASS' -or $reopen.status -ne 'PASS' -or
+             $edit.scene_sha256 -ne $reopen.scene_sha256 -or
+             $edit.audit.outsider_read_http -ne 403 -or
+             $edit.audit.same_cabinet_other_patient_http -ne 404 -or
+             $edit.audit.stale_cas_replay_http -ne 409 -or
+             $backup.clinical_backup_certified -ne $false -or
+             $backup.original_sha256 -ne $backup.restored_sha256 -or
+             $edit.actual_digital_crown_shell.real_workspace -ne $true -or
+             $reopen.actual_digital_crown_shell.real_workspace -ne $true) {
+            throw 'NATIVE_FUE_PROVENANCE_MATRIX_NOT_VERIFIED'
+          }
+          # A verifiable SHA-bound nonclinical CI certificate is NOT the
+          # provenance-verified INSTALLABLE_CERTIFIED clinical release.
           $manifest=@{
-            head=$env:PRODUCT_HEAD; status='SYNTHETIC_FUE_ONLY';
-            is_installable_certified=$false; native_executable_sha256=(Get-FileHash $exe -Algorithm SHA256).Hash.ToLower();
+            head=$env:PRODUCT_HEAD; status='LAB_FUE_CI_VERIFIED_NONCLINICAL';
+            build_run_id=$env:GITHUB_RUN_ID;
+            is_installable_certified=$false;
+            native_executable_sha256=(Get-FileHash $exe -Algorithm SHA256).Hash.ToLower();
+            real_digital_crown_mainlayout_fue=$true;
+            jwt_sqlcipher_aesgcm_cas_restart=$true;
+            abx_denials_verified=$true; sealed_file_restore_fue=$true;
+            scene_sha256=$edit.scene_sha256;
+            original_sha256=$edit.audit.actual_original_sha256;
             clinical_release=$false; production_route_mounted=$false;
+            clinical_backup_certified=$false;
+            clinical_anatomy_certified=$false;
             local_only=$true; signed=$false; deploy=$false; synthetic_db_cleaned_before_artifact=$true
-          } | ConvertTo-Json
+          } | ConvertTo-Json -Depth 4
           $manifest | Set-Content "$env:CEPH_J21_EVIDENCE_DIR/native-build-manifest.json" -Encoding utf8
           'LAB TEST BINARY ONLY. NOT CERTIFIED, SIGNED, INSTALLABLE OR APPROVED FOR PATIENT DATA. REQUIRES GITHUB WINDOWS RUNNER FLAGS.' |
             Set-Content 'dist/DigitalCrown-J21-FUE-LAB/NONCLINICAL_NOT_INSTALLER.txt' -Encoding utf8
