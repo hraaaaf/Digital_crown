@@ -23,7 +23,7 @@
 
 ## Success observable / preuve exigée
 
-- Scope GitHub : uniquement les **9 fichiers** annoncés, sans modèle, patient, migration, modification d'installateur ni fusion.
+- Scope GitHub : uniquement les **11 fichiers** autorisés (9 fichiers du verrou initial + 2 anciens tests adaptés au contexte LAB), sans modèle, patient, migration, modification d'installateur ni fusion.
 - TEST Linux : environnement production même avec ONNX et flags d'activation → aucun chargement/session, aucune lecture patient ni fallback ; un moteur refusé retourne `FAILED` + repères vides + avertissement.
 - TEST Windows GitHub hébergé : processus simulé figé `sys.frozen` et `sys._MEIPASS` refuse même les flags LAB.
 - TEST backend : entrée synthétique SQLite mémoire autorisée en laboratoire ; refus du dépôt/écriture lorsqu'aucun repère valide.
@@ -38,7 +38,13 @@ La correction ne supprime pas la preuve historique WinError 1455. Elle ajoute de
 1. **Environnement cabinet** : aucune tentative, aucun import ni moteur chargé (même si le poids existe) ;
 2. **LAB SQLite mémoire** : `_initialize_legacy_engine` est bien appelé, `WinError 1455` est simulé sur `import torch` et les assertions initiales `legacy_init_attempted=True`, `torch/model=None`, `is_ready=False` restent obligatoires.
 
-Ce changement n'affaiblit pas les contrôles : il teste le refus d'essayer en clinique ET le refus de réussir après une erreur mémoire en LAB. Le gate de scope inclut désormais `scripts/check_lazy_pytorch_contract.py` : **9 fichiers**.
+Ce changement n'affaiblit pas les contrôles : il teste le refus d'essayer en clinique ET le refus de réussir après une erreur mémoire en LAB. Le gate de scope inclut désormais `scripts/check_lazy_pytorch_contract.py` : 9 fichiers initiaux, puis 2 fichiers de tests positifs isolés : **11 fichiers**.
+
+## Régression complète backend du candidat (nouveau constat 2026-11-10)
+
+Le [run #42917551292](https://github.com/hraaaaf/Digital_crown/actions/runs/42917551292) a terminé en échec sur le SHA `bafcced99ac7a6fd10fc9074ed0c4061a3485186` : **5953 pass, 4 fail, 30 skipped**, 20 subtests passed. Les deux échecs `test_vision_apex_provenance.py` et les deux échecs `test_vision_service_lazy_pytorch.py` proviennent de tests positifs historiques lancés dans `ENVIRONMENT=development` sans flag d'isolement. Le moteur les refuse correctement : **le refus clinique ne doit pas être assoupli**.
+
+Correctif ciblé sur la branche DRAFT : les quatre tests positifs ne peuvent exercer ONNX/PyTorch qu'après assertion d'un environnement non figé `ENVIRONMENT=test`, `DIGITALCROWN_ISOLATED_RUNTIME=true`, `DATABASE_URL=sqlite:///:memory:`. La couverture negative de production/frozen reste inchangée. Le workflow de scope accepte exclusivement ces deux fichiers additionnels et compile leur syntaxe. La CI du nouveau HEAD doit encore prouver toutes les assertions ; ce texte n'anticipe aucun résultat.
 
 ## Limites et prochain jalon
 
