@@ -288,6 +288,8 @@ public static class Lot05DemoGuiWindow {
                 $r.demo_connect_attempted=$true
                 $r.demo_connect_pinned_screenshot=(
                   $r.chooser_png_sha256 -ceq '4bfb92b908e789b2ba3f27b201e3588d3f4a827bb8f16e4b9207221b8bac05f4')
+                # UIA Server ComboBox exposes its descriptive label, not its
+                # text value. The exact pinned PNG proves its value localhost.
                 $selectDemo=0;$selectLocal=0
                 $buttons=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
                 for($m=0;$m -lt [Math]::Min(250,$sub.Count);$m++){
@@ -296,7 +298,7 @@ public static class Lot05DemoGuiWindow {
                   $n=[string]$ctl.Current.Name
                   $t=[string]$ctl.Current.ControlType.ProgrammaticName
                   if($t -eq 'ControlType.ComboBox' -and $n -ceq 'demo'){$selectDemo++}
-                  if($t -eq 'ControlType.ComboBox' -and $n -ceq 'localhost'){$selectLocal++}
+                  if($t -eq 'ControlType.ComboBox' -and $n -match '^Server Name:'){$selectLocal++}
                   if($t -eq 'ControlType.Button' -and $n -ceq 'OK' -and $ctl.Current.IsEnabled){
                     $buttons.Add($ctl)
                   }
