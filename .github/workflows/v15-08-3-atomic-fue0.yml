@@ -1,0 +1,50 @@
+name: Queue Core 08.3 isolated FUE-0 (synthetic only)
+
+on:
+  push:
+    branches:
+      - feat/v15-08-3-atomic-commit-guard-fue0-20261110
+    paths:
+      - queue_core/**
+      - .github/workflows/v15-08-3-atomic-fue0.yml
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-fue0:
+    name: 08.3 real Queue Core regressions and negative security oracles
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Verify exact pushed HEAD, no production activation
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
+          echo "EXACT_TESTED_HEAD=$GITHUB_SHA"
+          echo "SYNTHETIC_ONLY=TRUE"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install bounded Queue FUE dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+          'fastapi==0.115.6' 'starlette==0.41.3'
+          'pydantic==2.6.3' 'httpx==0.28.1' 'anyio==4.12.1'
+      - name: Run focused negative FUE-0
+        run: python -m pytest -q queue_core/tests/test_atomic_transition_08_3.py --maxfail=1
+      - name: Run Queue Core full isolated suite
+        run: python -m pytest -q queue_core/tests --maxfail=1 --junitxml=queue-core-fue0.xml
+      - name: Retain minimal synthetic test evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: 08-3-atomic-fue0-junit
+          path: queue-core-fue0.xml
+          if-no-files-found: warn
+          retention-days: 14
