@@ -64,13 +64,17 @@ def _assert_downs_available_uncalibrated(graph):
     assert {"DOWNS_FACIAL_ANGLE_DEG_V1","DOWNS_Y_AXIS_DEG_V1"}.issubset(method_ids)
     assert {"DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2","DOWNS_Y_AXIS_CANONICAL_DEG_V2"}.issubset(method_ids)
     by_method={measurement["method_id"]: measurement for measurement in downs}
-    assert by_method["DOWNS_Y_AXIS_CANONICAL_DEG_V2"]["availability_status"] == "NOT_COMPUTABLE"
-    assert by_method["DOWNS_Y_AXIS_CANONICAL_DEG_V2"]["value"] is None
-    assert all(
-        measurement["availability_status"] == "AVAILABLE"
-        for measurement in downs
-        if measurement["method_id"] != "DOWNS_Y_AXIS_CANONICAL_DEG_V2"
-    )
+    # The unreviewed SRPose38 source cannot authorize either canonical
+    # anatomical Downs angle, even when V1 geometry is still reproducible.
+    for method_id in {
+        "DOWNS_FACIAL_ANGLE_CANONICAL_DEG_V2",
+        "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
+    }:
+        assert by_method[method_id]["availability_status"] == "NOT_COMPUTABLE"
+        assert by_method[method_id]["value"] is None
+    for method_id in {"DOWNS_FACIAL_ANGLE_DEG_V1", "DOWNS_Y_AXIS_DEG_V1"}:
+        assert by_method[method_id]["availability_status"] == "AVAILABLE"
+        assert by_method[method_id]["value"] is not None
     assert all(measurement["requires_calibration"] is False for measurement in downs)
     assert all(measurement["calibration_ref"] is None for measurement in downs)
 
@@ -84,20 +88,29 @@ def _assert_mcnamara(graph, *, calibrated: bool):
     assert {
         "MCNAMARA_CO_A_MM_V1","MCNAMARA_CO_GN_MM_V1","MCNAMARA_ANS_ME_MM_V1",
         "M_A_NPERP_MM_V1","M_POG_NPERP_MM_V1",
-        "MCNAMARA_CO_A_CANONICAL_MM_V2","MCNAMARA_CO_GN_CANONICAL_MM_V2",
+        "MCNAMARA_CO_A_CANONICAL_MM_V2",
         "MCNAMARA_A_NPERP_CANONICAL_MM_V2","MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
     }.issubset(method_ids)
+    assert "MCNAMARA_CO_GN_CANONICAL_MM_V2" not in method_ids
     assert all(measurement["requires_calibration"] is True for measurement in mcnamara)
     if calibrated:
-        by_method={measurement["method_id"]: measurement for measurement in mcnamara}
-        canonical_co_gn=by_method["MCNAMARA_CO_GN_CANONICAL_MM_V2"]
-        assert canonical_co_gn["availability_status"] == "NOT_COMPUTABLE"
-        assert canonical_co_gn["calibration_ref"] is None
-        assert canonical_co_gn["value"] is None
-        available=[m for m in mcnamara if m["method_id"] != "MCNAMARA_CO_GN_CANONICAL_MM_V2"]
-        assert all(measurement["availability_status"] == "AVAILABLE" for measurement in available)
-        assert all(measurement["calibration_ref"] is not None for measurement in available)
-        assert all(measurement["value"] is not None for measurement in available)
+        canonical = [
+            m for m in mcnamara if m["method_id"].endswith("_CANONICAL_MM_V2")
+        ]
+        legacy = [
+            m for m in mcnamara if not m["method_id"].endswith("_CANONICAL_MM_V2")
+        ]
+        assert canonical and legacy
+        assert all(
+            m["availability_status"] == "NOT_COMPUTABLE"
+            and m["calibration_ref"] is None and m["value"] is None
+            for m in canonical
+        )
+        assert all(
+            m["availability_status"] == "AVAILABLE"
+            and m["calibration_ref"] is not None and m["value"] is not None
+            for m in legacy
+        )
     else:
         assert all(measurement["availability_status"] == "NOT_COMPUTABLE" for measurement in mcnamara)
         assert all(measurement["calibration_ref"] is None for measurement in mcnamara)
