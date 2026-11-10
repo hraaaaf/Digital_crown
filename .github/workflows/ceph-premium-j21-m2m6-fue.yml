@@ -656,48 +656,74 @@ jobs:
           if(-not (Test-Path -LiteralPath $mediaRoot -PathType Container)){
             throw 'FUE_MEDIA_BACKUP_SOURCE_MISSING'
           }
-          $mediaFiles=@(Get-ChildItem -LiteralPath $mediaRoot -File -Recurse)
-          if($mediaFiles.Count -ne 1){throw 'FUE_MEDIA_FIXTURE_FILE_COUNT_NOT_ONE'}
-          $mediaFile=$mediaFiles[0].FullName
-          if($mediaFiles[0].Attributes.HasFlag([IO.FileAttributes]::ReparsePoint)){
-            throw 'FUE_MEDIA_BACKUP_SYMLINK_REFUSED'
+          # Snapshot every encrypted blob in this synthetic profile. The
+          # fixture may have more than one blob; no arbitrary count=1 rule.
+          # Compare an exact sorted filename + ciphertext-SHA manifest across
+          # original, backup and restoration, without publishing opaque names.
+          function Get-EncryptedMediaFingerprint([string]$mediaDirectory) {
+            if(-not (Test-Path -LiteralPath $mediaDirectory -PathType Container)){
+              throw 'FUE_MEDIA_DIRECTORY_MISSING'
+            }
+            $files=@(Get-ChildItem -LiteralPath $mediaDirectory -File -Recurse)
+            Write-Output ('FUE_SYNTHETIC_MEDIA_FILE_COUNT='+$files.Count)
+            if($files.Count -lt 1 -or $files.Count -gt 32){
+              throw 'FUE_MEDIA_EMPTY_OR_UNEXPECTED_FILE_COUNT'
+            }
+            $items=@()
+            foreach($item in $files) {
+              if($item.Extension -ne '.dcm' -or
+                 (($item.Attributes -band [IO.FileAttributes]::ReparsePoint) -ne 0)){
+                throw 'FUE_MEDIA_UNENCRYPTED_EXTENSION_OR_SYMLINK_REFUSED'
+              }
+              $rel=[IO.Path]::GetRelativePath($mediaDirectory,$item.FullName)
+              if([IO.Path]::IsPathRooted($rel) -or $rel.StartsWith('..')){
+                throw 'FUE_MEDIA_BACKUP_PATH_ESCAPE'
+              }
+              $input=[IO.File]::OpenRead($item.FullName)
+              try {
+                $magic=New-Object byte[] 4
+                if($input.Read($magic,0,4) -ne 4 -or
+                   [Text.Encoding]::ASCII.GetString($magic) -ne 'DCM1'){
+                  throw 'FUE_MEDIA_BLOB_NOT_AESGCM_DCM1'
+                }
+              } finally { $input.Dispose() }
+              $sha=(Get-FileHash -LiteralPath $item.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              $items+=($rel+'|'+$sha)
+            }
+            $manifest=(@($items | Sort-Object) -join "`n")
+            $digest=[Convert]::ToHexString(
+              [Security.Cryptography.SHA256]::HashData(
+                [Text.Encoding]::UTF8.GetBytes($manifest)
+              )
+            ).ToLowerInvariant()
+            return @{ file_count=$files.Count; digest=$digest }
           }
-          $relativeMedia=[IO.Path]::GetRelativePath($mediaRoot,$mediaFile)
-          if([IO.Path]::IsPathRooted($relativeMedia) -or
-             $relativeMedia.StartsWith('..')){throw 'FUE_MEDIA_BACKUP_PATH_ESCAPE'}
-          $cipherBytes=[IO.File]::ReadAllBytes($mediaFile)
-          if($cipherBytes.Length -lt 32 -or
-             [Text.Encoding]::ASCII.GetString($cipherBytes,0,4) -ne 'DCM1'){
-            throw 'FUE_MEDIA_BACKUP_NOT_DC_DOS05_CIPHERTEXT'
-          }
-          $mediaOriginal=(Get-FileHash -LiteralPath $mediaFile -Algorithm SHA256).Hash.ToLower()
+          $mediaOriginal=Get-EncryptedMediaFingerprint $mediaRoot
           Copy-Item -LiteralPath $mediaRoot -Destination $backupDir -Recurse -ErrorAction Stop
           $backupMediaRoot=Join-Path $backupDir 'synthetic-media'
-          $mediaBackupFile=Join-Path $backupMediaRoot $relativeMedia
-          if(-not (Test-Path -LiteralPath $mediaBackupFile -PathType Leaf)){
-            throw 'FUE_MEDIA_BACKUP_FILE_NOT_FOUND'
+          $mediaCopied=Get-EncryptedMediaFingerprint $backupMediaRoot
+          if($mediaCopied.file_count -ne $mediaOriginal.file_count -or
+             $mediaCopied.digest -ne $mediaOriginal.digest){
+            throw 'FUE_MEDIA_BACKUP_FILE_SET_OR_SHA_CHANGED'
           }
-          $mediaCopied=(Get-FileHash -LiteralPath $mediaBackupFile -Algorithm SHA256).Hash.ToLower()
-          if($mediaCopied -ne $mediaOriginal){throw 'FUE_MEDIA_BACKUP_SHA_MISMATCH'}
           Remove-Item -LiteralPath $mediaRoot -Recurse -Force
-          if(Test-Path -LiteralPath $mediaRoot){throw 'FUE_MEDIA_ORIGINAL_NOT_REMOVED_BEFORE_RESTORE'}
-          Copy-Item -LiteralPath $backupMediaRoot -Destination $mediaRoot -Recurse -ErrorAction Stop
-          $mediaRestoredFile=Join-Path $mediaRoot $relativeMedia
-          if(-not (Test-Path -LiteralPath $mediaRestoredFile -PathType Leaf)){
-            throw 'FUE_MEDIA_RESTORE_MISSING_FILE'
+          if(Test-Path -LiteralPath $mediaRoot){
+            throw 'FUE_MEDIA_ORIGINAL_NOT_REMOVED_BEFORE_RESTORE'
           }
-          $mediaRestored=(Get-FileHash -LiteralPath $mediaRestoredFile -Algorithm SHA256).Hash.ToLower()
-          if($mediaRestored -ne $mediaOriginal){throw 'FUE_MEDIA_RESTORE_SHA_MISMATCH'}
-          $restoredMediaCount=@(Get-ChildItem -LiteralPath $mediaRoot -File -Recurse).Count
-          if($restoredMediaCount -ne 1){throw 'FUE_MEDIA_RESTORE_UNEXPECTED_EXTRA_FILES'}
+          Copy-Item -LiteralPath $backupMediaRoot -Destination $mediaRoot -Recurse -ErrorAction Stop
+          $mediaRestored=Get-EncryptedMediaFingerprint $mediaRoot
+          if($mediaRestored.file_count -ne $mediaOriginal.file_count -or
+             $mediaRestored.digest -ne $mediaOriginal.digest){
+            throw 'FUE_MEDIA_RESTORE_FILE_SET_OR_SHA_CHANGED'
+          }
           $proof=@{
             scope='NONCLINICAL_SQLCIPHER_AND_AESGCM_MEDIA_FUE_ONLY'; source_sha=$env:PRODUCT_HEAD;
             original_sha256=$original; encrypted_backup_sha256=$copied;
             restored_sha256=$restored; on_disk_encrypted=$true;
-            encrypted_media_file_count=$restoredMediaCount;
-            encrypted_media_original_sha256=$mediaOriginal;
-            encrypted_media_backup_sha256=$mediaCopied;
-            encrypted_media_restored_sha256=$mediaRestored;
+            encrypted_media_file_count=$mediaOriginal.file_count;
+            encrypted_media_original_sha256=$mediaOriginal.digest;
+            encrypted_media_backup_sha256=$mediaCopied.digest;
+            encrypted_media_restored_sha256=$mediaRestored.digest;
             clinical_backup_certified=$false; clinical_restore_certified=$false;
           } | ConvertTo-Json -Depth 3
           $proof | Set-Content (Join-Path $env:CEPH_J21_EVIDENCE_DIR 'synthetic-backup-roundtrip.json') -Encoding utf8
@@ -754,7 +780,7 @@ jobs:
           assert backup['on_disk_encrypted'] and backup['clinical_backup_certified'] is False
           assert backup['clinical_restore_certified'] is False
           assert backup['original_sha256']==backup['encrypted_backup_sha256']==backup['restored_sha256']
-          assert backup['encrypted_media_file_count']==1
+          assert 1 <= backup['encrypted_media_file_count'] <= 32
           assert backup['encrypted_media_original_sha256']==backup['encrypted_media_backup_sha256']==backup['encrypted_media_restored_sha256']
           assert one['scene_sha256']==two['scene_sha256']
           assert one['audit']['parent_scene_sha256'] and one['audit']['revision']==two['audit']['revision']==2
