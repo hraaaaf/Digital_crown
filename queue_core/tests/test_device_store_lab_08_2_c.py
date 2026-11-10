@@ -84,7 +84,7 @@ def test_live_admin_only_and_tenant_binding(local):
             admin, tenant_id="T2", device_id="K1",
             kind=DeviceKind.KIOSK,
         )
-    with pytest.raises(AuthorizationError):
+    with pytest.raises(DeviceIdentityError, match="DEVICE_MANAGE_FORBIDDEN"):
         store.issue(
             "invalid_admin", tenant_id="T1", device_id="K1",
             kind=DeviceKind.KIOSK,
