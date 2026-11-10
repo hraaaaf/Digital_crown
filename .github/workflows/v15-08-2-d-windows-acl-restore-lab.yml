@@ -1,0 +1,75 @@
+name: LOT08.2-D Windows ACL and quiesced synthetic restore FUE LAB
+
+on:
+  push:
+    branches:
+      - feat/v15-08-2-d-windows-acl-restore-lab-20261110
+    paths:
+      - .github/workflows/v15-08-2-d-windows-acl-restore-lab.yml
+      - scripts/quality/lot08_2_d_windows_acl_lab.ps1
+      - queue_core/tests/test_qr_backup_restore_windows_08_2_d.py
+
+permissions:
+  contents: read
+
+jobs:
+  windows-ntfs-and-restore:
+    runs-on: windows-2022
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 25
+      - name: Exact SHA and bounded three-file LAB diff
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:GITHUB_SHA) { throw 'EXACT_HEAD_MISMATCH' }
+          $changed = @(git diff --name-only aca36e8a483ff5f8e8f92d68a5d3ffb7996b4e92 HEAD | Where-Object { $_ })
+          $expected = @(
+            '.github/workflows/v15-08-2-d-windows-acl-restore-lab.yml',
+            'queue_core/tests/test_qr_backup_restore_windows_08_2_d.py',
+            'scripts/quality/lot08_2_d_windows_acl_lab.ps1'
+          )
+          if (@(Compare-Object $changed $expected).Count -ne 0) { throw 'UNEXPECTED_BRANCH_DELTA' }
+          if (Test-Path 'dist/DigitalCrownSetup.exe') { throw 'INSTALLABLE_FORBIDDEN' }
+          Write-Output "EXACT_HEAD=$env:GITHUB_SHA"
+          Write-Output 'SYNTHETIC_LAB_ONLY=TRUE'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned bounded Queue Core test dependencies
+        shell: pwsh
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+          'fastapi==0.115.6' 'starlette==0.41.3'
+          'pydantic==2.6.3' 'httpx==0.28.1' 'anyio==4.12.1'
+      - name: Real Windows NTFS ACL impersonation and isolated cleanup
+        shell: pwsh
+        run: ./scripts/quality/lot08_2_d_windows_acl_lab.ps1
+      - name: Physical SQLite quiesced backup restore + anti-replay and corruption refusal
+        shell: pwsh
+        run: >-
+          python -m pytest -q
+          queue_core/tests/test_qr_backup_restore_windows_08_2_d.py
+          --maxfail=1 --junitxml=lot08-restored-queue.xml
+      - name: Windows targeted QR + device security full FUE-I
+        shell: pwsh
+        run: >-
+          python -m pytest -q
+          queue_core/tests/test_kiosk_qr_lab_08_2_d.py
+          queue_core/tests/test_device_store_lab_08_2_c.py
+          queue_core/tests/test_device_pairing_lab_08_2_c.py
+          --maxfail=1 --junitxml=lot08-windows-security.xml
+      - name: Archive only sanitized synthetic evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08-2-d-windows-acl-quiesced-restore-evidence
+          path: |
+            ${{ runner.temp }}/lot08_2_d_windows_acl_evidence.json
+            lot08-restored-queue.xml
+            lot08-windows-security.xml
+          if-no-files-found: warn
+          retention-days: 7
