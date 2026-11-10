@@ -269,7 +269,7 @@ jobs:
           common_shots=["before-v1-com","after-com-ten-factor"]
           final_shots=["after-other-study-rebound","after-com-last-factor-accessible"]
           proof_variants={
-              "verified-source-points":{
+              "verified-source-evidence":{
                   "check":"COM_FOCUS_MATCHES_SOURCE_EVIDENCE",
                   "shot":"after-com-source-backed-focus"},
               "explicit-NC-refusal":{
@@ -291,11 +291,14 @@ jobs:
               assert all(c["status"]=="PASS" for c in v["checks"])
               evidence_by_id={c["id"]:c["evidence"] for c in v["checks"]}
               focus=evidence_by_id[variant["check"]]
-              if mode=="verified-source-points":
+              if mode=="verified-source-evidence":
                   assert isinstance(focus,dict), "Focus lacks exact source evidence"
                   assert isinstance(focus.get("factor_id"),str) and focus["factor_id"].strip()
-                  assert isinstance(focus.get("points"),list) and len(focus["points"])>0
-                  assert all(isinstance(p,str) and p.strip() for p in focus["points"])
+                  points=focus.get("points")
+                  constructions=focus.get("constructions")
+                  assert isinstance(points,list) and isinstance(constructions,list)
+                  assert len(points)+len(constructions)>0, "Focus requires actual source landmarks/constructions"
+                  assert all(isinstance(item,str) and item.strip() for item in points+constructions)
                   assert focus.get("lines")==[], "Invented Focus lines forbidden"
                   assert focus.get("clinical_release") is False
               else:
