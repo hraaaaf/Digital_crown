@@ -28,6 +28,11 @@ $r=[ordered]@{
   file_menu_known_labels=@()
   choose_database_menu_candidates=0
   choose_database_menu_item_observed=$false
+  choose_database_named_element_count=0
+  choose_database_menu_candidates_meta=@()
+  menu_search_top_level_window_count=0
+  menu_search_descendant_count=0
+  menu_search_capped_count=0
   choose_database_menu_invoked=$false
   choose_database_menu_source='NOT_ATTEMPTED'
   choose_database_menu_cycle=-1
@@ -265,18 +270,36 @@ public static class Lot05DemoGuiWindow {
               [System.Windows.Automation.TreeScope]::Children,
               [System.Windows.Automation.Condition]::TrueCondition)
             $matches=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
+            $r.menu_search_top_level_window_count=$allWindows.Count
             for($j=0;$j -lt [Math]::Min($allWindows.Count,120);$j++){
               $root=$allWindows.Item($j)
               if(-not $ids.Contains([int]$root.Current.ProcessId)){continue}
               $items=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
                 [System.Windows.Automation.Condition]::TrueCondition)
-              for($k=0;$k -lt [Math]::Min($items.Count,10);$k++){
-                $el=$items.Item($k)
-                if([string]$el.Current.Name -ceq 'Choose Database' -and
-                   [string]$el.Current.ControlType.ProgrammaticName -ceq 'ControlType.MenuItem' -and
-                   $el.Current.IsEnabled -and $ids.Contains([int]$el.Current.ProcessId)){
-                  $matches.Add($el)
-                }
+              $r.menu_search_descendant_count=[Math]::Max($r.menu_search_descendant_count,$items.Count)
+              if($items.Count -gt 500){$r.menu_search_capped_count++}
+              for($k=0;$k -lt [Math]::Min($items.Count,500);$k++){
+                try{
+                  $el=$items.Item($k)
+                  if([string]$el.Current.Name -cne 'Choose Database'){continue}
+                  $ctrlType=[string]$el.Current.ControlType.ProgrammaticName
+                  $owner=[int]$el.Current.ProcessId
+                  $enabled=[bool]$el.Current.IsEnabled
+                  $rectEl=$el.Current.BoundingRectangle
+                  $r.choose_database_named_element_count++
+                  if($r.choose_database_menu_candidates_meta.Count -lt 10){
+                    $r.choose_database_menu_candidates_meta+=,@{
+                      type=$ctrlType
+                      same_owner=$ids.Contains($owner)
+                      enabled=$enabled
+                      bounds=("$([int]$rectEl.X),$([int]$rectEl.Y),$([int]$rectEl.Width),$([int]$rectEl.Height)")
+                    }
+                  }
+                  if($ctrlType -ceq 'ControlType.MenuItem' -and $enabled -and
+                     $ids.Contains($owner)){
+                    $matches.Add($el)
+                  }
+                }catch{$r.uia_errors++}
               }
             }
             $r.choose_database_menu_candidates=$matches.Count
@@ -311,6 +334,8 @@ Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_SIZE='+$r.app_window_size)
 Write-Host ('LOT05_NATIVE_FILE_MENU_OPENED='+$r.file_menu_invoked)
 Write-Host ('LOT05_NATIVE_FILE_MENU_SOURCE='+$r.file_menu_source)
 Write-Host ('LOT05_NATIVE_CHOOSE_DB_MENU_INVOKED='+$r.choose_database_menu_invoked)
+Write-Host ('LOT05_NATIVE_CHOOSE_DB_NAMED='+$r.choose_database_named_element_count)
+Write-Host ('LOT05_NATIVE_MENU_MAX_DESCENDANTS='+$r.menu_search_descendant_count)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_TITLE='+$r.chooser_window_title)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
 Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
