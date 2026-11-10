@@ -82,6 +82,21 @@ jobs:
           Write-Host ('LOT05_ACCEPT_USER_AUTH_COMPLETED='+[bool]$m.accepted_eula)
           Write-Host ('LOT05_ACCEPT_NEXT_CLICKED='+[bool]$m.eula_next_click_sent)
           Write-Host ('LOT05_ACCEPT_NEXT_SCREEN_CAPTURED='+[bool]$m.eula_following_screen_captured)
+          Write-Host ('LOT05_DESTINATION_SCREEN_PINNED='+[bool]$m.destination_screen_exact_png_verified)
+          Write-Host ('LOT05_DESTINATION_NEXT_CANDIDATES='+[int]$m.destination_next_candidate_count)
+          Write-Host ('LOT05_DESTINATION_NEXT_CLICKED='+[bool]$m.destination_next_clicked)
+          Write-Host ('LOT05_DESTINATION_FOLLOWING_SCREEN_CAPTURED='+[bool]$m.destination_following_screen_captured)
+          if ($m.destination_following_screen_captured -and $m.destination_next_clicked -and
+              $m.destination_screen_exact_png_verified) {
+            $destPng=Join-Path $env:RUNNER_TEMP 'lot05-step2b-after-destination-next-window-only.png'
+            if (-not (Test-Path -LiteralPath $destPng) -or
+                (Get-Item -LiteralPath $destPng).Length -gt 6000000 -or
+                (Get-FileHash -LiteralPath $destPng -Algorithm SHA256).Hash.ToLowerInvariant() -cne $m.destination_following_screen_sha256) {
+              throw 'DESTINATION_NEW_SCREEN_PROVENANCE_FAILED'
+            }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_DESTINATION_NEXT_PNG_OK=1'
+          }
+
           if ($m.accepted_eula -and $m.eula_accept_window_png_saved) {
             $png=Join-Path $env:RUNNER_TEMP 'lot05-step2b-license-after-accept-window-only.png'
             if (-not (Test-Path -LiteralPath $png) -or
@@ -122,5 +137,14 @@ jobs:
         with:
           name: lot05-step2b-eula-next-stage-window-only-png
           path: ${{ runner.temp }}/lot05-step2b-screen-after-eula-next-only.png
+          retention-days: 7
+          if-no-files-found: error
+
+      - name: Upload next installer page after verified default directory Next
+        if: ${{ env.LOT05_DESTINATION_NEXT_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-after-directory-next-window-only-png
+          path: ${{ runner.temp }}/lot05-step2b-after-destination-next-window-only.png
           retention-days: 7
           if-no-files-found: error
