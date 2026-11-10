@@ -302,3 +302,47 @@ def test_real_synthetic_hotfolder_preflight_remains_unconfirmed(
     assert agent.audit(item["id"]) == ["PENDING_CONFIRMATION"]
     assert agent.read_verified(item["id"]) == fake_png
     assert source.read_bytes() == fake_png
+
+
+def test_staff_preflight_never_authorizes_spoofed_device_capture_web_import(
+    client, db, dentiste, auth_headers, monkeypatch, tmp_path
+):
+    """LOT06-B 1+2+3: preflight metadata is not provenance or an import ticket.
+
+    Two forged WEB_API retries must create neither an asset nor any receipt/blob.
+    A genuine enrolled-device transport is not implemented by this test.
+    """
+    from io import BytesIO
+    from PIL import Image
+
+    monkeypatch.setattr(
+        "backend.services.clinical_asset_storage.get_media_root", lambda: tmp_path
+    )
+    workstation = _lab(client, db, dentiste, auth_headers, monkeypatch)
+    patient = _patient(db, dentiste.id, "UNTRUSTED-DEVICE")
+    proposal = _post(client, auth_headers, _proposal(workstation, patient_id=patient.id))
+    assert proposal.status_code == 200, proposal.text
+    assert proposal.json()["requires_staff_confirmation"] is True
+    assert proposal.json()["upload_permitted"] is False
+    assert proposal.json()["receipt_id"] is None
+
+    image = Image.new("RGB", (2, 2), (25, 45, 65))
+    buffer = BytesIO()
+    image.save(buffer, format="PNG")
+    payload = buffer.getvalue()
+    before = db.query(ClinicalAsset).count()
+    for source_kind in ("DEVICE_CAPTURE", "device_capture"):
+        response = client.post(
+            f"/api/patients/{patient.id}/assets/import",
+            headers=auth_headers,
+            data={
+                "asset_type": "PHOTO",
+                "source_kind": source_kind,
+                "source_ref": "FAKE_ENROLLED_DEVICE_REFERENCE",
+            },
+            files={"file": ("synthetic.png", payload, "image/png")},
+        )
+        assert response.status_code == 422, response.text
+        assert response.json()["detail"] == "DEVICE_CAPTURE_REQUIRES_ENROLLED_DEVICE"
+        assert db.query(ClinicalAsset).count() == before
+    assert list(tmp_path.rglob("*.dcm")) == []
