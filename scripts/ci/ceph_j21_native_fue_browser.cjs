@@ -21,7 +21,7 @@ const previous = path.join(root, 'phase-edit.json');
 const report = {
   phase, case_id:'CEPH-J21-NATIVE-PACKAGE-FUE', clinical_release:false,
   native_signed_installable_certified:false, synthetic_only:true,
-  viewport_proofs:[], api:[], console_errors:[],
+  viewport_proofs:[], api:[], console_errors:[], rejected_origins:[], network_failures:[],
   original_sha256:fixture.original_sha256,
 };
 
@@ -30,6 +30,21 @@ async function main() {
   try {
     const page=await browser.newPage({viewport:{width:1280,height:850},locale:'fr-FR'});
     page.on('pageerror',e=>report.console_errors.push(String(e.message).slice(0,180)));
+    // Deny every outgoing resource except the exact lab HTTP loopback origin.
+    // Never silently contact the default clinical port 8005 or any remote host.
+    await page.route('**/*',async route=>{
+      const target=new URL(route.request().url());
+      if(target.origin !== 'http://127.0.0.1:8879'){
+        report.rejected_origins.push(target.origin.slice(0,128));
+        await route.abort('blockedbyclient');
+        return;
+      }
+      await route.continue();
+    });
+    page.on('requestfailed',r=>{
+      const endpoint=new URL(r.url());
+      report.network_failures.push({origin:endpoint.origin,reason:String(r.failure()?.errorText||'network failed').slice(0,100)});
+    });
     page.on('response',r=>{
       if(r.url().includes('/api/'))report.api.push({
         method:r.request().method(), status:r.status(), pathname:new URL(r.url()).pathname
@@ -41,7 +56,16 @@ async function main() {
     await page.getByLabel('Mot de passe fictif').fill('TestPass123!');
     await page.getByRole('button',{name:/Connexion JWT réelle/}).click();
     const svg=page.locator('[data-ceph-j21-svg]');
-    await svg.waitFor({state:'visible',timeout:45000});
+    await svg.waitFor({state:'visible',timeout:18000}).catch(()=>{
+      const apiFailures=report.api.filter(r=>r.status>=400).map(r=>({status:r.status,pathname:r.pathname}));
+      throw Error('NATIVE_SVG_NOT_READY:'+JSON.stringify({
+        rejected_origins:report.rejected_origins,
+        network_failures:report.network_failures,
+        api_failures:apiFailures,
+        page_errors:report.console_errors,
+      }).slice(0,850));
+    });
+    if(report.rejected_origins.length)throw Error('NATIVE_FUE_UNEXPECTED_NETWORK_ORIGIN');
     const point=svg.locator('circle[data-ceph-point="A"]');
     const x=Number(await point.getAttribute('cx'));
     const expected=phase==='edit'?1:2;
