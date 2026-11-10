@@ -42,7 +42,7 @@ jobs:
         run: |
           $ErrorActionPreference='Stop'
           $env:LOT05_EXPECTED_SHA='${{ github.event.pull_request.head.sha }}'
-          & powershell.exe -NoProfile -NoLogo -STA -ExecutionPolicy Bypass -Command {
+          $diagScript = {
             $ErrorActionPreference='Stop'
             $outFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-hosted-desktop-diagnostic.json'
             $imageFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-verified-vendor-window-only.png'
@@ -253,6 +253,12 @@ jobs:
                -not $r.inner_setup_authenticode_valid -or -not $r.inner_setup_started_once -or
                $r.database_created -or $null -ne $r.error_code){throw 'HOSTED_DESKTOP_DIAGNOSTIC_NOT_PROVEN'}
           }
+          # Native Windows PowerShell has a bounded command-line length. Write the
+          # validated scriptblock into the ephemeral runner and use -File instead
+          # of passing >18k of source code as a -Command argument.
+          $diagPath=Join-Path $env:RUNNER_TEMP 'lot05-step2b-hosted-capture-diagnostic.ps1'
+          [System.IO.File]::WriteAllText($diagPath,$diagScript.ToString(),(New-Object System.Text.UTF8Encoding($false)))
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File $diagPath
           if($LASTEXITCODE -ne 0){throw 'PROVENANCE_OR_DIAGNOSTIC_EXIT_NONZERO'}
           $metadata=Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'lot05-step2b-hosted-desktop-diagnostic.json') -Raw | ConvertFrom-Json
           if($metadata.screenshot_window_only_retained -and
