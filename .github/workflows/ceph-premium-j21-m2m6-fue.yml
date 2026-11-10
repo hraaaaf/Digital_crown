@@ -482,6 +482,7 @@ jobs:
         run: |
           python -m PyInstaller --clean --noconfirm --onedir --console --name DigitalCrown-J21-FUE-LAB `
             --add-data "frontend/dist-ceph-j21-native-fue;fue-ui" `
+            --add-data "backend/data/cephalometry/steiner_protocol_profile_v1.json;backend/data/cephalometry" `
             --hidden-import backend.models_ceph_premium_scene_fue `
             --hidden-import backend.routers.ceph_premium_scene_app_fue `
             --hidden-import backend.routers.cephalo_study_media_binding `
@@ -498,6 +499,16 @@ jobs:
           if ($LASTEXITCODE -ne 0) { throw 'FUE_NONCLINICAL_PYINSTALLER_FAILED' }
           $exe='dist/DigitalCrown-J21-FUE-LAB/DigitalCrown-J21-FUE-LAB.exe'
           if (-not (Test-Path $exe)) { throw 'FUE_LAB_EXE_MISSING' }
+          $steinerSource='backend/data/cephalometry/steiner_protocol_profile_v1.json'
+          $steinerEmbedded='dist/DigitalCrown-J21-FUE-LAB/_internal/backend/data/cephalometry/steiner_protocol_profile_v1.json'
+          if (-not (Test-Path -LiteralPath $steinerSource) -or -not (Test-Path -LiteralPath $steinerEmbedded)) {
+            throw 'MISSING_EXACT_STEINER_PROTOCOL_RESOURCE_IN_FUE_BUNDLE'
+          }
+          if ((Get-FileHash -LiteralPath $steinerSource -Algorithm SHA256).Hash -ne
+              (Get-FileHash -LiteralPath $steinerEmbedded -Algorithm SHA256).Hash) {
+            throw 'STEINER_SOURCE_AND_BUNDLED_FILE_SHA_MISMATCH'
+          }
+          Write-Output 'CEPH_J21_NATIVE_FUE_STEINER_RESOURCE_EXACT_SHA_PASS'
           if (Test-Path 'dist/DigitalCrown/DigitalCrown.exe') { throw 'REFUSING_OFFICIAL_INSTALLABLE_NAME' }
           $badFiles=@(Get-ChildItem 'dist/DigitalCrown-J21-FUE-LAB' -Recurse -File |
             Where-Object { $_.Name -match '^\.env($|\.)|^clinical_vault.db$|^installable-certification.json$' })
