@@ -121,6 +121,12 @@ def make_app(root: Path, db_file: Path, *, create_schema: bool):
         if "ceph_premium_scene_fue_snapshots" not in inspect(engine).get_table_names():
             raise RuntimeError("Missing synthetic scene table on reopened database")
 
+    # Independently validate the exact same fail-closed database/temp-root
+    # boundary used by the HTTP scene router, before creating test patients.
+    from backend.services.ceph_premium_scene_app_fue import assert_isolated_scene_app_db
+    with Session() as check_session:
+        assert_isolated_scene_app_db(check_session)
+
     def app_db():
         session = Session()
         try:
@@ -200,7 +206,14 @@ def seed_scene(root: Path, app, Session) -> dict:
             json={"scene": scene_json, "expected_parent_sha256": None},
         )
         if first.status_code != 201:
-            raise RuntimeError(f"Initial synthetic scene write failed: {first.status_code}")
+            # API returns a bounded, non-sensitive guard error. Keep the exact
+            # reason visible in CI instead of repeatedly showing only 503.
+            detail = first.json().get("detail", "unclassified scene refusal")
+            if not isinstance(detail, str):
+                detail = "unclassified scene refusal"
+            raise RuntimeError(
+                f"Initial synthetic scene write failed: HTTP {first.status_code}; {detail[:150]}"
+            )
         response = first.json()
         if response["verified_original"]["image_sha256"] != hashlib.sha256(original).hexdigest():
             raise RuntimeError("Synthetic source SHA mismatch")
