@@ -6,6 +6,7 @@ $outFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-eula-accepted-demo-metadata.js
 $imageFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-license-before-accept-window-only.png'
 $acceptedImage=Join-Path $env:RUNNER_TEMP 'lot05-step2b-license-after-accept-window-only.png'
 $followingImage=Join-Path $env:RUNNER_TEMP 'lot05-step2b-screen-after-eula-next-only.png'
+$destinationFollowingImage=Join-Path $env:RUNNER_TEMP 'lot05-step2b-after-destination-next-window-only.png'
 $wrapper=Join-Path $env:RUNNER_TEMP 'lot05-publisher-signed-wrapper.exe'
 $folder=Join-Path $env:RUNNER_TEMP 'lot05-publisher-signed-extracted'
 $knownIds=New-Object 'System.Collections.Generic.HashSet[int]'
@@ -90,6 +91,17 @@ $r=[ordered]@{
   eula_following_screen_captured=$false
   eula_following_screen_title='NOT_OBSERVED'
   eula_following_screen_sha256=$null
+  destination_screen_exact_png_verified=$false
+  destination_next_candidate_count=0
+  destination_cancel_candidate_count=0
+  destination_browse_candidate_count=0
+  destination_usage_candidate_count=0
+  destination_next_click_attempted=$false
+  destination_next_clicked=$false
+  destination_next_physical_events=0
+  destination_following_screen_captured=$false
+  destination_following_screen_title='NOT_OBSERVED'
+  destination_following_screen_sha256=$null
   eula_ui_exception_count=0
   database_created=$false
   csv_exported=$false
@@ -253,6 +265,113 @@ try{
                           }
                         }
                       }finally{$finalBmp.Dispose()}
+                    }
+                  }
+                }catch{$r.eula_ui_exception_count++}
+              }
+
+              # Exact, already visually reviewed trial directory screen.
+              # Keep C:\Program Files (x86)\Open Dental\ unchanged.
+              if($r.eula_following_screen_captured -and -not $r.destination_next_click_attempted -and
+                 $title -ceq 'OpenDental (25.3.48) Setup' -and
+                 $r.eula_following_screen_sha256 -ceq '57e1cc601d1a4522a07f1fe1b35d5e953df4e0b9482c1f577d555199db1d4d4b'){
+                $r.destination_screen_exact_png_verified=$true
+                try{
+                  $parent=[IntPtr]([int]$w.Current.NativeWindowHandle)
+                  $nexts=New-Object 'System.Collections.Generic.List[System.IntPtr]'
+                  $cancels=New-Object 'System.Collections.Generic.List[System.IntPtr]'
+                  $browses=New-Object 'System.Collections.Generic.List[System.IntPtr]'
+                  $usages=New-Object 'System.Collections.Generic.List[System.IntPtr]'
+                  $cb=[Lot05CaptureSignedWindow+EnumChildCallback]{
+                    param([IntPtr]$child,[IntPtr]$unused)
+                    $pidNative=[uint32]0
+                    $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($child,[ref]$pidNative)
+                    if([int]$pidNative -ne $winPid){return $true}
+                    $sb=New-Object System.Text.StringBuilder(140)
+                    $null=[Lot05CaptureSignedWindow]::GetWindowText($child,$sb,$sb.Capacity)
+                    $name=$sb.ToString().Replace([string]'&',[string]'').Trim()
+                    if($name -match '(?i)^Next\s*>?$' -and [Lot05CaptureSignedWindow]::IsWindowEnabled($child)){
+                      $nexts.Add($child)
+                    }elseif($name -match '(?i)^Cancel$'){$cancels.Add($child)}
+                    elseif($name -match '(?i)^Browse$'){$browses.Add($child)}
+                    elseif($name -match '(?i)^Disk\s+Usage$'){$usages.Add($child)}
+                    return $true
+                  }
+                  $null=[Lot05CaptureSignedWindow]::EnumChildWindows($parent,$cb,[IntPtr]::Zero)
+                  $r.destination_next_candidate_count=$nexts.Count
+                  $r.destination_cancel_candidate_count=$cancels.Count
+                  $r.destination_browse_candidate_count=$browses.Count
+                  $r.destination_usage_candidate_count=$usages.Count
+                  if($nexts.Count -eq 1 -and $cancels.Count -eq 1 -and
+                     $browses.Count -eq 1 -and $usages.Count -eq 1){
+                    $button=$nexts[0]
+                    $ownerPid=[uint32]0
+                    $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($button,[ref]$ownerPid)
+                    $wr=New-Object Lot05CaptureSignedWindow+Rect
+                    $br=New-Object Lot05CaptureSignedWindow+Rect
+                    if([int]$ownerPid -eq $winPid -and
+                       [Lot05CaptureSignedWindow]::GetWindowRect($parent,[ref]$wr) -and
+                       [Lot05CaptureSignedWindow]::GetWindowRect($button,[ref]$br)){
+                      $ww=$wr.Right-$wr.Left
+                      $wh=$wr.Bottom-$wr.Top
+                      $cx=[int][Math]::Floor(($br.Left+$br.Right)/2)
+                      $cy=[int][Math]::Floor(($br.Top+$br.Bottom)/2)
+                      $rx=($cx-$wr.Left)/[double]$ww
+                      $ry=($cy-$wr.Top)/[double]$wh
+                      if($ww -ge 480 -and $ww -le 700 -and $wh -ge 360 -and $wh -le 500 -and
+                         $rx -gt 0.62 -and $rx -lt 0.82 -and $ry -gt 0.87 -and $ry -lt 0.97){
+                        $null=[Lot05CaptureSignedWindow]::SetForegroundWindow($parent)
+                        Start-Sleep -Milliseconds 200
+                        if([Lot05CaptureSignedWindow]::GetForegroundWindow() -eq $parent -and
+                           [Lot05CaptureSignedWindow]::SetCursorPos($cx,$cy)){
+                          Start-Sleep -Milliseconds 90
+                          $pt=New-Object Lot05CaptureSignedWindow+Pt
+                          $pt.X=$cx
+                          $pt.Y=$cy
+                          if([Lot05CaptureSignedWindow]::WindowFromPoint($pt) -eq $button){
+                            $r.destination_next_click_attempted=$true
+                            [Lot05CaptureSignedWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                            $r.destination_next_physical_events=1
+                            Start-Sleep -Milliseconds 75
+                            [Lot05CaptureSignedWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                            $r.destination_next_physical_events=2
+                            $r.destination_next_clicked=$true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }catch{$r.eula_ui_exception_count++}
+              }
+              if($r.destination_next_clicked -and -not $r.destination_following_screen_captured -and
+                 $title -match '^OpenDental \(25\.3\.48\) ' -and
+                 $title -cne 'OpenDental (25.3.48) License Agreement'){
+                try{
+                  $win=[IntPtr]([int]$w.Current.NativeWindowHandle)
+                  $rect=New-Object Lot05CaptureSignedWindow+Rect
+                  if($win -ne [IntPtr]::Zero -and [Lot05CaptureSignedWindow]::GetWindowRect($win,[ref]$rect)){
+                    $width=[int]($rect.Right-$rect.Left)
+                    $height=[int]($rect.Bottom-$rect.Top)
+                    if($width -ge 450 -and $width -le 900 -and $height -ge 300 -and $height -le 800){
+                      $bitmap=New-Object System.Drawing.Bitmap($width,$height)
+                      try{
+                        $graphics=[System.Drawing.Graphics]::FromImage($bitmap)
+                        try{
+                          $hdc=$graphics.GetHdc()
+                          try{$printed=[Lot05CaptureSignedWindow]::PrintWindow($win,$hdc,[uint32]0)}
+                          finally{$graphics.ReleaseHdc($hdc)}
+                        }finally{$graphics.Dispose()}
+                        if($printed){
+                          $bitmap.Save($destinationFollowingImage,[System.Drawing.Imaging.ImageFormat]::Png)
+                          $hash=(Get-FileHash -LiteralPath $destinationFollowingImage -Algorithm SHA256).Hash.ToLowerInvariant()
+                          if($hash -cne $r.eula_following_screen_sha256 -and
+                             (Get-Item -LiteralPath $destinationFollowingImage).Length -gt 2048){
+                            $r.destination_following_screen_captured=$true
+                            $r.destination_following_screen_title=$title
+                            $r.destination_following_screen_sha256=$hash
+                          }
+                        }
+                      }finally{$bitmap.Dispose()}
                     }
                   }
                 }catch{$r.eula_ui_exception_count++}
@@ -625,6 +744,11 @@ Write-Host ('LOT05_EXPLICIT_USER_AUTH_ACCEPT_PNG='+$r.eula_accept_window_png_sav
 Write-Host ('LOT05_EXPLICIT_USER_AUTH_NEXT_CLICK='+$r.eula_next_click_sent)
 Write-Host ('LOT05_EXPLICIT_USER_AUTH_NEXT_SCREEN='+$r.eula_following_screen_captured)
 Write-Host ('LOT05_EXPLICIT_USER_AUTH_NEXT_TITLE='+$r.eula_following_screen_title)
+Write-Host ('LOT05_DESTINATION_PINNED_SCREEN='+$r.destination_screen_exact_png_verified)
+Write-Host ('LOT05_DESTINATION_NEXT_CANDIDATES='+$r.destination_next_candidate_count)
+Write-Host ('LOT05_DESTINATION_NEXT_CLICKED='+$r.destination_next_clicked)
+Write-Host ('LOT05_DESTINATION_NEW_SCREEN='+$r.destination_following_screen_captured)
+Write-Host ('LOT05_DESTINATION_NEW_SCREEN_TITLE='+$r.destination_following_screen_title)
 Write-Host ('LOT05_EXPLICIT_USER_AUTH_UI_ERRORS='+$r.eula_ui_exception_count)
 Write-Host 'LOT05_EXPLICIT_CONSENT_ONLY_EPHEMERAL_DEMO_NO_PATIENTS'
 if(-not $r.wrapper_hash_pinned -or -not $r.wrapper_authenticode_valid -or
