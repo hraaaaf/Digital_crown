@@ -6,6 +6,20 @@
 
 # STATE — DigitalCrown
 
+## LOT08.2-G — 2026-11-10 — CODE_CERTIFIED OFFICIEL SUR MASTER : SIX JOBS SUCCESS / INSTALLABLE TOUJOURS BLOQUÉ
+
+**Goal atteint : CODE_CERTIFIED** pour master exact **bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4**. [Workflow officiel Cabinet Certified Release #42897412850](https://github.com/hraaaaf/Digital_crown/actions/runs/42897412850), workflow_dispatch manuel du propriétaire 2026-11-10 20:39:20 UTC, tentative 1, COMPLETED/SUCCESS à 20:59:27 UTC. GitHub HEAD master inchangé.
+
+**Six jobs terminal SUCCESS :** Exact immutable master HEAD ; Backend full certification ; Independent 14-script PostgreSQL 18 legacy-migration gate ; PostgreSQL 18 upgrade + preservation ; Frontend tests + production build ; Emit attested CODE_CERTIFIED universal artifact. Aucun job FAIL/SKIP sur ce run.
+
+**Preuves d'artefacts :** [CODE_CERTIFIED ZIP #13802971225](https://github.com/hraaaaf/Digital_crown/actions/runs/42897412850/artifacts/13802971225), nom code-certified-dc-cabinet-bb3c92b9b8c7-run42897412850, 6372554 octets, GitHub artifact SHA256 **4302e9d3b22cf71b40619587d597c8939dddf4199d5322714f6e3851c9f611f4** ; [frontend artifact #13801886061](https://github.com/hraaaaf/Digital_crown/actions/runs/42897412850/artifacts/13801886061), SHA256 **40bac5b6a11cc1260de8eb57695b9ff87bfda9514b87570ec54e34145fbc2fa9**. Log de l'émetteur : PACKAGE_IMPORT_SMOKE=PASS ; status CERTIFIED_RELEASE_OK pour BASIC/GOLD/ELITE ; certification_level CODE_CERTIFIED, run ID et commit SHA exact.
+
+**Signature/provenance :** action GitHub actions/attest@v4 a attesté release-content.sha256 au digest **19b27f49884d6f37e8f8dc380dbda7a7a3ed49d00e8f8c26928d2eb29e663d86** ; signature via Public Good Sigstore, log Rekor **3793453724**, [attestation GitHub #65996882](https://github.com/hraaaaf/Digital_crown/attestations/65996882). Création/signature prouvées par logs du job vert ; **vérification cryptographique hors CI par gh attestation verify non effectuée dans ce contrôle** et toujours obligatoire avant composition.
+
+**Ce qui reste BLOQUÉ :** ZIP CODE_CERTIFIED n'est pas un INSTALLABLE_CERTIFIED, GitHub Releases [] au contrôle ; bundle d'assets runtime/modeles autorisés au même SHA absent/non vérifié ; pas de vérification des digests/registre scientifique des modèles ou des binaires locaux, ni composition/installation Windows. Ne pas utiliser d'assets non attestés, ni de données patients. Script de composition officiel backend/scripts/create_release.ps1 exige deux ZIPs, vérification Sigstore par GitHub CLI ou trust root et contrôle strict des contenus avant tout stage.
+
+**NEXT exact :** inventorier sur la machine propriétaire les assets runtime autorisés sans donnée patient, créer/certifier un runtime-assets bundle lié exactement à ce SHA, télécharger CODE_CERTIFIED #13802971225 et valider attestation Sigstore avec gh attestations ; puis seulement décider une composition INSTALLABLE_CERTIFIED en préproduction isolée, sous gate humain si nécessaire. Aucun merge de PR #1266/#1273/#1274/#1275, aucun déploiement, activation clinique, migration ou installation. LOT08 OPEN / NO_INSTALLABLE_GO.
+
 ## LOT08.2-G — 2026-11-10 20:40 UTC — CABINET CERTIFIED RELEASE OFFICIEL DÉCLENCHÉ, EN COURS
 
 **Résultat vérifié** : après action manuelle du propriétaire, [workflow_dispatch #42897412850](https://github.com/hraaaaf/Digital_crown/actions/runs/42897412850) créé le 10 novembre 2026 à 20:39:20 UTC sur **master exact bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4**, attempt 1, status in_progress. Branche master inchangée.
