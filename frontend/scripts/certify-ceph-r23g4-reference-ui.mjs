@@ -169,40 +169,58 @@ async function viewportRun(viewport) {
     else await check('NO_FABRICATED_FOCUS_ON_COM_HOLD', async()=>{
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
       const table=panel.locator('table[data-r23g4-row-count="10"]');
-      // A missing source-backed Focus is legitimate ONLY when no row carries
-      // an active clinical numeric value. Never turn weak source binding into
-      // an all-green UI proof by ignoring an AVAILABLE value.
+      // A read-only historical COM number can be displayed without enough
+      // active evidence to focus on the image. NEVER claim that ALL numbers
+      // are absent merely because no source-authorized Focus is available.
       if(comSourceRows.length!==10 || comSourceRows.some(row=>
-        row.availability_status==='AVAILABLE' || row.value!==null))
-        throw Error('Cannot claim explicit COM hold while source rows contain numeric evidence');
+        row.classification_authority!==false
+          || (row.availability_status!=='AVAILABLE' && row.value!==null)))
+        throw Error('COM reference rows violate status/value/authority contract');
+      const held=comSourceRows.find(row=>
+        row.availability_status!=='AVAILABLE' && row.value===null);
+      if(!held)throw Error('No actual NC COM factor exists for the refusal proof');
+
+      const numRows=comSourceRows.filter(row=>
+        row.availability_status==='AVAILABLE' && row.value!==null);
       const coverage=await panel.locator('[data-r23g4-coverage]').innerText();
-      if(!coverage.includes('0/10 valeurs prouvées'))
-        throw Error('COM hold coverage differs from backend evidence: '+coverage);
-      const rowStates=await table.locator('tbody tr').evaluateAll(nodes =>
-        nodes.map(node=>({
-          value:node.querySelector('td:nth-child(2)')?.textContent?.trim(),
-          status:node.querySelector('td:nth-child(3)')?.textContent?.trim()
-        })));
-      if(rowStates.length!==10 || rowStates.some(row=>
-        row.value!=='NC' || !row.status?.includes('Non calculable')))
-        throw Error('COM table invented clinical values or concealed NC state: '+JSON.stringify(rowStates));
+      if(!coverage.includes(`${numRows.length}/10 valeurs prouvées`))
+        throw Error('COM coverage differs from exact backend values: '+coverage);
+      for(const source of comSourceRows) {
+        const row=table.locator('tbody tr[data-r23g4-factor="'+source.canonical_measurement_id+'"]');
+        if(await row.count()!==1)throw Error('COM factor missing: '+source.canonical_measurement_id);
+        const value=await row.locator('td').first().innerText();
+        const status=await row.locator('td').last().innerText();
+        if((source.value===null && (value.trim()!=='NC'||!status.includes('Non calculable')))
+          ||(source.value!==null && (value.trim()==='NC'||!status.includes('Preuve mesurée'))))
+          throw Error('COM factor display differs from active source state: '+source.canonical_measurement_id);
+      }
       await page.evaluate(()=>{
         window.__r23g4FocusEvents=[];
         window.addEventListener('digital-crown:cephalo-metric',event=>
           window.__r23g4FocusEvents.push(event.detail));
       });
-      await table.locator('tbody tr').first().locator('button[data-r23g4-focus-select]').click();
-      const refusal=table.locator('tbody tr').first()
-        .locator('[data-r23g4-focus-authority="refused"]');
+      // Even if a legacy row has a read-only number, it has no image Focus
+      // unless the API proves the exact current source-typed landmark IDs.
+      // Exercise each numeric row rather than silently assuming it is safe.
+      for(const source of numRows) {
+        const row=table.locator('tbody tr[data-r23g4-factor="'+source.canonical_measurement_id+'"]');
+        await row.locator('button[data-r23g4-focus-select]').click();
+        await row.locator('[data-r23g4-focus-authority="refused"]').waitFor({state:'visible'});
+        if(await panel.locator('[data-r23g4-focus-authority="verified-runtime"]').count())
+          throw Error('Unproven numeric COM factor activated image Focus: '+source.canonical_measurement_id);
+      }
+      const nc=table.locator('tbody tr[data-r23g4-factor="'+held.canonical_measurement_id+'"]');
+      await nc.locator('button[data-r23g4-focus-select]').click();
+      const refusal=nc.locator('[data-r23g4-focus-authority="refused"]');
       await refusal.waitFor({state:'visible'});
       if(!(await refusal.innerText()).includes('Focus non autorisé'))
-        throw Error('COM hold does not visibly refuse unsupported Focus');
+        throw Error('NC COM factor does not visibly refuse unsupported Focus');
       if(await panel.locator('[data-r23g4-focus-authority="verified-runtime"]').count())
-        throw Error('Unsupported COM Focus incorrectly marked as verified-runtime');
+        throw Error('Unsupported COM Focus marked verified');
       const events=await page.evaluate(()=>window.__r23g4FocusEvents || []);
       if(events.some(event=>event?.authority==='ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
            || event?.lines?.length || event?.points?.length))
-        throw Error('Unsupported COM Focus emitted numeric/graphic authority');
+        throw Error('Unsupported COM Focus emitted numeric or geometric authority');
       await shot('after-com-focus-hold');
       return 'Row remains NC and no Focus event/geometry is authorized';
     });
