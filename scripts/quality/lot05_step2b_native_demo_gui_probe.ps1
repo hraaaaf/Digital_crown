@@ -20,6 +20,17 @@ $r=[ordered]@{
   app_png_sha256=$null
   app_window_owner_pid_verified=$false
   app_window_last_cycle=-1
+  file_menu_attempted=$false
+  file_menu_invoked=$false
+  file_menu_source='NOT_ATTEMPTED'
+  file_menu_cycle=-1
+  file_menu_item_candidates=0
+  file_menu_known_labels=@()
+  choose_database_menu_candidates=0
+  choose_database_menu_item_observed=$false
+  choose_database_menu_invoked=$false
+  choose_database_menu_source='NOT_ATTEMPTED'
+  choose_database_menu_cycle=-1
   observed_window_bounds=@()
   chooser_window_captured=$false
   chooser_window_title='NOT_OBSERVED'
@@ -65,8 +76,15 @@ using System;
 using System.Runtime.InteropServices;
 public static class Lot05DemoGuiWindow {
   [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; }
+  [StructLayout(LayoutKind.Sequential)] public struct Point { public int X,Y; }
   [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr h,out Rect r);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h,IntPtr dc,uint flags);
+  [DllImport("user32.dll")] public static extern bool SetForegroundWindow(IntPtr h);
+  [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
+  [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
+  [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Point p);
+  [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint pid);
+  [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
 }
 '@ -ErrorAction Stop
   $proc=Start-Process -FilePath $exe -WorkingDirectory (Split-Path -Parent $exe) -PassThru -ErrorAction Stop
@@ -103,7 +121,12 @@ public static class Lot05DemoGuiWindow {
         $isApp=($title -ceq 'Open Dental')
         if(-not $isChooser -and -not $isApp){continue}
         if($isChooser -and $r.chooser_window_captured){continue}
-        if($isApp -and $cycle -notin @(8,20,40,65,95,110)){continue}
+        # Unlike the screenshot-only gate, navigation must run each cycle
+        # after discovery so that transient native popup menu items are found.
+        if($isApp -and $cycle -notin @(8,20,40,65,95,110) -and
+           -not ($r.app_window_captured -and -not $r.choose_database_menu_invoked)){
+          continue
+        }
         if($isChooser){
           $r.chooser_window_title=$title
           $r.chooser_owner_pid_verified=$ids.Contains($pidHere)
@@ -119,6 +142,11 @@ public static class Lot05DemoGuiWindow {
         # Window-only vendor GUI, never desktop, screens or unrelated processes.
         if($width -lt 200 -or $width -gt 2200 -or $height -lt 120 -or $height -gt 1550){continue}
         $target=if($isChooser){$png}else{$appPng}
+        $shouldPrint=($isChooser -or $cycle -in @(8,20,40,65,95,110))
+        if(-not $shouldPrint -and $isApp){
+          # Retain window handle and UI automation below, do not rewrite PNG
+          # on every observation cycle or after opening a menu.
+        }else{
         $bmp=New-Object System.Drawing.Bitmap($width,$height)
         try{
           $g=[System.Drawing.Graphics]::FromImage($bmp)
@@ -145,6 +173,7 @@ public static class Lot05DemoGuiWindow {
             }
           }
         }finally{$bmp.Dispose()}
+        }
         if($isChooser -and $r.chooser_window_captured){
           $controls=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
                                 [System.Windows.Automation.Condition]::TrueCondition)
@@ -161,6 +190,137 @@ public static class Lot05DemoGuiWindow {
               $r.chooser_safe_controls+=,$nm
             }
           }
+        }
+        # STEP 3A: one allowlisted native File -> Choose Database menu
+        # navigation. The prior TWO exact-HEAD runs pinned this untouched main
+        # window PNG, same 1040x744, signed OpenDental.exe, no selected patient.
+        # No database field, password, report or patient control is touched.
+        if($isApp -and $r.app_window_captured -and
+           $r.app_png_sha256 -ceq '31ef8a37ff9a3f93845e799dca610ae6a05bc4ed4b11378fac5d577af1b7bd6d' -and
+           $width -eq 1040 -and $height -eq 744 -and
+           $r.app_window_owner_pid_verified -and
+           $cycle -ge 20 -and -not $r.file_menu_attempted){
+          $r.file_menu_attempted=$true
+          $r.file_menu_cycle=$cycle
+          $candidates=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
+          try{
+            $items=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                              [System.Windows.Automation.Condition]::TrueCondition)
+            for($k=0;$k -lt [Math]::Min($items.Count,360);$k++){
+              $el=$items.Item($k)
+              if([int]$el.Current.ProcessId -ne $pidHere){continue}
+              $name=[string]$el.Current.Name
+              $type=[string]$el.Current.ControlType.ProgrammaticName
+              if($name -match '^(File|Setup|Reports|Choose Database)
+}catch{
+  $r.error_code='EXACT_DEMO_APP_GUI_DISCOVERY_FAIL_CLOSED'
+}finally{
+  # Do not terminate the MariaDB service. Only terminate the app we just started.
+  foreach($childPid in @($ids)){try{Stop-Process -Id $childPid -Force -ErrorAction SilentlyContinue}catch{}}
+  [System.IO.File]::WriteAllText($outFile,($r|ConvertTo-Json -Depth 4),(New-Object System.Text.UTF8Encoding($false)))
+}
+Write-Host ('LOT05_NATIVE_DEMO_APP_EXECUTED='+$r.app_process_started)
+Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CAPTURED='+$r.chooser_window_captured)
+Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_CAPTURED='+$r.app_window_captured)
+Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_SIZE='+$r.app_window_size)
+Write-Host ('LOT05_NATIVE_FILE_MENU_OPENED='+$r.file_menu_invoked)
+Write-Host ('LOT05_NATIVE_FILE_MENU_SOURCE='+$r.file_menu_source)
+Write-Host ('LOT05_NATIVE_CHOOSE_DB_MENU_INVOKED='+$r.choose_database_menu_invoked)
+Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_TITLE='+$r.chooser_window_title)
+Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CONTROLS='+($r.chooser_safe_controls -join ','))
+Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
+if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
+   -not $r.app_exe_signature_valid -or -not $r.app_process_started -or
+   -not $r.choose_database_menu_invoked -or -not $r.chooser_window_captured -or
+   $null -ne $r.error_code){
+  throw 'NATIVE_DEMO_CHOOSE_DATABASE_DIALOG_NOT_PROVEN'
+}
+ -and
+                 $r.file_menu_known_labels -notcontains $name -and $r.file_menu_known_labels.Count -lt 8){
+                $r.file_menu_known_labels+=,$name
+              }
+              if($name -ceq 'File' -and $type -ceq 'ControlType.MenuItem' -and
+                 $el.Current.IsEnabled){$candidates.Add($el)}
+            }
+          }catch{$r.uia_errors++}
+          $r.file_menu_item_candidates=$candidates.Count
+          if($candidates.Count -eq 1){
+            $node=$candidates[0]
+            try{
+              $pattern=$null
+              if($node.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern,[ref]$pattern)){
+                ([System.Windows.Automation.ExpandCollapsePattern]$pattern).Expand()
+                $r.file_menu_invoked=$true
+                $r.file_menu_source='UIA_EXPAND_UNIQUE_ENABLED_FILE'
+              }elseif($node.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$pattern)){
+                ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
+                $r.file_menu_invoked=$true
+                $r.file_menu_source='UIA_INVOKE_UNIQUE_ENABLED_FILE'
+              }
+            }catch{$r.uia_errors++}
+          }
+          if(-not $r.file_menu_invoked -and $r.file_menu_item_candidates -le 1){
+            # Fallback ONE physical click at the File label centre proven by
+            # the pinned 1040x744 PNG (x=93,y=46), never on an unknown window.
+            $point=New-Object Lot05DemoGuiWindow+Point
+            $point.X=[int]($rect.Left+93)
+            $point.Y=[int]($rect.Top+46)
+            $hit=[Lot05DemoGuiWindow]::WindowFromPoint($point)
+            $hitPid=[uint32]0
+            if($hit -ne [IntPtr]::Zero){
+              $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($hit,[ref]$hitPid)
+            }
+            $null=[Lot05DemoGuiWindow]::SetForegroundWindow($hwnd)
+            Start-Sleep -Milliseconds 160
+            if([int]$hitPid -eq $pidHere -and
+               [Lot05DemoGuiWindow]::GetForegroundWindow() -eq $hwnd -and
+               [Lot05DemoGuiWindow]::SetCursorPos($point.X,$point.Y)){
+              Start-Sleep -Milliseconds 70
+              if([Lot05DemoGuiWindow]::WindowFromPoint($point) -eq $hit){
+                [Lot05DemoGuiWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                Start-Sleep -Milliseconds 80
+                [Lot05DemoGuiWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                $r.file_menu_invoked=$true
+                $r.file_menu_source='PINNED_PNG_PID_FOREGROUND_HITTEST_MOUSE_FILE'
+              }
+            }
+          }
+        }
+        if($isApp -and $r.file_menu_invoked -and $cycle -gt $r.file_menu_cycle -and
+           -not $r.choose_database_menu_invoked){
+          try{
+            $allWindows=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+              [System.Windows.Automation.TreeScope]::Children,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            $matches=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
+            for($j=0;$j -lt [Math]::Min($allWindows.Count,120);$j++){
+              $root=$allWindows.Item($j)
+              if(-not $ids.Contains([int]$root.Current.ProcessId)){continue}
+              $items=$root.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+                (New-Object System.Windows.Automation.PropertyCondition(
+                  [System.Windows.Automation.AutomationElement]::NameProperty,[string]'Choose Database')))
+              for($k=0;$k -lt [Math]::Min($items.Count,10);$k++){
+                $el=$items.Item($k)
+                if([string]$el.Current.Name -ceq 'Choose Database' -and
+                   [string]$el.Current.ControlType.ProgrammaticName -ceq 'ControlType.MenuItem' -and
+                   $el.Current.IsEnabled -and $ids.Contains([int]$el.Current.ProcessId)){
+                  $matches.Add($el)
+                }
+              }
+            }
+            $r.choose_database_menu_candidates=$matches.Count
+            $r.choose_database_menu_item_observed=($matches.Count -gt 0)
+            if($matches.Count -eq 1){
+              $node=$matches[0]
+              $pattern=$null
+              if($node.TryGetCurrentPattern([System.Windows.Automation.InvokePattern]::Pattern,[ref]$pattern)){
+                ([System.Windows.Automation.InvokePattern]$pattern).Invoke()
+                $r.choose_database_menu_invoked=$true
+                $r.choose_database_menu_source='UIA_INVOKE_UNIQUE_CHOOSE_DATABASE'
+                $r.choose_database_menu_cycle=$cycle
+              }
+            }
+          }catch{$r.uia_errors++}
         }
       }catch{$r.uia_errors++}
     }
