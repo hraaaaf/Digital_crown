@@ -580,7 +580,21 @@ jobs:
             } catch {}
             Start-Sleep -Seconds 2
           }
-          if (-not $ready) { throw 'NATIVE_FUE_UI_NOT_READY' }
+          if (-not $ready) {
+            # Only bounded startup failure markers from the synthetic app;
+            # never upload private profile env, JWT, or entire server logs.
+            $errFile="$env:RUNNER_TEMP/j21-native-stderr.log"
+            if (Test-Path -LiteralPath $errFile) {
+              Get-Content -LiteralPath $errFile -Tail 60 |
+                Where-Object { $_ -match 'CEPH_NATIVE_FUE_FAIL_CLOSED|ModuleNotFoundError|ImportError|FileNotFoundError|Error loading ASGI app|ERROR:|Traceback' } |
+                Select-Object -Last 12 | ForEach-Object {
+                  Write-Output ('NATIVE_FUE_SAFE_STARTUP_DIAGNOSTIC '+$_.Substring(0,[Math]::Min(240,$_.Length)))
+                }
+            }
+            $proc.Refresh()
+            if ($proc.HasExited) { Write-Output ('NATIVE_FUE_PROCESS_EXIT_CODE='+$proc.ExitCode) }
+            throw 'NATIVE_FUE_UI_NOT_READY'
+          }
           $env:NODE_PATH=(Join-Path $env:GITHUB_WORKSPACE 'frontend/node_modules')
           node scripts/ci/ceph_j21_native_fue_browser.cjs edit
           if ($LASTEXITCODE -ne 0) { throw 'REAL_NATIVE_BROWSER_EDIT_FAILED' }
@@ -609,7 +623,19 @@ jobs:
             } catch {}
             Start-Sleep -Seconds 2
           }
-          if (-not $ready) { throw 'RESTARTED_NATIVE_FUE_NOT_READY' }
+          if (-not $ready) {
+            $errFile="$env:RUNNER_TEMP/j21-reopened-stderr.log"
+            if (Test-Path -LiteralPath $errFile) {
+              Get-Content -LiteralPath $errFile -Tail 60 |
+                Where-Object { $_ -match 'CEPH_NATIVE_FUE_FAIL_CLOSED|ModuleNotFoundError|ImportError|FileNotFoundError|Error loading ASGI app|ERROR:|Traceback' } |
+                Select-Object -Last 12 | ForEach-Object {
+                  Write-Output ('REOPENED_NATIVE_SAFE_DIAGNOSTIC '+$_.Substring(0,[Math]::Min(240,$_.Length)))
+                }
+            }
+            $proc.Refresh()
+            if ($proc.HasExited) { Write-Output ('REOPENED_NATIVE_PROCESS_EXIT_CODE='+$proc.ExitCode) }
+            throw 'RESTARTED_NATIVE_FUE_NOT_READY'
+          }
           $env:NODE_PATH=(Join-Path $env:GITHUB_WORKSPACE 'frontend/node_modules')
           node scripts/ci/ceph_j21_native_fue_browser.cjs reopen
           if ($LASTEXITCODE -ne 0) { throw 'NATIVE_PROCESS_RESTART_REOPEN_FAILED' }
