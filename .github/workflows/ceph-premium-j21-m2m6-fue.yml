@@ -403,8 +403,6 @@ jobs:
       PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
       CI: 'true'
       CEPH_J21_NATIVE_FUE_ONLY: GITHUB_WINDOWS_J21_SYNTHETIC_FUE_ONLY
-      CEPH_J21_EVIDENCE_DIR: ${{ runner.temp }}/ceph-j21-native-evidence
-      CEPH_J21_FUE_PROFILE: ${{ runner.temp }}/ceph-j21-native-fue-${{ github.run_id }}
       VITE_CEPH_J21_NATIVE_FUE: 'true'
       CLOUD_AI_ENABLED: 'false'
       TELEMETRY_ENABLED: 'false'
@@ -413,6 +411,11 @@ jobs:
         with:
           ref: ${{ github.event.pull_request.head.sha }}
           persist-credentials: false
+      - name: Bind ephemeral FUE paths in step context (runner.temp not valid in job env)
+        shell: pwsh
+        run: |
+          "CEPH_J21_EVIDENCE_DIR=$env:RUNNER_TEMP/ceph-j21-native-evidence" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          "CEPH_J21_FUE_PROFILE=$env:RUNNER_TEMP/ceph-j21-native-fue-$env:GITHUB_RUN_ID" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
       - name: Assert immutable head, official release guard and no prod wiring
         shell: pwsh
         run: |
