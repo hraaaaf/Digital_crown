@@ -1,6 +1,11 @@
 name: LOT05 Step2B Official Server and Wizard Same-Runner Trial
 
 on:
+  push:
+    branches: [feat/lot05-step2b-signed-server-trial-install-oneclick-20261110]
+    paths:
+      - '.github/workflows/lot05-step2b-server-trial-oneclick.yml'
+      - 'scripts/quality/lot05_step2b_server_fullchain_lab.ps1'
   pull_request:
     types: [opened, synchronize]
     branches: [master]
@@ -15,7 +20,7 @@ permissions:
 jobs:
   official-server-trial:
     name: Signed server orchestrator then vendor wizard, same Windows runner
-    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-signed-server-trial-install-oneclick-20261110' && github.run_attempt == 1 }}
+    if: ${{ github.run_attempt == 1 && ((github.event_name == 'push' && github.ref == 'refs/heads/feat/lot05-step2b-signed-server-trial-install-oneclick-20261110') || (github.event_name == 'pull_request' && github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-signed-server-trial-install-oneclick-20261110')) }}
     runs-on: windows-2022
     timeout-minutes: 22
     steps:
@@ -23,13 +28,13 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 12
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.event_name == 'push' && github.sha || github.event.pull_request.head.sha }}
       - name: Isolated admin Windows, exact SHA and three lab files; AST check
         shell: pwsh
         run: |
           $ErrorActionPreference='Stop'
           if($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or
-             (git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}'){
+             (git rev-parse HEAD).Trim() -cne '${{ github.event_name == 'push' && github.sha || github.event.pull_request.head.sha }}'){
             throw 'HOSTED_WINDOWS_EXACT_HEAD_REQUIRED'
           }
           $base='027a82aca4cc37308f6323e759283c4ca0e45fad'
@@ -59,7 +64,7 @@ jobs:
       - name: Execute signed server Install then guarded Open Dental wizard in same runner
         shell: pwsh
         run: |
-          $env:LOT05_EXPECTED_SHA='${{ github.event.pull_request.head.sha }}'
+          $env:LOT05_EXPECTED_SHA='${{ github.event_name == 'push' && github.sha || github.event.pull_request.head.sha }}'
           & powershell.exe -NoProfile -NoLogo -STA -ExecutionPolicy Bypass -File './scripts/quality/lot05_step2b_server_fullchain_lab.ps1'
           if($LASTEXITCODE -ne 0){throw 'OFFICIAL_SERVER_INSTALL_SCRIPT_FAILED_CLOSED'}
       - name: Verify actual MariaDB service and demo SQL, without patient data
