@@ -6,6 +6,14 @@
 
 # STATE — DigitalCrown
 
+## LOT08.2-E — 2026-11-10 — ARCHITECTURE ACTUELLE RECONCILIÉE / SCM LAB ≠ INSTALLATEUR PRODUIT
+
+**Fait vérifié dans master `bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4` après les FUE #1273 :** [`installer/DigitalCrown.iss`](https://github.com/hraaaaf/Digital_crown/blob/bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4/installer/DigitalCrown.iss) impose sept attestations `INSTALLABLE_CERTIFIED`, `PrivilegesRequired=lowest`, et sections `[Run]` et `[UninstallRun]` **sans démarrage automatique ni création de tâche/service** ; les commentaires du script l'interdisent explicitement avant le parcours d'activation contrôlé. [`run.py`](https://github.com/hraaaaf/Digital_crown/blob/bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4/run.py) exige un profil d'environnement absolu explicite, des dossiers isolés et `--initialize-new-cabinet` pour le premier boot. Les anciennes indications du guide on-premise sur tâche planifiée à l'installation ne décrivent **pas** le code actuel de l'installeur et ne doivent pas être suivies.
+
+**Impact sur résultat 08.2-E :** le vrai service SCM éphémère LocalService testé en Windows GitHub est une **preuve de capacité NTFS/Windows**, pas l'identité d'un service créé par l'installateur produit (aucun service n'est créé automatiquement). Ne pas changer l'installateur pour correspondre à l'expérience ; garder PR #1273 DRAFT/NO MERGE. Ce constat est aussi commenté sur [PR #1273](https://github.com/hraaaaf/Digital_crown/pull/1273#issuecomment-6773290990).
+
+**Next exact corrigé :** identifier/valider le **profil d'activation réel choisi** (processus explicite par utilisateur ou service/tâche séparément autorisé), puis tester principal Windows effectif et ACL/SQLCipher des dossiers de ce profil sur VM jetable certifiable. En parallèle, formaliser la quiescence de tous writers inter-DB avant sauvegarde/restauration, avec refus des états partiels ; ne pas inférer atomicité multi-fichiers ni readiness clinique de la FUE LAB.
+
 ## LOT08 — 2026-11-10 — LOT08.2-E — SERVICE WINDOWS RÉEL EN VM + SNAPSHOT SYNTHÉTIQUE FUE VERT / DRAFT
 
 - **GO utilisateur :** « Go » après closeout source master LOT08.2-D, autorisation d'avancer au **LOT08.2-E** sur risques Windows réel/service et restauration synthétique. **Aucune autorisation de merge, migration patient, installateur, déploiement ni QR clinique.**
