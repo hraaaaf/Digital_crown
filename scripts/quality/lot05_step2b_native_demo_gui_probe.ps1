@@ -319,7 +319,12 @@ public static class Lot05DemoGuiWindow {
                     $by -ge ($y+$ch-90) -and $by -le ($y+$ch))
                   if($r.demo_connect_ok_pid_and_geometry){
                     # Focus the owned application, never send keys to another PID.
-                    $null=[Lot05DemoGuiWindow]::SetForegroundWindow($hwnd)
+                    $mainHwnd=[IntPtr]([int]$w.Current.NativeWindowHandle)
+                    $mainPid=[uint32]0
+                    if($mainHwnd -eq [IntPtr]::Zero){throw 'NATIVE_DEMO_MAIN_HWND_MISSING'}
+                    $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($mainHwnd,[ref]$mainPid)
+                    if([int]$mainPid -ne $pidHere){throw 'NATIVE_DEMO_MAIN_HWND_PID_MISMATCH'}
+                    $null=[Lot05DemoGuiWindow]::SetForegroundWindow($mainHwnd)
                     Start-Sleep -Milliseconds 180
                     $foreground=[Lot05DemoGuiWindow]::GetForegroundWindow()
                     $fgPid=[uint32]0
