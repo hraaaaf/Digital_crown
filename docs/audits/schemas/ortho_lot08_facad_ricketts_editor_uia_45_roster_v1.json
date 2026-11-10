@@ -1,0 +1,227 @@
+{
+  "schema_version": "ORTHO_LOT08_FACAD_RICKETTS_EDITOR_UIA_45_ROSTER_V1",
+  "status": "HISTORICAL_EDITOR_DEFINITION_UIA_OBSERVED_ONLY",
+  "evidence_meaning": "Ordered analysis-definition editor row labels from fresh historical Windows GitHub Actions GUI sessions; not patient measured values, not export files, not numeric parity, not clinical authorization.",
+  "source_vendor_version": "3.14.1.1111",
+  "source_is_publication_authorization": false,
+  "scientific_authority": false,
+  "compatibility_only": true,
+  "profile_rosters": [
+    {
+      "profile_target_id": "FACAD_RICKETTS_32F_COMPATIBILITY_TARGET",
+      "observed_factor_count": 32,
+      "source_run_id": 37863549712,
+      "source_artifact_id": 11586908104,
+      "source_artifact_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37863549712/artifacts/11586908104",
+      "source_artifact_zip_sha256": "e060e68d4fc800c5bebec1dac51cc9b74dab968bdf3727d2fd3bc3b13377491b",
+      "source_uia_member_name": "d1c-Ricketts__32_F_-measurements-ui.txt",
+      "source_uia_member_sha256": "43acb9c3ae778dc85def008f4b2045c1c6cb7b15bfd92063b865cc0d3f19fcf4",
+      "source_uia_member_byte_count": 65466,
+      "extraction_rule": "FIRST ControlType.DataGrid of UIA measurements dump; ControlType.DataItem rows with Type != Heading; preserve observation order",
+      "ordered_factor_labels": [
+        {
+          "order": 1,
+          "facad_label": "Molar rel"
+        },
+        {
+          "order": 2,
+          "facad_label": "Canine rel"
+        },
+        {
+          "order": 3,
+          "facad_label": "Overjet"
+        },
+        {
+          "order": 4,
+          "facad_label": "Overbite"
+        },
+        {
+          "order": 5,
+          "facad_label": "Ii-OL"
+        },
+        {
+          "order": 6,
+          "facad_label": "InterIncisal"
+        },
+        {
+          "order": 7,
+          "facad_label": "Convexity"
+        },
+        {
+          "order": 8,
+          "facad_label": "LFH"
+        },
+        {
+          "order": 9,
+          "facad_label": "Ms-PtV"
+        },
+        {
+          "order": 10,
+          "facad_label": "Ii to A-Pog"
+        },
+        {
+          "order": 11,
+          "facad_label": "Is to A-Pog"
+        },
+        {
+          "order": 12,
+          "facad_label": "ILi/A-Pog"
+        },
+        {
+          "order": 13,
+          "facad_label": "ILs/A-Pog"
+        },
+        {
+          "order": 14,
+          "facad_label": "Xi-OL"
+        },
+        {
+          "order": 15,
+          "facad_label": "Xi-PM/OL"
+        },
+        {
+          "order": 16,
+          "facad_label": "Li-EL"
+        },
+        {
+          "order": 17,
+          "facad_label": "Upper lip len"
+        },
+        {
+          "order": 18,
+          "facad_label": "STi-OL"
+        },
+        {
+          "order": 19,
+          "facad_label": "Facial depth"
+        },
+        {
+          "order": 20,
+          "facad_label": "Facial axis"
+        },
+        {
+          "order": 21,
+          "facad_label": "Facial cone angle"
+        },
+        {
+          "order": 22,
+          "facad_label": "Max depth"
+        },
+        {
+          "order": 23,
+          "facad_label": "Max hgh"
+        },
+        {
+          "order": 24,
+          "facad_label": "NL/FH"
+        },
+        {
+          "order": 25,
+          "facad_label": "ML/FH"
+        },
+        {
+          "order": 26,
+          "facad_label": "CBL/FH"
+        },
+        {
+          "order": 27,
+          "facad_label": "Cranium ant len"
+        },
+        {
+          "order": 28,
+          "facad_label": "PFH"
+        },
+        {
+          "order": 29,
+          "facad_label": "Ramus Xi pos"
+        },
+        {
+          "order": 30,
+          "facad_label": "Porion pos"
+        },
+        {
+          "order": 31,
+          "facad_label": "Mand arc"
+        },
+        {
+          "order": 32,
+          "facad_label": "Mand len"
+        }
+      ]
+    },
+    {
+      "profile_target_id": "FACAD_RICKETTS_13F_COMPATIBILITY_TARGET",
+      "observed_factor_count": 13,
+      "source_run_id": 37864557101,
+      "source_artifact_id": 11587723671,
+      "source_artifact_url": "https://github.com/hraaaaf/Digital_crown/actions/runs/37864557101/artifacts/11587723671",
+      "source_artifact_zip_sha256": "c41d06b2896bd952ad247c702c13238ebd89ad8035a8bd1d6db299ed81de77e8",
+      "source_uia_member_name": "d1c-Ricketts__13_F_-measurements-ui.txt",
+      "source_uia_member_sha256": "7dac25297ee031130a6a91668db956cea85aca76f4a61c95cb808a963ef3207d",
+      "source_uia_member_byte_count": 48827,
+      "extraction_rule": "FIRST ControlType.DataGrid of UIA measurements dump; ControlType.DataItem rows with Type != Heading; preserve observation order",
+      "ordered_factor_labels": [
+        {
+          "order": 1,
+          "facad_label": "Facial axis"
+        },
+        {
+          "order": 2,
+          "facad_label": "Facial depth"
+        },
+        {
+          "order": 3,
+          "facad_label": "ML/FH"
+        },
+        {
+          "order": 4,
+          "facad_label": "LFH"
+        },
+        {
+          "order": 5,
+          "facad_label": "PFH"
+        },
+        {
+          "order": 6,
+          "facad_label": "Mand arc"
+        },
+        {
+          "order": 7,
+          "facad_label": "Convexity"
+        },
+        {
+          "order": 8,
+          "facad_label": "Max depth"
+        },
+        {
+          "order": 9,
+          "facad_label": "Ii to A-Pog"
+        },
+        {
+          "order": 10,
+          "facad_label": "ILi/A-Pog"
+        },
+        {
+          "order": 11,
+          "facad_label": "Ms-PtV"
+        },
+        {
+          "order": 12,
+          "facad_label": "InterIncisal"
+        },
+        {
+          "order": 13,
+          "facad_label": "Li-EL"
+        }
+      ]
+    }
+  ],
+  "safety_rules": {
+    "no_vendor_runtime": true,
+    "no_automatic_numeric_parity": true,
+    "no_clinical_promotion": true,
+    "no_direct_alias_on_matching_label": true,
+    "do_not_copy_patient_results": true,
+    "no_reuse_of_vendor_license": true
+  }
+}
