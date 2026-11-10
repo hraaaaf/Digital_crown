@@ -22,6 +22,10 @@ describe('M4-C document contextual mobile bridge', () => {
     expect(documentsSource).toContain('handleView(doc.id, doc.name)');
     expect(documentsSource).toContain('belongsToActivePatient(patientAtRequest)');
     expect(documentsSource).toContain('setPreview({patientId: patientAtRequest!, blob, filename})');
+    // Retain the master-side checks for the authenticated PDF blob and UI identity.
+    expect(documentsSource).toContain("responseType: 'blob'");
+    expect(documentsSource).toContain('PatientPdfCanvasPreview');
+    expect(documentsSource).toContain('preview.patientId === id');
     expect(documentsSource).toContain('handleDownload(doc.id, doc.name)');
     expect(documentsSource).not.toContain('handleView(doc.url)');
     expect(documentsSource).not.toContain('handleDownload(doc.url');

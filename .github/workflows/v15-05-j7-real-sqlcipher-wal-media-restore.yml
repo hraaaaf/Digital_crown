@@ -1,0 +1,107 @@
+name: LOT05 J7 Native SQLCipher WAL + Media Restore (FAKE / NO DEPLOY)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py'
+      - 'backend/services/backup_service.py'
+      - 'backend/services/guided_restore.py'
+      - 'backend/services/guided_restore_worker.py'
+      - 'backend/services/guided_restore_archive.py'
+      - '.github/workflows/v15-05-j7-real-sqlcipher-wal-media-restore.yml'
+      - 'docs/quality/V15_05_J7_REAL_SQLCIPHER_WAL_MEDIA_RESTORE_LAB.md'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: lot05-j7-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  real-sqlcipher-wal-media:
+    name: Real SQLCipher/WAL/Media FAKE ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2022]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact reviewed HEAD and fake-only suite
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          grep -q 'accept a cabinet path' backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py
+          grep -q 'FAKE_ONLY_NO_EXECUTION' backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py
+          python -m py_compile backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py
+      - name: Install Ubuntu signed SQLCipher build dependency
+        if: runner.os == 'Linux'
+        shell: bash
+        timeout-minutes: 5
+        run: |
+          set -euo pipefail
+          sources=/etc/apt/sources.list.d/ubuntu.sources
+          test -f "$sources"
+          grep -q '^Signed-By:' "$sources"
+          aptargs=(-o "Dir::Etc::sourcelist=$sources" -o 'Dir::Etc::sourceparts=-' -o 'Acquire::Retries=1' -o 'Acquire::http::Timeout=20')
+          sudo timeout --signal=TERM --kill-after=10s 120s apt-get "${aptargs[@]}" update
+          sudo timeout --signal=TERM --kill-after=10s 120s env DEBIAN_FRONTEND=noninteractive apt-get "${aptargs[@]}" install -y --no-install-recommends libsqlcipher-dev
+          dpkg-query -W -f='${Status}\n' libsqlcipher-dev | grep -Fx 'install ok installed'
+      - name: Install isolated native SQLCipher/runtime dependencies (no ML)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install --only-binary=:all: \
+            pytest==8.4.2 SQLAlchemy==2.0.48 alembic==1.20.0 \
+            fastapi==0.115.6 pydantic==2.6.3 pydantic-settings==2.2.1 \
+            python-dotenv==1.2.2 python-multipart==0.0.22 \
+            email-validator==2.3.0 httpx==0.28.1 \
+            passlib==1.7.4 bcrypt==3.2.2 python-jose==3.5.0 \
+            cryptography==49.0.0 sqlcipher3==0.6.2
+          python -B -c "from sqlcipher3 import dbapi2 as c; print('REAL_SQLCIPHER_NATIVE_LOADED', c.sqlite_version)"
+      - name: Real backup + WAL crash + clone verify + full media rollback
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONDONTWRITEBYTECODE=1 \
+          PYTHONWARNINGS=error::ResourceWarning \
+            python -B -m pytest -q -p no:cacheprovider --maxfail=1 \
+              backend/tests/test_lot05_j7_real_sqlcipher_wal_media_fue.py \
+              backend/tests/test_sqlcipher_backup_contract.py
+          echo 'LOT05_J7_NATIVE_FAKE_ONLY_PASS'
+          echo 'CLINICAL_IMPORT_PERMITTED=false'
+          echo 'CABINET_DATABASE_TOUCHED=false'
+          echo 'RUNTIME_DEPLOYED=false'
+      - name: Generate privacy-safe exact-SHA evidence
+        shell: bash
+        run: |
+          mkdir -p artifacts/j7
+          printf '%s\n' \
+            '{"scope":"NATIVE_REAL_SQLCIPHER_DISPOSABLE_FAKE_ONLY","os":"${{ matrix.os }}","sqlcipher_wal_crash_verified":true,"backupservice_restore_clone_verified":true,"guided_restore_media_rollback_verified":true,"clinical_import_permitted":false,"cabinet_database_touched":false,"app_launch_or_stop_executed":false,"head_sha":"${{ github.event.pull_request.head.sha }}"}' > artifacts/j7/verdict.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: lot05-j7-native-${{ matrix.os }}-fake-only
+          path: artifacts/j7/verdict.json
+          if-no-files-found: error
+          retention-days: 14
+
+  fail-closed-aggregate:
+    needs: [real-sqlcipher-wal-media]
+    if: always()
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Require BOTH real native platforms to pass, never silently skip
+        shell: bash
+        run: |
+          test '${{ needs.real-sqlcipher-wal-media.result }}' = success
+          echo 'J7_REAL_SQLCIPHER_NATIVE_CROSS_PLATFORM_FAKE_GREEN_CLINICAL_NO_GO'

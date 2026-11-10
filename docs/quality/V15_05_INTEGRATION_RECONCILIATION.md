@@ -1,3 +1,9 @@
+## 2026-11-09 — DECISION PROSPECTIVE : FUE à la place de revue indépendante de code
+
+**Décision propriétaire 2026-11-09 — FUE remplace la revue indépendante de code comme gate standard.** La preuve requise est une FUE-0/I/G réellement exécutée, proportionnée au risque, avec scénarios négatifs/sécurité et oracles explicites, résultats inspectables, artefacts et SHA/HEAD exacts. Aucun reviewer indépendant, double review A/B, agent externe ou validation fictive n'est requis **en plus** de cette FUE pour un merge logiciel. Une FUE verte ne vaut pas automatiquement autorisation de merge, acte médical, restauration réelle, installation, validation humaine clinique/réglementaire/physique ou déploiement ; ces gates explicites restent inchangés. Les sections historiques qui imposent une revue indépendante de code sont supersédées prospectivement ; leurs constats et preuves restent archivés.
+
+Les deux perspectives adversariales et demandes de reviewers externes mentionnées dans les sections historiques suivantes ne sont plus des prérequis de merge logiciel. Les preuves FUE/négatifs appliqués au risque sur le HEAD exact décident du gate technique ; les validations humaines visuelles et clinique explicitement requises restent distinctes.
+
 # LOT05 — journal d’intégration et clôture technique (historique + état certifié)
 
 **État actuel au 14 octobre 2026 : INTÉGRÉ SUR `master`, certification post-merge réussie.** Cette validation porte exclusivement sur la préparation de migration et les simulations **100 % fictives** ; **l’import de données cliniques réelles et le déploiement Vercel ne sont ni autorisés ni certifiés**.

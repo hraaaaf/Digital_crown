@@ -1,0 +1,103 @@
+name: LOT05 05.7C-H Signed Installer HWND Ownership (READ ONLY)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/v15-05-7c-h-windows-gui-capability.yml'
+      - 'scripts/quality/v15_05_7c_h_windows_gui_capability_probe.ps1'
+      - 'scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-windows-gui-capability:
+    name: Native Install button owner thread/process observation (NO CLICK)
+    runs-on: windows-2022
+    timeout-minutes: 16
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - name: Check exact HEAD, trusted runner, and offline PowerShell syntax
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $expected = '${{ github.event.pull_request.head.sha || github.sha }}'
+          if ((git rev-parse HEAD).Trim() -cne $expected) { throw 'EXACT_HEAD_REQUIRED' }
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows') { throw 'HOSTED_WINDOWS_REQUIRED' }
+          $path = './scripts/quality/v15_05_7c_h_windows_gui_capability_probe.ps1'
+          $tokens = $null
+          $errors = @()
+          $null = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) { throw 'GUI_PROBE_POWERSHELL_SYNTAX_INVALID' }
+          Write-Host 'LOT05_H_EXACT_HEAD_AND_SYNTAX_VALID'
+      - name: Probe synthetic UI only (NO editor software, installer, database or patient data)
+        shell: pwsh
+        run: |
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/v15_05_7c_h_windows_gui_capability_probe.ps1'
+          if ($LASTEXITCODE -ne 0) { throw 'GUI_PROBE_EXECUTION_FAILED' }
+      - name: Upload ONLY capability JSON; success means assessed, NOT that GUI was available
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-h-synthetic-windows-gui-capability-metadata-only
+          path: ${{ runner.temp }}/lot05-7c-h-gui-capability-metadata-only.json
+          if-no-files-found: error
+          retention-days: 5
+      - name: Validate signed vendor observation script offline PowerShell syntax
+        shell: pwsh
+        run: |
+          $errors = @()
+          $tokens = $null
+          $path = './scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1'
+          $null = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+          if ($errors.Count -gt 0) {
+            foreach ($err in $errors) {
+              Write-Host ('AST_ERROR line=' + $err.Extent.StartLineNumber + ' column=' + $err.Extent.StartColumnNumber + ' id=' + $err.ErrorId)
+            }
+            throw 'VENDOR_OWNERSHIP_PROBE_AST_INVALID'
+          }
+          Write-Host 'LOT05H_READ_ONLY_VENDOR_OWNERSHIP_AST_VALID'
+      - name: Observe official signed installer native HWND ownership (NO CLICK)
+        shell: pwsh
+        run: |
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/v15_05_7c_h_signed_vendor_window_probe.ps1' -ReadOnlyButtonOwnershipProbe
+          if ($LASTEXITCODE -ne 0) { throw 'READ_ONLY_OWNER_PROBE_FAILED' }
+      - name: Fail closed on vendor HWND ownership evidence or any installer action
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $path = Join-Path $env:RUNNER_TEMP 'lot05-7c-h-official-vendor-gui-window-metadata-only.json'
+          if (-not (Test-Path -LiteralPath $path)) { throw 'READ_ONLY_OWNER_JSON_REQUIRED' }
+          $v = Get-Content -LiteralPath $path -Raw -Encoding UTF8 | ConvertFrom-Json
+          if (-not $v.official_binary_authenticode_valid -or
+              -not $v.official_binary_sha256_pinned -or
+              -not $v.read_only_button_ownership_probe_requested -or
+              -not $v.installer_win32_install_semantic_button_proven -or
+              -not $v.install_button_owner_queryable -or
+              -not $v.install_button_window_still_valid -or
+              -not $v.install_button_native_class_verified -or
+              -not $v.install_button_parent_chain_contains_vendor_window -or
+              $v.install_button_invocation_attempted -or
+              $v.install_button_message_delivered -or
+              $v.licence_or_eula_accepted -or
+              $v.clicked_wizard_next -or
+              $v.database_installed -or
+              $v.db_service_created_observed -or
+              $v.import_permitted -or
+              $v.target_rows_written -ne 0) {
+            throw 'VENDOR_OWNER_EVIDENCE_NOT_PROVEN_OR_UNSAFE_FAIL_CLOSED'
+          }
+          Write-Host 'LOT05H_READ_ONLY_BUTTON_OWNER_VERIFIED_NO_CLICK_NO_EULA_NO_DB'
+      - name: Upload ONLY sanitized official vendor GUI ownership metadata
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-7c-h-official-vendor-button-ownership-metadata-only
+          path: ${{ runner.temp }}/lot05-7c-h-official-vendor-gui-window-metadata-only.json
+          if-no-files-found: warn
+          retention-days: 5

@@ -13,7 +13,7 @@ Les sections historiques ci-dessous « Mandatory unexecuted acceptance / no-go �
 ## Scope
 Local-first Queue Core first-admin bootstrapping, local login sessions and offline recovery, isolated from clinical data. Owner GO: 08.2-A implementation and review only. No web endpoints, Firebase, patient data, actual installed service or production enrollment.
 
-## Source and reviewers
+## Source and historical review evidence (new technical gate = FUE; owner decision 2026-11-09)
 - PR [#1238](https://github.com/hraaaaf/Digital_crown/pull/1238), branch `feat/v15-08-2-a-local-admin-bootstrap-20261108`, base master `edf26bb7ff70904b802069891f31ef3b4dc7691d`.
 - Independent Codex generic initial review `58e3b5e7`: no initial findings, but a separate adversarial SEC/OPS review of that same SHA identified **P1 spoofed ACL/attacker-owned existing directory** and **P2 dangling link/reparse handling**. Both were corrected in `e3513ac9` using atomic Win32 security-descriptor creation and owner/ACE verification, lstat and reparse-safe create.
 - Independent Codex read-only review on `e3513ac9`: no P1/P2; **P3 status path created an auth directory on an uninitialized server**. Corrected on `09f3d40e` with no-create behavior and a negative test.
@@ -33,7 +33,7 @@ Local-first Queue Core first-admin bootstrapping, local login sessions and offli
 ## NEXT
 1. Prepare an authorized **isolated physical Windows LAB** (not a real patient workstation) with elevated local console.
 2. Demonstrate first Admin, local file ACL from actual security descriptors, one-time offline recovery, invalidation and restoration failure modes; store recovery secret offline only, **never in test logs**.
-3. Reverify source SHA, use direct Windows evidence, independent security recheck if code changes, owner merge gate, post-merge verification.
+3. Reverify source SHA, use direct Windows **FUE-0** and targeted negative SEC/OPS tests for any changed code on exact HEAD; **no independent code reviewer gate** (owner policy 2026-11-09). Owner merge gate and post-merge verification remain distinct.
 
 ## Supplemental GitHub Actions Windows ACL LAB — 2026-11-09
 
