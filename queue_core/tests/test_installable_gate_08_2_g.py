@@ -1,12 +1,10 @@
 """LOT08.2-G: no certificate is ever invented by these negative tests."""
 import json
 from pathlib import Path
-from unittest.mock import patch
-
 import pytest
 
 from scripts.quality.lot08_2_g_installable_gate import (
-    GateRefusal, VERDICT_BLOCKED, VERDICT_REHEARSAL, decide, main,
+    GateRefusal, REQUIRED_INSTALLABLE_FILES, VERDICT_BLOCKED, VERDICT_REHEARSAL, decide, main,
 )
 
 MASTER = "bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4"
@@ -30,7 +28,7 @@ def test_moving_or_nonexact_sha_fails(sha):
 def test_absent_or_empty_candidate_does_not_become_certified(tmp_path):
     candidate = tmp_path / "code-certified-artifact-do-not-trust"
     candidate.mkdir()
-    assert decide(candidate, MASTER)["reason"] == "CANONICAL_INSTALLABLE_VERIFIER_REFUSED"
+    assert decide(candidate, MASTER)["reason"] == "REQUIRED_INSTALLABLE_PROOF_FILES_MISSING_OR_UNSAFE"
     assert decide(tmp_path / "absent", MASTER)["reason"] == "CANDIDATE_DIR_MISSING_OR_SYMLINK"
 
 
@@ -41,7 +39,7 @@ def test_fake_named_installable_certificate_is_insufficient(tmp_path):
         "installable": True, "certification_level": "INSTALLABLE_CERTIFIED",
         "commit_sha": MASTER, "github_attestation_verified": True,
     }))
-    assert decide(root, MASTER)["reason"] == "CANONICAL_INSTALLABLE_VERIFIER_REFUSED"
+    assert decide(root, MASTER)["reason"] == "REQUIRED_INSTALLABLE_PROOF_FILES_MISSING_OR_UNSAFE"
 
 
 def test_code_certified_alone_is_not_installable(tmp_path):
@@ -65,6 +63,20 @@ def test_symlink_candidate_rejected(tmp_path):
     assert decide(alias, MASTER)["reason"] == "CANDIDATE_DIR_MISSING_OR_SYMLINK"
 
 
+def _dummy_complete_bundle(root):
+    for name in REQUIRED_INSTALLABLE_FILES:
+        (root / name).write_text("EXPLICITLY_FORGED_TEST_ONLY", encoding="utf-8")
+
+
+def test_forged_all_seven_files_still_refused_by_canonical_gate(tmp_path):
+    root = tmp_path / "forged-complete-looking"
+    root.mkdir()
+    _dummy_complete_bundle(root)
+    report = decide(root, MASTER)
+    assert report["verdict"] == VERDICT_BLOCKED
+    assert report["reason"] == "CANONICAL_INSTALLABLE_VERIFIER_REFUSED"
+
+
 def test_historical_successful_code_sha_does_not_match_current_master(tmp_path):
     # Mock here tests ONLY post-verifier exact-master binding, not a real cert.
     root = tmp_path / "fake-positive-verifier"
@@ -73,8 +85,8 @@ def test_historical_successful_code_sha_does_not_match_current_master(tmp_path):
         "certification_level": "INSTALLABLE_CERTIFIED",
         "installable": True, "commit_sha": OLD_CERTIFIED,
     }
-    with patch("scripts.quality.lot08_2_g_installable_gate.verify_installable_release_directory", return_value=synthetic_stub):
-        report = decide(root, MASTER)
+    _dummy_complete_bundle(root)
+    report = decide(root, MASTER, _test_verifier=lambda _root: synthetic_stub)
     assert report["reason"] == "CERTIFIED_SHA_NOT_CURRENT_MASTER"
     assert report["candidate_installable_verified"] is False
 
@@ -89,8 +101,8 @@ def test_mocked_verifier_payload_still_requires_exact_final_state(tmp_path, inje
     root = tmp_path / "mocked"
     root.mkdir()
     stub = {"commit_sha": MASTER, **injected}
-    with patch("scripts.quality.lot08_2_g_installable_gate.verify_installable_release_directory", return_value=stub):
-        report = decide(root, MASTER)
+    _dummy_complete_bundle(root)
+    report = decide(root, MASTER, _test_verifier=lambda _root: stub)
     assert report["verdict"] == VERDICT_BLOCKED
 
 
@@ -107,8 +119,8 @@ def test_mocked_valid_metadata_is_only_vm_rehearsal_eligibility(tmp_path):
     root = tmp_path / "mocked"
     root.mkdir()
     stub = {"certification_level": "INSTALLABLE_CERTIFIED", "installable": True, "commit_sha": MASTER}
-    with patch("scripts.quality.lot08_2_g_installable_gate.verify_installable_release_directory", return_value=stub):
-        report = decide(root, MASTER)
+    _dummy_complete_bundle(root)
+    report = decide(root, MASTER, _test_verifier=lambda _root: stub)
     assert report["verdict"] == VERDICT_REHEARSAL
     assert report["installable_go"] is False
     assert report["clinical_go"] is False
