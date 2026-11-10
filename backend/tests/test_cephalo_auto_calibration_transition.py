@@ -141,11 +141,11 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     ]
     assert ricketts_blocked, "synthetic auto landmarks must not imply anatomical identities"
     assert all(item["value"] is None for item in ricketts_blocked)
-    # SRPose-certified aliases Po_anatomic and Pog_hard permit A-Pog.
+    # Auto calibration does not establish Po/Pog anatomical identity.
     by_method = {item["method_id"]: item for item in all_measurements}
     edge = by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]
-    assert edge["availability_status"] == "AVAILABLE"
-    assert edge["value"] is not None
+    assert edge["availability_status"] == "NOT_COMPUTABLE"
+    assert edge["value"] is None
     # Functional occlusal plane is absent: do not compute incisal extrusion.
     extrusion = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
     assert extrusion["availability_status"] == "NOT_COMPUTABLE"
