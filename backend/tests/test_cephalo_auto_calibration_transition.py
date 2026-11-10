@@ -130,14 +130,24 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     # identities are also present. Ricketts methods requiring manual anatomical
     # Po/Pog or other source-locked landmarks must stay NOT_COMPUTABLE.
     all_measurements = measurements
+    # Calibration unlocks the historical CRANIOM geometry, but must NOT
+    # authorize canonical McNamara anatomy inferred only from SRPose channels.
     legacy_calibrated = [
         item for item in all_measurements
-        if item["requires_calibration"]
-        and item["analysis_id"] in {"CRANIOM", "MCNAMARA"}
-        and item["method_id"] not in explicit_identity_required
+        if item["requires_calibration"] and item["analysis_id"] == "CRANIOM"
     ]
     assert legacy_calibrated
     assert all(item["availability_status"] == "AVAILABLE" for item in legacy_calibrated)
+    canonical_mcnamara = [
+        item for item in all_measurements
+        if item["analysis_id"] == "MCNAMARA"
+        and item["method_id"].endswith("_CANONICAL_MM_V2")
+    ]
+    assert canonical_mcnamara
+    assert all(
+        item["availability_status"] == "NOT_COMPUTABLE" and item["value"] is None
+        for item in canonical_mcnamara
+    )
     ricketts_blocked = [
         item for item in all_measurements
         if item["analysis_id"] == "RICKETTS"
