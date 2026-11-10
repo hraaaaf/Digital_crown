@@ -80,8 +80,11 @@ jobs:
           Write-Host ('LOT05_GUARDED_NEXT_SOURCE=' + [string]$m.next_control_source)
           Write-Host ('LOT05_GUARDED_NEXT_ACK=' + [bool]$m.next_click_acknowledged)
           Write-Host ('LOT05_GUARDED_POST_SCREEN_CHANGED=' + [bool]$m.post_next_screenshot_changed)
+          Write-Host ('LOT05_GUARDED_LICENSE_WINDOW_TITLE=' + [bool]$m.license_window_title_detected_after_next)
+          Write-Host ('LOT05_GUARDED_LICENSE_WINDOW_CAPTURED=' + [bool]$m.post_next_license_window_captured)
           Write-Host ('LOT05_GUARDED_LICENSE_SCREEN_TEXT=' + [bool]$m.post_next_license_keyword_seen)
           if ($m.next_click_acknowledged -and $m.post_next_screenshot_changed -and
+              $m.post_next_license_window_captured -and
               $m.post_next_window_title_owned -and $m.screenshot_vendor_owner_verified -and
               $m.screenshot_title_allowlisted -and $m.screenshot_printwindow_succeeded) {
             $png = Join-Path $env:RUNNER_TEMP 'lot05-step2b-post-next-vendor-window-only.png'
@@ -106,7 +109,7 @@ jobs:
         if: ${{ env.LOT05_POST_NEXT_PNG_OK == '1' }}
         uses: actions/upload-artifact@v4
         with:
-          name: lot05-step2b-post-next-license-screen-png
+          name: lot05-step2b-signed-vendor-license-window-only-png
           path: ${{ runner.temp }}/lot05-step2b-post-next-vendor-window-only.png
           retention-days: 7
           if-no-files-found: error
