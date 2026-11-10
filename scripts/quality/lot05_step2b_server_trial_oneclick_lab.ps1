@@ -32,7 +32,12 @@ $r=[ordered]@{
   install_window_foreground_verified=$false
   install_hit_test_exact_button=$false
   install_click_attempted=$false
+  install_clicked_cycle=-1
   install_click_physical_events=0
+  verified_setup_wizard_after_click=$false
+  observed_setup_window_count=0
+  latest_owned_setup_title='NOT_OBSERVED'
+  latest_post_click_wait_cycles=0
   clicked_install=$false
   post_click_window_captured=$false
   post_click_window_title='NOT_OBSERVED'
@@ -101,7 +106,7 @@ public static class Lot05ServerReadWindow {
   $null=$ids.Add([int]$proc.Id)
   $r.session_verified=($proc.SessionId -eq [System.Diagnostics.Process]::GetCurrentProcess().SessionId)
   if(-not $r.session_verified){throw 'SESSION_NOT_INTERACTIVE'}
-  for($cycle=0;$cycle -lt 100;$cycle++){
+  for($cycle=0;$cycle -lt 130;$cycle++){
     Start-Sleep -Milliseconds 1150
     $r.observed_cycles=$cycle+1
     $all=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
@@ -208,6 +213,7 @@ public static class Lot05ServerReadWindow {
                         [Lot05ServerReadWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
                         $r.install_click_physical_events=2
                         $r.clicked_install=$true
+                        $r.install_clicked_cycle=$cycle
                       }
                     }
                   }
@@ -216,9 +222,18 @@ public static class Lot05ServerReadWindow {
             }
           }catch{$r.uia_errors++}
         }
-        # After one publisher Install click: only read the next owned window.
-        # No Next/Finish/EULA/DB dialog input until that screen is verified.
-        if($r.clicked_install -and $cycle -gt 0 -and -not $r.post_click_window_captured){
+        # A focused Install button changes the PNG hash without navigation.
+        # Never treat the same-title publisher launcher as a new stage.
+        if($r.clicked_install){
+          $r.latest_post_click_wait_cycles=$cycle-$r.install_clicked_cycle
+          if($title -match '^OpenDental \(25\.3\.48\) Setup$'){
+            $r.observed_setup_window_count++
+            $r.latest_owned_setup_title=$title
+          }
+        }
+        if($r.clicked_install -and $r.latest_post_click_wait_cycles -ge 3 -and
+           -not $r.post_click_window_captured -and
+           $title -ceq 'OpenDental (25.3.48) Setup'){
           try{
             $hwnd=[IntPtr]([int]$w.Current.NativeWindowHandle)
             $rect=New-Object Lot05ServerReadWindow+Rect
@@ -243,7 +258,8 @@ public static class Lot05ServerReadWindow {
                       $r.post_click_window_title=$title.Substring(0,[Math]::Min($title.Length,100))
                       $r.post_click_window_sha256=$hash
                       $r.post_click_window_size="$width" + 'x' + "$height"
-                      $r.entered_setup_wizard=($title -match '(?i)OpenDental.*Setup')
+                      $r.entered_setup_wizard=$true
+                      $r.verified_setup_wizard_after_click=$true
                     }
                   }
                 }finally{$bitmap.Dispose()}
@@ -277,6 +293,9 @@ Write-Host ('LOT05_SERVER_GUI_INSTALL_HIT_TEST='+$r.install_hit_test_exact_butto
 Write-Host ('LOT05_SERVER_GUI_INSTALL_CLICKED='+$r.clicked_install)
 Write-Host ('LOT05_SERVER_GUI_AFTER_CLICK_CAPTURED='+$r.post_click_window_captured)
 Write-Host ('LOT05_SERVER_GUI_AFTER_CLICK_TITLE='+$r.post_click_window_title)
+Write-Host ('LOT05_SERVER_GUI_SETUP_WIZARD_VERIFIED='+$r.verified_setup_wizard_after_click)
+Write-Host ('LOT05_SERVER_GUI_SETUP_OWNED_OBSERVATIONS='+$r.observed_setup_window_count)
+Write-Host ('LOT05_SERVER_GUI_POSTCLICK_WAIT_CYCLES='+$r.latest_post_click_wait_cycles)
 Write-Host ('LOT05_SERVER_GUI_DATABASE_SERVICE='+$r.created_database)
 Write-Host 'LOT05_SERVER_GUI_ONE_INSTALL_ONLY_NO_PATIENT_DATA'
 if(-not $r.wrapper_hash_pinned -or -not $r.wrapper_signature_valid -or
