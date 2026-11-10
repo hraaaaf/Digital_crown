@@ -7,6 +7,7 @@ $imageFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-license-before-accept-window
 $acceptedImage=Join-Path $env:RUNNER_TEMP 'lot05-step2b-license-after-accept-window-only.png'
 $followingImage=Join-Path $env:RUNNER_TEMP 'lot05-step2b-screen-after-eula-next-only.png'
 $destinationFollowingImage=Join-Path $env:RUNNER_TEMP 'lot05-step2b-after-destination-next-window-only.png'
+$installFinishedImage=Join-Path $env:RUNNER_TEMP 'lot05-step2b-after-install-finish-wizard-only.png'
 $wrapper=Join-Path $env:RUNNER_TEMP 'lot05-publisher-signed-wrapper.exe'
 $folder=Join-Path $env:RUNNER_TEMP 'lot05-publisher-signed-extracted'
 $knownIds=New-Object 'System.Collections.Generic.HashSet[int]'
@@ -102,6 +103,17 @@ $r=[ordered]@{
   destination_following_screen_captured=$false
   destination_following_screen_title='NOT_OBSERVED'
   destination_following_screen_sha256=$null
+  ready_to_install_exact_png_verified=$false
+  install_button_candidates=0
+  install_click_attempted=$false
+  install_click_sent=$false
+  install_physical_events_sent=0
+  installed_exe_present=$false
+  installed_exe_sha256=$null
+  installed_exe_authenticode_status='NOT_OBSERVED'
+  completed_installer_finish_button_seen=$false
+  completed_installer_screen_captured=$false
+  completed_installer_screen_sha256=$null
   eula_ui_exception_count=0
   database_created=$false
   csv_exported=$false
@@ -146,7 +158,7 @@ try{
   $proc=Start-Process -FilePath $setup -WorkingDirectory (Split-Path -Parent $setup) -PassThru -ErrorAction Stop
   $r.inner_setup_started_once=$true
   $null=$knownIds.Add([int]$proc.Id)
-  for($cycle=0;$cycle -lt 35;$cycle++){
+  for($cycle=0;$cycle -lt 130;$cycle++){
     Start-Sleep -Milliseconds 1150
     $r.ui_observation_cycles=$cycle+1
     $all=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
@@ -372,6 +384,124 @@ try{
                           }
                         }
                       }finally{$bitmap.Dispose()}
+                    }
+                  }
+                }catch{$r.eula_ui_exception_count++}
+              }
+
+              # User-authorized installer activation, only on exact screenshot-
+              # pinned Ready-to-Install page after all prior screens verified.
+              if($r.destination_following_screen_captured -and
+                 $r.destination_following_screen_sha256 -ceq 'ddd11612302ead634484677d270c12b207b0e44e8284dbc25fd5af556011c514' -and
+                 -not $r.install_click_attempted -and
+                 $title -ceq 'OpenDental (25.3.48) Setup'){
+                $r.ready_to_install_exact_png_verified=$true
+                try{
+                  $parent=[IntPtr]([int]$w.Current.NativeWindowHandle)
+                  $installButtons=New-Object 'System.Collections.Generic.List[System.IntPtr]'
+                  $backCount=0
+                  $cancelCount=0
+                  $cb=[Lot05CaptureSignedWindow+EnumChildCallback]{
+                    param([IntPtr]$child,[IntPtr]$unused)
+                    $pidHere=[uint32]0
+                    $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($child,[ref]$pidHere)
+                    if([int]$pidHere -ne $winPid){return $true}
+                    $sb=New-Object System.Text.StringBuilder(140)
+                    $null=[Lot05CaptureSignedWindow]::GetWindowText($child,$sb,$sb.Capacity)
+                    $lbl=$sb.ToString().Replace([string]'&',[string]'').Trim()
+                    if($lbl -ceq 'Install' -and [Lot05CaptureSignedWindow]::IsWindowEnabled($child)){
+                      $installButtons.Add($child)
+                    }elseif($lbl -match '(?i)^<?\s*Back$'){$backCount++}
+                    elseif($lbl -match '(?i)^Cancel$'){$cancelCount++}
+                    return $true
+                  }
+                  $null=[Lot05CaptureSignedWindow]::EnumChildWindows($parent,$cb,[IntPtr]::Zero)
+                  $r.install_button_candidates=$installButtons.Count
+                  if($installButtons.Count -eq 1 -and $backCount -eq 1 -and $cancelCount -eq 1){
+                    $button=$installButtons[0]
+                    $pidButton=[uint32]0
+                    $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($button,[ref]$pidButton)
+                    $wr=New-Object Lot05CaptureSignedWindow+Rect
+                    $br=New-Object Lot05CaptureSignedWindow+Rect
+                    if([int]$pidButton -eq $winPid -and
+                       [Lot05CaptureSignedWindow]::GetWindowRect($parent,[ref]$wr) -and
+                       [Lot05CaptureSignedWindow]::GetWindowRect($button,[ref]$br)){
+                      $ww=$wr.Right-$wr.Left
+                      $hh=$wr.Bottom-$wr.Top
+                      $cx=[int][Math]::Floor(($br.Left+$br.Right)/2)
+                      $cy=[int][Math]::Floor(($br.Top+$br.Bottom)/2)
+                      $rx=($cx-$wr.Left)/[double]$ww
+                      $ry=($cy-$wr.Top)/[double]$hh
+                      if($ww -ge 480 -and $ww -le 700 -and $hh -ge 360 -and $hh -le 500 -and
+                         $rx -gt 0.62 -and $rx -lt 0.82 -and $ry -gt 0.87 -and $ry -lt 0.97){
+                        $null=[Lot05CaptureSignedWindow]::SetForegroundWindow($parent)
+                        Start-Sleep -Milliseconds 230
+                        if([Lot05CaptureSignedWindow]::GetForegroundWindow() -eq $parent -and
+                           [Lot05CaptureSignedWindow]::SetCursorPos($cx,$cy)){
+                          Start-Sleep -Milliseconds 100
+                          $pt=New-Object Lot05CaptureSignedWindow+Pt
+                          $pt.X=$cx
+                          $pt.Y=$cy
+                          if([Lot05CaptureSignedWindow]::WindowFromPoint($pt) -eq $button){
+                            $r.install_click_attempted=$true
+                            [Lot05CaptureSignedWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                            $r.install_physical_events_sent=1
+                            Start-Sleep -Milliseconds 80
+                            [Lot05CaptureSignedWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                            $r.install_physical_events_sent=2
+                            $r.install_click_sent=$true
+                            $r.clicked_install=$true
+                          }
+                        }
+                      }
+                    }
+                  }
+                }catch{$r.eula_ui_exception_count++}
+              }
+
+              # Observe completion: file installed plus Finish-enabled vendor GUI.
+              # No click on Finish in this run.
+              if($r.install_click_sent -and -not $r.completed_installer_screen_captured -and
+                 $title -ceq 'OpenDental (25.3.48) Setup'){
+                try{
+                  $top=[IntPtr]([int]$w.Current.NativeWindowHandle)
+                  $finishCount=0
+                  $finishCb=[Lot05CaptureSignedWindow+EnumChildCallback]{
+                    param([IntPtr]$child,[IntPtr]$unused)
+                    $pidHere=[uint32]0
+                    $null=[Lot05CaptureSignedWindow]::GetWindowThreadProcessId($child,[ref]$pidHere)
+                    if([int]$pidHere -ne $winPid){return $true}
+                    $sb=New-Object System.Text.StringBuilder(140)
+                    $null=[Lot05CaptureSignedWindow]::GetWindowText($child,$sb,$sb.Capacity)
+                    if($sb.ToString().Replace([string]'&',[string]'').Trim() -match '(?i)^Finish$' -and
+                       [Lot05CaptureSignedWindow]::IsWindowEnabled($child)){$finishCount++}
+                    return $true
+                  }
+                  $null=[Lot05CaptureSignedWindow]::EnumChildWindows($top,$finishCb,[IntPtr]::Zero)
+                  if($finishCount -eq 1){
+                    $r.completed_installer_finish_button_seen=$true
+                    $rect=New-Object Lot05CaptureSignedWindow+Rect
+                    if([Lot05CaptureSignedWindow]::GetWindowRect($top,[ref]$rect)){
+                      $cw=[int]($rect.Right-$rect.Left)
+                      $ch=[int]($rect.Bottom-$rect.Top)
+                      if($cw -ge 450 -and $cw -le 900 -and $ch -ge 300 -and $ch -le 800){
+                        $bmp=New-Object System.Drawing.Bitmap($cw,$ch)
+                        try{
+                          $g=[System.Drawing.Graphics]::FromImage($bmp)
+                          try{
+                            $hdc=$g.GetHdc()
+                            try{$done=[Lot05CaptureSignedWindow]::PrintWindow($top,$hdc,[uint32]0)}
+                            finally{$g.ReleaseHdc($hdc)}
+                          }finally{$g.Dispose()}
+                          if($done){
+                            $bmp.Save($installFinishedImage,[System.Drawing.Imaging.ImageFormat]::Png)
+                            if((Get-Item -LiteralPath $installFinishedImage).Length -gt 2048){
+                              $r.completed_installer_screen_captured=$true
+                              $r.completed_installer_screen_sha256=(Get-FileHash -LiteralPath $installFinishedImage -Algorithm SHA256).Hash.ToLowerInvariant()
+                            }
+                          }
+                        }finally{$bmp.Dispose()}
+                      }
                     }
                   }
                 }catch{$r.eula_ui_exception_count++}
@@ -703,6 +833,12 @@ try{
   Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
   Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
   $r.database_created=(@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0)
+  $installedExe='C:\Program Files (x86)\Open Dental\OpenDental.exe'
+  if(Test-Path -LiteralPath $installedExe){
+    $r.installed_exe_present=$true
+    $r.installed_exe_sha256=(Get-FileHash -LiteralPath $installedExe -Algorithm SHA256).Hash.ToLowerInvariant()
+    $r.installed_exe_authenticode_status=[string](Get-AuthenticodeSignature -LiteralPath $installedExe).Status
+  }
   [System.IO.File]::WriteAllText($outFile,($r|ConvertTo-Json -Depth 5),(New-Object System.Text.UTF8Encoding($false)))
 }
 Write-Host ('LOT05_DESKTOP_DIAGNOSIS='+$r.diagnosis)
@@ -749,6 +885,13 @@ Write-Host ('LOT05_DESTINATION_NEXT_CANDIDATES='+$r.destination_next_candidate_c
 Write-Host ('LOT05_DESTINATION_NEXT_CLICKED='+$r.destination_next_clicked)
 Write-Host ('LOT05_DESTINATION_NEW_SCREEN='+$r.destination_following_screen_captured)
 Write-Host ('LOT05_DESTINATION_NEW_SCREEN_TITLE='+$r.destination_following_screen_title)
+Write-Host ('LOT05_INSTALL_READY_PAGE_PINNED='+$r.ready_to_install_exact_png_verified)
+Write-Host ('LOT05_INSTALL_BUTTON_CANDIDATES='+$r.install_button_candidates)
+Write-Host ('LOT05_INSTALL_CLICK_SENT='+$r.install_click_sent)
+Write-Host ('LOT05_INSTALL_APP_EXE_PRESENT='+$r.installed_exe_present)
+Write-Host ('LOT05_INSTALL_APP_EXE_SIGNED_STATUS='+$r.installed_exe_authenticode_status)
+Write-Host ('LOT05_INSTALL_FINISH_CONTROL_SEEN='+$r.completed_installer_finish_button_seen)
+Write-Host ('LOT05_INSTALL_FINISH_WINDOW_CAPTURED='+$r.completed_installer_screen_captured)
 Write-Host ('LOT05_EXPLICIT_USER_AUTH_UI_ERRORS='+$r.eula_ui_exception_count)
 Write-Host 'LOT05_EXPLICIT_CONSENT_ONLY_EPHEMERAL_DEMO_NO_PATIENTS'
 if(-not $r.wrapper_hash_pinned -or -not $r.wrapper_authenticode_valid -or
