@@ -86,9 +86,16 @@ public static class Lot05ServerReadWindow {
   $exe=Join-Path $extract 'Release\OpenDentalInstaller.exe'
   if(-not(Test-Path -LiteralPath $exe)){throw 'OFFICIAL_SERVER_EXE_MISSING'}
   $r.embedded_launcher_hash=(Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+  if($r.embedded_launcher_hash -cne 'd9fefd875d82b391d981a53fe412f6c8da7481c828e8e173aa1626c722a16e27'){
+    throw 'OFFICIAL_SERVER_BINARY_HASH_CHANGED'
+  }
   $innerSig=Get-AuthenticodeSignature -LiteralPath $exe
   $r.embedded_launcher_signature=[string]$innerSig.Status
-  if($innerSig.Status -notin @([System.Management.Automation.SignatureStatus]::Valid,[System.Management.Automation.SignatureStatus]::NotSigned)){throw 'INNER_SIGNATURE_NOT_TRUSTED'}
+  if($innerSig.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or
+     $null -eq $innerSig.SignerCertificate -or
+     $innerSig.SignerCertificate.Subject -notmatch '(?i)Open\s*Dental'){
+    throw 'SIGNED_INNER_SERVER_LAUNCHER_INVALID'
+  }
   $proc=Start-Process -FilePath $exe -WorkingDirectory (Split-Path -Parent $exe) -PassThru -ErrorAction Stop
   $r.embedded_launcher_started=$true
   $null=$ids.Add([int]$proc.Id)
