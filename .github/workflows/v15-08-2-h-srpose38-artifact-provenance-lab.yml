@@ -96,7 +96,7 @@ jobs:
           assert a['digest']=='sha256:ad1caa8ee1474a1405305fc91a29eaa3c0c5b20572095faad0c2e63723284e17'
           print("LOT08H_SOURCE_ARTIFACT_METADATA_PIN_PASS")
           PY
-      - name: Download old GH artifact and STRICTLY select ONNX, not its 3 parity reports
+      - name: Download source: verify seven-file original manifest and select ONLY ONNX
         shell: bash
         run: |
           set -euo pipefail
@@ -112,10 +112,10 @@ jobs:
           archive=Path(os.environ["RUNNER_TEMP"])/("lot08h-archive-"+os.environ["GITHUB_RUN_ID"])
           dest=Path(os.environ["RUNNER_TEMP"])/("lot08h-source-"+os.environ["GITHUB_RUN_ID"])
           model="srpose38-tta-1024.onnx"
-          expected={model,"srpose38-onnx.sha256","srpose38-onnx-parity.json","srpose38-onnx-parity.log"}
+          expected={model,"srpose38-onnx.sha256","srpose38-onnx-parity.json","srpose38-onnx-parity.log","srpose38-checkpoint.sha256","srpose-source.sha","challenge-sample-source.sha"}
           entries=list(archive.iterdir())
           if {p.name for p in entries}!=expected or len(entries)!=len(expected):
-              raise RuntimeError("ORIGINAL_SOURCE_FOUR_FILE_SET_CHANGED")
+              raise RuntimeError("ORIGINAL_SOURCE_SEVEN_FILE_SET_CHANGED")
           for p in entries:
               if p.is_symlink() or not stat.S_ISREG(p.lstat().st_mode):
                   raise RuntimeError("ORIGINAL_SOURCE_NONREGULAR_FILE")
@@ -129,7 +129,7 @@ jobs:
           if actual_hash!=expected_hash:
               raise RuntimeError("ORIGINAL_ONNX_SHA256_DRIFT")
           shutil.copyfile(archive/model,dest/model)
-          print("LOT08H_FOUR_SOURCE_FILES_AND_REAL_ONNX_HASH_PASS")
+          print("LOT08H_SEVEN_SOURCE_FILES_AND_REAL_ONNX_HASH_PASS")
           PY
           test "$(find "$SOURCE_DIR" -type f | wc -l | tr -d ' ')" -eq 1
           echo "LOT08H_SINGLE_MODEL_SELECTED_NO_OTHER_SOURCE_FILES_PASS"
