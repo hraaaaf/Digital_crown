@@ -1,0 +1,126 @@
+name: LOT05 Step2B User-Authorized Open Dental Trial EULA Accept (Isolated)
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-eula-accept-demo.yml'
+      - 'scripts/quality/lot05_step2b_eula_accept_demo_lab.ps1'
+
+permissions:
+  contents: read
+
+jobs:
+  disposable-windows-demo:
+    name: Official signed trial, verified accept radio, one Next; demo only
+    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-demo-trial-accept-vendor-eula-20261110' && github.run_attempt == 1 }}
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 12
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Exact HEAD, hosted Windows, two authorized files, PowerShell AST
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or
+              $env:RUNNER_OS -cne 'Windows' -or
+              (git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}') {
+            throw 'EXPECTED_EPHEMERAL_EXACT_HEAD'
+          }
+          $base='027a82aca4cc37308f6323e759283c4ca0e45fad'
+          if ((git merge-base HEAD $base).Trim() -cne $base) { throw 'EXPECTED_ANCESTOR_MISSING' }
+          $actual=@(git diff --name-only $base HEAD)
+          $allowed=@('.github/workflows/lot05-step2b-eula-accept-demo.yml',
+                     'scripts/quality/lot05_step2b_eula_accept_demo_lab.ps1')
+          if ($actual.Count -ne 2 -or @($actual | Where-Object { $allowed -cnotcontains $_ }).Count -ne 0) {
+            throw 'NON_LAB_FILES_CHANGED'
+          }
+          $admin=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator)
+          if (-not $admin) { throw 'ADMIN_REQUIRED_FOR_OFFICIAL_TRIAL' }
+          if (@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0) {
+            throw 'UNEXPECTED_PREEXISTING_DATABASE'
+          }
+          $tokens=$null
+          $parseErrors=@()
+          $scriptPath='./scripts/quality/lot05_step2b_eula_accept_demo_lab.ps1'
+          $null=[System.Management.Automation.Language.Parser]::ParseFile(
+            $scriptPath,[ref]$tokens,[ref]$parseErrors)
+          if($parseErrors.Count -ne 0){
+            foreach($err in $parseErrors){Write-Host ('LOT05_AST_ERROR_LINE_'+$err.Extent.StartLineNumber)}
+            throw 'INVALID_SCRIPT_AST'
+          }
+          Write-Host 'LOT05_EXACT_SHA_HOSTED_WINDOWS_ADMIN_TWO_FILES_AST_PASS'
+      - name: Run official Open Dental trial acceptance under explicit user authorization
+        shell: pwsh
+        run: |
+          $env:LOT05_EXPECTED_SHA='${{ github.event.pull_request.head.sha }}'
+          & powershell.exe -NoProfile -NoLogo -STA -ExecutionPolicy Bypass -File './scripts/quality/lot05_step2b_eula_accept_demo_lab.ps1'
+          if($LASTEXITCODE -ne 0){throw 'TRIAL_ACCEPTANCE_SCRIPT_ERROR'}
+      - name: Check provenance, no patients, and independently verify screenshots
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $json=Join-Path $env:RUNNER_TEMP 'lot05-step2b-eula-accepted-demo-metadata.json'
+          if (-not (Test-Path -LiteralPath $json)) { throw 'MISSING_DEMO_EVIDENCE' }
+          $m=Get-Content -LiteralPath $json -Raw | ConvertFrom-Json
+          if (-not $m.wrapper_hash_pinned -or -not $m.wrapper_authenticode_valid -or
+              -not $m.inner_setup_authenticode_valid -or -not $m.inner_setup_started_once -or
+              $m.patient_data_accessed -or $m.csv_exported -or $m.database_created -or
+              $null -ne $m.error_code) {throw 'UNTRUSTED_VENDOR_OR_UNEXPECTED_MUTATION'}
+          Write-Host ('LOT05_ACCEPT_EXACT_LICENSE_TITLE='+[bool]$m.exact_license_window_verified)
+          Write-Host ('LOT05_ACCEPT_RADIO_CANDIDATES='+[int]$m.eula_accept_radio_candidates)
+          Write-Host ('LOT05_ACCEPT_DECLINE_CANDIDATES='+[int]$m.eula_decline_radio_candidates)
+          Write-Host ('LOT05_ACCEPT_RADIO_CHECKED_AFTER='+[bool]$m.eula_accept_radio_checked_after)
+          Write-Host ('LOT05_ACCEPT_DECLINE_UNCHECKED_AFTER='+[bool]$m.eula_decline_radio_unchecked_after)
+          Write-Host ('LOT05_ACCEPT_NEXT_ENABLED='+[bool]$m.eula_next_enabled_after)
+          Write-Host ('LOT05_ACCEPT_USER_AUTH_COMPLETED='+[bool]$m.accepted_eula)
+          Write-Host ('LOT05_ACCEPT_NEXT_CLICKED='+[bool]$m.eula_next_click_sent)
+          Write-Host ('LOT05_ACCEPT_NEXT_SCREEN_CAPTURED='+[bool]$m.eula_following_screen_captured)
+          if ($m.accepted_eula -and $m.eula_accept_window_png_saved) {
+            $png=Join-Path $env:RUNNER_TEMP 'lot05-step2b-license-after-accept-window-only.png'
+            if (-not (Test-Path -LiteralPath $png) -or
+                (Get-Item -LiteralPath $png).Length -gt 6000000 -or
+                (Get-FileHash -LiteralPath $png -Algorithm SHA256).Hash.ToLowerInvariant() -cne $m.eula_accept_window_png_sha256) {
+              throw 'ACCEPTED_EULA_SCREEN_PROOF_FAILED'
+            }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_ACCEPTED_PNG_OK=1'
+          }
+          if ($m.eula_following_screen_captured -and $m.eula_next_click_sent) {
+            $nextPng=Join-Path $env:RUNNER_TEMP 'lot05-step2b-screen-after-eula-next-only.png'
+            if (-not (Test-Path -LiteralPath $nextPng) -or
+                (Get-Item -LiteralPath $nextPng).Length -gt 6000000 -or
+                (Get-FileHash -LiteralPath $nextPng -Algorithm SHA256).Hash.ToLowerInvariant() -cne $m.eula_following_screen_sha256) {
+              throw 'NEXT_SCREEN_PROOF_FAILED'
+            }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_NEXT_SCREEN_PNG_OK=1'
+          }
+      - name: Upload bounded JSON no-PHI evidence always
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-eula-accept-demo-metadata-json
+          path: ${{ runner.temp }}/lot05-step2b-eula-accepted-demo-metadata.json
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Upload verified signed publisher EULA accepted-screen ONLY
+        if: ${{ env.LOT05_ACCEPTED_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-eula-accept-demo-window-only-png
+          path: ${{ runner.temp }}/lot05-step2b-license-after-accept-window-only.png
+          retention-days: 7
+          if-no-files-found: error
+      - name: Upload vendor next-page ONLY if owned and verified
+        if: ${{ env.LOT05_NEXT_SCREEN_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-eula-next-stage-window-only-png
+          path: ${{ runner.temp }}/lot05-step2b-screen-after-eula-next-only.png
+          retention-days: 7
+          if-no-files-found: error
