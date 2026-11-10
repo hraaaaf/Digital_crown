@@ -14,8 +14,8 @@ import secrets
 import sys
 
 PORT = 8879
-USERNAME = "j21-native-fue@cabinet.invalid"
-OUTSIDER = "j21-native-fue-outsider@cabinet.invalid"
+USERNAME = "j21-native-fue@example.com"
+OUTSIDER = "j21-native-fue-outsider@example.com"
 PASSWORD = "TestPass123!"  # synthetic automation fixture, never real clinic credentials
 FUE_MARKER = "GITHUB_WINDOWS_J21_SYNTHETIC_FUE_ONLY"
 
@@ -153,6 +153,11 @@ def make_app(root: Path, db_file: Path, *, create_schema: bool):
 
 
 def seed_scene(root: Path, app, Session) -> dict:
+    # /api/auth/me uses Pydantic EmailStr: special-use .invalid TLD is
+    # deliberately rejected. example.com is RFC-reserved for synthetic users.
+    from email_validator import validate_email
+    for synthetic_email in (USERNAME, OUTSIDER):
+        validate_email(synthetic_email, check_deliverability=False)
     from fastapi.testclient import TestClient
     from backend import models
     from backend.security import get_password_hash
