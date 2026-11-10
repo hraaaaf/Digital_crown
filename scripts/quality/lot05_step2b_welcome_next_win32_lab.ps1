@@ -61,6 +61,8 @@ $r=[ordered]@{
   post_next_screenshot_changed=$false
   post_next_screenshot_sha256=$null
   post_next_window_title_owned=$false
+  post_next_license_window_captured=$false
+  license_window_title_detected_after_next=$false
   post_next_license_keyword_seen=$false
   clicked_install=$false
   clicked_next=$false
@@ -144,9 +146,11 @@ try{
           if($knownIds.Contains($winPid)){
             $owned++
             if([string]::IsNullOrWhiteSpace($title)){$empty++}
-            elseif($title -match '(?i)(Licen[cs]e Agreement|EULA|Terms and Conditions)'){$license++}
-            elseif($title -match '(?i)(Open.?Dental|Setup|Wizard)'){
-              $setupCount++
+            elseif($title -match '(?i)(Open.?Dental|Setup|Wizard|Licen[cs]e Agreement|EULA|Terms and Conditions)'){
+              if($title -match '(?i)(Licen[cs]e Agreement|EULA|Terms and Conditions)'){
+                $license++
+                if($r.next_click_acknowledged){$r.license_window_title_detected_after_next=$true}
+              }else{$setupCount++}
               if(-not $r.screenshot_window_only_retained -or ($r.next_click_acknowledged -and $cycle -gt $r.next_click_cycle -and -not $r.post_next_screenshot_changed)){
                 try{
                   $native=[IntPtr]([int]$w.Current.NativeWindowHandle)
@@ -179,6 +183,10 @@ try{
                                 $r.post_next_screenshot_changed=$true
                                 $r.post_next_screenshot_sha256=$r.screenshot_sha256
                                 $r.post_next_window_title_owned=$true
+                                if($title -match '(?i)(Licen[cs]e Agreement|EULA|Terms and Conditions)'){
+                                  $r.post_next_license_window_captured=$true
+                                  $r.post_next_license_keyword_seen=$true
+                                }
                               }
                             }
                           }
@@ -396,6 +404,8 @@ Write-Host ('LOT05_NEXT_FOREGROUND_VERIFIED='+$r.foreground_window_verified)
 Write-Host ('LOT05_NEXT_CURSOR_ON_EXACT_BUTTON='+$r.cursor_over_exact_next)
 Write-Host ('LOT05_NEXT_SENT_ONCE='+$r.next_click_acknowledged)
 Write-Host ('LOT05_POST_NEXT_VISUAL_CHANGE='+$r.post_next_screenshot_changed)
+Write-Host ('LOT05_LICENSE_TITLE_AFTER_NEXT='+$r.license_window_title_detected_after_next)
+Write-Host ('LOT05_LICENSE_WINDOW_CAPTURED='+$r.post_next_license_window_captured)
 Write-Host ('LOT05_POST_NEXT_LICENSE_KEYWORD='+$r.post_next_license_keyword_seen)
 Write-Host ('LOT05_DESKTOP_WINDOW_ONLY_CAPTURE_ERRORS='+$r.screenshot_error_count)
 Write-Host ('LOT05_DESKTOP_WINDOWS_TITLE_SETUP='+$r.owned_setup_title_window_count_max)
