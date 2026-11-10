@@ -1,0 +1,168 @@
+{
+  "source": "REAL_LOOPBACK_BROWSER_FASTAPI_JWT",
+  "synthetic_only": true,
+  "native_desktop": false,
+  "clinical_release": false,
+  "viewports": [
+    {
+      "name": "BEFORE-1280",
+      "width": 1280,
+      "height": 850,
+      "file": "BEFORE-1280.png",
+      "sha256": "78b319ac5dbb9bc36bdfcc0b435f0d548b599d6beb87c6b457536b8e685b9e38",
+      "image_box": {
+        "x": 50,
+        "y": 141,
+        "width": 1180,
+        "height": 637.5
+      },
+      "bodyScrollWidth": 1280
+    },
+    {
+      "name": "AFTER-1280",
+      "width": 1280,
+      "height": 850,
+      "file": "AFTER-1280.png",
+      "sha256": "996d3dc720418b397c210eace130ffa7c4d85abc02639a934bdf5879375665e9",
+      "image_box": {
+        "x": 50,
+        "y": 132,
+        "width": 1180,
+        "height": 637.5
+      },
+      "bodyScrollWidth": 1280
+    },
+    {
+      "name": "AFTER-390",
+      "width": 390,
+      "height": 850,
+      "file": "AFTER-390.png",
+      "sha256": "5de4f25c0d4fff2fd26e60630c32d34e3d1852bd00d8eb253f4b441c9bcb45f3",
+      "image_box": {
+        "x": 16,
+        "y": 207,
+        "width": 358,
+        "height": 268.5
+      },
+      "bodyScrollWidth": 390
+    },
+    {
+      "name": "AFTER-430",
+      "width": 430,
+      "height": 850,
+      "file": "AFTER-430.png",
+      "sha256": "1382fc1e7f16ed30cd74d853501d60099def2c558f885915e0a4448eded86b9a",
+      "image_box": {
+        "x": 16,
+        "y": 207,
+        "width": 398,
+        "height": 298.5
+      },
+      "bodyScrollWidth": 430
+    },
+    {
+      "name": "AFTER-768",
+      "width": 768,
+      "height": 850,
+      "file": "AFTER-768.png",
+      "sha256": "6c51c65880032dfb56beb0ffae718040ca967f21dc283ddb45af538738180649",
+      "image_box": {
+        "x": 16,
+        "y": 141,
+        "width": 736,
+        "height": 552
+      },
+      "bodyScrollWidth": 768
+    },
+    {
+      "name": "REOPENED-1280",
+      "width": 1280,
+      "height": 850,
+      "file": "REOPENED-1280.png",
+      "sha256": "17a6c077cf430ab4bac8f0dde3bbdadbf718e3a6bcd0b5e808afd5b52e60c338",
+      "image_box": {
+        "x": 50,
+        "y": 141,
+        "width": 1180,
+        "height": 637.5
+      },
+      "bodyScrollWidth": 1280
+    }
+  ],
+  "network": [
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ia/analyses/1/premium-scene-fue",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/1/assets/1/content",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/ia/analyses/1/premium-scene-fue",
+      "status": 201
+    },
+    {
+      "method": "GET",
+      "path": "/api/ia/analyses/1/premium-scene-fue",
+      "status": 200
+    },
+    {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/ia/analyses/1/premium-scene-fue",
+      "status": 200
+    },
+    {
+      "method": "GET",
+      "path": "/api/patients/1/assets/1/content",
+      "status": 200
+    }
+  ],
+  "consoleErrors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)"
+  ],
+  "warnings": [],
+  "head": "c29b07fcca043bfd535c08f5e049d4ffa7ea241c",
+  "initial": {
+    "scene_revision": 1,
+    "point_id": "A",
+    "point_x": 45,
+    "sha_prefix": "d18e1f863c91",
+    "svg_viewbox": "0 0 800 600"
+  },
+  "edit": {
+    "point_id": "A",
+    "original_x": 45,
+    "edited_x": 46,
+    "reopened_x": 46,
+    "revision": 2
+  },
+  "reopen_click": {
+    "revision": 2,
+    "point_x": 46
+  },
+  "reload": {
+    "revision": 2,
+    "point_x": 46
+  },
+  "api_success": {
+    "login_200": true,
+    "scene_get_200": true,
+    "scene_post_201": true,
+    "encrypted_original_200": true
+  },
+  "status": "PASS"
+}

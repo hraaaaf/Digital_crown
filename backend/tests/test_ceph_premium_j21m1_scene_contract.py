@@ -22,7 +22,7 @@ from backend.services.srpose38_contract import (
 def _scene():
     landmarks = [
         {"id": point, "x": 20.0 + i * 4, "y": 32.0 + i * 3,
-         "origin": "SRPOSE38_AUTO", "confidence": 0.65}
+         "origin": "SRPOSE38_AUTO", "confidence": 0.65, "score_status": "AVAILABLE"}
         for i, point in SOTA_LANDMARKS_MAPPING.items()
     ]
     return {
