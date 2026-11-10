@@ -98,6 +98,7 @@ def test_clinical_hold_never_reads_image_or_loads_legacy_pytorch(monkeypatch):
     assert result["mode_inference"] == "FAILED"
     assert result["landmarks"] == []
     assert "désactivé" in result["warning"]
+    assert "manuel" in result["warning"].lower()
     assert result["processing_time_ms"] == 0.0
 
 
