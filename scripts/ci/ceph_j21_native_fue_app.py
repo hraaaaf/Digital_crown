@@ -15,6 +15,7 @@ import sys
 
 PORT = 8879
 USERNAME = "j21-native-fue@cabinet.invalid"
+OUTSIDER = "j21-native-fue-outsider@cabinet.invalid"
 PASSWORD = "TestPass123!"  # synthetic automation fixture, never real clinic credentials
 FUE_MARKER = "GITHUB_WINDOWS_J21_SYNTHETIC_FUE_ONLY"
 
@@ -171,6 +172,18 @@ def seed_scene(root: Path, app, Session) -> dict:
         user_id = user.id
         patient, study, _ = _case(session, user)
         patient_id, study_id = patient.id, study.id
+        # A/B/X: owner A, another same-cabinet patient B, outsider owner X.
+        patient_b, study_b, _ = _case(session, user)
+        patient_b_id, study_b_id = patient_b.id, study_b.id
+        outsider = models.User(
+            email=OUTSIDER, hashed_password=get_password_hash(PASSWORD),
+            role="DENTISTE", nom_complet="SYNTHETIC OUTSIDER FUE",
+            is_active=True, is_licensed=True,
+        )
+        session.add(outsider)
+        session.flush()
+        patient_x, study_x, _ = _case(session, outsider)
+        patient_x_id, study_x_id = patient_x.id, study_x.id
         session.commit()
 
     # Do not enter FastAPI lifespan here; it seeds/schedules real clinical
@@ -230,6 +243,8 @@ def seed_scene(root: Path, app, Session) -> dict:
             raise RuntimeError("Synthetic source SHA mismatch")
         report = {
             "patient_id": patient_id, "study_id": study_id, "asset_id": asset["id"],
+            "patient_b_id": patient_b_id, "study_b_id": study_b_id,
+            "patient_x_id": patient_x_id, "study_x_id": study_x_id,
             "original_sha256": hashlib.sha256(original).hexdigest(),
             "first_scene_sha256": response["scene_sha256"],
             "landmarks": 38, "clinical_release": False,
