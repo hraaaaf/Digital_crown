@@ -95,7 +95,6 @@ def load_profile(root: Path, db_file: Path) -> None:
 
 
 def make_app(root: Path, db_file: Path, *, create_schema: bool):
-    from sqlalchemy import create_engine
     from sqlalchemy.orm import sessionmaker
     from backend import database, models
     from backend.models_ceph_premium_scene_fue import CephPremiumSceneFueSnapshot
@@ -104,11 +103,15 @@ def make_app(root: Path, db_file: Path, *, create_schema: bool):
     from backend.routers.ceph_premium_scene_app_fue import router as scene_router
     from backend.services import clinical_asset_storage
 
-    engine = create_engine(
-        "sqlite:///" + db_file.as_posix(),
-        connect_args={"check_same_thread": False},
-    )
-    database.engine = engine
+    # Use the actual Digital Crown encrypted on-disk engine for BOTH init
+    # and reopen. Plain sqlite3 triggers backend.database's legacy transparent
+    # SQLCipher conversion on the next process and breaks the native lifecycle.
+    # Fail-closed rather than ever falling back to a plaintext SQLite test DB.
+    engine = database.engine
+    if engine.url.drivername != "sqlite+pysqlcipher":
+        raise RuntimeError("Isolated native FUE refuses non-SQLCipher file database")
+    if not engine.url.database or Path(engine.url.database).resolve() != db_file.resolve():
+        raise RuntimeError("Isolated native FUE SQLCipher DB target does not match synthetic root")
     Session = sessionmaker(bind=engine, autoflush=False, autocommit=False)
     database.SessionLocal = Session
     clinical_asset_storage.get_media_root = lambda: root / "synthetic-media"
@@ -120,6 +123,14 @@ def make_app(root: Path, db_file: Path, *, create_schema: bool):
         from sqlalchemy import inspect
         if "ceph_premium_scene_fue_snapshots" not in inspect(engine).get_table_names():
             raise RuntimeError("Missing synthetic scene table on reopened database")
+    # SQLCipher must be verified on disk before synthetic fixture creation or
+    # normal serving; never publish an unencrypted file-backed patient record.
+    if not db_file.is_file():
+        raise RuntimeError("Expected file-backed SQLCipher synthetic DB absent")
+    with db_file.open("rb") as disk:
+        if disk.read(16) == b"SQLite format 3\\x00":
+            raise RuntimeError("Plaintext SQLite header detected in native FUE")
+    print("CEPH_J21_NATIVE_FUE_SQLCIPHER_DISK_ENCRYPTION_PASS", flush=True)
 
     # Independently validate the exact same fail-closed database/temp-root
     # boundary used by the HTTP scene router, before creating test patients.
