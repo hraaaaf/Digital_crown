@@ -1,0 +1,111 @@
+name: LOT05 Step2B Official Trial License Preflight (EPHEMERAL / NO INSTALL)
+
+on:
+  pull_request:
+    types: [opened]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-official-trial-license-preflight.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  signed-official-license-surface:
+    name: Signed official trial metadata and embedded-license listing only
+    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-official-trial-license-preflight-20261110' && github.run_attempt == 1 }}
+    runs-on: windows-2022
+    timeout-minutes: 16
+    steps:
+      - name: Publisher binary preflight in disposable hosted VM — no execution
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or $env:GITHUB_EVENT_NAME -cne 'pull_request') {
+            throw 'EPHEMERAL_GITHUB_HOSTED_WINDOWS_REQUIRED'
+          }
+          $reportPath = Join-Path $env:RUNNER_TEMP 'lot05-step2b-license-preflight-NO-PATIENTS.json'
+          $exe = Join-Path $env:RUNNER_TEMP 'OpenDental-official-trial-inspection-NO-EXECUTION.exe'
+          $report = [ordered]@{
+            scope = 'SIGNED_OFFICIAL_TRIAL_STATIC_LICENSE_PREFLIGHT_ONLY'
+            vendor = 'Open Dental'
+            publisher_version_from_official_link = '25.3.48'
+            source = 'https://www.opendental.com/TrialDownload-25-3-48.exe'
+            head_sha = '${{ github.event.pull_request.head.sha }}'
+            hosted_runner_verified = $true
+            official_sha256_pinned = $false
+            publisher_authenticode_valid = $false
+            publisher_subject_matches = $false
+            embedded_archive_parseable = $false
+            embedded_license_filename_candidate_count = 0
+            license_text_reviewed = $false
+            eula_accepted = $false
+            vendor_executable_launched = $false
+            vendor_software_installed = $false
+            database_service_created = $false
+            demo_csv_exported = $false
+            real_patient_accessed = $false
+            clinical_import_permitted = $false
+            status = 'NOT_STARTED'
+            refusal_code = $null
+          }
+          $failure = $false
+          try {
+            if (@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -ne 0) {
+              throw 'ISOLATION_DB_SERVICE_PREEXISTING'
+            }
+            [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest -Uri $report.source -OutFile $exe -MaximumRedirection 2 -TimeoutSec 240
+            if ((Get-Item -LiteralPath $exe).Length -ne 149781424) { throw 'OFFICIAL_BINARY_SIZE_CHANGED' }
+            $digest = (Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($digest -cne 'b892db0d3b2fc0947fa25fe4fc07c2e81815d70119f72e7abf1f8b9b0671bcb9') {
+              throw 'OFFICIAL_BINARY_SHA_CHANGED'
+            }
+            $report.official_sha256_pinned = $true
+            $sig = Get-AuthenticodeSignature -LiteralPath $exe
+            if ($sig.Status -ne [System.Management.Automation.SignatureStatus]::Valid) {
+              throw 'AUTHENTICODE_INVALID'
+            }
+            $report.publisher_authenticode_valid = $true
+            if ($null -eq $sig.SignerCertificate -or $sig.SignerCertificate.Subject -notmatch '(?i)Open\s*Dental') {
+              throw 'UNEXPECTED_PUBLISHER'
+            }
+            $report.publisher_subject_matches = $true
+            $sevenzip = 'C:\Program Files\7-Zip\7z.exe'
+            if (Test-Path -LiteralPath $sevenzip) {
+              $listing = @(& $sevenzip l -slt $exe 2>$null)
+              if ($LASTEXITCODE -eq 0) {
+                $report.embedded_archive_parseable = $true
+                $matches = @($listing | Where-Object {
+                  $_ -match '(?i)^Path = .*\b(license|licence|eula|terms|agreement)\b.*$'
+                } | Select-Object -Unique)
+                $report.embedded_license_filename_candidate_count = $matches.Count
+              }
+            }
+            $report.status = 'SIGNED_OFFICIAL_INSTALLER_VERIFIED_LICENSE_ACCEPTANCE_NOT_ATTEMPTED'
+            Write-Host 'LOT05_2B_OFFICIAL_SIGNED_PUBLISHER_VERIFIED_NO_INSTALL_NO_PATIENTS'
+            Write-Host ('LOT05_2B_LICENSE_FILENAME_CANDIDATES=' + $report.embedded_license_filename_candidate_count)
+          } catch {
+            $report.status = 'STATIC_PREFLIGHT_REFUSED'
+            $report.refusal_code = 'OFFICIAL_SOURCE_OR_ENVIRONMENT_NOT_PROVEN'
+            $failure = $true
+            Write-Host 'LOT05_2B_STATIC_PREFLIGHT_FAIL_CLOSED'
+          } finally {
+            $report.database_service_created = (@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -ne 0)
+            if ($report.database_service_created) { $failure = $true }
+            [System.IO.File]::WriteAllText(
+              $reportPath,
+              ($report | ConvertTo-Json -Depth 4),
+              (New-Object System.Text.UTF8Encoding($false))
+            )
+            Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue
+          }
+          if ($failure) { throw 'LOT05_2B_PRECHECK_FAIL_CLOSED_SEE_JSON' }
+      - name: Publish non-PHI proof metadata only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-official-license-static-preflight-json-only
+          path: ${{ runner.temp }}/lot05-step2b-license-preflight-NO-PATIENTS.json
+          retention-days: 14
+          if-no-files-found: warn
