@@ -6,6 +6,7 @@ inside a random GitHub-hosted Windows runner ProgramData directory.
 """
 from __future__ import annotations
 
+from contextlib import closing
 import ctypes
 import json
 import os
@@ -48,7 +49,7 @@ def run_as_owner(root: Path, expected_sid: str) -> None:
         p = root / name
         if p.exists() or p.is_symlink():
             raise LabRefusal("OWNER_MUST_CREATE_NEW_ONLY")
-        with sqlite3.connect(p) as db:
+        with closing(sqlite3.connect(p)) as db:
             db.execute("CREATE TABLE lab_epoch(id INTEGER PRIMARY KEY, epoch INTEGER NOT NULL, marker TEXT NOT NULL)")
             db.execute("INSERT INTO lab_epoch VALUES(1,0,?)", (MARKER,))
             db.commit()
@@ -77,7 +78,7 @@ def validate_store(path: Path) -> int:
     if not path.name.endswith("-synthetic.sqlite") or path.is_symlink() or not path.is_file():
         raise LabRefusal("LAB_SQLITE_FILE_REQUIRED")
     try:
-        with sqlite3.connect(path.as_uri() + "?mode=ro", uri=True) as db:
+        with closing(sqlite3.connect(path.as_uri() + "?mode=ro", uri=True)) as db:
             if db.execute("PRAGMA integrity_check").fetchone() != ("ok",):
                 raise LabRefusal("SQLITE_INTEGRITY_REJECTED")
             if db.execute("PRAGMA foreign_key_check").fetchall():
@@ -108,8 +109,8 @@ def cold_restore_candidate(root: Path, dest: Path) -> int:
     stage = Path(tempfile.mkdtemp(prefix=".dc08f-cold-", dir=dest.parent))
     try:
         for name in FILES:
-            with sqlite3.connect((root / name).as_uri() + "?mode=ro", uri=True) as source:
-                with sqlite3.connect(stage / name) as target:
+            with closing(sqlite3.connect((root / name).as_uri() + "?mode=ro", uri=True)) as source:
+                with closing(sqlite3.connect(stage / name)) as target:
                     source.backup(target)
         if len({validate_store(stage / name) for name in FILES}) != 1:
             raise LabRefusal("RESTORE_STAGE_MISMATCH")
