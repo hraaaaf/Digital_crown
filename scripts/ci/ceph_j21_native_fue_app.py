@@ -278,7 +278,7 @@ def mount_ui(app) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="NONCLINICAL Windows CI-only FUE")
-    parser.add_argument("operation", choices=("initialize", "serve"))
+    parser.add_argument("operation", choices=("initialize", "serve", "checkpoint"))
     args = parser.parse_args()
     root, db_file = paths()
     if args.operation == "initialize":
@@ -291,6 +291,16 @@ def main() -> int:
         if args.operation == "initialize":
             result = seed_scene(root, app, Session)
             print("CEPH_NATIVE_FUE_SYNTHETIC_SEEDED " + json.dumps(result, sort_keys=True), flush=True)
+            return 0
+        if args.operation == "checkpoint":
+            # WAL journals are mandatory in this product's SQLCipher engine.
+            # A raw-file synthetic backup must be taken only after the native
+            # server is stopped and its encrypted WAL is checkpointed.
+            with engine.connect() as connection:
+                row = connection.exec_driver_sql("PRAGMA wal_checkpoint(TRUNCATE)").fetchone()
+                if row is None or len(row) != 3 or int(row[0]) != 0:
+                    raise RuntimeError("SQLCipher WAL checkpoint refused or busy")
+            print("CEPH_NATIVE_FUE_ENCRYPTED_WAL_CHECKPOINT_PASS", flush=True)
             return 0
         mount_ui(app)
         import uvicorn
