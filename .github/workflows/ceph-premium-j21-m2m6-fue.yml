@@ -794,3 +794,44 @@ jobs:
           path: dist/DigitalCrown-J21-FUE-LAB/
           if-no-files-found: error
           retention-days: 1
+
+  native-shell-vite-preflight:
+    name: Real Digital Crown MainLayout in FUE-only bundle — NO DEPLOY
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    permissions:
+      contents: read
+    env:
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+      VITE_CEPH_J21_NATIVE_FUE: 'true'
+      VITE_API_URL: 'http://127.0.0.1:8879'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify no clinical registration or altered release policy
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "$PRODUCT_HEAD"
+          ! grep -q 'CephPremiumSceneFUEViewer' frontend/src/App.tsx
+          grep -q 'verify_installable_release_directory' DigitalCrown.spec
+          grep -q 'MainLayout' frontend/fue-j21-native/main.tsx
+      - name: Compile genuine shell in isolated FUE build without network fonts
+        shell: bash
+        working-directory: frontend
+        run: |
+          npm ci --ignore-scripts --no-audit --no-fund
+          npx vite build --config vite.ceph-j21-native-fue.config.ts --mode ceph-j21-native-fue
+          test -f dist-ceph-j21-native-fue/index.html
+          grep -Rq 'data-ceph-j21-real-shell' dist-ceph-j21-native-fue/assets
+          if grep -Rq 'fonts.googleapis.com' dist-ceph-j21-native-fue; then
+            echo 'REFUSING_NONLOCAL_EXTERNAL_FONT_IN_FUE_BUNDLE'
+            exit 1
+          fi
+          echo 'GENUINE_DESKTOP_MAINLAYOUT_FUE_ONLY_VITE_PREBUILD_PASS'
