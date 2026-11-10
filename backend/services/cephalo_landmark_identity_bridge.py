@@ -82,8 +82,21 @@ def project_canonical_landmark_identities(
     previous_auto_landmarks: Sequence[LandmarkEvidence] = (),
 ) -> dict[str, LandmarkEvidence]:
     """Return additive canonical identity aliases without mutating legacy points."""
-    projected = dict(landmarks)
     previous_auto = {item.landmark_id: item for item in previous_auto_landmarks}
+    # The scientific view is deliberately narrower than the persisted legacy
+    # points. Preserve all IDs/coordinates in the legacy snapshot, while blocking
+    # calculations based on any unreviewed channel, even when OTHER inputs
+    # (e.g. Porion) have been manually attested.
+    projected: dict[str, LandmarkEvidence] = {}
+    for key, item in landmarks.items():
+        reviewed = _is_explicitly_clinician_attested(item)
+        if reviewed and item.origin == LandmarkOrigin.MANUAL_CORRECTED:
+            reviewed = _manual_correction_has_matched_predecessor(item, previous_auto)
+        projected[key] = (
+            item if reviewed else item.model_copy(
+                update={"availability_status": AvailabilityStatus.NOT_COMPUTABLE}
+            )
+        )
 
     # Reject pre-labelled canonical inputs that lack human attestation as well.
     # This prevents an automatic point arriving under a canonical ID directly.
