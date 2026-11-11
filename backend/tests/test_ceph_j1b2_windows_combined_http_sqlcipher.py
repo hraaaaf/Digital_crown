@@ -15,7 +15,7 @@ import shutil
 import sys
 
 import pytest
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, sessionmaker
 
 from backend import database, models
 from backend.routers import auth
@@ -30,14 +30,25 @@ from backend.tests.test_cephalo_p2ter_windows_sqlcipher_native import (
 pytestmark = pytest.mark.skipif(sys.platform != "win32", reason="Native Windows SQLCipher only")
 
 
-def _mount_real_api_on_engine(app, engine):
-    """Redirect ALL existing get_db override dependencies to one encrypted vault."""
+def _mount_real_api_on_engine(app, engine, monkeypatch):
+    """Route HTTP dependencies AND non-Depends license lookup to one vault.
+
+    SessionLocal is also used by main._get_user_status_sync() for the
+    fail-closed local license gate, outside FastAPI dependency injection.
+    Merely overriding get_db would create a false USER_NOT_FOUND and would
+    not prove a real authenticated Desktop-to-SQLCipher flow.
+    """
+    sqlcipher_sessionmaker = sessionmaker(
+        bind=engine, autocommit=False, autoflush=False
+    )
+    monkeypatch.setattr(database, "SessionLocal", sqlcipher_sessionmaker)
+
     def sqlcipher_db():
-        with Session(engine) as session:
+        with sqlcipher_sessionmaker() as session:
             yield session
 
-    # The main app already owns its auth/cephalo route wiring; we replace
-    # only the fixture's isolated SQLite-in-memory DB dependency.
+    # All API routes plus the out-of-band license lookup must read the
+    # same encrypted synthetic vault. Never bypass license checking.
     assert app.dependency_overrides, "Real TestClient DB overrides not initialized"
     for source in tuple(app.dependency_overrides):
         app.dependency_overrides[source] = sqlcipher_db
@@ -53,7 +64,7 @@ def _snapshot(engine, study_id):
 
 
 def test_native_windows_one_process_jwt_edit_encrypted_restore_and_reread(
-    client, tmp_path: Path,
+    client, tmp_path: Path, monkeypatch,
 ):
     from backend.main import app
 
@@ -73,7 +84,7 @@ def test_native_windows_one_process_jwt_edit_encrypted_restore_and_reread(
             assert str(conn.exec_driver_sql("PRAGMA journal_mode=WAL").scalar()).lower() == "wal"
         _check_encrypted(engine, vault)
 
-        _mount_real_api_on_engine(app, engine)
+        _mount_real_api_on_engine(app, engine, monkeypatch)
         with Session(engine) as session:
             owner = make_user(session)
             patient, study, original = _case(session, owner)
@@ -147,7 +158,11 @@ def test_native_windows_one_process_jwt_edit_encrypted_restore_and_reread(
     try:
         _check_encrypted(restored_engine, restored_path)
         assert _snapshot(restored_engine, study_id) == revision2
-        _mount_real_api_on_engine(app, restored_engine)
+        _mount_real_api_on_engine(app, restored_engine, monkeypatch)
+        # Do not reuse a positive license decision from the pre-backup DB.
+        # A restored cabinet must independently re-establish local user status.
+        from backend import main as main_module
+        main_module._license_cache.clear()
 
         url = "/api/ia/analyses/" + str(study_id)
         denied = client.get(url, headers=foreign_headers)
