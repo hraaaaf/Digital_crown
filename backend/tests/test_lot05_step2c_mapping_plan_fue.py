@@ -159,7 +159,7 @@ class MappingAndPlanSyntheticFUE(unittest.TestCase):
         self.assertIn("NO_CLINICAL_MEDIA_OR_FINANCE_SEMANTIC_RECONCILIATION", first.warnings)
 
     def test_03_duplicate_and_orphan_are_not_silently_repaired(self):
-        self.patients[1] = (self.patients[0][0],) + self.patients[1][1:]
+        self.patients.append(self.patients[0])  # one extra duplicate, preserve P001 references
         self.visits[0] = ("V000", "UNKNOWN_FAKE_ID", "2026-11-11")
         self.write_fixture()
         _, _, _, params = self.configuration()
