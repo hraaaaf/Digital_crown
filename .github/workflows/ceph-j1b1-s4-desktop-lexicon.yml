@@ -42,7 +42,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-      - name: Assert EXACT HEAD and exact nine safe files, no model/backend/installer
+      - name: Assert EXACT HEAD and precisely 13 S3+S4 safe paths with four negative probes
         shell: python
         run: |
           import subprocess
@@ -50,9 +50,14 @@ jobs:
           head=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip()
           if head != expected:
               raise SystemExit("J1B1_S4_HEAD_MISMATCH")
-          base="dbc714355a5d0eda832e2e2006237b4d7136335e"
-          diff=sorted(subprocess.check_output(["git","diff","--name-only",base,"HEAD"],text=True).splitlines())
-          allowed=sorted([
+          base="f6985fa65cbcfa4f3c5dd7712864ca3ac1fade06"
+          s3={
+            ".github/workflows/ceph-j1b1-s3-38-lexicon.yml",
+            "docs/audits/CEPHALO_J1B1_S3_38_LANDMARK_TERMINOLOGY.json",
+            "docs/audits/CEPHALO_J1B1_S3_38_LANDMARKS_REVIEW.md",
+            "scripts/ci/ceph_j1b1_s3_38_lexicon_gate.py",
+          }
+          s4={
             ".github/workflows/ceph-j1b1-s4-desktop-lexicon.yml",
             "docs/audits/CEPHALO_J1B1_S4_DESKTOP_READONLY_LEXICON.md",
             "scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py",
@@ -62,11 +67,30 @@ jobs:
             "frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.test.tsx",
             "frontend/src/features/ortho/components/Step1Cephalo.tsx",
             "frontend/src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx",
-          ])
-          if diff != allowed:
-              print("Actual",diff)
+          }
+          if len(s3)!=4 or len(s4)!=9 or s3 & s4:
+              raise SystemExit("J1B1_S4_EXPECTED_SCOPE_INVALID")
+          allowed=sorted(s3|s4)
+          def exact(paths):
+              return len(paths)==13 and sorted(paths)==allowed
+          adversarial=[
+              allowed[:-1],
+              allowed+["backend/services/cephalo_runtime_evidence.py"],
+              allowed[:-1]+["backend/services/cephalo_runtime_evidence.py"],
+              allowed+[allowed[0]],
+          ]
+          if not all(not exact(paths) for paths in adversarial):
+              raise SystemExit("J1B1_S4_NEGATIVE_SCOPE_BYPASS")
+          print("J1B1_S4_FOUR_ADVERSARIAL_PATH_SCOPE_CASES_DENIED")
+          actual=subprocess.check_output(
+              ["git","diff","--name-only","--no-renames",base,"HEAD"],
+              text=True,
+          ).splitlines()
+          if not exact(actual):
+              print("Expected",allowed)
+              print("Actual",sorted(actual))
               raise SystemExit("J1B1_S4_SCOPE_CHANGE_FAIL_CLOSED")
-          print("J1B1_S4_EXACT_HEAD_NINE_SAFE_UI_TEST_BROWSER_AND_DOC_FILES_PASS")
+          print("J1B1_S4_EXACT_HEAD_THIRTEEN_SAFE_S3_S4_FILES_PASS")
       - name: Check source-to-frontend contract, 38+2 completeness and seven adversarial controls
         run: |
           python -m py_compile scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py
