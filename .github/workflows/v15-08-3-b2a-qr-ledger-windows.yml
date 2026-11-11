@@ -1,0 +1,45 @@
+name: LOT08.3-B2-A Windows seven-day QR receipt retention LAB FUE
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/v15-08-3-b2a-qr-ledger-windows.yml
+      - queue_core/service/retention_qr_08_3_b2_lab.py
+      - queue_core/tests/test_retention_qr_08_3_b2_lab.py
+      - queue_core/service/retention_lab_08_3_b.py
+      - queue_core/tests/test_retention_lab_08_3_b.py
+
+permissions:
+  contents: read
+
+jobs:
+  windows-g3-qr-ledger-retention:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert exact candidate SHA and no installable
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne "${{ github.event.pull_request.head.sha }}") { throw 'HEAD_MISMATCH' }
+          if (Test-Path 'dist/DigitalCrownSetup.exe') { throw 'INSTALLABLE_FORBIDDEN' }
+      - name: Install pinned LAB-only dependencies
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check 'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+      - name: Exercise real isolated SQLite UTC seven-day QR ledger and B1 integration
+        shell: pwsh
+        run: python -m pytest -q queue_core/tests/test_retention_qr_08_3_b2_lab.py queue_core/tests/test_retention_lab_08_3_b.py --maxfail=1 --junitxml=lot08-3-b2a-windows.xml
+      - name: Preserve synthetic JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08-3-b2a-windows-qr-ledger-junit
+          path: lot08-3-b2a-windows.xml
+          if-no-files-found: error
+          retention-days: 7
