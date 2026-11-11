@@ -7,6 +7,7 @@ create tables, migrate a database, or import Digital Crown clinical models.
 from __future__ import annotations
 
 from sqlalchemy import (
+    DDL, event,
     Boolean,
     CheckConstraint,
     DateTime,
@@ -239,6 +240,31 @@ class QueueEventRecord(QueueBase):
     method: Mapped[str | None] = mapped_column(String(16), nullable=True)
     # Opaque resource audit reference survives resource-row churn; no clinical FK.
     resource_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+
+
+# LOT08.3-A: SQLite-only, newly initialized LAB Queue databases. The minimized
+# event log is append-only at the DB boundary; neither direct SQL nor ORM may
+# silently rewrite or erase a committed event. This is not tamper-proof against
+# privileged file/DDL access. Existing databases require a separately approved,
+# backup-verified migration; create_all does not retroactively add triggers.
+event.listen(
+    QueueEventRecord.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS queue_event_log_no_update "
+        "BEFORE UPDATE ON queue_event_log "
+        "BEGIN SELECT RAISE(ABORT, 'QUEUE_EVENT_IMMUTABLE'); END"
+    ).execute_if(dialect="sqlite"),
+)
+event.listen(
+    QueueEventRecord.__table__,
+    "after_create",
+    DDL(
+        "CREATE TRIGGER IF NOT EXISTS queue_event_log_no_delete "
+        "BEFORE DELETE ON queue_event_log "
+        "BEGIN SELECT RAISE(ABORT, 'QUEUE_EVENT_IMMUTABLE'); END"
+    ).execute_if(dialect="sqlite"),
+)
 
 
 class QueueExternalReference(QueueBase):
