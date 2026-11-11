@@ -1,0 +1,103 @@
+name: LOT05 Step2B — Official Server Trial Orchestrator GUI Read-Only
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-server-orchestrator-gui.yml'
+      - 'scripts/quality/lot05_step2b_server_orchestrator_gui_lab.ps1'
+
+permissions:
+  contents: read
+
+jobs:
+  signed-vendor-server-launcher:
+    name: Official signed vendor server launcher initial window (no GUI input)
+    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-vendor-server-orchestrator-gui-lab-20261110' && github.run_attempt == 1 }}
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 12
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Exact SHA, Windows host admin, two files and valid PowerShell AST
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or
+             (git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}'){
+            throw 'DISPOSABLE_EXACT_HEAD_REQUIRED'
+          }
+          $base='027a82aca4cc37308f6323e759283c4ca0e45fad'
+          if((git merge-base HEAD $base).Trim() -cne $base){throw 'EXPECTED_BASE_MISSING'}
+          $paths=@(git diff --name-only $base HEAD)
+          $allowed=@('.github/workflows/lot05-step2b-server-orchestrator-gui.yml',
+                     'scripts/quality/lot05_step2b_server_orchestrator_gui_lab.ps1')
+          if($paths.Count -ne 2 -or @($paths | Where-Object {$allowed -cnotcontains $_}).Count -gt 0){
+            throw 'OUTSIDE_LAB_FILES'
+          }
+          $admin=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+            [Security.Principal.WindowsBuiltInRole]::Administrator)
+          if(-not $admin){throw 'WINDOWS_ADMIN_MISSING'}
+          if(@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0){
+            throw 'PREEXISTING_DB_FORBIDDEN'
+          }
+          $path='scripts/quality/lot05_step2b_server_orchestrator_gui_lab.ps1'
+          $tokens=$null
+          $errors=@()
+          $null=[System.Management.Automation.Language.Parser]::ParseFile($path,[ref]$tokens,[ref]$errors)
+          if($errors.Count -gt 0){
+            foreach($err in $errors){Write-Host ('LOT05_SCRIPT_AST_ERROR_LINE_'+$err.Extent.StartLineNumber)}
+            throw 'POWERSHELL_SYNTAX_ERROR'
+          }
+          Write-Host 'LOT05_EXACT_HEAD_HOSTED_ADMIN_TWO_FILES_POWERSHELL_AST_PASS'
+      - name: Read only signed official server trial installer GUI
+        shell: pwsh
+        run: |
+          $env:LOT05_EXPECTED_SHA='${{ github.event.pull_request.head.sha }}'
+          & powershell.exe -NoProfile -NoLogo -STA -ExecutionPolicy Bypass -File './scripts/quality/lot05_step2b_server_orchestrator_gui_lab.ps1'
+          if($LASTEXITCODE -ne 0){throw 'SIGNED_SERVER_GUI_INSPECTION_FAILED_CLOSED'}
+      - name: Verify publisher provenance and optional window-only screenshot
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $path=Join-Path $env:RUNNER_TEMP 'lot05_server_launcher_readonly.json'
+          if(-not (Test-Path -LiteralPath $path)){throw 'MISSING_GUI_EVIDENCE'}
+          $r=Get-Content -LiteralPath $path -Raw | ConvertFrom-Json
+          if(-not $r.wrapper_hash_pinned -or -not $r.wrapper_signature_valid -or
+             -not $r.publisher_is_open_dental -or -not $r.embedded_launcher_started -or
+             $r.created_database -or $r.clicked_install -or $r.accepted_license -or
+             $r.accessed_patient_data -or $r.exported_csv -or $null -ne $r.error_code){
+            throw 'READONLY_OR_PUBLISHER_GUARD_FAILED'
+          }
+          if($r.vendor_window_capture_ok){
+            $png=Join-Path $env:RUNNER_TEMP 'lot05_server_launcher_window.png'
+            if(-not (Test-Path -LiteralPath $png) -or
+               (Get-Item -LiteralPath $png).Length -gt 6000000 -or
+               (Get-FileHash -LiteralPath $png -Algorithm SHA256).Hash.ToLowerInvariant() -cne $r.vendor_window_sha256){
+              throw 'GUI_WINDOW_PROVENANCE_ERROR'
+            }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_VENDOR_LAUNCHER_PNG=1'
+          }
+          Write-Host ('LOT05_SERVER_VENDOR_WINDOW_CAPTURE='+[bool]$r.vendor_window_capture_ok)
+          Write-Host ('LOT05_SERVER_VENDOR_SAFE_LABELS='+($r.vendor_safe_control_names -join ','))
+          Write-Host 'LOT05_SERVER_VENDOR_NO_INPUT'
+      - name: Preserve read-only non-PHI diagnostic JSON
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-server-launcher-readonly-json
+          path: ${{ runner.temp }}/lot05_server_launcher_readonly.json
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Preserve official installer initial window ONLY if verified
+        if: ${{ env.LOT05_VENDOR_LAUNCHER_PNG == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-server-launcher-verified-window-png
+          path: ${{ runner.temp }}/lot05_server_launcher_window.png
+          retention-days: 7
+          if-no-files-found: error
