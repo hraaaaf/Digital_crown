@@ -8,6 +8,7 @@ import cv2
 import numpy as np
 
 from backend.core.paths import AppPaths
+from backend.services.cephalo_runtime_gate import can_run_cephalo_auto_inference
 from backend.services.srpose38_contract import (
     SOTA_LANDMARKS_MAPPING,
     SRPOSE38_MODEL_NAME,
@@ -46,6 +47,10 @@ class SOTAVisionEngine:
         self._initialize_engine()
 
     def _initialize_engine(self):
+        # Model bytes present in an installer do not authorize clinical inference.
+        if not can_run_cephalo_auto_inference():
+            logger.info("SOTAVisionEngine: medical activation HOLD (model may remain embedded)")
+            return
         if ort is None:
             logger.warning("SOTAVisionEngine: onnxruntime non installé.")
             return
@@ -87,7 +92,8 @@ class SOTAVisionEngine:
             logger.error("SOTAVisionEngine: échec de chargement SRPose38: %s", exc)
 
     def predict_landmarks(self, file_location: str) -> Optional[dict]:
-        if not self.is_ready or self.session is None:
+        # Recheck at request time: previously created sessions cannot bypass HOLD.
+        if not can_run_cephalo_auto_inference() or not self.is_ready or self.session is None:
             return None
 
         start_time = time.time()

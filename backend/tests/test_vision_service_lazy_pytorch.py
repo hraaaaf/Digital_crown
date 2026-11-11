@@ -5,6 +5,15 @@ from pathlib import Path
 import numpy as np
 
 from backend.services import vision_service
+from backend.services.cephalo_runtime_gate import can_run_cephalo_auto_inference
+
+
+def _enable_synthetic_cephalo_lab(monkeypatch):
+    """Explicit positive-test scope; clinical and frozen contexts remain denied."""
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    assert can_run_cephalo_auto_inference() is True
 
 
 def test_vision_service_has_no_top_level_torch_import():
@@ -31,6 +40,7 @@ def test_vision_engine_constructor_does_not_initialize_legacy_runtime():
 
 
 def test_srpose_success_never_initializes_legacy_pytorch(monkeypatch, tmp_path):
+    _enable_synthetic_cephalo_lab(monkeypatch)
     image_path = tmp_path / "ceph.png"
     image_path.write_bytes(b"placeholder")
 
@@ -65,6 +75,7 @@ def test_srpose_success_never_initializes_legacy_pytorch(monkeypatch, tmp_path):
 
 
 def test_windows_torch_commit_limit_failure_is_fail_closed(monkeypatch):
+    _enable_synthetic_cephalo_lab(monkeypatch)
     engine = vision_service.VisionEngine()
     real_import = builtins.__import__
 

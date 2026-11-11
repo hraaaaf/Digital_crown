@@ -3,6 +3,15 @@ import torch
 
 from backend.services.cephalo_engine import CephaloEngine
 from backend.services import vision_service
+from backend.services.cephalo_runtime_gate import can_run_cephalo_auto_inference
+
+
+def _enable_synthetic_cephalo_lab(monkeypatch):
+    """Preserve positive model/provenance tests only in a non-frozen synthetic lab."""
+    monkeypatch.setenv("ENVIRONMENT", "test")
+    monkeypatch.setenv("DIGITALCROWN_ISOLATED_RUNTIME", "true")
+    monkeypatch.setenv("DATABASE_URL", "sqlite:///:memory:")
+    assert can_run_cephalo_auto_inference() is True
 
 
 def _pytorch_engine_without_apices(monkeypatch):
@@ -21,6 +30,7 @@ def _pytorch_engine_without_apices(monkeypatch):
 
 
 def test_pytorch_landmarks_do_not_gain_synthetic_incisor_apices(monkeypatch):
+    _enable_synthetic_cephalo_lab(monkeypatch)
     result = _pytorch_engine_without_apices(monkeypatch).predict_landmarks("synthetic.png")
     landmark_ids = {landmark["id"] for landmark in result["landmarks"]}
 
@@ -31,6 +41,7 @@ def test_pytorch_landmarks_do_not_gain_synthetic_incisor_apices(monkeypatch):
 
 
 def test_onnx_apices_are_preserved_without_replacement(monkeypatch):
+    _enable_synthetic_cephalo_lab(monkeypatch)
     expected_landmarks = [
         {"id": "U1_incisal", "x": 10, "y": 20},
         {"id": "L1_incisal", "x": 12, "y": 30},

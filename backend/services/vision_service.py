@@ -14,6 +14,7 @@ repo_path = os.path.abspath(os.path.join(current_dir, "..", "ai_models", "cephld
 if repo_path not in sys.path:
     sys.path.insert(0, repo_path)
 
+from .cephalo_runtime_gate import CEPHALO_AUTO_HOLD_REASON, can_run_cephalo_auto_inference
 from .sota_vision_service import sota_vision_engine
 
 logging.basicConfig(level=logging.INFO)
@@ -48,7 +49,9 @@ class VisionEngine:
         self.weights_path = os.path.join(repo_path, "ceph_weights.pth")
 
     def _initialize_legacy_engine(self):
-        """Load the optional PyTorch fallback on first demand, never at boot."""
+        """Load PyTorch only for isolated, non-frozen synthetic LAB inference."""
+        if not can_run_cephalo_auto_inference():
+            return
         if self.legacy_init_attempted:
             return
         self.legacy_init_attempted = True
@@ -97,7 +100,12 @@ class VisionEngine:
             logger.error("Legacy PyTorch model initialization failed: %s", exc)
 
     def predict_landmarks(self, file_location: str) -> dict:
-        """Run SRPose38 first, then optional legacy PyTorch, else fail closed."""
+        """Run only in an isolated synthetic LAB; clinical paths fail closed."""
+        if not can_run_cephalo_auto_inference():
+            return {
+                "landmarks": [], "mode_inference": "FAILED",
+                "warning": CEPHALO_AUTO_HOLD_REASON, "processing_time_ms": 0.0,
+            }
         start_time = time.time()
 
         img = cv2.imread(file_location, cv2.IMREAD_GRAYSCALE)

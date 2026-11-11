@@ -68,9 +68,11 @@ class CephaloService:
     def process_new_radio(self, patient_id: int, file_path: str, db_path: str) -> Dict[str, Any]:
         logger.info("Analyse Vision pour le patient %s...", patient_id)
         vision_result = vision_engine.predict_landmarks(file_path)
-        if not vision_result or "landmarks" not in vision_result:
-            logger.error("VisionEngine a retourné un résultat invalide ou vide.")
-            raise ValueError("L'IA n'a détecté aucun point sur cette image.")
+        if not vision_result or not vision_result.get("landmarks"):
+            # Never persist an analysis from denied/empty automatic predictions.
+            reason = vision_result.get("warning") if isinstance(vision_result, dict) else None
+            logger.error("Cephalo automatic prediction unavailable: %s", reason or "empty landmarks")
+            raise ValueError(reason or "Repérage automatique indisponible ; aucune analyse enregistrée.")
 
         pts = vision_result["landmarks"]
         logger.info("%s points détectés par le moteur %s", len(pts), vision_result["mode_inference"])

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import ast
 import builtins
+import os
 import sys
 import types
 from pathlib import Path
@@ -52,6 +53,25 @@ def check_constructor_is_lightweight() -> None:
     _require(engine.is_ready is False, "Legacy engine must not be ready before first fallback demand")
 
 
+def check_clinical_runtime_never_attempts_legacy_pytorch() -> None:
+    _bootstrap_backend_namespace()
+    from backend.services import vision_service
+
+    engine = vision_service.VisionEngine()
+    with patch.dict(
+        os.environ,
+        {
+            "ENVIRONMENT": "production",
+            "DATABASE_URL": "sqlite:///./clinical_vault.db",
+            "DIGITALCROWN_ISOLATED_RUNTIME": "0",
+        },
+    ):
+        engine._initialize_legacy_engine()
+    _require(engine.legacy_init_attempted is False, "Clinical HOLD attempted legacy model")
+    _require(engine.model is None and engine.torch is None, "Clinical HOLD imported PyTorch")
+    _require(engine.is_ready is False, "Clinical HOLD initialized a model")
+
+
 def check_winerror_1455_fail_closed() -> None:
     _bootstrap_backend_namespace()
     from backend.services import vision_service
@@ -64,10 +84,22 @@ def check_winerror_1455_fail_closed() -> None:
             raise OSError(1455, "Le fichier de pagination est insuffisant")
         return real_import(name, *args, **kwargs)
 
-    with patch.object(builtins, "__import__", side_effect=guarded_import):
+    # This scenario belongs to a disposable in-memory LAB only. The clinical
+    # process now refuses to reach the PyTorch import at all.
+    with (
+        patch.dict(
+            os.environ,
+            {
+                "ENVIRONMENT": "test",
+                "DIGITALCROWN_ISOLATED_RUNTIME": "true",
+                "DATABASE_URL": "sqlite:///:memory:",
+            },
+        ),
+        patch.object(builtins, "__import__", side_effect=guarded_import),
+    ):
         engine._initialize_legacy_engine()
 
-    _require(engine.legacy_init_attempted is True, "Legacy fallback attempt was not recorded")
+    _require(engine.legacy_init_attempted is True, "LAB legacy fallback attempt was not recorded")
     _require(engine.torch is None, "Torch remained bound after WinError 1455")
     _require(engine.model is None, "Legacy model exists after WinError 1455")
     _require(engine.is_ready is False, "Legacy engine became ready after WinError 1455")
@@ -76,6 +108,7 @@ def check_winerror_1455_fail_closed() -> None:
 def main() -> int:
     check_no_eager_torch_import()
     check_constructor_is_lightweight()
+    check_clinical_runtime_never_attempts_legacy_pytorch()
     check_winerror_1455_fail_closed()
     print("LAZY_PYTORCH_BOOT_GATE=OK")
     return 0
