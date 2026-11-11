@@ -6,6 +6,17 @@
 
 # STATE — DigitalCrown
 
+## LOT08.2-D/E/F/G — INTEGRATED SOURCE/LAB MERGED, PRODUCT INSTALLABLE HOLD — 2026-11-11
+
+- **GO:** utilisateur « Go » le 11/11/2026 pour intégrer les PR 08.2, exécuter la FUE, fusion contrôlée ; aucune permission de déployer ni d'installer en cabinet.
+- **Master verified after squash merge:** `d89dd77831970b3c1ba23c95e7e12884b47afd47`, [PR #1292 merged](https://github.com/hraaaaf/Digital_crown/pull/1292). Candidate source head `0c5ae67e33ab3eec614bdfbd3921714adf273f85` on former master `093e89390d0e4b934d478485ea1ef28a7ce95de4`. 17 changed paths = 16 LAB added + 1 QR regression test modified; 0 patient/clinical runtime changes.
+- **FUE exact candidate head:** [Queue #43018994172](https://github.com/hraaaaf/Digital_crown/actions/runs/43018994172) **216 passed / 3 skipped / 4 subtests passed**; [Windows E #43018994438](https://github.com/hraaaaf/Digital_crown/actions/runs/43018994438) 2/2 SUCCESS; [Windows F #43018994111](https://github.com/hraaaaf/Digital_crown/actions/runs/43018994111) 2/2 SUCCESS; [native SQLCipher and Windows G #43018994567](https://github.com/hraaaaf/Digital_crown/actions/runs/43018994567) 3/3 SUCCESS; [Scope #43018994142](https://github.com/hraaaaf/Digital_crown/actions/runs/43018994142) SUCCESS. Final 11 PR-triggered workflows = 10 SUCCESS + 1 biometric SKIPPED, 0 FAILED/ACTIVE. Two initial E/G CI source-gate failures were repaired by exact 17-file allowlist, not by disabling security tests.
+- **Master postmerge SHA verified** by connector. The available workflow-run lookup filters PR-triggered runs; a master push postmerge run has **not yet been independently proven**. Do not relabel the candidate tests as a master build certificate.
+- **Verdict:** LOT08.2 identity/RBAC/pairing/QR and Windows LAB safety regression **source-integrated & synthetic FUE proven**. **PRODUCT/INSTALLABLE CLOSEOUT HOLD** until authentic INSTALLABLE_CERTIFIED on current exact master and Windows installed FUE-G (real EXE, QR/surfaces where in scope). No cabinet install, clinic activation, human-facing patient data, migration, deploy or Vercel. 08.3–08.6 remain OPEN.
+- **Canonical detail:** [V15_08_2_CLOSEOUT_GATE_20261111.md](docs/v1.5/V15_08_2_CLOSEOUT_GATE_20261111.md), Notion [V1.5-08](https://app.notion.com/p/3ec77c66336281d59cdcffe610561f86).
+- **NEXT EXACT:** finish doc closeout PR #1289; preserve history while closing superseded DRAFT PR #1273/#1274/#1275/#1287 only after validating master coverage, then start LOT08.3 Queue engine as distinct decision. No actual installable proof may be inferred from the lab's negative release checks.
+
+
 ## LOT08.2-B / B-7d — RED CONFLICTS RECONCILED / LAB FUE-I PASS — 2026-11-09
 
 - **Décision autorisée** : utilisateur « Go then », tests frontend B-7d sur le merge simulé et, après preuves de sécurité, réconciliation contrôlée de la **branche PR DRAFT #1239 uniquement**. Ne jamais merger la PR vers master, installer, créer une release, utiliser de vrais dossiers patient ou approuver automatiquement le visuel.
