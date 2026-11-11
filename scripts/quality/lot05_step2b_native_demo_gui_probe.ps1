@@ -5,7 +5,23 @@ $outFile=Join-Path $env:RUNNER_TEMP 'lot05_native_demo_gui_probe.json'
 $png=Join-Path $env:RUNNER_TEMP 'lot05_native_demo_choose_database.png'
 $appPng=Join-Path $env:RUNNER_TEMP 'lot05_native_demo_open_dental_window.png'
 $r=[ordered]@{
-  kind='LOT05_NATIVE_DEMO_GUI_DISCOVERY_FUE_I'
+  kind='LOT05_REPORTS_USER_QUERY_PERMISSION_AWARE_PROBE'
+  report_route_enabled=$true
+  reports_menu_attempted=$false
+  reports_menu_invoked=$false
+  reports_menu_cycle=-1
+  reports_menu_candidate_count=0
+  user_query_menu_candidate_count=0
+  user_query_menu_clicked=$false
+  user_query_menu_cycle=-1
+  user_query_menu_hit_owned=$false
+  user_query_native_window_observed=$false
+  user_query_native_window_title='NOT_OBSERVED'
+  user_query_native_window_owned=$false
+  user_query_gui_controls=@()
+  report_auth_denied_observed=$false
+  report_probe_complete=$false
+  report_probe_result='NOT_STARTED'
   exact_head=$env:LOT05_EXPECTED_SHA
   prereq_server_and_demo_verified=$false
   app_exe_hash_valid=$false
@@ -469,12 +485,26 @@ public static class Lot05DemoGuiWindow {
                $cycle -ge $r.demo_connect_click_cycle+15){$r.demo_connect_post_checked=$true}
           }catch{$r.uia_errors++}
         }
+        # PATH B: avoid File > Choose Database entirely after the
+        # application's explicit "Not authorized" response. Use only the
+        # independently permission-checked Reports > User Query menu. No
+        # patients, credentials, SQL, database edits, or exports in this probe.
+        if($r.report_route_enabled -and $r.report_route_started -and
+           $title -match '^(User Query|User Query - .+)$' -and
+           $ids.Contains($pidHere)){
+          $r.user_query_native_window_observed=$true
+          $r.user_query_native_window_title='User Query'
+          $r.user_query_native_window_owned=$true
+          $r.report_probe_result='AUTHORIZED_USER_QUERY_WINDOW'
+          $r.report_probe_complete=$true
+        }
         $isChooser=($title -ceq 'Choose Database')
         $isApp=($title -ceq 'Open Dental')
         if(-not $isChooser -and -not $isApp){continue}
         if($isChooser -and $r.chooser_window_captured){continue}
         # Continue UIA menu discovery each cycle after main window evidence.
-        if($isApp -and $cycle -notin @(8,20,40,65,95,110) -and
+        if($isApp -and -not $r.report_route_enabled -and
+           $cycle -notin @(8,20,40,65,95,110) -and
            -not ($r.app_window_captured -and -not $r.choose_database_menu_invoked)){
           continue
         }
@@ -539,11 +569,135 @@ public static class Lot05DemoGuiWindow {
             }
           }
         }
+        # Read-only report entitlement probe, not a database selection.
+        if($r.report_route_enabled -and $isApp -and
+           $r.app_window_captured -and
+           $r.app_png_sha256 -ceq '31ef8a37ff9a3f93845e799dca610ae6a05bc4ed4b11378fac5d577af1b7bd6d' -and
+           $width -eq 1040 -and $height -eq 744 -and
+           $r.app_window_owner_pid_verified -and
+           $cycle -ge 20 -and -not $r.reports_menu_attempted){
+          $r.reports_menu_attempted=$true
+          $r.reports_menu_cycle=$cycle
+          $r.report_route_started=$true
+          try{
+            $allItems=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            $reportItems=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
+            for($j=0;$j -lt [Math]::Min(450,$allItems.Count);$j++){
+              $el=$allItems.Item($j)
+              if([int]$el.Current.ProcessId -ne $pidHere){continue}
+              if([string]$el.Current.Name -ceq 'Reports' -and
+                 [string]$el.Current.ControlType.ProgrammaticName -ceq 'ControlType.MenuItem' -and
+                 $el.Current.IsEnabled){$reportItems.Add($el)}
+            }
+            $r.reports_menu_candidate_count=$reportItems.Count
+            if($reportItems.Count -eq 1){
+              $node=$reportItems[0]
+              $pat=$null
+              if($node.TryGetCurrentPattern([System.Windows.Automation.ExpandCollapsePattern]::Pattern,[ref]$pat)){
+                ([System.Windows.Automation.ExpandCollapsePattern]$pat).Expand()
+                $r.reports_menu_invoked=$true
+                $r.report_probe_result='REPORTS_MENU_EXPANDED'
+              }
+            }
+          }catch{$r.uia_errors++}
+        }
+        if($r.report_route_enabled -and $isApp -and
+           $r.reports_menu_invoked -and -not $r.user_query_menu_clicked -and
+           $cycle -gt $r.reports_menu_cycle){
+          try{
+            $allItems=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            $items=New-Object 'System.Collections.Generic.List[System.Windows.Automation.AutomationElement]'
+            for($j=0;$j -lt [Math]::Min(500,$allItems.Count);$j++){
+              $el=$allItems.Item($j)
+              if([int]$el.Current.ProcessId -ne $pidHere){continue}
+              $nm=[string]$el.Current.Name
+              $ct=[string]$el.Current.ControlType.ProgrammaticName
+              if($nm -match '(?i)Not authorized for.*User.?Query|Permission denied.*User.?Query'){
+                $r.report_auth_denied_observed=$true
+                $r.report_probe_result='USER_QUERY_PERMISSION_DENIED'
+              }
+              if($nm -ceq 'User Query' -and
+                 $ct -ceq 'ControlType.MenuItem' -and
+                 $el.Current.IsEnabled){$items.Add($el)}
+            }
+            $r.user_query_menu_candidate_count=$items.Count
+            if($items.Count -eq 1 -and -not $r.report_auth_denied_observed){
+              $el=$items[0]
+              $bo=$el.Current.BoundingRectangle
+              $bx=[int][Math]::Floor($bo.X+$bo.Width/2)
+              $by=[int][Math]::Floor($bo.Y+$bo.Height/2)
+              if([int]$el.Current.ProcessId -eq $pidHere -and
+                 $bo.Width -ge 70 -and $bo.Width -le 350 -and
+                 $bo.Height -ge 16 -and $bo.Height -le 42 -and
+                 $bx -ge 0 -and $by -ge 0){
+                $null=[Lot05DemoGuiWindow]::SetForegroundWindow($hwnd)
+                Start-Sleep -Milliseconds 140
+                $fg=[Lot05DemoGuiWindow]::GetForegroundWindow()
+                $fgPid=[uint32]0
+                if($fg -ne [IntPtr]::Zero){
+                  $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($fg,[ref]$fgPid)
+                }
+                $pt=New-Object Lot05DemoGuiWindow+Point
+                $pt.X=$bx;$pt.Y=$by
+                if([int]$fgPid -eq $pidHere -and [Lot05DemoGuiWindow]::SetCursorPos($bx,$by)){
+                  Start-Sleep -Milliseconds 70
+                  $hit=[Lot05DemoGuiWindow]::WindowFromPoint($pt)
+                  $hitPid=[uint32]0
+                  if($hit -ne [IntPtr]::Zero){
+                    $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($hit,[ref]$hitPid)
+                  }
+                  $r.user_query_menu_hit_owned=([int]$hitPid -eq $pidHere)
+                  if($r.user_query_menu_hit_owned){
+                    [Lot05DemoGuiWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                    Start-Sleep -Milliseconds 85
+                    [Lot05DemoGuiWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
+                    $r.user_query_menu_clicked=$true
+                    $r.user_query_menu_cycle=$cycle
+                    $r.report_probe_result='USER_QUERY_MENU_CLICK_SENT'
+                  }
+                }
+              }
+            }
+          }catch{$r.uia_errors++}
+        }
+        if($r.report_route_enabled -and $isApp -and
+           $r.user_query_menu_clicked -and -not $r.user_query_native_window_observed -and
+           $cycle -gt $r.user_query_menu_cycle){
+          try{
+            $allItems=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            for($j=0;$j -lt [Math]::Min(500,$allItems.Count);$j++){
+              $el=$allItems.Item($j)
+              if([int]$el.Current.ProcessId -ne $pidHere){continue}
+              $nm=[string]$el.Current.Name
+              $ct=[string]$el.Current.ControlType.ProgrammaticName
+              if($nm -match '(?i)Not authorized for.*User.?Query|Permission denied.*User.?Query'){
+                $r.report_auth_denied_observed=$true
+                $r.report_probe_result='USER_QUERY_PERMISSION_DENIED'
+              }
+              if($ct -ceq 'ControlType.Window' -and
+                 $nm -match '^(User Query|User Query - .+)$'){
+                $r.user_query_native_window_observed=$true
+                $r.user_query_native_window_title='User Query'
+                $r.user_query_native_window_owned=$ids.Contains([int]$el.Current.ProcessId)
+                $r.report_probe_result='AUTHORIZED_USER_QUERY_WINDOW'
+                $r.report_probe_complete=$true
+              }
+              if($nm -match '^(Submit Query|Export \.csv|Query Results|Favorites)$' -and
+                 $r.user_query_gui_controls -notcontains $nm -and
+                 $r.user_query_gui_controls.Count -lt 8){
+                $r.user_query_gui_controls+=,$nm
+              }
+            }
+          }catch{$r.uia_errors++}
+        }
         # STEP 3A: one allowlisted native File -> Choose Database menu
         # navigation. The prior TWO exact-HEAD runs pinned this untouched main
         # window PNG, same 1040x744, signed OpenDental.exe, no selected patient.
         # No database field, password, report or patient control is touched.
-        if($isApp -and $r.app_window_captured -and
+        if(-not $r.report_route_enabled -and $isApp -and $r.app_window_captured -and
            $r.app_png_sha256 -ceq '31ef8a37ff9a3f93845e799dca610ae6a05bc4ed4b11378fac5d577af1b7bd6d' -and
            $width -eq 1040 -and $height -eq 744 -and
            $r.app_window_owner_pid_verified -and
@@ -610,7 +764,7 @@ public static class Lot05DemoGuiWindow {
             }
           }
         }
-        if($isApp -and $r.file_menu_invoked -and $cycle -gt $r.file_menu_cycle -and
+        if(-not $r.report_route_enabled -and $isApp -and $r.file_menu_invoked -and $cycle -gt $r.file_menu_cycle -and
            -not $r.choose_database_menu_invoked){
           try{
             $allWindows=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
@@ -704,7 +858,14 @@ public static class Lot05DemoGuiWindow {
         }
       }catch{$r.uia_errors++}
     }
-    if($r.demo_connect_post_checked){break}
+    if($r.report_route_enabled){
+      if($r.report_probe_complete -or
+         ($r.report_auth_denied_observed -and $cycle -ge 26) -or
+         ($r.reports_menu_attempted -and $cycle -ge 60)){
+        $r.report_probe_complete=$true
+        break
+      }
+    }elseif($r.demo_connect_post_checked){break}
   }
 }catch{
   $r.error_code='EXACT_DEMO_APP_GUI_DISCOVERY_FAIL_CLOSED'
@@ -713,6 +874,13 @@ public static class Lot05DemoGuiWindow {
   foreach($childPid in @($ids)){try{Stop-Process -Id $childPid -Force -ErrorAction SilentlyContinue}catch{}}
   [System.IO.File]::WriteAllText($outFile,($r|ConvertTo-Json -Depth 4),(New-Object System.Text.UTF8Encoding($false)))
 }
+Write-Host ('LOT05_REPORT_PROBE_ROUTE='+$r.report_route_enabled)
+Write-Host ('LOT05_REPORT_MENU_EXPANDED='+$r.reports_menu_invoked)
+Write-Host ('LOT05_USER_QUERY_MENU_CANDIDATES='+$r.user_query_menu_candidate_count)
+Write-Host ('LOT05_USER_QUERY_MENU_CLICKED='+$r.user_query_menu_clicked)
+Write-Host ('LOT05_USER_QUERY_WINDOW_OBSERVED='+$r.user_query_native_window_observed)
+Write-Host ('LOT05_USER_QUERY_AUTH_DENIED='+$r.report_auth_denied_observed)
+Write-Host ('LOT05_USER_QUERY_PROBE_RESULT='+$r.report_probe_result)
 Write-Host ('LOT05_NATIVE_DEMO_APP_EXECUTED='+$r.app_process_started)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CAPTURED='+$r.chooser_window_captured)
 Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_CAPTURED='+$r.app_window_captured)
@@ -745,11 +913,22 @@ Write-Host ('LOT05_NATIVE_DEMO_CONNECT_POST_ERRORS='+($r.demo_connect_post_error
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLOSED='+$r.demo_connect_dialog_closed_observed)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_POST_WINDOWS='+($r.demo_connect_post_dialog_names -join ';'))
 Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
-if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
-   -not $r.app_exe_signature_valid -or -not $r.app_process_started -or
-   -not $r.choose_database_menu_invoked -or -not $r.chooser_window_captured -or
-   -not $r.demo_connect_click_sent -or -not $r.demo_connect_post_checked -or
-   -not $r.demo_connect_dialog_closed_observed -or
-   $null -ne $r.error_code){
-  throw 'NATIVE_DEMO_CONNECT_CONFIRMATION_NOT_PROVEN'
+if($r.report_route_enabled){
+  if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
+     -not $r.app_exe_signature_valid -or -not $r.app_process_started -or
+     -not $r.reports_menu_invoked -or -not $r.user_query_menu_clicked -or
+     -not $r.user_query_native_window_observed -or
+     -not $r.user_query_native_window_owned -or
+     $r.report_auth_denied_observed -or $null -ne $r.error_code){
+    throw 'NATIVE_USER_QUERY_PERMISSION_OR_WINDOW_NOT_PROVEN'
+  }
+}else{
+  if(-not $r.prereq_server_and_demo_verified -or -not $r.app_exe_hash_valid -or
+     -not $r.app_exe_signature_valid -or -not $r.app_process_started -or
+     -not $r.choose_database_menu_invoked -or -not $r.chooser_window_captured -or
+     -not $r.demo_connect_click_sent -or -not $r.demo_connect_post_checked -or
+     -not $r.demo_connect_dialog_closed_observed -or
+     $null -ne $r.error_code){
+    throw 'NATIVE_DEMO_CONNECT_CONFIRMATION_NOT_PROVEN'
+  }
 }
