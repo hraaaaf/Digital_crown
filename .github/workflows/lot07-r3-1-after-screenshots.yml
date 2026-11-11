@@ -74,7 +74,10 @@ jobs:
           mkdir -p /tmp/071-g1-playwright
           npm install --prefix /tmp/071-g1-playwright --no-save --ignore-scripts --no-audit --no-fund playwright@1.55.0
           ln -s /tmp/071-g1-playwright/node_modules/playwright node_modules/playwright
-          /tmp/071-g1-playwright/node_modules/.bin/playwright install --with-deps chromium
+          # GitHub Ubuntu runner has the browser shared libraries. Do not invoke apt
+          # here: ubuntu mirror DNS is currently failing on both independent jobs.
+          # Keep the genuine Chromium browser install and end-to-end launch/assertions.
+          /tmp/071-g1-playwright/node_modules/.bin/playwright install chromium
       - name: Assert database target is disposable and never a real Cabinet
         shell: bash
         run: |
