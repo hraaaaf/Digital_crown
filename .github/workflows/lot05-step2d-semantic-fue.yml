@@ -1,0 +1,48 @@
+name: LOT05 2D Fake Semantic Mapping Oracle FUE-0 (NO IMPORT)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/tests/test_lot05_step2d_semantic_oracle_fue.py'
+      - 'backend/services/legacy_migration_csv_mapping_lab_v15.py'
+      - 'backend/services/legacy_sql_mapping_v15.py'
+      - '.github/workflows/lot05-step2d-semantic-fue.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-semantic-fue0:
+    name: Fake semantic inversion and date oracle / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact SHA and compile
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile backend/tests/test_lot05_step2d_semantic_oracle_fue.py
+      - name: Execute synthetic independent semantic oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B backend/tests/test_lot05_step2d_semantic_oracle_fue.py -q 2>&1 | tee lot05-2d-semantic.log
+          grep -q 'Ran 12 tests' lot05-2d-semantic.log
+          grep -q '^OK' lot05-2d-semantic.log
+          echo 'LOT05_2D_FAKE_SEMANTIC_INVERSION_ORACLE_TWELVE_PASS_NO_IMPORT'
