@@ -1,7 +1,8 @@
 # Digital Crown — Design Reference
 
 **Document:** `design.md` · **Edition:** 0.1 · **Snapshot:** 2026-11-11 (UTC)  
-**Decision:** DESIGN-BASELINE-01 · **Nature:** documentation / FUE-0 · **Status:** DRAFT, not merged  
+**Decision:** DESIGN-BASELINE-01 · **Nature:** documentation / FUE-0 · **Status:** INTEGRATED ON MASTER (documentation only; not a clinical/release certificate)  
+**Integration:** [PR #1296](https://github.com/hraaaaf/Digital_crown/pull/1296) · squash-merge `747a201fb9e2ec9372e4301af4d670e225835a7d`  
 **Repository:** [hraaaaf/Digital_crown](https://github.com/hraaaaf/Digital_crown) · **Observed master at drafting:** `17e4dc381db823cd6a95b1b695dab7700a219faa`
 
 > **Purpose.** Establish a single, navigable design reference for the product, clinical UX, visual language, authorized boundaries and currently active design dependencies. This is a **design map**, not a new execution roadmap, a code certificate, a clinical validation, an installation authorization or a release claim.
