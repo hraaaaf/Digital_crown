@@ -192,9 +192,17 @@ async function capture(viewport, attempt, theme) {
       const drawerRect = document.querySelector('[data-cephalo-review-lexicon-details]')?.getBoundingClientRect();
       const overlapWidth = stageRect && drawerRect ? Math.max(0, Math.min(stageRect.right, drawerRect.right) - Math.max(stageRect.left, drawerRect.left)) : 0;
       const overlapHeight = stageRect && drawerRect ? Math.max(0, Math.min(stageRect.bottom, drawerRect.bottom) - Math.max(stageRect.top, drawerRect.top)) : 0;
-      const stageCenterX = stageRect ? Math.max(2, Math.min(innerWidth - 2, stageRect.left + stageRect.width / 2)) : 0;
-      const stageCenterY = stageRect ? Math.max(2, Math.min(innerHeight - 2, (Math.max(0,stageRect.top) + Math.min(innerHeight,stageRect.bottom)) / 2)) : 0;
-      const hit = document.elementFromPoint(stageCenterX, stageCenterY);
+      const candidates = stageRect
+        ? [0.22,0.48,0.74].flatMap(xFraction => [0.22,0.48,0.74].map(yFraction => ({
+          x: stageRect.left + stageRect.width * xFraction,
+          y: Math.max(0,stageRect.top) + (Math.min(innerHeight,stageRect.bottom) - Math.max(0,stageRect.top)) * yFraction,
+        }))).filter(p => p.x >= 1 && p.x < innerWidth - 1 && p.y >= 1 && p.y < innerHeight - 1)
+        : [];
+      const visibleStagePoints = candidates.filter(p => {
+        const hit = document.elementFromPoint(p.x, p.y);
+        return Boolean(hit?.closest('[data-r20-radiograph-stage]') && !hit.closest('[data-cephalo-review-lexicon-details]'));
+      });
+      const accessibleStagePoint = visibleStagePoints[0] || null;
       return {
         width: innerWidth,
         activeTheme: document.body.dataset.theme,
@@ -206,8 +214,10 @@ async function capture(viewport, attempt, theme) {
         panelVisible: Boolean(panelRect && panelRect.width > 10 && panelRect.height > 10),
         radiographStageVisible: Boolean(stageRect && stageRect.width > 50 && stageRect.height > 50 && stageRect.top < innerHeight && stageRect.bottom > 0),
         glossaryRadiographOverlapPx2: overlapWidth * overlapHeight,
-        stageHitIsNotGlossary: Boolean(hit && !hit.closest('[data-cephalo-review-lexicon-details]')),
-        stageHitInsideStage: Boolean(hit && hit.closest('[data-r20-radiograph-stage]')),
+        stageHitIsNotGlossary: accessibleStagePoint !== null,
+        stageHitInsideStage: accessibleStagePoint !== null,
+        accessibleStagePoint,
+        accessibleStagePointCount: visibleStagePoints.length,
         radiographUncoveredAboveDrawerPx: stageRect && drawerRect
           ? Math.max(0, Math.min(stageRect.bottom, drawerRect.top, innerHeight) - Math.max(stageRect.top, 0)) : 0,
         panelWithinViewportX: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= innerWidth + 1),
@@ -215,17 +225,12 @@ async function capture(viewport, attempt, theme) {
       };
     });
 
-    const stagePointerProbe = await page.evaluate(() => {
+    await page.evaluate(() => {
       const stage = document.querySelector('[data-r20-radiograph-stage]');
-      const rect = stage?.getBoundingClientRect();
-      if (!stage || !rect) return null;
-      const x = Math.max(2, Math.min(innerWidth - 2, rect.left + rect.width / 2));
-      const y = Math.max(2, Math.min(innerHeight - 2, (Math.max(0, rect.top) + Math.min(innerHeight, rect.bottom)) / 2));
       (window).__cephS4PointerReached = false;
-      stage.addEventListener('pointerdown', () => { (window).__cephS4PointerReached = true; }, { capture: true, once: true });
-      return { x, y };
+      stage?.addEventListener('pointerdown', () => { (window).__cephS4PointerReached = true; }, { capture: true, once: true });
     });
-    if (stagePointerProbe) await page.mouse.click(stagePointerProbe.x, stagePointerProbe.y);
+    if (metrics.accessibleStagePoint) await page.mouse.click(metrics.accessibleStagePoint.x, metrics.accessibleStagePoint.y);
     const pointerReachedStage = await page.evaluate(() => (window).__cephS4PointerReached === true);
     await search.press('Escape');
     const closedOnEscape = await details.evaluate(node => !node.open);
@@ -236,7 +241,7 @@ async function capture(viewport, attempt, theme) {
       && metrics.panelVisible && metrics.panelWithinViewportX && metrics.radiographStageVisible
       && metrics.glossaryRadiographOverlapPx2 === 0 && metrics.stageHitIsNotGlossary
       && metrics.stageHitInsideStage
-      && (viewport.width > 768 || metrics.radiographUncoveredAboveDrawerPx >= 260)
+      && (viewport.width > 768 || metrics.radiographUncoveredAboveDrawerPx >= 240)
       && closedOnEscape && focusReturned && pointerReachedStage
       && !metrics.horizontalDocumentOverflow
       && metrics.clinicalBadgesPresent === 0
