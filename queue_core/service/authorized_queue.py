@@ -126,6 +126,18 @@ class AuthorizedLocalQueue:
             raise ValueError("AUTH_QUEUE_DATABASES_MUST_BE_SEPARATE")
         if not queue_path.is_file():
             raise ValueError("QUEUE_DB_NOT_INITIALIZED")
+        # 08.3-A: an older on-disk Queue schema must NOT silently bypass
+        # append-only evidence integrity. This is READ-ONLY verification:
+        # never auto-migrate, never overwrite a cabinet or LAB database.
+        with queue_engine.connect() as audit_conn:
+            immutable_triggers = set(audit_conn.exec_driver_sql(
+                "SELECT name FROM sqlite_master "
+                "WHERE type='trigger' AND tbl_name='queue_event_log'"
+            ).scalars())
+        if not {
+            "queue_event_log_no_update", "queue_event_log_no_delete",
+        }.issubset(immutable_triggers):
+            raise ValueError("QUEUE_EVENT_IMMUTABILITY_REQUIRED")
         self._operators = operators
         self._engine = queue_engine
         self._clock = clock
