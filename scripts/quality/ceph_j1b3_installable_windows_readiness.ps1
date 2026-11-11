@@ -110,3 +110,7 @@ Write-Output 'J1B3_WINDOWS_SOURCE_CONTRACT_10_OF_10_PASS'
 Write-Output 'J1B3_UNSIGNED_AUTHENTICODE_FAIL_CLOSED_PASS'
 Write-Output 'J1B3_NO_CERTIFIED_PACKAGE_NO_INSTALL_VERIFIED'
 Write-Output ('J1B3_ARTIFACT=' + $artifact)
+# The intentionally failed unsigned-EXE subprocess is the required negative
+# oracle. Clear its LASTEXITCODE only after every denial and cleanup assertion
+# succeeds, so the parent workflow reports the real source-only gate result.
+$global:LASTEXITCODE = 0
