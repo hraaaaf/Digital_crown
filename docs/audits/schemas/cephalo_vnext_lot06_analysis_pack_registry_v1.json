@@ -105,7 +105,8 @@
         "M_CO_GN_ANATOMIC_MM_V1",
         "M_ANS_ME_MM_V1",
         "M_SNA_DEG_V1",
-        "M_FH_GOME_DEG_V1"
+        "M_FH_GOME_DEG_V1",
+        "M_CO_GN_MINUS_CO_A_MM_V1"
       ],
       "blocked_measurement_ids": []
     },
