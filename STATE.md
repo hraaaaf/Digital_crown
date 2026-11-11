@@ -6,6 +6,21 @@
 
 # STATE — DigitalCrown
 
+## LOT08.3-B2-B — 2026-11-11 — ENCRYPTED SYNTHETIC QUEUE RESTORE CLONE (NO INSTALLABLE)
+
+**User GO:** 2026-11-11 after 08.3-B2-A merged, risk/effort HIGH explicitly announced. One bounded decision: prove encrypted online SQLite Queue snapshot, authenticated decrypt, and **create-only restore CLONE** against fake Queue LAB. Master baseline `ca533b7d04432b85553cf97e18df216cceb85a38`, separate draft branch `feat/lot08-3-b2b-encrypted-restore-clone-lab-20261111`.
+
+**Scope:** NEW `queue_core/service/backup_restore_clone_08_3_b2_lab.py`, `queue_core/tests/test_backup_restore_clone_08_3_b2_lab.py`, native 2-OS workflow `.github/workflows/v15-08-3-b2b-restore-clone-lab.yml`, and this handover ONLY. No changes to actual clinical backend, existing `backend/services/backup_service.py`, Queue HTTP/authorized services, installer, scheduling, or real cabinet. The actual LOT05 SQLCipher/Guided Restore already has separate runbooks/tests; this Queue clone lab is **not** that product or a validation of its real-key/SQLCipher/media restoration.
+
+**Security oracles:** only system-temp, `lot08_3_b_lab_*.sqlite` source with explicit `application_id=LOT8`, immutable event triggers and FK/integrity, allowlisted Queue tables only, exact QR schema if present, no patient/clinical tables. Read-only source + native SQLite online backup (committed WAL included) into in-memory image; Fernet authenticated encryption with caller-generated **separate test key**, no plaintext source on backup medium, no overwrite of existing archive. Restore authenticates ciphertext, verifies authenticated created time/size/digest, memory-deserializes and revalidates schema; **refuses** if *any* tenant has closed visits eligible for 30-day purge or consumed QR retry receipts strictly over 7 days and expired. It DOES NOT silently purge/replay or rewrite append-only audit. Only after gates: stage a *new* clone in the isolated temp directory, verify then create-only publish with hard-link; no replacement of existing target. Injection failure cleans stage and leaves original source untouched. No active DB publication.
+
+**FUE required:** real Windows 2022 + Ubuntu native SQLite+cryptography with tests of successful clone/tenants/audit, stale backup anti-reappearance at both retention boundaries, valid post-purge snapshot, wrong key/cipher tamper, unexpected clinical schema/disabled triggers, non-LAB filename or marker, no overwrite, failure rollback/staging removal, future-dated archive, committed WAL snapshot, cross-tenant stale row. Save exact HEAD + JUnit and CI scope proofs; fix failures before any READY/merge. ALL CURRENT PROOF = CODE CANDIDATE ONLY; do not claim FUE green without CI confirmation.
+
+**Critical unsatisfied gates:** 7 daily + 4 weekly encrypted backups on independent media with separated recovery keys, old-backup garbage collection and anti-rollback across offsite copies, physical crash/power-off and multi-component DB/media snapshots, RPO <=1 h/RTO <=2 h measured, legal CNDP/09-08 approval, actual installable and real patient data. Restore clone cannot become active cabinet DB. **NO_DEPLOY / NO_MERGE without new owner GO**. 08.3 global remains OPEN, 08.4–08.6 deferred.
+
+**Next exact:** draft PR, exact-head Win+Linux real tests, negative-oracle review, Notion POST and distinct owner merge gate. 
+
+
 ## LOT08.3-B2-A — 2026-11-11 — 7-DAY CONSUMED QR RETRY RECEIPT RETENTION, SYNTHETIC LAB ONLY
 
 **Decision:** owner « Go » after #1301 integrated. One 08.3-B2 subdecision only: the **existing** synthetic QR receipt ledger `queue_presence_qr_lab` from LOT08.2-D, not imaginary generic webhook/log tables or legal-audit purge. Master baseline `8a9db931d153f7d20edc5d6ea70faab2f12feee3`. [Draft PR #1303](https://github.com/hraaaaf/Digital_crown/pull/1303), branch `feat/v15-08-3-b2-qr-ledger-retention-lab-20261111`.
