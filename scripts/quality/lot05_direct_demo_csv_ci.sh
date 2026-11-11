@@ -20,7 +20,7 @@ fi
 command -v docker >/dev/null
 command -v python3 >/dev/null
 command -v openssl >/dev/null
-image='mariadb:10.11'
+image='mariadb@sha256:d769e37960821dfdcf096954f6e7ac89f747e116c1bba98e48edd265dfc7deae'
 container="lot05-demo-ci-${GITHUB_RUN_ID:-0}-${GITHUB_RUN_ATTEMPT:-1}"
 result_dir="$RUNNER_TEMP/lot05-direct-demo-csv"
 raw_dir="$RUNNER_TEMP/lot05-direct-internal"

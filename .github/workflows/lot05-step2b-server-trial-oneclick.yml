@@ -6,9 +6,6 @@ name: LOT05 Step2B Direct Synthetic MariaDB CSV
     branches: [master]
     paths:
       - '.github/workflows/lot05-step2b-server-trial-oneclick.yml'
-      - 'scripts/quality/lot05_step2b_server_trial_oneclick_lab.ps1'
-      - 'scripts/quality/lot05_step2b_server_fullchain_lab.ps1'
-      - 'scripts/quality/lot05_step2b_native_demo_gui_probe.ps1'
       - 'scripts/quality/lot05_direct_demo_csv_ci.sh'
 
 permissions:
@@ -41,9 +38,6 @@ jobs:
             <(git diff --name-only "$base" HEAD | LC_ALL=C sort) \
             <(printf '%s\n' \
               '.github/workflows/lot05-step2b-server-trial-oneclick.yml' \
-              'scripts/quality/lot05_step2b_server_trial_oneclick_lab.ps1' \
-              'scripts/quality/lot05_step2b_server_fullchain_lab.ps1' \
-              'scripts/quality/lot05_step2b_native_demo_gui_probe.ps1' \
               'scripts/quality/lot05_direct_demo_csv_ci.sh' | LC_ALL=C sort)
           bash -n scripts/quality/lot05_direct_demo_csv_ci.sh
           echo LOT05_DIRECT_EXACT_HEAD_AND_BASH_PASS=True
