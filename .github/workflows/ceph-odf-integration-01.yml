@@ -1,0 +1,113 @@
+name: CEPH ODF integration-01 visual and draft readiness (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ceph-odf-integration-01.yml
+      - frontend/src/features/ortho/CephaloWorkspace.tsx
+      - frontend/src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx
+      - frontend/src/features/ortho/components/Step1Cephalo.tsx
+      - frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs
+permissions:
+  contents: read
+concurrency:
+  group: ceph-odf-integration-01-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  source-provenance:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact head and approved source blobs
+        env:
+          HEAD: ${{ github.event.pull_request.head.sha }}
+        shell: python
+        run: |
+          import subprocess
+          def git(*a): return subprocess.check_output(['git',*a],text=True).strip()
+          assert git('rev-parse','HEAD')==__import__('os').environ['HEAD']
+          source='ac8972cd83276b55949d06e86e9a1fc57eff66a3'
+          for p in ['frontend/src/features/ortho/CephaloWorkspace.tsx','frontend/src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx','.github/workflows/ceph-readiness-01.yml']:
+              assert git('rev-parse',f'HEAD:{p}')==git('rev-parse',f'{source}:{p}'), p
+          for p in ['frontend/src/features/ortho/components/Step1Cephalo.tsx','frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs']:
+              assert git('rev-parse',f'HEAD:{p}')==git('rev-parse',f'dae5390c6860f2147ac9b60f6b7116875a7cd124:{p}'), p
+          actual=set(git('diff','--name-only','dae5390c6860f2147ac9b60f6b7116875a7cd124','HEAD').splitlines())
+          expected={'.github/workflows/ceph-readiness-01.yml','.github/workflows/ceph-odf-integration-01.yml','frontend/src/features/ortho/CephaloWorkspace.tsx','frontend/src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx'}
+          assert actual==expected,(actual,expected)
+          print('CEPH_ODF_INTEGRATION_EXACT_BLOBS_AND_SCOPE_PASS')
+  frontend-visual:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DATABASE_URL: 'sqlite:///:memory:'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --no-fund
+        working-directory: frontend
+      - name: Run integrated factual state, lexicon and edit history tests
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx src/features/ortho/cephaloCalibration.test.ts src/features/ortho/orthoLandmarkEditStore.test.ts src/features/ortho/components/CephaloLandmarkReviewLexicon.test.tsx src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx
+      - name: TypeScript application
+        working-directory: frontend
+        run: npx tsc -p tsconfig.app.json --noEmit
+      - name: Vite disposable build
+        if: matrix.os == 'ubuntu-24.04'
+        working-directory: frontend
+        run: npx vite build --outDir dist-odf-int01
+      - name: Install isolated Chromium
+        if: matrix.os == 'ubuntu-24.04'
+        working-directory: frontend
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install chromium
+      - name: Light/Dark actual integrated workspace and glossary capture
+        if: matrix.os == 'ubuntu-24.04'
+        working-directory: frontend
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: |
+          node --check scripts/capture-ceph-j1b1-s4-lexicon.mjs
+          node scripts/capture-ceph-j1b1-s4-lexicon.mjs
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const r=JSON.parse(await readFile('ceph-j1b1-s4-visual-artifacts/report.json','utf8'));
+          if(r.productHead!==process.env.PRODUCT_HEAD || r.invalidCount!==0 || r.captures.length!==10 || r.captures.some(x=>!x.valid) || r.blockedExternalRequests.length) throw Error('CEPH_ODF_INTEGRATION_LIGHT_DARK_FAIL');
+          if(r.captures.some(x=>x.metrics?.glossaryRadiographOverlapPx2!==0 || !x.pointerReachedStage)) throw Error('CEPH_ODF_STAGE_BLOCKED');
+          console.log('CEPH_ODF_INTEGRATED_REAL_UI_NO_GLOSSARY_OCCLUSION_PASS');
+          NODE
+      - name: Upload synthetic proof
+        if: always() && matrix.os == 'ubuntu-24.04'
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-odf-integrated-light-dark-after
+          path: frontend/ceph-j1b1-s4-visual-artifacts
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Cleanup disposable build and generated entry
+        if: always()
+        working-directory: frontend
+        shell: bash
+        run: |
+          rm -rf dist-odf-int01
+          rm -f src/ceph-j1b1-s4-entry.tsx ceph-j1b1-s4.html
+          echo CEPH_ODF_NO_PATIENT_NO_DEPLOY_CLEANUP
