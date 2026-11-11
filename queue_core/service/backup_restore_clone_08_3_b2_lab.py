@@ -84,7 +84,10 @@ def _lab_destination(value: str | Path, *, kind: str, exists: bool) -> Path:
 
 def _verify_queue_scope(conn: sqlite3.Connection) -> None:
     conn.execute("PRAGMA foreign_keys=ON")
-    _verify_integrity(conn)
+    try:
+        _verify_integrity(conn)
+    except RetentionLabError as exc:
+        raise RestoreCloneLabError(str(exc)) from None
     tables = {
         row[0] for row in conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' "
@@ -95,7 +98,10 @@ def _verify_queue_scope(conn: sqlite3.Connection) -> None:
         or not tables <= _ALLOWED_TABLES):
         raise RestoreCloneLabError("QUEUE_LAB_SCHEMA_REQUIRED")
     if "queue_presence_qr_lab" in tables:
-        _require_g2_qr_schema(conn)
+        try:
+            _require_g2_qr_schema(conn)
+        except RetentionLabError as exc:
+            raise RestoreCloneLabError(str(exc)) from None
     if conn.execute("SELECT count(*) FROM queue_tenants").fetchone()[0] < 1:
         raise RestoreCloneLabError("QUEUE_LAB_TENANT_REQUIRED")
 
@@ -139,7 +145,10 @@ def seal_queue_snapshot_lab(
     Returns authenticated plaintext image SHA-256 for test comparison only;
     this checksum is not a real external trust anchor or key-management scheme.
     """
-    source_path = _verify_lab_file(source)
+    try:
+        source_path = _verify_lab_file(source)
+    except RetentionLabError as exc:
+        raise RestoreCloneLabError(str(exc)) from None
     target = _lab_destination(archive, kind="archive", exists=False)
     cipher = _fernet(key)
     stamp = _now_epoch(now)
