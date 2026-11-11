@@ -1,0 +1,801 @@
+{
+  "schema_version": 1,
+  "status": "NONCLINICAL_38_TERM_CROSSWALK",
+  "origin": "Digital Crown legacy code ids, cited independent anatomical terminology; only seven author-paper direct numbered mentions",
+  "model_name": "srpose38-tta-1024.onnx",
+  "model_sha256": "a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb",
+  "model_source_commit": "18d17d1934970016e7610c4849311900b8d1f191",
+  "clinical_activation_authorized": false,
+  "model_to_anatomy_certified": false,
+  "numbered_source_matches": 7,
+  "author_paper_pos16_lexical_only": 1,
+  "other_numbers_without_primary_named_pair": 30,
+  "nomenclature_entries": 38,
+  "gate": "SOURCE_LOCK_REQUIRED",
+  "sources": {
+    "author2024": "https://arxiv.org/html/2409.15834v1",
+    "clinical2023": "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/",
+    "peer2018": "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502",
+    "soft2024": "https://www.mdpi.com/2077-0383/8/12/2106",
+    "benchmark2025": "https://www.nature.com/articles/s41597-025-05542-3",
+    "definitions": "https://academic.oup.com/view-large/97191171",
+    "pt": "https://academic.oup.com/view-large/426793504",
+    "local": "docs/SRPOSE38_LANDMARK_CONTRACT.md"
+  },
+  "landmarks": [
+    {
+      "index": 0,
+      "challenge_number": 1,
+      "legacy_runtime_id": "S",
+      "term_en": "Sella",
+      "term_fr": "Selle turcique",
+      "terminology_equivalents": [
+        "Sella turcica",
+        "S"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 1,
+      "challenge_number": 2,
+      "legacy_runtime_id": "N",
+      "term_en": "Nasion",
+      "term_fr": "Nasion",
+      "terminology_equivalents": [
+        "Na",
+        "N"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 2,
+      "challenge_number": 3,
+      "legacy_runtime_id": "Or",
+      "term_en": "Orbitale",
+      "term_fr": "Orbitale",
+      "terminology_equivalents": [
+        "Or",
+        "Bord orbitaire inférieur"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 3,
+      "challenge_number": 4,
+      "legacy_runtime_id": "Po",
+      "term_en": "Anatomical porion",
+      "term_fr": "Porion anatomique",
+      "terminology_equivalents": [
+        "Po",
+        "Porion"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 4,
+      "challenge_number": 5,
+      "legacy_runtime_id": "A",
+      "term_en": "Subspinale / A-point",
+      "term_fr": "Point A (subspinale)",
+      "terminology_equivalents": [
+        "A-point",
+        "Subspinale"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://arxiv.org/html/2409.15834v1",
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "AUTHOR_PAPER_EXPLICIT",
+      "paper_abbreviation": "A",
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 5,
+      "challenge_number": 6,
+      "legacy_runtime_id": "B",
+      "term_en": "Supramentale / B-point",
+      "term_fr": "Point B (supramentale)",
+      "terminology_equivalents": [
+        "B-point",
+        "Supramentale"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 6,
+      "challenge_number": 7,
+      "legacy_runtime_id": "Pog",
+      "term_en": "Bony pogonion",
+      "term_fr": "Pogonion osseux",
+      "terminology_equivalents": [
+        "Pg",
+        "Pog"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 7,
+      "challenge_number": 8,
+      "legacy_runtime_id": "Me",
+      "term_en": "Bony menton",
+      "term_fr": "Menton osseux",
+      "terminology_equivalents": [
+        "Me"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 8,
+      "challenge_number": 9,
+      "legacy_runtime_id": "Gn",
+      "term_en": "Bony gnathion",
+      "term_fr": "Gnathion osseux",
+      "terminology_equivalents": [
+        "Gn"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 9,
+      "challenge_number": 10,
+      "legacy_runtime_id": "Go",
+      "term_en": "Gonion",
+      "term_fr": "Gonion / angle mandibulaire",
+      "terminology_equivalents": [
+        "Go",
+        "Gonion"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://arxiv.org/html/2409.15834v1",
+        "https://www.nature.com/articles/s41597-025-05542-3"
+      ],
+      "challenge_numbered_evidence": "AUTHOR_PAPER_EXPLICIT",
+      "paper_abbreviation": "Go",
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 10,
+      "challenge_number": 11,
+      "legacy_runtime_id": "L1_incisal",
+      "term_en": "Lower central incisor incisal edge",
+      "term_fr": "Bord incisif de l’incisive mandibulaire",
+      "terminology_equivalents": [
+        "L1 tip",
+        "Ii",
+        "LIE"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://academic.oup.com/view-large/97191171",
+        "https://www.nature.com/articles/s41597-025-05542-3"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 11,
+      "challenge_number": 12,
+      "legacy_runtime_id": "U1_incisal",
+      "term_en": "Upper central incisor incisal edge",
+      "term_fr": "Bord incisif de l’incisive maxillaire",
+      "terminology_equivalents": [
+        "U1 tip",
+        "Is",
+        "UIE"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://academic.oup.com/view-large/97191171",
+        "https://www.nature.com/articles/s41597-025-05542-3"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 12,
+      "challenge_number": 13,
+      "legacy_runtime_id": "Ls_soft",
+      "term_en": "Labrale superius / upper lip",
+      "term_fr": "Labrale supérieur (lèvre supérieure)",
+      "terminology_equivalents": [
+        "Ls",
+        "Upper lip"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://academic.oup.com/view-large/97191171",
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 13,
+      "challenge_number": 14,
+      "legacy_runtime_id": "Li_soft",
+      "term_en": "Labrale inferius / lower lip",
+      "term_fr": "Labrale inférieur (lèvre inférieure)",
+      "terminology_equivalents": [
+        "Li",
+        "Lower lip"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://academic.oup.com/view-large/97191171",
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 14,
+      "challenge_number": 15,
+      "legacy_runtime_id": "Sn_soft",
+      "term_en": "Subnasale",
+      "term_fr": "Subnasale",
+      "terminology_equivalents": [
+        "Sn",
+        "Soft-tissue subnasale"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502",
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 15,
+      "challenge_number": 16,
+      "legacy_runtime_id": "Pog_soft",
+      "term_en": "Soft-tissue pogonion",
+      "term_fr": "Pogonion cutané",
+      "terminology_equivalents": [
+        "Pog’",
+        "Pg'",
+        "Pos"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://arxiv.org/html/2409.15834v1",
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502"
+      ],
+      "challenge_numbered_evidence": "AUTHOR_PAPER_POS16_ONLY",
+      "paper_abbreviation": "Pos",
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "EXTERNAL_POS_EQUIVALENCE_BUT_DATASET_ATTESTATION_PENDING",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 16,
+      "challenge_number": 17,
+      "legacy_runtime_id": "PNS",
+      "term_en": "Posterior nasal spine",
+      "term_fr": "Épine nasale postérieure",
+      "terminology_equivalents": [
+        "PNS"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://arxiv.org/html/2409.15834v1",
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "AUTHOR_PAPER_EXPLICIT",
+      "paper_abbreviation": "PNS",
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 17,
+      "challenge_number": 18,
+      "legacy_runtime_id": "ANS",
+      "term_en": "Anterior nasal spine",
+      "term_fr": "Épine nasale antérieure",
+      "terminology_equivalents": [
+        "ANS"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 18,
+      "challenge_number": 19,
+      "legacy_runtime_id": "Ar",
+      "term_en": "Articulare",
+      "term_fr": "Articulare",
+      "terminology_equivalents": [
+        "Ar"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 19,
+      "challenge_number": 20,
+      "legacy_runtime_id": "D_point",
+      "term_en": "Point D (center of mandibular symphysis)",
+      "term_fr": "Point D (centre de la symphyse)",
+      "terminology_equivalents": [
+        "D"
+      ],
+      "nomenclature_evidence_refs": [
+        "docs/SRPOSE38_LANDMARK_CONTRACT.md"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LOCAL_CONVENTION_ONLY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 20,
+      "challenge_number": 21,
+      "legacy_runtime_id": "U1_apex",
+      "term_en": "Upper central incisor root apex",
+      "term_fr": "Apex de l’incisive maxillaire",
+      "terminology_equivalents": [
+        "U1A",
+        "UIA"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.nature.com/articles/s41597-025-05542-3"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 21,
+      "challenge_number": 22,
+      "legacy_runtime_id": "L1_apex",
+      "term_en": "Lower central incisor root apex",
+      "term_fr": "Apex de l’incisive mandibulaire",
+      "terminology_equivalents": [
+        "L1A",
+        "LIA"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.nature.com/articles/s41597-025-05542-3"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 22,
+      "challenge_number": 23,
+      "legacy_runtime_id": "Cm",
+      "term_en": "Columella",
+      "term_fr": "Columelle nasale",
+      "terminology_equivalents": [
+        "Cm"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502",
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 23,
+      "challenge_number": 24,
+      "legacy_runtime_id": "Ptm",
+      "term_en": "Pterygomaxillary fissure",
+      "term_fr": "Fente ptérygomaxillaire",
+      "terminology_equivalents": [
+        "Ptm",
+        "PTM"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 24,
+      "challenge_number": 25,
+      "legacy_runtime_id": "Co",
+      "term_en": "Condylion",
+      "term_fr": "Condylion",
+      "terminology_equivalents": [
+        "Co",
+        "Cd"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://arxiv.org/html/2409.15834v1",
+        "https://www.ncbi.nlm.nih.gov/books/NBK594272/table/article-131913.table1/"
+      ],
+      "challenge_numbered_evidence": "AUTHOR_PAPER_EXPLICIT",
+      "paper_abbreviation": "Co",
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 25,
+      "challenge_number": 26,
+      "legacy_runtime_id": "Prn",
+      "term_en": "Pronasale",
+      "term_fr": "Pronasale / pointe du nez",
+      "terminology_equivalents": [
+        "Prn",
+        "Pn"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://arxiv.org/html/2409.15834v1",
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502"
+      ],
+      "challenge_numbered_evidence": "AUTHOR_PAPER_EXPLICIT",
+      "paper_abbreviation": "Prn",
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 26,
+      "challenge_number": 27,
+      "legacy_runtime_id": "Ba",
+      "term_en": "Basion",
+      "term_fr": "Basion",
+      "terminology_equivalents": [
+        "Ba"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://arxiv.org/html/2409.15834v1",
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502"
+      ],
+      "challenge_numbered_evidence": "AUTHOR_PAPER_EXPLICIT",
+      "paper_abbreviation": "Ba",
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 27,
+      "challenge_number": 28,
+      "legacy_runtime_id": "PT_point",
+      "term_en": "Ricketts pterygoid point (Pt)",
+      "term_fr": "Point ptérygoïdien (Pt de Ricketts)",
+      "terminology_equivalents": [
+        "Pt",
+        "PT"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://academic.oup.com/view-large/426793504"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 28,
+      "challenge_number": 29,
+      "legacy_runtime_id": "Bo",
+      "term_en": "Bolton point",
+      "term_fr": "Point de Bolton",
+      "terminology_equivalents": [
+        "Bo",
+        "Bolton"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://arxiv.org/html/2409.15834v1",
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502"
+      ],
+      "challenge_numbered_evidence": "AUTHOR_PAPER_EXPLICIT",
+      "paper_abbreviation": "Bo",
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 29,
+      "challenge_number": 30,
+      "legacy_runtime_id": "Ls2",
+      "term_en": "Additional upper lip point UL-prime",
+      "term_fr": "Point additionnel lèvre supérieure (UL′)",
+      "terminology_equivalents": [
+        "UL′",
+        "UL'"
+      ],
+      "nomenclature_evidence_refs": [
+        "docs/SRPOSE38_LANDMARK_CONTRACT.md"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LOCAL_CONVENTION_ONLY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 30,
+      "challenge_number": 31,
+      "legacy_runtime_id": "Li2",
+      "term_en": "Additional lower lip point LL-prime",
+      "term_fr": "Point additionnel lèvre inférieure (LL′)",
+      "terminology_equivalents": [
+        "LL′",
+        "LL'"
+      ],
+      "nomenclature_evidence_refs": [
+        "docs/SRPOSE38_LANDMARK_CONTRACT.md"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LOCAL_CONVENTION_ONLY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 31,
+      "challenge_number": 32,
+      "legacy_runtime_id": "Gn_soft",
+      "term_en": "Soft-tissue gnathion",
+      "term_fr": "Gnathion cutané",
+      "terminology_equivalents": [
+        "Gn′",
+        "Gns",
+        "Gs"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.mdpi.com/2077-0383/8/12/2106",
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 32,
+      "challenge_number": 33,
+      "legacy_runtime_id": "Me_soft",
+      "term_en": "Soft-tissue menton",
+      "term_fr": "Menton cutané",
+      "terminology_equivalents": [
+        "Me′",
+        "Mes"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.mdpi.com/2077-0383/8/12/2106",
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 33,
+      "challenge_number": 34,
+      "legacy_runtime_id": "G_soft",
+      "term_en": "Soft-tissue glabella",
+      "term_fr": "Glabelle cutanée",
+      "terminology_equivalents": [
+        "G′",
+        "Glabella"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 34,
+      "challenge_number": 35,
+      "legacy_runtime_id": "N_soft",
+      "term_en": "Soft-tissue nasion",
+      "term_fr": "Nasion cutané",
+      "terminology_equivalents": [
+        "N′",
+        "Ns"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://onlinelibrary.wiley.com/doi/10.1155/2018/1797502"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 35,
+      "challenge_number": 36,
+      "legacy_runtime_id": "C_point",
+      "term_en": "Cervical point",
+      "term_fr": "Point cervical",
+      "terminology_equivalents": [
+        "C",
+        "Neck-throat point"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "STANDARD_TERM_ONLY",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 36,
+      "challenge_number": 37,
+      "legacy_runtime_id": "U6",
+      "term_en": "Upper first molar landmark",
+      "term_fr": "Repère de la première molaire maxillaire",
+      "terminology_equivalents": [
+        "U6",
+        "Upper molar"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.nature.com/articles/s41597-025-05542-3",
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    },
+    {
+      "index": 37,
+      "challenge_number": 38,
+      "legacy_runtime_id": "L6",
+      "term_en": "Lower first molar landmark",
+      "term_fr": "Repère de la première molaire mandibulaire",
+      "terminology_equivalents": [
+        "L6",
+        "Lower molar"
+      ],
+      "nomenclature_evidence_refs": [
+        "https://www.nature.com/articles/s41597-025-05542-3",
+        "https://www.mdpi.com/2077-0383/8/12/2106"
+      ],
+      "challenge_numbered_evidence": "NO_DIRECT_NUMBERED_AUTHOR_EVIDENCE",
+      "paper_abbreviation": null,
+      "term_equivalence_level": "LITERATURE_TERMINOLOGY",
+      "protocol_specific_definition": "SOURCE_CONVENTION_REQUIRED",
+      "validated_model_output_identity": false,
+      "automated_clinical_use_allowed": false
+    }
+  ]
+}
