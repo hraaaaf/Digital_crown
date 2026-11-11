@@ -6,6 +6,19 @@
 
 # STATE — DigitalCrown
 
+## LOT08.3-A → B1 — 2026-11-11 — AUDIT IMMUTABLE MERGED; G3 30-DAY RETENTION LAB CANDIDATE
+
+**Decision / authorization:** user « Okay go » after 08.3-A FUE and the next exact gate; source/LAB merge for A and safe branch-only work for B1. No Vercel, cabinet installation, patient data, production purge, schema migration or clinical activation.
+
+**08.3-A verified master:** [PR #1294](https://github.com/hraaaaf/Digital_crown/pull/1294) **MERGED SQUASH** into `master@2e52e63b8142614fe5a4fa38582f69dd8aa8410b`. Candidate FUE `34e38ebb9840cd0b990ad32187d632ede725ac6f`: [Queue #43024876988](https://github.com/hraaaaf/Digital_crown/actions/runs/43024876988) 219 PASSED/3 SKIPPED/4 subtests, [Windows #43024877122](https://github.com/hraaaaf/Digital_crown/actions/runs/43024877122) 3 PASSED. MASTER readback confirmed the `QUEUE_EVENT_IMMUTABILITY_REQUIRED` guard. Real code is NOT an installable certificate. Newly initialized SQLite Queue event facts reject direct UPDATE/DELETE; old unguarded files fail closed, no auto-migration. OS/DDL privilege remains outside this gate.
+
+**08.3-B1 separate current PR:** [#1297 DRAFT](https://github.com/hraaaaf/Digital_crown/pull/1297), base the above master. Source `queue_core/service/retention_lab_08_3_b.py`: synthetic-only named temp SQLite, tenant-scoped, bounded (max 100) closed visits DONE/NO_SHOW/CANCELLED at >=30 days since UTC closure, dry-run default, QR reference denial, FKs and immutable event triggers required, quick_check + FK integrity guard, full transactional rollback, cascade of external appointment references and resource assignments; 12-month minimized audit events are NOT deleted; synthetic append-only aggregate receipt, no patient identifiers. This is strictly **LAB**, NOT a production data-retention service or a legal review. Six original synthetic tests passed on Windows candidate `4dbdae3` [run #43026907855](https://github.com/hraaaaf/Digital_crown/actions/runs/43026907855) and 225 Queue Core tests passed on prior source SHA `55b566f` [run #43026823087](https://github.com/hraaaaf/Digital_crown/actions/runs/43026823087). The extra seventh FK-corruption negative and the new guard in the latest candidate **still require final-head CI**. Never claim historical CI as the final-head proof.
+
+**G3 remaining gate:** 7-day technical log/idempotency retention, 12-month audit rotation with legally authorized purge/tombstone, QR spent receipt cleanup, encrypted independent backups 7 daily + 4 weekly, restore/RPO <=1h and RTO <=2h on isolated Windows LAB, legal CNDP review prior to real use, old DB backup-verified migration, installer certification. All NOT_RUN/OPEN. No physical/clinical runtime authorized.
+
+**Next exact:** verify 08.3-B1 [PR #1297](https://github.com/hraaaaf/Digital_crown/pull/1297) Queue Core and native Windows FUE on exact final SHA, inspect JUnit/negative oracles, correct any failure, update Notion. Leave PR DRAFT unmerged until separate owner merge decision. Then choose one distinct next G3 retention/backup gate, not silently expand this B1 lab scope.
+
+
 ## LOT08.2-D/E/F/G — INTEGRATED SOURCE/LAB MERGED, PRODUCT INSTALLABLE HOLD — 2026-11-11
 
 - **GO:** utilisateur « Go » le 11/11/2026 pour intégrer les PR 08.2, exécuter la FUE, fusion contrôlée ; aucune permission de déployer ni d'installer en cabinet.
