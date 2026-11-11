@@ -1,0 +1,61 @@
+name: LOT05 Step2 Offline Dental Source CLI LAB FUE-0 (NO IMPORT)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/services/legacy_sql_vendor_inventory_v15.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/tests/test_migration_057c_vendor_inventory_fue.py'
+      - 'backend/tests/test_lot05_step2_offline_source_cli_fue.py'
+      - '.github/workflows/lot05-step2-offline-source-cli-lab.yml'
+      - 'docs/quality/LOT05_STEP2_OFFLINE_SOURCE_INTAKE_LAB.md'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  offline-intake-fue0:
+    name: Synthetic source CLI FUE-0 / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest]
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Confirm evaluated exact HEAD and syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile \
+            backend/services/legacy_sql_inspector_v15.py \
+            backend/services/legacy_sql_vendor_inventory_v15.py \
+            backend/tests/test_migration_057c_vendor_inventory_fue.py \
+            backend/tests/test_lot05_step2_offline_source_cli_fue.py
+      - name: FUE-0 existing 22 source inventory cases, FAKE only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B backend/tests/test_migration_057c_vendor_inventory_fue.py -q 2>&1 | tee source-inventory-fue.log
+          grep -q 'Ran 22 tests' source-inventory-fue.log
+          grep -q '^OK' source-inventory-fue.log
+      - name: FUE-0 new 16 CLI cases and negative refusals, FAKE only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B backend/tests/test_lot05_step2_offline_source_cli_fue.py -q 2>&1 | tee cli-source-fue.log
+          grep -q 'Ran 16 tests' cli-source-fue.log
+          grep -q '^OK' cli-source-fue.log
+          echo 'LOT05_STEP2_FUE0_SYNTHETIC_ONLY_38_TESTS_NO_TARGET_IMPORT'

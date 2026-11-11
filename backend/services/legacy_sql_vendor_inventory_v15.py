@@ -10,7 +10,11 @@ from __future__ import annotations
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
-from .legacy_sql_inspector_v15 import UnsafeSource, inspect_staged_copy
+# Package use is unchanged. Standalone direct-script use is LAB/CLI only.
+if __package__:
+    from .legacy_sql_inspector_v15 import UnsafeSource, inspect_staged_copy
+else:
+    from legacy_sql_inspector_v15 import UnsafeSource, inspect_staged_copy
 
 
 class VendorInventoryRefused(ValueError):
@@ -121,3 +125,64 @@ def inventory_declared_legacy_copy(
         table_count=len(report.tables),
         column_count=sum(len(table.columns) for table in report.tables),
     )
+
+
+
+def _main(argv: list[str] | None = None) -> int:
+    """Offline non-PHI source inventory CLI; no clinical application imports.
+
+    The two lab/attestation switches are explicit operator declarations, NOT
+    technical proof that a file belongs to a vendor or is actually synthetic.
+    A success never authorizes a target migration or record-level parsing.
+    """
+    import argparse
+    import json
+
+    class _SafeParser(argparse.ArgumentParser):
+        def error(self, message: str) -> None:
+            # argparse's default error text can contain a sensitive path/value.
+            raise VendorInventoryRefused("INVALID_CLI_ARGUMENTS")
+
+    parser = _SafeParser(
+        description="LAB metadata-only offline source inventory; NO PATIENT IMPORT"
+    )
+    parser.add_argument("--source", type=Path, required=True)
+    parser.add_argument("--staging-root", type=Path, required=True)
+    parser.add_argument("--source-software", required=True)
+    parser.add_argument("--source-version", required=True)
+    parser.add_argument("--dialect", required=True)
+    parser.add_argument("--export-format", required=True)
+    parser.add_argument("--attest-offline-copy", action="store_true")
+    parser.add_argument("--lab-synthetic-fixture", action="store_true")
+
+    try:
+        args = parser.parse_args(argv)
+        if args.lab_synthetic_fixture is not True:
+            raise VendorInventoryRefused("LAB_SYNTHETIC_ONLY")
+        if args.attest_offline_copy is not True:
+            raise VendorInventoryRefused("OFFLINE_COPY_ATTESTATION_REQUIRED")
+        result = inventory_declared_legacy_copy(
+            args.source, args.staging_root,
+            source_software=args.source_software,
+            source_version=args.source_version,
+            dialect=args.dialect,
+            export_format=args.export_format,
+            attested_offline_copy=True,
+        )
+    except VendorInventoryRefused as exc:
+        print("REFUSED: " + str(exc))
+        return 2
+    except (OSError, UnicodeError, ValueError):
+        # Stable refusal; no traceback, paths, SQL, schema or patient values.
+        print("REFUSED: LAB_INSPECTION_FAILED")
+        return 2
+
+    print(json.dumps({
+        "lab_synthetic_operator_attestation_not_verified": True,
+        "source_summary": result.to_public_dict(),
+    }, sort_keys=True))
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(_main())
