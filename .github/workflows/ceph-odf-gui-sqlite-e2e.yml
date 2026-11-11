@@ -1,0 +1,148 @@
+name: CEPH ODF authenticated GUI to real SQLite synthetic E2E (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ceph-odf-gui-sqlite-e2e.yml
+      - scripts/ceph_odf_gui_sqlite_seed_t2.py
+      - scripts/ceph_odf_gui_sqlite_verify_t2.py
+      - frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs
+permissions:
+  contents: read
+concurrency:
+  group: ceph-odf-gui-sqlite-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  real-cabinet-synthetic-e2e:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 55
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DIGITALCROWN_ISOLATION_DB_FINGERPRINT: c04779c8d18b3ac12a0f4093a47a5d0c3c0e2251714be532893cfa052e9ee780
+      DATABASE_URL: sqlite:///./t2-runtime-cert.db
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+      DEBUG: 'false'
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Verify exact head, isolated diff and no change to medical runtime
+        shell: python
+        run: |
+          import os,subprocess
+          def git(*args): return subprocess.check_output(['git',*args],text=True).strip()
+          assert git('rev-parse','HEAD')==os.environ['PRODUCT_HEAD']
+          source='ca99f0560902a636c0c3edb2e39dde18e067a948'
+          changed=set(git('diff','--name-only',source,'HEAD').splitlines())
+          expected={
+             '.github/workflows/ceph-odf-gui-sqlite-e2e.yml',
+             'scripts/ceph_odf_gui_sqlite_seed_t2.py',
+             'scripts/ceph_odf_gui_sqlite_verify_t2.py',
+             'frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs',
+          }
+          assert changed==expected,(changed,expected)
+          print('CEPH_ODF_T2_TEST_ONLY_EXACT_SCOPE_PASS')
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Generate nonexported short-lived T2 credentials
+        shell: bash
+        run: |
+          password="$(python -c 'import secrets;print(secrets.token_urlsafe(28))')"
+          echo "::add-mask::$password"
+          echo "T2_PASSWORD=$password" >> "$GITHUB_ENV"
+          storage_key="$(python -c 'import secrets;print(secrets.token_hex(32))')"
+          echo "::add-mask::$storage_key"
+          echo "SQLCIPHER_KEY_HEX=$storage_key" >> "$GITHUB_ENV"
+      - name: Install proven isolated FastAPI backend dependencies (no model inference)
+        shell: bash
+        run: |
+          python -m pip install --upgrade pip
+          python -m pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-odf-e2e-requirements.txt
+          python -m pip install -r /tmp/ceph-odf-e2e-requirements.txt
+          python -m pip check
+      - name: Install locked frontend and real Chromium
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
+          npx playwright install --with-deps chromium
+          node --check scripts/ceph-odf-gui-sqlite-e2e.mjs
+      - name: Start independent T2 FastAPI and real local SQLite
+        shell: bash
+        run: |
+          python scripts/t2_runtime_server.py > /tmp/ceph-odf-e2e-backend.log 2>&1 &
+          echo $! > /tmp/ceph-odf-e2e-backend.pid
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:8005/health >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -80 /tmp/ceph-odf-e2e-backend.log
+          exit 1
+      - name: Add one NEW uncalibrated synthetic case, no patient media
+        shell: bash
+        run: |
+          python -m scripts.ceph_odf_gui_sqlite_seed_t2 > /tmp/ceph-odf-e2e-seed.log
+          python - <<'PY'
+          import json,os
+          from pathlib import Path
+          lines=Path('/tmp/ceph-odf-e2e-seed.log').read_text().splitlines()
+          item=next(x for x in lines if x.startswith('CEPH_ODF_GUI_SQLITE_SEED='))
+          seed=json.loads(item.split('=',1)[1])
+          assert seed['clinical_release'] is False and len(seed['original_landmarks'])==38
+          with open(os.environ['GITHUB_ENV'],'a') as stream:
+            stream.write('CEPH_ODF_CASE_JSON='+json.dumps(seed,separators=(',',':'))+'\n')
+          print('CEPH_ODF_SYNTHETIC_UNCALIBRATED_SEED_PASS')
+          PY
+      - name: Start genuine local Vite Cabinet, no production endpoints
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm run dev -- --host 127.0.0.1 --port 5173 > /tmp/ceph-odf-e2e-frontend.log 2>&1 &
+          echo $! > /tmp/ceph-odf-e2e-frontend.pid
+          for i in {1..90}; do
+            if curl -fsS http://127.0.0.1:5173 >/dev/null; then exit 0; fi
+            sleep 1
+          done
+          tail -70 /tmp/ceph-odf-e2e-frontend.log
+          exit 1
+      - name: Real login, real pointer drag, audited PUT and undo/redo, reload
+        working-directory: frontend
+        run: node scripts/ceph-odf-gui-sqlite-e2e.mjs
+      - name: Independently verify fresh SQLite state and no clinical sign-off
+        run: python -m scripts.ceph_odf_gui_sqlite_verify_t2
+      - name: Failure diagnostics without secrets or images
+        if: failure()
+        shell: bash
+        run: |
+          grep -E 'Traceback|ERROR|Exception|failed|CEPH_' /tmp/ceph-odf-e2e-backend.log 2>/dev/null | tail -70 || true
+          grep -E 'ERROR|error|failed' /tmp/ceph-odf-e2e-frontend.log 2>/dev/null | tail -40 || true
+      - name: Publish only synthetic proof screenshots and report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-odf-genuine-gui-sqlite-synthetic
+          path: artifacts/ceph-odf-gui-sqlite-e2e/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Clean up temporary test files and credentials
+        if: always()
+        shell: bash
+        run: |
+          rm -f t2-runtime-cert.db t2-runtime-cert.db-shm t2-runtime-cert.db-wal
+          rm -f backend/static/uploads/radios/t2-cephalo-seeded.png
+          rm -f /tmp/ceph-odf-e2e-requirements.txt /tmp/ceph-odf-e2e-seed.log
+          rm -f /tmp/ceph-odf-e2e-backend.log /tmp/ceph-odf-e2e-frontend.log
+          rm -rf artifacts/ceph-odf-gui-sqlite-e2e
+          echo CEPH_ODF_SYNTHETIC_T2_CLEANED_NO_DEPLOY
