@@ -39,3 +39,14 @@
 This FUE exercises a source-locked **nonclinical** scientific record. It does **not** certify anatomical SRPose38 channel semantics, permit autonomous diagnosis or treatment, grant usage rights to weights, certify an `INSTALLABLE_CERTIFIED` signed executable, authorize a real-patient database or grant merge to master.
 
 If tests fail, read logs and repair the actual issue without weakening the 401/403/409, identity, audit or encryption oracle. Stop if a dangerous production change, actual patient data or critical gate is necessary. Keep the J1.B2 PR DRAFT and leave J1.B1 #1277 unchanged.
+
+
+## Same-process Windows integration extension — 2026-11-11 (PENDING)
+
+Original isolated component gate [#42991306408](https://github.com/hraaaaf/Digital_crown/actions/runs/42991306408) is **SUCCESS** on SHA `66550b9a8e9133fa40c21975149726badffe4f02`: 17 HTTP/JWT tests, 4 native Windows encrypted/CAS/crash tests. It does **not** prove those contracts in one executable.
+
+The next change adds `backend/tests/test_ceph_j1b2_windows_combined_http_sqlcipher.py`, a native Windows 2022 FUE-I that uses a single, real FastAPI TestClient process, genuine login JWT and native SQLCipher file. Every route DB dependency is directed into an isolated encrypted test vault, with disposable patient, practitioner and SRPose-derived points. It verifies 401, foreign-tenant GET/PUT 403, server-authenticated `validated_by` against client spoof, one revision 1→2 and immutable original AUTO, SQLCipher WAL checkpoint, encrypted-file copy with SHA equality, a new connection to the restored encrypted file, real authenticated HTTP GET and no-op PUT without revision inflation. A separate Windows job continues to prove stale CAS 409 and process crash/recovery. All fixtures remain synthetic.
+
+**No verdict is claimed until the third Windows job completes**: [new GitHub Actions J1.B2](https://github.com/hraaaaf/Digital_crown/actions/runs/42994303465). Install Windows test-only full backend dependencies and CPU-only torch wheel, but download **no model weights**. The scope excludes official installer, OS shutdown/power loss, physical clinic, real patient, anatomical certification and production deployment.
+
+This integration extension modifies tests and workflow only. Keep the J1.B2 stacked PR DRAFT; no merge.
