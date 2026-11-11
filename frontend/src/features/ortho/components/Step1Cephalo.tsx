@@ -373,7 +373,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           >
             Lexique des 38 repères · FR/EN
           </summary>
-          <div className="max-h-[42dvh] overflow-y-auto overscroll-contain border-t p-2" style={{ borderColor: props.P.border }}>
+          <div className="max-h-[26dvh] overflow-y-auto xl:max-h-[42dvh] overscroll-contain border-t p-2" style={{ borderColor: props.P.border }}>
             <CephaloLandmarkReviewLexicon
               presentLandmarks={localLandmarks}
               activePointId={activePointId}
