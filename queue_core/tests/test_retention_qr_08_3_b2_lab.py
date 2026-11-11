@@ -136,7 +136,8 @@ def test_7_day_boundary_tenant_scope_dry_run_and_preserved_audit(lab):
     result = retain_consumed_qr_ledger_lab(lab,"T1",now=NOW,execute=True)
     assert result.eligible_receipts == 2 and result.event_facts_preserved == 1
     assert {x[0] for x in _get(lab,"SELECT qr_digest FROM queue_presence_qr_lab")} == {
-        "boundary-7-days","recent-6-days","other-tenant-old","pending-expired",\n        "consumed-not-expired",
+        "boundary-7-days","recent-6-days","other-tenant-old","pending-expired",
+        "consumed-not-expired",
     }
     assert _get(lab,"SELECT id, event_type FROM queue_event_log") == [("AUDIT_SYNTH","DONE")]
     assert _get(lab,"SELECT tenant_id,removed_count FROM queue_qr_retention_receipts_lab") == [("T1",2)]
@@ -182,7 +183,7 @@ def test_schema_corruption_missing_table_and_trigger_fail_closed(lab):
         c.execute("DROP TRIGGER queue_event_log_no_delete")
     with pytest.raises(RetentionLabError,match="QUEUE_EVENT_IMMUTABILITY_REQUIRED"):
         retain_consumed_qr_ledger_lab(lab,"T1",now=NOW,execute=True)
-    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(6,)]
+    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(7,)]
     with sqlite3.connect(lab) as c:
         c.execute(
             "CREATE TRIGGER queue_event_log_no_delete BEFORE DELETE ON queue_event_log "
@@ -191,7 +192,7 @@ def test_schema_corruption_missing_table_and_trigger_fail_closed(lab):
         c.execute("ALTER TABLE queue_presence_qr_lab ADD COLUMN surprise TEXT")
     with pytest.raises(RetentionLabError,match="QR_LAB_SCHEMA_MISMATCH"):
         retain_consumed_qr_ledger_lab(lab,"T1",now=NOW,execute=True)
-    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(6,)]
+    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(7,)]
 
 
 def test_unmarked_or_wrong_file_bad_clock_scope_and_invalid_batch_fail(lab,tmp_path):
@@ -209,7 +210,7 @@ def test_unmarked_or_wrong_file_bad_clock_scope_and_invalid_batch_fail(lab,tmp_p
         c.execute("PRAGMA application_id=0")
     with pytest.raises(RetentionLabError,match="SYNTHETIC_LAB_MARKER_REQUIRED"):
         retain_consumed_qr_ledger_lab(lab,"T1",now=NOW,execute=True)
-    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(6,)]
+    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(7,)]
 
 
 def test_post_purge_lookup_rejects_old_qr_and_unblocks_closed_visit_retention(lab):
