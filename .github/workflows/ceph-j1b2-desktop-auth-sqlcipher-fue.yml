@@ -1,0 +1,103 @@
+name: "CEPH J1.B2 Desktop JWT + SQLCipher FUE-I (NO DEPLOY)"
+
+on:
+  pull_request:
+    paths:
+      - "backend/tests/test_ceph_j1b2_desktop_auth_lineage_fue.py"
+      - "backend/tests/test_ceph_j1b2_native_sqlcipher_revision.py"
+      - ".github/workflows/ceph-j1b2-desktop-auth-sqlcipher-fue.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  j1b2-real-http-jwt-tenant-audit:
+    name: "Real HTTP JWT + multi-cabinet denial + clinician bound revision"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: "test"
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      SECRET_KEY: "ceph-j1b2-synthetic-32-character-key"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Assert exact immutable HEAD"
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: 'test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Install isolated API dependencies, no weights"
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/j1b2-requirements.txt
+          pip install -r /tmp/j1b2-requirements.txt
+          python -m pip check
+      - name: "FUE-I real HTTP route and revision CAS (synthetic only)"
+        run: |
+          set -o pipefail
+          python -m pytest -q \
+            backend/tests/test_ceph_j1b2_desktop_auth_lineage_fue.py \
+            backend/tests/test_cephalo_landmark_refinement_route.py \
+            backend/tests/test_cephalo_scientific_write.py | tee j1b2-http-jwt-audit.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: j1b2-http-jwt-audit-${{ github.event.pull_request.head.sha }}
+          path: j1b2-http-jwt-audit.log
+          if-no-files-found: warn
+          retention-days: 14
+
+  j1b2-native-windows-sqlcipher-recovery:
+    name: "Native Windows encrypted scientific CAS, restore and crash replay"
+    runs-on: windows-2022
+    timeout-minutes: 25
+    env:
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: "test"
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+      CABINET_MASTER_KEY_HEX: "0000000000000000000000000000000000000000000000000000000000000000"
+      SECRET_KEY: "ceph-j1b2-synthetic-32-character-key"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Assert exact immutable HEAD"
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:EXPECTED_SHA) { throw 'Checkout HEAD mismatch' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Install binary native SQLCipher and test-only dependencies"
+        shell: pwsh
+        run: |
+          python -m pip install --only-binary=:all: sqlcipher3==0.6.2
+          if ($LASTEXITCODE -ne 0) { throw 'No native Windows SQLCipher wheel' }
+          python -m pip install SQLAlchemy==2.0.28 pytest==9.0.3 fastapi==0.115.6 pydantic==2.6.3 passlib==1.7.4 python-dotenv==1.2.1 email-validator==2.3.0 python-multipart==0.0.31 pillow==12.2.0 numpy==2.4.3
+          if ($LASTEXITCODE -ne 0) { throw 'Test dependency installation failure' }
+      - name: "FUE-I native encrypted revision and independent restore"
+        shell: pwsh
+        run: |
+          python -m pytest --noconftest -q -s backend/tests/test_ceph_j1b2_native_sqlcipher_revision.py backend/tests/test_cephalo_p2ter_windows_sqlcipher_native.py 2>&1 | Tee-Object -FilePath j1b2-native-windows-sqlcipher.log
+          if ($LASTEXITCODE -ne 0) { throw 'Native SQLCipher J1.B2 FUE-I failed' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: j1b2-native-sqlcipher-${{ github.event.pull_request.head.sha }}
+          path: j1b2-native-windows-sqlcipher.log
+          if-no-files-found: warn
+          retention-days: 14
