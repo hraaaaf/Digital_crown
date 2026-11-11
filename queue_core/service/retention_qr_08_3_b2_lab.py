@@ -1,6 +1,6 @@
 """LOT08.3-B2-A G3 seven-day consumed QR receipt retention: synthetic LAB only.
 
-Only confirmed, expired, consumed QR receipts older than seven elapsed UTC days
+Only confirmed, expired, consumed QR receipts strictly older than seven elapsed UTC days
 may be deleted. This is NOT a cleanup of pending/unconsumed QR, webhooks, technical
 logs, or 12-month audit records. Neither a real clinic DB nor a production task
 is permitted. The queue_event_log remains append-only and untouched.
@@ -95,8 +95,7 @@ def retain_consumed_qr_ledger_lab(
     now_epoch = int(now.astimezone(timezone.utc).timestamp())
     if not 0 <= now_epoch < 10**15:
         raise RetentionLabError("AWARE_UTC_CLOCK_REQUIRED")
-    cutoff = now_epoch - _SEVEN_DAYS_SECONDS
-
+    # KioskQrArrivalLab.redeem still permits an exact-boundary retry.\n    # Keep the receipt through second 604800; purge only afterwards.\n    cutoff = now_epoch - _SEVEN_DAYS_SECONDS - 1\n
     conn = sqlite3.connect(str(target), timeout=5.0, isolation_level=None)
     try:
         conn.execute("PRAGMA foreign_keys=ON")
