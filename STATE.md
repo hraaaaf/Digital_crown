@@ -6,6 +6,19 @@
 
 # STATE — DigitalCrown
 
+## LOT08.3-A/B1 — 2026-11-11 — VERIFIED INTEGRATION CANDIDATE (LAB ONLY)
+
+**Owner GO** (2026-11-11): reconcile tested Queue retention LAB against latest master, rerun applicable FUE and merge if green, never deploy/install/migrate real DBs. **Baseline** `master@5a51be7483b661c95852c5a3a53109c9c2bf9f15` (two intervening design documentation commits #1296/#1298 after #1294; no Queue files changed).
+
+**08.3-A merged**: [#1294](https://github.com/hraaaaf/Digital_crown/pull/1294) squash at `2e52e63b8142614fe5a4fa38582f69dd8aa8410b`, SQLite event UPDATE/DELETE denied on fresh LAB files and old unguarded SQLite rejected (not OS/DDL tamper-proof); [Linux FUE 219 passed](https://github.com/hraaaaf/Digital_crown/actions/runs/43024876988), [Windows 3 passed](https://github.com/hraaaaf/Digital_crown/actions/runs/43024877122).
+
+**08.3-B1:** [Original #1297](https://github.com/hraaaaf/Digital_crown/pull/1297) candidate `47b6028da0231df56e10aae73aa4bc7d54a02ef8` passed [Queue 227 PASS/3 SKIP/4 subtests](https://github.com/hraaaaf/Digital_crown/actions/runs/43027852470) and [Windows 8 PASS](https://github.com/hraaaaf/Digital_crown/actions/runs/43027852099), all 9 PR CI (8 success, 1 irrelevant skipped). Reconciliation branch `integrate/v15-08-3-b1-retention-rebase-20261111` forks latest master and carries exact content blobs of original 3 LAB module/test/workflow files; adds this canonical checkpoint only. **Requires new exact-head CI** before controlled merge. Original draft to be superseded/closed only after successful verified merge.
+
+**Boundary:** synthetic temporary `lot08_3_b_lab_*.sqlite` with explicit SQLite LAB marker; dry-run by default, at most 100 tenant-authorized eligible DONE/CANCELLED/NO_SHOW visits after 30 days, rollback on injected fault, no QR orphan, SQLite/FK integrity checks; externally linked references and resource bindings cascaded, 12-month append-only event history preserved, aggregate immutable LAB receipt. No clinic DB, installer, migration, release or real data. 08.3-B2 / 7-day ledger and logs, 12-month audit rotation, secure backups (7 daily/4 weekly), RPO<=1h/RTO<=2h restore, legal CNDP and cabinet safety gates remain **OPEN**. No PRODUCT CLOSEOUT.
+
+**Next exact:** verify reconciliation branch diff and final GitHub Queue/Windows FUE, merge only if ALL applicable gates green; read back final master, update Notion, close superseded #1297 without deleting historical proof. `NO_INSTALLABLE_GO`, `NO_DEPLOY`.
+
+
 ## LOT08.2-D/E/F/G — INTEGRATED SOURCE/LAB MERGED, PRODUCT INSTALLABLE HOLD — 2026-11-11
 
 - **GO:** utilisateur « Go » le 11/11/2026 pour intégrer les PR 08.2, exécuter la FUE, fusion contrôlée ; aucune permission de déployer ni d'installer en cabinet.
