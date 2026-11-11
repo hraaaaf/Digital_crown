@@ -23,6 +23,13 @@ $r=[ordered]@{
   report_auth_denied_observed=$false
   report_probe_complete=$false
   report_probe_result='NOT_STARTED'
+  query_post_click_observed_cycles=0
+  query_post_click_owned_top_windows_max=0
+  query_post_click_owned_window_classes=@()
+  query_post_click_nested_window_classes=@()
+  query_post_click_controls=@()
+  query_post_click_permission_categories=@()
+  query_post_click_examined_descendants_max=0
   exact_head=$env:LOT05_EXPECTED_SHA
   prereq_server_and_demo_verified=$false
   app_exe_hash_valid=$false
@@ -171,6 +178,80 @@ public static class Lot05DemoGuiWindow {
         $pidHere=[int]$w.Current.ProcessId
         if(-not $ids.Contains($pidHere)){continue}
         $title=[string]$w.Current.Name
+        # READ-ONLY classification of windows after the unique Reports >
+        # User Query menu click. Never serialize arbitrary text, edit values,
+        # SQL text, patient names, or passwords into CI artifacts.
+        if($r.report_route_enabled -and $r.user_query_menu_clicked -and
+           $cycle -gt $r.user_query_menu_cycle -and
+           (($cycle-$r.user_query_menu_cycle) % 4 -eq 0)){
+          $r.query_post_click_observed_cycles++
+          $ownedCount=0
+          for($own=0;$own -lt [Math]::Min(110,$windows.Count);$own++){
+            if($ids.Contains([int]$windows.Item($own).Current.ProcessId)){$ownedCount++}
+          }
+          $r.query_post_click_owned_top_windows_max=[Math]::Max(
+            $r.query_post_click_owned_top_windows_max,$ownedCount)
+          $topType=[string]$w.Current.ControlType.ProgrammaticName
+          $topCategory=if($title -ceq 'Open Dental'){'MAIN_APP'}elseif(
+            $title -match '(?i)(user.?query|query|report|permission|authorized|access denied)'){'QUERY_OR_PERMISSION_RELATED'}else{'OTHER_OWNED_WINDOW'}
+          $topSignature=$topCategory+'|'+$topType
+          if($r.query_post_click_owned_window_classes -notcontains $topSignature -and
+             $r.query_post_click_owned_window_classes.Count -lt 12){
+            $r.query_post_click_owned_window_classes+=,$topSignature
+          }
+          try{
+            $desc=$w.FindAll([System.Windows.Automation.TreeScope]::Descendants,
+              [System.Windows.Automation.Condition]::TrueCondition)
+            $r.query_post_click_examined_descendants_max=[Math]::Max(
+              $r.query_post_click_examined_descendants_max,$desc.Count)
+            for($qn=0;$qn -lt [Math]::Min(500,$desc.Count);$qn++){
+              $el=$desc.Item($qn)
+              if(-not $ids.Contains([int]$el.Current.ProcessId)){continue}
+              $nm=[string]$el.Current.Name
+              $ct=[string]$el.Current.ControlType.ProgrammaticName
+              if($ct -eq 'ControlType.Window' -or
+                 $ct -eq 'ControlType.Pane'){
+                $category=if($nm -match '(?i)user.?query|query|sql|report'){
+                  'QUERY_LIKE'
+                }elseif($nm -match '(?i)not authorized|access denied|permission'){
+                  'PERMISSION_LIKE'
+                }elseif([string]::IsNullOrWhiteSpace($nm)){
+                  'UNNAMED'
+                }else{'OTHER'}
+                $sig=$category+'|'+$ct
+                if($r.query_post_click_nested_window_classes -notcontains $sig -and
+                   $r.query_post_click_nested_window_classes.Count -lt 15){
+                  $r.query_post_click_nested_window_classes+=,$sig
+                }
+                if($ct -eq 'ControlType.Window' -and
+                   $nm -match '^(?i)User Query(?: - .+)?$'){
+                  $r.user_query_native_window_observed=$true
+                  $r.user_query_native_window_owned=$true
+                  $r.user_query_native_window_title='User Query'
+                  $r.report_probe_result='AUTHORIZED_USER_QUERY_WINDOW'
+                  $r.report_probe_complete=$true
+                }
+              }
+              if($nm -match '^(?i)(User Query|Submit Query|Run Query|Export \.csv|Query Results|SQL Query|Favorites|OK|Cancel)$'){
+                $sig=$nm+'|'+$ct
+                if($r.query_post_click_controls -notcontains $sig -and
+                   $r.query_post_click_controls.Count -lt 16){
+                  $r.query_post_click_controls+=,$sig
+                }
+              }
+              if($nm -match '(?i)not authorized|not authorised|permission denied|access denied'){
+                $perm=if($nm -match '(?i)User.?Query'){'USER_QUERY_REFUSAL'}else{'GENERIC_PERMISSION_TEXT'}
+                if($r.query_post_click_permission_categories -notcontains $perm){
+                  $r.query_post_click_permission_categories+=,$perm
+                }
+                if($perm -eq 'USER_QUERY_REFUSAL'){
+                  $r.report_auth_denied_observed=$true
+                  $r.report_probe_result='USER_QUERY_PERMISSION_DENIED'
+                }
+              }
+            }
+          }catch{$r.uia_errors++}
+        }
         if($title -match '(?i)(Choose Database|Open.?Dental|MySQL|Trial)' -and
            $r.app_owned_window_titles -notcontains $title -and
            $r.app_owned_window_titles.Count -lt 15){
@@ -882,6 +963,11 @@ Write-Host ('LOT05_USER_QUERY_MENU_CLICKED='+$r.user_query_menu_clicked)
 Write-Host ('LOT05_USER_QUERY_WINDOW_OBSERVED='+$r.user_query_native_window_observed)
 Write-Host ('LOT05_USER_QUERY_AUTH_DENIED='+$r.report_auth_denied_observed)
 Write-Host ('LOT05_USER_QUERY_PROBE_RESULT='+$r.report_probe_result)
+Write-Host ('LOT05_QUERY_POST_CLICK_CYCLES='+$r.query_post_click_observed_cycles)
+Write-Host ('LOT05_QUERY_POST_TOP_CLASSES='+($r.query_post_click_owned_window_classes -join ';'))
+Write-Host ('LOT05_QUERY_POST_NESTED_CLASSES='+($r.query_post_click_nested_window_classes -join ';'))
+Write-Host ('LOT05_QUERY_POST_CONTROLS='+($r.query_post_click_controls -join ';'))
+Write-Host ('LOT05_QUERY_POST_PERMISSIONS='+($r.query_post_click_permission_categories -join ';'))
 Write-Host ('LOT05_NATIVE_DEMO_APP_EXECUTED='+$r.app_process_started)
 Write-Host ('LOT05_NATIVE_DEMO_CHOOSER_CAPTURED='+$r.chooser_window_captured)
 Write-Host ('LOT05_NATIVE_DEMO_APP_WINDOW_CAPTURED='+$r.app_window_captured)
