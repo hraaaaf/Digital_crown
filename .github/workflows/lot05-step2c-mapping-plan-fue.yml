@@ -1,0 +1,53 @@
+name: LOT05 2C Synthetic Mapping and Offline Plan FUE-0 (NO IMPORT)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/tests/test_lot05_step2c_mapping_plan_fue.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/services/legacy_sql_mapping_v15.py'
+      - 'backend/services/legacy_sql_offline_plan_v15.py'
+      - '.github/workflows/lot05-step2c-mapping-plan-fue.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  synthetic-mapping-fue0:
+    name: Fake 100/200, negative mapping, zero-write / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact tested HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact SHA, compile source and test
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile \
+            backend/services/legacy_sql_inspector_v15.py \
+            backend/services/legacy_sql_mapping_v15.py \
+            backend/services/legacy_sql_offline_plan_v15.py \
+            backend/tests/test_lot05_step2c_mapping_plan_fue.py
+      - name: Execute nine independent fake-only positive and negative cases
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B backend/tests/test_lot05_step2c_mapping_plan_fue.py -q 2>&1 | tee lot05-2c-fue.log
+          grep -q 'Ran 9 tests' lot05-2c-fue.log
+          grep -q '^OK' lot05-2c-fue.log
+          echo 'LOT05_2C_SYNTHETIC_100_200_MAPPING_FUE0_NINE_PASS_NO_IMPORT'
