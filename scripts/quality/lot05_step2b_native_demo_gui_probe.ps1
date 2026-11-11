@@ -67,6 +67,10 @@ $r=[ordered]@{
   demo_connect_ok_pid_and_geometry=$false
   demo_connect_ok_foreground_verified=$false
   demo_connect_ok_hittest_verified=$false
+  demo_connect_hit_dialog_verified=$false
+  demo_connect_foreground_dialog_verified=$false
+  demo_connect_post_error_categories=@()
+  demo_connect_post_dialog_still_present=0
   demo_connect_click_sent=$false
   demo_connect_click_cycle=-1
   demo_connect_dialog_closed_observed=$false
@@ -123,6 +127,7 @@ public static class Lot05DemoGuiWindow {
   [DllImport("user32.dll")] public static extern IntPtr GetForegroundWindow();
   [DllImport("user32.dll")] public static extern bool SetCursorPos(int x,int y);
   [DllImport("user32.dll")] public static extern IntPtr WindowFromPoint(Point p);
+  [DllImport("user32.dll")] public static extern bool IsChild(IntPtr hWndParent,IntPtr hWnd);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h,out uint pid);
   [DllImport("user32.dll")] public static extern void mouse_event(uint flags,uint dx,uint dy,uint data,UIntPtr extra);
 }
@@ -374,13 +379,17 @@ public static class Lot05DemoGuiWindow {
                     $r.demo_connect_ok_click_source='PINNED_SHA_DIALOG_OK_PID_FOREGROUND_HITTEST'
                   }
                   if($r.demo_connect_ok_pid_and_geometry){
-                    # Focus the owned application, never send keys to another PID.
+                    # Same signed PID also owns the main window; PID-only
+                    # hit-testing cannot prove the modal dialog received OK.
+                    # Focus the verified dialog HWND and click only its own
+                    # window or a descendant HWND. One click, fail closed.
                     $mainHwnd=[IntPtr]([int]$w.Current.NativeWindowHandle)
                     $mainPid=[uint32]0
                     if($mainHwnd -eq [IntPtr]::Zero){throw 'NATIVE_DEMO_MAIN_HWND_MISSING'}
                     $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($mainHwnd,[ref]$mainPid)
-                    if([int]$mainPid -ne $pidHere){throw 'NATIVE_DEMO_MAIN_HWND_PID_MISMATCH'}
-                    $null=[Lot05DemoGuiWindow]::SetForegroundWindow($mainHwnd)
+                    if([int]$mainPid -ne $pidHere -or -not $handleOwned -or
+                       $childHwnd -eq [IntPtr]::Zero){throw 'NATIVE_DEMO_DIALOG_FOCUS_DENIED'}
+                    $null=[Lot05DemoGuiWindow]::SetForegroundWindow($childHwnd)
                     Start-Sleep -Milliseconds 180
                     $foreground=[Lot05DemoGuiWindow]::GetForegroundWindow()
                     $fgPid=[uint32]0
@@ -388,9 +397,14 @@ public static class Lot05DemoGuiWindow {
                       $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($foreground,[ref]$fgPid)
                     }
                     $r.demo_connect_ok_foreground_verified=([int]$fgPid -eq $pidHere)
+                    $r.demo_connect_foreground_dialog_verified=(
+                      $foreground -eq $childHwnd -or
+                      [Lot05DemoGuiWindow]::IsChild($foreground,$childHwnd) -or
+                      [Lot05DemoGuiWindow]::IsChild($childHwnd,$foreground))
                     $pt=New-Object Lot05DemoGuiWindow+Point
                     $pt.X=$bx;$pt.Y=$by
                     if($r.demo_connect_ok_foreground_verified -and
+                       $r.demo_connect_foreground_dialog_verified -and
                        [Lot05DemoGuiWindow]::SetCursorPos($bx,$by)){
                       Start-Sleep -Milliseconds 90
                       $hit=[Lot05DemoGuiWindow]::WindowFromPoint($pt)
@@ -399,7 +413,11 @@ public static class Lot05DemoGuiWindow {
                         $null=[Lot05DemoGuiWindow]::GetWindowThreadProcessId($hit,[ref]$hitPid)
                       }
                       $r.demo_connect_ok_hittest_verified=([int]$hitPid -eq $pidHere)
-                      if($r.demo_connect_ok_hittest_verified){
+                      $r.demo_connect_hit_dialog_verified=(
+                        $hit -eq $childHwnd -or
+                        [Lot05DemoGuiWindow]::IsChild($childHwnd,$hit))
+                      if($r.demo_connect_ok_hittest_verified -and
+                         $r.demo_connect_hit_dialog_verified){
                         [Lot05DemoGuiWindow]::mouse_event([uint32]2,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
                         Start-Sleep -Milliseconds 90
                         [Lot05DemoGuiWindow]::mouse_event([uint32]4,[uint32]0,[uint32]0,[uint32]0,[UIntPtr]::Zero)
@@ -426,6 +444,19 @@ public static class Lot05DemoGuiWindow {
               $nm=[string]$el.Current.Name
               $ct=[string]$el.Current.ControlType.ProgrammaticName
               if($nm -ceq 'Choose Database' -and $ct -ceq 'ControlType.Window'){$foundChooser++}
+              # Only fixed categories, never arbitrary UI labels (PHI risk).
+              if($nm -match '(?i)not authorized|not authorised|permission denied' -and
+                 $r.demo_connect_post_error_categories -notcontains 'PERMISSION_DENIED'){
+                $r.demo_connect_post_error_categories+=,'PERMISSION_DENIED'
+              }
+              if($nm -match '(?i)unable to connect|cannot connect|connection failed|connect to database failed' -and
+                 $r.demo_connect_post_error_categories -notcontains 'DB_CONNECTION_ERROR'){
+                $r.demo_connect_post_error_categories+=,'DB_CONNECTION_ERROR'
+              }
+              if($nm -match '(?i)access denied for user|incorrect password|invalid password' -and
+                 $r.demo_connect_post_error_categories -notcontains 'DB_AUTH_ERROR'){
+                $r.demo_connect_post_error_categories+=,'DB_AUTH_ERROR'
+              }
               if($ct -ceq 'ControlType.Window' -and
                  $r.demo_connect_post_dialog_names.Count -lt 10 -and
                  $r.demo_connect_post_dialog_names -notcontains $nm){
@@ -433,7 +464,9 @@ public static class Lot05DemoGuiWindow {
               }
             }
             $r.demo_connect_dialog_closed_observed=($foundChooser -eq 0)
-            if($cycle -ge $r.demo_connect_click_cycle+4){$r.demo_connect_post_checked=$true}
+            $r.demo_connect_post_dialog_still_present=$foundChooser
+            if($r.demo_connect_dialog_closed_observed -or
+               $cycle -ge $r.demo_connect_click_cycle+15){$r.demo_connect_post_checked=$true}
           }catch{$r.uia_errors++}
         }
         $isChooser=($title -ceq 'Choose Database')
@@ -706,6 +739,9 @@ Write-Host ('LOT05_NATIVE_DEMO_CONNECT_UIA_OK_LABEL_COUNT='+$r.demo_connect_ok_v
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_OK_CLICK_SOURCE='+$r.demo_connect_ok_click_source)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_COMBO_COUNTS='+$r.demo_connect_demo_combo_count+','+$r.demo_connect_server_combo_count)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLICK='+$r.demo_connect_click_sent)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_DIALOG_HIT='+$r.demo_connect_hit_dialog_verified)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_FOREGROUND_DIALOG='+$r.demo_connect_foreground_dialog_verified)
+Write-Host ('LOT05_NATIVE_DEMO_CONNECT_POST_ERRORS='+($r.demo_connect_post_error_categories -join ';'))
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_CLOSED='+$r.demo_connect_dialog_closed_observed)
 Write-Host ('LOT05_NATIVE_DEMO_CONNECT_POST_WINDOWS='+($r.demo_connect_post_dialog_names -join ';'))
 Write-Host ('LOT05_NATIVE_DEMO_NO_PATIENTS_NO_CSV')
