@@ -1,0 +1,108 @@
+name: CEPH J1.B1-S3 38 named lexical equivalents NO CLINICAL AUTO
+on:
+  push:
+    branches: [audit/ceph-j1b1-s3-38-lexicon-20261111]
+    paths:
+      - .github/workflows/ceph-j1b1-s3-38-lexicon.yml
+      - docs/audits/CEPHALO_J1B1_S3_38_LANDMARK_TERMINOLOGY.json
+      - docs/audits/CEPHALO_J1B1_S3_38_LANDMARKS_REVIEW.md
+      - scripts/ci/ceph_j1b1_s3_38_lexicon_gate.py
+  pull_request:
+    paths:
+      - .github/workflows/ceph-j1b1-s3-38-lexicon.yml
+      - docs/audits/CEPHALO_J1B1_S3_38_LANDMARK_TERMINOLOGY.json
+      - docs/audits/CEPHALO_J1B1_S3_38_LANDMARKS_REVIEW.md
+      - scripts/ci/ceph_j1b1_s3_38_lexicon_gate.py
+permissions:
+  contents: read
+concurrency:
+  group: ceph-j1b1-s3-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  exact-head-38-term-safe:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DATABASE_URL: 'sqlite:///:memory:'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact HEAD and precisely 13 S3+S4 source-locked paths; adversarial scope negatives
+        shell: python
+        run: |
+          import subprocess
+          expected_sha="${{ github.event.pull_request.head.sha || github.sha }}"
+          head=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip()
+          if head != expected_sha: raise SystemExit("J1B1_S3_HEAD_DRIFT")
+          base="f6985fa65cbcfa4f3c5dd7712864ca3ac1fade06"
+          s3={
+            ".github/workflows/ceph-j1b1-s3-38-lexicon.yml",
+            "docs/audits/CEPHALO_J1B1_S3_38_LANDMARK_TERMINOLOGY.json",
+            "docs/audits/CEPHALO_J1B1_S3_38_LANDMARKS_REVIEW.md",
+            "scripts/ci/ceph_j1b1_s3_38_lexicon_gate.py",
+          }
+          s4={
+            ".github/workflows/ceph-j1b1-s4-desktop-lexicon.yml",
+            "docs/audits/CEPHALO_J1B1_S4_DESKTOP_READONLY_LEXICON.md",
+            "scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py",
+            "frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs",
+            "frontend/src/features/ortho/cephaloLandmarkReviewLexicon.ts",
+            "frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.tsx",
+            "frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.test.tsx",
+            "frontend/src/features/ortho/components/Step1Cephalo.tsx",
+            "frontend/src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx",
+          }
+          if len(s3)!=4 or len(s4)!=9 or s3.intersection(s4):
+              raise SystemExit("J1B1_S3_S4_EXPECTED_SCOPE_BAD")
+          allowed=sorted(s3|s4)
+          def strict_match(paths):
+              return len(paths)==13 and sorted(paths)==allowed
+          denied_cases=[
+              allowed[:-1],
+              allowed+["backend/services/cephalo_runtime_evidence.py"],
+              allowed[:-1]+["backend/services/cephalo_runtime_evidence.py"],
+              allowed+[allowed[0]],
+          ]
+          if not all(not strict_match(case) for case in denied_cases):
+              raise SystemExit("J1B1_S3_S4_ADVERSARIAL_SCOPE_BYPASS")
+          print("J1B1_S3_S4_FOUR_ADVERSARIAL_PATH_SCOPE_CASES_DENIED")
+          actual=subprocess.check_output(
+              ["git","diff","--name-only","--no-renames",base,"HEAD"],
+              text=True,
+          ).splitlines()
+          if not strict_match(actual):
+              print("Expected exactly 13 S3+S4:",allowed)
+              print("Actual:",sorted(actual))
+              raise SystemExit("J1B1_S3_S4_SCOPE_DRIFT")
+          print("J1B1_S3_S4_EXACT_HEAD_THIRTEEN_APPROVED_FILES_PASS")
+      - name: Verify syntax, 38 entries and adversarial no-clinical-promotion gates
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -m py_compile scripts/ci/ceph_j1b1_s3_38_lexicon_gate.py
+          python scripts/ci/ceph_j1b1_s3_38_lexicon_gate.py
+          python -m py_compile scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py
+          python scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py
+      - name: Publish terminology metadata only on Linux (NO dataset, patient, model)
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j1b1-s3-38-terms-clinical-gate-deny
+          path: docs/audits/CEPHALO_J1B1_S3_38_LANDMARK_TERMINOLOGY.json
+          retention-days: 7
+          if-no-files-found: error
