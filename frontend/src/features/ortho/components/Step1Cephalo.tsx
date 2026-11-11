@@ -122,7 +122,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
       <aside
         data-r20-workbench-sidebar
         aria-label="Contrôles du workbench céphalométrique"
-        className="order-2 min-w-0 rounded-2xl border p-2 xl:order-1 xl:h-[80vh] xl:overflow-y-auto xl:p-3"
+        className="order-3 min-w-0 rounded-2xl border p-2 xl:order-1 xl:h-[80vh] xl:overflow-y-auto xl:p-3"
         style={{ background: props.P.bgPanel, borderColor: props.P.border, boxShadow: props.P.shadow }}
       >
         <p className="hidden text-[10px] font-bold uppercase tracking-[0.10em] xl:block" style={{ color: props.P.textMuted }}>Contrôles</p>
@@ -353,6 +353,10 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
         style={{ '--cephalo-scientific-anchor': props.P.text } as React.CSSProperties}
       >
         <Step1CephaloBase {...props} embedded />
+
+      </div>
+
+      <div data-r20-measures-panel className="order-2 flex min-w-0 flex-col gap-2 xl:order-3 xl:h-[80vh]">
         <details
           data-cephalo-review-lexicon-details
           aria-label="Aide anatomique, lecture seule"
@@ -364,7 +368,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
               event.currentTarget.querySelector('summary')?.focus();
             }
           }}
-          className="fixed bottom-3 right-3 z-40 flex w-[min(90vw,360px)] flex-col-reverse rounded-xl border p-2 shadow-xl xl:bottom-auto xl:top-24 xl:flex-col"
+          className="min-w-0 shrink-0 rounded-xl border p-2"
           style={{ borderColor: props.P.border, background: props.P.bgPanel, color: props.P.text }}
         >
           <summary
@@ -373,7 +377,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
           >
             Lexique des 38 repères · FR/EN
           </summary>
-          <div className="max-h-[26dvh] overflow-y-auto xl:max-h-[42dvh] overscroll-contain border-t p-2" style={{ borderColor: props.P.border }}>
+          <div className="max-h-[26dvh] overflow-y-auto overscroll-contain border-t p-2 xl:max-h-[32dvh]" style={{ borderColor: props.P.border }}>
             <CephaloLandmarkReviewLexicon
               presentLandmarks={localLandmarks}
               activePointId={activePointId}
@@ -381,10 +385,9 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             />
           </div>
         </details>
-      </div>
-
-      <div data-r20-measures-panel className="order-3 min-w-0 h-[68vh] xl:h-[80vh]">
-        <CephaloAnalysisWorkbenchPanel P={props.P} analysis={analysis} />
+        <div className="min-h-0 min-w-0 flex-1 xl:overflow-y-auto">
+          <CephaloAnalysisWorkbenchPanel P={props.P} analysis={analysis} />
+        </div>
       </div>
     </div>
   );

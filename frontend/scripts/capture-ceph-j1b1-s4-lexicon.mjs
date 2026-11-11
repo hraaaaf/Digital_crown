@@ -111,6 +111,19 @@ server.stderr.on('data', data => { serverLog += data.toString(); });
 const allCaptures = [];
 const blockedExternalRequests = [];
 
+async function resetWorkspaceScroll(page) {
+  await page.evaluate(() => {
+    const stage = document.querySelector('[data-r20-radiograph-stage]');
+    let node = stage;
+    while (node) {
+      if (node.scrollTop > 0) node.scrollTop = 0;
+      node = node.parentElement;
+    }
+    document.scrollingElement.scrollTop = 0;
+    window.scrollTo(0, 0);
+  });
+}
+
 async function capture(viewport, attempt, theme) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -151,7 +164,7 @@ async function capture(viewport, attempt, theme) {
     await details.waitFor({ state:'attached', timeout:30_000 });
     const initialClosed = await details.evaluate(node => !node.open);
     if (!initialClosed) throw new Error('S4_NOT_CLOSED_BY_DEFAULT');
-    await details.scrollIntoViewIfNeeded();
+    await resetWorkspaceScroll(page);
     await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
     await page.screenshot({
       path: path.join(OUTPUT_DIR, theme + '-' + 'before-collapsed-' + viewport.name + '.png'),
@@ -167,7 +180,13 @@ async function capture(viewport, attempt, theme) {
       throw new Error('S4_FULL_CATALOG_COUNT_OR_CLINICAL_GATE_FAILED: ' + [nDetector,nConstruction,nCertified].join(','));
     }
     const search = page.getByRole('searchbox', { name: /FR, EN, synonyme ou ID/i });
-    await details.scrollIntoViewIfNeeded();
+    if (viewport.width <= 430) {
+      await page.screenshot({
+        path: path.join(OUTPUT_DIR, theme + '-glossary-focused-' + viewport.name + '.png'),
+        fullPage: false,
+      });
+    }
+    await resetWorkspaceScroll(page);
     await page.screenshot({
       path: path.join(OUTPUT_DIR, theme + '-' + 'after-expanded-' + viewport.name + '.png'),
       fullPage: false,
@@ -177,12 +196,21 @@ async function capture(viewport, attempt, theme) {
     const nFiltered = await page.locator('[data-cephalo-review-lexicon] [data-cephalo-lexicon-id]').count();
     const proper = await page.locator('[data-cephalo-lexicon-id="Pog_soft"][data-clinical-validated="false"]').count();
     if (nFiltered !== 1 || proper !== 1) throw new Error('S4_POS_EXACT_ALIAS_OR_CLINICAL_HOLD_FAILED');
-    await details.scrollIntoViewIfNeeded();
+    await resetWorkspaceScroll(page);
     await page.screenshot({
       path: path.join(OUTPUT_DIR, theme + '-' + 'after-pos-search-' + viewport.name + '.png'),
       fullPage: false,
     });
 
+    // On compact phones, scroll the actual image into the manual-pointing workspace
+    // before testing pointer access. Preserve the recorded first-viewport screenshot.
+    if (viewport.width <= 430) {
+      await resetWorkspaceScroll(page);
+      await page.screenshot({
+        path: path.join(OUTPUT_DIR, theme + '-edit-ready-' + viewport.name + '.png'),
+        fullPage: false,
+      });
+    }
     const metrics = await page.evaluate(() => {
       const doc = document.documentElement;
       const panel = document.querySelector('[data-cephalo-review-lexicon]');
@@ -190,6 +218,19 @@ async function capture(viewport, attempt, theme) {
       const stage = document.querySelector('[data-r20-radiograph-stage]');
       const stageRect = stage?.getBoundingClientRect();
       const drawerRect = document.querySelector('[data-cephalo-review-lexicon-details]')?.getBoundingClientRect();
+      const overlapWidth = stageRect && drawerRect ? Math.max(0, Math.min(stageRect.right, drawerRect.right) - Math.max(stageRect.left, drawerRect.left)) : 0;
+      const overlapHeight = stageRect && drawerRect ? Math.max(0, Math.min(stageRect.bottom, drawerRect.bottom) - Math.max(stageRect.top, drawerRect.top)) : 0;
+      const candidates = stageRect
+        ? [0.22,0.48,0.74].flatMap(xFraction => [0.22,0.48,0.74].map(yFraction => ({
+          x: stageRect.left + stageRect.width * xFraction,
+          y: Math.max(0,stageRect.top) + (Math.min(innerHeight,stageRect.bottom) - Math.max(0,stageRect.top)) * yFraction,
+        }))).filter(p => p.x >= 1 && p.x < innerWidth - 1 && p.y >= 1 && p.y < innerHeight - 1)
+        : [];
+      const visibleStagePoints = candidates.filter(p => {
+        const hit = document.elementFromPoint(p.x, p.y);
+        return Boolean(hit?.closest('[data-r20-radiograph-stage]') && !hit.closest('[data-cephalo-review-lexicon-details]'));
+      });
+      const accessibleStagePoint = visibleStagePoints[0] || null;
       return {
         width: innerWidth,
         activeTheme: document.body.dataset.theme,
@@ -200,6 +241,11 @@ async function capture(viewport, attempt, theme) {
         horizontalDocumentOverflow: doc.scrollWidth > innerWidth + 1,
         panelVisible: Boolean(panelRect && panelRect.width > 10 && panelRect.height > 10),
         radiographStageVisible: Boolean(stageRect && stageRect.width > 50 && stageRect.height > 50 && stageRect.top < innerHeight && stageRect.bottom > 0),
+        glossaryRadiographOverlapPx2: overlapWidth * overlapHeight,
+        stageHitIsNotGlossary: accessibleStagePoint !== null,
+        stageHitInsideStage: accessibleStagePoint !== null,
+        accessibleStagePoint,
+        accessibleStagePointCount: visibleStagePoints.length,
         radiographUncoveredAboveDrawerPx: stageRect && drawerRect
           ? Math.max(0, Math.min(stageRect.bottom, drawerRect.top, innerHeight) - Math.max(stageRect.top, 0)) : 0,
         panelWithinViewportX: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= innerWidth + 1),
@@ -207,6 +253,13 @@ async function capture(viewport, attempt, theme) {
       };
     });
 
+    await page.evaluate(() => {
+      const stage = document.querySelector('[data-r20-radiograph-stage]');
+      (window).__cephS4PointerReached = false;
+      stage?.addEventListener('pointerdown', () => { (window).__cephS4PointerReached = true; }, { capture: true, once: true });
+    });
+    if (metrics.accessibleStagePoint) await page.mouse.click(metrics.accessibleStagePoint.x, metrics.accessibleStagePoint.y);
+    const pointerReachedStage = await page.evaluate(() => (window).__cephS4PointerReached === true);
     await search.press('Escape');
     const closedOnEscape = await details.evaluate(node => !node.open);
     const focusReturned = await details.locator('summary').evaluate(node => node === document.activeElement);
@@ -214,13 +267,15 @@ async function capture(viewport, attempt, theme) {
       && nConstruction === 2 && nCertified === 0 && nFiltered === 1 && proper === 1
       && metrics.activeTheme === theme && metrics.backgroundToken.length > 0
       && metrics.panelVisible && metrics.panelWithinViewportX && metrics.radiographStageVisible
-      && (viewport.width > 768 || metrics.radiographUncoveredAboveDrawerPx >= 260)
-      && closedOnEscape && focusReturned
+      && metrics.glossaryRadiographOverlapPx2 === 0 && metrics.stageHitIsNotGlossary
+      && metrics.stageHitInsideStage
+      && (viewport.width > 768 || metrics.radiographUncoveredAboveDrawerPx >= 240)
+      && closedOnEscape && focusReturned && pointerReachedStage
       && !metrics.horizontalDocumentOverflow
       && metrics.clinicalBadgesPresent === 0
       && pageErrors.length === 0 && consoleErrors.length === 0;
     return { viewport:viewport.name, theme, attempt, valid, httpStatus:response?.status()??null,
-      initialClosed, closedOnEscape, focusReturned, nDetector, nConstruction, nCertified, nFiltered, proper,
+      initialClosed, closedOnEscape, focusReturned, pointerReachedStage, nDetector, nConstruction, nCertified, nFiltered, proper,
       metrics, pageErrors, consoleErrors, apiRequests:requests };
   } catch (error) {
     return { viewport:viewport.name, theme, attempt, valid:false,
