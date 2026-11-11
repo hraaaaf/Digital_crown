@@ -14,7 +14,7 @@ describe('P4 unified imaging truth boundary', () => {
     expect(details).toContain("type RadioTab = 'media' | 'rvg' | 'panoramic' | 'cephalo'");
     expect(details).toContain("handleRadioTabChange('media')");
     expect(details).toContain("handleRadioTabChange('rvg')");
-    expect(details).toContain('<PatientMediaTimeline patientId={Number(id)} />');
+    expect(details).toContain('<PatientMediaTimeline patientId={Number(id)} scopeKey={mediaScopeKey} />');
     expect(details).toContain('<PatientRvgPanel patientId={Number(id)} />');
     expect(details.indexOf('label="Médiathèque"')).toBeLessThan(details.indexOf('label="RVG"'));
     expect(details.indexOf('label="RVG"')).toBeLessThan(details.indexOf('label="Panoramique"'));

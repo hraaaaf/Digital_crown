@@ -129,7 +129,7 @@ describe('DEC-R2 UX follows selected theme, never fixed palette', () => {
     expect(lab).toContain('Mode compact sécurisé');
     expect(lab).toContain('R · lecture seule');
     expect(lab).toContain('authorizeLayout(mounted,context,ratio)');
-    expect(lab).toContain('PatientMediaTimeline patientId={trustedPatient.id} readOnly');
+    expect(lab).toMatch(/<PatientMediaTimeline\s+patientId=\{trustedPatient\.id\}\s+scopeKey=\{identityKey\}\s+readOnly\s*\/>/);
     expect(css).toContain('var(--border-color)');
     expect(css).toContain('var(--card-bg)');
     expect(css).toContain('var(--bg-medical-pearl)');
