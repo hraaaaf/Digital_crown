@@ -1,0 +1,57 @@
+name: Theme Root Authority — Desktop / Pocket (NO DEPLOY)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/theme-global-inheritance-guard.yml'
+      - 'frontend/src/utils/themeDocumentAuthority.ts'
+      - 'frontend/src/utils/themeDocumentAuthority.test.ts'
+      - 'frontend/src/App.tsx'
+      - 'frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx'
+      - 'frontend/src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx'
+      - 'frontend/src/features/mobile/Onboarding/OnboardingThemeTokens.contract.test.ts'
+
+permissions:
+  contents: read
+
+jobs:
+  theme-inheritance:
+    name: Exact HEAD selected/default theme and Pocket isolation
+    runs-on: ubuntu-24.04
+    timeout-minutes: 18
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Verify exact PR HEAD and scope
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test "$RUNNER_ENVIRONMENT" = "github-hosted"
+          grep -Fq 'syncDesktopBodyThemeFromRoot(window.location.pathname)' frontend/src/App.tsx
+          ! grep -Fq "document.documentElement.dataset.theme = '';" frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx
+          ! grep -Fq "document.body.dataset.theme = '';" frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx
+          echo "THEME_ROOT_GUARD_SHA=$(git rev-parse HEAD)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install locked frontend dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Selected/default theme and G1 interactive safety tests
+        working-directory: frontend
+        run: >-
+          npx vitest run
+          src/utils/themeDocumentAuthority.test.ts
+          src/features/mobile/Onboarding/OnboardingScanner.g1Interactive.test.tsx
+          src/features/mobile/Onboarding/OnboardingThemeTokens.contract.test.ts
+          src/features/admin/Settings/hooks/themePersistenceTruth.test.ts
+          src/features/mobile/mobileThemeHardcoding.test.ts
+      - name: Frontend TypeScript correctness
+        working-directory: frontend
+        run: npx tsc --noEmit

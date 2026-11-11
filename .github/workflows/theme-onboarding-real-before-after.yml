@@ -1,0 +1,83 @@
+name: Theme Onboarding BEFORE AFTER Visual FUE (NO DEPLOY)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/workflows/theme-onboarding-real-before-after.yml'
+      - 'frontend/scripts/capture-onboarding-theme-before-after.mjs'
+      - 'frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx'
+      - 'frontend/src/App.tsx'
+
+permissions:
+  contents: read
+
+jobs:
+  visual-before-after:
+    name: Real Onboarding BEFORE AFTER 390/768/1280 and 4 themes
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 32 # pinned BEFORE base is 9 commits behind this PR head
+      - name: Exact HEAD, fixture and baseline commit guards
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = '${{ github.event.pull_request.head.sha }}'
+          test "$RUNNER_ENVIRONMENT" = 'github-hosted'
+          git cat-file -e '324afd13487acf7ff29223f077451927b54b8178:frontend/src/features/mobile/Onboarding/OnboardingScanner.tsx'
+          node --check frontend/scripts/capture-onboarding-theme-before-after.mjs
+          echo "THEME_VISUAL_HEAD=$(git rev-parse HEAD)"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install pinned real-browser test dependencies
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npm install --no-save --package-lock=false playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: BEFORE/AFTER real OnboardingScanner and token inheritance
+        working-directory: frontend
+        env:
+          PLAYWRIGHT_MODULE: playwright
+        run: node scripts/capture-onboarding-theme-before-after.mjs
+      - name: Verify 24 genuine screenshot sizes and evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import json,struct
+          from pathlib import Path
+          p=Path('artifacts/theme-onboarding-before-after')
+          doc=json.loads((p/'evidence.json').read_text())
+          x=doc['evidence']
+          assert len(x)==24, len(x)
+          assert doc['patientData']=='NONE' and doc['deployment']=='NONE'
+          assert not doc['pageErrors']
+          assert {z['phase'] for z in x} == {'before','after'}
+          for z in x:
+              f=p/z['screenshot']; b=f.read_bytes()
+              assert b[:8]==b'\x89PNG\r\n\x1a\n',f
+              assert struct.unpack('>II',b[16:24])==(z['viewport']['width'],z['viewport']['height']),f
+              if z['phase']=='after':
+                  assert z['rootTheme']==z['theme'] and z['bodyTheme']==z['theme']
+                  assert z['actualBackground']==z['expectedBackground']
+                  assert z['actualText']==z['expectedText']
+                  assert not z['overflow']
+          print('THEME_24_REAL_BEFORE_AFTER_IMAGES_PASS')
+          PY
+      - name: Upload original screenshots and sanitized evidence on both outcomes
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: theme-onboarding-before-after-real-390-768-1280-4themes
+          path: artifacts/theme-onboarding-before-after
+          if-no-files-found: warn
+          retention-days: 14

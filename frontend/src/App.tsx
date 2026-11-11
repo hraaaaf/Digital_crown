@@ -10,6 +10,7 @@ import { useAuthStore } from './stores/useAuthStore';
 import { hasAccess } from './utils/accessControl';
 import { isCommandCabinetLabEnabled } from './features/command/command-cabinet-readonly-policy';
 import { canViewMigrationStudio } from './features/admin/migration/MappingStudioPolicy';
+import { syncDesktopBodyThemeFromRoot } from './utils/themeDocumentAuthority';
 
 // Chargés immédiatement (première interaction utilisateur)
 import { Dashboard } from './pages/Dashboard';
@@ -381,10 +382,9 @@ function App() {
 
   // Application globale du thème (Persistance) et Paramètres IA
   useEffect(() => {
-    const savedTheme = localStorage.getItem('digitalcrown_theme');
-    if (savedTheme) {
-      document.body.dataset.theme = savedTheme;
-    }
+    // index.html and Settings own the desktop theme; Pocket owns its own
+    // cabinet-scoped theme. Never override a /mobile route from desktop storage.
+    syncDesktopBodyThemeFromRoot(window.location.pathname);
 
     const applySettings = () => {
       // Mode Performance
