@@ -17,7 +17,7 @@ on:
 permissions:
   contents: read
 env:
-  SOURCE_MASTER_SHA: bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4
+  SOURCE_MASTER_SHA: 093e89390d0e4b934d478485ea1ef28a7ce95de4
   LOT08G_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
 jobs:
   linux-queue-and-blocked-release:
@@ -29,22 +29,9 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha || github.sha }}
           fetch-depth: 25
           persist-credentials: false
-      - name: Assert exact SHA and five source-only additions
+      - name: Assert integrated exact 17-file source-only LAB scope
         shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$LOT08G_SOURCE_SHA"
-          git diff --name-only "$SOURCE_MASTER_SHA" HEAD | sort > actual.txt
-          cat > expected.txt <<'EOF'
-          .github/workflows/v15-08-2-g-installable-vm-readiness-fue.yml
-          docs/quality/V15_08_2_G_INSTALLABLE_VM_REHEARSAL_GATE.md
-          queue_core/tests/test_installable_gate_08_2_g.py
-          scripts/quality/lot08_2_g_installable_gate.py
-          scripts/quality/lot08_2_g_sqlcipher_lab.py
-          EOF
-          diff -u expected.txt actual.txt
-          test ! -e dist/DigitalCrownSetup.exe
-          echo "LOT08G_EXACT_HEAD_FIVE_FILE_SOURCE_ONLY_PASS=$LOT08G_SOURCE_SHA"
+        run: python scripts/quality/lot08_2_integrated_scope_gate.py --expected-head "$LOT08G_SOURCE_SHA"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
