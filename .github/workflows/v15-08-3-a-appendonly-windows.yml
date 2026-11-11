@@ -1,0 +1,47 @@
+name: LOT08.3-A real Windows SQLite immutable event ledger FUE
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/v15-08-3-a-appendonly-windows.yml
+      - queue_core/persistence/models.py
+      - queue_core/service/authorized_queue.py
+      - queue_core/tests/test_event_append_only_08_3.py
+      - queue_core/tests/test_service_auth_08_2_b.py
+
+permissions:
+  contents: read
+
+jobs:
+  windows-appendonly-real-sqlite:
+    runs-on: windows-2022
+    timeout-minutes: 20
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - name: Verify HEAD and forbid installable
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne "${{ github.event.pull_request.head.sha }}") { throw 'HEAD_MISMATCH' }
+          if (Test-Path 'dist/DigitalCrownSetup.exe') { throw 'INSTALLABLE_FORBIDDEN' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned synthetic-only dependencies
+        shell: pwsh
+        run: python -m pip install --disable-pip-version-check 'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+      - name: Real Windows SQLite UPDATE/DELETE/reopen and legacy refusal FUE
+        shell: pwsh
+        run: |
+          python -m pytest -q queue_core/tests/test_event_append_only_08_3.py queue_core/tests/test_service_auth_08_2_b.py -k 'event_ledger' --junitxml=lot08_3_a_windows.xml
+      - name: Archive JUnit without any executable or patient file
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08-3-a-windows-appendonly-junit
+          path: lot08_3_a_windows.xml
+          if-no-files-found: error
+          retention-days: 7
