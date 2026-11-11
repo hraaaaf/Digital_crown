@@ -25,8 +25,18 @@ export const CephaloLandmarkReviewLexicon: React.FC<ReviewLexiconProps> = ({
   const [query, setQuery] = useState('');
   const fieldId = useId();
   const needle = normalizeSearch(query);
-  const visible = (item: { id: string; fr: string; en: string; aliases?: readonly string[] }) =>
-    !needle || normalizeSearch([item.id, item.fr, item.en, ...(item.aliases ?? [])].join(' ')).includes(needle);
+  type SearchTerm = { id: string; fr: string; en: string; aliases?: readonly string[] };
+  const searchFields = (item: SearchTerm) =>
+    [item.id, item.fr, item.en, ...(item.aliases ?? [])].map(normalizeSearch);
+  // Prefer a full landmark ID / exact synonym to partial matches in another
+  // anatomical word: "Pos" must not also return "Posterior nasal spine".
+  const exactMatchExists = Boolean(needle)
+    && [...CEPHALO_38_REVIEW_TERMS, ...CEPHALO_OCCLUSAL_REVIEW_TERMS]
+      .some(item => searchFields(item).includes(needle));
+  const visible = (item: SearchTerm) =>
+    !needle || (exactMatchExists
+      ? searchFields(item).includes(needle)
+      : searchFields(item).some(field => field.includes(needle)));
   const detector = CEPHALO_38_REVIEW_TERMS.filter(visible);
   const occlusal = CEPHALO_OCCLUSAL_REVIEW_TERMS.filter(visible);
   const presentIds = new Set(presentLandmarks.map(item => item.id.toLowerCase()));
