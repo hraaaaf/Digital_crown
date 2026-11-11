@@ -26,22 +26,9 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 25
-      - name: Assert exact HEAD + bounded five-file additive-only LAB
+      - name: Assert integrated exact 17-file source-only LAB scope
         shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          git diff --name-only bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4 HEAD | sort > actual.txt
-          cat > expected.txt <<'EOF'
-          .github/workflows/v15-08-2-e-windows-service-snapshot-lab.yml
-          queue_core/tests/test_snapshot_08_2_e.py
-          scripts/quality/lot08_2_e_service_probe.py
-          scripts/quality/lot08_2_e_snapshot_lab.py
-          scripts/quality/lot08_2_e_windows_service_lab.ps1
-          EOF
-          diff -u expected.txt actual.txt
-          test ! -e dist/DigitalCrownSetup.exe
-          echo "LOT08_2_E_BOUNDED_FIVE_FILE_EXACT_HEAD_PASS=$GITHUB_SHA"
+        run: python scripts/quality/lot08_2_integrated_scope_gate.py --expected-head "$GITHUB_SHA"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
