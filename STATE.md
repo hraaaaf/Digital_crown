@@ -6,6 +6,19 @@
 
 # STATE — DigitalCrown
 
+## LOT08.3-B2-A — 2026-11-11 — 7-DAY CONSUMED QR RETRY RECEIPT RETENTION, SYNTHETIC LAB ONLY
+
+**Decision:** owner « Go » after #1301 integrated. One 08.3-B2 subdecision only: the **existing** synthetic QR receipt ledger `queue_presence_qr_lab` from LOT08.2-D, not imaginary generic webhook/log tables or legal-audit purge. Master baseline `8a9db931d153f7d20edc5d6ea70faab2f12feee3`. [Draft PR #1303](https://github.com/hraaaaf/Digital_crown/pull/1303), branch `feat/v15-08-3-b2-qr-ledger-retention-lab-20261111`.
+
+**G3 threshold invariant:** Queue QR redeem permits retries for exactly 7 elapsed days (`now <= consumed_epoch + 7*86400`), therefore cleanup must retain the QR receipt at the exact boundary and only purge **strictly later**, when expiry is past and the original transaction was fully consumed. Do not delete pending/unconsumed receipts or the event audit. Query by tenant and eligible age, batch max 100, default dry-run; temporary-path AND explicit SQLite synthetic marker; SQLite event UPDATE/DELETE guards, foreign-key integrity and exact QR columns required. Immutable aggregate retention receipt only after successful atomic commit, rollback on exception; zero-match run nonmutating.
+
+**FUE proof (candidate before canonical change):** original negative Windows run [#43059196552](https://github.com/hraaaaf/Digital_crown/actions/runs/43059196552) FAILED on an accidental Python newline serialization error: NameError `cutoff` before any purge. Fixed without removing tests. Latest substantive code/test SHA `804be45bfa137d58e4b5bdacfd8bad0dd3610cde`: [Windows #43059391283](https://github.com/hraaaaf/Digital_crown/actions/runs/43059391283) **15 passed** (7 QR new + 8 B1 regression), JUnit [#13873036685](https://github.com/hraaaaf/Digital_crown/actions/runs/43059391283/artifacts/13873036685). Linux Queue full workflow [#43059391699](https://github.com/hraaaaf/Digital_crown/actions/runs/43059391699) pending at documentation time; do not assert completion without a final readback. Subsequent hardening adds two negative cases against preexisting mutable or schema-incompatible QR purge receipts (9 B2 tests). Final PR candidate SHA after this handover and hardening requires revalidation and exact-head traceability.
+
+**Limitations:** prototype source/LAB, no runtime background scheduler, no clinic installable, no real patient file, no migration or production purge. Technical logs/webhook deliveries seven days have no identified Queue tables in examined code, unconsumed expired QR token verifier cleanup is separately gated under G2, append-only audit 12 months and backup/restore with RPO/RTO remain **NOT IMPLEMENTED**. Strict 7d TTL on consumed retry receipts does not imply all G3 lifecycle goals complete. Old audit identifier `visit_ref` minimization/legal review still required.
+
+**Next exact:** verify final PR head Linux Queue + native Windows + scope gate, inspect negative oracles and JUnit, Notion POST, leave PR DRAFT until distinct merge GO. Begin a separate G3 backup/restore decision only after this sublot closes.
+
+
 ## LOT08.3-A/B1 — 2026-11-11 — VERIFIED INTEGRATION CANDIDATE (LAB ONLY)
 
 **Owner GO** (2026-11-11): reconcile tested Queue retention LAB against latest master, rerun applicable FUE and merge if green, never deploy/install/migrate real DBs. **Baseline** `master@5a51be7483b661c95852c5a3a53109c9c2bf9f15` (two intervening design documentation commits #1296/#1298 after #1294; no Queue files changed).
