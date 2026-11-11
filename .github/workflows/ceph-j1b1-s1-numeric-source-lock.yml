@@ -1,0 +1,107 @@
+name: CEPH J1.B1-S1 pinned numeric SRPose38 source-lock (NO CLINICAL RELEASE)
+on:
+  push:
+    branches: [safety/ceph-j1b1-source-lock-38-20261111]
+    paths:
+      - .github/workflows/ceph-j1b1-s1-numeric-source-lock.yml
+      - backend/scientific_assets.json
+      - docs/audits/CEPHALO_J1B1_S1_NUMERIC_SOURCE_LOCK_GATE.md
+      - scripts/ci/ceph_j1b1_srpose_source_lock.py
+  pull_request:
+    paths:
+      - .github/workflows/ceph-j1b1-s1-numeric-source-lock.yml
+      - backend/scientific_assets.json
+      - docs/audits/CEPHALO_J1B1_S1_NUMERIC_SOURCE_LOCK_GATE.md
+      - scripts/ci/ceph_j1b1_srpose_source_lock.py
+permissions:
+  contents: read
+concurrency:
+  group: ceph-j1b1-s1-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  pinned-38-numeric-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DATABASE_URL: 'sqlite:///:memory:'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact commit and additive four-file scope since pre-existing source-lock correction
+        shell: python
+        run: |
+          import subprocess
+          actual = subprocess.check_output(
+              ["git", "rev-parse", "HEAD"], text=True
+          ).strip()
+          expected = "${{ github.event.pull_request.head.sha || github.sha }}"
+          if actual != expected:
+              raise SystemExit("J1B1_S1_EXACT_HEAD_MISMATCH")
+          base = "f64b3bba5b1e885ca3cdd7dbd7e2087fc4cb9dec"
+          changed = sorted(subprocess.check_output(
+              ["git", "diff", "--name-only", base, "HEAD"], text=True
+          ).splitlines())
+          allowed = sorted([
+              ".github/workflows/ceph-j1b1-s1-numeric-source-lock.yml",
+              "backend/scientific_assets.json",
+              "docs/audits/CEPHALO_J1B1_S1_NUMERIC_SOURCE_LOCK_GATE.md",
+              "scripts/ci/ceph_j1b1_srpose_source_lock.py",
+          ])
+          if changed != allowed:
+              print("actual:", changed)
+              raise SystemExit("J1B1_S1_UNEXPECTED_PRODUCTION_SCOPE")
+          print("J1B1_S1_EXACT_HEAD_FOUR_FILE_SCOPE_PASS")
+      - name: Source-lock code compiles without dependencies
+        shell: bash
+        run: python -m py_compile scripts/ci/ceph_j1b1_srpose_source_lock.py
+      - name: Fail-closed synthetic negative tests (NO data or weights)
+        shell: bash
+        run: python scripts/ci/ceph_j1b1_srpose_source_lock.py selftest
+      - name: Read exact pinned upstream 3.7 KB source and validate 38-channel non-anatomical correspondence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/ci/ceph_j1b1_srpose_source_lock.py verify --report j1b1-source-lock-metadata.json
+          python - <<'PY'
+          import json
+          report=json.load(open("j1b1-source-lock-metadata.json",encoding="utf-8"))
+          assert report["channel_count"] == 38
+          assert report["number_of_anatomical_mappings_source_verified"] == 0
+          assert report["clinical_activation_authorized"] is False
+          assert report["clinical_release"] is False
+          assert report["patient_data_used"] is False
+          assert report["onnx_model_downloaded"] is False
+          assert report["inference_performed"] is False
+          assert {p["runtime_index"] for p in report["channels"]} == set(range(38))
+          assert {p["index_to_anatomy_status"] for p in report["channels"]} == {"SOURCE_LOCK_REQUIRED"}
+          print("J1B1_S1_META_ONLY_SOURCE_LOCK_HOLD_PROOF_PASS")
+          PY
+      - name: Publish METADATA only (Linux evidence; no source model, X-rays or patient files)
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: j1b1-s1-numeric-source-lock-no-patient
+          path: j1b1-source-lock-metadata.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Remove temporary numeric source-lock JSON after proof
+        if: always()
+        shell: bash
+        run: |
+          rm -f j1b1-source-lock-metadata.json
+          echo J1B1_S1_TEMP_METADATA_CLEANED
