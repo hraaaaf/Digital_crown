@@ -21,7 +21,9 @@
         "onnx_proof_run": 34281082926
       },
       "next_gate": "P6/P7 scientific asset packaging and clean-machine install certification",
-      "note": "SRPose38 is the validated 38-point cephalometry runtime asset. The 267 MB binary remains external and is accepted only when size and SHA256 match the certified ONNX export."
+      "note": "SRPose38 ONNX is a technically verified 38-output numerical runtime asset (size/SHA-256, CPU export). Its 38 legacy anatomical channel-name associations are NOT independently source-verified. Source-lock and expert paired-label validation are required before clinical inference or anatomical interpretation. Model bytes remain external.",
+      "anatomical_mapping_validation": "SOURCE_LOCK_REQUIRED",
+      "clinical_activation_authorized": false
     },
     {
       "id": "cephalo_legacy",
