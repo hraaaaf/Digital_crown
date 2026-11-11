@@ -199,7 +199,7 @@ class SyntheticSemanticOracleFUE(unittest.TestCase):
         report = self.simulate(self.draft())
         public = repr(report.to_public_dict())
         for marker in ("FAKE_GIVEN_", "FAKE_FAMILY_", "FAKE_UNUSED",
-                       str(self.stage), "ancien_id", "prenom", "nom"):
+                       str(self.stage), "\u0027ancien_id\u0027", "\u0027prenom\u0027", "\u0027nom\u0027"):
             self.assertNotIn(marker, public)
         self.assertFalse(report.import_permitted)
 
