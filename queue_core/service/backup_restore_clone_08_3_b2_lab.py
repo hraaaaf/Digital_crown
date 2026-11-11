@@ -160,6 +160,11 @@ def seal_queue_snapshot_lab(
     try:
         _verify_queue_scope(original)
         original.backup(memory)
+        # A committed-WAL source can leave page bytes 18/19 in WAL mode even
+        # after a correct SQLite backup into memory. VACUUM on the disposable
+        # in-memory copy yields a self-contained rollback-mode image without
+        # editing SQLite headers by hand or touching the source database.
+        memory.execute("VACUUM")
         _verify_queue_scope(memory)
         image = memory.serialize()
         if not image.startswith(b"SQLite format 3\x00") or not 0 < len(image) <= _MAX_SQLITE_BYTES:
