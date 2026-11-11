@@ -174,7 +174,13 @@ try{
     if(dragOK)await check('DRAFT_SAVE_AND_FRESH_BROWSER_RELOAD',async()=>{
       const before=await read();
       assert(same(before.landmarks_data,report.saved_landmarks),'INCONSISTENT_REDO_BEFORE_SAVE');
+      const saveResponsePromise=page.waitForResponse(r=>
+        r.request().method()==='PUT' && r.url().includes('/api/ia/analyses/'+seed.analysis_id),
+        {timeout:25000});
       await page.getByRole('button',{name:'Sauvegarder l’analyse céphalométrique'}).click();
+      const manualSaveResponse=await saveResponsePromise;
+      assert(manualSaveResponse.status()>=200&&manualSaveResponse.status()<300,
+        'MANUAL_DRAFT_SAVE_PUT_FAILED '+manualSaveResponse.status());
       await until('MANUAL_DRAFT_SAVE_NOT_VISIBLE',d=>same(d.landmarks_data,report.saved_landmarks));
       assert((await page.getByText('Brouillon uniquement · sans validation clinique').count())>0,'DRAFT_LABEL_LOST');
       await page.reload({waitUntil:'domcontentloaded'});
