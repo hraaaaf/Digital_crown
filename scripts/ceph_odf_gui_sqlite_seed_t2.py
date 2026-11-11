@@ -36,9 +36,13 @@ with database.SessionLocal() as db:
         numero_dossier=case_number,
         nom="FICTION-ODF", prenom="E2E",
         date_naissance=datetime(1990, 1, 1), sexe="M", employer_id=user.id,
-        telephone="0600000000", email="ceph-odf-synthetic@example.invalid",
+        telephone="0600000000", email="ceph-odf-synthetic@example.com",
         assurance="AUCUNE",
     )
+    # The real patient serializer uses EmailStr; a reserved .invalid suffix
+    # fails validation even for a synthetic patient and obscures the E2E result.
+    from email_validator import validate_email
+    validate_email(patient.email, check_deliverability=False)
     db.add(patient)
     db.flush()
     db.add(models.DossierClinique(patient_id=patient.id, is_ortho_active=True))
