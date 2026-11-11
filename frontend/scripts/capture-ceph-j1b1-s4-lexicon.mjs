@@ -202,12 +202,10 @@ async function capture(viewport, attempt, theme) {
       fullPage: false,
     });
 
-    // Keep the initial and expanded screenshot at genuine top-of-workspace scroll.
-    // Editing requires bringing the radiograph into view; the new readiness
-    // strip can move its canvas below the visible fold at narrow viewports.
-    if (viewport.width <= 768) {
-      await page.locator('[data-r20-radiograph-stage]').evaluate(node =>
-        node.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    // On compact phones, scroll the actual image into the manual-pointing workspace
+    // before testing pointer access. Preserve the recorded first-viewport screenshot.
+    if (viewport.width <= 430) {
+      await resetWorkspaceScroll(page);
       await page.screenshot({
         path: path.join(OUTPUT_DIR, theme + '-edit-ready-' + viewport.name + '.png'),
         fullPage: false,
