@@ -1,4 +1,4 @@
-name: V1.5-08.1 Queue Core domain FUE-0
+name: V1.5-08 Queue Core FUE-0 and HTTP-SSE FUE-I
 
 on:
   pull_request:
@@ -32,9 +32,13 @@ jobs:
         with:
           python-version: '3.11'
           cache: pip
-      - name: Install isolated contract test dependencies
-        run: python -m pip install 'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
-      - name: Run Queue Core FUE-0 tests
+      - name: Install isolated Queue Core and transport test dependencies
+        run: >-
+          python -m pip install
+          'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+          'fastapi==0.115.6' 'starlette==0.41.3'
+          'pydantic==2.6.3' 'httpx==0.28.1' 'anyio==4.12.1'
+      - name: Run Queue Core FUE-0 and HTTP-SSE FUE-I tests
         run: python -m pytest -q queue_core/tests --junitxml=queue-core-fue0-junit.xml
       - name: Retain test report
         if: always()

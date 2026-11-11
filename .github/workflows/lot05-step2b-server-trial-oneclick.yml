@@ -1,0 +1,61 @@
+name: LOT05 Step2B Direct Synthetic MariaDB CSV
+
+"on":
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-server-trial-oneclick.yml'
+      - 'scripts/quality/lot05_direct_demo_csv_ci.sh'
+
+permissions:
+  contents: read
+
+jobs:
+  direct-demo-csv:
+    name: Read-only synthetic MariaDB -> CSV -> parse/SHA256 (no vendor GUI)
+    if: ${{ github.run_attempt == 1 && github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-signed-server-trial-install-oneclick-20261110' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 80
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Verify isolated runner, exact HEAD, changed files and Bash syntax
+        shell: bash
+        env:
+          LOT05_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -Eeuo pipefail
+          [[ "$RUNNER_ENVIRONMENT" == 'github-hosted' && "$RUNNER_OS" == 'Linux' ]]
+          [[ "$(git rev-parse HEAD)" == "$LOT05_EXPECTED_SHA" ]]
+          base=027a82aca4cc37308f6323e759283c4ca0e45fad
+          [[ "$(git merge-base HEAD "$base")" == "$base" ]]
+          diff -u \
+            <(git diff --name-only "$base" HEAD | LC_ALL=C sort) \
+            <(printf '%s\n' \
+              '.github/workflows/lot05-step2b-server-trial-oneclick.yml' \
+              'scripts/quality/lot05_direct_demo_csv_ci.sh' | LC_ALL=C sort)
+          bash -n scripts/quality/lot05_direct_demo_csv_ci.sh
+          echo LOT05_DIRECT_EXACT_HEAD_AND_BASH_PASS=True
+
+      - name: Create isolated synthetic MariaDB and export one verified CSV
+        shell: bash
+        env:
+          LOT05_EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: bash scripts/quality/lot05_direct_demo_csv_ci.sh
+
+      - name: Publish only the non-nominative CSV and verification evidence
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-direct-demo-csv-verified
+          path: |
+            ${{ runner.temp }}/lot05-direct-demo-csv/lot05_direct_demo.csv
+            ${{ runner.temp }}/lot05-direct-demo-csv/lot05_direct_demo.csv.sha256
+            ${{ runner.temp }}/lot05-direct-demo-csv/lot05_direct_demo_evidence.json
+          retention-days: 14
+          if-no-files-found: error

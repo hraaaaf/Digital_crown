@@ -452,6 +452,28 @@ app = FastAPI(
     lifespan=lifespan
 )
 
+# LOT08.2-B Desktop bridge: test-only, explicit, fail-closed. No implicit
+# registration in cabinet/production, no new clinical DB, no production route.
+_QUEUE_CORE_LAB_MOUNTED = False
+if os.environ.get("DIGITALCROWN_QUEUE_CORE_LAB_ENABLE") == "1":
+    from backend.queue_core_desktop_lab import attach_queue_core_lab
+
+    from sqlalchemy.engine import make_url
+    from pathlib import Path as _QueuePath
+
+    _clinical_target = make_url(str(app_settings.DATABASE_URL))
+    attach_queue_core_lab(
+        app,
+        environment=str(app_settings.ENVIRONMENT).lower(),
+        clinical_db_path=(
+            _QueuePath(_clinical_target.database)
+            if _clinical_target.get_backend_name() == "sqlite"
+            and _clinical_target.database
+            else None
+        ),
+    )
+    _QUEUE_CORE_LAB_MOUNTED = True
+
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
@@ -512,6 +534,13 @@ async def license_check_middleware(request: Request, call_next):
         "/api/clinics/init-status",  # Route publique : vérif setup wizard
         "/health", "/api/ortho/presenter-window"
     )
+    # Only the explicitly mounted, synthetic TEST Queue Core may use its
+    # independent B-2 Bearer auth. This never applies in cabinet/production.
+    if _QUEUE_CORE_LAB_MOUNTED and (
+        request.url.path == "/api/queue-core-lab"
+        or request.url.path.startswith("/api/queue-core-lab/")
+    ):
+        return await call_next(request)
     if request.url.path.startswith(allowed_prefixes) or request.method == "OPTIONS":
         return await call_next(request)
 

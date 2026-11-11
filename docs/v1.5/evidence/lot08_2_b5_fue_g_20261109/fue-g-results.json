@@ -1,0 +1,131 @@
+{
+    "status":  "PASS",
+    "durationS":  5,
+    "checks":  [
+                   {
+                       "name":  "page-visible-lab",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "no-patient-identity",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "login-status-reception1",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "login-browser-reception1",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "initial-status",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "real-visit-checkin",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "reception-hides-unauthorized-call",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "sse-event-visible",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "login-status-chairman1",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "login-browser-chairman1",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "staff-initial-waiting",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "staff-hides-reception-checkin",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "real-call",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "real-chair",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "real-done",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "sse-closes-after-revocation",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "revocation-hides-queue-immediately",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "revocation-clears-browser-session",
+                       "status":  "PASS"
+                   },
+                   {
+                       "name":  "revoked-next-request-401",
+                       "status":  "PASS"
+                   }
+               ],
+    "screenshots":  [
+                        {
+                            "filename":  "before-login-390x844.png",
+                            "sha256":  "430d4575d11674c7fdca4ef91b73be6c64e6b440716aa0bd87fdb1af4e30cb0a",
+                            "width":  390,
+                            "height":  844
+                        },
+                        {
+                            "filename":  "before-login-768x1024.png",
+                            "sha256":  "fc22a717ece3040053ccda38646e9f35597bd5cfe5b747dd0c78452ec0be1c19",
+                            "width":  768,
+                            "height":  1024
+                        },
+                        {
+                            "filename":  "before-login-1280x900.png",
+                            "sha256":  "b6e7356709909a2a18982e244a0df069970953831e1e814468bd2f66518d64d2",
+                            "width":  1280,
+                            "height":  900
+                        },
+                        {
+                            "filename":  "reception-planned-390x844.png",
+                            "sha256":  "b1d7b068a2d217bab8145443f767fddb21f5ae7d04cd566cd0364405e8b29370",
+                            "width":  390,
+                            "height":  844
+                        },
+                        {
+                            "filename":  "reception-after-sse-768x1024.png",
+                            "sha256":  "eb1cd525ab411eca0f9289fcd548fdf91563e75e69c362eb8ce2cc1220cdccbd",
+                            "width":  768,
+                            "height":  1024
+                        },
+                        {
+                            "filename":  "staff-after-done-1280x900.png",
+                            "sha256":  "0ed46414d0daf0c8a386c5c0cb7b0879e65496c485e89bdfffc3b934756d34c2",
+                            "width":  1280,
+                            "height":  900
+                        },
+                        {
+                            "filename":  "revoked-session-390x844.png",
+                            "sha256":  "c4a360e992b160ade7777e60995c1f0119f38fa11be79e48af27fccff5028f2a",
+                            "width":  390,
+                            "height":  844
+                        }
+                    ],
+    "browserErrors":  [
+
+                      ],
+    "clinicalData":  "NONE",
+    "install":  "NONE"
+}

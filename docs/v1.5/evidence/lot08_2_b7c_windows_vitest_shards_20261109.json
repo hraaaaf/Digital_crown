@@ -1,0 +1,112 @@
+{
+    "proof_kind":  "WINDOWS_FRONTEND_SHARDED_VITEST_LAB_ONLY",
+    "source_sha":  "66c2f3d4fb0efc6fa5d99a2d15211a5b02c4203f",
+    "branch":  "feat/v15-08-2-b-rbac-isolation-20261109",
+    "date":  "2026-11-09",
+    "os":  "Windows",
+    "workstation":  "DESKTOP-3MAJEEH",
+    "max_workers":  2,
+    "min_workers":  1,
+    "files_per_full_shard":  48,
+    "shards_total":  9,
+    "files_passed_total":  388,
+    "tests_passed_total":  2035,
+    "test_failures_total":  0,
+    "native_desktop_certification":  "NOT_RUN",
+    "github_actions_ci":  "NOT_VERIFIED",
+    "installable_ready":  false,
+    "patient_data":  "SYNTHETIC_ONLY",
+    "source_evidence_description":  "Each sha256 refers to the named local raw log on the authorized workstation; the logs remain outside the repository",
+    "shards":  [
+                   {
+                       "shard":  1,
+                       "files_passed":  48,
+                       "tests_passed":  271,
+                       "failed":  0,
+                       "log_basename":  "shard-01.log",
+                       "log_bytes":  53604,
+                       "log_sha256":  "405d6216ec312737d2b85601386305be30426f594843d4cd1c45d68340ce12b3",
+                       "exit_evidence":  "tool_output_exit_0"
+                   },
+                   {
+                       "shard":  2,
+                       "files_passed":  48,
+                       "tests_passed":  264,
+                       "failed":  0,
+                       "log_basename":  "shard-02.log",
+                       "log_bytes":  107822,
+                       "log_sha256":  "84d678abddb54a0f1b53f329e9c027d239cc05167b02ed41b4cc8f7e81c81a02",
+                       "exit_evidence":  "remaining_shards_json_exit_0"
+                   },
+                   {
+                       "shard":  3,
+                       "files_passed":  48,
+                       "tests_passed":  215,
+                       "failed":  0,
+                       "log_basename":  "shard-03.log",
+                       "log_bytes":  44468,
+                       "log_sha256":  "9e2006ae7cc04a373bbea23951e5c77c6e473894577f55099cba8cca1cd97cc9",
+                       "exit_evidence":  "remaining_shards_json_exit_0"
+                   },
+                   {
+                       "shard":  4,
+                       "files_passed":  48,
+                       "tests_passed":  263,
+                       "failed":  0,
+                       "log_basename":  "shard-04.log",
+                       "log_bytes":  56058,
+                       "log_sha256":  "b8ca72f2fcfa9a81ab086f906b557879a391d96bc87b84e2909dc804f73d2a5e",
+                       "exit_evidence":  "remaining_shards_json_exit_0"
+                   },
+                   {
+                       "shard":  5,
+                       "files_passed":  48,
+                       "tests_passed":  274,
+                       "failed":  0,
+                       "log_basename":  "shard-05.log",
+                       "log_bytes":  19050,
+                       "log_sha256":  "618ed9ce59fb4ea9611502b4321f9c55577daecf37d9ee75e6052266beca8110",
+                       "exit_evidence":  "remaining_shards_json_exit_0"
+                   },
+                   {
+                       "shard":  6,
+                       "files_passed":  48,
+                       "tests_passed":  237,
+                       "failed":  0,
+                       "log_basename":  "shard-06.log",
+                       "log_bytes":  26164,
+                       "log_sha256":  "6b2a65f3a0f8256713d2168dd9821cd3400469376f779da214fe68520d2a3347",
+                       "exit_evidence":  "remaining_shards_json_exit_0"
+                   },
+                   {
+                       "shard":  7,
+                       "files_passed":  48,
+                       "tests_passed":  268,
+                       "failed":  0,
+                       "log_basename":  "shard-07.log",
+                       "log_bytes":  67780,
+                       "log_sha256":  "09f01f4c8eeedbe35f4ba369c6bea8aeb79fc74fffc5a01dd1d53ef353772d78",
+                       "exit_evidence":  "remaining_shards_json_exit_0"
+                   },
+                   {
+                       "shard":  8,
+                       "files_passed":  48,
+                       "tests_passed":  224,
+                       "failed":  0,
+                       "log_basename":  "shard-08.log",
+                       "log_bytes":  15636,
+                       "log_sha256":  "44426243f39fafa2145bc91e8aaad9bb569a97640ec1e3b5a35471d61d2dce40",
+                       "exit_evidence":  "remaining_shards_json_exit_0"
+                   },
+                   {
+                       "shard":  9,
+                       "files_passed":  4,
+                       "tests_passed":  19,
+                       "failed":  0,
+                       "log_basename":  "shard-09.log",
+                       "log_bytes":  1700,
+                       "log_sha256":  "98a5c14779ff2de44c695317ae8b5d0e3fa20ddb3278b5f1f8c72665013c7c3c",
+                       "exit_evidence":  "remaining_shards_json_exit_0"
+                   }
+               ]
+}
