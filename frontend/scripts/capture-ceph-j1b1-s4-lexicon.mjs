@@ -189,6 +189,7 @@ async function capture(viewport, attempt, theme) {
       const panelRect = panel?.getBoundingClientRect();
       const stage = document.querySelector('[data-r20-radiograph-stage]');
       const stageRect = stage?.getBoundingClientRect();
+      const drawerRect = document.querySelector('[data-cephalo-review-lexicon-details]')?.getBoundingClientRect();
       return {
         width: innerWidth,
         activeTheme: document.body.dataset.theme,
@@ -199,6 +200,8 @@ async function capture(viewport, attempt, theme) {
         horizontalDocumentOverflow: doc.scrollWidth > innerWidth + 1,
         panelVisible: Boolean(panelRect && panelRect.width > 10 && panelRect.height > 10),
         radiographStageVisible: Boolean(stageRect && stageRect.width > 50 && stageRect.height > 50 && stageRect.top < innerHeight && stageRect.bottom > 0),
+        radiographUncoveredAboveDrawerPx: stageRect && drawerRect
+          ? Math.max(0, Math.min(stageRect.bottom, drawerRect.top, innerHeight) - Math.max(stageRect.top, 0)) : 0,
         panelWithinViewportX: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= innerWidth + 1),
         clinicalBadgesPresent: document.querySelectorAll('[data-clinical-validated="true"]').length,
       };
@@ -211,6 +214,7 @@ async function capture(viewport, attempt, theme) {
       && nConstruction === 2 && nCertified === 0 && nFiltered === 1 && proper === 1
       && metrics.activeTheme === theme && metrics.backgroundToken.length > 0
       && metrics.panelVisible && metrics.panelWithinViewportX && metrics.radiographStageVisible
+      && (viewport.width > 768 || metrics.radiographUncoveredAboveDrawerPx >= 260)
       && closedOnEscape && focusReturned
       && !metrics.horizontalDocumentOverflow
       && metrics.clinicalBadgesPresent === 0
