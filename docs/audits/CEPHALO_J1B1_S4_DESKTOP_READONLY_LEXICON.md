@@ -18,7 +18,7 @@ Afficher dans l'écran **Step1 Desktop** le catalogue de revue des repères SRPo
 
 **Priorité UX :** ne pas masquer les radiographies, respecter la disposition de la barre latérale Desktop et l'ergonomie des 40 libellés. Le panneau reste fermé par défaut.
 
-**Vérifications visuelles :** diff BEFORE/AFTER du code + tests DOM accessibles ; **captures de navigateur réelles aux mêmes viewports non produites dans ce lot tant qu'un workflow de rendu n'est pas prouvé**. Aucune note visuelle inventée. Avant tout merge, demander/rechercher une preuve de captures Desktop représentative et revue humaine si le gate UI l'exige.
+**Vérifications visuelles :** pipeline Playwright ajouté : vrai composant Desktop `CephaloWorkspace/Step1` avec SVG synthétique et API isolée, trois viewports **390×844, 768×1024, 1280×900** ; capture **BEFORE panneau replié** et **AFTER ouvert** puis **AFTER recherche « Pos »** au même HEAD et à chaque viewport. Ce BEFORE est l'état *replié du candidat*, **pas** un screenshot du commit de base S3. Les preuves d'exécution, métriques d'overflow et artefacts attendent encore le verdict des runs CI ; aucun score visuel ni approbation humaine anticipé. Les captures sont de données synthétiques, jamais de radios patient.
 
 ## SUCCESS / PROOF technique cible
 
@@ -26,7 +26,7 @@ Afficher dans l'écran **Step1 Desktop** le catalogue de revue des repères SRPo
 2. Vitest composant : rendu 38+2, recherche FR/EN/synonyme `Pos`, surlignage simple actif, état « coordonnée présente non validée », recherche sans résultat, aucune mutation des coordonnées ni commande clinique dans le panneau.
 3. Vitest intégration réelle du wrapper Step1 : composant monté dans la barre latérale, pli fermé à l'ouverture puis ouverture par clic/keyboard.
 4. Source-guard 7 tests négatifs : index permuté, ID falsifié, traduction inventée, fausse preuve d'auteur, synonyme enlevé, canal manquant et politique clinique changée → échec fermé.
-5. Build frontend/test ciblé GitHub Linux et Windows ; fail-closed si CI échoue. Aucune donnée de patients ou ONNX dans ce lot.
+5. Build frontend/test ciblé GitHub Linux et Windows, et navigateur Chromium réel sur 3 viewports synthétiques ; fail-closed si CI échoue. Aucune donnée de patients ou ONNX dans ce lot.
 
 ## Portée & portes humaines
 
