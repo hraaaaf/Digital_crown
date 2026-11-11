@@ -91,6 +91,10 @@ try{
     assert(auth.status()===200,'LOGIN_REJECTED '+auth.status());
     token=(await auth.json()).access_token;
     const station=await enrollT2Workstation(api,token,password);
+    const patientProbe=await api.get('/api/patients/'+seed.patient_id,
+      {headers:{Authorization:'Bearer '+token}});
+    assert(patientProbe.status()===200,
+      'REAL_SYNTHETIC_PATIENT_GET_FAILED '+patientProbe.status());
     ctx=await browser.newContext({viewport:{width:1280,height:900},
       storageState:{cookies:station.cookies.filter(c=>c.name==='dc_workstation'),origins:[]}});
     page=await ctx.newPage();page.setDefaultTimeout(25000);
