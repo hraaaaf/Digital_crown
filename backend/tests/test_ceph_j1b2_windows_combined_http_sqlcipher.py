@@ -82,9 +82,13 @@ def test_native_windows_one_process_jwt_edit_encrypted_restore_and_reread(
             foreign = make_user(session)
             foreign_id = foreign.id
             patient_id = patient.id
+            # Keep only primitive values after the SQLAlchemy seed session closes.
+            owner_email = owner.email
+            foreign_email = foreign.email
 
-        owner_headers = _jwt(client, owner)
-        foreign_headers = _jwt(client, foreign)
+        from types import SimpleNamespace
+        owner_headers = _jwt(client, SimpleNamespace(email=owner_email))
+        foreign_headers = _jwt(client, SimpleNamespace(email=foreign_email))
         url = "/api/ia/analyses/" + str(study_id)
         modified = [dict(p) for p in original]
         pt = next(p for p in modified if p["id"] == "A")
