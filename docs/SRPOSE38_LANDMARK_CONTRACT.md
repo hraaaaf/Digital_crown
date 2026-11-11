@@ -1,7 +1,7 @@
 # SRPose38 — LANDMARK CONTRACT
 
 **Parent :** `docs/CEPHALO_DIAGNOSTIC_SPEC.md`  
-**Statut :** ordre/noms certifiés ; définitions COM critiques partiellement certifiées ; ambiguïtés explicites.
+**Statut :** ordre des 38 canaux figé comme contrat logiciel ; noms anatomiques du mapping local NON CERTIFIÉS pour le checkpoint source ; définitions géométriques COM critiques partiellement documentées ; activation clinique en HOLD.
 
 ## CONTRAT D'ORDRE
 
@@ -50,11 +50,20 @@ Le modèle SRPose38 émet 38 sorties `0..37`. Le dataset CL-Detection2023 les d�
 |36|37|Upper Molar|U6|
 |37|38|Lower Molar|L6|
 
+## J1.B1 — CONTRÔLE SOURCE-LOCK, 2026-11-10 (NON CLINIQUE)
+
+- **Asset réellement épinglé :** `srpose38-tta-1024.onnx`, SHA-256 `a5ecd466d6d2c4ef02e145a143076a05720c0be56a260224812c23e2ecf42ddb`, source SRPose `5k5000/CLdetection2023@18d17d1934970016e7610c4849311900b8d1f191`, checkpoint source SHA-256 `fb1a781ac1c83149b379cb15724e3b0fae06ba2d567978f35c61e9d06b46fdcc` (tracabilité documentaire du projet, pas re-hash de l'asset lors de cet audit).
+- **Code MMPose source vérifié :** `mmpose_package/mmpose/configs/_base_/datasets/cephalometric.py` définit `keypoint_info` avec des `name` numériques `"0".."37"`, pas les noms `S`, `N`, `Po` etc. `cldetection_utils.py` lit les numéros `1..38` et conserve l'ordre dans le COCO de train. Le [README officiel des annotations](https://github.com/cwwang1979/CL-detection2023) illustre également `name: 1..38` sans nomenclature clinique par ID.
+- **Historique local :** le commit [`5cd74729`](https://github.com/hraaaaf/Digital_crown/commit/5cd74729e8bfd718454d0c8cbd6c5e9ec6aee086) réassigne 21 libellés de canaux dans le mapping et revendique une table officielle non annexée avec provenance vérifiable. Cette modification est un **contrat de compatibilité historique**, pas une preuve de vérité anatomique.
+- **Verdict :** `LEGACY_AUTO_UNVERIFIED / SOURCE_LOCK_REQUIRED` pour les **38 correspondances index→nom** ; ne pas inférer qu'elles sont toutes fausses, mais aucune ne reçoit une certification par similarité de nom. Les définitions de `S`, `N`, `Go` etc. dans les sources cliniques ne prouvent PAS leur affectation à un canal du checkpoint.
+- **Garde :** ne pas modifier automatiquement les canaux, ni reclassifier les dossiers existants, ni activer de nouvelles mesures, interprétations ou traitements sur cette seule base. Distinguer parité ONNX numérique, nomenclature clinique et validation des mesures.
+- **Prochaine preuve décisive :** table datée/autoritative des organisateurs reliant les 38 catégories à leurs définitions et au dataset exact, puis validation par annotations sur les **mêmes** clichés légalement autorisés. Sinon conserver HOLD et envisager nouveau mapping/jeu expert avec approbation clinique séparée.
+
 ## SOURCES DE PROVENANCE
 
 ### Ordre SRPose / CL-Detection
 
-- Hongyuan Zhang et al., *Deep Learning Techniques for Automatic Lateral X-ray Cephalometric Landmark Detection: Is the Problem Solved?*, 2024. La Figure 3 fournit les 38 noms dans l'ordre CL-Detection. https://arxiv.org/html/2409.15834v1
+- Hongyuan Zhang et al., *Deep Learning Techniques for Automatic Lateral X-ray Cephalometric Landmark Detection: Is the Problem Solved?*, 2024. La figure 3 illustre les structures anatomiques du challenge, mais aucune liaison complète *numéro de canal 1..38 → nom anatomique → checkpoint* n'a été établie par la seule figure. https://arxiv.org/html/2409.15834v1
 - Repo SRPose `5k5000/CLdetection2023`, commit `18d17d1934970016e7610c4849311900b8d1f191`, configuration MMPose `cephalometric.py` : exactement 38 sorties indexées `0..37`.
 - Runtime Digital Crown PR #388 : mapping modèle et pipeline ONNX intégrés.
 
