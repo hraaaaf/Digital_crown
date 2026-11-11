@@ -23,6 +23,7 @@ import {
   computeStep3Data,
 } from './cephaloUtils';
 import { getCephaloPalette } from './cephaloTheme';
+import { calibrationUiLabel, deriveCalibrationUiState } from './cephaloCalibration';
 
 import { Step1Cephalo } from './components/Step1Cephalo';
 import { Step2Occlusal } from './components/Step2Occlusal';
@@ -194,6 +195,28 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     step, completedSteps, goToStep, uploadError,
     setEtape3Data
   } = store;
+
+  // READINESS-01: display verified input facts, never infer clinical sign-off
+  // from study existence, landmark count, calibration, or successful PUT.
+  const calibrationState = deriveCalibrationUiState({
+    isCalibrated: store.isCalibrated,
+    anglesData: store.anglesData,
+    calibrationData: store.anglesData?.__calibrationData,
+  });
+  const metricScaleUsable = Boolean(
+    store.isCalibrated && typeof mmPerPixel === 'number'
+    && Number.isFinite(mmPerPixel) && mmPerPixel > 0
+    && calibrationState !== 'UNCALIBRATED' && calibrationState !== 'CANDIDATE_UNVERIFIED'
+  );
+  const readinessItems = [
+    { key: 'image', title: 'Cliché', value: imageSrc ? 'Image chargée · orientation à contrôler' : 'Aucun cliché chargé' },
+    { key: 'scale', title: 'Échelle', value: metricScaleUsable
+      ? `${calibrationUiLabel(calibrationState)} · ${mmPerPixel!.toFixed(3)} mm/px`
+      : `${calibrationUiLabel(calibrationState)} · mesures en mm non attestées` },
+    { key: 'landmarks', title: 'Repères', value: `${local.landmarks.length} saisi(s) · contrôle anatomique requis` },
+    { key: 'measurements', title: 'Mesures', value: 'Validité clinique non attestée' },
+    { key: 'approval', title: 'Bilan', value: 'Validation du praticien non attestée' },
+  ] as const;
 
   useEffect(() => {
     if (!patientData) return;
@@ -402,6 +425,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
              <button type="button" aria-pressed={viewMode === 'history'} onClick={() => setViewMode('history')} className="min-h-9 rounded-lg px-3 text-xs font-bold transition-all" style={{ background: viewMode === 'history' ? P.bgCard : 'transparent', color: viewMode === 'history' ? P.text : P.textMuted, boxShadow: viewMode === 'history' ? P.shadow : 'none' }}>Historique</button>
           </div>
           <SyncBadge state={syncState} P={P} />
+          <span data-cephalo-save-scope className="text-[11px] font-semibold" style={{ color: P.textMuted }}>Brouillon uniquement · sans validation clinique</span>
           <button
             type="button"
             onClick={handleSave}
@@ -416,6 +440,30 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
           </button>
         </div>
       </div>
+
+      {step === 1 && viewMode === 'studio' && (
+        <section
+          data-cephalo-readiness
+          aria-label="État clinique factuel de l'étude céphalométrique"
+          className="mx-4 mt-3 rounded-xl border p-3 sm:mx-6"
+          style={{ borderColor: P.border, background: P.bgPanel }}
+        >
+          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-sm font-bold" style={{ color: P.text }}>État de l'étude</h3>
+            <span data-cephalo-readiness-gate className="text-xs font-bold" style={{ color: P.accentWarning }}>
+              Brouillon · aucun bilan clinique validé par cette action
+            </span>
+          </div>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            {readinessItems.map(item => (
+              <div key={item.key} data-cephalo-readiness-item={item.key} className="min-w-0 rounded-lg border px-3 py-2" style={{ borderColor: P.border, background: P.bgCard }}>
+                <div className="text-[11px] font-bold" style={{ color: P.text }}>{item.title}</div>
+                <div className="mt-1 text-[11px] leading-snug" style={{ color: P.textMuted }}>{item.value}</div>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
 
       <p className="sr-only" id="cephalo-keyboard-help">
         Navigation clavier : Tab et Maj Tab pour parcourir les commandes, Entrée ou Espace pour activer.
