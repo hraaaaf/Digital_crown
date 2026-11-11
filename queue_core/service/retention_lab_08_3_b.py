@@ -18,6 +18,11 @@ import tempfile
 from uuid import uuid4
 
 
+# Distinct SQLite header marker written ONLY by explicit LAB fixture setup.
+# A temp filename alone is insufficient to prove the file isn't a real DB copy.
+SYNTHETIC_LAB_APPLICATION_ID = 0x4C4F5438  # "LOT8"
+
+
 class RetentionLabError(ValueError):
     """A fail-closed, non-sensitive synthetic maintenance refusal."""
 
@@ -53,6 +58,8 @@ def _verify_lab_file(path: str | Path) -> Path:
 
 
 def _verify_integrity(conn: sqlite3.Connection) -> None:
+    if conn.execute("PRAGMA application_id").fetchone()[0] != SYNTHETIC_LAB_APPLICATION_ID:
+        raise RetentionLabError("SYNTHETIC_LAB_MARKER_REQUIRED")
     if conn.execute("PRAGMA foreign_keys").fetchone()[0] != 1:
         raise RetentionLabError("QUEUE_FK_REQUIRED")
     objects = {
