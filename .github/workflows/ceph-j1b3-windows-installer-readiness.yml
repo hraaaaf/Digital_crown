@@ -1,0 +1,64 @@
+name: "CEPH J1.B3 Windows certified installer readiness (NO INSTALL)"
+
+on:
+  pull_request:
+    paths:
+      - "scripts/quality/ceph_j1b3_installable_windows_readiness.ps1"
+      - ".github/workflows/ceph-j1b3-windows-installer-readiness.yml"
+      - "docs/audits/CEPH_J1B3_INSTALLABLE_WINDOWS_READINESS_20261111.md"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  windows-source-and-signature-negative:
+    name: "Windows 2022 SOURCE NO-GO + unsigned EXE denial, NO INSTALL"
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Assert exact immutable HEAD"
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if ((git rev-parse HEAD).Trim() -ne $env:EXPECTED_SHA) { throw 'J1B3_HEAD_MISMATCH' }
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Install source-contract test-only dependency"
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check pytest==9.0.3
+          if ($LASTEXITCODE -ne 0) { throw 'J1B3_PYTEST_UNAVAILABLE' }
+      - name: "Existing installable-source preflight negative tests"
+        shell: pwsh
+        run: |
+          python -m pytest -q queue_core/tests/test_installable_source_preflight_08_2_b.py
+          if ($LASTEXITCODE -ne 0) { throw 'J1B3_SOURCE_GATES_FAILED' }
+      - name: "Native Windows Authenticode negative gate and source-only report"
+        shell: pwsh
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          & ./scripts/quality/ceph_j1b3_installable_windows_readiness.ps1 -ExpectedSha $env:EXPECTED_SHA
+          if ($LASTEXITCODE -ne 0) { throw 'J1B3_NATIVE_PREFLIGHT_FAILED' }
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: j1b3-installable-readiness-source-only-${{ github.event.pull_request.head.sha }}
+          path: ${{ runner.temp }}/j1b3-installable-readiness.json
+          if-no-files-found: warn
+          retention-days: 14
+      - name: "Explicit no-install verdict"
+        if: success()
+        shell: pwsh
+        run: |
+          "J1B3_SOURCE_NEGATIVE_PRECHECK_PASS=YES" >> $env:GITHUB_STEP_SUMMARY
+          "INSTALLABLE_CERTIFIED=NOT_PROVIDED" >> $env:GITHUB_STEP_SUMMARY
+          "ACTUAL_INSTALLER_EXECUTION=NOT_RUN" >> $env:GITHUB_STEP_SUMMARY
+          "BEFORE_AFTER_SCREENSHOTS=NOT_RUN" >> $env:GITHUB_STEP_SUMMARY
+          "NO_MERGE_NO_DEPLOY_NO_CLINICAL_GO=TRUE" >> $env:GITHUB_STEP_SUMMARY
