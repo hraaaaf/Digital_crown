@@ -7,6 +7,7 @@ $appPng=Join-Path $env:RUNNER_TEMP 'lot05_native_demo_open_dental_window.png'
 $r=[ordered]@{
   kind='LOT05_REPORTS_USER_QUERY_PERMISSION_AWARE_PROBE'
   report_route_enabled=$true
+  report_route_started=$false
   reports_menu_attempted=$false
   reports_menu_invoked=$false
   reports_menu_cycle=-1
