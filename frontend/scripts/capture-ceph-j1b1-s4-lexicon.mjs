@@ -11,6 +11,7 @@ const ENTRY = path.join(FRONTEND_DIR, 'src', 'ceph-j1b1-s4-entry.tsx');
 const PAGE_HTML = path.join(FRONTEND_DIR, 'ceph-j1b1-s4.html');
 const PORT = 5189;
 const BASE_URL = 'http://127.0.0.1:' + PORT;
+const themes = ['light', 'dark'];
 const viewports = [
   { name: '390x844', width: 390, height: 844 },
   { name: '768x1024', width: 768, height: 1024 },
@@ -25,7 +26,7 @@ import { CephaloWorkspace } from './features/ortho/CephaloWorkspace';
 import { useOrthoStore } from './features/ortho/stores/useOrthoStore';
 import './index.css';
 
-document.body.dataset.theme = 'dark';
+document.body.dataset.theme = new URLSearchParams(window.location.search).get('theme') === 'dark' ? 'dark' : 'light';
 const fixture = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(\`
   <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="1600" viewBox="0 0 1200 1600">
     <defs><radialGradient id="g"><stop offset="0" stop-color="#334155"/><stop offset="1" stop-color="#020617"/></radialGradient></defs>
@@ -108,13 +109,14 @@ server.stderr.on('data', data => { serverLog += data.toString(); });
 const allCaptures = [];
 const blockedExternalRequests = [];
 
-async function capture(viewport, attempt) {
+async function capture(viewport, attempt, theme) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
     viewport: { width: viewport.width, height: viewport.height },
     deviceScaleFactor: 1,
     reducedMotion: 'reduce',
     locale: 'fr-FR',
+    colorScheme: theme,
   });
   const page = await context.newPage();
   const pageErrors = [];
@@ -141,7 +143,7 @@ async function capture(viewport, attempt) {
   });
 
   try {
-    const response = await page.goto(BASE_URL + '/ceph-j1b1-s4.html', { waitUntil:'domcontentloaded', timeout:30_000 });
+    const response = await page.goto(BASE_URL + '/ceph-j1b1-s4.html?theme=' + theme, { waitUntil:'domcontentloaded', timeout:30_000 });
     await page.getByRole('heading', { name:'Céphalométrie' }).waitFor({ state:'visible', timeout:30_000 });
     const details = page.locator('[data-cephalo-review-lexicon-details]');
     await details.waitFor({ state:'attached', timeout:30_000 });
@@ -150,7 +152,7 @@ async function capture(viewport, attempt) {
     await details.scrollIntoViewIfNeeded();
     await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
     await page.screenshot({
-      path: path.join(OUTPUT_DIR, 'before-collapsed-' + viewport.name + '.png'),
+      path: path.join(OUTPUT_DIR, theme + '-' + 'before-collapsed-' + viewport.name + '.png'),
       fullPage: false,
     });
 
@@ -165,7 +167,7 @@ async function capture(viewport, attempt) {
     const search = page.getByRole('searchbox', { name: /FR, EN, synonyme ou ID/i });
     await details.scrollIntoViewIfNeeded();
     await page.screenshot({
-      path: path.join(OUTPUT_DIR, 'after-expanded-' + viewport.name + '.png'),
+      path: path.join(OUTPUT_DIR, theme + '-' + 'after-expanded-' + viewport.name + '.png'),
       fullPage: false,
     });
 
@@ -175,7 +177,7 @@ async function capture(viewport, attempt) {
     if (nFiltered !== 1 || proper !== 1) throw new Error('S4_POS_EXACT_ALIAS_OR_CLINICAL_HOLD_FAILED');
     await details.scrollIntoViewIfNeeded();
     await page.screenshot({
-      path: path.join(OUTPUT_DIR, 'after-pos-search-' + viewport.name + '.png'),
+      path: path.join(OUTPUT_DIR, theme + '-' + 'after-pos-search-' + viewport.name + '.png'),
       fullPage: false,
     });
 
@@ -185,6 +187,10 @@ async function capture(viewport, attempt) {
       const panelRect = panel?.getBoundingClientRect();
       return {
         width: innerWidth,
+        activeTheme: document.body.dataset.theme,
+        backgroundToken: getComputedStyle(document.body).getPropertyValue('--bg-medical-pearl').trim(),
+        cardToken: getComputedStyle(document.body).getPropertyValue('--card-bg').trim(),
+        textToken: getComputedStyle(document.body).getPropertyValue('--text-main').trim(),
         documentScrollWidth: doc.scrollWidth,
         horizontalDocumentOverflow: doc.scrollWidth > innerWidth + 1,
         panelVisible: Boolean(panelRect && panelRect.width > 10 && panelRect.height > 10),
@@ -195,15 +201,16 @@ async function capture(viewport, attempt) {
 
     const valid = response?.status() === 200 && initialClosed && nDetector === 38
       && nConstruction === 2 && nCertified === 0 && nFiltered === 1 && proper === 1
+      && metrics.activeTheme === theme && metrics.backgroundToken.length > 0
       && metrics.panelVisible && metrics.panelWithinViewportX
       && !metrics.horizontalDocumentOverflow
       && metrics.clinicalBadgesPresent === 0
       && pageErrors.length === 0 && consoleErrors.length === 0;
-    return { viewport:viewport.name, attempt, valid, httpStatus:response?.status()??null,
+    return { viewport:viewport.name, theme, attempt, valid, httpStatus:response?.status()??null,
       initialClosed, nDetector, nConstruction, nCertified, nFiltered, proper,
       metrics, pageErrors, consoleErrors, apiRequests:requests };
   } catch (error) {
-    return { viewport:viewport.name, attempt, valid:false,
+    return { viewport:viewport.name, theme, attempt, valid:false,
       pageErrors:[...pageErrors, error instanceof Error ? error.message : String(error)],
       consoleErrors, apiRequests:requests };
   } finally {
@@ -214,10 +221,12 @@ async function capture(viewport, attempt) {
 
 try {
   await waitForServer(BASE_URL + '/ceph-j1b1-s4.html');
-  for (const viewport of viewports) {
-    let result = await capture(viewport,1);
-    if (!result.valid) result = await capture(viewport,2);
-    allCaptures.push(result);
+  for (const theme of themes) {
+    for (const viewport of viewports) {
+      let result = await capture(viewport,1,theme);
+      if (!result.valid) result = await capture(viewport,2,theme);
+      allCaptures.push(result);
+    }
   }
 } finally {
   if (!server.killed) server.kill('SIGTERM');
@@ -231,9 +240,21 @@ try {
 }
 
 const invalid = allCaptures.filter(x=>!x.valid);
+const allThemeViewportPairs = themes.flatMap(theme => viewports.map(viewport => theme + ':' + viewport.name));
+const observedPairs = allCaptures.map(capture => capture.theme + ':' + capture.viewport);
+const pairedCoverage = allCaptures.length === allThemeViewportPairs.length
+  && new Set(observedPairs).size === allThemeViewportPairs.length
+  && allThemeViewportPairs.every(pair => observedPairs.includes(pair));
+const lightCardTokens = new Set(allCaptures.filter(x=>x.theme==='light').map(x=>x.metrics?.cardToken));
+const darkCardTokens = new Set(allCaptures.filter(x=>x.theme==='dark').map(x=>x.metrics?.cardToken));
+const distinctThemeTokens = lightCardTokens.size === 1 && darkCardTokens.size === 1
+  && !lightCardTokens.has([...darkCardTokens][0]);
 const report = {
   lot: 'CEPH-J1.B1-S4',
   productHead: PRODUCT_HEAD,
+  themes,
+  pairedCoverage,
+  distinctThemeTokens,
   screenshotBeforeMeaning: 'Closed glossary on SAME candidate HEAD, not a historical baseline commit screenshot',
   screenshotAfterMeaning: 'Opened real Step1 Desktop glossary and one exact Pos search on same viewport',
   fixturePolicy: 'Real CephaloWorkspace/Step1 with synthetic SVG + mock patient ID 901 isolated and all external requests blocked',
@@ -246,4 +267,4 @@ const report = {
 };
 await writeFile(path.join(OUTPUT_DIR,'report.json'),JSON.stringify(report,null,2),'utf8');
 console.log(JSON.stringify(report,null,2));
-if (invalid.length || blockedExternalRequests.length) process.exitCode = 1;
+if (invalid.length || blockedExternalRequests.length || !pairedCoverage || !distinctThemeTokens) process.exitCode = 1;
