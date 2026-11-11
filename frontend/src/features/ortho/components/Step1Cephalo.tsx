@@ -371,7 +371,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
             className="min-h-11 cursor-pointer rounded-lg px-3 py-3 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2"
             style={{ color: props.P.text }}
           >
-            Lexique FR/EN · aide anatomique (non certifiée)
+            Lexique des 38 repères · FR/EN
           </summary>
           <div className="max-h-[42dvh] overflow-y-auto overscroll-contain border-t p-2" style={{ borderColor: props.P.border }}>
             <CephaloLandmarkReviewLexicon
