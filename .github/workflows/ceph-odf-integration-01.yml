@@ -33,10 +33,13 @@ jobs:
           source='ac8972cd83276b55949d06e86e9a1fc57eff66a3'
           for p in ['frontend/src/features/ortho/CephaloWorkspace.tsx','frontend/src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx','.github/workflows/ceph-readiness-01.yml']:
               assert git('rev-parse',f'HEAD:{p}')==git('rev-parse',f'{source}:{p}'), p
-          for p in ['frontend/src/features/ortho/components/Step1Cephalo.tsx','frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs']:
+          for p in ['frontend/src/features/ortho/components/Step1Cephalo.tsx']:
               assert git('rev-parse',f'HEAD:{p}')==git('rev-parse',f'dae5390c6860f2147ac9b60f6b7116875a7cd124:{p}'), p
+          script=__import__('pathlib').Path('frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs').read_text()
+          assert "node.scrollIntoView({ block: 'center', inline: 'nearest' })" in script
+          assert "viewport.width <= 768" in script
           actual=set(git('diff','--name-only','dae5390c6860f2147ac9b60f6b7116875a7cd124','HEAD').splitlines())
-          expected={'.github/workflows/ceph-readiness-01.yml','.github/workflows/ceph-odf-integration-01.yml','frontend/src/features/ortho/CephaloWorkspace.tsx','frontend/src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx'}
+          expected={'.github/workflows/ceph-readiness-01.yml','.github/workflows/ceph-odf-integration-01.yml','frontend/src/features/ortho/CephaloWorkspace.tsx','frontend/src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx','frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs'}
           assert actual==expected,(actual,expected)
           print('CEPH_ODF_INTEGRATION_EXACT_BLOBS_AND_SCOPE_PASS')
   frontend-visual:
