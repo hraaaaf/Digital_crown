@@ -111,6 +111,19 @@ server.stderr.on('data', data => { serverLog += data.toString(); });
 const allCaptures = [];
 const blockedExternalRequests = [];
 
+async function resetWorkspaceScroll(page) {
+  await page.evaluate(() => {
+    const stage = document.querySelector('[data-r20-radiograph-stage]');
+    let node = stage;
+    while (node) {
+      if (node.scrollTop > 0) node.scrollTop = 0;
+      node = node.parentElement;
+    }
+    document.scrollingElement.scrollTop = 0;
+    window.scrollTo(0, 0);
+  });
+}
+
 async function capture(viewport, attempt, theme) {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({
@@ -151,7 +164,7 @@ async function capture(viewport, attempt, theme) {
     await details.waitFor({ state:'attached', timeout:30_000 });
     const initialClosed = await details.evaluate(node => !node.open);
     if (!initialClosed) throw new Error('S4_NOT_CLOSED_BY_DEFAULT');
-    await details.scrollIntoViewIfNeeded();
+    await resetWorkspaceScroll(page);
     await page.evaluate(async () => { if (document.fonts?.ready) await document.fonts.ready; });
     await page.screenshot({
       path: path.join(OUTPUT_DIR, theme + '-' + 'before-collapsed-' + viewport.name + '.png'),
@@ -167,7 +180,13 @@ async function capture(viewport, attempt, theme) {
       throw new Error('S4_FULL_CATALOG_COUNT_OR_CLINICAL_GATE_FAILED: ' + [nDetector,nConstruction,nCertified].join(','));
     }
     const search = page.getByRole('searchbox', { name: /FR, EN, synonyme ou ID/i });
-    await page.evaluate(() => window.scrollTo(0, 0));
+    if (viewport.width <= 430) {
+      await page.screenshot({
+        path: path.join(OUTPUT_DIR, theme + '-glossary-focused-' + viewport.name + '.png'),
+        fullPage: false,
+      });
+    }
+    await resetWorkspaceScroll(page);
     await page.screenshot({
       path: path.join(OUTPUT_DIR, theme + '-' + 'after-expanded-' + viewport.name + '.png'),
       fullPage: false,
@@ -177,7 +196,7 @@ async function capture(viewport, attempt, theme) {
     const nFiltered = await page.locator('[data-cephalo-review-lexicon] [data-cephalo-lexicon-id]').count();
     const proper = await page.locator('[data-cephalo-lexicon-id="Pog_soft"][data-clinical-validated="false"]').count();
     if (nFiltered !== 1 || proper !== 1) throw new Error('S4_POS_EXACT_ALIAS_OR_CLINICAL_HOLD_FAILED');
-    await page.evaluate(() => window.scrollTo(0, 0));
+    await resetWorkspaceScroll(page);
     await page.screenshot({
       path: path.join(OUTPUT_DIR, theme + '-' + 'after-pos-search-' + viewport.name + '.png'),
       fullPage: false,
@@ -186,7 +205,7 @@ async function capture(viewport, attempt, theme) {
     // On compact phones, scroll the actual image into the manual-pointing workspace
     // before testing pointer access. Preserve the recorded first-viewport screenshot.
     if (viewport.width <= 430) {
-      await page.locator('[data-r20-radiograph-stage]').evaluate(node => node.scrollIntoView({ block: 'center', inline: 'nearest' }));
+      await resetWorkspaceScroll(page);
       await page.screenshot({
         path: path.join(OUTPUT_DIR, theme + '-edit-ready-' + viewport.name + '.png'),
         fullPage: false,
