@@ -1,0 +1,167 @@
+name: LOT08.2-G installable provenance and real SQLCipher isolated LAB
+
+on:
+  push:
+    branches: [feat/v15-08-2-g-installable-evidence-sqlcipher-fue0-20261110]
+    paths:
+      - .github/workflows/v15-08-2-g-installable-vm-readiness-fue.yml
+      - queue_core/tests/test_installable_gate_08_2_g.py
+      - scripts/quality/lot08_2_g_*
+      - docs/quality/V15_08_2_G_INSTALLABLE_VM_REHEARSAL_GATE.md
+  pull_request:
+    paths:
+      - .github/workflows/v15-08-2-g-installable-vm-readiness-fue.yml
+      - queue_core/tests/test_installable_gate_08_2_g.py
+      - scripts/quality/lot08_2_g_*
+      - docs/quality/V15_08_2_G_INSTALLABLE_VM_REHEARSAL_GATE.md
+permissions:
+  contents: read
+env:
+  SOURCE_MASTER_SHA: 093e89390d0e4b934d478485ea1ef28a7ce95de4
+  LOT08G_SOURCE_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+jobs:
+  linux-queue-and-blocked-release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 25
+          persist-credentials: false
+      - name: Assert integrated exact 17-file source-only LAB scope
+        shell: bash
+        run: python scripts/quality/lot08_2_integrated_scope_gate.py --expected-head "$LOT08G_SOURCE_SHA"
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install pinned Queue Core dependencies
+        run: >-
+          python -m pip install --disable-pip-version-check
+          'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'tzdata==2025.2'
+          'fastapi==0.115.6' 'starlette==0.41.3'
+          'pydantic==2.6.3' 'httpx==0.28.1' 'anyio==4.12.1'
+      - name: Full Queue Core + forged-release refusal tests
+        run: python -m pytest -q queue_core/tests --maxfail=1 --junitxml=lot08g-queue.xml
+      - name: Prove missing genuine INSTALLABLE remains blocked (expected exit code 3)
+        shell: bash
+        run: |
+          set -euo pipefail
+          set +e
+          python -m scripts.quality.lot08_2_g_installable_gate \
+            --expected-master-sha "$SOURCE_MASTER_SHA" > lot08g-gate.json
+          rc=$?
+          set -e
+          test "$rc" -eq 3
+          python - <<'PY'
+          import json
+          report=json.load(open("lot08g-gate.json",encoding="utf8"))
+          assert report["verdict"]=="BLOCKED_NO_INSTALLABLE_GO"
+          assert report["reason"]=="NO_INSTALLABLE_CANDIDATE_SUPPLIED"
+          assert not report["clinical_go"] and not report["installable_go"]
+          print("LOT08G_NO_REAL_INSTALLABLE_FAIL_CLOSED=PASS")
+          PY
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08g-linux-gate-junit
+          path: |
+            lot08g-queue.xml
+            lot08g-gate.json
+          if-no-files-found: warn
+          retention-days: 7
+  linux-real-sqlcipher-synthetic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      CB03_G7_SOURCE_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install genuine native SQLCipher not plaintext SQLite
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update -qq
+          sudo apt-get install -y --no-install-recommends libsqlcipher-dev
+          python -m pip install --disable-pip-version-check 'sqlcipher3>=0.5,<1'
+          python - <<'PY'
+          from sqlcipher3 import dbapi2 as db
+          con=db.connect(":memory:")
+          try:
+              row=con.execute("PRAGMA cipher_version").fetchone()
+              assert row and row[0], "native SQLCipher unavailable"
+              print("LOT08G_GENUINE_SQLCIPHER_LIBRARY_PASS")
+          finally:
+              con.close()
+          PY
+      - name: Real encrypted 3-file cold restore, bad key and corruption negatives
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$LOT08G_SOURCE_SHA"
+          PYTHONPATH=. python scripts/quality/lot08_2_g_sqlcipher_lab.py | tee lot08g-cold.jsonl
+          grep -q '^LOT08G_REAL_SQLCIPHER_THREE_DB_COLD_RESTORE_LAB_PASS$' lot08g-cold.jsonl
+      - name: Existing REAL SQLCipher before/after commit SIGKILL oracle
+        shell: bash
+        run: |
+          set -euo pipefail
+          PYTHONPATH=. python scripts/ci/cb03_g7_real_sqlcipher_sigkill.py | tee lot08g-sigkill.log
+          grep -q '^CB03_G7_REAL_SQLCIPHER_SIGKILL_PASS' lot08g-sigkill.log
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08g-sqlcipher-synthetic-only
+          path: |
+            lot08g-cold.jsonl
+            artifacts/cb03-g7/sqlcipher-real-sigkill.json
+          if-no-files-found: warn
+          retention-days: 7
+  windows-readonly-installable-gate:
+    runs-on: windows-2022
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Refuse unapproved EXE and verify SHA
+        shell: pwsh
+        run: |
+          if ((git rev-parse HEAD) -ne $env:LOT08G_SOURCE_SHA) { throw 'LOT08G_SHA_CHANGED' }
+          if (Test-Path 'dist/DigitalCrownSetup.exe') { throw 'LOT08G_INSTALLER_FORBIDDEN' }
+      - name: Forged, stale and absent release negative tests
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check 'pytest==9.0.3'
+          python -m pytest -q queue_core/tests/test_installable_gate_08_2_g.py --maxfail=1 --junitxml=lot08g-windows.xml
+      - name: No INSTALLABLE means no installation (expected exit code 3)
+        shell: pwsh
+        run: |
+          python -m scripts.quality.lot08_2_g_installable_gate --expected-master-sha $env:SOURCE_MASTER_SHA > lot08g-windows-blocked.json
+          if ($LASTEXITCODE -ne 3) { throw 'MISSING_INSTALLABLE_GATE_BYPASSED' }
+          $r = Get-Content lot08g-windows-blocked.json -Raw | ConvertFrom-Json
+          if ($r.verdict -ne 'BLOCKED_NO_INSTALLABLE_GO' -or $r.installable_go -ne $false) { throw 'RELEASE_GATE_BYPASSED' }
+          # GitHub-hosted pwsh appends an automatic 'exit $LASTEXITCODE' trailer.
+          # After ASSERTING the expected refusal code 3, clear only the shell
+          # status; this must never modify the gate or accept an installable.
+          $global:LASTEXITCODE = 0
+          Write-Output 'LOT08G_WINDOWS_NO_INSTALLABLE_FAIL_CLOSED_PASS'
+      - if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08g-windows-no-install-junit
+          path: |
+            lot08g-windows.xml
+            lot08g-windows-blocked.json
+          if-no-files-found: warn
+          retention-days: 7
