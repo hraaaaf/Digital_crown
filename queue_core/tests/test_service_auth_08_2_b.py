@@ -527,3 +527,23 @@ service.perform(
     assert result.status == "WAITING" and result.version == 2
     with Session(engine) as session:
         assert session.scalar(select(func.count()).select_from(QueueEventRecord)) == 2
+
+
+@pytest.mark.parametrize("missing_guard", [
+    "queue_event_log_no_update", "queue_event_log_no_delete",
+])
+def test_08_3_legacy_event_ledger_missing_guard_refuses_new_service(
+    local, missing_guard,
+):
+    """Read-only startup gate refuses an old/misconfigured file, never auto-migrates."""
+    _, operators, _, _, _, _, _, _, engine = local
+    # Simulate an older SQLite file, using only the synthetic fixture.
+    with engine.begin() as connection:
+        connection.exec_driver_sql(f"DROP TRIGGER {missing_guard}")
+    with pytest.raises(ValueError, match="QUEUE_EVENT_IMMUTABILITY_REQUIRED"):
+        AuthorizedLocalQueue(operators, engine)
+    # Existing visit data remains untouched by the failed initialization.
+    with Session(engine) as session:
+        row = session.get(QueueVisitRecord, "V1")
+        assert row.status == "PLANNED" and row.version == 0
+        assert not session.scalars(select(QueueEventRecord)).all()
