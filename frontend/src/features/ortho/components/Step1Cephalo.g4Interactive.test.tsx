@@ -74,6 +74,20 @@ beforeEach(()=>{
 afterEach(()=>cleanup());
 
 describe('Cephalo Step1 G4 workbench controls',()=>{
+  it('hosts the entire 38+2 bilingual glossary in the existing Desktop manual-review rail, closed by default',()=>{
+    const { container } = render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
+    const details = container.querySelector('[data-cephalo-review-lexicon-details]') as HTMLDetailsElement;
+    expect(details).not.toBeNull();
+    expect(details.open).toBe(false);
+    fireEvent.click(screen.getByText('Lexique des 38 repères · FR/EN'));
+    expect(details.open).toBe(true);
+    const glossary = screen.getByRole('region', {name: /Lexique de revue des repères, lecture seule/});
+    expect(glossary.querySelectorAll('[data-model-channel="true"]')).toHaveLength(38);
+    expect(glossary.querySelectorAll('[data-model-channel="false"]')).toHaveLength(2);
+    expect(glossary.querySelectorAll('[data-clinical-validated="true"]')).toHaveLength(0);
+    expect(state.local.landmarks).toEqual([{id:'S',x:10,y:20}]);
+  });
+
   it('falls back to the base upload/calibration surface when no image exists',()=>{
     state.imageSrc=undefined;
     render(<Step1Cephalo P={P} fileRef={{current:null}} step1ContainerRef={{current:null}}/>);
