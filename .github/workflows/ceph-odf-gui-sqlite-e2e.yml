@@ -140,6 +140,10 @@ jobs:
         if: always()
         shell: bash
         run: |
+          for pidfile in /tmp/ceph-odf-e2e-backend.pid /tmp/ceph-odf-e2e-frontend.pid; do
+            if test -f "$pidfile"; then kill "$(cat "$pidfile")" 2>/dev/null || true; fi
+            rm -f "$pidfile"
+          done
           rm -f t2-runtime-cert.db t2-runtime-cert.db-shm t2-runtime-cert.db-wal
           rm -f backend/static/uploads/radios/t2-cephalo-seeded.png
           rm -f /tmp/ceph-odf-e2e-requirements.txt /tmp/ceph-odf-e2e-seed.log
