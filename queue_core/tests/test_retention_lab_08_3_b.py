@@ -79,6 +79,10 @@ def lab(tmp_path):
         ))
         s.commit()
     engine.dispose()
+    # Dedicated header proof: a renamed/copy-pasted clinical SQLite file does
+    # not become eligible merely because its path is under a temporary folder.
+    with sqlite3.connect(dbfile) as db:
+        db.execute(f"PRAGMA application_id={retention.SYNTHETIC_LAB_APPLICATION_ID}")
     return dbfile
 
 
@@ -201,3 +205,12 @@ def test_existing_cross_tenant_foreign_key_corruption_refuses_purge(lab):
     assert _read(lab, "SELECT count(*) FROM queue_visits") == [(6,)]
     assert _read(lab, "SELECT count(*) FROM queue_external_references") == [(2,)]
     assert not _read(lab, "SELECT name FROM sqlite_master WHERE name='queue_retention_receipts_lab'")
+
+
+def test_misnamed_real_like_sqlite_without_explicit_lab_marker_is_refused(lab):
+    with sqlite3.connect(lab) as c:
+        c.execute("PRAGMA application_id=0")
+    with pytest.raises(RetentionLabError, match="SYNTHETIC_LAB_MARKER_REQUIRED"):
+        retain_closed_visits_lab(lab, "T1", now=NOW, execute=True)
+    assert _read(lab, "SELECT count(*) FROM queue_visits") == [(6,)]
+    assert _read(lab, "SELECT count(*) FROM queue_external_references") == [(1,)]
