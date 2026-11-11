@@ -128,20 +128,28 @@ try{
       // shows only the applicable subset of its 38 source landmarks.
       assert(count>=3&&count<=38,'INVALID_VISIBLE_RETICLE_COUNT '+count);
       let drag=null;
-      for(let i=0;i<count;i++){
-        const p=targets.nth(i);
-        await p.scrollIntoViewIfNeeded().catch(()=>{});
-        const r=await p.boundingBox();
-        if(!r||r.width<1||r.height<1)continue;
-        const x=r.x+r.width/2,y=r.y+r.height/2;
-        const cx=Number(await p.getAttribute('cx')),cy=Number(await p.getAttribute('cy'));
-        const source=seed.original_landmarks.find(q=>Math.hypot(q.x-cx,q.y-cy)<.05);
-        if(!source||x<120||x>1150||y<165||y>825)continue;
-        const hit=await page.evaluate(({x,y})=>{
-          const n=document.elementFromPoint(x,y);
-          return n?.tagName?.toLowerCase()==='circle'&&n.getAttribute('r')==='20';
-        },{x,y});
-        if(hit){drag={x,y,id:source.id};break;}
+      // Prefer isolated midcranial synthetic controls: L1/U1 reticles may
+      // overlap, and a hit on a DIFFERENT circle is not evidence of target S.
+      for(const preferredId of ['S','N','Po','Or','Go','Me','A','B','Pog']){
+        for(let i=0;i<count;i++){
+          const p=targets.nth(i);
+          const cx=Number(await p.getAttribute('cx')),cy=Number(await p.getAttribute('cy'));
+          const source=seed.original_landmarks.find(q=>Math.hypot(q.x-cx,q.y-cy)<.05);
+          if(!source||source.id!==preferredId)continue;
+          await p.scrollIntoViewIfNeeded().catch(()=>{});
+          const r=await p.boundingBox();
+          if(!r||r.width<1||r.height<1)continue;
+          const x=r.x+r.width/2,y=r.y+r.height/2;
+          if(x<120||x>1150||y<165||y>825)continue;
+          const hit=await p.evaluate((target,{x,y})=>{
+            const actual=document.elementFromPoint(x,y);
+            // Child tiny circles and marker labels can be above the hit
+            // circle, but must still belong to its exact editable parent g.
+            return actual?.closest('g')===target.parentElement;
+          },{x,y});
+          if(hit){drag={x,y,id:source.id};break;}
+        }
+        if(drag)break;
       }
       assert(drag,'NO_UNOBSTRUCTED_LANDMARK_ON_REAL_SVG');
       report.changed_id=drag.id;
@@ -154,7 +162,10 @@ try{
       const after=await until('REAL_POINTER_DRAG_NOT_PERSISTED',d=>
         d.landmarks_data?.length===38&&diffs(seed.original_landmarks,d.landmarks_data).length===1);
       const modified=diffs(seed.original_landmarks,after.landmarks_data);
-      assert(modified.length===1&&modified[0].id===report.changed_id,'DRAG_CHANGED_WRONG_POINT');
+      report.observed_changed_ids=modified.map(point=>point.id);
+      assert(modified.length===1&&modified[0].id===report.changed_id,
+        'DRAG_CHANGED_WRONG_POINT expected='+report.changed_id+
+        ' actual='+JSON.stringify(report.observed_changed_ids));
       assert(after.is_calibrated===false&&after.mm_per_pixel===null,'DRAG_FABRICATED_MM_SCALE');
       report.saved_landmarks=after.landmarks_data;
       await shot('02-after-real-pointer-drag');
