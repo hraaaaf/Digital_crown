@@ -53,15 +53,37 @@ def _require_g2_qr_schema(conn: sqlite3.Connection) -> None:
 
 
 def _install_immutable_qr_retention_receipt(conn: sqlite3.Connection) -> None:
+    table = "queue_qr_retention_receipts_lab"
+    exists = conn.execute(
+        "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?", (table,)
+    ).fetchone()
+    if exists:
+        columns = tuple(
+            row[1] for row in conn.execute("PRAGMA table_info(queue_qr_retention_receipts_lab)")
+        )
+        if columns != ("id", "tenant_id", "executed_epoch", "removed_count"):
+            raise RetentionLabError("QR_RETENTION_RECEIPT_SCHEMA_MISMATCH")
+        existing_guards = {
+            row[0] for row in conn.execute(
+                "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name=?", (table,)
+            )
+        }
+        if not {
+            "queue_qr_retention_receipts_lab_no_update",
+            "queue_qr_retention_receipts_lab_no_delete",
+        } <= existing_guards:
+            # No silent re-creation/migration of pre-existing ledger guards.
+            raise RetentionLabError("QR_RETENTION_RECEIPT_GUARD_REQUIRED")
+        return
     conn.execute(
-        "CREATE TABLE IF NOT EXISTS queue_qr_retention_receipts_lab ("
+        "CREATE TABLE queue_qr_retention_receipts_lab ("
         "id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL, "
         "executed_epoch INTEGER NOT NULL, removed_count INTEGER NOT NULL "
         "CHECK(removed_count >= 0))"
     )
     for method in ("UPDATE", "DELETE"):
         conn.execute(
-            "CREATE TRIGGER IF NOT EXISTS "
+            "CREATE TRIGGER "
             f"queue_qr_retention_receipts_lab_no_{method.lower()} "
             f"BEFORE {method} ON queue_qr_retention_receipts_lab "
             "BEGIN SELECT RAISE(ABORT, 'QR_RETENTION_RECEIPT_IMMUTABLE'); END"
