@@ -422,3 +422,51 @@ junction.redeem(
     )
     assert result.status == "WAITING" and result.version == 2
     assert len(_events(lab)) == 2
+
+
+def test_consumed_qr_idempotent_receipt_seven_day_boundary_fail_closed(lab, monkeypatch):
+    """Receipt replay is valid through day seven, not one second later.
+
+    Advance only the QR clock: keep the separate device-session clock fixed,
+    so expiration is unambiguously enforced by the Queue receipt, not auth.
+    """
+    ticket = lab["qr"].issue(lab["reception"], "V1")
+    received = lab["qr"].redeem(
+        lab["kiosk"], ticket, tenant_id="T1", request_key="request-key-boundary-0001",
+    )
+    observed_version = _visit(lab)
+    observed_event_count = len(_events(lab))
+    base_epoch = lab["epoch"][0]
+    monkeypatch.setattr(
+        lab["qr"], "_epoch_clock", lambda: base_epoch + 7 * 86400,
+    )
+    assert lab["qr"].redeem(
+        lab["kiosk"], ticket, tenant_id="T1", request_key="request-key-boundary-0001",
+    ) == received
+    monkeypatch.setattr(
+        lab["qr"], "_epoch_clock", lambda: base_epoch + 7 * 86400 + 1,
+    )
+    with pytest.raises(QueueDomainError, match="QR_REJECTED"):
+        lab["qr"].redeem(
+            lab["kiosk"], ticket, tenant_id="T1", request_key="request-key-boundary-0001",
+        )
+    assert _visit(lab) == observed_version
+    assert len(_events(lab)) == observed_event_count
+
+
+def test_revocation_blocks_idempotent_receipt_after_success(lab):
+    """A stored receipt must never bypass live device-session revocation."""
+    ticket = lab["qr"].issue(lab["reception"], "V1")
+    received = lab["qr"].redeem(
+        lab["kiosk"], ticket, tenant_id="T1", request_key="request-key-revoke-00001",
+    )
+    assert received.status == "WAITING"
+    observed_version = _visit(lab)
+    observed_event_count = len(_events(lab))
+    lab["devices"].revoke(lab["admin"], tenant_id="T1", device_id="K1")
+    with pytest.raises(DeviceIdentityError):
+        lab["qr"].redeem(
+            lab["kiosk"], ticket, tenant_id="T1", request_key="request-key-revoke-00001",
+        )
+    assert _visit(lab) == observed_version
+    assert len(_events(lab)) == observed_event_count
