@@ -63,6 +63,11 @@ def _verify_integrity(conn: sqlite3.Connection) -> None:
     }
     if not {"queue_event_log_no_update", "queue_event_log_no_delete"} <= objects:
         raise RetentionLabError("QUEUE_EVENT_IMMUTABILITY_REQUIRED")
+    # Existing on-disk corruption cannot be masked by a successful DELETE.
+    if conn.execute("PRAGMA quick_check").fetchone()[0] != "ok":
+        raise RetentionLabError("QUEUE_SQLITE_INTEGRITY_FAILED")
+    if conn.execute("PRAGMA foreign_key_check").fetchone() is not None:
+        raise RetentionLabError("QUEUE_FK_INTEGRITY_FAILED")
 
 
 def _install_lab_receipt(conn: sqlite3.Connection) -> None:
