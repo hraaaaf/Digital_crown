@@ -454,9 +454,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
               Brouillon · aucun bilan clinique validé par cette action
             </span>
           </div>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-5">
+          <div className="flex max-w-full snap-x gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 xl:grid-cols-5">
             {readinessItems.map(item => (
-              <div key={item.key} data-cephalo-readiness-item={item.key} className="min-w-0 rounded-lg border px-3 py-2" style={{ borderColor: P.border, background: P.bgCard }}>
+              <div key={item.key} data-cephalo-readiness-item={item.key} className="w-48 min-w-48 shrink-0 snap-start rounded-lg border px-3 py-2 sm:w-auto sm:min-w-0" style={{ borderColor: P.border, background: P.bgCard }}>
                 <div className="text-[11px] font-bold" style={{ color: P.text }}>{item.title}</div>
                 <div className="mt-1 text-[11px] leading-snug" style={{ color: P.textMuted }}>{item.value}</div>
               </div>
