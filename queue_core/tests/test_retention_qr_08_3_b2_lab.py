@@ -225,3 +225,32 @@ def test_post_purge_lookup_rejects_old_qr_and_unblocks_closed_visit_retention(la
     assert retain_closed_visits_lab(lab,"T1",now=NOW,execute=True).eligible_visits == 1
     assert _get(lab,"SELECT count(*) FROM queue_visits WHERE id='OLD_DONE'") == [(0,)]
     assert _get(lab,"SELECT count(*) FROM queue_event_log") == [(1,)]
+
+
+def test_existing_mutable_receipt_table_is_refused_not_silently_fixed(lab):
+    with sqlite3.connect(lab) as c:
+        c.execute(
+            "CREATE TABLE queue_qr_retention_receipts_lab ("
+            "id TEXT PRIMARY KEY, tenant_id TEXT NOT NULL,"
+            "executed_epoch INTEGER NOT NULL, removed_count INTEGER NOT NULL)"
+        )
+        c.execute(
+            "INSERT INTO queue_qr_retention_receipts_lab VALUES ('OLD','T1',0,7)"
+        )
+    with pytest.raises(RetentionLabError,match="QR_RETENTION_RECEIPT_GUARD_REQUIRED"):
+        retain_consumed_qr_ledger_lab(lab,"T1",now=NOW,execute=True)
+    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(7,)]
+    assert _get(lab,"SELECT id,removed_count FROM queue_qr_retention_receipts_lab") == [("OLD",7)]
+    assert _get(lab,"SELECT count(*) FROM queue_event_log") == [(1,)]
+
+
+def test_existing_incompatible_receipt_schema_is_refused(lab):
+    with sqlite3.connect(lab) as c:
+        c.execute(
+            "CREATE TABLE queue_qr_retention_receipts_lab ("
+            "id TEXT PRIMARY KEY, payload TEXT)"
+        )
+    with pytest.raises(RetentionLabError,match="QR_RETENTION_RECEIPT_SCHEMA_MISMATCH"):
+        retain_consumed_qr_ledger_lab(lab,"T1",now=NOW,execute=True)
+    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(7,)]
+    assert _get(lab,"SELECT count(*) FROM queue_event_log") == [(1,)]
