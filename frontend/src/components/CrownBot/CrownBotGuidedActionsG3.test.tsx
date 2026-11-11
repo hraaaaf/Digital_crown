@@ -41,7 +41,9 @@ const acknowledge = () => fireEvent.click(screen.getByRole('checkbox', { name: /
 const confirmButton = () => screen.getByRole('button', { name: 'Confirmer explicitement cette action' });
 const checkButton = () => screen.getByRole('button', { name: /Vérifier l’état par identifiant/i });
 
-beforeEach(() => { vi.clearAllMocks(); });
+// clearAllMocks keeps unresolved mockResolvedValueOnce queues across tests.
+// A lost-ACK GET must never reuse another test's executed receipt.
+beforeEach(() => { vi.resetAllMocks(); });
 afterEach(() => { vi.unstubAllEnvs(); });
 
 describe('CB-03 G3 synthetic explicit-confirmation UX', () => {
@@ -130,7 +132,11 @@ describe('CB-03 G3 synthetic explicit-confirmation UX', () => {
     get.mockResolvedValueOnce({ data: reconciliation('executed', {
       appointment_id: 81, status: 'CREATED',
     }) } as never);
+    // The uncertain phase is displayed before the rejected confirm POST
+    // releases its busy guard. Do not click a control that is still disabled.
+    await waitFor(() => expect(checkButton()).toBeEnabled());
     fireEvent.click(checkButton());
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/bot/guided/actions/' + ID));
     expect(await screen.findByText(/Action exécutée et vérifiée/i)).toHaveTextContent('RDV #81');
     expect(post).toHaveBeenCalledTimes(2);
   });

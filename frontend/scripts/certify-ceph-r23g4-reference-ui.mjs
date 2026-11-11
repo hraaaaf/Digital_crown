@@ -31,6 +31,7 @@ async function viewportRun(viewport) {
   const label = viewport.width + 'x' + viewport.height;
   const rec = {viewport:label, checks:[], shots:[], errors:[], valid:false};
   let sourceBackedComFocus = null;
+  let comSourceRows = [];
   const api = await request.newContext({baseURL:backend});
   let context;
   let page;
@@ -122,8 +123,12 @@ async function viewportRun(viewport) {
       if(data.analysis_id!==ids.older_id || !Number.isSafeInteger(data.revision) || data.revision<=0
         || data.clinical_release!==false || data.reference_display_only!==true
         || data.profiles?.com?.rows?.length!==10)throw Error('Source/identity safety contract absent');
-      sourceBackedComFocus=data.profiles.com.rows.find(row=>row.availability_status==='AVAILABLE'
-        && row.value!==null && row.focus_evidence?.landmark_ids?.length>0) ?? null;
+      comSourceRows = data.profiles.com.rows;
+      sourceBackedComFocus=comSourceRows.find(row=>row.availability_status==='AVAILABLE'
+        && row.value!==null
+        && row.focus_evidence?.authority==='ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
+        && (row.focus_evidence?.landmark_ids?.length ?? 0)
+             + (row.focus_evidence?.construction_ids?.length ?? 0)>0) ?? null;
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
       await panel.waitFor({state:'visible'});
       const table=panel.locator('table[data-r23g4-row-count="10"]');
@@ -136,11 +141,15 @@ async function viewportRun(viewport) {
       await shot('after-com-ten-factor');
       return {analysis_id:data.analysis_id,revision:data.revision,count:10,clinical_release:false};
     });
-    await check('COM_FOCUS_MATCHES_SOURCE_EVIDENCE',async()=>{
+    if(sourceBackedComFocus) await check('COM_FOCUS_MATCHES_SOURCE_EVIDENCE',async()=>{
       const panel=page.locator('[data-r23g4-reference-panel="com"]');
       if(!sourceBackedComFocus)throw Error('No available COM row with source Focus evidence to test');
       const factorId=sourceBackedComFocus.canonical_measurement_id;
       const expectedPoints=sourceBackedComFocus.focus_evidence.landmark_ids;
+      const expectedConstructions=sourceBackedComFocus.focus_evidence.construction_ids;
+      if(!Array.isArray(expectedPoints) || !Array.isArray(expectedConstructions)
+         || expectedPoints.length + expectedConstructions.length===0)
+        throw Error('Focus lacks real source landmarks AND constructions');
       const selected=panel.locator(`tbody tr[data-r23g4-factor="${factorId}"]`);
       if(await selected.count()!==1)throw Error('Exact source-backed COM row is absent');
       await page.evaluate(()=>{
@@ -151,18 +160,82 @@ async function viewportRun(viewport) {
       const evidence=selected.locator('[data-r23g4-focus-authority="verified-runtime"]');
       await evidence.waitFor({state:'visible'});
       const displayed=await evidence.innerText();
-      if(!displayed.includes(`Focus prouvé : ${expectedPoints.join(', ')}`)
-        || !displayed.includes('Aucun tracé inventé'))
-        throw Error('Displayed Focus differs from the exact source points or implies invented geometry');
-      await page.waitForFunction(expectedPoints=>window.__r23g4FocusEvents?.some(event=>
+      if(!displayed.includes('Focus prouvé :')
+        || !displayed.includes('Aucun tracé inventé')
+        || (expectedPoints.length>0 && !displayed.includes(`Focus prouvé : ${expectedPoints.join(', ')}`)))
+        throw Error('Displayed Focus differs from active evidence or implies invented geometry');
+      await page.waitForFunction(({points,constructions})=>window.__r23g4FocusEvents?.some(event=>
         event?.authority==='ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
-          && JSON.stringify(event.points)===JSON.stringify(expectedPoints)),expectedPoints);
+          && JSON.stringify(event.points)===JSON.stringify(points)
+          && JSON.stringify(event.constructionIds)===JSON.stringify(constructions)),
+        {points:expectedPoints,constructions:expectedConstructions});
       const event=await page.evaluate(()=>window.__r23g4FocusEvents.at(-1));
-      if(!event || JSON.stringify(event.points)!==JSON.stringify(expectedPoints)
+      if(!event
+        || JSON.stringify(event.points)!==JSON.stringify(expectedPoints)
+        || JSON.stringify(event.constructionIds)!==JSON.stringify(expectedConstructions)
         || !Array.isArray(event.lines) || event.lines.length!==0)
-        throw Error('Published Focus event differs from exact source points or contains invented lines');
+        throw Error('Focus event differs from exact source evidence or contains invented lines');
       await shot('after-com-source-backed-focus');
-      return {factor_id:factorId,points:expectedPoints,lines:event.lines,clinical_release:false};
+      return {factor_id:factorId,points:expectedPoints,constructions:expectedConstructions,
+        lines:event.lines,clinical_release:false};
+    });
+    else await check('NO_FABRICATED_FOCUS_ON_COM_HOLD', async()=>{
+      const panel=page.locator('[data-r23g4-reference-panel="com"]');
+      const table=panel.locator('table[data-r23g4-row-count="10"]');
+      // A read-only historical COM number can be displayed without enough
+      // active evidence to focus on the image. NEVER claim that ALL numbers
+      // are absent merely because no source-authorized Focus is available.
+      if(comSourceRows.length!==10 || comSourceRows.some(row=>
+        row.classification_authority!==false
+          || (row.availability_status!=='AVAILABLE' && row.value!==null)))
+        throw Error('COM reference rows violate status/value/authority contract');
+      const held=comSourceRows.find(row=>
+        row.availability_status!=='AVAILABLE' && row.value===null);
+      if(!held)throw Error('No actual NC COM factor exists for the refusal proof');
+
+      const numRows=comSourceRows.filter(row=>
+        row.availability_status==='AVAILABLE' && row.value!==null);
+      const coverage=await panel.locator('[data-r23g4-coverage]').innerText();
+      if(!coverage.includes(`${numRows.length}/10 valeurs prouvées`))
+        throw Error('COM coverage differs from exact backend values: '+coverage);
+      for(const source of comSourceRows) {
+        const row=table.locator('tbody tr[data-r23g4-factor="'+source.canonical_measurement_id+'"]');
+        if(await row.count()!==1)throw Error('COM factor missing: '+source.canonical_measurement_id);
+        const value=await row.locator('td').first().innerText();
+        const status=await row.locator('td').last().innerText();
+        if((source.value===null && (value.trim()!=='NC'||!status.includes('Non calculable')))
+          ||(source.value!==null && (value.trim()==='NC'||!status.includes('Preuve mesurée'))))
+          throw Error('COM factor display differs from active source state: '+source.canonical_measurement_id);
+      }
+      await page.evaluate(()=>{
+        window.__r23g4FocusEvents=[];
+        window.addEventListener('digital-crown:cephalo-metric',event=>
+          window.__r23g4FocusEvents.push(event.detail));
+      });
+      // Even if a legacy row has a read-only number, it has no image Focus
+      // unless the API proves the exact current source-typed landmark IDs.
+      // Exercise each numeric row rather than silently assuming it is safe.
+      for(const source of numRows) {
+        const row=table.locator('tbody tr[data-r23g4-factor="'+source.canonical_measurement_id+'"]');
+        await row.locator('button[data-r23g4-focus-select]').click();
+        await row.locator('[data-r23g4-focus-authority="refused"]').waitFor({state:'visible'});
+        if(await panel.locator('[data-r23g4-focus-authority="verified-runtime"]').count())
+          throw Error('Unproven numeric COM factor activated image Focus: '+source.canonical_measurement_id);
+      }
+      const nc=table.locator('tbody tr[data-r23g4-factor="'+held.canonical_measurement_id+'"]');
+      await nc.locator('button[data-r23g4-focus-select]').click();
+      const refusal=nc.locator('[data-r23g4-focus-authority="refused"]');
+      await refusal.waitFor({state:'visible'});
+      if(!(await refusal.innerText()).includes('Focus non autorisé'))
+        throw Error('NC COM factor does not visibly refuse unsupported Focus');
+      if(await panel.locator('[data-r23g4-focus-authority="verified-runtime"]').count())
+        throw Error('Unsupported COM Focus marked verified');
+      const events=await page.evaluate(()=>window.__r23g4FocusEvents || []);
+      if(events.some(event=>event?.authority==='ACTIVE_RUNTIME_MEASUREMENT_EVIDENCE_V1'
+           || event?.lines?.length || event?.points?.length))
+        throw Error('Unsupported COM Focus emitted numeric or geometric authority');
+      await shot('after-com-focus-hold');
+      return 'Row remains NC and no Focus event/geometry is authorized';
     });
     await check('NON_V1_ANALYSES_ARE_NOT_SELECTABLE',async()=>{
       const options=await page.locator('#cephalo-ready-analysis option').evaluateAll(nodes =>

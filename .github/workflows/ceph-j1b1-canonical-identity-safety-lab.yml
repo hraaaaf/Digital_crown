@@ -1,0 +1,98 @@
+name: "CEPH J1.B1 canonical identity fail-closed — synthetic LAB (NO DEPLOY)"
+
+on:
+  pull_request:
+    paths:
+      - "backend/services/cephalo_landmark_identity_bridge.py"
+      - "backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py"
+      - "backend/tests/test_cephalo_runtime_evidence.py"
+      - "backend/tests/test_cephalo_auto_calibration_route.py"
+      - "backend/tests/test_cephalo_auto_calibration_transition.py"
+      - "backend/tests/test_cephalo_calibration_evidence.py"
+      - "backend/tests/test_cephalo_calibration_route_provenance.py"
+      - "backend/tests/test_cephalo_r6_tweed_merrifield.py"
+      - "backend/tests/test_cephalo_runtime_chain.py"
+      - ".github/workflows/ceph-j1b1-canonical-identity-safety-lab.yml"
+      - "scripts/ci/ceph_j1b1_canonical_identity_lab.py"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  j1b1-canonical-identity-contract:
+    name: "Pinned SHA != anatomy / synthetic identity regression"
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-2022]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - name: "Check out exact PR HEAD"
+        uses: actions/checkout@v4
+      - name: "Python 3.12"
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Install minimal test-only dependencies"
+        run: python -m pip install --disable-pip-version-check --no-cache-dir "pytest==8.4.2" "pydantic==2.11.7"
+      - name: "Compile source and regression tests"
+        run: python -m compileall -q backend/services/cephalo_landmark_identity_bridge.py backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py scripts/ci/ceph_j1b1_canonical_identity_lab.py
+      - name: "Execute synthetic fail-closed cases (NO MODEL, NO PATIENT, NO DEPLOY)"
+        run: python scripts/ci/ceph_j1b1_canonical_identity_lab.py
+
+  j1b1-full-backend-integration:
+    name: "Real evidence runtime + revision/calibration regressions (synthetic)"
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SECRET_KEY: "ceph-j1b1-isolated-test-key-32-chars"
+      DATABASE_URL: "sqlite:///:memory:"
+      ENVIRONMENT: "test"
+      DIGITALCROWN_ISOLATED_RUNTIME: "true"
+      TELEMETRY_ENABLED: "false"
+      CLOUD_AI_ENABLED: "false"
+    steps:
+      - name: "Checkout exact PR HEAD"
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: "Assert checkout SHA"
+        env:
+          EXPECTED_SHA: ${{ github.event.pull_request.head.sha }}
+        run: 'test "$(git rev-parse HEAD)" = "$EXPECTED_SHA"'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: "Install isolated backend (no model and no patient data)"
+        run: |
+          python -m pip install --upgrade pip
+          pip install torch==2.10.0 torchvision==0.25.0 torchaudio==2.10.0 --index-url https://download.pytorch.org/whl/cpu
+          grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-j1b1-backend-requirements.txt
+          pip install -r /tmp/ceph-j1b1-backend-requirements.txt
+          python -m pip check
+      - name: "Execute real evidence graph/regression tests in isolated SQLite"
+        run: |
+          set -o pipefail
+          python -m pytest -q \
+            backend/tests/test_cephalo_vnext_lot06_landmark_identity_bridge.py \
+            backend/tests/test_cephalo_runtime_evidence.py \
+            backend/tests/test_cephalo_landmark_reintroduction_lineage.py \
+            backend/tests/test_cephalo_landmark_refinement_service.py \
+            backend/tests/test_cephalo_auto_calibration_transition.py \
+            backend/tests/test_cephalo_auto_calibration_route.py \
+            backend/tests/test_cephalo_calibration_evidence.py \
+            backend/tests/test_cephalo_calibration_route_provenance.py \
+            backend/tests/test_cephalo_r6_tweed_merrifield.py \
+            backend/tests/test_cephalo_runtime_chain.py \
+            backend/tests/test_cephalo_calibration_current_source.py \
+            backend/tests/test_cephalo_calibration_recalibration.py \
+            backend/tests/test_cephalo_vnext_lot06_canonical_analysis_v2.py | tee ceph-j1b1-real-backend-results.log
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ceph-j1b1-real-backend-${{ github.event.pull_request.head.sha }}
+          path: ceph-j1b1-real-backend-results.log
+          if-no-files-found: warn
+          retention-days: 14

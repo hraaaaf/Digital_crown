@@ -115,24 +115,39 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     explicit_identity_required = {
         "RICKETTS_FACIAL_AXIS_CANONICAL_DEG_V2",
         "DOWNS_Y_AXIS_CANONICAL_DEG_V2",
-        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
     }
     blocked = [item for item in measurements if item["method_id"] in explicit_identity_required]
     assert {item["method_id"] for item in blocked} == explicit_identity_required
     assert all(item["availability_status"] == "NOT_COMPUTABLE" for item in blocked)
     assert all(item["value"] is None for item in blocked)
+    # No evidence dependencies remain for Co-Gn: the builder omits the
+    # typed record; the display projection handles it as NOT_COMPUTABLE.
+    assert not any(
+        item["method_id"] == "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+        for item in measurements
+    )
     # A trusted physical scale unlocks *only* geometry whose exact landmark
     # identities are also present. Ricketts methods requiring manual anatomical
     # Po/Pog or other source-locked landmarks must stay NOT_COMPUTABLE.
     all_measurements = measurements
+    # Calibration unlocks the historical CRANIOM geometry, but must NOT
+    # authorize canonical McNamara anatomy inferred only from SRPose channels.
     legacy_calibrated = [
         item for item in all_measurements
-        if item["requires_calibration"]
-        and item["analysis_id"] in {"CRANIOM", "MCNAMARA"}
-        and item["method_id"] not in explicit_identity_required
+        if item["requires_calibration"] and item["analysis_id"] == "CRANIOM"
     ]
     assert legacy_calibrated
     assert all(item["availability_status"] == "AVAILABLE" for item in legacy_calibrated)
+    canonical_mcnamara = [
+        item for item in all_measurements
+        if item["analysis_id"] == "MCNAMARA"
+        and item["method_id"].endswith("_CANONICAL_MM_V2")
+    ]
+    assert canonical_mcnamara
+    assert all(
+        item["availability_status"] == "NOT_COMPUTABLE" and item["value"] is None
+        for item in canonical_mcnamara
+    )
     ricketts_blocked = [
         item for item in all_measurements
         if item["analysis_id"] == "RICKETTS"
@@ -141,11 +156,11 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
     ]
     assert ricketts_blocked, "synthetic auto landmarks must not imply anatomical identities"
     assert all(item["value"] is None for item in ricketts_blocked)
-    # SRPose-certified aliases Po_anatomic and Pog_hard permit A-Pog.
+    # Auto calibration does not establish Po/Pog anatomical identity.
     by_method = {item["method_id"]: item for item in all_measurements}
     edge = by_method["RICKETTS_L1_EDGE_APOG_CANONICAL_MM_V2"]
-    assert edge["availability_status"] == "AVAILABLE"
-    assert edge["value"] is not None
+    assert edge["availability_status"] == "NOT_COMPUTABLE"
+    assert edge["value"] is None
     # Functional occlusal plane is absent: do not compute incisal extrusion.
     extrusion = by_method["RICKETTS_L1_OCCLUSAL_EXTRUSION_CANONICAL_MM_V2"]
     assert extrusion["availability_status"] == "NOT_COMPUTABLE"
@@ -185,25 +200,48 @@ def test_auto_calibration_creates_revision_and_unlocks_measurements_without_clin
         "MCNAMARA_CO_GN_MM_V1",
         "MCNAMARA_ANS_ME_MM_V1",
     }.issubset(mcnamara_methods)
+    # A completely absent Co_anatomic + Gn_anatomic pair produces NO typed
+    # evidence. The UI/reference adapter must show NOT_COMPUTABLE, not a
+    # fabricated clinical value or zero-evidence measurement.
     assert {
         "MCNAMARA_CO_A_CANONICAL_MM_V2",
-        "MCNAMARA_CO_GN_CANONICAL_MM_V2",
         "MCNAMARA_A_NPERP_CANONICAL_MM_V2",
         "MCNAMARA_POG_NPERP_CANONICAL_MM_V2",
     }.issubset(mcnamara_methods)
+    assert "MCNAMARA_CO_GN_CANONICAL_MM_V2" not in mcnamara_methods
     assert all(item["requires_calibration"] is True for item in mcnamara)
-    blocked_co_gn = next(
+    canonical_mcnamara = [
         item for item in mcnamara
-        if item["method_id"] == "MCNAMARA_CO_GN_CANONICAL_MM_V2"
-    )
-    assert blocked_co_gn["calibration_ref"] is None
-    assert blocked_co_gn["value"] is None
-    available_mcnamara = [
-        item for item in mcnamara
-        if item["method_id"] != "MCNAMARA_CO_GN_CANONICAL_MM_V2"
+        if item["method_id"].endswith("_CANONICAL_MM_V2")
     ]
-    assert all(item["calibration_ref"] == source["evidence_id"] for item in available_mcnamara)
-    assert all(item["value"] is not None for item in available_mcnamara)
+    assert canonical_mcnamara
+    assert all(
+        item["availability_status"] == "NOT_COMPUTABLE"
+        and item["value"] is None
+        and item["calibration_ref"] is None
+        for item in canonical_mcnamara
+    )
+    legacy_mcnamara = [
+        item for item in mcnamara
+        if not item["method_id"].endswith("_CANONICAL_MM_V2")
+    ]
+    assert legacy_mcnamara
+    assert all(item["calibration_ref"] == source["evidence_id"] for item in legacy_mcnamara)
+    assert all(item["value"] is not None for item in legacy_mcnamara)
+    from backend.schemas.cephalo_evidence import MeasurementEvidence
+    from backend.services.cephalo_canonical_method_bridge import project_canonical_measurements
+    from backend.services.cephalo_protocol_projection import project_mcnamara_reference_protocol
+
+    canonical = project_canonical_measurements(
+        MeasurementEvidence.model_validate(raw) for raw in mcnamara
+    )["measurements"]
+    co_gn_row = next(
+        row for row in project_mcnamara_reference_protocol(canonical)["rows"]
+        if row["canonical_measurement_id"] == "M_CO_GN_ANATOMIC_MM_V1"
+    )
+    assert co_gn_row["availability_status"] == "NOT_COMPUTABLE"
+    assert co_gn_row["value"] is None
+    assert co_gn_row["measurement_refs"] == []
 
 
 def test_auto_calibration_preserves_corrected_landmark_and_current_refs_exactly():
