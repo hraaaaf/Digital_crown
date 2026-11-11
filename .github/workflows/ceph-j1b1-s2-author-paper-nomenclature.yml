@@ -1,0 +1,101 @@
+name: CEPH J1.B1-S2 seven author-paper named landmarks NOT clinical validation
+on:
+  push:
+    branches: [audit/ceph-j1b1-s2-paper-numbered-evidence-20261111]
+    paths:
+      - .github/workflows/ceph-j1b1-s2-author-paper-nomenclature.yml
+      - scripts/ci/ceph_j1b1_s2_author_paper_crosswalk.py
+      - docs/audits/CEPHALO_J1B1_S2_AUTHOR_PAPER_NUMBERED_EVIDENCE.md
+  pull_request:
+    paths:
+      - .github/workflows/ceph-j1b1-s2-author-paper-nomenclature.yml
+      - scripts/ci/ceph_j1b1_s2_author_paper_crosswalk.py
+      - docs/audits/CEPHALO_J1B1_S2_AUTHOR_PAPER_NUMBERED_EVIDENCE.md
+permissions:
+  contents: read
+concurrency:
+  group: ceph-j1b1-s2-${{ github.ref }}
+  cancel-in-progress: false
+jobs:
+  source-paper-numbered-names-only:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DATABASE_URL: 'sqlite:///:memory:'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert exact commit, strictly three additive audit files and no patient/model/installer
+        shell: python
+        run: |
+          import subprocess
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          head=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip()
+          if head != expected: raise SystemExit("J1B1_S2_HEAD_DRIFT")
+          base="0f9bcd8b5508a01209bdfca452832b6b0e85952c"
+          filenames=sorted(subprocess.check_output(["git","diff","--name-only",base,"HEAD"],text=True).splitlines())
+          exact=sorted([
+            ".github/workflows/ceph-j1b1-s2-author-paper-nomenclature.yml",
+            "scripts/ci/ceph_j1b1_s2_author_paper_crosswalk.py",
+            "docs/audits/CEPHALO_J1B1_S2_AUTHOR_PAPER_NUMBERED_EVIDENCE.md",
+          ])
+          if filenames != exact:
+              print("Unexpected diff",filenames)
+              raise SystemExit("J1B1_S2_SCOPE_NOT_THREE_AUDIT_FILES")
+          print("J1B1_S2_EXACT_HEAD_THREE_NONCLINICAL_AUDIT_FILES_PASS")
+      - name: Verify Python source compiles without backend imports
+        shell: bash
+        run: python -m py_compile scripts/ci/ceph_j1b1_s2_author_paper_crosswalk.py
+      - name: Adversarial synthetic tests reject swapped paper number and Pos alias guess
+        shell: bash
+        run: python scripts/ci/ceph_j1b1_s2_author_paper_crosswalk.py selftest
+      - name: Read immutable article version v1 from arxiv and verify seven exact author-paper pairs
+        shell: bash
+        run: |
+          set -euo pipefail
+          python scripts/ci/ceph_j1b1_s2_author_paper_crosswalk.py verify --report j1b1-s2-paper-nomenclature-metadata.json
+          python - <<'PY'
+          import json
+          r=json.load(open("j1b1-s2-paper-nomenclature-metadata.json",encoding="utf-8"))
+          assert r["channel_count"] == 38
+          assert r["explicit_paper_numbered_abbreviation_matches_local"] == 7
+          assert r["ambiguous_paper_numbered_abbreviations_not_promoted"] == 1
+          assert r["not_explicitly_named_in_audited_paper_prose"] == 30
+          assert r["validated_for_anatomical_accuracy"] == 0
+          assert r["clinical_release"] is False
+          assert r["clinical_activation_authorized"] is False
+          assert r["medical_images_or_patient_data_used"] is False
+          assert r["dataset_downloaded"] is False
+          assert r["model_downloaded"] is False
+          assert r["inference_executed"] is False
+          assert {c["scientific_index_to_anatomy_validation"] for c in r["channels"]} == {"SOURCE_LOCK_REQUIRED"}
+          print("J1B1_S2_REPORT_SEVEN_NAMED_THIRTY_UNNAMED_ONE_AMBIGUOUS_NO_CLINICAL_GO")
+          PY
+      - name: Publish metadata only, without model or author-paper HTML (Linux only)
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: j1b1-s2-paper-seven-numbered-names-metadata-only
+          path: j1b1-s2-paper-nomenclature-metadata.json
+          retention-days: 7
+          if-no-files-found: error
+      - name: Cleanup nonclinical report
+        if: always()
+        shell: bash
+        run: |
+          rm -f j1b1-s2-paper-nomenclature-metadata.json
+          echo J1B1_S2_NO_MODEL_NO_PATIENT_RUNNER_CLEAN
