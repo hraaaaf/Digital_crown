@@ -185,3 +185,19 @@ def test_fail_closed_on_nonlab_path_naive_clock_other_tenant_or_bad_limit(lab, t
     with pytest.raises(RetentionLabError, match="MAINTENANCE_ARGUMENT_INVALID"):
         retain_closed_visits_lab(lab, "T1", now=NOW, execute=True, limit=101)
     assert _read(lab, "SELECT count(*) FROM queue_visits") == [(6,)]
+
+
+def test_existing_cross_tenant_foreign_key_corruption_refuses_purge(lab):
+    """An old damaged SQLite file must be investigated, not silently purged."""
+    with sqlite3.connect(lab) as c:
+        c.execute("PRAGMA foreign_keys=OFF")
+        c.execute(
+            "INSERT INTO queue_external_references "
+            "(id,tenant_id,visit_id,source_system,entity_kind,external_id) "
+            "VALUES ('ORPHAN','T1','MISSING_VISIT','SYNTH','APPOINTMENT','broken')"
+        )
+    with pytest.raises(RetentionLabError, match="QUEUE_FK_INTEGRITY_FAILED"):
+        retain_closed_visits_lab(lab, "T1", now=NOW, execute=True)
+    assert _read(lab, "SELECT count(*) FROM queue_visits") == [(6,)]
+    assert _read(lab, "SELECT count(*) FROM queue_external_references") == [(2,)]
+    assert not _read(lab, "SELECT name FROM sqlite_master WHERE name='queue_retention_receipts_lab'")
