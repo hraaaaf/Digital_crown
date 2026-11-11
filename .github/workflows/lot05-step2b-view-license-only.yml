@@ -1,0 +1,112 @@
+name: LOT05 Step2B Signed Vendor View License ONLY (NO INSTALL)
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-view-license-only.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  view-publisher-license-on-disposable-windows:
+    name: Signed Open Dental launcher — exact View License semantic control only
+    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-license-view-readonly-20261110' && github.run_attempt == 1 }}
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 6
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Exact SHA + two-file diff + syntax + clean database context
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}') { throw 'PR_HEAD_MISMATCH' }
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows') { throw 'HOSTED_WINDOWS_REQUIRED' }
+          $base = 'd4d2d144393fc884e01ca8734c1efa9fb0e0f2e3'
+          if ((git merge-base HEAD $base).Trim() -cne $base) { throw 'BASE_ANCESTOR_MISMATCH' }
+          $changed = @(git diff --name-only $base HEAD)
+          $allowed = @('scripts/quality/lot05_step2b_view_license_only_lab.ps1', '.github/workflows/lot05-step2b-view-license-only.yml')
+          if ($changed.Count -ne 2 -or @($changed | Where-Object { $allowed -cnotcontains $_ }).Count -ne 0) {
+            throw 'UNEXPECTED_CHANGED_FILES'
+          }
+          $errors = @()
+          $tokens = $null
+          $null = [System.Management.Automation.Language.Parser]::ParseFile(
+            './scripts/quality/lot05_step2b_view_license_only_lab.ps1', [ref]$tokens, [ref]$errors
+          )
+          if ($errors.Count -gt 0) { throw 'POWERSHELL_AST_INVALID' }
+          if (@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0) {
+            throw 'DB_SERVICE_PREEXISTING'
+          }
+          Write-Host 'LOT05_2B_LICENSE_ONLY_EXACT_SHA_LAB_GUARDS_PASS'
+      - name: Run signed publisher View License-only probe (no Install, no EULA acceptance)
+        shell: pwsh
+        run: |
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/lot05_step2b_view_license_only_lab.ps1'
+          if ($LASTEXITCODE -ne 0) { throw 'LICENSE_PROBE_SCRIPT_EXIT_NONZERO' }
+      - name: Validate trusted signature, no installation, no licence acceptance
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $p = Join-Path $env:RUNNER_TEMP 'lot05-2b-view-license-metadata.json'
+          if (-not (Test-Path -LiteralPath $p)) { throw 'METADATA_MISSING' }
+          $v = Get-Content -LiteralPath $p -Raw -Encoding UTF8 | ConvertFrom-Json
+          if (-not $v.signed_binary_validated -or
+              -not $v.trusted_publisher -or
+              -not $v.vendor_launcher_started -or
+              $v.view_license_invoked_once -or
+              $v.install_button_invoked -or
+              $v.setup_wizard_next_invoked -or
+              $v.license_accepted -or
+              $v.product_installed -or
+              $v.database_service_created -or
+              $v.database_service_present_before -or
+              $v.csv_exported -or
+              $v.real_patient_data_accessed -or
+              $v.target_rows_written -ne 0) {
+            throw 'SIGNED_VENDOR_LICENSE_GUARDS_NOT_PROVEN'
+          }
+          Write-Host ('LOT05_2B_VIEW_LICENSE_STATUS=' + $v.status)
+          Write-Host ('LOT05_2B_LICENSE_LABEL_COUNT=' + [int]$v.license_text_label_candidate_count)
+          Write-Host ('LOT05_2B_LICENSE_CONTROL_TYPE=' + [string]$v.license_candidate_control_type)
+          Write-Host ('LOT05_2B_LICENSE_PARENT_TYPE=' + [string]$v.license_candidate_parent_type)
+          Write-Host ('LOT05_2B_LICENSE_VENDOR_OWNER=' + [bool]$v.license_candidate_owned_by_vendor)
+          Write-Host ('LOT05_2B_LICENSE_INVOKE_PATTERN=' + [bool]$v.license_candidate_invoke_supported)
+          Write-Host ('LOT05_2B_LICENSE_PARENT_INVOKE_PATTERN=' + [bool]$v.license_candidate_parent_invoke_supported)
+          Write-Host ('LOT05_2B_LICENSE_LEGACY_PATTERN=' + [bool]$v.license_candidate_legacy_supported)
+          Write-Host ('LOT05_2B_LICENSE_BUTTON_ANCESTOR=' + [bool]$v.license_candidate_button_ancestor)
+          Write-Host ('LOT05_2B_EXACT_BUTTON_COUNT=' + [int]$v.license_exact_button_candidate_count)
+          Write-Host ('LOT05_2B_VIEW_LICENSE_INVOKED=' + [bool]$v.view_license_invoked_once)
+          Write-Host ('LOT05_2B_LICENSE_WINDOW_TITLE=' + [bool]$v.licensed_window_title_observed)
+          Write-Host ('LOT05_2B_LICENSE_IMAGE=' + [bool]$v.license_png_retained)
+          if ($v.license_png_retained -and $v.licensed_window_title_observed -and
+              $v.license_window_printwindow_success) {
+            $img = Join-Path $env:RUNNER_TEMP 'lot05-2b-view-license-window-only.png'
+            if (-not (Test-Path -LiteralPath $img) -or (Get-Item -LiteralPath $img).Length -gt 6000000) {
+              throw 'TRUSTED_LICENSE_PNG_NOT_PROVEN'
+            }
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_LICENSE_PNG_OK=1'
+          }
+          Write-Host 'LOT05_2B_LICENSE_NO_INSTALL_NO_ACCEPTANCE_NO_PATIENTS'
+      - name: Upload non-PHI static result only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-view-license-json
+          path: ${{ runner.temp }}/lot05-2b-view-license-metadata.json
+          retention-days: 7
+          if-no-files-found: warn
+      - name: Upload publisher license WINDOW ONLY, if independently verified
+        if: ${{ env.LOT05_LICENSE_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-view-license-window-only-png
+          path: ${{ runner.temp }}/lot05-2b-view-license-window-only.png
+          retention-days: 7
+          if-no-files-found: error
