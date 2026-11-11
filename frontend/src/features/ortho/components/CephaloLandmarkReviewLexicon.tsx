@@ -25,14 +25,14 @@ export const CephaloLandmarkReviewLexicon: React.FC<ReviewLexiconProps> = ({
   const [query, setQuery] = useState('');
   const fieldId = useId();
   const needle = normalizeSearch(query);
-  const visible = (item: { id: string; fr: string; en: string }) =>
-    !needle || normalizeSearch([item.id, item.fr, item.en].join(' ')).includes(needle);
+  const visible = (item: { id: string; fr: string; en: string; aliases?: readonly string[] }) =>
+    !needle || normalizeSearch([item.id, item.fr, item.en, ...(item.aliases ?? [])].join(' ')).includes(needle);
   const detector = CEPHALO_38_REVIEW_TERMS.filter(visible);
   const occlusal = CEPHALO_OCCLUSAL_REVIEW_TERMS.filter(visible);
   const presentIds = new Set(presentLandmarks.map(item => item.id.toLowerCase()));
   const activeId = activePointId?.toLowerCase();
 
-  const renderRow = (item: { id: string; fr: string; en: string }, number?: number) => {
+  const renderRow = (item: { id: string; fr: string; en: string; aliases?: readonly string[] }, number?: number) => {
     const loaded = presentIds.has(item.id.toLowerCase());
     const selected = activeId === item.id.toLowerCase();
     const source = 'sourceEvidence' in item ? String(item.sourceEvidence) : 'OCCLUSAL_CONSTRUCTION';
@@ -64,6 +64,9 @@ export const CephaloLandmarkReviewLexicon: React.FC<ReviewLexiconProps> = ({
         <div className="mt-1 text-[11px]" style={{ color: palette.textMuted }}>
           <code>{item.id}</code> · {item.en}
         </div>
+        {Boolean(item.aliases?.length) && <div className="mt-1 text-[10px]" style={{ color: palette.textMuted }}>
+          Syn. : {item.aliases?.join(', ')}
+        </div>}
         <div className="mt-1 text-[10px]" style={{ color: palette.textMuted }}>
           {loaded ? 'Coordonnée chargée (non validée)' : 'Aucune coordonnée chargée'}
         </div>
@@ -80,7 +83,7 @@ export const CephaloLandmarkReviewLexicon: React.FC<ReviewLexiconProps> = ({
         Vocabulaire indicatif uniquement : aucun point automatique certifié cliniquement.
       </p>
       <label htmlFor={fieldId} className="block text-xs font-bold" style={{ color: palette.text }}>
-        Rechercher un repère (FR, EN ou ID)
+        Rechercher un repère (FR, EN, synonyme ou ID)
       </label>
       <input id={fieldId} type="search" value={query}
         onChange={event => setQuery(event.target.value)}
