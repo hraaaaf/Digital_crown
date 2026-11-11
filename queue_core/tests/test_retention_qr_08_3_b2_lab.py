@@ -110,6 +110,14 @@ def lab(tmp_path):
 
     _receipt(path,"old-8-days","T1","OLD_DONE",8)
     _receipt(path,"boundary-7-days","T1","unrelated-7",7)
+    _receipt(path,"over-boundary-7d-plus-1s","T1","unrelated-7p",7)
+    # Expiration of the idempotent retry occurs strictly after 7 days;
+    # shift one second past exact boundary for the eligible row.
+    with sqlite3.connect(path) as c:
+        c.execute(
+            "UPDATE queue_presence_qr_lab SET consumed_epoch=consumed_epoch-1 "
+            "WHERE qr_digest='over-boundary-7d-plus-1s'"
+        )
     _receipt(path,"recent-6-days","T1","unrelated-6",6)
     _receipt(path,"other-tenant-old","T2","unrelated-t2",90)
     _receipt(path,"pending-expired","T1","unrelated-pending",60,consumed=False)
@@ -128,7 +136,7 @@ def test_7_day_boundary_tenant_scope_dry_run_and_preserved_audit(lab):
     result = retain_consumed_qr_ledger_lab(lab,"T1",now=NOW,execute=True)
     assert result.eligible_receipts == 2 and result.event_facts_preserved == 1
     assert {x[0] for x in _get(lab,"SELECT qr_digest FROM queue_presence_qr_lab")} == {
-        "recent-6-days","other-tenant-old","pending-expired","consumed-not-expired",
+        "boundary-7-days","recent-6-days","other-tenant-old","pending-expired",\n        "consumed-not-expired",
     }
     assert _get(lab,"SELECT id, event_type FROM queue_event_log") == [("AUDIT_SYNTH","DONE")]
     assert _get(lab,"SELECT tenant_id,removed_count FROM queue_qr_retention_receipts_lab") == [("T1",2)]
@@ -151,7 +159,7 @@ def test_injected_crash_rolls_back_delete_and_receipt(lab,monkeypatch):
     monkeypatch.setattr(retention,"_after_first_delete_fault_oracle",fail)
     with pytest.raises(RuntimeError,match="LAB_INJECTED_CRASH"):
         retain_consumed_qr_ledger_lab(lab,"T1",now=NOW,execute=True)
-    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(6,)]
+    assert _get(lab,"SELECT count(*) FROM queue_presence_qr_lab") == [(7,)]
     assert _get(lab,"SELECT count(*) FROM queue_event_log") == [(1,)]
     assert _get(lab,"SELECT count(*) FROM sqlite_master WHERE name='queue_qr_retention_receipts_lab'") == [(0,)]
 
