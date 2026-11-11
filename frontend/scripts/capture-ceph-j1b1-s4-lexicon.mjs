@@ -167,7 +167,7 @@ async function capture(viewport, attempt, theme) {
       throw new Error('S4_FULL_CATALOG_COUNT_OR_CLINICAL_GATE_FAILED: ' + [nDetector,nConstruction,nCertified].join(','));
     }
     const search = page.getByRole('searchbox', { name: /FR, EN, synonyme ou ID/i });
-    await details.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: path.join(OUTPUT_DIR, theme + '-' + 'after-expanded-' + viewport.name + '.png'),
       fullPage: false,
@@ -177,7 +177,7 @@ async function capture(viewport, attempt, theme) {
     const nFiltered = await page.locator('[data-cephalo-review-lexicon] [data-cephalo-lexicon-id]').count();
     const proper = await page.locator('[data-cephalo-lexicon-id="Pog_soft"][data-clinical-validated="false"]').count();
     if (nFiltered !== 1 || proper !== 1) throw new Error('S4_POS_EXACT_ALIAS_OR_CLINICAL_HOLD_FAILED');
-    await details.scrollIntoViewIfNeeded();
+    await page.evaluate(() => window.scrollTo(0, 0));
     await page.screenshot({
       path: path.join(OUTPUT_DIR, theme + '-' + 'after-pos-search-' + viewport.name + '.png'),
       fullPage: false,
@@ -190,6 +190,11 @@ async function capture(viewport, attempt, theme) {
       const stage = document.querySelector('[data-r20-radiograph-stage]');
       const stageRect = stage?.getBoundingClientRect();
       const drawerRect = document.querySelector('[data-cephalo-review-lexicon-details]')?.getBoundingClientRect();
+      const overlapWidth = stageRect && drawerRect ? Math.max(0, Math.min(stageRect.right, drawerRect.right) - Math.max(stageRect.left, drawerRect.left)) : 0;
+      const overlapHeight = stageRect && drawerRect ? Math.max(0, Math.min(stageRect.bottom, drawerRect.bottom) - Math.max(stageRect.top, drawerRect.top)) : 0;
+      const stageCenterX = stageRect ? Math.max(2, Math.min(innerWidth - 2, stageRect.left + stageRect.width / 2)) : 0;
+      const stageCenterY = stageRect ? Math.max(2, Math.min(innerHeight - 2, (Math.max(0,stageRect.top) + Math.min(innerHeight,stageRect.bottom)) / 2)) : 0;
+      const hit = document.elementFromPoint(stageCenterX, stageCenterY);
       return {
         width: innerWidth,
         activeTheme: document.body.dataset.theme,
@@ -200,6 +205,9 @@ async function capture(viewport, attempt, theme) {
         horizontalDocumentOverflow: doc.scrollWidth > innerWidth + 1,
         panelVisible: Boolean(panelRect && panelRect.width > 10 && panelRect.height > 10),
         radiographStageVisible: Boolean(stageRect && stageRect.width > 50 && stageRect.height > 50 && stageRect.top < innerHeight && stageRect.bottom > 0),
+        glossaryRadiographOverlapPx2: overlapWidth * overlapHeight,
+        stageHitIsNotGlossary: Boolean(hit && !hit.closest('[data-cephalo-review-lexicon-details]')),
+        stageHitInsideStage: Boolean(hit && hit.closest('[data-r20-radiograph-stage]')),
         radiographUncoveredAboveDrawerPx: stageRect && drawerRect
           ? Math.max(0, Math.min(stageRect.bottom, drawerRect.top, innerHeight) - Math.max(stageRect.top, 0)) : 0,
         panelWithinViewportX: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= innerWidth + 1),
@@ -214,6 +222,8 @@ async function capture(viewport, attempt, theme) {
       && nConstruction === 2 && nCertified === 0 && nFiltered === 1 && proper === 1
       && metrics.activeTheme === theme && metrics.backgroundToken.length > 0
       && metrics.panelVisible && metrics.panelWithinViewportX && metrics.radiographStageVisible
+      && metrics.glossaryRadiographOverlapPx2 === 0 && metrics.stageHitIsNotGlossary
+      && metrics.stageHitInsideStage
       && (viewport.width > 768 || metrics.radiographUncoveredAboveDrawerPx >= 260)
       && closedOnEscape && focusReturned
       && !metrics.horizontalDocumentOverflow
