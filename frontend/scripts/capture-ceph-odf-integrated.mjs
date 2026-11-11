@@ -112,15 +112,18 @@ const allCaptures = [];
 const blockedExternalRequests = [];
 
 async function resetWorkspaceScroll(page) {
-  await page.evaluate(() => {
+  await page.evaluate(async () => {
     const stage = document.querySelector('[data-r20-radiograph-stage]');
     let node = stage;
     while (node) {
-      if (node.scrollTop > 0) node.scrollTop = 0;
+      if (node instanceof HTMLElement) node.style.scrollBehavior = 'auto';
+      if (node.scrollTop !== 0) node.scrollTop = 0;
       node = node.parentElement;
     }
-    document.scrollingElement.scrollTop = 0;
-    window.scrollTo(0, 0);
+    document.documentElement.style.scrollBehavior = 'auto';
+    if (document.scrollingElement) document.scrollingElement.scrollTop = 0;
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
   });
 }
 
@@ -206,8 +209,16 @@ async function capture(viewport, attempt, theme) {
     // Editing requires bringing the radiograph into view; the new readiness
     // strip can move its canvas below the visible fold at narrow viewports.
     if (viewport.width <= 768) {
-      await page.locator('[data-r20-radiograph-stage]').evaluate(node =>
-        node.scrollIntoView({ block: 'center', inline: 'nearest' }));
+      await page.locator('[data-r20-radiograph-stage]').evaluate(async node => {
+        let current = node;
+        while (current) {
+          if (current instanceof HTMLElement) current.style.scrollBehavior = 'auto';
+          current = current.parentElement;
+        }
+        node.scrollIntoView({ behavior: 'instant', block: 'center', inline: 'nearest' });
+        await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+      });
+      await page.locator('[data-r20-radiograph-stage]').scrollIntoViewIfNeeded();
       await page.screenshot({
         path: path.join(OUTPUT_DIR, theme + '-edit-ready-' + viewport.name + '.png'),
         fullPage: false,
@@ -248,6 +259,8 @@ async function capture(viewport, attempt, theme) {
         stageHitInsideStage: accessibleStagePoint !== null,
         accessibleStagePoint,
         accessibleStagePointCount: visibleStagePoints.length,
+        stageRectDebug: stageRect ? { top: stageRect.top, bottom: stageRect.bottom, height: stageRect.height } : null,
+        noHitElementDebug: visibleStagePoints.length ? null : (document.elementFromPoint(innerWidth/2, innerHeight/2)?.outerHTML || '').slice(0,180),
         radiographUncoveredAboveDrawerPx: stageRect && drawerRect
           ? Math.max(0, Math.min(stageRect.bottom, drawerRect.top, innerHeight) - Math.max(stageRect.top, 0)) : 0,
         panelWithinViewportX: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= innerWidth + 1),
