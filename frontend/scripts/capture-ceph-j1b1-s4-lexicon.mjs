@@ -183,6 +183,15 @@ async function capture(viewport, attempt, theme) {
       fullPage: false,
     });
 
+    // On compact phones, scroll the actual image into the manual-pointing workspace
+    // before testing pointer access. Preserve the recorded first-viewport screenshot.
+    if (viewport.width <= 430) {
+      await page.locator('[data-r20-radiograph-stage]').evaluate(node => node.scrollIntoView({ block: 'center', inline: 'nearest' }));
+      await page.screenshot({
+        path: path.join(OUTPUT_DIR, theme + '-edit-ready-' + viewport.name + '.png'),
+        fullPage: false,
+      });
+    }
     const metrics = await page.evaluate(() => {
       const doc = document.documentElement;
       const panel = document.querySelector('[data-cephalo-review-lexicon]');
