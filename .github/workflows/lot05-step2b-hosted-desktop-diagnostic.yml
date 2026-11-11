@@ -1,0 +1,290 @@
+name: LOT05 2B — Windows Hosted Desktop Session + Vendor Window Diagnostic (NO INPUT)
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-hosted-desktop-diagnostic.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  win-gui-observation:
+    name: Diagnose actual hosted desktop and signed setup UI, zero UI input
+    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-windows-runner-desktop-diagnostic-20261110' && github.run_attempt == 1 }}
+    runs-on: windows-2022
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 12
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Exact SHA, disposable runner, one-file diff, no preexisting DB
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}'){
+            throw 'EPHEMERAL_EXACT_SHA_REQUIRED'
+          }
+          $base='d4d2d144393fc884e01ca8734c1efa9fb0e0f2e3'
+          if((git merge-base HEAD $base).Trim() -cne $base){throw 'WRONG_BASE'}
+          $files=@(git diff --name-only $base HEAD)
+          if($files.Count -ne 1 -or $files[0] -cne '.github/workflows/lot05-step2b-hosted-desktop-diagnostic.yml'){throw 'SCOPE_REFUSED'}
+          if(@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0){throw 'DB_SERVICE_PREEXISTS'}
+          $admin=([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+          if(-not $admin){throw 'ADMIN_MISSING'}
+          Write-Host 'LOT05_GITHUB_HOSTED_EXACT_SHA_ADMIN_CLEAN'
+      - name: Inspect session, then ONE signed embedded Setup start, UIA root only, no clicks
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $env:LOT05_EXPECTED_SHA='${{ github.event.pull_request.head.sha }}'
+          $diagScript = {
+            $ErrorActionPreference='Stop'
+            $outFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-hosted-desktop-diagnostic.json'
+            $imageFile=Join-Path $env:RUNNER_TEMP 'lot05-step2b-verified-vendor-window-only.png'
+            $wrapper=Join-Path $env:RUNNER_TEMP 'lot05-publisher-signed-wrapper.exe'
+            $folder=Join-Path $env:RUNNER_TEMP 'lot05-publisher-signed-extracted'
+            $knownIds=New-Object 'System.Collections.Generic.HashSet[int]'
+            $r=[ordered]@{
+              kind='HOSTED_DESKTOP_SESSION_AND_VENDOR_WINDOW_DIAGNOSTIC'
+              sha=$env:LOT05_EXPECTED_SHA
+              runner_session_id=-1
+              environment_user_interactive=$false
+              explorer_same_session=$false
+              uia_root_accessible=$false
+              synthetic_windows_gui_already_proven_in_previous_runs=$true
+              wrapper_hash_pinned=$false
+              wrapper_authenticode_valid=$false
+              inner_setup_authenticode_valid=$false
+              inner_setup_sha256='UNKNOWN'
+              inner_setup_started_once=$false
+              inner_setup_exited_early=$false
+              inner_setup_exit_code_if_observed=$null
+              inner_setup_same_session=$false
+              inner_setup_mainwindow_nonzero=$false
+              owned_window_count_max=0
+              owned_blank_title_window_count_max=0
+              owned_setup_title_window_count_max=0
+              owned_generic_title_window_count_max=0
+              owned_license_title_window_count_max=0
+              total_uia_root_window_count_max=0
+              unowned_windows_installer_title_count_max=0
+              observed_process_descendants_bounded=0
+              ui_observation_cycles=0
+              ui_errors_count=0
+              screenshot_window_only_retained=$false
+              screenshot_vendor_owner_verified=$false
+              screenshot_title_allowlisted=$false
+              screenshot_printwindow_succeeded=$false
+              screenshot_dimensions=$null
+              screenshot_sha256=$null
+              screenshot_error_count=0
+              clicked_install=$false
+              clicked_next=$false
+              accepted_eula=$false
+              database_created=$false
+              csv_exported=$false
+              patient_data_accessed=$false
+              diagnosis='NOT_CLASSIFIED'
+              error_code=$null
+            }
+            try{
+              Add-Type -AssemblyName UIAutomationClient -ErrorAction Stop
+              Add-Type -AssemblyName UIAutomationTypes -ErrorAction Stop
+              Add-Type -AssemblyName System.Drawing -ErrorAction Stop
+              Add-Type -TypeDefinition 'using System; using System.Runtime.InteropServices; public static class Lot05CaptureSignedWindow { [StructLayout(LayoutKind.Sequential)] public struct Rect { public int Left,Top,Right,Bottom; } [DllImport("user32.dll")] public static extern bool GetWindowRect(IntPtr hwnd,out Rect rect); [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr hwnd,IntPtr hdc,uint flags); }' -ErrorAction Stop
+              $r.runner_session_id=[System.Diagnostics.Process]::GetCurrentProcess().SessionId
+              $r.environment_user_interactive=[System.Environment]::UserInteractive
+              $r.explorer_same_session=(@(Get-Process -Name explorer -ErrorAction SilentlyContinue | Where-Object {$_.SessionId -eq $r.runner_session_id}).Count -gt 0)
+              try{
+                $root=[System.Windows.Automation.AutomationElement]::RootElement
+                $r.uia_root_accessible=($null -ne $root)
+              }catch{$r.ui_errors_count++}
+              # Run only when source has been authenticated. Do not start SFX.
+              [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+              Invoke-WebRequest 'https://www.opendental.com/TrialDownload-25-3-48.exe' -OutFile $wrapper -TimeoutSec 210 -MaximumRedirection 2
+              if((Get-Item -LiteralPath $wrapper).Length -ne 149781424){throw 'WRAPPER_SIZE_CHANGED'}
+              if((Get-FileHash -LiteralPath $wrapper -Algorithm SHA256).Hash.ToLowerInvariant() -cne 'b892db0d3b2fc0947fa25fe4fc07c2e81815d70119f72e7abf1f8b9b0671bcb9'){throw 'WRAPPER_DIGEST_CHANGED'}
+              $r.wrapper_hash_pinned=$true
+              $sig=Get-AuthenticodeSignature -LiteralPath $wrapper
+              if($sig.Status -ne [System.Management.Automation.SignatureStatus]::Valid -or $null -eq $sig.SignerCertificate -or $sig.SignerCertificate.Subject -notmatch '(?i)Open\s*Dental'){throw 'WRAPPER_SIGNER_MISMATCH'}
+              $r.wrapper_authenticode_valid=$true
+              $sevenzip='C:\Program Files\7-Zip\7z.exe'
+              if(-not (Test-Path -LiteralPath $sevenzip)){throw 'SEVENZIP_MISSING'}
+              $null=New-Item -ItemType Directory -Path $folder -Force
+              $null=& $sevenzip x $wrapper "-o$folder" '-y' 2>$null
+              if($LASTEXITCODE -ne 0){throw 'SIGNED_ARCHIVE_EXTRACT_FAILED'}
+              $setup=Join-Path $folder 'Release\Open Dental Setup\Setup.exe'
+              if(-not (Test-Path -LiteralPath $setup)){throw 'EMBEDDED_SETUP_NOT_FOUND'}
+              $r.inner_setup_sha256=(Get-FileHash -LiteralPath $setup -Algorithm SHA256).Hash.ToLowerInvariant()
+              if($r.inner_setup_sha256 -cne 'ae9cbb314b6a7610be28e3c423137bf9c849d7d62f5a31c95c3b75bf89b1de02'){throw 'EMBEDDED_SETUP_HASH_CHANGED'}
+              $innerSig=Get-AuthenticodeSignature -LiteralPath $setup
+              if($innerSig.Status -ne [System.Management.Automation.SignatureStatus]::Valid){throw 'EMBEDDED_SETUP_SIGNATURE_INVALID'}
+              $r.inner_setup_authenticode_valid=$true
+              # Single launch. Never send mouse/keyboard/UIA Invoke.
+              $proc=Start-Process -FilePath $setup -WorkingDirectory (Split-Path -Parent $setup) -PassThru -ErrorAction Stop
+              $r.inner_setup_started_once=$true
+              $null=$knownIds.Add([int]$proc.Id)
+              for($cycle=0;$cycle -lt 24;$cycle++){
+                Start-Sleep -Milliseconds 1150
+                $r.ui_observation_cycles=$cycle+1
+                $all=@(Get-CimInstance Win32_Process -ErrorAction SilentlyContinue)
+                for($depth=0;$depth -lt 2;$depth++){
+                  foreach($child in $all){
+                    if($knownIds.Contains([int]$child.ParentProcessId)){
+                      $null=$knownIds.Add([int]$child.ProcessId)
+                    }
+                  }
+                }
+                $r.observed_process_descendants_bounded=[Math]::Min(50,$knownIds.Count)
+                $p=Get-Process -Id $proc.Id -ErrorAction SilentlyContinue
+                if($null -ne $p){
+                  $p.Refresh()
+                  $r.inner_setup_same_session=($p.SessionId -eq $r.runner_session_id)
+                  if($p.MainWindowHandle -ne [IntPtr]::Zero){$r.inner_setup_mainwindow_nonzero=$true}
+                }else{
+                  $r.inner_setup_exited_early=$true
+                }
+                try{
+                  $windows=[System.Windows.Automation.AutomationElement]::RootElement.FindAll(
+                    [System.Windows.Automation.TreeScope]::Children,
+                    [System.Windows.Automation.Condition]::TrueCondition
+                  )
+                  $r.uia_root_accessible=$true
+                  $r.total_uia_root_window_count_max=[Math]::Max($r.total_uia_root_window_count_max,$windows.Count)
+                  $owned=0;$empty=0;$setupCount=0;$other=0;$license=0;$unownedMsi=0
+                  for($i=0;$i -lt [Math]::Min(120,$windows.Count);$i++){
+                    $w=$windows.Item($i)
+                    try{
+                      $winPid=[int]$w.Current.ProcessId
+                      $title=[string]$w.Current.Name
+                      if($knownIds.Contains($winPid)){
+                        $owned++
+                        if([string]::IsNullOrWhiteSpace($title)){$empty++}
+                        elseif($title -match '(?i)(Licen[cs]e Agreement|EULA|Terms and Conditions)'){$license++}
+                        elseif($title -match '(?i)(Open.?Dental|Setup|Wizard)'){
+                          $setupCount++
+                          if(-not $r.screenshot_window_only_retained -or $cycle -eq 10){
+                            try{
+                              $native=[IntPtr]([int]$w.Current.NativeWindowHandle)
+                              if($native -ne [IntPtr]::Zero){
+                                $rect=New-Object Lot05CaptureSignedWindow+Rect
+                                if([Lot05CaptureSignedWindow]::GetWindowRect($native,[ref]$rect)){
+                                  $width=[int]($rect.Right-$rect.Left)
+                                  $height=[int]($rect.Bottom-$rect.Top)
+                                  if($width -ge 250 -and $height -ge 150 -and $width -le 1600 -and $height -le 1100){
+                                    $r.screenshot_vendor_owner_verified=$true
+                                    $r.screenshot_title_allowlisted=$true
+                                    $bitmap=New-Object System.Drawing.Bitmap($width,$height)
+                                    try{
+                                      $graphics=[System.Drawing.Graphics]::FromImage($bitmap)
+                                      try{
+                                        $hdc=$graphics.GetHdc()
+                                        try{
+                                          $ok=[Lot05CaptureSignedWindow]::PrintWindow($native,$hdc,[uint32]0)
+                                        }finally{$graphics.ReleaseHdc($hdc)}
+                                      }finally{$graphics.Dispose()}
+                                      if($ok){
+                                        $r.screenshot_printwindow_succeeded=$true
+                                        $bitmap.Save($imageFile,[System.Drawing.Imaging.ImageFormat]::Png)
+                                        if((Get-Item -LiteralPath $imageFile).Length -gt 2048 -and (Get-Item -LiteralPath $imageFile).Length -lt 6000000){
+                                          $r.screenshot_window_only_retained=$true
+                                          $r.screenshot_dimensions=("$width"+"x"+"$height")
+                                          $r.screenshot_sha256=(Get-FileHash -LiteralPath $imageFile -Algorithm SHA256).Hash.ToLowerInvariant()
+                                        }
+                                      }
+                                    }finally{$bitmap.Dispose()}
+                                  }
+                                }
+                              }
+                            }catch{$r.screenshot_error_count++}
+                          }
+                        }
+                        else{$other++}
+                      }elseif($title -match '(?i)^Windows Installer'){$unownedMsi++}
+                    }catch{$r.ui_errors_count++}
+                  }
+                  $r.owned_window_count_max=[Math]::Max($r.owned_window_count_max,$owned)
+                  $r.owned_blank_title_window_count_max=[Math]::Max($r.owned_blank_title_window_count_max,$empty)
+                  $r.owned_setup_title_window_count_max=[Math]::Max($r.owned_setup_title_window_count_max,$setupCount)
+                  $r.owned_generic_title_window_count_max=[Math]::Max($r.owned_generic_title_window_count_max,$other)
+                  $r.owned_license_title_window_count_max=[Math]::Max($r.owned_license_title_window_count_max,$license)
+                  $r.unowned_windows_installer_title_count_max=[Math]::Max($r.unowned_windows_installer_title_count_max,$unownedMsi)
+                }catch{$r.ui_errors_count++}
+              }
+              $r.diagnosis=if($r.owned_setup_title_window_count_max -gt 0 -or $r.owned_license_title_window_count_max -gt 0){
+                'VENDOR_WINDOW_TITLE_VISIBLE_NO_INPUT'
+              }elseif($r.owned_window_count_max -gt 0){
+                'VENDOR_WINDOW_PRESENT_BUT_UNEXPECTED_TITLE'
+              }elseif(-not $r.environment_user_interactive -or -not $r.explorer_same_session){
+                'NO_PROVEN_INTERACTIVE_USER_DESKTOP'
+              }elseif($r.inner_setup_exited_early){
+                'EMBEDDED_SETUP_EXITED_WITHOUT_OWNED_UI'
+              }else{'NO_OWNED_UI_WINDOW_IN_DESKTOP_SESSION'}
+            }catch{
+              $r.error_code='FAIL_CLOSED_SETUP_OR_WINDOW_DIAGNOSTIC'
+              $r.diagnosis='NOT_PROVEN'
+            }finally{
+              foreach($childId in @($knownIds)){
+                try{Stop-Process -Id $childId -Force -ErrorAction SilentlyContinue}catch{}
+              }
+              Remove-Item -LiteralPath $wrapper -Force -ErrorAction SilentlyContinue
+              Remove-Item -LiteralPath $folder -Recurse -Force -ErrorAction SilentlyContinue
+              $r.database_created=(@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0)
+              [System.IO.File]::WriteAllText($outFile,($r|ConvertTo-Json -Depth 5),(New-Object System.Text.UTF8Encoding($false)))
+            }
+            Write-Host ('LOT05_DESKTOP_DIAGNOSIS='+$r.diagnosis)
+            Write-Host ('LOT05_DESKTOP_RUNNER_SESSION='+$r.runner_session_id)
+            Write-Host ('LOT05_DESKTOP_USER_INTERACTIVE='+$r.environment_user_interactive)
+            Write-Host ('LOT05_DESKTOP_EXPLORER_IN_SAME_SESSION='+$r.explorer_same_session)
+            Write-Host ('LOT05_DESKTOP_UIA_ROOT='+$r.uia_root_accessible)
+            Write-Host ('LOT05_DESKTOP_OWNED_WINDOWS='+$r.owned_window_count_max)
+            Write-Host ('LOT05_DESKTOP_WINDOW_ONLY_PNG='+$r.screenshot_window_only_retained)
+            Write-Host ('LOT05_DESKTOP_WINDOW_ONLY_CAPTURE_ERRORS='+$r.screenshot_error_count)
+            Write-Host ('LOT05_DESKTOP_WINDOWS_TITLE_SETUP='+$r.owned_setup_title_window_count_max)
+            Write-Host ('LOT05_DESKTOP_WINDOWS_UNEXPECTED_TITLE='+$r.owned_generic_title_window_count_max)
+            Write-Host ('LOT05_DESKTOP_OUTSIDE_OWNER_MSI_WINDOWS='+$r.unowned_windows_installer_title_count_max)
+            Write-Host 'LOT05_DESKTOP_NO_UI_INPUT_NO_LICENSE_ACCEPTED_NO_PATIENTS'
+            if(-not $r.wrapper_hash_pinned -or -not $r.wrapper_authenticode_valid -or
+               -not $r.inner_setup_authenticode_valid -or -not $r.inner_setup_started_once -or
+               $r.database_created -or $null -ne $r.error_code){throw 'HOSTED_DESKTOP_DIAGNOSTIC_NOT_PROVEN'}
+          }
+          # Native Windows PowerShell has a bounded command-line length. Write the
+          # validated scriptblock into the ephemeral runner and use -File instead
+          # of passing >18k of source code as a -Command argument.
+          $diagPath=Join-Path $env:RUNNER_TEMP 'lot05-step2b-hosted-capture-diagnostic.ps1'
+          [System.IO.File]::WriteAllText($diagPath,$diagScript.ToString(),(New-Object System.Text.UTF8Encoding($false)))
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File $diagPath
+          if($LASTEXITCODE -ne 0){throw 'PROVENANCE_OR_DIAGNOSTIC_EXIT_NONZERO'}
+          $metadata=Get-Content -LiteralPath (Join-Path $env:RUNNER_TEMP 'lot05-step2b-hosted-desktop-diagnostic.json') -Raw | ConvertFrom-Json
+          if($metadata.screenshot_window_only_retained -and
+             $metadata.screenshot_vendor_owner_verified -and
+             $metadata.screenshot_title_allowlisted -and
+             $metadata.screenshot_printwindow_succeeded){
+            $png=Join-Path $env:RUNNER_TEMP 'lot05-step2b-verified-vendor-window-only.png'
+            if(-not (Test-Path -LiteralPath $png)){throw 'VERIFIED_VENDOR_PNG_MISSING'}
+            if((Get-FileHash -LiteralPath $png -Algorithm SHA256).Hash.ToLowerInvariant() -cne $metadata.screenshot_sha256){throw 'VERIFIED_VENDOR_PNG_HASH_MISMATCH'}
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_VENDOR_WINDOW_PNG_OK=1'
+            Write-Host 'LOT05_VERIFIED_SIGNED_VENDOR_WINDOW_PNG_PROVEN'
+          }
+      - name: Publish metadata, no pictures and no patient data
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-windows-desktop-session-diagnostic-json
+          path: ${{ runner.temp }}/lot05-step2b-hosted-desktop-diagnostic.json
+          retention-days: 7
+          if-no-files-found: warn
+
+      - name: Publish verified publisher WINDOW ONLY PNG if captured
+        if: ${{ env.LOT05_VENDOR_WINDOW_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-verified-publisher-window-only-png
+          path: ${{ runner.temp }}/lot05-step2b-verified-vendor-window-only.png
+          retention-days: 7
+          if-no-files-found: error
