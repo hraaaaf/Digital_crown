@@ -26,22 +26,9 @@ jobs:
         with:
           fetch-depth: 25
           persist-credentials: false
-      - name: Exact source SHA and five added-only paths
+      - name: Assert integrated exact 17-file source-only LAB scope
         shell: bash
-        run: |
-          set -euo pipefail
-          test "$(git rev-parse HEAD)" = "$GITHUB_SHA"
-          git diff --name-only bb3c92b9b8c7a56ecd5f60bf9c1d52c578f2f3a4 HEAD | sort > actual.txt
-          cat > expected.txt <<'EOF'
-          .github/workflows/v15-08-2-f-user-profile-cold-restore.yml
-          queue_core/tests/test_activation_source_08_2_f.py
-          scripts/quality/lot08_2_f_activation_source_lab.py
-          scripts/quality/lot08_2_f_user_process_probe.py
-          scripts/quality/lot08_2_f_windows_user_profile_lab.ps1
-          EOF
-          diff -u expected.txt actual.txt
-          test ! -e dist/DigitalCrownSetup.exe
-          echo "LOT08F_FIVE_FILE_EXACT_HEAD_SOURCE_ONLY_PASS=$GITHUB_SHA"
+        run: python scripts/quality/lot08_2_integrated_scope_gate.py --expected-head "$GITHUB_SHA"
       - uses: actions/setup-python@v5
         with:
           python-version: '3.11'
