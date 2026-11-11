@@ -154,7 +154,7 @@ def test_windows_sqlcipher_scientific_revision_reopen_restore_and_stale_cas(tmp_
         checkpoint_engine.dispose()
 
     shutil.copy2(path, backup)
-    assert path.read_bytes()[:16] != b"SQLite format 3\\x00"
+    assert not path.read_bytes().startswith(b"SQLite format 3")
     assert hashlib.sha256(path.read_bytes()).digest() == hashlib.sha256(backup.read_bytes()).digest()
 
     reopened = _make_engine(path, key)
