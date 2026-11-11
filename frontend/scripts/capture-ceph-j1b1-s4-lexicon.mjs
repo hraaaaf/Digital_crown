@@ -215,6 +215,18 @@ async function capture(viewport, attempt, theme) {
       };
     });
 
+    const stagePointerProbe = await page.evaluate(() => {
+      const stage = document.querySelector('[data-r20-radiograph-stage]');
+      const rect = stage?.getBoundingClientRect();
+      if (!stage || !rect) return null;
+      const x = Math.max(2, Math.min(innerWidth - 2, rect.left + rect.width / 2));
+      const y = Math.max(2, Math.min(innerHeight - 2, (Math.max(0, rect.top) + Math.min(innerHeight, rect.bottom)) / 2));
+      (window).__cephS4PointerReached = false;
+      stage.addEventListener('pointerdown', () => { (window).__cephS4PointerReached = true; }, { capture: true, once: true });
+      return { x, y };
+    });
+    if (stagePointerProbe) await page.mouse.click(stagePointerProbe.x, stagePointerProbe.y);
+    const pointerReachedStage = await page.evaluate(() => (window).__cephS4PointerReached === true);
     await search.press('Escape');
     const closedOnEscape = await details.evaluate(node => !node.open);
     const focusReturned = await details.locator('summary').evaluate(node => node === document.activeElement);
@@ -225,12 +237,12 @@ async function capture(viewport, attempt, theme) {
       && metrics.glossaryRadiographOverlapPx2 === 0 && metrics.stageHitIsNotGlossary
       && metrics.stageHitInsideStage
       && (viewport.width > 768 || metrics.radiographUncoveredAboveDrawerPx >= 260)
-      && closedOnEscape && focusReturned
+      && closedOnEscape && focusReturned && pointerReachedStage
       && !metrics.horizontalDocumentOverflow
       && metrics.clinicalBadgesPresent === 0
       && pageErrors.length === 0 && consoleErrors.length === 0;
     return { viewport:viewport.name, theme, attempt, valid, httpStatus:response?.status()??null,
-      initialClosed, closedOnEscape, focusReturned, nDetector, nConstruction, nCertified, nFiltered, proper,
+      initialClosed, closedOnEscape, focusReturned, pointerReachedStage, nDetector, nConstruction, nCertified, nFiltered, proper,
       metrics, pageErrors, consoleErrors, apiRequests:requests };
   } catch (error) {
     return { viewport:viewport.name, theme, attempt, valid:false,
