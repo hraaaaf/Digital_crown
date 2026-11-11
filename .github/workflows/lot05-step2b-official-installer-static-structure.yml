@@ -1,0 +1,189 @@
+name: LOT05 Step2B Official Installer Static Structure — NO EXECUTION
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-official-installer-static-structure.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  signed-package-forensics:
+    name: Hosted Windows admin and signed vendor installer static analysis
+    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-installer-package-static-analysis-20261110' && github.run_attempt == 1 }}
+    runs-on: windows-2022
+    timeout-minutes: 9
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 12
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Exact head + one file lab-only + local Admin token
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows' -or (git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}') {
+            throw 'EPHEMERAL_EXACT_HEAD_REQUIRED'
+          }
+          $base='d4d2d144393fc884e01ca8734c1efa9fb0e0f2e3'
+          if ((git merge-base HEAD $base).Trim() -cne $base) { throw 'BASE_CHANGED' }
+          $paths=@(git diff --name-only $base HEAD)
+          if ($paths.Count -ne 1 -or $paths[0] -cne '.github/workflows/lot05-step2b-official-installer-static-structure.yml') { throw 'UNEXPECTED_FILE_CHANGES' }
+          $identity=[Security.Principal.WindowsIdentity]::GetCurrent()
+          $admin=([Security.Principal.WindowsPrincipal]$identity).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+          if (-not $admin) { throw 'NO_ADMIN_TOKEN' }
+          if (@(Get-Service 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0) { throw 'DB_PREEXISTING' }
+          Write-Host 'LOT05_HOSTED_WINDOWS_ADMIN_ONE_FILE_VERIFIED'
+      - name: Signed source, PE version metadata, 7-Zip archive listing READ-ONLY
+        shell: pwsh
+        run: |
+          $ErrorActionPreference='Stop'
+          $exe=Join-Path $env:RUNNER_TEMP 'LOT05_SIGNED_INSTALLER_STATIC_ONLY.exe'
+          $reportPath=Join-Path $env:RUNNER_TEMP 'lot05-step2b-installer-static-json.json'
+          $report=[ordered]@{
+            evidence_kind='OFFICIAL_SIGNED_VENDOR_STATIC_PACKAGE_ONLY'
+            exact_sha='${{ github.event.pull_request.head.sha }}'
+            trial_version='25.3.48'
+            admin_token_proven=$true
+            enable_lua='UNKNOWN'
+            consent_prompt_behavior_admin='UNKNOWN'
+            source_sha256_pinned=$false
+            authenticode_valid=$false
+            publisher_verified=$false
+            original_filename='UNKNOWN'
+            file_version='UNKNOWN'
+            sevenzip_available=$false
+            sevenzip_list_status='NOT_ATTEMPTED'
+            container_types=@()
+            archive_entries_bounded=0
+            msi_candidate_count=0
+            nested_exe_candidate_count=0
+            nested_exe_archive_paths_bounded=@()
+            msi_archive_paths_bounded=@()
+            legal_filename_candidate_count=0
+            msi_extraction_status='NOT_ATTEMPTED'
+            msi_sha256='UNKNOWN'
+            msi_readonly_database_status='NOT_ATTEMPTED'
+            msi_product_name='UNKNOWN'
+            msi_product_version='UNKNOWN'
+            msi_manufacturer='UNKNOWN'
+            msi_dialog_count_bounded=0
+            msi_license_dialog_name_count=0
+            exe_started=$false
+            installation_performed=$false
+            eula_accepted=$false
+            database_service_created=$false
+            patient_accessed=$false
+            csv_exported=$false
+            error_code=$null
+          }
+          try {
+            $pol=Get-ItemProperty 'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Policies\System' -ErrorAction SilentlyContinue
+            if ($null -ne $pol) {
+              $report.enable_lua=[string]$pol.EnableLUA
+              $report.consent_prompt_behavior_admin=[string]$pol.ConsentPromptBehaviorAdmin
+            }
+            [Net.ServicePointManager]::SecurityProtocol=[Net.SecurityProtocolType]::Tls12
+            Invoke-WebRequest 'https://www.opendental.com/TrialDownload-25-3-48.exe' -OutFile $exe -MaximumRedirection 2 -TimeoutSec 210
+            if ((Get-Item -LiteralPath $exe).Length -ne 149781424) { throw 'SIZE_MISMATCH' }
+            if ((Get-FileHash -LiteralPath $exe -Algorithm SHA256).Hash.ToLowerInvariant() -cne 'b892db0d3b2fc0947fa25fe4fc07c2e81815d70119f72e7abf1f8b9b0671bcb9') { throw 'HASH_MISMATCH' }
+            $report.source_sha256_pinned=$true
+            $sig=Get-AuthenticodeSignature -LiteralPath $exe
+            if ($sig.Status -ne [System.Management.Automation.SignatureStatus]::Valid) { throw 'INVALID_SIGNATURE' }
+            $report.authenticode_valid=$true
+            if ($null -eq $sig.SignerCertificate -or $sig.SignerCertificate.Subject -notmatch '(?i)Open\s*Dental') { throw 'WRONG_VENDOR' }
+            $report.publisher_verified=$true
+            $vi=(Get-Item -LiteralPath $exe).VersionInfo
+            $report.original_filename=[string]$vi.OriginalFilename
+            $report.file_version=[string]$vi.FileVersion
+            $sevenZip='C:\Program Files\7-Zip\7z.exe'
+            if (Test-Path -LiteralPath $sevenZip) {
+              $report.sevenzip_available=$true
+              $output=@(& $sevenZip l -slt $exe 2>$null)
+              if ($LASTEXITCODE -eq 0) {
+                $report.sevenzip_list_status='PARSED'
+                $report.container_types=@($output | Where-Object { $_ -match '^Type = [\w-]+' } | ForEach-Object { ($_ -split ' = ',2)[1] } | Select-Object -Unique -First 5)
+                $entries=@($output | Where-Object { $_ -match '^Path = ' } | Select-Object -Skip 1 -First 15000)
+                $report.archive_entries_bounded=$entries.Count
+                $report.msi_candidate_count=@($entries | Where-Object { $_ -match '(?i)\.msi$' }).Count
+                $report.nested_exe_candidate_count=@($entries | Where-Object { $_ -match '(?i)\.exe$' }).Count
+                # Only official vendor package entry paths; at most 8, no patient records.
+                $report.nested_exe_archive_paths_bounded=@($entries |
+                  Where-Object { $_ -match '(?i)\.exe$' } |
+                  ForEach-Object { ($_ -split ' = ',2)[1] } |
+                  Select-Object -First 8)
+                $report.msi_archive_paths_bounded=@($entries |
+                  Where-Object { $_ -match '(?i)\.msi$' } |
+                  ForEach-Object { ($_ -split ' = ',2)[1] } |
+                  Select-Object -First 3)
+                $report.legal_filename_candidate_count=@($entries | Where-Object { $_ -match '(?i)(license|licence|eula|agreement|terms).*\.(txt|pdf|rtf|html?)$' }).Count
+              } else {
+                $report.sevenzip_list_status='FORMAT_UNSUPPORTED'
+              }
+            }
+            if ($report.sevenzip_list_status -eq 'PARSED' -and $report.msi_candidate_count -eq 1) {
+              # Signed, pinned publisher archive -> a single isolated MSI.
+              # 7z EXTRACTS BYTES ONLY; no msiexec, no application launch.
+              $extractDir=Join-Path $env:RUNNER_TEMP 'lot05-msi-static-extract'
+              $null=New-Item -ItemType Directory -Path $extractDir -Force
+              $null=& $sevenZip e $exe "-o$extractDir" '-ir!*.msi' '-y' 2>$null
+              $msiFiles=@(Get-ChildItem -LiteralPath $extractDir -Filter '*.msi' -File -ErrorAction SilentlyContinue)
+              if ($LASTEXITCODE -ne 0 -or $msiFiles.Count -ne 1) { throw 'ONE_MSI_EXTRACT_NOT_PROVEN' }
+              $msi=$msiFiles[0]
+              $report.msi_extraction_status='EXTRACTED_ONE_OFFICIAL_EMBEDDED_MSI'
+              $report.msi_sha256=(Get-FileHash -LiteralPath $msi.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+              # Windows Installer database opened in mode 0 = READ ONLY.
+              $installer=New-Object -ComObject WindowsInstaller.Installer
+              $db=$installer.OpenDatabase($msi.FullName,0)
+              foreach($property in @('ProductName','ProductVersion','Manufacturer')) {
+                $v=$db.OpenView("SELECT Value FROM Property WHERE Property='$property'")
+                $v.Execute()
+                $rec=$v.Fetch()
+                $val='NOT_PRESENT'
+                if ($null -ne $rec) { $val=[string]$rec.StringData(1) }
+                if ($property -eq 'ProductName') { $report.msi_product_name=$val }
+                if ($property -eq 'ProductVersion') { $report.msi_product_version=$val }
+                if ($property -eq 'Manufacturer') { $report.msi_manufacturer=$val }
+                $v.Close()
+              }
+              $v=$db.OpenView('SELECT Dialog FROM Dialog')
+              $v.Execute()
+              for ($i=0;$i -lt 4000;$i++) {
+                $rec=$v.Fetch()
+                if ($null -eq $rec) { break }
+                $report.msi_dialog_count_bounded++
+                $name=[string]$rec.StringData(1)
+                if ($name -match '(?i)(Licen[cs]e|EULA|Agreement|Terms)') { $report.msi_license_dialog_name_count++ }
+              }
+              $v.Close()
+              $report.msi_readonly_database_status='MSI_PROPERTY_AND_DIALOG_TABLES_OPENED_READ_ONLY'
+              $db=$null
+              $installer=$null
+            }
+            Write-Host 'LOT05_VENDOR_STATIC_SIGNATURE_PASS'
+            Write-Host ('LOT05_STATIC_ARCHIVE_TYPE=' + ($report.container_types -join ','))
+            Write-Host ('LOT05_STATIC_MSI_COUNT=' + $report.msi_candidate_count)
+            Write-Host ('LOT05_STATIC_MSI_DB_STATUS=' + $report.msi_readonly_database_status)
+            Write-Host ('LOT05_STATIC_LICENSE_DIALOG_COUNT=' + $report.msi_license_dialog_name_count)
+            Write-Host ('LOT05_STATIC_NESTED_EXE_NAMES=' + ($report.nested_exe_archive_paths_bounded -join ';'))
+          } catch {
+            $report.error_code='READONLY_INSPECTION_FAIL_CLOSED'
+          } finally {
+            Remove-Item -LiteralPath $exe -Force -ErrorAction SilentlyContinue
+            $report.database_service_created=(@(Get-Service 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -gt 0)
+            [System.IO.File]::WriteAllText($reportPath,($report|ConvertTo-Json -Depth 5),(New-Object System.Text.UTF8Encoding($false)))
+          }
+          if ($null -ne $report.error_code -or -not $report.source_sha256_pinned -or -not $report.authenticode_valid -or -not $report.publisher_verified -or $report.database_service_created) { throw 'PUBLISHER_STATIC_FAILURE' }
+          Write-Host 'LOT05_STATIC_NO_EXE_RUN_NO_EULA_NO_DB_NO_PATIENTS'
+      - name: Upload non-PHI immutable metadata only
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-installer-static-structure-json
+          path: ${{ runner.temp }}/lot05-step2b-installer-static-json.json
+          retention-days: 7
+          if-no-files-found: warn
