@@ -1,0 +1,61 @@
+name: LOT08.3-B2-B encrypted Queue restore CLONE FUE (NO DEPLOY)
+
+on:
+  pull_request:
+    paths:
+      - .github/workflows/v15-08-3-b2b-restore-clone-lab.yml
+      - queue_core/service/backup_restore_clone_08_3_b2_lab.py
+      - queue_core/tests/test_backup_restore_clone_08_3_b2_lab.py
+      - queue_core/service/retention_lab_08_3_b.py
+      - queue_core/service/retention_qr_08_3_b2_lab.py
+      - queue_core/tests/test_retention_lab_08_3_b.py
+      - queue_core/tests/test_retention_qr_08_3_b2_lab.py
+
+permissions:
+  contents: read
+
+jobs:
+  sealed-restore-clone-fue:
+    name: Real synthetic SQLite/crypto clone oracle (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    steps:
+      - name: Checkout exact PR HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert exact SHA and no installable
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test ! -f "dist/DigitalCrownSetup.exe"
+      - name: Install pinned synthetic test-only dependencies
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check \
+            'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'cryptography==49.0.0' 'tzdata==2025.2'
+      - name: Encrypt real Queue SQLite snapshot and verify gated restore clone
+        shell: bash
+        run: |
+          python -m pytest -q \
+            queue_core/tests/test_backup_restore_clone_08_3_b2_lab.py \
+            queue_core/tests/test_retention_qr_08_3_b2_lab.py \
+            queue_core/tests/test_retention_lab_08_3_b.py \
+            --maxfail=1 --junitxml=lot08-3-b2b-${{ matrix.os }}.xml
+      - name: Upload native real JUnit (synthetic only)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08-3-b2b-restore-clone-${{ matrix.os }}-junit
+          path: lot08-3-b2b-${{ matrix.os }}.xml
+          if-no-files-found: error
+          retention-days: 14
