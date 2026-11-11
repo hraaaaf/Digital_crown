@@ -1,0 +1,159 @@
+name: CEPH J1.B1-S4 read-only 38+2 Desktop lexicon (NO CLINICAL RELEASE)
+on:
+  push:
+    branches: [feat/ceph-j1b1-s4-desktop-lexicon-readonly-20261111]
+    paths:
+      - .github/workflows/ceph-j1b1-s4-desktop-lexicon.yml
+      - docs/audits/CEPHALO_J1B1_S4_DESKTOP_READONLY_LEXICON.md
+      - scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py
+      - frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs
+      - frontend/src/features/ortho/cephaloLandmarkReviewLexicon.ts
+      - frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.tsx
+      - frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.test.tsx
+      - frontend/src/features/ortho/components/Step1Cephalo.tsx
+      - frontend/src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx
+  pull_request:
+    paths:
+      - .github/workflows/ceph-j1b1-s4-desktop-lexicon.yml
+      - docs/audits/CEPHALO_J1B1_S4_DESKTOP_READONLY_LEXICON.md
+      - scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py
+      - frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs
+      - frontend/src/features/ortho/cephaloLandmarkReviewLexicon.ts
+      - frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.tsx
+      - frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.test.tsx
+      - frontend/src/features/ortho/components/Step1Cephalo.tsx
+      - frontend/src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx
+permissions:
+  contents: read
+concurrency:
+  group: ceph-j1b1-s4-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  scope-and-source-lock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 8
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Assert EXACT HEAD and exact nine safe files, no model/backend/installer
+        shell: python
+        run: |
+          import subprocess
+          expected="${{ github.event.pull_request.head.sha || github.sha }}"
+          head=subprocess.check_output(["git","rev-parse","HEAD"],text=True).strip()
+          if head != expected:
+              raise SystemExit("J1B1_S4_HEAD_MISMATCH")
+          base="dbc714355a5d0eda832e2e2006237b4d7136335e"
+          diff=sorted(subprocess.check_output(["git","diff","--name-only",base,"HEAD"],text=True).splitlines())
+          allowed=sorted([
+            ".github/workflows/ceph-j1b1-s4-desktop-lexicon.yml",
+            "docs/audits/CEPHALO_J1B1_S4_DESKTOP_READONLY_LEXICON.md",
+            "scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py",
+            "frontend/scripts/capture-ceph-j1b1-s4-lexicon.mjs",
+            "frontend/src/features/ortho/cephaloLandmarkReviewLexicon.ts",
+            "frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.tsx",
+            "frontend/src/features/ortho/components/CephaloLandmarkReviewLexicon.test.tsx",
+            "frontend/src/features/ortho/components/Step1Cephalo.tsx",
+            "frontend/src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx",
+          ])
+          if diff != allowed:
+              print("Actual",diff)
+              raise SystemExit("J1B1_S4_SCOPE_CHANGE_FAIL_CLOSED")
+          print("J1B1_S4_EXACT_HEAD_NINE_SAFE_UI_TEST_BROWSER_AND_DOC_FILES_PASS")
+      - name: Check source-to-frontend contract, 38+2 completeness and seven adversarial controls
+        run: |
+          python -m py_compile scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py
+          python scripts/ci/ceph_j1b1_s4_desktop_lexicon_gate.py
+
+  targeted-desktop-ui:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, windows-2025]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DATABASE_URL: 'sqlite:///:memory:'
+      CLOUD_AI_ENABLED: 'false'
+      TELEMETRY_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify exact HEAD
+        shell: bash
+        run: |
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+      - name: Install existing locked frontend dependencies
+        working-directory: frontend
+        shell: bash
+        run: npm ci --no-audit --no-fund
+      - name: Real Vitest component + workbench integration, read-only
+        working-directory: frontend
+        shell: bash
+        run: npx vitest run src/features/ortho/components/CephaloLandmarkReviewLexicon.test.tsx src/features/ortho/components/Step1Cephalo.g4Interactive.test.tsx
+      - name: TypeScript application compile
+        working-directory: frontend
+        shell: bash
+        run: npx tsc -p tsconfig.app.json --noEmit
+      - name: Vite production compilation in disposable runner (never publish)
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
+        working-directory: frontend
+        shell: bash
+        run: npx vite build --outDir dist-j1b1-s4-synthetic-check
+      - name: Install ephemeral Playwright Chromium for real synthetic Desktop screenshots
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
+        working-directory: frontend
+        shell: bash
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install chromium
+      - name: Exact-HEAD real Step1 browser BEFORE collapsed / AFTER opened and Pos search, three viewports
+        if: ${{ matrix.os == 'ubuntu-24.04' }}
+        working-directory: frontend
+        shell: bash
+        env:
+          PRODUCT_HEAD: ${{ github.event.pull_request.head.sha || github.sha }}
+        run: |
+          node --check scripts/capture-ceph-j1b1-s4-lexicon.mjs
+          node scripts/capture-ceph-j1b1-s4-lexicon.mjs
+          node --input-type=module <<'NODE'
+          import { readFile } from 'node:fs/promises';
+          const data=JSON.parse(await readFile('ceph-j1b1-s4-visual-artifacts/report.json','utf8'));
+          if(data.productHead !== process.env.PRODUCT_HEAD) throw new Error('S4_VISUAL_WRONG_HEAD');
+          if(data.invalidCount!==0 || data.blockedExternalRequests.length!==0) throw new Error('S4_VISUAL_FAILED');
+          if(data.captures.length!==3 || data.captures.some(x=>!x.valid)) throw new Error('S4_VIEWPORTS_INCOMPLETE');
+          console.log('J1B1_S4_REAL_STEP1_VISUAL_THREE_VIEWPORTS_SYNTHETIC_PASS');
+          NODE
+      - name: Upload real synthetic Desktop before/after screenshots and report (never patient images)
+        if: ${{ always() && matrix.os == 'ubuntu-24.04' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-j1b1-s4-real-desktop-synthetic-before-after
+          path: frontend/ceph-j1b1-s4-visual-artifacts/
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Cleanup disposable Vite build and temporary files
+        if: always()
+        working-directory: frontend
+        shell: bash
+        run: |
+          rm -rf dist-j1b1-s4-synthetic-check
+          rm -f src/ceph-j1b1-s4-entry.tsx ceph-j1b1-s4.html
+          echo J1B1_S4_NO_PATIENT_NO_MODEL_NO_DEPLOY_CLEANUP_PASS

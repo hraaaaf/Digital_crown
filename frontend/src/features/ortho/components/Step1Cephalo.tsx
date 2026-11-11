@@ -2,6 +2,7 @@ import React from 'react';
 import { Ruler, DraftingCompass, ZoomIn, SlidersHorizontal, ScanFace, Wand2, Layers3 } from 'lucide-react';
 import { Step1Cephalo as Step1CephaloBase } from './Step1CephaloBase';
 import { CephaloAnalysisWorkbenchPanel } from './CephaloAnalysisWorkbenchPanel';
+import { CephaloLandmarkReviewLexicon } from './CephaloLandmarkReviewLexicon';
 import { useOrthoStore } from '../stores/useOrthoStore';
 import {
   CEPHALO_ANALYSIS_CHANGE_EVENT,
@@ -62,6 +63,7 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
   const setLayerOpacity = useOrthoStore(state => state.setLayerOpacity);
   const resetLayers = useOrthoStore(state => state.resetLayers);
   const localLandmarks = useOrthoStore(state => state.local.landmarks);
+  const activePointId = useOrthoStore(state => state.activePointId);
   const landmarkEditTimeline = useOrthoStore(state => state.landmarkEditTimeline);
   const undoLandmarkEdit = useOrthoStore(state => state.undoLandmarkEdit);
   const redoLandmarkEdit = useOrthoStore(state => state.redoLandmarkEdit);
@@ -177,6 +179,21 @@ export const Step1Cephalo: React.FC<Step1CephaloProps> = (props) => {
 
           </div>
         </section>
+
+        <details data-cephalo-review-lexicon-details className="mt-3 rounded-xl border p-2"
+          style={{ borderColor: props.P.border, background: props.P.bgInput }}>
+          <summary className="cursor-pointer rounded-lg px-1 py-2 text-xs font-bold focus-visible:outline-2"
+            style={{ color: props.P.text }}>
+            Lexique des 38 repères · FR/EN
+          </summary>
+          <div className="mt-2 border-t pt-2" style={{ borderColor: props.P.border }}>
+            <CephaloLandmarkReviewLexicon
+              presentLandmarks={localLandmarks}
+              activePointId={activePointId}
+              palette={props.P}
+            />
+          </div>
+        </details>
 
         <details className="mt-3 rounded-xl border p-2" style={{ borderColor: props.P.border, background: props.P.bgInput }}>
           <summary className="flex cursor-pointer items-center gap-2 rounded-lg px-1 py-2 text-xs font-bold focus-visible:outline-2 focus-visible:outline-offset-2" style={{ color: props.P.text }}>
