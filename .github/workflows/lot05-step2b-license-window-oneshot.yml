@@ -1,0 +1,129 @@
+name: LOT05 Step2B Vendor License Window ONE-SHOT (isolated, no EULA acceptance)
+
+on:
+  pull_request:
+    types: [opened]
+    branches: [master]
+    paths:
+      - '.github/workflows/lot05-step2b-license-window-oneshot.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  signed-vendor-license-window-observation:
+    name: One native Install click then inspect genuine Setup or EULA window (no further input)
+    if: ${{ github.event.pull_request.draft == true && github.event.pull_request.head.ref == 'feat/lot05-step2b-official-license-window-observe-20261110' && github.run_attempt == 1 }}
+    runs-on: windows-2022
+    timeout-minutes: 19
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          fetch-depth: 6
+          ref: ${{ github.event.pull_request.head.sha }}
+      - name: Pinned PR head, lab-only diff and PowerShell AST
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          if ((git rev-parse HEAD).Trim() -cne '${{ github.event.pull_request.head.sha }}') { throw 'EXACT_HEAD_REQUIRED' }
+          if ($env:RUNNER_ENVIRONMENT -cne 'github-hosted' -or $env:RUNNER_OS -cne 'Windows') { throw 'DISPOSABLE_WINDOWS_REQUIRED' }
+          $base = 'd4d2d144393fc884e01ca8734c1efa9fb0e0f2e3'
+          if ((git merge-base HEAD $base).Trim() -cne $base) { throw 'EXPECTED_BASE_NOT_ANCESTOR' }
+          $changed = @(git diff --name-only $base HEAD)
+          $approved = @(
+            'scripts/quality/lot05_step2b_official_license_window_one_shot_lab.ps1',
+            '.github/workflows/lot05-step2b-license-window-oneshot.yml'
+          )
+          if ($changed.Count -ne 2 -or @($changed | Where-Object { $approved -cnotcontains $_ }).Count -ne 0) {
+            throw 'EXACT_TWO_LAB_FILES_REQUIRED'
+          }
+          foreach ($path in @(
+            './scripts/quality/v15_05_7c_h_windows_gui_capability_probe.ps1',
+            './scripts/quality/lot05_step2b_official_license_window_one_shot_lab.ps1'
+          )) {
+            $tokens = $null
+            $errors = @()
+            $null = [System.Management.Automation.Language.Parser]::ParseFile($path, [ref]$tokens, [ref]$errors)
+            if ($errors.Count -ne 0) { throw 'INVALID_POWERSHELL_AST' }
+          }
+          if (@(Get-Service -Name 'MariaDB','MySQL*' -ErrorAction SilentlyContinue).Count -ne 0) {
+            throw 'EXISTING_DATABASE_SERVICE_NO_GO'
+          }
+          Write-Host 'LOT05_2B_EXACT_HEAD_WINDOWS_AST_AND_EMPTY_DB_PROVEN'
+      - name: Prove synthetic GUI ability without vendor
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/v15_05_7c_h_windows_gui_capability_probe.ps1'
+          if ($LASTEXITCODE -ne 0) { throw 'SYNTHETIC_GUI_CAPABILITY_FAILED' }
+          $cap = Get-Content (Join-Path $env:RUNNER_TEMP 'lot05-7c-h-gui-capability-metadata-only.json') -Raw | ConvertFrom-Json
+          if (-not $cap.synthetic_textbox_keyboard_roundtrip -or
+              -not $cap.synthetic_bm_click_proven -or
+              -not $cap.synthetic_bm_click_handler_fired) {
+            throw 'SYNTHETIC_GUI_INPUT_NOT_PROVEN'
+          }
+          Write-Host 'LOT05_2B_SYNTHETIC_GUI_PROVEN'
+      - name: Exactly one official publisher Install click; observe subsequent windows ONLY
+        shell: pwsh
+        run: |
+          & powershell.exe -NoLogo -NoProfile -STA -ExecutionPolicy Bypass -File './scripts/quality/lot05_step2b_official_license_window_one_shot_lab.ps1' -ReadOnlyButtonOwnershipProbe -LaunchSetupWizardViaPhysicalInputOnly
+          if ($LASTEXITCODE -ne 0) { throw 'OFFICIAL_VENDOR_ONE_SHOT_SCRIPT_FAILED' }
+      - name: Validate fail-closed signed publisher evidence; no license acceptance
+        shell: pwsh
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $metadata = Join-Path $env:RUNNER_TEMP 'lot05-7c-h-official-vendor-gui-window-metadata-only.json'
+          if (-not (Test-Path -LiteralPath $metadata)) { throw 'OFFICIAL_VENDOR_JSON_MISSING' }
+          $v = Get-Content -LiteralPath $metadata -Raw -Encoding UTF8 | ConvertFrom-Json
+          if (-not $v.trusted_hosted_runner -or
+              -not $v.official_binary_sha256_pinned -or
+              -not $v.official_binary_authenticode_valid -or
+              -not $v.official_binary_publisher_accepted -or
+              -not $v.synthetic_gui_prerequisite_verified -or
+              -not $v.install_wizard_probe_guard_passed -or
+              -not $v.install_button_owner_queryable -or
+              -not $v.physical_input_hit_target_verified -or
+              -not $v.install_button_invocation_attempted -or
+              $v.physical_input_events_accepted -ne 2 -or
+              $v.license_or_eula_accepted -or
+              $v.clicked_wizard_next -or
+              $v.database_installed -or
+              $v.db_service_created_observed -or
+              $v.gui_product_launched -or
+              $v.publisher_gui_csv_export_verified -or
+              $v.target_rows_written -ne 0 -or
+              $v.import_permitted) {
+            throw 'SIGNED_VENDOR_ONE_SHOT_NOT_SAFE_OR_NOT_PROVEN'
+          }
+          Write-Host ('LOT05_2B_LICENSE_WINDOW_STATUS=' + $v.status)
+          Write-Host ('LOT05_2B_SETUP_TITLE_PROVEN=' + [bool]$v.postclick_strong_setup_title_observed)
+          Write-Host ('LOT05_2B_LICENSE_TITLE_PROVEN=' + [bool]$v.postclick_strong_license_title_observed)
+          Write-Host ('LOT05_2B_NEW_WINDOW_COUNT=' + [int]$v.postclick_unique_new_main_window_count)
+          Write-Host ('LOT05_2B_OBSERVATION_CYCLES=' + [int]$v.postclick_observation_cycles_completed)
+          $png = Join-Path $env:RUNNER_TEMP 'lot05-7c-h-FIRST-NEW-PUBLISHER-WINDOW-ONLY.png'
+          if ($v.postclick_visual_png_retained -and
+              $v.postclick_visual_same_publisher_pid -and
+              $v.postclick_visual_print_window_success -and
+              (Test-Path -LiteralPath $png) -and
+              (Get-Item -LiteralPath $png).Length -lt 6000000) {
+            Add-Content -LiteralPath $env:GITHUB_ENV -Value 'LOT05_WINDOW_PNG_OK=1'
+            Write-Host 'LOT05_2B_VERIFIED_PUBLISHER_WINDOW_ONLY_IMAGE'
+          }
+          Write-Host 'LOT05_2B_NO_EULA_ACCEPTANCE_NO_REAL_PATIENTS_NO_IMPORT'
+      - name: Upload non-PHI vendor observation state
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-license-window-observation-json
+          path: ${{ runner.temp }}/lot05-7c-h-official-vendor-gui-window-metadata-only.json
+          if-no-files-found: warn
+          retention-days: 7
+      - name: Upload verified NEW publisher window ONLY, no desktop
+        if: ${{ env.LOT05_WINDOW_PNG_OK == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot05-step2b-license-window-observation-png
+          path: ${{ runner.temp }}/lot05-7c-h-FIRST-NEW-PUBLISHER-WINDOW-ONLY.png
+          if-no-files-found: error
+          retention-days: 7
