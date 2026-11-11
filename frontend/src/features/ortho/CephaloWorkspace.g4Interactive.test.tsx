@@ -9,7 +9,9 @@ const state = vi.hoisted(() => ({
   analysisId: 99 as number | undefined,
   imageSrc: undefined as string | undefined,
   mmPerPixel: 0.1 as number | null,
-  local: { landmarks: [], version: 0 },
+  isCalibrated: false,
+  anglesData: {} as Record<string, any>,
+  local: { landmarks: [] as Array<{ id: string; x: number; y: number }>, version: 0 },
   syncState: 'idle',
   isSaving: false,
   previewPdfUrl: null as string | null,
@@ -97,6 +99,8 @@ beforeEach(()=>{
   state.completedSteps=new Set();
   state.local={landmarks:[],version:0};
   state.mmPerPixel=0.1;
+  state.isCalibrated=false;
+  state.anglesData={};
   state.uploadError=null;
   state.previewPdfUrl=null;
   state.isPreviewLoading=false;
@@ -160,6 +164,36 @@ describe('CephaloWorkspace G4 shell matrix',()=>{
     render(<CephaloWorkspace patientId={7} patientName="Sara BENALI"/>);
     await screen.findByText('Step 1 content');
     expect((screen.getByRole('button',{name:'Sauvegarder l’analyse céphalométrique'}) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('shows fail-closed readiness and distinguishes draft save from practitioner validation',async()=>{
+    render(<CephaloWorkspace patientId={7} patientName="Sara BENALI"/>);
+    await screen.findByText('Step 1 content');
+    const readiness=screen.getByRole('region',{name:"État clinique factuel de l'étude céphalométrique"});
+    expect(readiness.textContent).toContain('Aucun cliché chargé');
+    expect(readiness.textContent).toContain('Échelle non vérifiée');
+    expect(readiness.textContent).toContain('0 saisi(s) · contrôle anatomique requis');
+    expect(readiness.textContent).toContain('Validité clinique non attestée');
+    expect(readiness.textContent).toContain('Validation du praticien non attestée');
+    expect(screen.getByText('Brouillon uniquement · sans validation clinique')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button',{name:'Sauvegarder l’analyse céphalométrique'}));
+    expect(state.handleSave).toHaveBeenCalledTimes(1);
+    expect(readiness.textContent).not.toMatch(/bilan cliniquement validé/i);
+  });
+
+  it('reports calibrated scale provenance without minting clinical readiness',async()=>{
+    state.imageSrc='http://api.test/ceph/synthetic.png';
+    state.isCalibrated=true;
+    state.mmPerPixel=0.1;
+    state.anglesData={__calibrationData:{method:'MANUAL_TWO_POINT'}};
+    state.local={landmarks:[{id:'S',x:1,y:2}],version:1};
+    render(<CephaloWorkspace patientId={7} patientName="Sara BENALI"/>);
+    await screen.findByText('Step 1 content');
+    const readiness=screen.getByRole('region',{name:"État clinique factuel de l'étude céphalométrique"});
+    expect(readiness.textContent).toContain('Image chargée · orientation à contrôler');
+    expect(readiness.textContent).toContain('Calibration manuelle · 0.100 mm/px');
+    expect(readiness.textContent).toContain('1 saisi(s) · contrôle anatomique requis');
+    expect(readiness.textContent).toContain('Validation du praticien non attestée');
   });
 
   it('switches to history and hydrates the full archived scientific state before returning to studio',async()=>{
