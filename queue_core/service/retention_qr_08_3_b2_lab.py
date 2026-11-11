@@ -95,7 +95,10 @@ def retain_consumed_qr_ledger_lab(
     now_epoch = int(now.astimezone(timezone.utc).timestamp())
     if not 0 <= now_epoch < 10**15:
         raise RetentionLabError("AWARE_UTC_CLOCK_REQUIRED")
-    # KioskQrArrivalLab.redeem still permits an exact-boundary retry.\n    # Keep the receipt through second 604800; purge only afterwards.\n    cutoff = now_epoch - _SEVEN_DAYS_SECONDS - 1\n
+    # KioskQrArrivalLab.redeem still permits an exact-boundary retry.
+    # Keep the receipt through second 604800; purge only afterwards.
+    cutoff = now_epoch - _SEVEN_DAYS_SECONDS - 1
+
     conn = sqlite3.connect(str(target), timeout=5.0, isolation_level=None)
     try:
         conn.execute("PRAGMA foreign_keys=ON")
