@@ -14,8 +14,10 @@ const BASE_URL = 'http://127.0.0.1:' + PORT;
 const themes = ['light', 'dark'];
 const viewports = [
   { name: '390x844', width: 390, height: 844 },
+  { name: '430x932', width: 430, height: 932 },
   { name: '768x1024', width: 768, height: 1024 },
   { name: '1280x900', width: 1280, height: 900 },
+  { name: '1366x700', width: 1366, height: 700 },
 ];
 
 const entrySource = `
@@ -185,6 +187,8 @@ async function capture(viewport, attempt, theme) {
       const doc = document.documentElement;
       const panel = document.querySelector('[data-cephalo-review-lexicon]');
       const panelRect = panel?.getBoundingClientRect();
+      const stage = document.querySelector('[data-r20-radiograph-stage]');
+      const stageRect = stage?.getBoundingClientRect();
       return {
         width: innerWidth,
         activeTheme: document.body.dataset.theme,
@@ -194,20 +198,25 @@ async function capture(viewport, attempt, theme) {
         documentScrollWidth: doc.scrollWidth,
         horizontalDocumentOverflow: doc.scrollWidth > innerWidth + 1,
         panelVisible: Boolean(panelRect && panelRect.width > 10 && panelRect.height > 10),
+        radiographStageVisible: Boolean(stageRect && stageRect.width > 50 && stageRect.height > 50 && stageRect.top < innerHeight && stageRect.bottom > 0),
         panelWithinViewportX: Boolean(panelRect && panelRect.left >= -1 && panelRect.right <= innerWidth + 1),
         clinicalBadgesPresent: document.querySelectorAll('[data-clinical-validated="true"]').length,
       };
     });
 
+    await search.press('Escape');
+    const closedOnEscape = await details.evaluate(node => !node.open);
+    const focusReturned = await details.locator('summary').evaluate(node => node === document.activeElement);
     const valid = response?.status() === 200 && initialClosed && nDetector === 38
       && nConstruction === 2 && nCertified === 0 && nFiltered === 1 && proper === 1
       && metrics.activeTheme === theme && metrics.backgroundToken.length > 0
-      && metrics.panelVisible && metrics.panelWithinViewportX
+      && metrics.panelVisible && metrics.panelWithinViewportX && metrics.radiographStageVisible
+      && closedOnEscape && focusReturned
       && !metrics.horizontalDocumentOverflow
       && metrics.clinicalBadgesPresent === 0
       && pageErrors.length === 0 && consoleErrors.length === 0;
     return { viewport:viewport.name, theme, attempt, valid, httpStatus:response?.status()??null,
-      initialClosed, nDetector, nConstruction, nCertified, nFiltered, proper,
+      initialClosed, closedOnEscape, focusReturned, nDetector, nConstruction, nCertified, nFiltered, proper,
       metrics, pageErrors, consoleErrors, apiRequests:requests };
   } catch (error) {
     return { viewport:viewport.name, theme, attempt, valid:false,
