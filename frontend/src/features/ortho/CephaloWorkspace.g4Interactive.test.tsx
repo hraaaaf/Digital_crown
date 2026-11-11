@@ -11,7 +11,7 @@ const state = vi.hoisted(() => ({
   mmPerPixel: 0.1 as number | null,
   isCalibrated: false,
   anglesData: {} as Record<string, any>,
-  local: { landmarks: [], version: 0 },
+  local: { landmarks: [] as Array<{ id: string; x: number; y: number }>, version: 0 },
   syncState: 'idle',
   isSaving: false,
   previewPdfUrl: null as string | null,
