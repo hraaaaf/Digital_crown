@@ -184,8 +184,10 @@ try{
         x:Number(el.getAttribute('cx')),y:Number(el.getAttribute('cy'))
       })));
       assert(coords.length===38,'RELOADED_UI_MISSING_RETICLES');
-      assert(coords.some(p=>report.saved_landmarks.some(q=>Math.abs(q.x-p.x)<.08&&Math.abs(q.y-p.y)<.08)),
-        'RELOADED_UI_COORDS_MISMATCH');
+      const idx=report.saved_landmarks.findIndex(x=>x.id===report.changed_id);
+      assert(idx>=0&&Math.abs(coords[idx].x-report.saved_landmarks[idx].x)<.08
+        &&Math.abs(coords[idx].y-report.saved_landmarks[idx].y)<.08,
+        'RELOADED_UI_EDITED_LANDMARK_COORDS_MISMATCH');
       await shot('05-after-browser-reload');
       await page.setViewportSize({width:390,height:844});
       await shot('06-mobile-final-synthetic');
