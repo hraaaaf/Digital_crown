@@ -1,4 +1,4 @@
-name: LOT08.3-B2-B/C/D/E Queue sealed vault and independent recovery kit FUE (NO DEPLOY)
+name: LOT08.3-B2-B/C/D/E/F Queue vault kit and custody handoff FUE (NO DEPLOY)
 
 on:
   pull_request:
@@ -15,6 +15,7 @@ on:
       - queue_core/service/backup_rotation_recovery_08_3_b2d_lab.py
       - queue_core/tests/test_backup_rotation_recovery_08_3_b2d_lab.py
       - queue_core/service/recovery_kit_08_3_b2e_lab.py
+      - queue_core/service/custody_handoff_08_3_b2f_lab.py
       - queue_core/tests/test_recovery_kit_08_3_b2e_lab.py
 
 permissions:
@@ -49,7 +50,7 @@ jobs:
         run: |
           python -m pip install --disable-pip-version-check \
             'pytest==9.0.3' 'SQLAlchemy==2.0.28' 'cryptography==49.0.0' 'tzdata==2025.2'
-      - name: Encrypt real Queue SQLite snapshot and verify gated restore clone
+      - name: Encrypt synthetic Queue SQLite and verify custody handoff clone
         shell: bash
         run: |
           python -m pytest -q \
@@ -59,12 +60,12 @@ jobs:
             queue_core/tests/test_recovery_kit_08_3_b2e_lab.py \
             queue_core/tests/test_retention_qr_08_3_b2_lab.py \
             queue_core/tests/test_retention_lab_08_3_b.py \
-            --maxfail=1 --junitxml=lot08-3-b2e-${{ matrix.os }}.xml
+            --maxfail=1 --junitxml=lot08-3-b2f-${{ matrix.os }}.xml
       - name: Upload native real JUnit (synthetic only)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lot08-3-b2e-restore-clone-${{ matrix.os }}-junit
-          path: lot08-3-b2e-${{ matrix.os }}.xml
+          name: lot08-3-b2f-restore-clone-${{ matrix.os }}-junit
+          path: lot08-3-b2f-${{ matrix.os }}.xml
           if-no-files-found: error
           retention-days: 14

@@ -396,3 +396,314 @@ def test_old_weekly_kit_cannot_resurrect_expired_consumed_qr_receipt(lab):
     assert not (vault.parent/"lot08_3_b_lab_restored_from_kit.sqlite").exists()
     _,clone=_restore(lab,updated.witness_fingerprint,later)
     assert _rows(clone,"SELECT count(*) FROM queue_presence_qr_lab")==[(0,)]
+
+
+# LOT08.3-B2-F: independently witnessed immutable export, synthetic LAB only.
+from queue_core.service import custody_handoff_08_3_b2f_lab as custody
+
+
+def _custody(lab, tmp_path, at=NOW, *, previous=None, phrase=PASSPHRASE,
+             old_witness=None):
+    root = tmp_path / "lot08_3_b_lab_custody_external_probe"
+    root.mkdir(mode=0o700, exist_ok=True)
+    if old_witness is None:
+        anchor = _rotate(lab, at).anchor
+        sealed = _seal(lab, anchor, at, phrase=phrase)
+        witness = sealed.witness_fingerprint
+    else:
+        witness = old_witness
+    return custody.prepare_custody_bundle_lab(
+        lab[1], lab[2], root, passphrase=phrase, kit_witness=witness,
+        now=at, previous_external_fingerprint=previous,
+    )
+
+
+def _custody_restore(receipt, tmp_path, *, external=None, phrase=PASSPHRASE,
+                     at=NOW, bundle=None, target=None):
+    target = target or tmp_path / "lot08_3_b_lab_restored_custody.sqlite"
+    result = custody.restore_custody_bundle_lab(
+        bundle or receipt.bundle, target,
+        external_fingerprint=external if external is not None
+        else receipt.external_fingerprint, passphrase=phrase,
+        slot="daily", bucket=at.strftime("%Y-%m-%d"), now=at,
+    )
+    return result, target
+
+
+def test_b2f_immutable_bundle_restores_after_deleting_original_lab_workspace(
+        lab, tmp_path):
+    receipt = _custody(lab, tmp_path)
+    assert receipt.generation == 1
+    assert len(receipt.external_fingerprint) == 64
+    assert receipt.bundle.is_dir()
+    assert receipt.bundle.parent != lab[1] and receipt.bundle.parent != lab[2]
+    raw = (receipt.bundle / "custody-descriptor.json").read_bytes()
+    assert sha256(raw).hexdigest() == receipt.external_fingerprint
+    assert PASSPHRASE not in raw
+    assert lab[3] not in raw and lab[4] not in raw
+    shutil.rmtree(lab[1])
+    shutil.rmtree(lab[2])
+    lab[0].unlink()
+    digest, clone = _custody_restore(receipt, tmp_path)
+    assert len(digest) == 64 and clone.is_file()
+    assert _rows(clone, "PRAGMA application_id") == [
+        (SYNTHETIC_LAB_APPLICATION_ID,)
+    ]
+    assert _rows(clone, "SELECT id FROM queue_visits ORDER BY id") == [
+        ("DONE_SYNTH",), ("WAIT_SYNTH",)
+    ]
+
+
+def test_b2f_unacknowledged_export_rejected_without_external_digest(lab, tmp_path):
+    receipt = _custody(lab, tmp_path)
+    target = tmp_path / "lot08_3_b_lab_restored_unacknowledged.sqlite"
+    for invalid in ("", "0" * 64, "not-hex"):
+        with pytest.raises(RestoreCloneLabError, match="CUSTODY_EXTERNAL_WITNESS"):
+            custody.restore_custody_bundle_lab(
+                receipt.bundle, target, external_fingerprint=invalid,
+                passphrase=PASSPHRASE, slot="daily",
+                bucket=NOW.strftime("%Y-%m-%d"), now=NOW,
+            )
+    assert not target.exists()
+
+
+def test_b2f_wrong_passphrase_refused_without_clone(lab, tmp_path):
+    receipt = _custody(lab, tmp_path)
+    with pytest.raises(RestoreCloneLabError, match="KIT_AUTHENTICATION_FAILED"):
+        _custody_restore(receipt, tmp_path, phrase=NEW_PASSPHRASE)
+    assert not (tmp_path / "lot08_3_b_lab_restored_custody.sqlite").exists()
+
+
+@pytest.mark.parametrize("file_type", ["kit", "manifest", "archive"])
+def test_b2f_copied_ciphertext_and_catalog_tampering_refused(
+        lab, tmp_path, file_type):
+    receipt = _custody(lab, tmp_path)
+    vault = receipt.bundle / "lot08_3_b_lab_vault_handoff"
+    kit_folder = receipt.bundle / "lot08_3_b_lab_kit_handoff"
+    if file_type == "kit":
+        target = kit_folder / "sealed-recovery-kit.aead.json"
+    elif file_type == "manifest":
+        target = vault / "manifest.json"
+    else:
+        target = next(vault.glob("*.fernet"))
+    blob = bytearray(target.read_bytes())
+    blob[-2] ^= 1
+    target.write_bytes(blob)
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_BUNDLE_TAMPERED"):
+        _custody_restore(receipt, tmp_path)
+    assert not (tmp_path / "lot08_3_b_lab_restored_custody.sqlite").exists()
+
+
+def test_b2f_unknown_extra_file_blocks_restore(lab, tmp_path):
+    receipt = _custody(lab, tmp_path)
+    (receipt.bundle / "lot08_3_b_lab_vault_handoff" / "evil.txt").write_text("X")
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_BUNDLE_INVALID"):
+        _custody_restore(receipt, tmp_path)
+    assert not (tmp_path / "lot08_3_b_lab_restored_custody.sqlite").exists()
+
+
+def test_b2f_stage_interrupt_keeps_no_published_bundle(
+        lab, tmp_path, monkeypatch):
+    first = _rotate(lab)
+    sealed = _seal(lab, first.anchor)
+    root = tmp_path / "lot08_3_b_lab_custody_fault"
+    root.mkdir(mode=0o700)
+    def fail():
+        raise RuntimeError("synthetic power interruption before publish")
+    monkeypatch.setattr(custody, "_before_bundle_publish_lab", fail)
+    with pytest.raises(RuntimeError, match="synthetic power interruption"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness=sealed.witness_fingerprint, now=NOW,
+        )
+    assert list(root.iterdir()) == []
+
+
+def test_b2f_pending_directory_cannot_be_restored(lab, tmp_path):
+    receipt = _custody(lab, tmp_path)
+    pending = receipt.bundle.parent / ".lot08_3_b_lab_pending_orphan"
+    shutil.copytree(receipt.bundle, pending)
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_BUNDLE_INVALID"):
+        _custody_restore(receipt, tmp_path, bundle=pending)
+    assert not (tmp_path / "lot08_3_b_lab_restored_custody.sqlite").exists()
+
+
+def test_b2f_previous_receipt_cannot_authorize_new_generation(
+        lab, tmp_path):
+    first = _rotate(lab)
+    kit1 = _seal(lab, first.anchor)
+    root = tmp_path / "lot08_3_b_lab_custody_generations"
+    root.mkdir(mode=0o700)
+    receipt1 = custody.prepare_custody_bundle_lab(
+        lab[1], lab[2], root, passphrase=PASSPHRASE,
+        kit_witness=kit1.witness_fingerprint, now=NOW,
+    )
+    later = NOW + timedelta(days=1)
+    second = _rotate(lab, later, first.anchor)
+    kit2 = _seal(
+        lab, second.anchor, later, phrase=NEW_PASSPHRASE,
+        prior=kit1.witness_fingerprint, old_phrase=PASSPHRASE,
+    )
+    receipt2 = custody.prepare_custody_bundle_lab(
+        lab[1], lab[2], root, passphrase=NEW_PASSPHRASE,
+        kit_witness=kit2.witness_fingerprint, now=later,
+        previous_external_fingerprint=receipt1.external_fingerprint,
+    )
+    assert receipt2.generation > receipt1.generation
+    descriptor = json.loads(
+        (receipt2.bundle / "custody-descriptor.json").read_bytes()
+    )
+    assert descriptor["predecessor"] == receipt1.external_fingerprint
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_EXTERNAL_WITNESS_MISMATCH"):
+        _custody_restore(
+            receipt1, tmp_path, external=receipt2.external_fingerprint,
+            at=later, phrase=PASSPHRASE,
+        )
+    assert not (tmp_path / "lot08_3_b_lab_restored_custody.sqlite").exists()
+    _, target = _custody_restore(receipt2, tmp_path, at=later,
+                                 phrase=NEW_PASSPHRASE)
+    assert target.exists()
+
+
+def test_b2f_missing_archive_refuses_restore(lab, tmp_path):
+    receipt = _custody(lab, tmp_path)
+    vault = receipt.bundle / "lot08_3_b_lab_vault_handoff"
+    next(vault.glob("*.fernet")).unlink()
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_BUNDLE_INVALID"):
+        _custody_restore(receipt, tmp_path)
+
+
+def test_b2f_non_lab_root_and_nested_source_refused(lab, tmp_path):
+    first = _rotate(lab)
+    kit1 = _seal(lab, first.anchor)
+    roots = [
+        tmp_path / "bad-folder",
+        lab[1] / "lot08_3_b_lab_custody_inside_vault",
+    ]
+    for root in roots:
+        root.mkdir(mode=0o700)
+        with pytest.raises(RestoreCloneLabError, match="CUSTODY_SYNTHETIC_ROOT_REQUIRED"):
+            custody.prepare_custody_bundle_lab(
+                lab[1], lab[2], root, passphrase=PASSPHRASE,
+                kit_witness=kit1.witness_fingerprint, now=NOW,
+            )
+
+
+def test_b2f_wrong_initial_kit_witness_refuses_export(lab, tmp_path):
+    first = _rotate(lab)
+    _seal(lab, first.anchor)
+    root = tmp_path / "lot08_3_b_lab_custody_witness_reject"
+    root.mkdir(mode=0o700)
+    with pytest.raises(RestoreCloneLabError, match="KIT_EXTERNAL_WITNESS_MISMATCH"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness="0" * 64, now=NOW,
+        )
+    assert list(root.iterdir()) == []
+
+
+def test_b2f_refuses_clone_inside_custody_bundle(lab, tmp_path):
+    receipt = _custody(lab, tmp_path)
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_CLONE_INSIDE_BUNDLE_DENIED"):
+        _custody_restore(
+            receipt, tmp_path,
+            target=receipt.bundle / "lot08_3_b_lab_restored_inside.sqlite",
+        )
+
+
+def test_b2f_late_rotation_without_resealed_kit_refused(
+        lab, tmp_path):
+    first = _rotate(lab)
+    kit1 = _seal(lab, first.anchor)
+    _rotate(lab, NOW + timedelta(days=1), first.anchor)
+    root = tmp_path / "lot08_3_b_lab_custody_stale"
+    root.mkdir(mode=0o700)
+    with pytest.raises(RestoreCloneLabError, match="ROTATION_ANCHOR_MISMATCH"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness=kit1.witness_fingerprint, now=NOW + timedelta(days=1),
+        )
+    assert list(root.iterdir()) == []
+
+
+def test_b2f_forged_descriptor_fingerprint_cannot_authenticate_ciphertext(
+        lab, tmp_path):
+    receipt = _custody(lab, tmp_path)
+    kitpath = receipt.bundle / "lot08_3_b_lab_kit_handoff" / "sealed-recovery-kit.aead.json"
+    blob = bytearray(kitpath.read_bytes())
+    blob[-20] ^= 1
+    kitpath.write_bytes(blob)
+    descriptor = receipt.bundle / "custody-descriptor.json"
+    parsed = json.loads(descriptor.read_bytes())
+    parsed["kit_sha256"] = sha256(kitpath.read_bytes()).hexdigest()
+    canonical = json.dumps(
+        parsed, sort_keys=True, separators=(",", ":"), ensure_ascii=True
+    ).encode("ascii")
+    descriptor.write_bytes(canonical)
+    forged = sha256(canonical).hexdigest()
+    with pytest.raises(RestoreCloneLabError, match="KIT_AUTHENTICATION_FAILED|KIT_INVALID"):
+        _custody_restore(receipt, tmp_path, external=forged)
+    assert not (tmp_path / "lot08_3_b_lab_restored_custody.sqlite").exists()
+
+
+def test_b2f_posix_bundle_files_and_directories_are_private(lab, tmp_path):
+    if os.name != "posix":
+        pytest.skip("POSIX mode only; Windows ACL certification remains separate")
+    receipt = _custody(lab, tmp_path)
+    folders = [receipt.bundle, receipt.bundle.parent,
+               receipt.bundle / "lot08_3_b_lab_vault_handoff",
+               receipt.bundle / "lot08_3_b_lab_kit_handoff"]
+    for folder in folders:
+        assert (folder.stat().st_mode & 0o077) == 0
+    files = [receipt.bundle / "custody-descriptor.json"]
+    for folder in folders[2:]:
+        files.extend(path for path in folder.iterdir() if path.is_file())
+    for file in files:
+        assert (file.stat().st_mode & 0o077) == 0
+
+
+def test_b2f_posix_rejects_world_readable_custody_root(lab, tmp_path):
+    if os.name != "posix":
+        pytest.skip("POSIX root-mode guard only; Windows ACL remains separate")
+    first = _rotate(lab)
+    sealed = _seal(lab, first.anchor)
+    root = tmp_path / "lot08_3_b_lab_custody_insecure_permissions"
+    root.mkdir(mode=0o700)
+    root.chmod(0o755)
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_ROOT_PERMISSIONS_INVALID"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness=sealed.witness_fingerprint, now=NOW,
+        )
+    assert list(root.iterdir()) == []
+
+
+def test_b2f_unresolved_rotation_journal_refuses_custody_export(lab, tmp_path):
+    first = _rotate(lab)
+    sealed = _seal(lab, first.anchor)
+    (lab[1] / ".lot08_3_b_lab_rotation_journal.json").write_bytes(b"synthetic_pending")
+    root = tmp_path / "lot08_3_b_lab_custody_journal_refusal"
+    root.mkdir(mode=0o700)
+    with pytest.raises(RestoreCloneLabError, match="ROTATION_RECOVERY_REQUIRED"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness=sealed.witness_fingerprint, now=NOW,
+        )
+    assert list(root.iterdir()) == []
+
+
+def test_b2f_symlink_in_source_vault_fails_closed(lab, tmp_path):
+    if os.name != "posix":
+        pytest.skip("POSIX symlink injection; Windows link permissions vary")
+    first = _rotate(lab)
+    sealed = _seal(lab, first.anchor)
+    malicious = lab[1] / "unknown-lab-archive"
+    malicious.symlink_to(lab[1] / "manifest.json")
+    root = tmp_path / "lot08_3_b_lab_custody_symlink_refusal"
+    root.mkdir(mode=0o700)
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_UNSAFE_SOURCE"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness=sealed.witness_fingerprint, now=NOW,
+        )
+    assert list(root.iterdir()) == []
