@@ -8,7 +8,7 @@ An OS administrator with all keys and the anchor can defeat this simulation.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from hashlib import sha256
 from pathlib import Path
 import hmac
@@ -234,13 +234,22 @@ def rotate_queue_vault_lab(
                 "name": name, "sha256": seal["sha256"],
             })
         all_entries = current["entries"] + new_entries
-        selected = set()
-        for slot, keep in (("daily", _DAILY_KEEP), ("weekly", _WEEKLY_KEEP)):
-            ordered = sorted(
-                (e for e in all_entries if e["slot"] == slot),
-                key=lambda e: (e["bucket"], e["epoch"]), reverse=True,
-            )
-            selected.update(e["name"] for e in ordered[:keep])
+        # Calendar windows, NOT the last N snapshots: a vault left idle
+        # must not carry a 40-day-old daily archive into the next rotation.
+        today = datetime.fromtimestamp(stamp, timezone.utc)
+        permitted_daily = {
+            _bucket(int((today - timedelta(days=offset)).timestamp()), "daily")
+            for offset in range(_DAILY_KEEP)
+        }
+        permitted_weekly = {
+            _bucket(int((today - timedelta(weeks=offset)).timestamp()), "weekly")
+            for offset in range(_WEEKLY_KEEP)
+        }
+        selected = {
+            e["name"] for e in all_entries
+            if (e["slot"] == "daily" and e["bucket"] in permitted_daily)
+            or (e["slot"] == "weekly" and e["bucket"] in permitted_weekly)
+        }
         removed = [e for e in all_entries if e["name"] not in selected]
         kept = sorted((e for e in all_entries if e["name"] in selected),
                       key=lambda e: (e["slot"], e["bucket"], e["name"]))
