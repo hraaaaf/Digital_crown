@@ -264,3 +264,111 @@ def test_revision_changed_after_preview_fails_closed_no_archive(
     assert db.query(models.DocumentArchive).filter(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 0
+
+
+def test_missing_configured_cabinet_stamp_refuses_before_pdf_or_archive(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _environment(monkeypatch, tmp_path)
+    # Deliberately no CabinetConfig: no fabricated logo/stamp or provider.
+    patient, study, points, headers = _calibrated_case(client, db, dentiste)
+    revision, response = _prepare(client, patient, study, headers)
+    assert response.status_code == 422
+    assert "Cachet professionnel" in response.json()["detail"]
+    assert not list(tmp_path.rglob("*.pdf"))
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+
+
+def test_unchanged_revision_but_mutated_science_cannot_archive_stale_preview(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _environment(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, points, headers = _calibrated_case(client, db, dentiste)
+    revision, prepared = _prepare(client, patient, study, headers)
+    assert prepared.status_code == 200
+    candidate = prepared.json()
+    # Simulate an adversarial legacy source edit that forgot to increment the
+    # official revision. The SHA of all scientific bytes must still reject it.
+    payload = deepcopy(study.angles_data)
+    payload["synthetic_only_unversioned_legacy_edit"] = "CHANGED"
+    study.angles_data = payload
+    db.commit()
+    attempt = client.post(
+        f"/api/patients/{patient.id}/cephalo-a4/archive",
+        json={
+            "analysis_id": study.id, "expected_revision": revision,
+            "approval_token": candidate["approval_token"],
+            "pdf_base64": candidate["pdf_base64"], "approved": True,
+        }, headers=headers,
+    )
+    assert attempt.status_code == 409
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+
+
+def test_foreign_cabinet_cannot_use_prepared_pdf_or_stolen_review_proof(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    from backend.tests.conftest import make_user
+
+    _environment(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, points, headers = _calibrated_case(client, db, dentiste)
+    revision, prepared = _prepare(client, patient, study, headers)
+    assert prepared.status_code == 200
+    candidate = prepared.json()
+    other = make_user(db)
+    foreign_headers = _jwt(client, other)
+    body = {
+        "analysis_id": study.id, "expected_revision": revision,
+        "approval_token": candidate["approval_token"],
+        "pdf_base64": candidate["pdf_base64"], "approved": True,
+    }
+    denied = client.post(
+        f"/api/patients/{patient.id}/cephalo-a4/archive",
+        json=body, headers=foreign_headers,
+    )
+    assert denied.status_code in (403, 404, 409)
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+
+
+def test_immutable_archive_sha_detects_tampering_on_read(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    from backend.services.cephalo_document_lock import verified_official_archive_bytes
+
+    _environment(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, points, headers = _calibrated_case(client, db, dentiste)
+    revision, prepared = _prepare(client, patient, study, headers)
+    assert prepared.status_code == 200
+    candidate = prepared.json()
+    body = {
+        "analysis_id": study.id, "expected_revision": revision,
+        "approval_token": candidate["approval_token"],
+        "pdf_base64": candidate["pdf_base64"], "approved": True,
+    }
+    confirmed = client.post(
+        f"/api/patients/{patient.id}/cephalo-a4/archive",
+        json=body, headers=headers,
+    )
+    assert confirmed.status_code == 200
+    archived = db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+        models.DocumentArchive.patient_id == patient.id,
+    ).one()
+    assert archived.file_hash == candidate["pdf_sha256"]
+    storage = tmp_path / "archives" / archived.file_path.removeprefix("static/archives/")
+    storage.write_bytes(storage.read_bytes() + b"FORGED")
+    with pytest.raises(HTTPException) as error:
+        verified_official_archive_bytes(archived, db)
+    assert error.value.status_code == 409
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 1
