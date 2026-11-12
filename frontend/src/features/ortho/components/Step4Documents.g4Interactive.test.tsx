@@ -102,6 +102,18 @@ describe('Cephalo Step4 G4 document controls',()=>{
     expect(state.handlePrint).not.toHaveBeenCalled();
   });
 
+  it('prints independently of preview and never requests official archival',async()=>{
+    render(<Step4Documents P={P}/>);
+    await waitFor(()=>expect(api.get).toHaveBeenCalledTimes(1));
+    const print = screen.getByRole('button',{name:/^Imprimer$/i}) as HTMLButtonElement;
+    expect(print.disabled).toBe(false);
+    fireEvent.click(print);
+    await waitFor(()=>expect(state.handlePrint).toHaveBeenCalledTimes(1));
+    expect(state.handlePreview).not.toHaveBeenCalled();
+    expect(api.post).not.toHaveBeenCalled();
+    expect((screen.getByRole('button',{name:/Archivage suspendu/i}) as HTMLButtonElement).disabled).toBe(true);
+  });
+
   it('builds a draft by silent-saving first, then downloading the non-archived PDF',async()=>{
     const click=vi.fn();
     const original=document.createElement.bind(document);
