@@ -162,6 +162,9 @@ def inspect_fake_target_collisions(
                 raise SyntheticTargetRefused("TARGET_ROW_LIMIT_EXCEEDED")
         for row in targets:
             _fake_row(row)
+        # A target-internal duplicate is unsafe even when no source row matches it.
+        if len({row[0] for row in targets}) != len(targets):
+            raise SyntheticTargetRefused("DUPLICATE_FAKE_TARGET_ID")
         id_links, demographic_links, affected, missing = 0, 0, 0, 0
         for row in raw:
             unknown_dob = not row[3]
@@ -343,6 +346,16 @@ class FakeTargetIdentityFUE(unittest.TestCase):
         self.rows[1] = (self.rows[0][0], *self.rows[1][1:])
         self.write()
         self.refused("UNSAFE_SOURCE_CANDIDATES", self.assess)
+
+    def test_17_duplicate_target_id_with_different_demographics_refused(self):
+        self.targets[1] = ("T0000", *self.targets[1][1:])
+        self.write()
+        self.refused("DUPLICATE_FAKE_TARGET_ID", self.assess)
+
+    def test_18_duplicate_target_id_with_same_demographics_refused(self):
+        self.targets[1] = self.targets[0]
+        self.write()
+        self.refused("DUPLICATE_FAKE_TARGET_ID", self.assess)
 
     def test_15_invalid_target_file_refused(self):
         self.target.write_bytes(b"NOT_A_SQLITE_DATABASE")
