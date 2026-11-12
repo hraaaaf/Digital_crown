@@ -118,6 +118,40 @@ try{
     return {case_id:seed.analysis_id,loaded_from:'FastAPI',source:'synthetic PNG + 38 fixtures'};
   });
   if(login){
+    await check('REAL_CABINET_FOCUS_IMAGE_FIRST_AND_REVERSIBLE',async()=>{
+      const focused=page.locator('[data-cephalo-focus="active"]');
+      await focused.waitFor({state:'visible',timeout:12000});
+      const scene=await page.evaluate(()=>{
+        const box=document.querySelector('[data-cephalo-focus="active"]')?.getBoundingClientRect();
+        const stage=document.querySelector('[data-r20-radiograph-stage]')?.getBoundingClientRect();
+        const viewport=window.innerHeight;
+        return {
+          viewport, focusTop:box?.top, focusBottom:box?.bottom,
+          stageTop:stage?.top, stageBottom:stage?.bottom,
+          visibleStagePixels:stage?Math.max(0,Math.min(viewport,stage.bottom)-Math.max(0,stage.top)):0,
+          focusOverlayWidth:box?.width,
+        };
+      });
+      assert(scene.focusTop===0&&scene.focusBottom>=898,'FOCUS_NOT_VIEWPORT_FIXED '+JSON.stringify(scene));
+      assert(scene.stageTop<350&&scene.visibleStagePixels>=450,
+        'RADIOGRAPH_NOT_VISIBLE_ON_FIRST_DESKTOP_VIEWPORT '+JSON.stringify(scene));
+      assert(await page.locator('[data-cephalo-focus-medical-warning]').isVisible(),
+        'SOURCE_PATIENT_MEDICAL_WARNING_HIDDEN');
+      assert(await page.locator('[data-cephalo-readiness-gate]').isVisible(),
+        'DRAFT_CLINICAL_READINESS_WARNING_HIDDEN');
+      await shot('00-real-cabinet-focus-first-1280x900');
+      await page.getByRole('button',{name:'Quitter le mode Focus tracé et revenir au dossier'}).click();
+      await page.locator('[data-cephalo-focus="inactive"]').waitFor({state:'visible'});
+      assert(await page.locator('h1').first().isVisible(),'PATIENT_HEADER_NOT_RESTORED');
+      await shot('00-real-cabinet-return-to-dossier-1280x900');
+      await page.getByRole('button',{name:'Ouvrir le mode Focus tracé'}).click();
+      await focused.waitFor({state:'visible'});
+      await page.keyboard.press('Escape');
+      await page.locator('[data-cephalo-focus="inactive"]').waitFor({state:'visible'});
+      await page.getByRole('button',{name:'Ouvrir le mode Focus tracé'}).click();
+      await focused.waitFor({state:'visible'});
+      return {...scene,patientWarning:true,exit:true,escape:true};
+    });
     const dragOK=await check('REAL_POINTER_DRAG_COMMITTED_TO_FASTAPI',async()=>{
       await page.getByText('Historique des corrections',{exact:true}).click();
       const undo=page.getByRole('button',{name:'Annuler dernière correction'});
@@ -214,6 +248,7 @@ try{
         'RELOADED_UI_EDITED_LANDMARK_COORDS_MISMATCH');
       await shot('05-after-browser-reload');
       await page.setViewportSize({width:390,height:844});
+      await page.locator('[data-cephalo-focus="inactive"]').waitFor({state:'visible',timeout:12000});
       await shot('06-mobile-final-synthetic');
       return {auth_fresh_REST_GET:true,reloaded_UI:true,not_clinically_validated:true};
     });
