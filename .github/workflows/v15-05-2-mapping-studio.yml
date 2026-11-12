@@ -5,6 +5,7 @@ on:
     paths:
       - backend/services/legacy_sql_mapping_v15.py
       - backend/tests/test_legacy_sql_mapping_v15.py
+      - backend/tests/test_legacy_sql_inspector_v15_security.py
       - docs/quality/V15_05_2_MAPPING_STUDIO_DRAFT_CONTRACT.md
       - .github/workflows/v15-05-2-mapping-studio.yml
   workflow_dispatch:
@@ -14,13 +15,19 @@ permissions:
 
 jobs:
   mapping-draft-proof:
-    name: Offline Mapping Draft (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: Offline Mapping Draft (Python ${{ matrix.python }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.12', '3.13']
+        include:
+          - os: ubuntu-latest
+            python: '3.12'
+          - os: ubuntu-latest
+            python: '3.13'
+          - os: windows-latest
+            python: '3.12'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,6 +36,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Compile mapping and inspector without runtime DB imports
+        shell: bash
         run: |
           set -euo pipefail
           python -m compileall -q backend/services/legacy_sql_mapping_v15.py backend/services/legacy_sql_inspector_v15.py backend/tests/test_legacy_sql_mapping_v15.py
@@ -37,7 +45,7 @@ jobs:
         run: |
           set -euo pipefail
           PYTHONWARNINGS=error::ResourceWarning python backend/tests/test_legacy_sql_mapping_v15.py -v 2>&1 | tee /tmp/lot05-2-tests.log
-          grep -q 'Ran 25 tests' /tmp/lot05-2-tests.log
+          grep -q 'Ran 29 tests' /tmp/lot05-2-tests.log
           grep -q '^OK$' /tmp/lot05-2-tests.log
           if grep -Ei 'skipped|expected failure' /tmp/lot05-2-tests.log; then exit 1; fi
       - name: 05.1 inspector regression
@@ -56,6 +64,6 @@ jobs:
           test "$(git rev-parse HEAD)" = "$EXPECTED"
           {
             echo "05.2-A metadata Mapping Studio draft tests at SHA: $EXPECTED"
-            echo "25 synthetic mapping cases + 28 inspector regressions per Python version."
+            echo "29 synthetic mapping cases + 28 inspector regressions per Python version."
             echo "NO authenticated admin approval, live data, data import, UI or migration."
           } >> "$GITHUB_STEP_SUMMARY"

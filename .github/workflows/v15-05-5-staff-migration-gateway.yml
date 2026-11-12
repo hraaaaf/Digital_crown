@@ -40,7 +40,7 @@ jobs:
       - name: Earlier 151 synthetic regression contracts
         run: |
           set -euo pipefail
-          for item in "test_legacy_sql_sqlite_e2e_100x200_v15.py:11" "test_legacy_sql_tenant_link_guard_lab_v15.py:7" "test_legacy_sql_physical_schema_gate_lab_v15.py:6" "test_legacy_sql_replay_restore_lab_v15.py:8" "test_legacy_sql_real_orm_scratch_v15.py:10" "test_legacy_sql_synthetic_dryrun_v15.py:19" "test_legacy_sql_migration_scenarios_v15.py:12" "test_legacy_sql_mapping_v15.py:25" "test_legacy_sql_target_manifest_v15.py:25"; do
+          for item in "test_legacy_sql_sqlite_e2e_100x200_v15.py:11" "test_legacy_sql_tenant_link_guard_lab_v15.py:7" "test_legacy_sql_physical_schema_gate_lab_v15.py:6" "test_legacy_sql_replay_restore_lab_v15.py:8" "test_legacy_sql_real_orm_scratch_v15.py:10" "test_legacy_sql_synthetic_dryrun_v15.py:19" "test_legacy_sql_migration_scenarios_v15.py:12" "test_legacy_sql_mapping_v15.py:29" "test_legacy_sql_target_manifest_v15.py:25"; do
             name="${item%%:*}"
             count="${item##*:}"
             python "backend/tests/${name}" -v 2>&1 | tee "/tmp/${name}.log"
