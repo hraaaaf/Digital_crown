@@ -6,6 +6,8 @@ on:
       - .github/workflows/ceph-manual-calibration-e2e.yml
       - backend/tests/test_ceph_manual_calibration_e2e_gate.py
       - backend/tests/test_request_validation_422.py
+      - backend/tests/test_ceph_a4_descriptive_attestation_s1.py
+      - docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md
       - backend/main.py
       - scripts/ceph_calibration_http_t2.py
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
@@ -54,6 +56,8 @@ jobs:
              '.github/workflows/ceph-manual-calibration-e2e.yml',
              'backend/tests/test_ceph_manual_calibration_e2e_gate.py',
              'backend/tests/test_request_validation_422.py',
+             'backend/tests/test_ceph_a4_descriptive_attestation_s1.py',
+             'docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md',
              'backend/main.py',
              'scripts/ceph_calibration_http_t2.py',
           }
@@ -90,6 +94,23 @@ jobs:
         run: |
           python -m pytest -q backend/tests/test_cephalo_auto_calibration_route.py backend/tests/test_cephalo_repository_calibration_invariants.py
           python -m pytest -q backend/tests/test_ceph_manual_calibration_e2e_gate.py backend/tests/test_request_validation_422.py
+      - name: S1 P3 signature reuse regression and 5 intentionally RED Ceph safety contracts
+        shell: bash
+        run: |
+          python -m pytest -q backend/tests/test_document_signature_p3.py
+          python -m pytest -q -rx backend/tests/test_ceph_a4_descriptive_attestation_s1.py --junitxml=/tmp/ceph-a4-s1-junit.xml
+          python - <<'PY'
+          from xml.etree import ElementTree as ET
+          root=ET.parse('/tmp/ceph-a4-s1-junit.xml').getroot()
+          cases=list(root.iter('testcase'))
+          xfails=[skip for case in cases for skip in case.findall('skipped')]
+          unexpected=[case for case in cases if case.findall('failure') or case.findall('error')]
+          assert len(cases)==9,(len(cases),'expected 4 existing safe + 5 open')
+          assert len(xfails)==5,(len(xfails),'5 missing medical signature guards remain open')
+          assert all(skip.attrib.get('type')=='pytest.xfail' for skip in xfails)
+          assert not unexpected, 'Cannot silently accept failure or XPASS'
+          print('CEPH_A4_S1_4_PASS_5_EXPECTED_XFAIL_CONTRACT_ONLY_NO_SIGNING')
+          PY
       - name: Install locked frontend and real Chromium
         working-directory: frontend
         shell: bash
@@ -169,7 +190,7 @@ jobs:
           done
           rm -f t2-runtime-cert.db t2-runtime-cert.db-shm t2-runtime-cert.db-wal
           rm -f backend/static/uploads/radios/t2-cephalo-seeded.png
-          rm -f /tmp/ceph-odf-e2e-requirements.txt /tmp/ceph-odf-e2e-seed.log
+          rm -f /tmp/ceph-odf-e2e-requirements.txt /tmp/ceph-odf-e2e-seed.log /tmp/ceph-a4-s1-junit.xml
           rm -f /tmp/ceph-odf-e2e-backend.log /tmp/ceph-odf-e2e-frontend.log
           rm -rf artifacts/ceph-odf-gui-sqlite-e2e
           echo CEPH_ODF_SYNTHETIC_T2_CLEANED_NO_DEPLOY
