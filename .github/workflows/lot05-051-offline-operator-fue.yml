@@ -1,0 +1,57 @@
+name: LOT05.1 Offline Operator Intake FUE-I (FAKE ONLY)
+on:
+  pull_request:
+    paths:
+      - 'docs/quality/LOT05_051_OFFLINE_SHARED_INTERFACE_CANDIDATE.md'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/services/legacy_sql_vendor_inventory_v15.py'
+      - 'backend/tests/test_lot05_step2_offline_source_cli_fue.py'
+      - 'backend/tests/test_migration_057c_vendor_inventory_fue.py'
+      - '.github/workflows/lot05-051-offline-operator-fue.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  operator-intake-fue:
+    name: Read-only operator CLI + refusal paths — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Verify exact checked out HEAD
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile backend/services/legacy_sql_inspector_v15.py backend/services/legacy_sql_vendor_inventory_v15.py
+      - name: FUE-I operator CLI positive and refusal paths, synthetic fixtures only
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_lot05_step2_offline_source_cli_fue.py -v 2>&1 | tee lot05-051-operator-cli.log
+          grep -q 'Ran 16 tests' lot05-051-operator-cli.log
+          grep -q '^OK' lot05-051-operator-cli.log
+      - name: FUE-0 source boundary and read-only negative regression
+        shell: bash
+        run: |
+          set -euo pipefail
+          python backend/tests/test_migration_057c_vendor_inventory_fue.py -v 2>&1 | tee lot05-051-source-boundary.log
+          grep -q 'Ran 22 tests' lot05-051-source-boundary.log
+          grep -q '^OK' lot05-051-source-boundary.log
+      - name: Assert test-only boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'LOT05_051_OFFLINE_OPERATOR_SYNTHETIC_ONLY_NO_TARGET_IMPORT'
