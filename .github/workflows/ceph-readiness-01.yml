@@ -1,0 +1,44 @@
+name: CEPH ODF readiness draft-only proof (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ceph-readiness-01.yml
+      - frontend/src/features/ortho/CephaloWorkspace.tsx
+      - frontend/src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx
+permissions:
+  contents: read
+jobs:
+  readiness-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: 'true'
+      DATABASE_URL: 'sqlite:///:memory:'
+      CLOUD_AI_ENABLED: 'false'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Verify exact PR head
+        shell: bash
+        env:
+          EXPECTED_HEAD: ${{ github.event.pull_request.head.sha }}
+        run: test "$(git rev-parse HEAD)" = "$EXPECTED_HEAD"
+      - name: Install locked dependencies
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Verify factual readiness and existing Cephalo persistence boundary
+        working-directory: frontend
+        run: npx vitest run src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx src/features/ortho/cephaloCalibration.test.ts src/features/ortho/orthoLandmarkEditStore.test.ts
+      - name: TypeScript compilation
+        working-directory: frontend
+        run: npx tsc -p tsconfig.app.json --noEmit
+      - name: Prove no runtime and no publish
+        run: echo "CEPH_ODF_READINESS_01_SYNTHETIC_DRAFT_ONLY_NO_DEPLOY"
