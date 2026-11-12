@@ -261,21 +261,29 @@ def test_iso_week_year_boundary_does_not_duplicate_weekly(lab):
 def test_old_archive_cannot_resurrect_purged_closed_visit(lab):
     src,vault,_,_=lab
     with sqlite3.connect(src) as db:
-        closed=(NOW-timedelta(days=2)).strftime("%Y-%m-%d %H:%M:%S.%f")
+        # Initially not yet purge-eligible. Eight days later it crosses 30d
+        # while its WEEKLY backup is still inside the four-week window.
+        closed=(NOW-timedelta(days=25)).strftime("%Y-%m-%d %H:%M:%S.%f")
         db.execute(
             "UPDATE queue_visits SET status='DONE', closed_at_utc=? WHERE id='VISIT_T1'",
             (closed,),
         )
     first=_rotate(lab,NOW)
-    later=NOW+timedelta(days=29)
+    later=NOW+timedelta(days=8)
+    year,week,_=NOW.isocalendar()
+    old_week=f"{year}-W{week:02d}"
     clone=vault.parent/"lot08_3_b_lab_restored_overdue.sqlite"
     with pytest.raises(RestoreCloneLabError,match="RESTORE_OVERDUE_VISIT_DENIED"):
-        _restore(lab,first.anchor,"daily",NOW.strftime("%Y-%m-%d"),later,clone=clone)
+        _restore(lab,first.anchor,"weekly",old_week,later,clone=clone)
     assert not clone.exists()
     assert retain_closed_visits_lab(src,"T1",now=later,execute=True).eligible_visits==1
     second=_rotate(lab,later,first.anchor)
     assert second.daily==1
-    assert second.weekly==1
+    assert second.weekly==2
+    assert any(e["slot"]=="weekly" and e["bucket"]==old_week
+               for e in _manifest(lab)["payload"]["entries"])
+    with pytest.raises(RestoreCloneLabError,match="RESTORE_OVERDUE_VISIT_DENIED"):
+        _restore(lab,second.anchor,"weekly",old_week,later,clone=clone)
     assert _sql(src,"SELECT id FROM queue_visits")==[("VISIT_T2",)]
     _restore(lab,second.anchor,"daily",later.strftime("%Y-%m-%d"),later,clone=clone)
     assert _sql(clone,"SELECT id FROM queue_visits")==[("VISIT_T2",)]
