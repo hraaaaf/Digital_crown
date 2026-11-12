@@ -208,6 +208,14 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   } = store;
   const focusActive = focusTracing && step === 1 && viewMode === 'studio';
 
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const media = window.matchMedia('(min-width: 1280px)');
+    const leaveDesktop = () => { if (!media.matches) setFocusTracing(false); };
+    media.addEventListener('change', leaveDesktop);
+    return () => media.removeEventListener('change', leaveDesktop);
+  }, []);
+
   // READINESS-01: display verified input facts, never infer clinical sign-off
   // from study existence, landmark count, calibration, or successful PUT.
   const calibrationState = deriveCalibrationUiState({
@@ -409,6 +417,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
 
   const workspaceContent = (
     <div data-cephalo-focus={focusActive ? 'active' : 'inactive'}
+      role={focusActive ? 'dialog' : undefined}
+      aria-modal={focusActive ? true : undefined}
+      aria-label={focusActive ? 'Focus de tracé céphalométrique du patient' : undefined}
       className={focusActive
         ? 'fixed inset-0 z-[450] flex min-w-0 h-[100dvh] w-screen flex-col overflow-hidden'
         : 'flex min-w-0 flex-col h-full overflow-x-hidden'}
