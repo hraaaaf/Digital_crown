@@ -156,7 +156,7 @@ async function metrics(page, viewportName, scene) {
         return Boolean(archive?.disabled &&
           archive.getAttribute('aria-describedby') === 'cephalo-a4-archive-hold' &&
           draft && !draft.disabled &&
-          hold?.textContent?.toLowerCase().includes('signature vérifiable du document exact'));
+          hold?.textContent?.toLowerCase().includes('approbation traçable de la révision exacte'));
       })(),
       hasTechnicalVocabulary: technicalVocabulary.test(rawText),
       bodyHeight: body.scrollHeight,
