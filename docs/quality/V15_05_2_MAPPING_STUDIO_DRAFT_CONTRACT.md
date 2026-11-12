@@ -19,3 +19,11 @@ No method in this module authenticates users or grants a real approval. Returned
 
 ## Tests & two review perspectives
 Fixtures remain synthetic; both tests and CI must assert zero import permission, no secrets, no fuzzy guesses, explicit unmapped decisions, rebinding reject, duplicate collision reject, fresh dump reject. A security review targets privilege spoofing / credential mapping / cross-tenant confusion. A fidelity/UX review targets silent mapping, hidden unknowns, wrong schemas, false proof, gaps against Notion and mobile. An isolated successful unit matrix is not a certification of the complete wizard.
+
+## 2026-11-12 — 05.2-A hardening: public digest is NOT an authorization
+
+Previously `revalidate_mapping_draft` checked that the serialized draft matched its SHA-256 and that the source/target fingerprints matched, but did not re-run the table and column decision checks. Because SHA-256 over public metadata is reproducible (not a MAC or human signature), a crafted draft with a freshly computed `profile_sha256` could return an `exact_source_and_target` result for invalid decisions.
+
+On **exact source and target fingerprints**, revalidation now calls `build_mapping_draft` again and enforces its structural guards before returning an exact match. Recomputed-hash attacks involving credential bindings, duplicate target tables, incomplete review or nonexistent target columns must be refused with stable non-PHI error codes. When the source or target fingerprint differs, the previous mismatch result remains explicit and ALWAYS requires human review; no source/target rebind is performed.
+
+This does not authenticate an operator, verify an editor/vendor source, sign a profile, persist a profile, certify a complete mapping or authorize importing patient data. Even a valid revalidated draft remains `admin_approved=false`, `dry_run_completed=false`, `import_permitted=false`. Existing 05.2-B in-memory UI remains unchanged; release and clinical import gates remain separate.
