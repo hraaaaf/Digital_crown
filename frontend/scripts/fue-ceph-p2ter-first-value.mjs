@@ -196,7 +196,7 @@ async function viewportRun(viewport) {
       const draft=page.getByRole('button',{name:'Brouillon PDF'});
       if(!await draft.isEnabled())throw Error('Draft download unavailable while archive held');
       const explanation=await page.getByTestId('unsigned-cephalo-archive-hold').innerText();
-      if(!/brouillon non signé/i.test(explanation) || !/signature vérifiable/i.test(explanation))
+      if(!/brouillon non signé/i.test(explanation) || !/approbation traçable/i.test(explanation))
         throw Error('Clinician did not receive unsigned archive reason');
       await archive.scrollIntoViewIfNeeded();
       await shot('before-unsigned-archive-hold');
