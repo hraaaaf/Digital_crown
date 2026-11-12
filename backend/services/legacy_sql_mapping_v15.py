@@ -322,4 +322,18 @@ def revalidate_mapping_draft(draft: MappingDraft, source: Any, target: TargetSna
         mismatches.append("SOURCE_SCHEMA_CHANGED")
     if dst_sha != draft.target_schema_sha256 or revision != draft.target_schema_revision:
         mismatches.append("TARGET_SCHEMA_CHANGED")
+    if not mismatches:
+        # A SHA-256 digest is not an authorization or authenticity signature.
+        # An adversary can recompute it over an invalid MappingDraft; therefore
+        # re-run ALL decision-structure and secret/collision checks against the
+        # bound snapshots before reporting an exact structural match.
+        verified = build_mapping_draft(
+            source, target, draft.decisions,
+            source_software=draft.source_software,
+            source_version=draft.source_version,
+            profile_version=draft.profile_version,
+        )
+        if verified.profile_sha256 != draft.profile_sha256:
+            raise MappingRejected("DRAFT_TAMPERED")
+    # Changes to either snapshot always require review and cannot be approved.
     return Revalidation(not mismatches, tuple(mismatches))
