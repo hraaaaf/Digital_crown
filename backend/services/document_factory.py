@@ -109,7 +109,7 @@ class DocumentFactory:
         render_user_id = effective_document_practitioner_id(user_id)
         return self.libre_gen.generate(patient, data, db=db, user_id=render_user_id)
 
-    def create_cephalo_report(self, patient, analysis, db: Session = None, user_id: int = None):
+    def create_cephalo_report(self, patient, analysis, db: Session = None, user_id: int = None, *, output_dir: str = None):
         """Generate a cephalometric PDF strictly from backend scientific authority."""
         try:
             cabinet, user = None, None
@@ -195,7 +195,10 @@ class DocumentFactory:
                 is_pre_bilan=is_pre_bilan,
                 validation_warnings=validation_warnings
             )
-            return self.ceph_gen.generate(vm, projection=projection, user=user, media=media)
+            # Per-request private temporary generator: never mutate the shared
+            # DocumentFactory singleton's output directory across patient jobs.
+            generator = BilanOrthoPDFGenerator(output_dir) if output_dir else self.ceph_gen
+            return generator.generate(vm, projection=projection, user=user, media=media)
         except Exception as e:
             logger.error(f"Erreur rapport céphalo: {e}")
             raise
