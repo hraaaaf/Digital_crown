@@ -23,6 +23,8 @@ from queue_core.service.backup_restore_clone_08_3_b2_lab import RestoreCloneLabE
 from queue_core.service.retention_lab_08_3_b import (
     SYNTHETIC_LAB_APPLICATION_ID, retain_closed_visits_lab,
 )
+from queue_core.service.retention_qr_08_3_b2_lab import retain_consumed_qr_ledger_lab
+from queue_core.service.kiosk_qr_lab import _SCHEMA as QR_SCHEMA
 
 NOW = datetime(2030, 4, 1, 12, tzinfo=timezone.utc)
 
@@ -305,3 +307,37 @@ def test_wrong_backup_key_cannot_rotate_mixed_key_catalog(lab):
         )
     assert (lab[1]/"manifest.json").read_bytes() == manifest_before
     assert {p.name: p.read_bytes() for p in lab[1].glob("*.fernet")} == archive_before
+
+
+def test_old_weekly_archive_cannot_resurrect_expired_consumed_qr(lab):
+    source, vault, _, _ = lab
+    timestamp=int(NOW.timestamp())
+    with sqlite3.connect(source) as db:
+        db.executescript(QR_SCHEMA)
+        db.execute(
+            "INSERT INTO queue_presence_qr_lab "
+            "(qr_digest,tenant_id,queue_id,visit_id,expires_epoch,consumed_epoch,"
+            "consumed_device,request_digest,result_version,result_sequence) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            ("QR_SYNTH_OLD", "T1", "Q1", "VISIT_T1",
+             timestamp-86400+300, timestamp-86400,
+             "DEVICE_FAKE", "REQ_FAKE", 1, 1),
+        )
+    first = _rotate(lab,NOW)
+    later=NOW+timedelta(days=8)
+    assert retain_consumed_qr_ledger_lab(source,"T1",now=later,execute=True).eligible_receipts==1
+    assert _sql(source,"SELECT count(*) FROM queue_presence_qr_lab")==[(0,)]
+    second = _rotate(lab,later,first.anchor)
+    assert second.generation==2
+    week_year,week_num,_=NOW.isocalendar()
+    old_week=f"{week_year}-W{week_num:02d}"
+    assert any(e["slot"]=="weekly" and e["bucket"]==old_week
+               for e in _manifest(lab)["payload"]["entries"])
+    old_clone=vault.parent/"lot08_3_b_lab_restored_old_qr.sqlite"
+    with pytest.raises(RestoreCloneLabError,match="RESTORE_OVERDUE_QR_DENIED"):
+        _restore(lab,second.anchor,"weekly",old_week,later,clone=old_clone)
+    assert not old_clone.exists()
+    newest=vault.parent/"lot08_3_b_lab_restored_new_qr.sqlite"
+    _restore(lab,second.anchor,"daily",later.strftime("%Y-%m-%d"),later,clone=newest)
+    assert _sql(newest,"SELECT count(*) FROM queue_presence_qr_lab")==[(0,)]
+    assert _sql(newest,"SELECT id FROM queue_event_log")==[("EVENT_FAKE",)]
