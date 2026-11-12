@@ -64,3 +64,19 @@
 Le lot **CEPH-BILAN-A4-SIGNATURE-01** ne sera « VERIFIED » que lorsque (1) un praticien autorisé peut revoir les octets exacts d'un A4 descriptif, (2) un reçu immuable prouve l'attestation interne de ces octets et des révisions dans une DB locale, (3) l'archive est relue avec preuve SHA et droits effectifs, (4) refus/race/recovery ont été testés, (5) le pipeline diagnostic/traitement demeure bloqué et (6) les preuves GitHub + UI + backup sont attachées au HEAD final. **La présence du présent document ne valide aucun de ces critères.**
 
 **Next exact :** audit des contrats persistants de signatures/archivage existants et définition des tests S1 ; arrêt si migration/stratégie légale ou données patient deviennent indispensables. **Fichier canonique de ce nouveau lot : ce document.**
+
+## 9. S1 — découverte et choix de réutilisation P3 (12 novembre 2026)
+
+**Constat corrigé par lecture du code :** Digital Crown possède **déjà** un socle applicatif P3 pour les documents génériques :
+- `backend/services/document_signature_p3.py` : `sign_document`, `verify_document_integrity`, `verification_state_for_document` ; auteur actif contrôlé, signer = auteur, SHA-256 et taille des octets archivés, horodatage et idempotence simple ; **pas une signature cryptographique qualifiée**.
+- `backend/routers/document_provenance_p3.py` : `POST /api/documents/{document_id}/sign`, autorisation patient + type de document + utilisateur ; façade de provenance pour `POST /api/patients/{patient_id}/pdf`.
+- `backend/models_document_provenance_p3.py` : colonnes existantes `author_practitioner_id`, `signed_by_practitioner_id`, `signed_at`, migration P3 déjà définie et attestations génériques existantes ; **aucune nouvelle migration ne doit être lancée dans S1**.
+- `backend/tests/test_document_signature_p3.py` : tests génériques déjà présents pour les signatures ordinaires, refus et octets altérés.
+
+**Différence critique :** P3 signe un **DocumentArchive existant** mais ne vérifie pas, dans `sign_document`, un reçu de relecture du PDF céphalo exact, les révisions du graphe/notes/calibration, ni l'exclusion des champs thérapeutiques libres. Le verrou Céphalo sur la **création** d'une nouvelle archive A4 non signée demeure en place. Le test S1 couvre le risque d'une ancienne archive Céphalo ou d'un futur mauvais câblage du flux P3 ; ne pas prétendre qu'un nouvel archivage officiel est aujourd'hui possible.
+
+**S1 test-first :** `backend/tests/test_ceph_a4_descriptive_attestation_s1.py` contient quatre tests positifs de non-régression des mécanismes existants (archivage tenu, signature P3 d'ordonnance, tampering, auteur autre) et cinq exigences de sécurité céphalo **XFAIL(strict)** (absence de reçu, révision périmée, SHA de prévisualisation différent, texte diagnostic/traitement injecté, vérification publique affirmant à tort « signé »). Ils constituent des **critères RED non résolus**, pas une signature céphalo testée. Toute éventuelle tentative d'intégration S2 doit transformer ces cinq contrats en PASS sous contrôle métier, sans `skip` ni `xfail`.
+
+**Choix technique :** étendre **avec un garde céphalo explicite** la chaîne P3 existante, en réutilisant sa vérification de l'intégrité et de l'identité auteur ; ne pas créer un second moteur P3 parallèle, ni assimiler l'acte documentaire au R14. Les primitives à associer à la relecture verrouillée de `CephaloAnalysis` et au digest de contenu/notes doivent être évaluées **avant** toute écriture S2. Préférer un rejet strict pour tout `RAPPORT_CEPHALO` sans reçu exact accepté. Une migration reste une décision humaine séparée.
+
+**GATE S1 :** un pipeline vert contenant `XFAIL` prouve la **traçabilité des trous contractuels**, **PAS** la réussite de la signature ; un `XPASS(strict)` non analysé est un défaut de cohérence du protocole, pas une certification automatique.
