@@ -45,6 +45,6 @@ jobs:
         run: |
           set -euo pipefail
           python -B backend/tests/test_lot05_step2e_fake_target_identity_fue.py -q 2>&1 | tee lot05-2e-identity.log
-          grep -q 'Ran 16 tests' lot05-2e-identity.log
+          grep -q 'Ran 18 tests' lot05-2e-identity.log
           grep -q '^OK' lot05-2e-identity.log
-          echo LOT05_2E_FAKE_TARGET_COLLISION_16_PASS_ZERO_IMPORT
+          echo LOT05_2E_FAKE_TARGET_COLLISION_18_PASS_ZERO_IMPORT
