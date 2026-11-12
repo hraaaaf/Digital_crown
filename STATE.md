@@ -6,6 +6,21 @@
 
 # STATE — DigitalCrown
 
+## LOT08.3-B2-D — 2026-11-12 — AUTHENTICATED ROTATION INTERRUPT RECOVERY, SYNTHETIC LAB
+
+**GO owner 2026-11-12** after B2-C merged, HIGH risk already surfaced. Single bounded decision: explicit **signed** recovery of a temp Queue encrypted 7D/4W backup rotation interrupted after journal preparation or after manifest commit, without silent deletion. Baseline `master@744ec07288bc9b36dfb5e7d4f7d1f0e395f919b1`. Branch `feat/lot08-3-b2d-journaled-recovery-lab-20261112`, PR DRAFT pending.
+
+**BUG in B2-C prior state:** manifests are atomically replaced before retirement of previous ciphertexts. If interrupted post-commit, those old files become orphaned (correctly fail-closed), but there is no safe reconciliation. The opposite gap is newly sealed archives awaiting manifest commit. The external anchor handed back to the caller after successful rotation is also not automatically adopted on interrupted commits. Existing source refused unknown orphan data; B2-D must preserve that security property.
+
+**Protocol:** `queue_core/service/backup_rotation_08_3_b2c_lab.py` signs a HMAC-SHA256 **transaction journal** with a distinct manifest key, binding complete pre- and post- catalog anchors, generations, predecessor latest UTC epoch, execution clock and exact new and retired archive names/digests. Journal is written and fsynced before publishing manifest; previous fault-injection hook remains before intent publication. If interrupted after signing, ordinary rotate and restore remain **BLOCKED** until explicit recovery. New `queue_core/service/backup_rotation_recovery_08_3_b2d_lab.py` requires latest caller-held anchor (separate from vault), checks HMAC journal, valid Queue/Fernet manifest, source/next anchors rederived from exact entry sets, every unchanged/new archive digest, and the 7/4 calendar retirement plan. **Before commit:** delete only signed *new* files, retain old manifest and all old archives; **after commit:** delete only signed *retired* archives, return authenticated next anchor for independent custody; missing files listed in the authenticated intent support retry after partial cleanup. Unlisted/orphan, symlink, modified bytes or wrong keys/anchor fail closed. No guesswork or unrestricted delete. Only synthetic temp vault/SQLite and encrypted ciphertext.
+
+**FUE required:** Windows 2022 and Ubuntu 24.04 native real SQLite+Fernet tests on exact SHA, full Queue Core and Scope Gate. Baseline B2-C suite 44 PASS each OS and 263 PASS / 3 SKIP in full Queue. New B2-D negative scenarios: failure before journal (old rollback), journal-before-first-manifest, journal-before-current-manifest with old archives, committed-before-retirement, interrupted after deleting first of multiple obsolete copies, malformed/modified journal, wrong external anchor/key, unknown orphan, modified ciphertext, malformed catalog and reentrance, idempotent partial rollback, actual restored clone. Do not mark validated until CI exact SHA and inspect JUnit. No disabling tests to obtain green.
+
+**HUMAN HOLD / not proven:** physical independent media, Windows secret/anchor external durability, interprocess locking & race safety, actual crash/power-loss fsync/atomicity across independent devices, backup installer/scheduler, old offsite copies cleanup, SQLCipher/media real cabinet recovery, CNDP/09-08, measured RPO ≤1 h / RTO ≤2 h. No app runtime integration or actual patient files, Vercel deployment, migration or merge without distinct GO.
+
+**Next exact:** DRAFT PR, run real Windows/Linux FUE/negative test, fix until clean, update Notion and handover and stop at merge gate.
+
+
 ## LOT08.3-B2-C — 2026-11-12 — SYNTHETIC 7 DAILY + 4 WEEKLY SEALED VAULT (DRAFT, NO DEPLOY)
 
 **Owner GO:** 2026-11-12 after HIGH effort notification; one decision, source + GitHub Actions synthetic LAB only, separate merge gate. Initial master exactly `ac3d2a74ddfd5f27d112fc136b3aff09ba401e67`. Branch `feat/lot08-3-b2c-rotating-7d4w-synthetic-vault-20261112`. No changes to clinical runtime, key store, scheduler, patient data, migrations, real cabinet, or Vercel.
