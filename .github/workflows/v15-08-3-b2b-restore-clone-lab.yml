@@ -1,4 +1,4 @@
-name: LOT08.3-B2-B/C/D/E/F Queue vault kit and custody handoff FUE (NO DEPLOY)
+name: LOT08.3-B2-B/C/D/E/F/B3 Queue vault recovery and expired QR FUE (NO DEPLOY)
 
 on:
   pull_request:
@@ -10,6 +10,8 @@ on:
       - queue_core/service/retention_qr_08_3_b2_lab.py
       - queue_core/tests/test_retention_lab_08_3_b.py
       - queue_core/tests/test_retention_qr_08_3_b2_lab.py
+      - queue_core/service/retention_expired_qr_08_3_b3_lab.py
+      - queue_core/tests/test_retention_expired_qr_08_3_b3_lab.py
       - queue_core/service/backup_rotation_08_3_b2c_lab.py
       - queue_core/tests/test_backup_rotation_08_3_b2c_lab.py
       - queue_core/service/backup_rotation_recovery_08_3_b2d_lab.py
@@ -59,13 +61,14 @@ jobs:
             queue_core/tests/test_backup_rotation_recovery_08_3_b2d_lab.py \
             queue_core/tests/test_recovery_kit_08_3_b2e_lab.py \
             queue_core/tests/test_retention_qr_08_3_b2_lab.py \
+            queue_core/tests/test_retention_expired_qr_08_3_b3_lab.py \
             queue_core/tests/test_retention_lab_08_3_b.py \
-            --maxfail=1 --junitxml=lot08-3-b2f-${{ matrix.os }}.xml
+            --maxfail=1 --junitxml=lot08-3-b3-${{ matrix.os }}.xml
       - name: Upload native real JUnit (synthetic only)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lot08-3-b2f-restore-clone-${{ matrix.os }}-junit
-          path: lot08-3-b2f-${{ matrix.os }}.xml
+          name: lot08-3-b3-restore-clone-${{ matrix.os }}-junit
+          path: lot08-3-b3-${{ matrix.os }}.xml
           if-no-files-found: error
           retention-days: 14
