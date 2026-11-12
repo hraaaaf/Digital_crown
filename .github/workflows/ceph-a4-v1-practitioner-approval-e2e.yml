@@ -9,6 +9,8 @@ on:
       - backend/routers/patients.py
       - backend/tests/test_ceph_a4_descriptive_approval_v1.py
       - frontend/src/features/ortho/components/CephaloA4ApprovalV1.tsx
+      - frontend/src/features/ortho/components/CephaloA4ApprovalV1.test.tsx
+      - .github/workflows/ceph-odf-gui-sqlite-e2e.yml
       - frontend/src/features/ortho/components/Step4Documents.tsx
       - docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md
 permissions:
@@ -49,6 +51,8 @@ jobs:
             'backend/routers/patients.py',
             'backend/tests/test_ceph_a4_descriptive_approval_v1.py',
             'frontend/src/features/ortho/components/CephaloA4ApprovalV1.tsx',
+            'frontend/src/features/ortho/components/CephaloA4ApprovalV1.test.tsx',
+            '.github/workflows/ceph-odf-gui-sqlite-e2e.yml',
             'frontend/src/features/ortho/components/Step4Documents.tsx',
             'docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md',
           }
@@ -85,7 +89,7 @@ jobs:
         run: |
           npm ci --no-audit --no-fund
           npx tsc -p tsconfig.app.json --noEmit
-          npx vitest run src/features/ortho/components/Step4Documents.g4Interactive.test.tsx
+          npx vitest run src/features/ortho/components/Step4Documents.g4Interactive.test.tsx src/features/ortho/components/CephaloA4ApprovalV1.test.tsx
       - name: Cleanup and zero deployment
         if: always()
         run: |
