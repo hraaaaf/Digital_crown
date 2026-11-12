@@ -1,0 +1,95 @@
+name: CEPH A4 V1 Preview Print Archive-Hold (NO DEPLOY)
+on:
+  pull_request:
+    paths:
+      - .github/workflows/ceph-a4-v1-print-contract.yml
+      - frontend/src/features/ortho/stores/useOrthoStore.ts
+      - frontend/src/features/ortho/components/Step4Documents.tsx
+      - frontend/src/features/ortho/components/Step4Documents.g4Interactive.test.tsx
+      - frontend/scripts/capture-cephalo-r15-after.mjs
+      - frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs
+      - frontend/scripts/fue-ceph-p2ter-first-value.mjs
+      - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+      - backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
+      - docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md
+permissions:
+  contents: read
+concurrency:
+  group: ceph-a4-print-v1-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  v1-print-isolated-contract:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    env:
+      ENVIRONMENT: test
+      DIGITALCROWN_ISOLATED_RUNTIME: '1'
+      DATABASE_URL: sqlite:///:memory:
+      CLOUD_AI_ENABLED: 'false'
+      PRODUCT_HEAD: ${{ github.event.pull_request.head.sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Exact HEAD and 10 bounded paths, never a medical runtime
+        shell: python
+        run: |
+          import os, subprocess
+          def git(*a): return subprocess.check_output(['git', *a], text=True).strip()
+          assert git('rev-parse','HEAD') == os.environ['PRODUCT_HEAD']
+          base='cebc1aa70824d3132376c439b902adb0c664cce5'
+          changed=set(git('diff','--name-only',base,'HEAD').splitlines())
+          expected={
+            '.github/workflows/ceph-a4-v1-print-contract.yml',
+            'frontend/src/features/ortho/stores/useOrthoStore.ts',
+            'frontend/src/features/ortho/components/Step4Documents.tsx',
+            'frontend/src/features/ortho/components/Step4Documents.g4Interactive.test.tsx',
+            'frontend/scripts/capture-cephalo-r15-after.mjs',
+            'frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs',
+            'frontend/scripts/fue-ceph-p2ter-first-value.mjs',
+            'frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs',
+            'backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py',
+            'docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md',
+          }
+          assert changed == expected, (sorted(changed), sorted(expected))
+          print('CEPH_A4_V1_PRINT_EXACT_HEAD_AND_SCOPE_PASS')
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Synthetic V1 print never archive and hold tests
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check pytest==8.3.4
+          python -m pytest -q backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
+          python - <<'PY'
+          from pathlib import Path
+          source=Path('frontend/src/features/ortho/stores/useOrthoStore.ts').read_text()
+          printing=source.split('  handlePrint: async (',1)[1]
+          assert 'archive: true' not in printing
+          assert 'archive: false' in printing
+          ui=Path('frontend/src/features/ortho/components/Step4Documents.tsx').read_text()
+          assert 'Archivage suspendu' in ui
+          assert 'approbation traçable' in ui
+          print('CEPH_A4_PRINT_NEVER_ARCHIVE_AND_NO_FALSE_CLINICAL_RELEASE_PASS')
+          PY
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Locked frontend install and typecheck
+        working-directory: frontend
+        run: |
+          npm ci --no-audit --no-fund
+          npx tsc -p tsconfig.app.json --noEmit
+      - name: Existing Step 4 UI test and updated browser script syntax
+        working-directory: frontend
+        run: |
+          npx vitest run src/features/ortho/components/Step4Documents.g4Interactive.test.tsx
+          node --check scripts/capture-cephalo-r15-after.mjs
+          node --check scripts/capture-ceph-unsigned-a4-archive-hold.mjs
+          node --check scripts/fue-ceph-p2ter-first-value.mjs
+          node --check scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+          echo CEPH_A4_V1_PREVIEW_PRINT_ARCHIVE_HOLD_SYNTHETIC_PASS_NO_DEPLOY
