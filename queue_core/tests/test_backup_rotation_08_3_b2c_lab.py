@@ -56,9 +56,9 @@ def lab(tmp_path):
         session.flush()
         session.add(QueueEventRecord(
             id="EVENT_FAKE",tenant_id="T1",visit_ref="VISIT_T1",
-            aggregate_version=1,event_type="CHECK_IN",state_before="PLANNED",
+            aggregate_version=1,event_type="WAITING_ENTERED",state_before="PLANNED",
             state_after="WAITING",occurred_at_utc=NOW-timedelta(hours=3),
-            actor_kind="HUMAN",actor_ref="OP_SYNTH",
+            actor_kind="HUMAN",actor_ref="OP_SYNTH",method="STAFF",
         ))
         session.commit()
     engine.dispose()
