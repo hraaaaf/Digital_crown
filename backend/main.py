@@ -18,6 +18,7 @@ from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
+from fastapi.encoders import jsonable_encoder
 from sqlalchemy.exc import OperationalError
 
 from backend.core.runtime_safety import (
@@ -478,7 +479,11 @@ if os.environ.get("DIGITALCROWN_QUEUE_CORE_LAB_ENABLE") == "1":
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
     logger.error(f"Validation Error: {str(exc.errors())}")
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    # RequestValidationError.errors() may carry a ValueError instance in ctx.
+    # Direct JSONResponse(content=...) otherwise raises TypeError and converts a
+    # harmless invalid medical scale into HTTP 500 instead of the contract 422.
+    # FastAPI standard handler uses jsonable_encoder for this exact reason.
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(exc.errors())})
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):
