@@ -73,6 +73,9 @@ def _root_folder(path: str | Path, vault: Path | None = None,
             root == kit or root.is_relative_to(kit)
             or kit.is_relative_to(root)))):
         raise RestoreCloneLabError("CUSTODY_SYNTHETIC_ROOT_REQUIRED")
+    # POSIX local confidentiality. Not a Windows ACL or off-host custody proof.
+    if os.name == "posix" and (root.stat().st_mode & 0o077):
+        raise RestoreCloneLabError("CUSTODY_ROOT_PERMISSIONS_INVALID")
     return root
 
 
@@ -118,7 +121,8 @@ def _copy_verified(source: Path, target: Path, *, max_bytes: int,
         digest = sha256(blob).hexdigest()
         if expected_sha is not None and not hmac.compare_digest(digest, expected_sha):
             raise RestoreCloneLabError("CUSTODY_SOURCE_CHANGED")
-        with target.open("xb") as stream:
+        fd = os.open(str(target), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as stream:
             stream.write(blob)
             stream.flush()
             os.fsync(stream.fileno())
@@ -230,7 +234,8 @@ def prepare_custody_bundle_lab(
 
 def _copy_contents(blob: bytes, target: Path) -> None:
     try:
-        with target.open("xb") as stream:
+        fd = os.open(str(target), os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600)
+        with os.fdopen(fd, "wb") as stream:
             stream.write(blob)
             stream.flush()
             os.fsync(stream.fileno())
