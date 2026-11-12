@@ -22,6 +22,9 @@ from queue_core.service.retention_lab_08_3_b import (
     RetentionLabError, _verify_integrity, _verify_lab_file,
 )
 from queue_core.service.retention_qr_08_3_b2_lab import _require_g2_qr_schema
+from queue_core.service.retention_expired_qr_08_3_b3_lab import (
+    _require_existing_unconsumed_receipt_lab,
+)
 
 _MAGIC = b"LOT08_3_B2B_SEALED_QUEUE_V1\x00"
 _MAX_SQLITE_BYTES = 4 * 1024 * 1024
@@ -32,6 +35,7 @@ _ALLOWED_TABLES = frozenset({
     "queue_visit_resources", "queue_external_references", "queue_event_log",
     "queue_presence_qr_lab", "queue_retention_receipts_lab",
     "queue_qr_retention_receipts_lab",
+    "queue_qr_expired_unconsumed_receipts_lab",
 })
 
 
@@ -102,6 +106,11 @@ def _verify_queue_scope(conn: sqlite3.Connection) -> None:
             _require_g2_qr_schema(conn)
         except RetentionLabError as exc:
             raise RestoreCloneLabError(str(exc)) from None
+    if "queue_qr_expired_unconsumed_receipts_lab" in tables:
+        try:
+            _require_existing_unconsumed_receipt_lab(conn)
+        except RetentionLabError as exc:
+            raise RestoreCloneLabError(str(exc)) from None
     if conn.execute("SELECT count(*) FROM queue_tenants").fetchone()[0] < 1:
         raise RestoreCloneLabError("QUEUE_LAB_TENANT_REQUIRED")
 
@@ -131,6 +140,16 @@ def _disallow_overdue_personal_data(conn: sqlite3.Connection, now_epoch: int) ->
         (now_epoch - _QR_TTL, now_epoch),
     ).fetchone():
         raise RestoreCloneLabError("RESTORE_OVERDUE_QR_DENIED")
+    # B3: even a never-consumed QR is not restorable once expired. Reject the
+    # WHOLE stale clone rather than silently deleting it during recovery.
+    # Kiosk redemption already denies at now >= expires_epoch.
+    if has_qr and conn.execute(
+        "SELECT 1 FROM queue_presence_qr_lab WHERE consumed_epoch IS NULL "
+        "AND (typeof(expires_epoch)!='integer' OR expires_epoch < 0 "
+        "OR expires_epoch <= ?) LIMIT 1",
+        (now_epoch,),
+    ).fetchone():
+        raise RestoreCloneLabError("RESTORE_EXPIRED_UNCONSUMED_QR_DENIED")
 
 
 def _before_clone_publish() -> None:
