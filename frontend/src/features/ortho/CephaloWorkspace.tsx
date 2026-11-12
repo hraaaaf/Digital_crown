@@ -10,6 +10,7 @@ import React, {
   useState, useRef, useEffect, useLayoutEffect, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import {
   ChevronRight, ChevronLeft,
   Loader2, AlertCircle,
@@ -406,7 +407,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     );
   }
 
-  return (
+  const workspaceContent = (
     <div data-cephalo-focus={focusActive ? 'active' : 'inactive'}
       className={focusActive
         ? 'fixed inset-0 z-[450] flex min-w-0 h-[100dvh] w-screen flex-col overflow-hidden'
@@ -589,6 +590,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       </div>
     </div>
   );
+  // Portal bypasses transformed patient-shell ancestors: fixed truly means viewport.
+  return focusActive ? createPortal(workspaceContent, document.body) : workspaceContent;
 };
 
 export default CephaloWorkspace;
