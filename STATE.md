@@ -6,7 +6,17 @@
 
 # STATE — DigitalCrown
 
-## LOT08.3-B2-E — 2026-11-12 — ENCRYPTED SEPARATELY WITNESSED RECOVERY KIT, SYNTHETIC ONLY (DRAFT)
+## LOT08.3-B2-E — 2026-11-12 — POSTMERGE SOURCE/LAB VERIFIED (CURRENT READBACK)
+
+**Decision / scope:** distinct owner "Go" for [PR #1314](https://github.com/hraaaaf/Digital_crown/pull/1314) authorized a **squash merge of the synthetic-only source and tests**, not a clinical restore, installation, patient migration or deployment. Candidate tested HEAD `37d96f266b1e0fd9d6d5e1506467472291522950`; historical base master `12dc65e8ee517897e76b7d2e37af58236c6b771f`. GitHub reports PR #1314 **CLOSED / MERGED / not draft** on 2026-11-12. [Squash master commit `6adf3e0ba07df057cf909ff0eace5a44387d0e36`](https://github.com/hraaaaf/Digital_crown/commit/6adf3e0ba07df057cf909ff0eace5a44387d0e36) was independently read back as exact master HEAD at the postmerge check.
+
+**PROOF on candidate / merge:** all nine candidate workflows completed **8 SUCCESS, 1 SKIPPED M6-I out of scope, 0 FAILED / 0 ACTIVE**; [native Windows 2022 + Ubuntu 24.04 run #43201237861](https://github.com/hraaaaf/Digital_crown/actions/runs/43201237861) **79 PASS per OS**; [Queue Core #43201238025](https://github.com/hraaaaf/Digital_crown/actions/runs/43201238025) **298 PASS, 3 SKIP, 4 subtests PASS**; [Scope Gate #43201238041](https://github.com/hraaaaf/Digital_crown/actions/runs/43201238041) SUCCESS. Postmerge compare old master→squash commit **ahead 1, behind 0, four files only**: this `STATE.md`, `.github/workflows/v15-08-3-b2b-restore-clone-lab.yml`, `queue_core/service/recovery_kit_08_3_b2e_lab.py`, `queue_core/tests/test_recovery_kit_08_3_b2e_lab.py`. [Master push CI #43205609337](https://github.com/hraaaaf/Digital_crown/actions/runs/43205609337) **COMPLETED / SUCCESS** at exact squash SHA; both jobs **PostgreSQL 18 + immutable release invariants** and **Windows PowerShell 5.1 release guards** SUCCESS.
+
+**Scope / residual risks:** B2-B, B2-C, B2-D and B2-E are merged within the bounded **synthetic SQLite encrypted vault / restoration clone LAB** scope. This is NOT proof of independent physical storage, lost-machine TPM/DPAPI key custody, off-host durable latest SHA witness, atomic kit/witness rollover, real power loss, authentic clinic SQLCipher and media restore, RPO/RTO, security/privacy compliance or clinical recovery. **LOT08.3 remains OPEN**; LOT08.4–08.6 deferred. No Vercel, installer, cabinet deployment, patient data, clinical restore, or migration.
+
+**Next exact:** keep B2-E merged result and postmerge CI proof; this documentation-only addendum is a separate candidate pending its own PR merge gate. Next engineering decision **physical key/witness custody after loss of workstation** is **HIGH** and separately gated; define independent media, custody, recovery witness trust and fail-closed recovery under synthetic test before any cabinet integration. Canonical [Notion LOT08](https://app.notion.com/p/3ec77c66336281d59cdcffe610561f86?pvs=204). Earlier B2-E DRAFT content below is **historical premerge evidence**, not current status.
+
+## LOT08.3-B2-E — 2026-11-12 — ENCRYPTED SEPARATELY WITNESSED RECOVERY KIT, SYNTHETIC ONLY (HISTORICAL PREMERGE)
 
 **Owner GO:** explicit 2026-11-12 after HIGH effort warning for the next B2-E security scope (not a merge or clinical deployment GO). Exactly ONE decision: show loss of synthetic workstation source while retaining an encrypted Queue vault and separately handled recovery kit, then authenticate and restore only a NEW fake SQLite clone. Latest master baseline was `12dc65e8ee517897e76b7d2e37af58236c6b771f` after unrelated LOT05-2E merge; separate branch `feat/lot08-3-b2e-external-recovery-kit-lab-20261112`. No real patient data or cabinet media.
 
@@ -20,7 +30,7 @@
 
 **Scope limits / risk gates:** no hard independent media, hardware-backed monotonic counter, physical escrow key vault, Windows ACL protection, DPAPI/TPM, secure human key distribution, machine loss with simultaneous loss of vault+kit+witness, online password cracking resistance against weak phrases, antirollback if vault+kit+witness collectively rolled back, bounded concurrency/Windows fsync and real power failure, real clinic SQLCipher/media restore, RPO<=1h/RTO<=2h evidence, or CNDP/09-08 approvals. All remain OPEN and HIGH effort. No production/clinical changes, migration, deployment, Vercel, or PR merge without separate owner GO.
 
-**Current:** [PR #1314 DRAFT](https://github.com/hraaaaf/Digital_crown/pull/1314), OPEN, NO MERGE, NO DEPLOY. **Next exact:** check native 79/79 on both OS, Queue 298 PASS and all required GitHub workflows on the FINAL post-handover SHA, write Notion POST, then HOLD for distinct owner merge GO. Durable physical custody/atomic external witness rollover, actual Windows full-device restore, authentic SQLCipher/media/clinical data and RPO/RTO remain separate HIGH-risk gates.
+**Historical candidate status (superseded by current readback above):** [PR #1314 DRAFT](https://github.com/hraaaaf/Digital_crown/pull/1314), OPEN, NO MERGE, NO DEPLOY. **Next exact:** check native 79/79 on both OS, Queue 298 PASS and all required GitHub workflows on the FINAL post-handover SHA, write Notion POST, then HOLD for distinct owner merge GO. Durable physical custody/atomic external witness rollover, actual Windows full-device restore, authentic SQLCipher/media/clinical data and RPO/RTO remain separate HIGH-risk gates.
 
 
 ## LOT08.3-B2-D — 2026-11-12 — AUTHENTICATED ROTATION INTERRUPT RECOVERY, SYNTHETIC LAB
