@@ -1577,6 +1577,221 @@ def generate_cephalo_pdf(
         headers=headers,
     )
 
+
+# --- V1 CÉPHALOMÉTRIE : VALIDATION DESCRIPTIVE DU PRATICIEN ---
+# This is distinct from R11-R14 clinical diagnosis/treatment validation.
+from pydantic import BaseModel, ConfigDict, Field
+
+
+class CephaloA4PrepareV1(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    analysis_id: int = Field(strict=True, gt=0)
+    expected_revision: int = Field(strict=True, gt=0)
+
+
+class CephaloA4ArchiveV1(CephaloA4PrepareV1):
+    approval_token: str = Field(min_length=30, max_length=4096)
+    pdf_base64: str = Field(min_length=8, max_length=13_000_000)
+    approved: bool = Field(strict=True)
+
+
+@router.post("/{patient_id}/cephalo-a4/prepare")
+def prepare_descriptive_cephalo_a4_v1(
+    patient_id: int,
+    req: CephaloA4PrepareV1,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Return server-rendered candidate PDF and HMAC receipt; NO archive write."""
+    import base64
+    import hashlib
+    from pathlib import Path
+    from copy import deepcopy
+    from backend.routers.documents import doc_factory
+    from backend.services.cephalo_a4_approval_v1 import (
+        MAX_PDF_BYTES, make_approval_token, require_dentist,
+        require_descriptive_science, scientific_fingerprint,
+    )
+
+    require_dentist(current_user)
+    if not str(current_user.nom_complet or "").strip():
+        raise HTTPException(status_code=422, detail="Nom professionnel du praticien requis")
+    selected, revision = _bound_cephalo_study(
+        patient_id, req.analysis_id, req.expected_revision, db, current_user
+    )
+    require_descriptive_science(selected, patient_id=patient_id, revision=revision)
+    source_sha256 = scientific_fingerprint(selected)
+    patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    if patient is None:
+        raise HTTPException(status_code=404, detail="Patient introuvable")
+
+    # This private flag can only be supplied by the authorized server route.
+    analysis_data = {
+        "id": selected.id,
+        "image_path": selected.image_original_path,
+        "results": deepcopy(selected.angles_data or {}),
+        "landmarks": deepcopy(selected.landmarks_data),
+        "_descriptive_approval_candidate": True,
+    }
+    generated_path = None
+    try:
+        generated_path = Path(doc_factory.create_cephalo_report(
+            patient, analysis_data, db=db, user_id=current_user.id,
+        ))
+        pdf = generated_path.read_bytes()
+    finally:
+        # Candidate is never put into a patient archive or retained in a public
+        # documents folder. The browser holds it for the bounded review session.
+        if generated_path is not None:
+            generated_path.unlink(missing_ok=True)
+    if not pdf.startswith(b"%PDF") or len(pdf) > MAX_PDF_BYTES:
+        raise HTTPException(status_code=413, detail="PDF candidat invalide ou trop volumineux")
+    # Detect an edit while rendering; archive will also recheck under SQL lock.
+    db.expire_all()
+    selected, fresh_revision = _bound_cephalo_study(
+        patient_id, req.analysis_id, revision, db, current_user,
+    )
+    if fresh_revision != revision or scientific_fingerprint(selected) != source_sha256:
+        raise HTTPException(status_code=409, detail="Étude modifiée pendant la préparation du bilan")
+    digest = hashlib.sha256(pdf).hexdigest()
+    token = make_approval_token(
+        user=current_user, patient_id=patient_id, analysis_id=req.analysis_id,
+        revision=revision, source_sha256=source_sha256,
+        pdf_sha256=digest, pdf_length=len(pdf),
+    )
+    cabinet = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == current_user.get_employer_id()
+    ).first()
+    return {
+        "analysis_id": req.analysis_id,
+        "expected_revision": revision,
+        "practitioner_name": current_user.nom_complet,
+        "cabinet_stamp_name": str(cabinet.nom_cabinet or "") if cabinet else "",
+        "pdf_sha256": digest,
+        "pdf_base64": base64.b64encode(pdf).decode("ascii"),
+        "approval_token": token,
+        "document_kind": "CEPH_A4_DESCRIPTIVE_APPROVAL_V1",
+        "clinical_diagnosis_validated": False,
+    }
+
+
+@router.post("/{patient_id}/cephalo-a4/archive")
+def archive_descriptive_cephalo_a4_v1(
+    patient_id: int,
+    req: CephaloA4ArchiveV1,
+    db: Session = Depends(database.get_db),
+    current_user: models.User = Depends(require_permission("cephalo")),
+):
+    """Record explicit practitioner approval and immutable exact preview bytes."""
+    import hashlib
+    from datetime import datetime, timezone
+    from urllib.parse import quote
+    from backend.services.cephalo_a4_approval_v1 import (
+        VERSION, archive_payload_digest, decode_pdf, require_dentist,
+        require_descriptive_science, scientific_fingerprint, verify_approval_token,
+    )
+    from backend.services.cephalo_document_lock import (
+        already_archived_pdf, lock_selected_cephalo_for_archive,
+    )
+    from backend.services.archive_service import ArchiveService
+    from backend.services.document_provenance_context import (
+        set_document_author_practitioner_id, reset_document_author_practitioner_id,
+    )
+
+    require_dentist(current_user)
+    if req.approved is not True:
+        raise HTTPException(status_code=422, detail="Validation explicite du praticien requise")
+    pdf = decode_pdf(req.pdf_base64)
+    # Authorize patient/study prior to acquiring the writer lock.
+    _bound_cephalo_study(patient_id, req.analysis_id, req.expected_revision, db, current_user)
+    lock_selected_cephalo_for_archive(
+        db, patient_id=patient_id, analysis_id=req.analysis_id,
+    )
+    selected, revision = _bound_cephalo_study(
+        patient_id, req.analysis_id, req.expected_revision, db, current_user,
+    )
+    require_descriptive_science(selected, patient_id=patient_id, revision=revision)
+    source_sha256 = scientific_fingerprint(selected)
+    claims = verify_approval_token(
+        req.approval_token, user=current_user, patient_id=patient_id,
+        analysis_id=req.analysis_id, revision=revision,
+        source_sha256=source_sha256, pdf=pdf,
+    )
+    digest = claims["pdf_sha256"]
+    payload_digest = archive_payload_digest(
+        user_id=current_user.id, pdf_sha256=digest, source_sha256=source_sha256,
+    )
+    replay = already_archived_pdf(
+        db, patient_id=patient_id, analysis_id=req.analysis_id,
+        revision=revision, payload_digest=payload_digest,
+    )
+    if replay is not None:
+        _path, original = replay
+        if hashlib.sha256(original).hexdigest() != digest:
+            raise HTTPException(status_code=409, detail="L'archive existante diffère du PDF validé")
+        db.rollback()
+        return Response(
+            content=original, media_type="application/pdf",
+            headers={
+                "X-Cephalo-Analysis-Id": str(req.analysis_id),
+                "X-Cephalo-Revision": str(revision),
+                "X-Cephalo-Archive-Replayed": "true",
+            },
+        )
+
+    approved_at = datetime.now(timezone.utc).isoformat()
+    clinical_data = {
+        "document_kind": VERSION,
+        "cephalo_analysis_id": req.analysis_id,
+        "cephalo_analysis_revision": revision,
+        "cephalo_archive_payload_digest": payload_digest,
+        "approved_by_practitioner_id": current_user.id,
+        "approved_at_utc": approved_at,
+        "scientific_source_sha256": source_sha256,
+        "approved_pdf_sha256": digest,
+        "clinical_diagnosis_validated": False,
+    }
+    # Persist this audit event IN THE SAME SQL transaction as DocumentArchive.
+    # AuditService.log commits its own transaction; never call it here.
+    db.add(models.AuditLog(
+        user_id=current_user.id,
+        employer_id=current_user.get_employer_id(),
+        action="CEPH_A4_DESCRIPTIVE_APPROVED",
+        resource_type="CephaloAnalysis",
+        resource_id=str(req.analysis_id),
+        severity="INFO",
+        details=f"revision={revision};pdf_sha256={digest}",
+    ))
+    filename = f"CEPH_A4_{patient_id}_ETUDE_{req.analysis_id}_R{revision}_{digest[:12]}.pdf"
+    token = set_document_author_practitioner_id(current_user.id)
+    try:
+        document, _new_version = ArchiveService(db).archive_document(
+            patient_id=patient_id, file_content=pdf, filename=filename,
+            doc_type=models.DocumentType.RAPPORT_CEPHALO,
+            uploaded_by_id=current_user.id,
+            title=f"Bilan céphalométrique descriptif — étude {req.analysis_id}, révision {revision}",
+            tags=["CEPH_A4_DESCRIPTIVE_V1", "CLINICIAN_APPROVED"],
+            clinical_data=clinical_data, analysis_id=req.analysis_id,
+            is_accounted=False,
+        )
+    except ValueError as exc:
+        db.rollback()
+        raise HTTPException(status_code=409, detail="Conflit d'archivage céphalométrique") from exc
+    finally:
+        reset_document_author_practitioner_id(token)
+    if document.file_hash != digest or document.file_size != len(pdf):
+        raise HTTPException(status_code=409, detail="Archive et approbation non concordantes")
+    return Response(
+        content=pdf, media_type="application/pdf",
+        headers={
+            "Content-Disposition": "attachment; filename*=utf-8''" + quote(filename),
+            "X-Cephalo-Analysis-Id": str(req.analysis_id),
+            "X-Cephalo-Revision": str(revision),
+            "X-Cephalo-Archive-Replayed": "false",
+            "X-Cephalo-Archive-Id": str(document.id),
+        },
+    )
+
 # --- MASTER PLAN CLINIQUE ---
 
 @router.get("/{patient_id}/master-plan", response_model=Optional[schemas.TreatmentMasterPlanOut])
