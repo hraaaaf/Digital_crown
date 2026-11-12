@@ -18,6 +18,14 @@ on:
       - frontend/scripts/fue-ceph-p2ter-first-value.mjs
       - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
       - backend/main.py
+      - .github/workflows/ceph-a4-v1-practitioner-approval-e2e.yml
+      - backend/services/cephalo_a4_approval_v1.py
+      - backend/services/generators/cephalo_four_part_report.py
+      - backend/services/document_factory.py
+      - backend/routers/patients.py
+      - backend/tests/test_ceph_a4_descriptive_approval_v1.py
+      - frontend/src/features/ortho/components/CephaloA4ApprovalV1.tsx
+      - frontend/src/features/ortho/components/CephaloA4ApprovalV1.test.tsx
       - scripts/ceph_calibration_http_t2.py
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
       - scripts/ceph_odf_gui_sqlite_verify_t2.py
@@ -68,6 +76,14 @@ jobs:
              'backend/tests/test_ceph_a4_descriptive_attestation_s1.py',
              'docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md',
              'backend/main.py',
+             '.github/workflows/ceph-a4-v1-practitioner-approval-e2e.yml',
+             'backend/services/cephalo_a4_approval_v1.py',
+             'backend/services/generators/cephalo_four_part_report.py',
+             'backend/services/document_factory.py',
+             'backend/routers/patients.py',
+             'backend/tests/test_ceph_a4_descriptive_approval_v1.py',
+             'frontend/src/features/ortho/components/CephaloA4ApprovalV1.tsx',
+             'frontend/src/features/ortho/components/CephaloA4ApprovalV1.test.tsx',
              'scripts/ceph_calibration_http_t2.py',
              '.github/workflows/ceph-a4-v1-print-contract.yml',
              'backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py',
@@ -116,6 +132,7 @@ jobs:
         shell: bash
         run: |
           python -m pytest -q backend/tests/test_document_signature_p3.py
+          python -m pytest -q backend/tests/test_ceph_a4_descriptive_approval_v1.py
           python -m pytest -q backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
           python -m pytest -q -rx backend/tests/test_ceph_a4_descriptive_attestation_s1.py --junitxml=/tmp/ceph-a4-s1-junit.xml
           python - <<'PY'
@@ -139,7 +156,7 @@ jobs:
           npx playwright install --with-deps chromium
           node --check scripts/ceph-odf-gui-sqlite-e2e.mjs
           npx tsc -p tsconfig.app.json --noEmit
-          npx vitest run src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx src/features/patients/PatientDetails.g2Interactive.test.tsx src/features/ortho/components/Step4Documents.g4Interactive.test.tsx
+          npx vitest run src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx src/features/patients/PatientDetails.g2Interactive.test.tsx src/features/ortho/components/Step4Documents.g4Interactive.test.tsx src/features/ortho/components/CephaloA4ApprovalV1.test.tsx
       - name: Start independent T2 FastAPI and real local SQLite
         shell: bash
         run: |

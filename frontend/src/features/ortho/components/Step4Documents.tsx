@@ -9,6 +9,7 @@ import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { cephaloRepository } from '../cephaloRepository';
 import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { type CephaloArchiveValidation } from '../cephaloArchiveGate';
+import { CephaloA4ApprovalV1 } from './CephaloA4ApprovalV1';
 import { useOrthoStore, snapshotCephaloPdfClinicalInputs } from '../stores/useOrthoStore';
 
 interface Step4DocumentsProps {
@@ -369,7 +370,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
             <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
             <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Aperçu et impression sont disponibles sans archivage. Le document reste un brouillon tant que la validation du praticien n'est pas établie.</p>
             <p role="note" className="mb-3 text-center text-xs font-semibold leading-relaxed" style={{ color: P.textMuted }}>
-              Imprimer n'archive jamais le document. L'archivage officiel reste suspendu tant que la validation praticien n'est pas vérifiable.
+              Imprimer n'archive jamais le document. Le bilan clinique complet reste bloqué ; un bilan strictement descriptif peut être validé séparément par le praticien.
             </p>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <button onClick={handlePreviewBilan} disabled={isPreviewLoading || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
@@ -378,8 +379,12 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
               <button type="button" disabled aria-describedby="cephalo-a4-archive-hold" className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border cursor-not-allowed" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}><Archive size={20} />Archivage suspendu</button>
             </div>
             <p id="cephalo-a4-archive-hold" data-testid="unsigned-cephalo-archive-hold" role="status" className="mt-3 text-center text-xs leading-relaxed" style={{ color: P.textMuted }}>
-              Archivage officiel indisponible : le bilan A4 reste un brouillon non signé, non validé par le praticien. L'archivage V1 exigera une approbation traçable de la révision exacte du document. Aucune signature électronique avancée n'est requise.
+              Archivage du bilan clinique complet indisponible : le bilan A4 reste un brouillon non signé, non validé par le praticien. L'archivage V1 descriptif exige une approbation traçable de la révision exacte du document. Aucune signature électronique avancée n'est requise.
             </p>
+            <CephaloA4ApprovalV1
+              P={P}
+              disabled={isPreviewLoading || isBrouillon || isGenerating || isValidating || !hasCalibration || !landmarksOk || validation?.valid !== true || hasFatals}
+            />
           </div>
         </div>
       </div>
