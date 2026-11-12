@@ -8,6 +8,15 @@ on:
       - backend/tests/test_request_validation_422.py
       - backend/tests/test_ceph_a4_descriptive_attestation_s1.py
       - docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md
+      - .github/workflows/ceph-a4-v1-print-contract.yml
+      - backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
+      - frontend/src/features/ortho/stores/useOrthoStore.ts
+      - frontend/src/features/ortho/components/Step4Documents.tsx
+      - frontend/src/features/ortho/components/Step4Documents.g4Interactive.test.tsx
+      - frontend/scripts/capture-cephalo-r15-after.mjs
+      - frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs
+      - frontend/scripts/fue-ceph-p2ter-first-value.mjs
+      - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
       - backend/main.py
       - scripts/ceph_calibration_http_t2.py
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
@@ -60,6 +69,15 @@ jobs:
              'docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md',
              'backend/main.py',
              'scripts/ceph_calibration_http_t2.py',
+             '.github/workflows/ceph-a4-v1-print-contract.yml',
+             'backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py',
+             'frontend/src/features/ortho/stores/useOrthoStore.ts',
+             'frontend/src/features/ortho/components/Step4Documents.tsx',
+             'frontend/src/features/ortho/components/Step4Documents.g4Interactive.test.tsx',
+             'frontend/scripts/capture-cephalo-r15-after.mjs',
+             'frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs',
+             'frontend/scripts/fue-ceph-p2ter-first-value.mjs',
+             'frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs',
           }
           assert changed==expected,(changed,expected)
           print('CEPH_ODF_T2_TEST_ONLY_EXACT_SCOPE_PASS')
@@ -98,6 +116,7 @@ jobs:
         shell: bash
         run: |
           python -m pytest -q backend/tests/test_document_signature_p3.py
+          python -m pytest -q backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
           python -m pytest -q -rx backend/tests/test_ceph_a4_descriptive_attestation_s1.py --junitxml=/tmp/ceph-a4-s1-junit.xml
           python - <<'PY'
           from xml.etree import ElementTree as ET
@@ -120,7 +139,7 @@ jobs:
           npx playwright install --with-deps chromium
           node --check scripts/ceph-odf-gui-sqlite-e2e.mjs
           npx tsc -p tsconfig.app.json --noEmit
-          npx vitest run src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx src/features/patients/PatientDetails.g2Interactive.test.tsx
+          npx vitest run src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx src/features/patients/PatientDetails.g2Interactive.test.tsx src/features/ortho/components/Step4Documents.g4Interactive.test.tsx
       - name: Start independent T2 FastAPI and real local SQLite
         shell: bash
         run: |
