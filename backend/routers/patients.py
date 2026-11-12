@@ -1640,17 +1640,19 @@ def prepare_descriptive_cephalo_a4_v1(
         "landmarks": deepcopy(selected.landmarks_data),
         "_descriptive_approval_candidate": True,
     }
-    generated_path = None
-    try:
+    from tempfile import TemporaryDirectory
+    from backend.core.media_paths import get_media_root
+
+    private_root = get_media_root() / ".private_ceph_a4_preview_v1"
+    private_root.mkdir(parents=True, exist_ok=True, mode=0o700)
+    # Per-request scratch is always removed, even if PDF generation raises.
+    # Never expose a patient PDF in /static/documents or an unprotected URL.
+    with TemporaryDirectory(prefix="ceph-a4-", dir=private_root) as scratch:
         generated_path = Path(doc_factory.create_cephalo_report(
             patient, analysis_data, db=db, user_id=current_user.id,
+            output_dir=scratch,
         ))
         pdf = generated_path.read_bytes()
-    finally:
-        # Candidate is never put into a patient archive or retained in a public
-        # documents folder. The browser holds it for the bounded review session.
-        if generated_path is not None:
-            generated_path.unlink(missing_ok=True)
     if not pdf.startswith(b"%PDF") or len(pdf) > MAX_PDF_BYTES:
         raise HTTPException(status_code=413, detail="PDF candidat invalide ou trop volumineux")
     # Detect an edit while rendering; archive will also recheck under SQL lock.
