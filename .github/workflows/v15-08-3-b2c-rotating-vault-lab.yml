@@ -1,0 +1,61 @@
+name: LOT08.3-B2-C synthetic rotating vault 7D4W anti-rollback FUE (NO DEPLOY)
+
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/v15-08-3-b2c-rotating-vault-lab.yml'
+      - 'queue_core/service/backup_rotation_08_3_b2c_lab.py'
+      - 'queue_core/tests/test_backup_rotation_08_3_b2c_lab.py'
+      - 'queue_core/service/backup_restore_clone_08_3_b2_lab.py'
+      - 'queue_core/tests/test_backup_restore_clone_08_3_b2_lab.py'
+      - 'queue_core/service/retention_lab_08_3_b.py'
+      - 'queue_core/service/retention_qr_08_3_b2_lab.py'
+permissions:
+  contents: read
+jobs:
+  native-fue:
+    name: LAB 7D4W rotation / anti-resurrection (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-2022, ubuntu-24.04]
+    steps:
+      - name: Checkout exact contributor SHA
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Scope gate: exact SHA and no installer
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha }}"
+          test ! -f dist/DigitalCrownSetup.exe
+      - name: Install test-only pinned deps
+        shell: bash
+        run: |
+          python -m pip install --disable-pip-version-check \
+            'pytest==9.0.3' 'SQLAlchemy==2.0.28' \
+            'cryptography==49.0.0' 'tzdata==2025.2'
+      - name: Actual temp SQLite/Fernet 7+4 rotation and restore oracles
+        shell: bash
+        run: |
+          python -m pytest -q \
+            queue_core/tests/test_backup_rotation_08_3_b2c_lab.py \
+            queue_core/tests/test_backup_restore_clone_08_3_b2_lab.py \
+            queue_core/tests/test_retention_qr_08_3_b2_lab.py \
+            queue_core/tests/test_retention_lab_08_3_b.py \
+            --maxfail=1 --junitxml=lot08-3-b2c-${{ matrix.os }}.xml
+      - name: Preserve inspectable synthetic JUnit
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lot08-3-b2c-7d4w-${{ matrix.os }}-junit
+          path: lot08-3-b2c-${{ matrix.os }}.xml
+          if-no-files-found: error
+          retention-days: 14
