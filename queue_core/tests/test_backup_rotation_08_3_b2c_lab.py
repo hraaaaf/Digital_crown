@@ -341,3 +341,23 @@ def test_old_weekly_archive_cannot_resurrect_expired_consumed_qr(lab):
     _restore(lab,second.anchor,"daily",later.strftime("%Y-%m-%d"),later,clone=newest)
     assert _sql(newest,"SELECT count(*) FROM queue_presence_qr_lab")==[(0,)]
     assert _sql(newest,"SELECT id FROM queue_event_log")==[("EVENT_FAKE",)]
+
+
+def test_idle_vault_cannot_restore_archive_outside_calendar_retention(lab):
+    first = _rotate(lab,NOW)
+    later = NOW+timedelta(days=44)
+    year, week, _ = NOW.isocalendar()
+    old_week = f"{year}-W{week:02d}"
+    for slot, bucket in (
+        ("daily", NOW.strftime("%Y-%m-%d")),
+        ("weekly", old_week),
+    ):
+        clone = lab[1].parent/f"lot08_3_b_lab_restored_expired_{slot}.sqlite"
+        with pytest.raises(
+            RestoreCloneLabError,match="ROTATION_ARCHIVE_OUTSIDE_RETENTION_DENIED",
+        ):
+            _restore(lab,first.anchor,slot,bucket,later,clone=clone)
+        assert not clone.exists()
+    # A missed scheduler run does not automatically delete ciphertext.
+    # Physical cleanup in that case requires a separate maintenance gate.
+    assert len(list(lab[1].glob("*.fernet"))) == 2
