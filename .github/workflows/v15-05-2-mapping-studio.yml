@@ -14,13 +14,19 @@ permissions:
 
 jobs:
   mapping-draft-proof:
-    name: Offline Mapping Draft (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
+    name: Offline Mapping Draft (Python ${{ matrix.python }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
     strategy:
       fail-fast: false
       matrix:
-        python: ['3.12', '3.13']
+        include:
+          - os: ubuntu-latest
+            python: '3.12'
+          - os: ubuntu-latest
+            python: '3.13'
+          - os: windows-latest
+            python: '3.12'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -29,6 +35,7 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - name: Compile mapping and inspector without runtime DB imports
+        shell: bash
         run: |
           set -euo pipefail
           python -m compileall -q backend/services/legacy_sql_mapping_v15.py backend/services/legacy_sql_inspector_v15.py backend/tests/test_legacy_sql_mapping_v15.py
