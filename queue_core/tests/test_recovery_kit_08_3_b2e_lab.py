@@ -3,6 +3,7 @@
 Tests never use cabinet files, credentials, patient media, or real passwords.
 """
 from datetime import datetime, timedelta, timezone
+from base64 import b64decode, b64encode
 from hashlib import sha256
 import json
 import os
@@ -22,6 +23,8 @@ from queue_core.service.backup_restore_clone_08_3_b2_lab import RestoreCloneLabE
 from queue_core.service.retention_lab_08_3_b import (
     SYNTHETIC_LAB_APPLICATION_ID, retain_closed_visits_lab,
 )
+from queue_core.service.retention_qr_08_3_b2_lab import retain_consumed_qr_ledger_lab
+from queue_core.service.kiosk_qr_lab import _SCHEMA as QR_SCHEMA
 
 NOW = datetime(2030, 4, 1, 12, tzinfo=timezone.utc)
 PASSPHRASE = b"LAB_ONLY_RANDOM_LONG_PASSPHRASE_32_BYTES_FICTITIOUS"
@@ -337,3 +340,53 @@ def test_weak_or_invalid_passphrase_and_missing_kit_refused(lab):
         _seal(lab,first.anchor,phrase=b"password")
     with pytest.raises(RestoreCloneLabError,match="KIT_STATE_INVALID"):
         _restore(lab,"0"*64)
+
+
+def test_tampered_aead_ciphertext_cannot_be_authorized_by_new_sha_witness(lab):
+    first=_rotate(lab)
+    _seal(lab,first.anchor)
+    doc=json.loads(_sealed_path(lab).read_text())
+    ciphertext=bytearray(b64decode(doc["ciphertext"]))
+    ciphertext[-1] ^= 1
+    doc["ciphertext"]=b64encode(ciphertext).decode("ascii")
+    _sealed_path(lab).write_text(json.dumps(doc))
+    # Even if a wrong actor replaces the independent SHA witness, AEAD tag
+    # validation still refuses decryption without the recovery passphrase.
+    new_witness=sha256(_sealed_path(lab).read_bytes()).hexdigest()
+    with pytest.raises(RestoreCloneLabError,match="KIT_AUTHENTICATION_FAILED"):
+        _restore(lab,new_witness)
+    assert not (lab[1].parent/"lot08_3_b_lab_restored_from_kit.sqlite").exists()
+
+
+def test_old_weekly_kit_cannot_resurrect_expired_consumed_qr_receipt(lab):
+    source,vault,directory,backup_key,manifest_key=lab
+    epoch=int(NOW.timestamp())
+    with sqlite3.connect(source) as db:
+        # Keep the synthetic closed visit inside the 30-day window at +8d,
+        # so this scenario probes the independent QR 7-day anti-resurrection.
+        closed=(NOW-timedelta(days=3)).strftime("%Y-%m-%d %H:%M:%S.%f")
+        db.execute("UPDATE queue_visits SET closed_at_utc=? WHERE id='DONE_SYNTH'",(closed,))
+        db.executescript(QR_SCHEMA)
+        db.execute(
+            "INSERT INTO queue_presence_qr_lab "
+            "(qr_digest,tenant_id,queue_id,visit_id,expires_epoch,consumed_epoch,"
+            "consumed_device,request_digest,result_version,result_sequence) "
+            "VALUES (?,?,?,?,?,?,?,?,?,?)",
+            ("QR_FAKE_B2E", "T1", "Q1", "WAIT_SYNTH",
+             epoch-3600,epoch-86400,"DEV_FAKE","REQ_FAKE",1,1),
+        )
+    first=_rotate(lab)
+    receipt=_seal(lab,first.anchor)
+    later=NOW+timedelta(days=8)
+    assert retain_consumed_qr_ledger_lab(
+        source,"T1",now=later,execute=True,
+    ).eligible_receipts==1
+    second=_rotate(lab,later,first.anchor)
+    updated=_seal(lab,second.anchor,later,
+                  prior=receipt.witness_fingerprint,old_phrase=PASSPHRASE)
+    with pytest.raises(RestoreCloneLabError,match="RESTORE_OVERDUE_QR_DENIED"):
+        _restore(lab,updated.witness_fingerprint,later,
+                 slot="weekly",bucket="2030-W14")
+    assert not (vault.parent/"lot08_3_b_lab_restored_from_kit.sqlite").exists()
+    _,clone=_restore(lab,updated.witness_fingerprint,later)
+    assert _rows(clone,"SELECT count(*) FROM queue_presence_qr_lab")==[(0,)]
