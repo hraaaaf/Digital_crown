@@ -405,7 +405,7 @@ from queue_core.service import custody_handoff_08_3_b2f_lab as custody
 def _custody(lab, tmp_path, at=NOW, *, previous=None, phrase=PASSPHRASE,
              old_witness=None):
     root = tmp_path / "lot08_3_b_lab_custody_external_probe"
-    root.mkdir(exist_ok=True)
+    root.mkdir(mode=0o700, exist_ok=True)
     if old_witness is None:
         anchor = _rotate(lab, at).anchor
         sealed = _seal(lab, anchor, at, phrase=phrase)
@@ -507,7 +507,7 @@ def test_b2f_stage_interrupt_keeps_no_published_bundle(
     first = _rotate(lab)
     sealed = _seal(lab, first.anchor)
     root = tmp_path / "lot08_3_b_lab_custody_fault"
-    root.mkdir()
+    root.mkdir(mode=0o700)
     def fail():
         raise RuntimeError("synthetic power interruption before publish")
     monkeypatch.setattr(custody, "_before_bundle_publish_lab", fail)
@@ -533,7 +533,7 @@ def test_b2f_previous_receipt_cannot_authorize_new_generation(
     first = _rotate(lab)
     kit1 = _seal(lab, first.anchor)
     root = tmp_path / "lot08_3_b_lab_custody_generations"
-    root.mkdir()
+    root.mkdir(mode=0o700)
     receipt1 = custody.prepare_custody_bundle_lab(
         lab[1], lab[2], root, passphrase=PASSPHRASE,
         kit_witness=kit1.witness_fingerprint, now=NOW,
@@ -581,7 +581,7 @@ def test_b2f_non_lab_root_and_nested_source_refused(lab, tmp_path):
         lab[1] / "lot08_3_b_lab_custody_inside_vault",
     ]
     for root in roots:
-        root.mkdir()
+        root.mkdir(mode=0o700)
         with pytest.raises(RestoreCloneLabError, match="CUSTODY_SYNTHETIC_ROOT_REQUIRED"):
             custody.prepare_custody_bundle_lab(
                 lab[1], lab[2], root, passphrase=PASSPHRASE,
@@ -593,7 +593,7 @@ def test_b2f_wrong_initial_kit_witness_refuses_export(lab, tmp_path):
     first = _rotate(lab)
     _seal(lab, first.anchor)
     root = tmp_path / "lot08_3_b_lab_custody_witness_reject"
-    root.mkdir()
+    root.mkdir(mode=0o700)
     with pytest.raises(RestoreCloneLabError, match="KIT_EXTERNAL_WITNESS_MISMATCH"):
         custody.prepare_custody_bundle_lab(
             lab[1], lab[2], root, passphrase=PASSPHRASE,
@@ -617,7 +617,7 @@ def test_b2f_late_rotation_without_resealed_kit_refused(
     kit1 = _seal(lab, first.anchor)
     _rotate(lab, NOW + timedelta(days=1), first.anchor)
     root = tmp_path / "lot08_3_b_lab_custody_stale"
-    root.mkdir()
+    root.mkdir(mode=0o700)
     with pytest.raises(RestoreCloneLabError, match="ROTATION_ANCHOR_MISMATCH"):
         custody.prepare_custody_bundle_lab(
             lab[1], lab[2], root, passphrase=PASSPHRASE,
@@ -644,3 +644,35 @@ def test_b2f_forged_descriptor_fingerprint_cannot_authenticate_ciphertext(
     with pytest.raises(RestoreCloneLabError, match="KIT_AUTHENTICATION_FAILED|KIT_INVALID"):
         _custody_restore(receipt, tmp_path, external=forged)
     assert not (tmp_path / "lot08_3_b_lab_restored_custody.sqlite").exists()
+
+
+def test_b2f_posix_bundle_files_and_directories_are_private(lab, tmp_path):
+    if os.name != "posix":
+        pytest.skip("POSIX mode only; Windows ACL certification remains separate")
+    receipt = _custody(lab, tmp_path)
+    folders = [receipt.bundle, receipt.bundle.parent,
+               receipt.bundle / "lot08_3_b_lab_vault_handoff",
+               receipt.bundle / "lot08_3_b_lab_kit_handoff"]
+    for folder in folders:
+        assert (folder.stat().st_mode & 0o077) == 0
+    files = [receipt.bundle / "custody-descriptor.json"]
+    for folder in folders[2:]:
+        files.extend(path for path in folder.iterdir() if path.is_file())
+    for file in files:
+        assert (file.stat().st_mode & 0o077) == 0
+
+
+def test_b2f_posix_rejects_world_readable_custody_root(lab, tmp_path):
+    if os.name != "posix":
+        pytest.skip("POSIX root-mode guard only; Windows ACL remains separate")
+    first = _rotate(lab)
+    sealed = _seal(lab, first.anchor)
+    root = tmp_path / "lot08_3_b_lab_custody_insecure_permissions"
+    root.mkdir(mode=0o700)
+    root.chmod(0o755)
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_ROOT_PERMISSIONS_INVALID"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness=sealed.witness_fingerprint, now=NOW,
+        )
+    assert list(root.iterdir()) == []
