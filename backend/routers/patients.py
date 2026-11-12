@@ -1591,7 +1591,7 @@ class CephaloA4PrepareV1(BaseModel):
 
 class CephaloA4ArchiveV1(CephaloA4PrepareV1):
     approval_token: str = Field(min_length=30, max_length=4096)
-    pdf_base64: str = Field(min_length=8, max_length=13_000_000)
+    pdf_base64: str = Field(min_length=8, max_length=10_000_000)
     approved: bool = Field(strict=True)
 
 
@@ -1624,6 +1624,11 @@ def prepare_descriptive_cephalo_a4_v1(
     patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
     if patient is None:
         raise HTTPException(status_code=404, detail="Patient introuvable")
+    cabinet = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == current_user.get_employer_id()
+    ).first()
+    if not cabinet or not str(cabinet.nom_cabinet or "").strip():
+        raise HTTPException(status_code=422, detail="Cachet professionnel du cabinet à configurer avant validation")
 
     # This private flag can only be supplied by the authorized server route.
     analysis_data = {
@@ -1659,9 +1664,6 @@ def prepare_descriptive_cephalo_a4_v1(
         revision=revision, source_sha256=source_sha256,
         pdf_sha256=digest, pdf_length=len(pdf),
     )
-    cabinet = db.query(models.CabinetConfig).filter(
-        models.CabinetConfig.owner_id == current_user.get_employer_id()
-    ).first()
     return {
         "analysis_id": req.analysis_id,
         "expected_revision": revision,
