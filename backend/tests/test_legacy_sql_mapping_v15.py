@@ -64,6 +64,22 @@ def draft(s=None, t=None, decisions=None):
                                   profile_version=1)
 
 
+def forge_draft_checksum(original, decisions):
+    """Simulate a hostile local profile with a recomputed public digest."""
+    changed = replace(original, decisions=decisions)
+    payload = m._payload(
+        profile_version=changed.profile_version,
+        source_software=changed.source_software,
+        source_version=changed.source_version,
+        file_sha=changed.source_file_sha256,
+        source_sha=changed.source_schema_sha256,
+        target_sha=changed.target_schema_sha256,
+        target_revision=changed.target_schema_revision,
+        decisions=changed.decisions,
+    )
+    return replace(changed, profile_sha256=m._digest(payload))
+
+
 class TestMappingDraft(unittest.TestCase):
     def test_proposals_are_case_insensitive_exact_names_only(self):
         s = src(("PATIENTS", ("ID", "name", "unknown")))
@@ -196,6 +212,58 @@ class TestMappingDraft(unittest.TestCase):
         changed = replace(t, tables=t.tables + (m.TargetTable("invoices", ("id",)),))
         result = m.revalidate_mapping_draft(draft(), s, changed)
         self.assertIn("TARGET_SCHEMA_CHANGED", result.mismatches)
+
+    def test_revalidation_rejects_forged_checksum_with_secret_binding(self):
+        s, t, _ = setup()
+        original = draft()
+        edits = tuple(
+            replace(column, target_column="id")
+            if column.source_column == "password_hash" else column
+            for table in original.decisions if table.source_table == "patients"
+            for column in table.columns
+        )
+        forged_decisions = tuple(
+            replace(table, columns=edits) if table.source_table == "patients" else table
+            for table in original.decisions
+        )
+        forged = forge_draft_checksum(original, forged_decisions)
+        self.assertNotEqual(forged.profile_sha256, original.profile_sha256)
+        with self.assertRaisesRegex(I, "CREDENTIAL_MAPPING_FORBIDDEN"):
+            m.revalidate_mapping_draft(forged, s, t)
+
+    def test_revalidation_rejects_forged_checksum_with_target_collision(self):
+        s, t, _ = setup()
+        original = draft()
+        forged_decisions = tuple(
+            replace(table, target_table="patients",
+                    columns=tuple(replace(c, target_column=None) if c.source_column == "patient_id" else c
+                                  for c in table.columns))
+            if table.source_table == "appointments" else table
+            for table in original.decisions
+        )
+        with self.assertRaisesRegex(I, "TARGET_TABLE_COLLISION"):
+            m.revalidate_mapping_draft(forge_draft_checksum(original, forged_decisions), s, t)
+
+    def test_revalidation_rejects_forged_checksum_with_missing_table_review(self):
+        s, t, _ = setup()
+        original = draft()
+        forged = forge_draft_checksum(original, original.decisions[:-1])
+        with self.assertRaisesRegex(I, "TABLE_REVIEW_INCOMPLETE"):
+            m.revalidate_mapping_draft(forged, s, t)
+
+    def test_revalidation_rejects_forged_checksum_with_unknown_target_column(self):
+        s, t, _ = setup()
+        original = draft()
+        changed = tuple(
+            replace(table, columns=tuple(
+                replace(c, target_column="not_in_target")
+                if c.source_column == "name" else c
+                for c in table.columns))
+            if table.source_table == "patients" else table
+            for table in original.decisions
+        )
+        with self.assertRaisesRegex(I, "UNKNOWN_TARGET_COLUMN"):
+            m.revalidate_mapping_draft(forge_draft_checksum(original, changed), s, t)
 
     def test_profile_tampering_refused(self):
         s, t, _ = setup()
