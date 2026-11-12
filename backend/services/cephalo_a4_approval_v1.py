@@ -23,7 +23,7 @@ from backend.services.practitioner_policy import is_assignable_practitioner
 
 VERSION = "CEPH_A4_DESCRIPTIVE_APPROVAL_V1"
 TOKEN_SECONDS = 600
-MAX_PDF_BYTES = 12 * 1024 * 1024
+MAX_PDF_BYTES = 7 * 1024 * 1024
 _DOMAIN = b"DIGITAL_CROWN_CEPH_A4_DESCRIPTIVE_APPROVAL_V1\x00"
 
 
@@ -74,7 +74,7 @@ def require_descriptive_science(study, *, patient_id: int, revision: int) -> Non
     if not isinstance(landmarks, list) or len(landmarks) < 38:
         raise HTTPException(status_code=409, detail="Repères de l'étude incomplets")
     ids = [point.get("id") for point in landmarks if isinstance(point, dict)]
-    if len(ids) != len(landmarks) or len(set(ids)) != len(ids):
+    if len(ids) != len(landmarks) or any(not isinstance(item, str) or not item for item in ids) or len(set(ids)) != len(ids):
         raise HTTPException(status_code=409, detail="Repères incomplets ou dupliqués")
     result = cephalo_consistency_validator.validate(study.angles_data or {})
     if not result.is_valid:
