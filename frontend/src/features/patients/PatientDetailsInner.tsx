@@ -568,7 +568,7 @@ export const PatientDetails = () => {
                           aria-modal={cephaloFocusActive ? true : undefined}
                           aria-label={cephaloFocusActive ? 'Focus de tracé céphalométrique du patient' : undefined}
                           className={cephaloFocusActive
-                            ? 'cephalo-focus-mode fixed inset-0 z-[450] flex h-[100dvh] w-screen flex-col overflow-hidden bg-card-bg'
+                            ? 'cephalo-focus-mode fixed inset-y-0 right-0 left-[68px] z-[450] flex h-[100dvh] w-[calc(100vw-68px)] flex-col overflow-hidden bg-card-bg'
                             : 'min-w-0'}
                         >
                           <div className={cephaloFocusActive
