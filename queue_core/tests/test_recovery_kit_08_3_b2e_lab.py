@@ -66,8 +66,14 @@ def lab(tmp_path):
         ])
         session.commit()
     engine.dispose()
-    with sqlite3.connect(source) as conn:
+    # sqlite3.Connection used as a context manager commits but does NOT
+    # close the handle. Windows correctly refuses unlinking an open DB.
+    conn = sqlite3.connect(source)
+    try:
         conn.execute(f"PRAGMA application_id={SYNTHETIC_LAB_APPLICATION_ID}")
+        conn.commit()
+    finally:
+        conn.close()
     return source, vault, separate, Fernet.generate_key(), os.urandom(32)
 
 
