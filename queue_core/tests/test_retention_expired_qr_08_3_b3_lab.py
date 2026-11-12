@@ -347,9 +347,12 @@ def test_b3_vault_rotation_uses_same_fail_closed_restore_gate(lab, tmp_path):
     vault = tmp_path / "lot08_3_b_lab_vault_b3"
     vault.mkdir()
     backup_key, manifest_key = Fernet.generate_key(), os.urandom(32)
+    # Produce a genuinely restorable archived generation two seconds BEFORE
+    # the earliest pending token expires (B2-C verifies its clone pre-publish).
+    prior = NOW - timedelta(seconds=2)
     first = rotation.rotate_queue_vault_lab(
         lab, vault, backup_key=backup_key, manifest_key=manifest_key,
-        trusted_anchor=None, now=NOW,
+        trusted_anchor=None, now=prior,
     )
     b3.retain_expired_unconsumed_qr_lab(lab, "T1", now=NOW, execute=True)
     target = tmp_path / "lot08_3_b_lab_restored_vault_b3.sqlite"
