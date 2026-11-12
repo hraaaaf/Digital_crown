@@ -118,6 +118,42 @@ export const CephaloA4ApprovalV1: React.FC<{
     }
   }
 
+  function printPrepared() {
+    if (!prepared || !previewUrl || !acknowledged || busy) return;
+    // An explicit click opens a local PDF viewer; NEVER calls /archive.
+    const popup = window.open('', '_blank');
+    if (!popup) {
+      toast.error("Autorisez l'ouverture de la fenêtre d'impression."); return;
+    }
+    const raw = atob(prepared.pdf_base64);
+    const bytes = new Uint8Array(raw.length);
+    for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+    const printUrl = URL.createObjectURL(new Blob([bytes], { type:'application/pdf' }));
+    const doc = popup.document;
+    doc.title = "Bilan A4 descriptif — impression";
+    doc.body.replaceChildren();
+    doc.body.style.cssText = "margin:0;font-family:Arial,sans-serif;background:#f8fafc";
+    const toolbar = doc.createElement('div');
+    toolbar.style.cssText = "display:flex;align-items:center;gap:12px;padding:12px;background:white";
+    const button = doc.createElement('button');
+    button.type = 'button';
+    button.textContent = 'Imprimer le PDF';
+    const description = doc.createElement('span');
+    description.textContent = "Bilan descriptif vérifié par le praticien — impression sans archivage";
+    const frame = doc.createElement('iframe');
+    frame.src = printUrl;
+    frame.title = 'PDF céphalométrique descriptif à imprimer';
+    frame.style.cssText = 'display:block;width:100%;height:calc(100vh - 52px);border:0';
+    button.addEventListener('click', () => {
+      frame.contentWindow?.focus();
+      frame.contentWindow?.print();
+    });
+    toolbar.append(button, description);
+    doc.body.append(toolbar, frame);
+    popup.addEventListener('beforeunload', () => URL.revokeObjectURL(printUrl), { once:true });
+    popup.focus();
+  }
+
   async function archive() {
     if (!patientId || !analysisId || !prepared || !acknowledged || !snapshot || inFlight.current) return;
     if (prepared.analysis_id !== analysisId || snapshot !== scienceLocalSnapshot()) {
@@ -196,12 +232,19 @@ export const CephaloA4ApprovalV1: React.FC<{
             <input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} disabled={!!busy} />
             J'ai personnellement vérifié les repères, la calibration, les mesures et ce PDF descriptif exact.
           </label>
-          <button type="button" onClick={() => void archive()}
-            disabled={!acknowledged || !!busy || disabled} className="mt-3 inline-flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black text-white disabled:opacity-40"
-            style={{ background: P.accent }}>
-            {busy === 'archive' ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
-            Valider et archiver ce bilan A4
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={printPrepared}
+              disabled={!acknowledged || !!busy || disabled} className="mt-3 inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-black disabled:opacity-40"
+              style={{ borderColor: P.border, color: P.text }}>
+              Imprimer ce bilan A4
+            </button>
+            <button type="button" onClick={() => void archive()}
+              disabled={!acknowledged || !!busy || disabled} className="mt-3 inline-flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black text-white disabled:opacity-40"
+              style={{ background: P.accent }}>
+              {busy === 'archive' ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
+              Valider et archiver ce bilan A4
+            </button>
+          </div>
           <p className="mt-2 flex items-center gap-1 text-[10px]" style={{ color: P.textMuted }}>
             <CheckCircle2 size={12}/> Aucun archivage par l'action Imprimer. Validation enregistrée avec votre identité et la révision de l'étude.
           </p>
