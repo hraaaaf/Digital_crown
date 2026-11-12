@@ -7,6 +7,8 @@ await fs.mkdir(out, { recursive: true });
 const browser = await chromium.launch({ headless: true });
 const viewports = [
   { label: '390x844', width: 390, height: 844 },
+  { label: '430x932', width: 430, height: 932 },
+  { label: '768x900', width: 768, height: 900 },
   { label: '1280x900', width: 1280, height: 900 },
 ];
 const results = [];
@@ -45,6 +47,11 @@ try {
       fullPage: true, animations: 'disabled' });
 
     await page.goto('http://127.0.0.1:4195/migration-preview.html?filled=1', { waitUntil: 'networkidle' });
+    const provenance = await page.getByRole('note', { name: 'Provenance de la source offline' }).innerText();
+    if (!provenance.includes('Provenance non vérifiée') || !provenance.includes('sqlite-copy') ||
+        !provenance.includes('Import réel interdit')) throw new Error('Missing fail-closed provenance at '+vp.label);
+    await page.screenshot({ path: path.join(out, 'AFTER-SOURCE-'+vp.label+'.png'),
+      fullPage: true, animations: 'disabled' });
     await page.getByRole('button', { name: /Examiner les correspondances/ }).click();
     await page.getByRole('combobox', { name: 'Destination table patients' }).selectOption('patients');
     await page.getByRole('combobox', { name: 'Colonne patients.id' }).selectOption('id');

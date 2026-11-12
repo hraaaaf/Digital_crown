@@ -280,6 +280,12 @@ export function MigrationMappingStudio({ initialSource, initialTarget }: Props) 
         <p role="status" className="mt-3 text-xs text-text-muted">
           {source ? source.tables.length + ' tables · empreinte SHA ' + source.sourceSha256.slice(0,12) + '…' : 'Aucune source chargée'}
         </p>
+        <div role="note" aria-label="Provenance de la source offline" className="mt-3 rounded-xl border border-border-main bg-card-bg p-3 text-xs leading-relaxed text-text-muted">
+          <p className="font-bold text-text-main">Provenance non vérifiée</p>
+          <p className="mt-1">Seul un rapport JSON d’inventaire local est accepté à cette étape, jamais une base patient brute, un dump SQL ou une archive native.</p>
+          <p className="mt-1">{source ? 'Format déclaré : ' + source.sourceFormat + '. Empreinte communiquée par le rapport, non recalculée sur la copie originale.' : 'Chargez un rapport JSON synthétique autorisé pour consulter le format déclaré.'}</p>
+          <p className="mt-1 font-semibold">L’attestation opérateur et l’empreinte ne démontrent ni l’origine éditeur ni le droit d’importer. Import réel interdit.</p>
+        </div>
       </article>
       <article className={card}>
         <h2 className="text-lg font-black">2. Schéma cible</h2>

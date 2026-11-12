@@ -46,6 +46,26 @@ describe('LOT05.2-B1 Mapping Studio staff wizard', () => {
     expect(screen.getByRole('button', { name: /Examiner les correspondances/i })).not.toHaveProperty('disabled', true);
     expect(screen.queryByRole('button', { name: /Importer/i })).toBeNull();
   });
+  it('shows unverified source provenance without offering raw SQL or live import', () => {
+    launch();
+    const note = screen.getByRole('note', { name: 'Provenance de la source offline' });
+    expect(note.textContent).toContain('Provenance non vérifiée');
+    expect(note.textContent).toContain('sqlite-copy');
+    expect(note.textContent).toContain('non recalculée');
+    expect(note.textContent).toContain('Import réel interdit');
+    expect(screen.getByLabelText('Rapport source JSON')).toHaveProperty('accept', '.json,application/json');
+    expect(screen.queryByRole('button', { name: /^Importer/ })).toBeNull();
+  });
+  it('clears source provenance when a new unsupported raw file is selected', async () => {
+    launch();
+    const input = screen.getByLabelText('Rapport source JSON');
+    const raw = new File(['SQLite format 3'], 'dump.sqlite', { type: 'application/octet-stream' });
+    Object.defineProperty(raw, 'text', { value: async () => 'SQLite format 3' });
+    fireEvent.change(input, { target: { files: [raw] } });
+    await waitFor(() => expect(screen.getByRole('alert').textContent).toContain('Fichier JSON invalide'));
+    expect(screen.getByRole('note', { name: 'Provenance de la source offline' }).textContent).toContain('Chargez un rapport JSON');
+    expect((screen.getByRole('button', { name: /Examiner les correspondances/i }) as HTMLButtonElement).disabled).toBe(true);
+  });
   it('makes exact-name suggestions visible but never pre-selects them', () => {
     launch(); review();
     expect(screen.getAllByText('Suggestion : patients').length).toBeGreaterThan(0);
