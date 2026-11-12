@@ -240,7 +240,7 @@ jobs:
             "test_legacy_sql_real_orm_scratch_v15.py:10" \
             "test_legacy_sql_synthetic_dryrun_v15.py:19" \
             "test_legacy_sql_migration_scenarios_v15.py:12" \
-            "test_legacy_sql_mapping_v15.py:25" \
+            "test_legacy_sql_mapping_v15.py:29" \
             "test_legacy_sql_target_manifest_v15.py:25"; do
             name="${item%%:*}"
             count="${item##*:}"
