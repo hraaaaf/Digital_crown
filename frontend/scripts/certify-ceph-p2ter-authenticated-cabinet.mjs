@@ -171,7 +171,7 @@ async function viewportRun(viewport){
   if(!await page.getByRole('button',{name:'Brouillon PDF'}).isEnabled())
     throw Error('Draft should remain available with official archive suspended');
   const reason=await page.getByTestId('unsigned-cephalo-archive-hold').innerText();
-  if(!/brouillon non signé/i.test(reason) || !/signature vérifiable/i.test(reason))
+  if(!/brouillon non signé/i.test(reason) || !/approbation traçable/i.test(reason))
     throw Error('Unsigned archive suspension is not explained to clinician');
   await suspended.scrollIntoViewIfNeeded();
   await shot('archive-suspended-explained');
