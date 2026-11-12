@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - backend/tests/test_ceph_manual_calibration_e2e_gate.py
+      - backend/tests/test_ceph_a4_descriptive_attestation_s1.py
+      - docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md
       - .github/workflows/ceph-manual-calibration-e2e.yml
 permissions:
   contents: read
@@ -26,17 +28,21 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Exact SHA and test-only change scope
+      - name: Exact SHA and S1 contract-only change scope
         shell: python
         run: |
           import subprocess,os
           def git(*a): return subprocess.check_output(['git',*a],text=True).strip()
           assert git('rev-parse','HEAD')==os.environ['PRODUCT_HEAD']
-          base='bfd71a8ae3a2e71b6fcb517633ffdc9b6e6493f8'
+          base='31f798412dd7423662740d7f5e0de47dd6696783'
           actual=set(git('diff','--name-only',base,'HEAD').splitlines())
-          expected={'.github/workflows/ceph-manual-calibration-e2e.yml','backend/tests/test_ceph_manual_calibration_e2e_gate.py'}
+          expected={
+            '.github/workflows/ceph-manual-calibration-e2e.yml',
+            'backend/tests/test_ceph_a4_descriptive_attestation_s1.py',
+            'docs/audits/CEPH_BILAN_A4_DESCRIPTIF_SIGNATURE_20261112.md',
+          }
           assert actual==expected,(actual,expected)
-          print('CEPH_CALIBRATION_TEST_ONLY_SCOPE_PASS')
+          print('CEPH_A4_S1_TEST_DOC_ONLY_SCOPE_PASS_NO_MEDICAL_RUNTIME')
       - uses: actions/setup-python@v5
         with:
           python-version: '3.12'
@@ -54,8 +60,25 @@ jobs:
         run: python -m pytest -q backend/tests/test_cephalo_auto_calibration_route.py backend/tests/test_cephalo_repository_calibration_invariants.py
       - name: Real manual SQLite tests including mandatory provenance gate
         run: python -m pytest -q backend/tests/test_ceph_manual_calibration_e2e_gate.py
+      - name: S1 — P3 baseline and explicitly unresolved cephalometric signature gates
+        shell: bash
+        run: |
+          python -m pytest -q backend/tests/test_document_signature_p3.py
+          python -m pytest -q -rx backend/tests/test_ceph_a4_descriptive_attestation_s1.py --junitxml=/tmp/ceph-a4-s1-junit.xml
+          python - <<'PY'
+          from xml.etree import ElementTree as ET
+          root=ET.parse('/tmp/ceph-a4-s1-junit.xml').getroot()
+          cases=list(root.iter('testcase'))
+          xfails=[skip for case in cases for skip in case.findall('skipped')]
+          unexpected=[case for case in cases if case.findall('failure') or case.findall('error')]
+          assert len(cases)==9,(len(cases),'expected 4 existing safe + 5 open')
+          assert len(xfails)==5,(len(xfails),'5 missing medical signature guards must remain tracked')
+          assert all(skip.attrib.get('type')=='pytest.xfail' for skip in xfails)
+          assert not unexpected, 'Cannot silently accept failing baseline or XPASS'
+          print('CEPH_A4_S1_4_PASS_5_EXPECTED_XFAIL_CONTRACT_ONLY_NO_SIGNING')
+          PY
       - name: No patient data or deployment
         if: always()
         run: |
-          rm -f /tmp/ceph-calib-req.txt
+          rm -f /tmp/ceph-calib-req.txt /tmp/ceph-a4-s1-junit.xml
           echo CEPH_CALIBRATION_SYNTHETIC_SQLITE_IN_MEMORY_NO_DEPLOY
