@@ -329,17 +329,18 @@ def test_b3_cloned_snapshot_exact_expiry_boundary_now_minus_one_allowed(lab, tmp
     assert not at.exists()
 
 
-def test_b3_restore_fails_if_receipt_guard_was_removed(lab, tmp_path):
+def test_b3_seal_rejects_missing_receipt_guard_before_archive_creation(lab, tmp_path):
     b3.retain_expired_unconsumed_qr_lab(lab, "T1", now=NOW, execute=True)
     with sqlite3.connect(lab) as conn:
         conn.execute("DROP TRIGGER queue_qr_expired_unconsumed_no_delete")
     archive = tmp_path / "lot08_3_b_lab_backup_b3_altered_receipt.fernet"
     clone = tmp_path / "lot08_3_b_lab_restored_b3_altered_receipt.sqlite"
     key = Fernet.generate_key()
-    backup.seal_queue_snapshot_lab(lab, archive, key=key, now=NOW)
+    # Stronger early failure: the source cannot even be sealed while its
+    # append-only evidence is mutable; no archive and no clone may be created.
     with pytest.raises(backup.RestoreCloneLabError, match="QR_UNUSED_RECEIPT_GUARD_REQUIRED"):
-        backup.restore_queue_clone_lab(archive, clone, key=key, now=NOW)
-    assert not clone.exists()
+        backup.seal_queue_snapshot_lab(lab, archive, key=key, now=NOW)
+    assert not archive.exists() and not clone.exists()
 
 
 def test_b3_vault_rotation_uses_same_fail_closed_restore_gate(lab, tmp_path):
