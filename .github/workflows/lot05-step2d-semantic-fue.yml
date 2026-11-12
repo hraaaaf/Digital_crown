@@ -7,6 +7,8 @@ on:
       - 'backend/tests/test_lot05_step2d_semantic_oracle_fue.py'
       - 'backend/services/legacy_migration_csv_mapping_lab_v15.py'
       - 'backend/services/legacy_sql_mapping_v15.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/services/legacy_migration_csv_preview_v15.py'
       - '.github/workflows/lot05-step2d-semantic-fue.yml'
   workflow_dispatch:
 
