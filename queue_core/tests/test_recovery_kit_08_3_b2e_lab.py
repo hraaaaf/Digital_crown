@@ -676,3 +676,34 @@ def test_b2f_posix_rejects_world_readable_custody_root(lab, tmp_path):
             kit_witness=sealed.witness_fingerprint, now=NOW,
         )
     assert list(root.iterdir()) == []
+
+
+def test_b2f_unresolved_rotation_journal_refuses_custody_export(lab, tmp_path):
+    first = _rotate(lab)
+    sealed = _seal(lab, first.anchor)
+    (lab[1] / ".lot08_3_b_lab_rotation_journal.json").write_bytes(b"synthetic_pending")
+    root = tmp_path / "lot08_3_b_lab_custody_journal_refusal"
+    root.mkdir(mode=0o700)
+    with pytest.raises(RestoreCloneLabError, match="ROTATION_RECOVERY_REQUIRED"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness=sealed.witness_fingerprint, now=NOW,
+        )
+    assert list(root.iterdir()) == []
+
+
+def test_b2f_symlink_in_source_vault_fails_closed(lab, tmp_path):
+    if os.name != "posix":
+        pytest.skip("POSIX symlink injection; Windows link permissions vary")
+    first = _rotate(lab)
+    sealed = _seal(lab, first.anchor)
+    malicious = lab[1] / "unknown-lab-archive"
+    malicious.symlink_to(lab[1] / "manifest.json")
+    root = tmp_path / "lot08_3_b_lab_custody_symlink_refusal"
+    root.mkdir(mode=0o700)
+    with pytest.raises(RestoreCloneLabError, match="CUSTODY_UNSAFE_SOURCE"):
+        custody.prepare_custody_bundle_lab(
+            lab[1], lab[2], root, passphrase=PASSPHRASE,
+            kit_witness=sealed.witness_fingerprint, now=NOW,
+        )
+    assert list(root.iterdir()) == []
