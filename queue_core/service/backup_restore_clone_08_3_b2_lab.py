@@ -32,6 +32,7 @@ _ALLOWED_TABLES = frozenset({
     "queue_visit_resources", "queue_external_references", "queue_event_log",
     "queue_presence_qr_lab", "queue_retention_receipts_lab",
     "queue_qr_retention_receipts_lab",
+    "queue_qr_expired_unconsumed_receipts_lab",
 })
 
 
@@ -131,6 +132,16 @@ def _disallow_overdue_personal_data(conn: sqlite3.Connection, now_epoch: int) ->
         (now_epoch - _QR_TTL, now_epoch),
     ).fetchone():
         raise RestoreCloneLabError("RESTORE_OVERDUE_QR_DENIED")
+    # B3: even a never-consumed QR is not restorable once expired. Reject the
+    # WHOLE stale clone rather than silently deleting it during recovery.
+    # Kiosk redemption already denies at now >= expires_epoch.
+    if has_qr and conn.execute(
+        "SELECT 1 FROM queue_presence_qr_lab WHERE consumed_epoch IS NULL "
+        "AND (typeof(expires_epoch)!='integer' OR expires_epoch < 0 "
+        "OR expires_epoch <= ?) LIMIT 1",
+        (now_epoch,),
+    ).fetchone():
+        raise RestoreCloneLabError("RESTORE_EXPIRED_UNCONSUMED_QR_DENIED")
 
 
 def _before_clone_publish() -> None:
