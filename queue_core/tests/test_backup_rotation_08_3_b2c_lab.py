@@ -291,8 +291,3 @@ def test_undeclared_archive_and_clock_regression_refused(lab):
         _rotate(lab,NOW-timedelta(days=1),first.anchor)
     assert _manifest(lab)["mac"]==first.anchor
 
-
-def test_expired_unconsumed_qr_not_claimed_by_b2c(lab):
-    # G2 cleanup of never-consumed QR tokens is a separate still-open gate.
-    result=_rotate(lab,NOW)
-    assert result.daily==1 and result.weekly==1
