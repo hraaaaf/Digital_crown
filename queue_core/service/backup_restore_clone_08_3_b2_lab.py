@@ -22,6 +22,9 @@ from queue_core.service.retention_lab_08_3_b import (
     RetentionLabError, _verify_integrity, _verify_lab_file,
 )
 from queue_core.service.retention_qr_08_3_b2_lab import _require_g2_qr_schema
+from queue_core.service.retention_expired_qr_08_3_b3_lab import (
+    _require_existing_unconsumed_receipt_lab,
+)
 
 _MAGIC = b"LOT08_3_B2B_SEALED_QUEUE_V1\x00"
 _MAX_SQLITE_BYTES = 4 * 1024 * 1024
@@ -101,6 +104,11 @@ def _verify_queue_scope(conn: sqlite3.Connection) -> None:
     if "queue_presence_qr_lab" in tables:
         try:
             _require_g2_qr_schema(conn)
+        except RetentionLabError as exc:
+            raise RestoreCloneLabError(str(exc)) from None
+    if "queue_qr_expired_unconsumed_receipts_lab" in tables:
+        try:
+            _require_existing_unconsumed_receipt_lab(conn)
         except RetentionLabError as exc:
             raise RestoreCloneLabError(str(exc)) from None
     if conn.execute("SELECT count(*) FROM queue_tenants").fetchone()[0] < 1:
