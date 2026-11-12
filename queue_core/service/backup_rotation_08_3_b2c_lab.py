@@ -18,6 +18,8 @@ import re
 import tempfile
 from uuid import uuid4
 
+from cryptography.fernet import InvalidToken
+
 from queue_core.service.backup_restore_clone_08_3_b2_lab import (
     RestoreCloneLabError, _fernet, _now_epoch, restore_queue_clone_lab,
     seal_queue_snapshot_lab,
@@ -105,7 +107,10 @@ def _safe_archive(vault: Path, name: str, *, exists: bool) -> Path:
 
 def _read_catalog(
     vault: Path, key: bytes, trusted_anchor: str | None, epoch: int,
+    *, backup_key: bytes,
 ) -> dict:
+    # Refuse silently mixing generations encrypted with different keys.
+    cipher = _fernet(backup_key)
     manifest = vault / "manifest.json"
     if manifest.is_symlink():
         raise RestoreCloneLabError("ROTATION_MANIFEST_INVALID")
@@ -158,8 +163,13 @@ def _read_catalog(
             archive = _safe_archive(vault, name, exists=True)
             if archive.stat().st_size > _MAX_ARCHIVE_BYTES:
                 raise ValueError("size")
-            if sha256(archive.read_bytes()).hexdigest() != digest:
+            ciphertext = archive.read_bytes()
+            if sha256(ciphertext).hexdigest() != digest:
                 raise RestoreCloneLabError("ROTATION_ARCHIVE_TAMPERED")
+            try:
+                cipher.decrypt(ciphertext)
+            except InvalidToken:
+                raise RestoreCloneLabError("ROTATION_BACKUP_KEY_MISMATCH") from None
         if (counts["daily"] > _DAILY_KEEP or counts["weekly"] > _WEEKLY_KEEP
             or max(e["epoch"] for e in payload["entries"]) != payload["latest_epoch"]):
             raise ValueError("bounds")
@@ -213,7 +223,7 @@ def rotate_queue_vault_lab(
         raise RestoreCloneLabError(str(exc)) from None
     if source_path.is_relative_to(location):
         raise RestoreCloneLabError("ROTATION_SOURCE_IN_VAULT_DENIED")
-    current = _read_catalog(location, manifest_key, trusted_anchor, stamp)
+    current = _read_catalog(location, manifest_key, trusted_anchor, stamp, backup_key=backup_key)
     if current["latest_epoch"] > stamp:
         raise RestoreCloneLabError("ROTATION_CLOCK_REGRESSION")
     daily, weekly = _bucket(stamp, "daily"), _bucket(stamp, "weekly")
@@ -298,7 +308,7 @@ def restore_queue_vault_clone_lab(
     _keys(backup_key, manifest_key)
     stamp = _now_epoch(now)
     location = _vault_folder(vault)
-    payload = _read_catalog(location, manifest_key, trusted_anchor, stamp)
+    payload = _read_catalog(location, manifest_key, trusted_anchor, stamp, backup_key=backup_key)
     matching = [e for e in payload["entries"]
                 if e["slot"] == slot and e["bucket"] == bucket]
     if len(matching) != 1:
