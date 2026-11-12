@@ -10,10 +10,11 @@ import React, {
   useState, useRef, useEffect, useLayoutEffect, useMemo,
 } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { createPortal } from 'react-dom';
 import {
   ChevronRight, ChevronLeft,
   Loader2, AlertCircle,
-  Save
+  Save, Minimize2, Maximize2, AlertTriangle
 } from 'lucide-react';
 import type {
   StepId
@@ -44,11 +45,14 @@ import toast from 'react-hot-toast';
 export interface CephaloWorkspaceProps {
   patientId: number;
   patientName: string;
+  /** The source dossier medical-history warning must never disappear behind focus. */
+  hasMedicalHistoryWarning?: boolean;
 }
 
 export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   patientId,
   patientName,
+  hasMedicalHistoryWarning = false,
 }) => {
   const store = useOrthoStore();
   const [themeRevision, setThemeRevision] = useState(0);
@@ -56,6 +60,13 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
   const [patientData, setPatientData] = useState<{ age: number; sexe: 'M' | 'F' } | null>(null);
   const [patientDataError, setPatientDataError] = useState(false);
   const [viewMode, setViewMode] = useState<'studio' | 'history'>('studio');
+  // Exact Desktop Cabinet route mounts the studio; start image-first only where
+  // a real pointer workspace fits. Escape/explicit button always restores dossier.
+  const [focusTracing, setFocusTracing] = useState(() =>
+    typeof window !== 'undefined' &&
+    typeof window.matchMedia === 'function' &&
+    window.matchMedia('(min-width: 1280px)').matches
+  );
   const historySelectionVersion = useRef(0);
 
   const resolveImageSrc = (imagePath?: string) => {
@@ -195,6 +206,7 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     step, completedSteps, goToStep, uploadError,
     setEtape3Data
   } = store;
+  const focusActive = focusTracing && step === 1 && viewMode === 'studio';
 
   // READINESS-01: display verified input facts, never infer clinical sign-off
   // from study existence, landmark count, calibration, or successful PUT.
@@ -281,6 +293,22 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [store.isStep1Fullscreen]);
+
+  useEffect(() => {
+    if (!focusActive) return;
+    const before = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape' && !store.isStep1Fullscreen) {
+        setFocusTracing(false);
+      }
+    };
+    window.addEventListener('keydown', onEscape);
+    return () => {
+      document.body.style.overflow = before;
+      window.removeEventListener('keydown', onEscape);
+    };
+  }, [focusActive, store.isStep1Fullscreen]);
 
   useEffect(() => {
     if (store.isStep1Fullscreen) {
@@ -379,8 +407,12 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
     );
   }
 
-  return (
-    <div className="flex min-w-0 flex-col h-full overflow-x-hidden" style={{ background: P.bg }}>
+  const workspaceContent = (
+    <div data-cephalo-focus={focusActive ? 'active' : 'inactive'}
+      className={focusActive
+        ? 'fixed inset-0 z-[450] flex min-w-0 h-[100dvh] w-screen flex-col overflow-hidden'
+        : 'flex min-w-0 flex-col h-full overflow-x-hidden'}
+      style={{ background: P.bg }}>
       <AnimatePresence>
         {showStep2Blocker && (
           <Step2BlockerModal
@@ -414,12 +446,27 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      <div className="flex flex-col gap-3 border-b px-4 py-3 sm:px-6 md:flex-row md:flex-wrap md:items-center md:justify-between" style={{ borderColor: P.border, background: P.bgPanel }}>
+      <div className={focusActive
+        ? 'flex shrink-0 flex-wrap items-center justify-between gap-2 border-b px-4 py-2'
+        : 'flex flex-col gap-3 border-b px-4 py-3 sm:px-6 md:flex-row md:flex-wrap md:items-center md:justify-between'}
+        style={{ borderColor: P.border, background: P.bgPanel }}>
         <div className="min-w-0">
           <h2 data-ortho-workspace-title className="text-lg font-bold leading-tight" style={{ color: P.text }}>Céphalométrie</h2>
           <p data-ortho-workspace-patient className="text-xs leading-snug" style={{ color: P.textMuted }}>{patientName} {analysisId ? <span data-cephalo-selected-analysis-id={analysisId}>· Étude #{analysisId}</span> : '· Aucune étude sélectionnée'}</p>
         </div>
         <div className="flex min-w-0 flex-wrap items-center gap-2 sm:gap-3">
+          <button
+            type="button"
+            data-cephalo-focus-toggle
+            aria-pressed={focusActive}
+            aria-label={focusActive ? 'Quitter le mode Focus tracé et revenir au dossier' : 'Ouvrir le mode Focus tracé'}
+            className="flex min-h-11 shrink-0 items-center gap-1.5 rounded-lg border px-3 text-xs font-bold"
+            onClick={() => setFocusTracing(value => !value)}
+            style={{ borderColor: P.border, color: P.text, background: P.bgCard }}
+          >
+            {focusActive ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+            {focusActive ? 'Retour au dossier' : 'Focus tracé'}
+          </button>
           <div className="flex shrink-0 rounded-xl p-1" style={{ background: P.bgInput, border: `1px solid ${P.border}` }}>
              <button type="button" aria-pressed={viewMode === 'studio'} onClick={() => setViewMode('studio')} className="min-h-9 rounded-lg px-3 text-xs font-bold transition-all" style={{ background: viewMode === 'studio' ? P.bgCard : 'transparent', color: viewMode === 'studio' ? P.text : P.textMuted, boxShadow: viewMode === 'studio' ? P.shadow : 'none' }}>Actuel</button>
              <button type="button" aria-pressed={viewMode === 'history'} onClick={() => setViewMode('history')} className="min-h-9 rounded-lg px-3 text-xs font-bold transition-all" style={{ background: viewMode === 'history' ? P.bgCard : 'transparent', color: viewMode === 'history' ? P.text : P.textMuted, boxShadow: viewMode === 'history' ? P.shadow : 'none' }}>Historique</button>
@@ -441,20 +488,33 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         </div>
       </div>
 
+      {focusActive && hasMedicalHistoryWarning && (
+        <div role="alert" data-cephalo-focus-medical-warning className="flex shrink-0 items-center gap-2 border-b px-4 py-2 text-xs font-bold"
+          style={{ background: P.bgPanel, borderColor: P.accentError, color: P.accentError }}>
+          <AlertTriangle size={16} /> Antécédents médicaux signalés · Consulter le dossier pour les détails avant tout soin
+        </div>
+      )}
+
       {step === 1 && viewMode === 'studio' && (
         <section
           data-cephalo-readiness
           aria-label="État clinique factuel de l'étude céphalométrique"
-          className="mx-4 mt-3 rounded-xl border p-3 sm:mx-6"
+          className={focusActive
+            ? 'mx-4 mt-2 shrink-0 rounded-xl border px-3 py-2'
+            : 'mx-4 mt-3 rounded-xl border p-3 sm:mx-6'}
           style={{ borderColor: P.border, background: P.bgPanel }}
         >
-          <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+          <div className={focusActive
+            ? 'flex flex-wrap items-center justify-between gap-2'
+            : 'mb-2 flex flex-wrap items-center justify-between gap-2'}>
             <h3 className="text-sm font-bold" style={{ color: P.text }}>État de l'étude</h3>
             <span data-cephalo-readiness-gate className="text-xs font-bold" style={{ color: P.accentWarning }}>
               Brouillon · aucun bilan clinique validé par cette action
             </span>
           </div>
-          <div className="flex max-w-full snap-x gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 xl:grid-cols-5">
+          <div className={focusActive
+            ? 'sr-only'
+            : 'flex max-w-full snap-x gap-2 overflow-x-auto pb-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:pb-0 xl:grid-cols-5'}>
             {readinessItems.map(item => (
               <div key={item.key} data-cephalo-readiness-item={item.key} className="w-48 min-w-48 shrink-0 snap-start rounded-lg border px-3 py-2 sm:w-auto sm:min-w-0" style={{ borderColor: P.border, background: P.bgCard }}>
                 <div className="text-[11px] font-bold" style={{ color: P.text }}>{item.title}</div>
@@ -470,7 +530,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         Dans les corrections de repères : Ctrl ou Commande plus Z pour annuler, Ctrl ou Commande plus Maj plus Z pour rétablir.
         Échap quitte le plein écran.
       </p>
-      <div data-tour="cephalo-stepper" aria-label="Étapes du chantier céphalométrique" aria-describedby="cephalo-keyboard-help" className="flex max-w-full flex-wrap items-center gap-2 px-4 py-3 sm:px-6" style={{ background: P.bg }}>
+      <div data-tour="cephalo-stepper" aria-label="Étapes du chantier céphalométrique" aria-describedby="cephalo-keyboard-help" className={focusActive
+        ? 'flex max-w-full shrink-0 flex-wrap items-center gap-2 px-4 py-1.5'
+        : 'flex max-w-full flex-wrap items-center gap-2 px-4 py-3 sm:px-6'} style={{ background: P.bg }}>
         <StepTab id={1} label="Céphalométrie" isActive={step === 1} isCompleted={completedSteps.has(1)} onClick={() => goToStep(1)} P={P} />
         <ChevronRight size={16} style={{ color: P.textDim, opacity: 0.5 }} />
         <StepTab id={2} label="Moulages" isActive={step === 2} isCompleted={completedSteps.has(2)} onClick={() => goToStep(2)} P={P} />
@@ -491,7 +553,9 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
         )}
       </AnimatePresence>
 
-      <div ref={scrollContainerRef} className="min-w-0 flex-1 overflow-auto p-3 scroll-smooth sm:p-6" style={{ background: P.bg }}>
+      <div ref={scrollContainerRef} className={focusActive
+        ? 'min-h-0 min-w-0 flex-1 overflow-y-auto overflow-x-hidden p-2'
+        : 'min-w-0 flex-1 overflow-auto p-3 scroll-smooth sm:p-6'} style={{ background: P.bg }}>
         <div className={`mx-auto w-full min-w-0 ${workspaceWidthClass}`}>
           {viewMode === 'studio' ? (
             <>
@@ -526,6 +590,8 @@ export const CephaloWorkspace: React.FC<CephaloWorkspaceProps> = ({
       </div>
     </div>
   );
+  // Portal bypasses transformed patient-shell ancestors: fixed truly means viewport.
+  return focusActive ? createPortal(workspaceContent, document.body) : workspaceContent;
 };
 
 export default CephaloWorkspace;
