@@ -203,6 +203,19 @@ def test_real_authenticated_prepare_archive_replay_and_exact_sqlite_proof(
     from backend.services.cephalo_document_lock import verified_official_archive_bytes
     assert verified_official_archive_bytes(row, db) == pdf
 
+    # The document must be discoverable in the patient's real Cabinet dossier
+    # and read only through the authenticated SHA-verifying route, not raw static.
+    listed = client.get(f"/api/patients/{patient.id}/documents", headers=headers)
+    assert listed.status_code == 200, listed.text[:400]
+    selected = next(
+        item for item in listed.json()
+        if str(item.get("id")) == str(row.id)
+    )
+    assert selected["url"] == f"/api/documents/{row.id}/download"
+    downloaded = client.get(selected["url"], headers=headers)
+    assert downloaded.status_code == 200
+    assert downloaded.content == pdf
+
 
 def test_authenticated_rejection_without_validation_and_on_pdf_tamper(
     client, db, dentiste, monkeypatch, tmp_path,
