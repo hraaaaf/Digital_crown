@@ -146,7 +146,7 @@ describe('Cephalo Step4 G4 document controls',()=>{
     expect(official.disabled).toBe(true);
     expect(draft.disabled).toBe(false);
     expect(screen.getByTestId('unsigned-cephalo-archive-hold').textContent)
-      .toMatch(/signature vérifiable du document exact/i);
+      .toMatch(/approbation traçable de la révision exacte/i);
   });
 
   it('refreshes coherence validation only when explicitly requested',async()=>{
