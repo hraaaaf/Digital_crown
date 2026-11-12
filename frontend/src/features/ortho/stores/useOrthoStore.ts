@@ -783,47 +783,62 @@ export const useOrthoStore = create<OrthoState>((set, get) => ({
     if (get().isPrinting || get().isPreviewLoading) {
       throw new Error("Une opération PDF est déjà en cours pour cette étude.");
     }
+    // Open synchronously from the click, before the asynchronous server request:
+    // browsers may block a popup opened after an await.
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      throw new Error("Autorisez l'ouverture de la fenêtre d'impression du PDF.");
+    }
     set({ isPrinting: true });
     const stillSelected = () => get().analysisId === s.analysisId && get().patientId === s.patientId;
     try {
+      const clinicalSnapshot = snapshotCephaloPdfClinicalInputs(s);
       const bound = prevalidatedSource ?? await prepareBoundCephaloDocumentSource(
         s.patientId, s.analysisId, stillSelected, () => s.silentSave(s.analysisId, true),
         () => { const live = get(); return { landmarks: live.local.landmarks, mmPerPixel: live.mmPerPixel }; },
       );
       if (!stillSelected() || bound.analysis_id !== s.analysisId) {
-        throw new Error("Le PDF ne correspond pas à l'étude prévalidée.");
+        throw new Error("L'étude a changé pendant la préparation de l'impression.");
       }
-      const receipt = await cephaloRepository.generatePDFWithReceipt(s.patientId, {
-        ...bound, ...snapshotCephaloPdfClinicalInputs(s), archive: true,
+      // PRINT is never archive. The server response must have exact study and
+      // revision headers, enforced in generatePDF().
+      const data = await cephaloRepository.generatePDF(s.patientId, {
+        ...bound, ...clinicalSnapshot, archive: false,
       });
-      const status = receipt.replayed
-        ? "Archive existante réutilisée sans modification"
-        : "Nouvelle archive enregistrée";
-      // A committed server archive is not a failure merely because Cabinet
-      // switched to study B before receiving study A's HTTP 200.
-      if (!stillSelected()) {
-        toast.success(`${status} pour l'étude ${bound.analysis_id} (révision ${bound.expected_revision}).`);
-        return;
+      if (!stillSelected()) throw new Error("L'étude a changé pendant la génération du PDF.");
+      const pdfUrl = URL.createObjectURL(new Blob([data], { type: 'application/pdf' }));
+      if (printWindow.closed) {
+        URL.revokeObjectURL(pdfUrl);
+        throw new Error("La fenêtre d'impression a été fermée.");
       }
-      const url = URL.createObjectURL(new Blob([receipt.blob], { type: 'application/pdf' }));
-      const userChoice = window.confirm(
-        `${status} pour l'étude ${bound.analysis_id}.\n\n` +
-        '• OK = Ouvrir dans un nouvel onglet (pour imprimer)\n' +
-        '• Annuler = Télécharger le fichier'
-      );
-      if (userChoice) {
-        window.open(url, '_blank');
-      } else {
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `Bilan_COM_${s.patientName.replace(/\s+/g, '_')}.pdf`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-      }
+      // Keep a readable PDF viewer as fallback if an embedded PDF printer is
+      // unavailable. No patient data is sent to an external site.
+      const page = printWindow.document;
+      page.title = 'Bilan A4 — Impression du brouillon';
+      page.body.replaceChildren();
+      page.body.style.cssText = 'margin:0;background:#f8fafc;font-family:Arial,sans-serif';
+      const toolbar = page.createElement('div');
+      toolbar.style.cssText = 'padding:12px;display:flex;align-items:center;gap:12px;background:white';
+      const label = page.createElement('span');
+      label.textContent = 'Bilan A4 — brouillon non validé cliniquement';
+      const printButton = page.createElement('button');
+      printButton.textContent = 'Imprimer le PDF';
+      printButton.type = 'button';
+      const frame = page.createElement('iframe');
+      frame.title = 'Bilan céphalométrique A4 à imprimer';
+      frame.src = pdfUrl;
+      frame.style.cssText = 'display:block;border:0;width:100%;height:calc(100vh - 52px)';
+      printButton.addEventListener('click', () => {
+        frame.contentWindow?.focus();
+        frame.contentWindow?.print();
+      });
+      toolbar.append(label, printButton);
+      page.body.append(toolbar, frame);
+      printWindow.addEventListener('beforeunload', () => URL.revokeObjectURL(pdfUrl), { once: true });
+      printWindow.focus();
+      toast.success('PDF ouvert : choisissez « Imprimer le PDF ». Aucune archive créée.');
     } catch (e) {
-      console.error('[Print] Erreur:', e);
-      // A stale failure for prior study A must not be displayed over study B.
+      if (!printWindow.closed) printWindow.close();
       if (stillSelected()) throw e;
     } finally {
       set({ isPrinting: false });

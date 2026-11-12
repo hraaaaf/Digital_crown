@@ -80,3 +80,17 @@ Le lot **CEPH-BILAN-A4-SIGNATURE-01** ne sera « VERIFIED » que lorsque (1) un 
 **Choix technique :** étendre **avec un garde céphalo explicite** la chaîne P3 existante, en réutilisant sa vérification de l'intégrité et de l'identité auteur ; ne pas créer un second moteur P3 parallèle, ni assimiler l'acte documentaire au R14. Les primitives à associer à la relecture verrouillée de `CephaloAnalysis` et au digest de contenu/notes doivent être évaluées **avant** toute écriture S2. Préférer un rejet strict pour tout `RAPPORT_CEPHALO` sans reçu exact accepté. Une migration reste une décision humaine séparée.
 
 **GATE S1 :** un pipeline vert contenant `XFAIL` prouve la **traçabilité des trous contractuels**, **PAS** la réussite de la signature ; un `XPASS(strict)` non analysé est un défaut de cohérence du protocole, pas une certification automatique.
+
+## 10. Décision V1 révisée — Aperçu / Imprimer OU Archiver (12 novembre 2026)
+
+**Décision propriétaire :** pas de signature manuscrite, de PAdES ni de signature qualifiée obligatoires dans la V1. La cible de workflow est désormais **Analyse → Correction → Validation explicite du praticien → Aperçu du bilan A4 → Imprimer OU Archiver**, avec le nom et le cachet du praticien autorisé. **Imprimer ne crée aucune archive**. Archiver est un acte distinct et doit conserver les octets exacts du PDF approuvé, son empreinte SHA-256, la révision scientifique, l'auteur, les droits et l'historique.
+
+**Incrément S2A réalisé sur branche isolée (non clinique, non mergé) :**
+- Le `handlePrint` de `frontend/src/features/ortho/stores/useOrthoStore.ts` envoyait auparavant `archive:true` : cette confusion impression/archivage est corrigée pour utiliser exclusivement `archive:false`, avec contrôle de l'étude et révision exactes. Le PDF s'ouvre dans une fenêtre locale avec un bouton explicite « Imprimer le PDF ». Aucune écriture `DocumentArchive` ne découle du clic imprimer.
+- `Step4Documents.tsx` rend les actions **Prévisualiser / Imprimer / Brouillon PDF / Archivage suspendu** explicites. Le bouton d'archive officiel reste désactivé : le serveur ne possède pas encore la validation descriptive attestée du praticien. Ne pas faire passer ce verrou pour une fonctionnalité complète.
+- Le texte de l'UI précise qu'une **approbation traçable** suffira dans le futur flux V1, et qu'aucune signature électronique avancée n'est exigée. Les tests et captures qui s'appuyaient sur le libellé historique sont mis en cohérence sans enlever le refus d'archive.
+- Les nouveaux tests `backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py` gardent les invariants print=archive:false, cohérence patient/étude, refus archive tant que validation absente, R14 inchangé.
+
+**Gates encore ouverts :** la validation praticien backend, la production d'un bilan final non-brouillon et l'archivage transactionnel immuable avec preuve PDF sont **NON IMPLÉMENTÉS** dans S2A ; ne jamais les simuler côté frontend. Les cinq XFAIL S1 liés à la signature applicative doivent être revisités selon la nouvelle décision V1, et non activés en aveugle. Réutiliser les champs/transactions P3 lorsque leur sécurité est prouvée, mais ne pas rendre une signature avancée obligatoire.
+
+**Next exact :** vérifier exact-HEAD TypeScript, tests existants et nouveau contrat d'impression ; ensuite définir et implémenter **S2B validation praticien + archivage officiel** comme lot distinct, sous revue de sécurité, sans migration ni activation médicale implicite.
