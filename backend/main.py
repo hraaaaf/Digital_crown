@@ -15,6 +15,7 @@ from backend.env_loader import load_backend_env
 load_backend_env(override=False)
 from fastapi import FastAPI, Request, HTTPException, Response
 from fastapi.responses import JSONResponse
+from fastapi.encoders import jsonable_encoder
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.exceptions import RequestValidationError
@@ -477,8 +478,14 @@ if os.environ.get("DIGITALCROWN_QUEUE_CORE_LAB_ENABLE") == "1":
 # --- EXCEPTION HANDLERS ---
 @app.exception_handler(RequestValidationError)
 async def validation_exception_handler(request: Request, exc: RequestValidationError):
-    logger.error(f"Validation Error: {str(exc.errors())}")
-    return JSONResponse(status_code=422, content={"detail": exc.errors()})
+    # Pydantic v2 may include a ValueError in ctx.error; raw errors are not JSON-safe.
+    # Log only field locations/types: request input may contain protected patient data.
+    errors = exc.errors()
+    logger.warning("Request validation rejected: %s", [
+        {"type": error.get("type"), "loc": error.get("loc")}
+        for error in errors
+    ])
+    return JSONResponse(status_code=422, content={"detail": jsonable_encoder(errors)})
 
 @app.exception_handler(HTTPException)
 async def http_exception_handler(request: Request, exc: HTTPException):

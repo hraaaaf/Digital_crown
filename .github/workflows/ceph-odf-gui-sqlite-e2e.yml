@@ -5,6 +5,8 @@ on:
       - .github/workflows/ceph-odf-gui-sqlite-e2e.yml
       - .github/workflows/ceph-manual-calibration-e2e.yml
       - backend/tests/test_ceph_manual_calibration_e2e_gate.py
+      - backend/tests/test_request_validation_422.py
+      - backend/main.py
       - scripts/ceph_calibration_http_t2.py
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
       - scripts/ceph_odf_gui_sqlite_verify_t2.py
@@ -35,7 +37,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
           fetch-depth: 0
           persist-credentials: false
-      - name: Verify exact head, isolated diff and no change to medical runtime
+      - name: Verify exact head and bounded validation-handler change
         shell: python
         run: |
           import os,subprocess
@@ -51,6 +53,8 @@ jobs:
              'frontend/src/features/patients/PatientDetailsInner.tsx',
              '.github/workflows/ceph-manual-calibration-e2e.yml',
              'backend/tests/test_ceph_manual_calibration_e2e_gate.py',
+             'backend/tests/test_request_validation_422.py',
+             'backend/main.py',
              'scripts/ceph_calibration_http_t2.py',
           }
           assert changed==expected,(changed,expected)
@@ -85,7 +89,7 @@ jobs:
       - name: Existing automatic calibration regression and real manual SQLite gate
         run: |
           python -m pytest -q backend/tests/test_cephalo_auto_calibration_route.py backend/tests/test_cephalo_repository_calibration_invariants.py
-          python -m pytest -q backend/tests/test_ceph_manual_calibration_e2e_gate.py
+          python -m pytest -q backend/tests/test_ceph_manual_calibration_e2e_gate.py backend/tests/test_request_validation_422.py
       - name: Install locked frontend and real Chromium
         working-directory: frontend
         shell: bash
