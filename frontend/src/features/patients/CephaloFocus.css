@@ -1,0 +1,27 @@
+/* CEPH-ODF-FOCUS-01: only the authenticated Cabinet focus layer.
+   The source-locked Céphalo readiness and tracing components remain untouched. */
+@media (min-width: 1280px) {
+  .cephalo-focus-mode [data-cephalo-readiness] {
+    margin: 4px 8px;
+    padding: 6px 10px;
+  }
+  .cephalo-focus-mode [data-cephalo-readiness] > div:first-child {
+    margin-bottom: 3px;
+  }
+  .cephalo-focus-mode [data-cephalo-readiness-item] {
+    padding: 4px 7px;
+  }
+  .cephalo-focus-mode [data-cephalo-readiness-item] > div.mt-1 {
+    margin-top: 2px;
+  }
+  .cephalo-focus-mode [data-tour="cephalo-stepper"] {
+    padding-top: 4px;
+    padding-bottom: 4px;
+  }
+  .cephalo-focus-mode [data-ortho-workspace-title] {
+    line-height: 1.15;
+  }
+  .cephalo-focus-mode [data-r20-radiograph-stage] {
+    scroll-margin-top: 8px;
+  }
+}

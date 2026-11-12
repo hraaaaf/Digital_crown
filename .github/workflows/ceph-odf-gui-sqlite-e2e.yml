@@ -6,6 +6,8 @@ on:
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
       - scripts/ceph_odf_gui_sqlite_verify_t2.py
       - frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs
+      - frontend/src/features/patients/CephaloFocus.css
+      - frontend/src/features/patients/PatientDetailsInner.tsx
 permissions:
   contents: read
 concurrency:
@@ -36,13 +38,14 @@ jobs:
           import os,subprocess
           def git(*args): return subprocess.check_output(['git',*args],text=True).strip()
           assert git('rev-parse','HEAD')==os.environ['PRODUCT_HEAD']
-          source='ca99f0560902a636c0c3edb2e39dde18e067a948'
+          source='ea31689f3f19e091287372d6456c98161814dc2d'
           changed=set(git('diff','--name-only',source,'HEAD').splitlines())
           expected={
              '.github/workflows/ceph-odf-gui-sqlite-e2e.yml',
              'scripts/ceph_odf_gui_sqlite_seed_t2.py',
-             'scripts/ceph_odf_gui_sqlite_verify_t2.py',
              'frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs',
+             'frontend/src/features/patients/CephaloFocus.css',
+             'frontend/src/features/patients/PatientDetailsInner.tsx',
           }
           assert changed==expected,(changed,expected)
           print('CEPH_ODF_T2_TEST_ONLY_EXACT_SCOPE_PASS')
@@ -81,6 +84,8 @@ jobs:
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
           node --check scripts/ceph-odf-gui-sqlite-e2e.mjs
+          npx tsc -p tsconfig.app.json --noEmit
+          npx vitest run src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx src/features/patients/PatientDetails.g2Interactive.test.tsx
       - name: Start independent T2 FastAPI and real local SQLite
         shell: bash
         run: |

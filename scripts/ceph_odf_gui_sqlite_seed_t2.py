@@ -38,6 +38,7 @@ with database.SessionLocal() as db:
         date_naissance=datetime(1990, 1, 1), sexe="M", employer_id=user.id,
         telephone="0600000000", email="ceph-odf-synthetic@example.com",
         assurance="AUCUNE",
+        antecedents_medicaux="ALERTE SYNTHETIQUE D'ESSAI — AUCUNE DONNEE CLINIQUE REELLE",
     )
     # The real patient serializer uses EmailStr; a reserved .invalid suffix
     # fails validation even for a synthetic patient and obscures the E2E result.
