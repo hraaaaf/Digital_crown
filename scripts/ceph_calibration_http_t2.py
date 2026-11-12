@@ -103,6 +103,15 @@ with httpx.Client(base_url="http://127.0.0.1:8005", timeout=35.0) as client:
     check(login.status_code == 200, "AUTHENTICATED_LOGIN_HTTP_200")
     bearer = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {bearer}"}
+    # The Cabinet authentication contract has a separate local-workstation
+    # enrollment gate. httpx.Client retains the workstation cookie for all
+    # subsequent authenticated calibrations just as the real UI does.
+    station = client.post(
+        "/api/workstation/enroll",
+        json={"accountPassword": os.environ["T2_PASSWORD"]},
+        headers=headers,
+    )
+    check(200 <= station.status_code < 300, "AUTHENTICATED_WORKSTATION_ENROLL_2XX")
     def response_context(resp):
         try:
             detail = resp.json().get("detail", "<none>")
