@@ -36,26 +36,31 @@ def _after_first_unconsumed_delete_lab() -> None:
     """Fault injection. Roll back every deletion and its aggregate receipt."""
 
 
+def _require_existing_unconsumed_receipt_lab(conn: sqlite3.Connection) -> None:
+    """Read-only schema/guard check for already committed aggregate receipts."""
+    columns = tuple(row[1] for row in conn.execute(
+        f"PRAGMA table_info({_RECEIPT_TABLE})"
+    ))
+    if columns != _RECEIPT_COLUMNS:
+        raise RetentionLabError("QR_UNUSED_RECEIPT_SCHEMA_MISMATCH")
+    guards = {row[0] for row in conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name=?",
+        (_RECEIPT_TABLE,),
+    )}
+    if not {
+        "queue_qr_expired_unconsumed_no_update",
+        "queue_qr_expired_unconsumed_no_delete",
+    } <= guards:
+        raise RetentionLabError("QR_UNUSED_RECEIPT_GUARD_REQUIRED")
+
+
 def _ensure_retention_receipt_lab(conn: sqlite3.Connection) -> None:
     existing = conn.execute(
         "SELECT 1 FROM sqlite_master WHERE type='table' AND name=?",
         (_RECEIPT_TABLE,),
     ).fetchone()
     if existing:
-        cols = tuple(row[1] for row in conn.execute(
-            f"PRAGMA table_info({_RECEIPT_TABLE})"
-        ))
-        if cols != _RECEIPT_COLUMNS:
-            raise RetentionLabError("QR_UNUSED_RECEIPT_SCHEMA_MISMATCH")
-        guards = {row[0] for row in conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='trigger' AND tbl_name=?",
-            (_RECEIPT_TABLE,),
-        )}
-        if not {
-            "queue_qr_expired_unconsumed_no_update",
-            "queue_qr_expired_unconsumed_no_delete",
-        } <= guards:
-            raise RetentionLabError("QR_UNUSED_RECEIPT_GUARD_REQUIRED")
+        _require_existing_unconsumed_receipt_lab(conn)
         return
     conn.execute(
         f"CREATE TABLE {_RECEIPT_TABLE} ("
@@ -82,6 +87,12 @@ def retain_expired_unconsumed_qr_lab(
     retention belongs exclusively to B2-A. No audit event or visit is deleted.
     If a fault happens after deleting the first row, all changes roll back.
     """
+    # A link to a valid temp LAB database must not grant maintenance access.
+    try:
+        if Path(path).is_symlink():
+            raise RetentionLabError("SYNTHETIC_LAB_FILE_REQUIRED")
+    except (OSError, ValueError, TypeError):
+        raise RetentionLabError("SYNTHETIC_LAB_FILE_REQUIRED") from None
     target = _verify_lab_file(path)
     if (type(tenant_id) is not str
         or re.fullmatch(r"[A-Za-z0-9:_-]{1,64}", tenant_id) is None):
