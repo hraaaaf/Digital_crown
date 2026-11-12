@@ -271,9 +271,17 @@ def test_b3_unconsumed_reference_blocks_then_unblocks_30d_closed_visit_purge(lab
             ("2029-12-01 00:00:00.000000", "2029-11-30 00:00:00.000000"),
         )
     insert_qr(lab, "old_done_expired", "T1", "DONE_T1", EPOCH-DAY)
+    # The same DONE visit also has a consumed receipt: retire it ONLY under
+    # B2-A's independent >7-day policy before attempting B1 visit removal.
+    with sqlite3.connect(lab) as conn:
+        conn.execute(
+            "UPDATE queue_presence_qr_lab SET consumed_epoch=? "
+            "WHERE qr_digest='consumed_recent'", (EPOCH-8*DAY,),
+        )
     with pytest.raises(RetentionLabError, match="QR_REFERENCES_REMAIN"):
         retain_closed_visits_lab(lab, "T1", now=NOW, execute=True)
     b3.retain_expired_unconsumed_qr_lab(lab, "T1", now=NOW, execute=True)
+    assert retain_consumed_qr_ledger_lab(lab, "T1", now=NOW, execute=True).eligible_receipts == 1
     assert rows(lab, "SELECT qr_digest FROM queue_presence_qr_lab WHERE qr_digest='old_done_expired'") == []
     assert retain_closed_visits_lab(lab, "T1", now=NOW, execute=True).eligible_visits == 1
     assert rows(lab, "SELECT id FROM queue_visits WHERE id='DONE_T1'") == []
