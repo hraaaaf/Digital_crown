@@ -36,6 +36,8 @@ _ARCHIVE_RE = re.compile(
     r"lot08_3_b_lab_backup_(daily_[0-9]{8}|weekly_[0-9]{4}W[0-9]{2})_[a-f0-9]{24}\.fernet"
 )
 _DIGEST_RE = re.compile(r"[a-f0-9]{64}")
+_JOURNAL_NAME = ".lot08_3_b_lab_rotation_journal.json"
+_MAX_JOURNAL_BYTES = 64 * 1024
 
 
 @dataclass(frozen=True, slots=True)
@@ -50,6 +52,18 @@ class LabVaultStatus:
 
 def _before_catalog_publish_lab() -> None:
     """Crash-injection oracle. No production use."""
+
+
+def _after_journal_before_manifest_lab() -> None:
+    """Inject crash after signed journal, before manifest publication."""
+
+
+def _after_manifest_before_retire_lab() -> None:
+    """Inject crash after manifest publication, before deleting expired copies."""
+
+
+def _after_each_retire_lab() -> None:
+    """Inject crash partway through signed retirement list."""
 
 
 def _vault_folder(value: str | Path) -> Path:
@@ -120,15 +134,24 @@ def _safe_archive(vault: Path, name: str, *, exists: bool) -> Path:
 
 def _read_catalog(
     vault: Path, key: bytes, trusted_anchor: str | None, epoch: int,
-    *, backup_key: bytes,
+    *, backup_key: bytes, recovery_mode: bool = False,
+    allowed_orphans: frozenset[str] = frozenset(),
 ) -> dict:
+    # Fail closed on interrupted rotations until an explicitly authenticated
+    # journal reconciliation is performed by the separate B2-D LAB helper.
+    journal = vault / _JOURNAL_NAME
+    if (journal.exists() or journal.is_symlink()) and not recovery_mode:
+        raise RestoreCloneLabError("ROTATION_RECOVERY_REQUIRED")
     # Refuse silently mixing generations encrypted with different keys.
     cipher = _fernet(backup_key)
     manifest = vault / "manifest.json"
     if manifest.is_symlink():
         raise RestoreCloneLabError("ROTATION_MANIFEST_INVALID")
     if not manifest.exists():
-        if trusted_anchor is not None or any(vault.glob("*.fernet")):
+        existing = {p.name for p in vault.glob("*.fernet")}
+        if (trusted_anchor is not None or (
+            existing != allowed_orphans if recovery_mode else bool(existing)
+        )):
             raise RestoreCloneLabError("ROTATION_ANCHOR_REQUIRED")
         return {"version": 1, "generation": 0, "latest_epoch": -1, "entries": []}
     if (trusted_anchor is None or not isinstance(trusted_anchor, str)
@@ -186,14 +209,46 @@ def _read_catalog(
         if (counts["daily"] > _DAILY_KEEP or counts["weekly"] > _WEEKLY_KEEP
             or max(e["epoch"] for e in payload["entries"]) != payload["latest_epoch"]):
             raise ValueError("bounds")
-        # An orphan archive is an interrupted transaction. Never conceal it.
-        if {p.name for p in vault.glob("*.fernet")} != names:
+        # Extra files are only permitted during authenticated recovery, and
+        # only when individually named in the signed transaction journal.
+        actual = {p.name for p in vault.glob("*.fernet")}
+        extras = actual - names
+        if (names - actual or (
+            extras - allowed_orphans if recovery_mode else bool(extras)
+        )):
             raise RestoreCloneLabError("ROTATION_ORPHAN_OR_MISSING_ARCHIVE")
         return payload
     except RestoreCloneLabError:
         raise
     except (OSError, ValueError, TypeError, KeyError, UnicodeError, OverflowError):
         raise RestoreCloneLabError("ROTATION_MANIFEST_INVALID") from None
+
+
+def _publish_signed_rotation_journal(
+    vault: Path, manifest_key: bytes, plan: dict,
+) -> None:
+    """Persist an HMAC-bound intent before publishing the next manifest.
+
+    The file remains if any step after publication fails, so an explicit
+    recovery can prove which files may be removed. No unsigned cleanup.
+    """
+    target = vault / _JOURNAL_NAME
+    if target.exists() or target.is_symlink():
+        raise RestoreCloneLabError("ROTATION_RECOVERY_REQUIRED")
+    payload = _canonical({"plan": plan, "mac": _mac(manifest_key, plan)})
+    if len(payload) > _MAX_JOURNAL_BYTES:
+        raise RestoreCloneLabError("ROTATION_JOURNAL_INVALID")
+    stage = vault / f".lot08_3_b_lab_journal_{uuid4().hex}.tmp"
+    try:
+        with stage.open("xb") as handle:
+            handle.write(payload)
+            handle.flush()
+            os.fsync(handle.fileno())
+        if target.exists() or target.is_symlink():
+            raise RestoreCloneLabError("ROTATION_RECOVERY_REQUIRED")
+        os.replace(stage, target)
+    finally:
+        stage.unlink(missing_ok=True)
 
 
 def _seal_verified(
@@ -247,6 +302,7 @@ def rotate_queue_vault_lab(
         slots.append(("weekly", weekly))
     new_files, new_entries = [], []
     published = False
+    journal_created = False
     try:
         for slot, bucket in slots:
             name = _new_filename(slot, bucket)
@@ -283,14 +339,29 @@ def rotate_queue_vault_lab(
                 handle.flush()
                 os.fsync(handle.fileno())
             _before_catalog_publish_lab()
+            intent = {
+                "version": 1,
+                "prior_anchor": trusted_anchor,
+                "next_anchor": anchor,
+                "prior_generation": current["generation"],
+                "next_generation": payload["generation"],
+                "epoch": stamp,
+                "created": new_entries,
+                "retired": removed,
+            }
+            _publish_signed_rotation_journal(location, manifest_key, intent)
+            journal_created = True
+            _after_journal_before_manifest_lab()
             os.replace(stage, location / "manifest.json")
             published = True
         finally:
             stage.unlink(missing_ok=True)
-        # Never discard previous backups before a verified new archive and
-        # committed authenticated catalog. Old files are untrusted after prune.
+        _after_manifest_before_retire_lab()
+        # Retire only HMAC-listed files after the new manifest is committed.
         for e in removed:
             _safe_archive(location, e["name"], exists=True).unlink()
+            _after_each_retire_lab()
+        (location / _JOURNAL_NAME).unlink()
         return LabVaultStatus(
             anchor=anchor, generation=payload["generation"],
             daily=sum(e["slot"] == "daily" for e in kept),
@@ -298,9 +369,15 @@ def rotate_queue_vault_lab(
             created=len(new_entries), removed=len(removed),
         )
     except BaseException:
-        if not published:
+        if not journal_created:
+            # Before the signed intent exists, no published manifest can
+            # reference these new archives. The pre-publish fault oracle is
+            # fully rollback-safe and keeps its historical contract.
             for name in new_files:
                 _safe_archive(location, name, exists=True).unlink()
+        # After journal publication the signed intent is deliberately kept,
+        # including when manifest is committed but retirement was interrupted.
+        # Never guess which archive should be removed without recovery.
         raise
 
 
