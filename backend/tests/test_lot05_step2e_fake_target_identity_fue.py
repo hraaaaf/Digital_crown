@@ -99,7 +99,7 @@ def inspect_fake_target_collisions(
         raise SyntheticTargetRefused("LAB_SYNTHETIC_ONLY")
     if attested_offline_copy is not True:
         raise SyntheticTargetRefused("OFFLINE_COPY_ATTESTATION_REQUIRED")
-    if not all(type(p) is Path for p in (source, target, stage)):
+    if not all(isinstance(p, Path) for p in (source, target, stage)):
         raise SyntheticTargetRefused("STAGED_PATH_REQUIRED")
     if source.suffix != ".csv" or target.suffix != ".sqlite":
         raise SyntheticTargetRefused("FAKE_FIXTURE_EXTENSION_REQUIRED")
