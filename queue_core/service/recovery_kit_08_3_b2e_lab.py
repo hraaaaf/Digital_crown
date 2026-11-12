@@ -10,6 +10,7 @@ A stale witness blocks restore. Rolling back all three defeats this LAB model.
 from __future__ import annotations
 
 from base64 import b64decode, b64encode
+from binascii import Error as Base64DecodeError
 from dataclasses import dataclass
 from datetime import datetime
 from hashlib import sha256
@@ -87,7 +88,7 @@ def _unb64(value: object, length: int | None = None) -> bytes:
         raise ValueError("not encoded")
     try:
         result = b64decode(value.encode("ascii"), validate=True)
-    except (UnicodeError, ValueError):
+    except (UnicodeError, ValueError, Base64DecodeError):
         raise ValueError("base64") from None
     if length is not None and len(result) != length:
         raise ValueError("length")
