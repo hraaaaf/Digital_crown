@@ -125,14 +125,18 @@ try{
         const box=document.querySelector('[data-cephalo-focus="active"]')?.getBoundingClientRect();
         const stage=document.querySelector('[data-r20-radiograph-stage]')?.getBoundingClientRect();
         const viewport=window.innerHeight;
+        const sidebar=document.querySelector('.sidebar-shell')?.getBoundingClientRect();
         return {
           viewport, focusTop:box?.top, focusBottom:box?.bottom,
+          focusLeft:box?.left, sidebarRight:sidebar?.right,
           stageTop:stage?.top, stageBottom:stage?.bottom,
           visibleStagePixels:stage?Math.max(0,Math.min(viewport,stage.bottom)-Math.max(0,stage.top)):0,
           focusOverlayWidth:box?.width,
         };
       });
       assert(scene.focusTop===0&&scene.focusBottom>=898,'FOCUS_NOT_VIEWPORT_FIXED '+JSON.stringify(scene));
+      assert(Number.isFinite(scene.sidebarRight)&&scene.focusLeft>=scene.sidebarRight-2,
+        'SIDEBAR_OCCLUDES_PATIENT_FOCUS_HEADER '+JSON.stringify(scene));
       assert(scene.stageTop<350&&scene.visibleStagePixels>=450,
         'RADIOGRAPH_NOT_VISIBLE_ON_FIRST_DESKTOP_VIEWPORT '+JSON.stringify(scene));
       assert(await page.locator('[data-cephalo-focus-medical-warning]').isVisible(),
