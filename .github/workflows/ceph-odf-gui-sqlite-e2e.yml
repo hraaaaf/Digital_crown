@@ -3,6 +3,8 @@ on:
   pull_request:
     paths:
       - .github/workflows/ceph-odf-gui-sqlite-e2e.yml
+      - .github/workflows/ceph-manual-calibration-e2e.yml
+      - backend/tests/test_ceph_manual_calibration_e2e_gate.py
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
       - scripts/ceph_odf_gui_sqlite_verify_t2.py
       - frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs
@@ -46,6 +48,8 @@ jobs:
              'frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs',
              'frontend/src/features/patients/CephaloFocus.css',
              'frontend/src/features/patients/PatientDetailsInner.tsx',
+             '.github/workflows/ceph-manual-calibration-e2e.yml',
+             'backend/tests/test_ceph_manual_calibration_e2e_gate.py',
           }
           assert changed==expected,(changed,expected)
           print('CEPH_ODF_T2_TEST_ONLY_EXACT_SCOPE_PASS')
@@ -76,6 +80,10 @@ jobs:
           grep -vE '^(torch|torchvision|torchaudio)([<=>].*)?$' requirements.txt > /tmp/ceph-odf-e2e-requirements.txt
           python -m pip install -r /tmp/ceph-odf-e2e-requirements.txt
           python -m pip check
+      - name: Existing automatic calibration regression and real manual SQLite gate
+        run: |
+          python -m pytest -q backend/tests/test_cephalo_auto_calibration_route.py backend/tests/test_cephalo_repository_calibration_invariants.py
+          python -m pytest -q backend/tests/test_ceph_manual_calibration_e2e_gate.py
       - name: Install locked frontend and real Chromium
         working-directory: frontend
         shell: bash
