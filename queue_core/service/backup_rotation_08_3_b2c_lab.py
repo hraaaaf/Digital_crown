@@ -344,6 +344,7 @@ def rotate_queue_vault_lab(
                 "prior_anchor": trusted_anchor,
                 "next_anchor": anchor,
                 "prior_generation": current["generation"],
+                "prior_latest_epoch": current["latest_epoch"],
                 "next_generation": payload["generation"],
                 "epoch": stamp,
                 "created": new_entries,
