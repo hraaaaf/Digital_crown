@@ -6,7 +6,7 @@ on:
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
       - scripts/ceph_odf_gui_sqlite_verify_t2.py
       - frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs
-      - frontend/src/features/ortho/CephaloWorkspace.tsx
+      - frontend/src/features/patients/CephaloFocus.css
       - frontend/src/features/patients/PatientDetailsInner.tsx
 permissions:
   contents: read
@@ -43,9 +43,8 @@ jobs:
           expected={
              '.github/workflows/ceph-odf-gui-sqlite-e2e.yml',
              'scripts/ceph_odf_gui_sqlite_seed_t2.py',
-             'scripts/ceph_odf_gui_sqlite_verify_t2.py',
              'frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs',
-             'frontend/src/features/ortho/CephaloWorkspace.tsx',
+             'frontend/src/features/patients/CephaloFocus.css',
              'frontend/src/features/patients/PatientDetailsInner.tsx',
           }
           assert changed==expected,(changed,expected)
