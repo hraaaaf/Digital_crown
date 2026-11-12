@@ -1,5 +1,6 @@
 """Adversarial LOT05.1 tests. Synthetic copies only, no actual patient data."""
 import os
+from contextlib import closing
 import sqlite3
 import tempfile
 import unittest
@@ -114,7 +115,7 @@ class TestLegacyInspectorSecurity(unittest.TestCase):
 
     def test_sqlite_wal_sidecar_requires_cold_copy(self):
         db = self.root / "copy.sqlite"
-        with sqlite3.connect(db) as cx:
+        with closing(sqlite3.connect(db)) as cx:
             cx.execute("CREATE TABLE people (id INTEGER PRIMARY KEY, name TEXT)")
             cx.commit()
         sidecar = self.root / "copy.sqlite-wal"
@@ -127,7 +128,7 @@ class TestLegacyInspectorSecurity(unittest.TestCase):
 
     def test_sqlite_wal_header_without_sidecar_refused(self):
         db = self.root / "wal-mode.sqlite"
-        with sqlite3.connect(db) as cx:
+        with closing(sqlite3.connect(db)) as cx:
             cx.execute("PRAGMA journal_mode=WAL")
             cx.execute("CREATE TABLE people (id INTEGER PRIMARY KEY)")
             cx.commit()
@@ -141,7 +142,7 @@ class TestLegacyInspectorSecurity(unittest.TestCase):
 
     def test_sqlite_inspection_does_not_create_sidecars(self):
         db = self.root / "copy.sqlite"
-        with sqlite3.connect(db) as cx:
+        with closing(sqlite3.connect(db)) as cx:
             cx.execute("CREATE TABLE people (id INTEGER PRIMARY KEY)")
             cx.commit()
         before = db.read_bytes()
