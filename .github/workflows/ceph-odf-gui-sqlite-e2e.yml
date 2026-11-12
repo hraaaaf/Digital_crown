@@ -5,6 +5,7 @@ on:
       - .github/workflows/ceph-odf-gui-sqlite-e2e.yml
       - .github/workflows/ceph-manual-calibration-e2e.yml
       - backend/tests/test_ceph_manual_calibration_e2e_gate.py
+      - scripts/ceph_calibration_http_t2.py
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
       - scripts/ceph_odf_gui_sqlite_verify_t2.py
       - frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs
@@ -50,6 +51,7 @@ jobs:
              'frontend/src/features/patients/PatientDetailsInner.tsx',
              '.github/workflows/ceph-manual-calibration-e2e.yml',
              'backend/tests/test_ceph_manual_calibration_e2e_gate.py',
+             'scripts/ceph_calibration_http_t2.py',
           }
           assert changed==expected,(changed,expected)
           print('CEPH_ODF_T2_TEST_ONLY_EXACT_SCOPE_PASS')
@@ -137,6 +139,8 @@ jobs:
         run: node scripts/ceph-odf-gui-sqlite-e2e.mjs
       - name: Independently verify fresh SQLite state and no clinical sign-off
         run: python -m scripts.ceph_odf_gui_sqlite_verify_t2
+      - name: Real authenticated manual calibration HTTP and independent SQLite revisions
+        run: python -m scripts.ceph_calibration_http_t2
       - name: Failure diagnostics without secrets or images
         if: failure()
         shell: bash
