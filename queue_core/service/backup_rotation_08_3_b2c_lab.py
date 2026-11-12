@@ -150,7 +150,7 @@ def _read_catalog(
     if not manifest.exists():
         existing = {p.name for p in vault.glob("*.fernet")}
         if (trusted_anchor is not None or (
-            existing != allowed_orphans if recovery_mode else bool(existing)
+            bool(existing - allowed_orphans) if recovery_mode else bool(existing)
         )):
             raise RestoreCloneLabError("ROTATION_ANCHOR_REQUIRED")
         return {"version": 1, "generation": 0, "latest_epoch": -1, "entries": []}
