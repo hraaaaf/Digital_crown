@@ -126,7 +126,7 @@ try {
     const draft=page.getByRole('button',{name:'Brouillon PDF'});
     if(!await draft.isEnabled())throw Error(entry.name+' draft export should remain available');
     const message=page.getByTestId('unsigned-cephalo-archive-hold');
-    if(!/signature vérifiable du document exact/i.test(await message.innerText()))throw Error('Missing user-facing reason');
+    if(!/approbation traçable de la révision exacte/i.test(await message.innerText()))throw Error('Missing user-facing reason');
     await archive.scrollIntoViewIfNeeded();
     await page.screenshot({path:path.join(output,entry.name+'-AFTER.png'),animations:'disabled'});
     entry.after='Archivage suspendu disabled; draft button enabled; explicit unsigned reason';
