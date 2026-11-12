@@ -181,7 +181,7 @@ def test_wrong_keys_refused_no_clone(lab):
             trusted_anchor=first.anchor,slot="daily",
             bucket=NOW.strftime("%Y-%m-%d"),now=NOW,
         )
-    with pytest.raises(RestoreCloneLabError,match="LAB_ARCHIVE_AUTHENTICATION_FAILED"):
+    with pytest.raises(RestoreCloneLabError,match="ROTATION_BACKUP_KEY_MISMATCH"):
         rotation.restore_queue_vault_clone_lab(
             vault,clone,backup_key=Fernet.generate_key(),manifest_key=manifest_key,
             trusted_anchor=first.anchor,slot="daily",
@@ -291,3 +291,17 @@ def test_undeclared_archive_and_clock_regression_refused(lab):
         _rotate(lab,NOW-timedelta(days=1),first.anchor)
     assert _manifest(lab)["mac"]==first.anchor
 
+
+
+def test_wrong_backup_key_cannot_rotate_mixed_key_catalog(lab):
+    first = _rotate(lab, NOW)
+    archive_before = {p.name: p.read_bytes() for p in lab[1].glob("*.fernet")}
+    manifest_before = (lab[1]/"manifest.json").read_bytes()
+    with pytest.raises(RestoreCloneLabError, match="ROTATION_BACKUP_KEY_MISMATCH"):
+        rotation.rotate_queue_vault_lab(
+            lab[0],lab[1],backup_key=Fernet.generate_key(),
+            manifest_key=lab[3],trusted_anchor=first.anchor,
+            now=NOW+timedelta(days=1),
+        )
+    assert (lab[1]/"manifest.json").read_bytes() == manifest_before
+    assert {p.name: p.read_bytes() for p in lab[1].glob("*.fernet")} == archive_before
