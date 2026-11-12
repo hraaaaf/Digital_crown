@@ -6,6 +6,21 @@
 
 # STATE — DigitalCrown
 
+## LOT08.3-B2-C — 2026-11-12 — SYNTHETIC 7 DAILY + 4 WEEKLY SEALED VAULT (DRAFT, NO DEPLOY)
+
+**Owner GO:** 2026-11-12 after HIGH effort notification; one decision, source + GitHub Actions synthetic LAB only, separate merge gate. Initial master exactly `ac3d2a74ddfd5f27d112fc136b3aff09ba401e67`. Branch `feat/lot08-3-b2c-rotating-7d4w-synthetic-vault-20261112`. No changes to clinical runtime, key store, scheduler, patient data, migrations, real cabinet, or Vercel.
+
+**Goal:** use the already-merged 08.3-B2-B sealed SQLite synthetic snapshot and restore-clone functions, simulate a bounded offline vault with at most 7 UTC daily calendar buckets and 4 ISO-week buckets. New archives must be genuinely encrypted/authenticated Fernet and validated via a disposable restored clone **before** publishing a new authenticated manifest. Overage is deleted **only after** new manifest publication, never before an authenticated successor. Do not fabricate slots on missed days. Test over month/year boundaries and non-running periods. No automatic scheduling is activated.
+
+**Threat model and anti-rollback boundary:** HMAC-SHA256 manifest catalog with a dedicated 32-byte signing key separate from the Fernet archive key, plus the **latest manifest anchor held independently by the caller** (not saved to the vault). Every rotation and restore requires the exact external latest anchor. Stale or modified manifest, missing/extra/tampered ciphertext, unexpected archive path, non-LAB source, clock regression, wrong key, old G3 visit/QR records and overwrite all fail closed. An archive from before a justified purge must not restore a 30-day-overdue closed visit or consumed expired QR >7 days. Only publish a **new temp clone**, never overwrite an active database. The prototype cannot protect a caller that loses/rolls back its external anchor, nor resist a privileged attacker with both keys and anchor. Primary/backup directories on GitHub runners DO NOT prove independent physical media.
+
+**Risk-specific FUE required:** exact-HEAD native Windows 2022 + Ubuntu 24.04 tests on real synthetic SQLite and cryptography, 7+4 calendar counts, age-window pruning, ISO crossing, HMAC stale-anchor/tamper, ciphertext tamper, source marker, collision, injected failure and cleanup, post-purge anti-resurrection, wrong keys and end-to-end clone. Full Linux Queue FUE + scope gate required; inspect native JUnit and actual run logs; no disabled tests. Preserve historical red runs and fixes with exact candidate SHAs. **Current status of this handover is PRE/UNPROVEN until CI.**
+
+**Still open / human gate:** daily/weekly backed-up data on genuinely independent physical supports, Windows protected recovery keys, durable external rollback anchor custody, interrupted multi-file rotation/recovery semantics, archival policy over outages, legal CNDP/09-08 review, genuine SQLCipher/media restore, measured RPO <=1h and RTO <=2h. Both are *targets*, not certified. No patient data, real restore, installable activation, deployment, destructive clinical purge or merge without separate owner authorization.
+
+**Next:** create DRAFT PR, run exact HEAD 2 OS and Queue CI, correct, update Notion with proofs, hold merge. 
+
+
 ## LOT08.3-B2-B — 2026-11-11 — ENCRYPTED SYNTHETIC QUEUE RESTORE CLONE (NO INSTALLABLE)
 
 **User GO:** 2026-11-11 after 08.3-B2-A merged, risk/effort HIGH explicitly announced. One bounded decision: prove encrypted online SQLite Queue snapshot, authenticated decrypt, and **create-only restore CLONE** against fake Queue LAB. Master baseline `ca533b7d04432b85553cf97e18df216cceb85a38`, separate draft branch `feat/lot08-3-b2b-encrypted-restore-clone-lab-20261111`.
