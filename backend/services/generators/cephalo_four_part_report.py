@@ -136,9 +136,12 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     tbl_cell = ParagraphStyle("DCCeph4TableCell", parent=body, fontSize=8.3, leading=11,
         spaceAfter=0)
 
+    descriptive = projection.get("document_kind") == "CEPH_A4_DESCRIPTIVE_APPROVAL_V1"
     elements = [
-        Paragraph("BILAN ORTHODONTIQUE", title),
-        Paragraph("BROUILLON — NON SIGNÉ · Document de travail du praticien", muted),
+        Paragraph("BILAN CÉPHALOMÉTRIQUE DESCRIPTIF" if descriptive else "BILAN ORTHODONTIQUE", title),
+        *([] if descriptive else [
+            Paragraph("BROUILLON — NON SIGNÉ · Document de travail du praticien", muted),
+        ]),
         Paragraph("Patient : <b>" + escape(str(vm.patient_nom)) + " " +
                   escape(str(vm.patient_prenom)) + "</b> · Date : " +
                   escape(str(vm.date_generation)), body),
@@ -189,6 +192,36 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     selected = select_verified_measurements(projection)
     add_measurements("Analyse dento-alvéolaire", selected["dental"])
     add_measurements("Analyse squelettique", selected["skeletal"])
+
+    if descriptive:
+        # The candidate's bytes are shown BEFORE validation and archived unchanged
+        # AFTER the authenticated clinician explicitly approves them. Therefore
+        # no "signed" or "approved" claim may be printed inside these same bytes.
+        # This strictly descriptive variant never renders diagnosis, treatment
+        # selection, R11-R14, optional free text, or unverified patient media.
+        elements.append(Spacer(1, 0.3 * cm))
+        elements.append(Paragraph(
+            "Périmètre : restitution descriptive de mesures issues de l'étude "
+            "scientifique versionnée, sans diagnostic ni proposition de traitement.", muted,
+        ))
+        elements.append(Paragraph(
+            "Praticien responsable : " + escape(str(vm.doctor_name or "À renseigner")), body,
+        ))
+        stamp = str(config.get("nom_cabinet") or "").strip()
+        if stamp:
+            elements.append(Paragraph(
+                "Cachet imprimé du cabinet : <b>" + escape(stamp[:200]) + "</b>", muted,
+            ))
+        else:
+            # Never invent the presence or text of a professional stamp.
+            elements.append(Paragraph(
+                "Cachet professionnel non configuré — validation du document requise.", muted,
+            ))
+        draw = lambda canvas, page: generator.draw_static_elements(
+            canvas, page, config=config, user=user,
+        )
+        doc.build(elements, onFirstPage=draw, onLaterPages=draw)
+        return file_path
 
     elements.append(Paragraph("II — EXAMEN DES MOULAGES ET DES IMAGES", section))
     elements.append(Paragraph(
