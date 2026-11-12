@@ -132,6 +132,14 @@ class DocumentFactory:
                 analysis_id=analysis_id,
                 angles_data=results_dict,
             )
+            # Only a trusted server-created analysis dict can request the
+            # descriptive A4 candidate. User-supplied legacy clinical_data and
+            # AI keys never supply this switch or alter its scientific numbers.
+            if isinstance(analysis, dict) and analysis.get("_descriptive_approval_candidate") is True:
+                if (projection.get("active_runtime_chain_verified") is not True
+                        or type(projection.get("analysis_revision")) is not int):
+                    raise ValueError("Descriptive A4 requires verified scientific evidence")
+                projection["document_kind"] = "CEPH_A4_DESCRIPTIVE_APPROVAL_V1"
 
             radio_image_path = getattr(analysis, 'image_path', getattr(analysis, 'image_original_path', None))
             if isinstance(analysis, dict):
