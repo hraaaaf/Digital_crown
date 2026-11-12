@@ -1,0 +1,50 @@
+name: LOT05 2E Fake Target Identity Collision FUE-0 (NO IMPORT)
+
+on:
+  pull_request:
+    branches: [master]
+    paths:
+      - 'backend/tests/test_lot05_step2e_fake_target_identity_fue.py'
+      - 'backend/services/legacy_sql_inspector_v15.py'
+      - 'backend/services/legacy_sql_mapping_v15.py'
+      - 'backend/services/legacy_migration_csv_preview_v15.py'
+      - 'backend/services/legacy_migration_csv_mapping_lab_v15.py'
+      - '.github/workflows/lot05-step2e-identity-collision-fue.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  fake-target-collision-fue0:
+    name: Synthetic identity conflicts and no-import / ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 12
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - name: Checkout exact candidate HEAD
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+      - name: Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Exact SHA and source syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "${{ github.event.pull_request.head.sha || github.sha }}"
+          python -m py_compile backend/tests/test_lot05_step2e_fake_target_identity_fue.py
+      - name: Run fake-only target collision lab
+        shell: bash
+        run: |
+          set -euo pipefail
+          python -B backend/tests/test_lot05_step2e_fake_target_identity_fue.py -q 2>&1 | tee lot05-2e-identity.log
+          grep -q 'Ran 16 tests' lot05-2e-identity.log
+          grep -q '^OK' lot05-2e-identity.log
+          echo LOT05_2E_FAKE_TARGET_COLLISION_16_PASS_ZERO_IMPORT
