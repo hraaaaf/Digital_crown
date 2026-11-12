@@ -1,4 +1,4 @@
-name: LOT08.3-B2-B/C/D Queue sealed vault + signed journal recovery FUE (NO DEPLOY)
+name: LOT08.3-B2-B/C/D/E Queue sealed vault and independent recovery kit FUE (NO DEPLOY)
 
 on:
   pull_request:
@@ -14,6 +14,8 @@ on:
       - queue_core/tests/test_backup_rotation_08_3_b2c_lab.py
       - queue_core/service/backup_rotation_recovery_08_3_b2d_lab.py
       - queue_core/tests/test_backup_rotation_recovery_08_3_b2d_lab.py
+      - queue_core/service/recovery_kit_08_3_b2e_lab.py
+      - queue_core/tests/test_recovery_kit_08_3_b2e_lab.py
 
 permissions:
   contents: read
@@ -22,7 +24,7 @@ jobs:
   sealed-restore-clone-fue:
     name: Real synthetic SQLite/crypto clone oracle (${{ matrix.os }})
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 35
     strategy:
       fail-fast: false
       matrix:
@@ -54,14 +56,15 @@ jobs:
             queue_core/tests/test_backup_restore_clone_08_3_b2_lab.py \
             queue_core/tests/test_backup_rotation_08_3_b2c_lab.py \
             queue_core/tests/test_backup_rotation_recovery_08_3_b2d_lab.py \
+            queue_core/tests/test_recovery_kit_08_3_b2e_lab.py \
             queue_core/tests/test_retention_qr_08_3_b2_lab.py \
             queue_core/tests/test_retention_lab_08_3_b.py \
-            --maxfail=1 --junitxml=lot08-3-b2d-${{ matrix.os }}.xml
+            --maxfail=1 --junitxml=lot08-3-b2e-${{ matrix.os }}.xml
       - name: Upload native real JUnit (synthetic only)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: lot08-3-b2d-restore-clone-${{ matrix.os }}-junit
-          path: lot08-3-b2d-${{ matrix.os }}.xml
+          name: lot08-3-b2e-restore-clone-${{ matrix.os }}-junit
+          path: lot08-3-b2e-${{ matrix.os }}.xml
           if-no-files-found: error
           retention-days: 14
