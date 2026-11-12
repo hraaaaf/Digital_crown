@@ -157,14 +157,15 @@ def test_post_manifest_crash_with_expired_retirement_is_reconciled(lab,monkeypat
     at=NOW+timedelta(days=7)
     with pytest.raises(RuntimeError,match="INJECTED_CRASH"):
         _rotate(lab,at,anchor)
-    assert len(_files(lab))==len(before)+1
+    journal=json.loads(_journal(lab).read_text())
+    assert len(_files(lab))==len(before)+len(journal["plan"]["created"])
     with pytest.raises(RestoreCloneLabError,match="ROTATION_RECOVERY_REQUIRED"):
         _rotate(lab,at+timedelta(days=1),anchor)
     status=_recover(lab,anchor,at)
     assert status.phase=="committed" and status.generation==8
     assert status.removed==1
     assert status.trusted_anchor!=anchor and not _journal(lab).exists()
-    assert len(_files(lab))==len(before)
+    assert len(_files(lab))==len(before)+len(journal["plan"]["created"])-1
     monkeypatch.undo()
     later=_rotate(lab,at+timedelta(days=1),status.trusted_anchor)
     assert later.generation==9
