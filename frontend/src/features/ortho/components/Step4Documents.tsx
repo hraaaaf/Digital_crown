@@ -378,7 +378,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
               <button type="button" disabled aria-describedby="cephalo-a4-archive-hold" className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border cursor-not-allowed" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}><Archive size={20} />Archivage suspendu</button>
             </div>
             <p id="cephalo-a4-archive-hold" data-testid="unsigned-cephalo-archive-hold" role="status" className="mt-3 text-center text-xs leading-relaxed" style={{ color: P.textMuted }}>
-              Archivage officiel indisponible : bilan A4 non validé par le praticien. L'archivage V1 exigera une approbation traçable de la révision exacte du document. Aucune signature électronique avancée n'est requise.
+              Archivage officiel indisponible : le bilan A4 reste un brouillon non signé, non validé par le praticien. L'archivage V1 exigera une approbation traçable de la révision exacte du document. Aucune signature électronique avancée n'est requise.
             </p>
           </div>
         </div>
