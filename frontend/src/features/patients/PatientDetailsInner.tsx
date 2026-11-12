@@ -520,7 +520,7 @@ export const PatientDetails = () => {
                 {radioTab === 'panoramic' && canPanoramic && <PanoramicStudio patientId={Number(id)} patientName={fullName} />}
                 {radioTab === 'cephalo' && canCephalo && (
                   patient?.dossier?.is_ortho_active ? (
-                    <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
+                    <CephaloWorkspace patientId={Number(id)} patientName={fullName} hasMedicalHistoryWarning={Boolean(patient.antecedents_medicaux)} />
                   ) : (
                     <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6 sm:p-10">
                       <div className="w-24 h-24 bg-input-field rounded-full flex items-center justify-center mb-6"><Activity className="w-12 h-12 text-text-muted" /></div>
