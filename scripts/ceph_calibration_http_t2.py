@@ -103,6 +103,18 @@ with httpx.Client(base_url="http://127.0.0.1:8005", timeout=35.0) as client:
     check(login.status_code == 200, "AUTHENTICATED_LOGIN_HTTP_200")
     bearer = login.json()["access_token"]
     headers = {"Authorization": f"Bearer {bearer}"}
+    def response_context(resp):
+        try:
+            detail = resp.json().get("detail", "<none>")
+            if not isinstance(detail, str):
+                detail = "structured_validation_error"
+        except (ValueError, AttributeError):
+            detail = "non_json"
+        return f"HTTP_{resp.status_code}_reason_{str(detail)[:180]}"
+
+    probe = client.get(f"/api/ia/analyses/{id_}", headers=headers)
+    check(probe.status_code == 200,
+          "AUTHENTICATED_TYPED_ANALYSIS_GET_BEFORE_POST_" + response_context(probe))
 
     def submit(distance_mm, pixels):
         return client.post(path, headers=headers, json={
@@ -118,7 +130,8 @@ with httpx.Client(base_url="http://127.0.0.1:8005", timeout=35.0) as client:
     ]:
         response = submit(distance, px)
         expected = 422 if label.endswith("422") else 400
-        check(response.status_code == expected, label)
+        check(response.status_code == expected,
+              label + "_expected_" + str(expected) + "_got_" + response_context(response))
         after_reject = read()
         check(after_reject == start, label + "_ATOMIC_DB_UNCHANGED")
 
