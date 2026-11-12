@@ -585,6 +585,8 @@ def get_patient_documents(patient_id: int, db: Session = Depends(database.get_db
             # BILAN R must use the special authenticated route, never raw static.
             "url": (f"/api/documents/bilan/{doc.id}/view"
                     if doc.document_type == models.DocumentType.BILAN
+                    else f"/api/documents/{doc.id}/download"
+                    if doc.document_type == models.DocumentType.RAPPORT_CEPHALO
                     else f"static/{rel_path}"),
             "clinical_data": doc.clinical_data, "timestamp": doc.created_at.timestamp(),
             "payment_status": getattr(doc.payment_status, "value", doc.payment_status),
