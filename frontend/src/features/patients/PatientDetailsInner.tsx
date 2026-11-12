@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate, useSearchParams } from 'react-router-dom';
+import { createPortal } from 'react-dom';
 import {
   Activity,
   FileText,
@@ -44,6 +45,7 @@ import { PatientRvgPanel } from './components/PatientRvgPanel';
 import { PatientMediaTimeline } from './components/PatientMediaTimeline';
 import { CabinetMultiViewLab, isCabinetMultiViewLabEnabled, isR3SplitLabEnabled } from '../multiview/CabinetMultiViewLab';
 import './PatientRadiologyPolish.css';
+import './CephaloFocus.css';
 import { QuickPayModal } from './components/QuickPayModal';
 import { PatientCompanionPanel } from './components/PatientCompanionPanel';
 import { usePatientStore } from '../../stores/usePatientStore';
@@ -128,6 +130,44 @@ export const PatientDetails = () => {
   const { editingDoc, patientsCache, setEditingDoc } = usePatientStore();
   const cachedPatient = patientsCache.find(p => String(p.id) === id);
   const [patient, setPatient] = useState<Patient | null>(cachedPatient ? { ...cachedPatient, assurance: cachedPatient.assurance } : null);
+  const [cephaloFocus, setCephaloFocus] = useState(() =>
+    typeof window !== 'undefined' && typeof window.matchMedia === 'function' &&
+    window.matchMedia('(min-width: 1280px)').matches
+  );
+  const cephaloFocusActive = cephaloFocus && activeTab === 'radiology' &&
+    radioTab === 'cephalo' && canCephalo && Boolean(patient?.dossier?.is_ortho_active);
+  const cephaloFocusReturnRef = useRef<HTMLButtonElement>(null);
+  const focusReturnPending = useRef(false);
+  const exitCephaloFocus = () => {
+    focusReturnPending.current = true;
+    setCephaloFocus(false);
+  };
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return;
+    const query = window.matchMedia('(min-width: 1280px)');
+    const onChange = () => { if (!query.matches) setCephaloFocus(false); };
+    query.addEventListener('change', onChange);
+    return () => query.removeEventListener('change', onChange);
+  }, []);
+  useEffect(() => {
+    if (!cephaloFocusActive) {
+      if (focusReturnPending.current) {
+        focusReturnPending.current = false;
+        requestAnimationFrame(() => cephaloFocusReturnRef.current?.focus());
+      }
+      return;
+    }
+    const oldOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') exitCephaloFocus();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => {
+      document.body.style.overflow = oldOverflow;
+      window.removeEventListener('keydown', onKeyDown);
+    };
+  }, [cephaloFocusActive]);
   const [loading, setLoading] = useState(!cachedPatient);
   const [fetchError, setFetchError] = useState(false);
   const [isPayModalOpen, setIsPayModalOpen] = useState(false);
@@ -520,7 +560,53 @@ export const PatientDetails = () => {
                 {radioTab === 'panoramic' && canPanoramic && <PanoramicStudio patientId={Number(id)} patientName={fullName} />}
                 {radioTab === 'cephalo' && canCephalo && (
                   patient?.dossier?.is_ortho_active ? (
-                    <CephaloWorkspace patientId={Number(id)} patientName={fullName} hasMedicalHistoryWarning={Boolean(patient.antecedents_medicaux)} />
+                    (() => {
+                      const workspace = (
+                        <section
+                          data-cephalo-focus={cephaloFocusActive ? 'active' : 'inactive'}
+                          role={cephaloFocusActive ? 'dialog' : undefined}
+                          aria-modal={cephaloFocusActive ? true : undefined}
+                          aria-label={cephaloFocusActive ? 'Focus de tracé céphalométrique du patient' : undefined}
+                          className={cephaloFocusActive
+                            ? 'cephalo-focus-mode fixed inset-0 z-[450] flex h-[100dvh] w-screen flex-col overflow-hidden bg-card-bg'
+                            : 'min-w-0'}
+                        >
+                          <div className={cephaloFocusActive
+                            ? 'flex shrink-0 flex-wrap items-center justify-between gap-2 border-b border-border-main bg-card px-3 py-2'
+                            : 'flex justify-end pb-2'}>
+                            {cephaloFocusActive && (
+                              <div className="min-w-0">
+                                <p className="truncate text-sm font-bold text-text-main">{fullName}</p>
+                                <p className="text-xs text-text-muted">Dossier {patient.numero_dossier || patient.id} · Céphalométrie · Brouillon non validé</p>
+                                {patient.antecedents_medicaux && (
+                                  <p data-cephalo-focus-medical-warning role="alert" className="text-xs font-bold text-danger">
+                                    <AlertTriangle size={13} className="mr-1 inline" />
+                                    Alerte médicale dans le dossier · Consulter les antécédents avant tout soin
+                                  </p>
+                                )}
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              data-cephalo-focus-toggle
+                              ref={cephaloFocusActive ? undefined : cephaloFocusReturnRef}
+                              aria-pressed={cephaloFocusActive}
+                              aria-label={cephaloFocusActive
+                                ? 'Quitter le mode Focus tracé et revenir au dossier'
+                                : 'Ouvrir le mode Focus tracé'}
+                              onClick={() => cephaloFocusActive ? exitCephaloFocus() : setCephaloFocus(true)}
+                              className="min-h-11 shrink-0 rounded-lg border border-border-main bg-card-bg px-3 text-xs font-bold text-text-main"
+                            >
+                              {cephaloFocusActive ? 'Retour au dossier' : 'Focus tracé'}
+                            </button>
+                          </div>
+                          <div className={cephaloFocusActive ? 'min-h-0 min-w-0 flex-1 overflow-hidden' : 'min-w-0'}>
+                            <CephaloWorkspace patientId={Number(id)} patientName={fullName} />
+                          </div>
+                        </section>
+                      );
+                      return cephaloFocusActive ? createPortal(workspace, document.body) : workspace;
+                    })()
                   ) : (
                     <div className="flex flex-col items-center justify-center h-[60vh] text-center p-6 sm:p-10">
                       <div className="w-24 h-24 bg-input-field rounded-full flex items-center justify-center mb-6"><Activity className="w-12 h-12 text-text-muted" /></div>
