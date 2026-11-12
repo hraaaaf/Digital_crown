@@ -91,6 +91,19 @@ def _bucket(epoch: int, slot: str) -> str:
     return f"{year}-W{week:02d}"
 
 
+def _calendar_windows(stamp: int) -> tuple[set[str], set[str]]:
+    today = datetime.fromtimestamp(stamp, timezone.utc)
+    daily = {
+        _bucket(int((today - timedelta(days=offset)).timestamp()), "daily")
+        for offset in range(_DAILY_KEEP)
+    }
+    weekly = {
+        _bucket(int((today - timedelta(weeks=offset)).timestamp()), "weekly")
+        for offset in range(_WEEKLY_KEEP)
+    }
+    return daily, weekly
+
+
 def _new_filename(slot: str, bucket: str) -> str:
     stub = bucket.replace("-", "")
     return f"lot08_3_b_lab_backup_{slot}_{stub}_{uuid4().hex[:24]}.fernet"
@@ -246,15 +259,7 @@ def rotate_queue_vault_lab(
         all_entries = current["entries"] + new_entries
         # Calendar windows, NOT the last N snapshots: a vault left idle
         # must not carry a 40-day-old daily archive into the next rotation.
-        today = datetime.fromtimestamp(stamp, timezone.utc)
-        permitted_daily = {
-            _bucket(int((today - timedelta(days=offset)).timestamp()), "daily")
-            for offset in range(_DAILY_KEEP)
-        }
-        permitted_weekly = {
-            _bucket(int((today - timedelta(weeks=offset)).timestamp()), "weekly")
-            for offset in range(_WEEKLY_KEEP)
-        }
+        permitted_daily, permitted_weekly = _calendar_windows(stamp)
         selected = {
             e["name"] for e in all_entries
             if (e["slot"] == "daily" and e["bucket"] in permitted_daily)
@@ -313,5 +318,12 @@ def restore_queue_vault_clone_lab(
                 if e["slot"] == slot and e["bucket"] == bucket]
     if len(matching) != 1:
         raise RestoreCloneLabError("ROTATION_ARCHIVE_NOT_AUTHORIZED")
+    # Refuse restoring an archive outside its calendar retention window,
+    # even when the lab scheduler was stopped and the file still exists.
+    daily, weekly = _calendar_windows(stamp)
+    if (slot == "daily" and bucket not in daily) or (
+        slot == "weekly" and bucket not in weekly
+    ):
+        raise RestoreCloneLabError("ROTATION_ARCHIVE_OUTSIDE_RETENTION_DENIED")
     archive = _safe_archive(location, matching[0]["name"], exists=True)
     return restore_queue_clone_lab(archive, destination, key=backup_key, now=now)
