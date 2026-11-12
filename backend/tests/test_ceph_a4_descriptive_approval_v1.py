@@ -112,6 +112,7 @@ def _calibrated_case(client, db, dentist):
 def _environment(monkeypatch, tmp_path):
     from backend.services import archive_service, document_signature_p3
     _temporary_pdf_output(monkeypatch, tmp_path)
+    monkeypatch.setenv("MEDIA_ROOT", str(tmp_path / "synthetic_media"))
     monkeypatch.setattr(archive_service, "ARCHIVE_BASE_DIR", tmp_path / "archives")
     monkeypatch.setattr(document_signature_p3, "MEDIA_DIR", tmp_path)
     monkeypatch.setattr(archive_service, "MEDIA_DIR", tmp_path)
@@ -145,7 +146,7 @@ def test_real_authenticated_prepare_archive_replay_and_exact_sqlite_proof(
     pdf = base64.b64decode(candidate["pdf_base64"], validate=True)
     assert pdf.startswith(b"%PDF")
     assert hashlib.sha256(pdf).hexdigest() == candidate["pdf_sha256"]
-    assert not list(tmp_path.glob("*.pdf")), "No abandoned unapproved PDF"
+    assert not list(tmp_path.rglob("*.pdf")), "No abandoned unapproved PDF"
     assert db.query(models.DocumentArchive).filter(
         models.DocumentArchive.patient_id == patient.id,
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
