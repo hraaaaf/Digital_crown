@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, AlertTriangle, Archive, Camera, CheckCircle2, ChevronDown,
-  ChevronUp, Eye, FileText, Loader2, Shield, XCircle,
+  ChevronUp, Eye, FileText, Loader2, Printer, Shield, XCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
@@ -79,6 +79,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     photos,
     handlePhotoUpload: onUpload,
     handlePreview: onPreviewPDF,
+    handlePrint: onPrintPDF,
     isPrinting: isGenerating,
     isPreviewLoading,
     etape3Data,
@@ -168,6 +169,15 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       return;
     }
     await onPreviewPDF();
+  };
+
+  const handlePrintBilan = async () => {
+    if (!patientId || !analysisId || draftInFlight.current || isPreviewLoading || isGenerating) return;
+    try {
+      await onPrintPDF();
+    } catch (error: any) {
+      toast.error(error?.message || "Impossible d'ouvrir le PDF pour impression.");
+    }
   };
 
   const handleBrouillon = async () => {
@@ -357,12 +367,13 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
 
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
             <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
-            <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualisation et téléchargement : brouillon non signé, sans valeur de validation clinique.</p>
+            <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Aperçu et impression sont disponibles sans archivage. Le document reste un brouillon tant que la validation du praticien n'est pas établie.</p>
             <p role="note" className="mb-3 text-center text-xs font-semibold leading-relaxed" style={{ color: P.textMuted }}>
-              Prévisualiser ou archiver un PDF ne constitue pas une validation clinique.
+              Imprimer n'archive jamais le document. L'archivage officiel reste suspendu tant que la validation praticien n'est pas vérifiable.
             </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <button onClick={handlePreviewBilan} disabled={isPreviewLoading || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
+              <button onClick={handlePrintBilan} disabled={isPreviewLoading || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Printer size={20} />}Imprimer</button>
               <button onClick={handleBrouillon} disabled={isBrouillon || isPreviewLoading || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
               <button type="button" disabled aria-describedby="cephalo-a4-archive-hold" className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border cursor-not-allowed" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}><Archive size={20} />Archivage suspendu</button>
             </div>
