@@ -5,6 +5,7 @@ on:
     paths:
       - backend/services/legacy_sql_mapping_v15.py
       - backend/tests/test_legacy_sql_mapping_v15.py
+      - backend/tests/test_legacy_sql_inspector_v15_security.py
       - docs/quality/V15_05_2_MAPPING_STUDIO_DRAFT_CONTRACT.md
       - .github/workflows/v15-05-2-mapping-studio.yml
   workflow_dispatch:
