@@ -102,7 +102,7 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
     )
 
 
-@pytest.mark.parametrize("changed_field", ["patient_nom", "patient_birth", "cabinet_name"])
+@pytest.mark.parametrize("changed_field", ["patient_nom", "patient_birth", "cabinet_name", "doctor_name"])
 def test_a4_approval_rejects_rendered_identity_changed_after_preview(
     client, db, dentiste, monkeypatch, tmp_path, changed_field,
 ):
@@ -122,11 +122,13 @@ def test_a4_approval_rejects_rendered_identity_changed_after_preview(
     elif changed_field == "patient_birth":
         from datetime import datetime
         patient.date_naissance = datetime(1999, 1, 1)
-    else:
+    elif changed_field == "cabinet_name":
         config = db.query(models.CabinetConfig).filter(
             models.CabinetConfig.owner_id == dentiste.id
         ).one()
         config.nom_cabinet = "SYNTHETIC NEW CABINET NAME"
+    else:
+        dentiste.nom_complet = "Dr. SYNTHETIC NEW PRACTITIONER NAME"
     db.commit()
     # Persisted typed-science revision itself did not move.
     db.refresh(study)
