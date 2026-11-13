@@ -145,7 +145,9 @@ async function metrics(page, viewportName, scene) {
       hasNoFakeValidation: text.includes('aucune validation disponible'),
       hasImportedNotes: text.includes('notes praticien importées : origine non vérifiée'),
       hasDocumentSeparation: text.includes('actions documentaires') &&
-        text.includes('prévisualisation et téléchargement : brouillon non signé, sans valeur de validation clinique.') &&
+        text.includes('aperçu et impression sont disponibles sans archivage.') &&
+        text.includes('le bilan clinique complet reste bloqué') &&
+        text.includes('un bilan strictement descriptif peut être validé séparément') &&
         Boolean(document.getElementById('cephalo-a4-archive-hold')),
       hasUnsignedArchiveHold: (() => {
         const archive = Array.from(document.querySelectorAll('button')).find(button =>
@@ -156,7 +158,9 @@ async function metrics(page, viewportName, scene) {
         return Boolean(archive?.disabled &&
           archive.getAttribute('aria-describedby') === 'cephalo-a4-archive-hold' &&
           draft && !draft.disabled &&
-          hold?.textContent?.toLowerCase().includes('signature vérifiable du document exact'));
+          hold?.textContent?.toLowerCase().includes('archivage du bilan clinique complet indisponible') &&
+          hold?.textContent?.toLowerCase().includes('archivage v1 descriptif exige une approbation traçable') &&
+          hold?.textContent?.toLowerCase().includes('aucune signature électronique avancée n'est requise'));
       })(),
       hasTechnicalVocabulary: technicalVocabulary.test(rawText),
       bodyHeight: body.scrollHeight,
