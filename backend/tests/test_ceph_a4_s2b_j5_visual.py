@@ -66,12 +66,54 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
     assert "PLAN DE TRAITEMENT" not in after_text
     assert "DR. TEST" in after_text
     assert "SYNTHETIC P2BIS ONLY" in after_text
+    assert "DOC STUDIO TEST HEAD" in after_text, "A4 must preserve the user's configured header, not replace it with clinician name"
     assert "DR. NOM PRÉNOM" not in after_text
     assert "VOTRE ADRESSE DE CABINET" not in after_text
     assert "D. NOM" not in after_text
     assert "12 RUE DE TEST SYNTHETIQUE" in after_text
     assert "00 00 00 00 00" in after_text
     assert "ÉTUDE" in after_text.upper() or "ETUDE" in after_text.upper()
+    # Independent A5 baseline rendered directly with the SAME BaseTemplate
+    # engine and the SAME untouched CabinetConfig. The title/body differs,
+    # the professional header/footer text must be identical (only page size).
+    from backend.services.base_template import BaseTemplate
+    from reportlab.lib.pagesizes import A5
+    from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.platypus import SimpleDocTemplate, Paragraph
+    baseline_path = tmp_path / "synthetic-studio-a5-reference.pdf"
+    config_obj = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == dentiste.id
+    ).one()
+    studio_config = {
+        column.key: getattr(config_obj, column.key)
+        for column in models.CabinetConfig.__table__.columns
+    }
+    studio = BaseTemplate()
+    studio.update_active_fonts(studio_config)
+    top, bottom, left, right = studio.get_document_margins(studio_config, A5[0])
+    baseline = SimpleDocTemplate(
+        str(baseline_path), pagesize=A5,
+        topMargin=top, bottomMargin=bottom,
+        leftMargin=left, rightMargin=right,
+    )
+    paint = lambda canvas, doc: studio.draw_static_elements(
+        canvas, doc, config=studio_config, user=dentiste,
+    )
+    baseline.build(
+        [Paragraph("SYNTHETIC A5 DOCUMENT STUDIO REFERENCE", getSampleStyleSheet()["Normal"])],
+        onFirstPage=paint, onLaterPages=paint,
+    )
+    with fitz.open(baseline_path) as pdf:
+        a5_text = "\\n".join(p.get_text() for p in pdf).upper()
+    for model_text in (
+        "DOC STUDIO TEST HEAD",
+        "12 RUE DE TEST SYNTHETIQUE",
+        "00 00 00 00 00",
+    ):
+        assert model_text in a5_text, f"Not rendered by A5 Studio model: {model_text}"
+        assert model_text in after_text, f"A4 does not inherit Studio model: {model_text}"
+    baseline_path.unlink()
+
     # Save only synthetic proofs. Run artifacts are uploaded by CI; all local
     # PDF temp files outside ArchiveService are deleted by the test harness.
     proof = Path(os.environ.get("CEPH_A4_J5_SYNTHETIC_PROOF_DIR", str(tmp_path / "proof")))
