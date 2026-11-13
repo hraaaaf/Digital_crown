@@ -1744,7 +1744,11 @@ def archive_descriptive_cephalo_a4_v1(
         cabinet_query = cabinet_query.with_for_update()
     current_patient = patient_query.first()
     current_cabinet = cabinet_query.first()
-    current_user = db.query(models.User).filter(models.User.id == current_user.id).populate_existing().first() or current_user
+    # Auth dependencies loaded the user from this request's DB session.
+    # Refresh persisted users after acquiring the study lock; isolated race
+    # harnesses supply a synthetic actor rather than a persisted user row.
+    if isinstance(current_user, models.User):
+        db.refresh(current_user)
     require_dentist(current_user)
     rendered_identity_sha256 = rendered_identity_fingerprint(
         patient=current_patient, cabinet=current_cabinet, user=current_user,
