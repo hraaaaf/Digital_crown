@@ -9,6 +9,10 @@ on:
       - backend/services/document_factory.py
       - backend/services/generators/cephalo_four_part_report.py
       - backend/tests/test_ceph_a4_descriptive_approval_v1.py
+      - backend/tests/test_ortho_frontend_fail_closed_contract.py
+      - frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs
+      - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+      - frontend/scripts/capture-cephalo-r15-after.mjs
       - backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
       - backend/tests/test_ceph_a4_s2b_j5_independent_review.py
       - backend/tests/test_ceph_a4_s2b_j5_visual.py
@@ -68,6 +72,10 @@ jobs:
             'backend/services/document_factory.py',
             'backend/services/generators/cephalo_four_part_report.py',
             'backend/tests/test_ceph_a4_descriptive_approval_v1.py',
+            'backend/tests/test_ortho_frontend_fail_closed_contract.py',
+            'frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs',
+            'frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs',
+            'frontend/scripts/capture-cephalo-r15-after.mjs',
             'backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py',
             'backend/tests/test_ceph_a4_s2b_j5_independent_review.py',
             'backend/tests/test_ceph_a4_s2b_j5_visual.py',
@@ -134,6 +142,7 @@ jobs:
         run: |
           python -m pytest -q backend/tests/test_document_signature_p3.py
           python -m pytest -q backend/tests/test_ceph_a4_descriptive_approval_v1.py
+          python -m pytest -q backend/tests/test_ortho_frontend_fail_closed_contract.py
           python -m pytest -q -vv backend/tests/test_ceph_a4_s2b_j5_independent_review.py
           mkdir -p /tmp/ceph-a4-j5-synthetic-visual
           CEPH_A4_J5_SYNTHETIC_PROOF_DIR=/tmp/ceph-a4-j5-synthetic-visual python -m pytest -q -vv backend/tests/test_ceph_a4_s2b_j5_visual.py
