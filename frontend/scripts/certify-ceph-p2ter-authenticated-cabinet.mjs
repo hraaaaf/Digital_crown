@@ -171,8 +171,11 @@ async function viewportRun(viewport){
   if(!await page.getByRole('button',{name:'Brouillon PDF'}).isEnabled())
     throw Error('Draft should remain available with official archive suspended');
   const reason=await page.getByTestId('unsigned-cephalo-archive-hold').innerText();
-  if(!/brouillon non signé/i.test(reason) || !/signature vérifiable/i.test(reason))
-    throw Error('Unsigned archive suspension is not explained to clinician');
+  if(!/brouillon non signé/i.test(reason)
+    || !/archivage du bilan clinique complet indisponible/i.test(reason)
+    || !/archivage v1 descriptif exige une approbation traçable/i.test(reason)
+    || !/aucune signature électronique avancée n'est requise/i.test(reason))
+    throw Error('Clinical archive hold and separate descriptive approval not explained to clinician');
   await suspended.scrollIntoViewIfNeeded();
   await shot('archive-suspended-explained');
   record.checks.push('REAL_CABINET_UNSIGNED_ARCHIVE_DISABLED_AND_DRAFT_AVAILABLE');
