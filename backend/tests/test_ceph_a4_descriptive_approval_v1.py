@@ -176,7 +176,7 @@ def test_real_authenticated_prepare_archive_replay_and_exact_sqlite_proof(
         pages = "\n".join(page.get_text() for page in document)
     assert "DESCRIPTIF" in pages
     assert "Dr. Test" in pages
-    assert "SYNTHETIC P2BIS ONLY" in pages
+    assert "DOC STUDIO TEST HEAD" in pages  # persisted Studio header, not fabricated cachet
     assert "PLAN DE TRAITEMENT" not in pages
     assert "DIAGNOSTIC FINAL" not in pages
     assert "BROUILLON" not in pages
