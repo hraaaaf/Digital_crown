@@ -13,6 +13,7 @@ import os
 from pathlib import Path
 
 import fitz
+import pytest
 
 from backend import models
 from backend.tests.test_ceph_a4_descriptive_approval_v1 import (
@@ -99,3 +100,49 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
         "DIAGNOSIS=false\nTREATMENT=false\nARCHIVE_BYTES_EQUAL_PREVIEW=true\n",
         encoding="utf-8",
     )
+
+
+@pytest.mark.parametrize("changed_field", ["patient_nom", "patient_birth", "cabinet_name"])
+def test_a4_approval_rejects_rendered_identity_changed_after_preview(
+    client, db, dentiste, monkeypatch, tmp_path, changed_field,
+):
+    """An exact PDF may still be stale if the patient/cabinet identity changed.
+
+    The cephalometric scientific revision remains the same. Approval must refuse
+    this independent document-context mutation before any disk/SQL archive.
+    """
+    _environment(monkeypatch, tmp_path)
+    _cabinet(db, dentiste)
+    patient, study, _points, headers = _calibrated_case(client, db, dentiste)
+    revision, prepared = _prepare(client, patient, study, headers)
+    assert prepared.status_code == 200, prepared.text[:450]
+    candidate = prepared.json()
+    if changed_field == "patient_nom":
+        patient.nom = "SYNTHETIC-CHANGED-J5"
+    elif changed_field == "patient_birth":
+        from datetime import datetime
+        patient.date_naissance = datetime(1999, 1, 1)
+    else:
+        config = db.query(models.CabinetConfig).filter(
+            models.CabinetConfig.owner_id == dentiste.id
+        ).one()
+        config.nom_cabinet = "SYNTHETIC NEW CABINET NAME"
+    db.commit()
+    # Persisted typed-science revision itself did not move.
+    db.refresh(study)
+    assert study.angles_data["_evidence_graph_v1"]["revision"] == revision
+    denied = client.post(
+        f"/api/patients/{patient.id}/cephalo-a4/archive",
+        json={
+            "analysis_id": study.id, "expected_revision": revision,
+            "approval_token": candidate["approval_token"],
+            "pdf_base64": candidate["pdf_base64"], "approved": True,
+        },
+        headers=headers,
+    )
+    assert denied.status_code == 409
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.patient_id == patient.id,
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+    assert not list((tmp_path / "archives").rglob("*.pdf"))
