@@ -414,6 +414,12 @@ def test_named_cabinet_without_address_or_contact_cannot_prepare_approvable_pdf(
     # Name-only cabinet: generic renderer would otherwise print
     # "Votre adresse de cabinet / Contact" on an official medical report.
     _cabinet(db, dentiste)
+    config = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == dentiste.id
+    ).one()
+    config.header_lines_fr = ["DOC STUDIO TEST HEAD"]
+    config.header_lines_ar = ["طبيب اختبار"]
+    db.commit()
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, denied = _prepare(client, patient, study, headers)
     assert denied.status_code == 422
