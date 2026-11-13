@@ -99,6 +99,23 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
         raise ValueError("Four-part report requires authoritative backend projection")
 
     config = dict(vm.cabinet_config or {})
+    descriptive = projection.get("document_kind") == "CEPH_A4_DESCRIPTIVE_APPROVAL_V1"
+    if descriptive:
+        # The generic document template contains visible placeholders. An
+        # approved A4 must always name its actual authenticated practitioner
+        # rather than print "Dr. Nom Prénom" or a fabricated Arabic doctor.
+        doctor = str(vm.doctor_name or "").strip()
+        if not doctor or doctor.lower() in {"dr. saninova", "docteur", "dr. nom prénom"}:
+            raise ValueError("Nom du praticien responsable requis pour l'A4 descriptif")
+        previous = config.get("header_lines_fr")
+        if isinstance(previous, list) and previous:
+            config["header_lines_fr"] = [doctor] + [str(value) for value in previous[1:] if value]
+        else:
+            config["header_lines_fr"] = [doctor, "Chirurgien-dentiste"]
+        if not config.get("header_lines_ar"):
+            # Empty visual block instead of the base template's fictitious
+            # Arabic practitioner identity.
+            config["header_lines_ar"] = [" "]
     if config.get("qr_code_type") in ("VALIDATION", "PAYMENT"):
         # No genuine archived document ID is yet available at rendering time.
         config["qr_code_enabled"] = False
@@ -136,7 +153,6 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     tbl_cell = ParagraphStyle("DCCeph4TableCell", parent=body, fontSize=8.3, leading=11,
         spaceAfter=0)
 
-    descriptive = projection.get("document_kind") == "CEPH_A4_DESCRIPTIVE_APPROVAL_V1"
     elements = [
         Paragraph("BILAN CÉPHALOMÉTRIQUE DESCRIPTIF" if descriptive else "BILAN ORTHODONTIQUE", title),
         *([] if descriptive else [
@@ -217,6 +233,10 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
             elements.append(Paragraph(
                 "Cachet professionnel non configuré — validation du document requise.", muted,
             ))
+        elements.append(Paragraph(
+            "Statut d'approbation et intégrité : vérifiables dans le dossier patient "
+            "Digital Crown. Le PDF isolé n'atteste pas à lui seul sa validation.", muted,
+        ))
         draw = lambda canvas, page: generator.draw_static_elements(
             canvas, page, config=config, user=user,
         )
