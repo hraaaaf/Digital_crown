@@ -82,7 +82,10 @@ with database.SessionLocal() as db:
         assert data["rendered_identity_sha256"]
         assert data["scientific_source_sha256"]
         assert data["approved_pdf_sha256"] == record.file_hash
-        assert record.author_practitioner_id == user.id
+        # DocumentArchive has no author_practitioner_id column: the real
+        # author is stored as uploaded_by_id and in the immutable approval
+        # metadata. Both must match the authenticated dentist.
+        assert record.uploaded_by_id == user.id
         assert db.query(models.AuditLog).filter(
             models.AuditLog.action == "CEPH_A4_DESCRIPTIVE_APPROVED",
             models.AuditLog.resource_id == str(study.id),
@@ -95,7 +98,9 @@ with database.SessionLocal() as db:
             assert round(report[0].rect.width) == 595
             assert round(report[0].rect.height) == 842
         assert "FUE-G STUDIO ENTETE" in page_text
-        assert "FUE-G CABINET SYNTHETIQUE" not in page_text or "FUE-G STUDIO ENTETE" in page_text
+        assert "Dr. Nom Prénom" not in page_text
+        assert "Votre adresse de cabinet" not in page_text
+        assert "12 RUE TEST UNIQUEMENT" in page_text
         assert "DIAGNOSTIC FINAL" not in page_text
         assert "PLAN DE TRAITEMENT" not in page_text
         assert "BROUILLON" not in page_text
