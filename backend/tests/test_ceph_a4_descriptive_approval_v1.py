@@ -102,8 +102,10 @@ def _s2b_cabinet(db, dentiste):
     ).one()
     config.footer_address = "12 RUE DE TEST SYNTHETIQUE — AUCUN PATIENT REEL"
     config.footer_phones = "00 00 00 00 00 — TEST ONLY"
-    # Deliberately leave both header languages unconfigured: the descriptive
-    # renderer must NOT inherit the generic "Dr. Nom Prénom" placeholders.
+    # Keep the stored Document Studio model intact. The A4 renderer must
+    # inherit these exact strings, not inject a second A4-specific header.
+    config.header_lines_fr = ["Dr. Test", "Chirurgien-dentiste"]
+    config.header_lines_ar = ["طبيب اختبار", "طبيب جراح للأسنان"]
     db.commit()
 
 
