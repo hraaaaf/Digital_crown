@@ -224,9 +224,25 @@ def _b64(data: bytes) -> str:
 
 
 def _decode(raw: str) -> bytes:
-    if not isinstance(raw, str) or len(raw) > 4096:
+    """Accept only the exact unpadded canonical base64url representation.
+
+    The final base64 character can have unused low bits. Python's decoder
+    ignores those bits, so altering the last character of a MAC could
+    otherwise produce the *same* bytes. Both MAC and signed payload must
+    reject such alternate spellings instead of silently accepting them.
+    """
+    if (
+        not isinstance(raw, str)
+        or not raw
+        or len(raw) > 4096
+        or any(char not in "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+               for char in raw)
+    ):
         raise ValueError("Encodage invalide")
-    return base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4))
+    decoded = base64.urlsafe_b64decode(raw + "=" * (-len(raw) % 4))
+    if _b64(decoded) != raw:
+        raise ValueError("Encodage base64url non canonique")
+    return decoded
 
 
 def make_approval_token(
@@ -265,7 +281,9 @@ def verify_approval_token(
         if not hmac.compare_digest(_decode(mac), expected):
             raise ValueError("Signature du reçu invalide")
         claims = json.loads(_decode(payload))
-    except (AttributeError, ValueError, TypeError, KeyError, UnicodeDecodeError) as exc:
+        if not isinstance(claims, dict):
+            raise ValueError("Reçu d'approbation mal formé")
+    except (AttributeError, ValueError, TypeError, KeyError, UnicodeDecodeError, base64.binascii.Error) as exc:
         raise HTTPException(status_code=409, detail="Preuve de relecture du bilan invalide") from exc
     issued = claims.get("iat")
     clock = int(time.time()) if now is None else int(now)
