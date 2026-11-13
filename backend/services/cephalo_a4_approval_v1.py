@@ -51,6 +51,37 @@ def scientific_fingerprint(study: models.CephaloAnalysis) -> str:
     return hashlib.sha256(body.encode("utf-8")).hexdigest()
 
 
+
+def rendered_identity_fingerprint(*, patient: models.Patient, user: models.User, cabinet: models.CabinetConfig) -> str:
+    """Bind the PDF's patient demographics and visible practitioner/cabinet text.
+
+    This is separate from the scientific study revision: a patient rename,
+    date-of-birth correction or cabinet-stamp change must invalidate a preview
+    even when the cephalometric graph's revision remains unchanged.
+    """
+    if (
+        patient is None or cabinet is None or user is None
+        or type(patient.id) is not int or patient.id <= 0
+        or type(user.id) is not int or user.id <= 0
+        or cabinet.owner_id != user.get_employer_id()
+        or not str(user.nom_complet or "").strip()
+        or not str(cabinet.nom_cabinet or "").strip()
+    ):
+        raise HTTPException(status_code=409, detail="Identité ou cachet du bilan non vérifiable")
+    identity = {
+        "patient_id": patient.id,
+        "nom": patient.nom,
+        "prenom": patient.prenom,
+        "date_naissance": patient.date_naissance.isoformat() if patient.date_naissance else None,
+        "sexe": patient.sexe,
+        "practitioner_id": user.id,
+        "practitioner_name": user.nom_complet,
+        "cabinet_owner": cabinet.owner_id,
+        "cabinet_stamp": cabinet.nom_cabinet,
+    }
+    text = json.dumps(identity, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+
 def require_descriptive_science(study, *, patient_id: int, revision: int) -> None:
     """Descriptive measurements only; NEVER waive the typed evidence gate."""
     from backend.services.cephalo_pdf_projection import build_cephalo_pdf_projection
@@ -99,7 +130,7 @@ def _decode(raw: str) -> bytes:
 
 def make_approval_token(
     *, user: models.User, patient_id: int, analysis_id: int, revision: int,
-    source_sha256: str, pdf_sha256: str, pdf_length: int, now: int | None = None,
+    source_sha256: str, rendered_identity_sha256: str, pdf_sha256: str, pdf_length: int, now: int | None = None,
 ) -> str:
     require_dentist(user)
     issued = int(time.time()) if now is None else int(now)
@@ -111,6 +142,7 @@ def make_approval_token(
         "user_id": user.id,
         "cabinet_id": user.get_employer_id(),
         "source_sha256": source_sha256,
+        "rendered_identity_sha256": rendered_identity_sha256,
         "pdf_sha256": pdf_sha256,
         "pdf_length": pdf_length,
         "iat": issued,
@@ -123,7 +155,7 @@ def make_approval_token(
 
 def verify_approval_token(
     token: str, *, user: models.User, patient_id: int, analysis_id: int,
-    revision: int, source_sha256: str, pdf: bytes, now: int | None = None,
+    revision: int, source_sha256: str, rendered_identity_sha256: str, pdf: bytes, now: int | None = None,
 ) -> dict[str, Any]:
     require_dentist(user)
     try:
@@ -146,6 +178,9 @@ def verify_approval_token(
         or claims.get("analysis_id") != analysis_id
         or claims.get("revision") != revision
         or claims.get("source_sha256") != source_sha256
+        or not isinstance(rendered_identity_sha256, str)
+        or len(rendered_identity_sha256) != 64
+        or claims.get("rendered_identity_sha256") != rendered_identity_sha256
     ):
         raise HTTPException(status_code=409, detail="Preuve périmée, non autorisée ou étude modifiée")
     if (
