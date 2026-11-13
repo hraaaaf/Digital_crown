@@ -104,7 +104,7 @@ def _s2b_cabinet(db, dentiste):
     config.footer_phones = "00 00 00 00 00 — TEST ONLY"
     # Keep the stored Document Studio model intact. The A4 renderer must
     # inherit these exact strings, not inject a second A4-specific header.
-    config.header_lines_fr = ["Dr. Test", "Chirurgien-dentiste"]
+    config.header_lines_fr = ["DOC STUDIO TEST HEAD", "Chirurgien-dentiste"]
     config.header_lines_ar = ["طبيب اختبار", "طبيب جراح للأسنان"]
     db.commit()
 
@@ -422,3 +422,29 @@ def test_named_cabinet_without_address_or_contact_cannot_prepare_approvable_pdf(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 0
     assert not list(tmp_path.rglob("*.pdf"))
+
+
+def test_shared_studio_template_requires_configured_header_and_refuses_dynamic_qr(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _environment(monkeypatch, tmp_path)
+    _s2b_cabinet(db, dentiste)
+    patient, study, _, headers = _calibrated_case(client, db, dentiste)
+    cabinet = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == dentiste.id
+    ).one()
+    cabinet.header_lines_fr = []
+    db.commit()
+    _, refused = _prepare(client, patient, study, headers)
+    assert refused.status_code == 422
+    assert "En-tête du modèle Documents" in refused.json()["detail"]
+    cabinet.header_lines_fr = ["DOC STUDIO TEST HEAD"]
+    cabinet.qr_code_enabled = True
+    cabinet.qr_code_type = models.QRCodeType.VALIDATION
+    db.commit()
+    _, refused_qr = _prepare(client, patient, study, headers)
+    assert refused_qr.status_code == 422
+    assert "QR de validation/paiement" in refused_qr.json()["detail"]
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO
+    ).count() == 0
