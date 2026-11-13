@@ -104,8 +104,11 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     # for this specific document; only the A4 page and body content differ.
     config = dict(vm.cabinet_config or {})
     descriptive = projection.get("document_kind") == "CEPH_A4_DESCRIPTIVE_APPROVAL_V1"
-    if config.get("qr_code_type") in ("VALIDATION", "PAYMENT"):
-        # No genuine archived document ID is yet available at rendering time.
+    if not descriptive and config.get("qr_code_type") in ("VALIDATION", "PAYMENT"):
+        # Preserve the historical unsigned draft's refusal to claim a QR
+        # validation or payment before a real archive exists. The descriptive
+        # A4 path is blocked upstream for unsupported dynamic QR modes rather
+        # than silently changing the cabinet's shared document template.
         config["qr_code_enabled"] = False
     generator.update_active_fonts(config)
     from reportlab.pdfbase.pdfmetrics import registerFontFamily
