@@ -155,7 +155,12 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
     )
 
 
-@pytest.mark.parametrize("changed_field", ["patient_nom", "patient_birth", "cabinet_name", "cabinet_address", "cabinet_phone", "doctor_name"])
+@pytest.mark.parametrize(
+    "changed_field",
+    ["patient_nom", "patient_birth", "cabinet_name", "cabinet_address",
+     "cabinet_phone", "doctor_name", "studio_color", "studio_font",
+     "studio_margin", "studio_qr", "studio_header_scale"],
+)
 def test_a4_approval_rejects_rendered_identity_changed_after_preview(
     client, db, dentiste, monkeypatch, tmp_path, changed_field,
 ):
@@ -175,7 +180,11 @@ def test_a4_approval_rejects_rendered_identity_changed_after_preview(
     elif changed_field == "patient_birth":
         from datetime import datetime
         patient.date_naissance = datetime(1999, 1, 1)
-    elif changed_field in ("cabinet_name", "cabinet_address", "cabinet_phone"):
+    elif changed_field in (
+        "cabinet_name", "cabinet_address", "cabinet_phone",
+        "studio_color", "studio_font", "studio_margin",
+        "studio_qr", "studio_header_scale",
+    ):
         config = db.query(models.CabinetConfig).filter(
             models.CabinetConfig.owner_id == dentiste.id
         ).one()
@@ -183,8 +192,18 @@ def test_a4_approval_rejects_rendered_identity_changed_after_preview(
             config.nom_cabinet = "SYNTHETIC NEW CABINET NAME"
         elif changed_field == "cabinet_address":
             config.footer_address = "SYNTHETIC NEW ADDRESS"
-        else:
+        elif changed_field == "cabinet_phone":
             config.footer_phones = "00 99 99 99 99"
+        elif changed_field == "studio_color":
+            config.primary_color = "#AA3300"
+        elif changed_field == "studio_font":
+            config.font_fr = "serif"
+        elif changed_field == "studio_margin":
+            config.margin_top = 4.8
+        elif changed_field == "studio_qr":
+            config.qr_code_value = "https://example.invalid/new-qr"
+        else:
+            config.header_scale = 1.25
     else:
         dentiste.nom_complet = "Dr. SYNTHETIC NEW PRACTITIONER NAME"
     db.commit()
