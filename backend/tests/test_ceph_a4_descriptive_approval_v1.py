@@ -102,9 +102,8 @@ def _s2b_cabinet(db, dentiste):
     ).one()
     config.footer_address = "12 RUE DE TEST SYNTHETIQUE — AUCUN PATIENT REEL"
     config.footer_phones = "00 00 00 00 00 — TEST ONLY"
-    config.header_lines_fr = ["Dr. Test", "Chirurgien-dentiste"]
-    # No real Arabic practitioner identity is provided in this fixture.
-    config.header_lines_ar = []
+    # Deliberately leave both header languages unconfigured: the descriptive
+    # renderer must NOT inherit the generic "Dr. Nom Prénom" placeholders.
     db.commit()
 
 
@@ -404,3 +403,20 @@ def test_immutable_archive_sha_detects_tampering_on_read(
     assert db.query(models.DocumentArchive).filter(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 1
+
+
+def test_named_cabinet_without_address_or_contact_cannot_prepare_approvable_pdf(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _environment(monkeypatch, tmp_path)
+    # Name-only cabinet: generic renderer would otherwise print
+    # "Votre adresse de cabinet / Contact" on an official medical report.
+    _cabinet(db, dentiste)
+    patient, study, points, headers = _calibrated_case(client, db, dentiste)
+    revision, denied = _prepare(client, patient, study, headers)
+    assert denied.status_code == 422
+    assert "Papier à en-tête" in denied.json()["detail"]
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+    assert not list(tmp_path.rglob("*.pdf"))
