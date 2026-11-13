@@ -138,6 +138,9 @@ jobs:
           mkdir -p /tmp/ceph-a4-j5-synthetic-visual
           CEPH_A4_J5_SYNTHETIC_PROOF_DIR=/tmp/ceph-a4-j5-synthetic-visual python -m pytest -q -vv backend/tests/test_ceph_a4_s2b_j5_visual.py
           python -m pytest -q backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
+          # Preserve historic cephalometric archives and their documented URLs
+          # while V1 descriptive A4 uses authenticated SHA-verified downloads.
+          python -m pytest -q backend/tests/test_dc_dos01_historical_pdf_isolation.py
           echo CEPH_A4_J6_S2B_SAFETY_ON_MASTER_PASS
       - name: Install locked frontend and real Chromium
         working-directory: frontend
