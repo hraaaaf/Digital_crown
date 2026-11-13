@@ -33,8 +33,8 @@ def _ticket(user, pdf=b"%PDF-1.4\nSYNTHETIC\n%%EOF", now=500):
     hash_ = hashlib.sha256(pdf).hexdigest()
     token = approval.make_approval_token(
         user=user, patient_id=101, analysis_id=202, revision=3,
-        source_sha256="a" * 64, pdf_sha256=hash_,
-        pdf_length=len(pdf), now=now,
+        source_sha256="a" * 64, rendered_identity_sha256="c" * 64,
+        pdf_sha256=hash_, pdf_length=len(pdf), now=now,
     )
     return token, pdf
 
@@ -43,7 +43,9 @@ def _verify(token, pdf, user=None, now=500, **extra):
     return approval.verify_approval_token(
         token, user=user or _actor(), patient_id=extra.get("patient_id", 101),
         analysis_id=202, revision=extra.get("revision", 3),
-        source_sha256=extra.get("source_sha256", "a" * 64), pdf=pdf, now=now,
+        source_sha256=extra.get("source_sha256", "a" * 64),
+        rendered_identity_sha256=extra.get("rendered_identity_sha256", "c" * 64),
+        pdf=pdf, now=now,
     )
 
 
