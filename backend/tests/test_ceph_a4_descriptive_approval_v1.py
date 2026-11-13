@@ -59,7 +59,7 @@ def test_authorized_exact_bytes_and_bound_claims_reusable_in_review_window():
 
 @pytest.mark.parametrize("mutation", [
     "pdf", "tampered_token", "changed_patient", "changed_revision",
-    "changed_science", "other_user", "expired", "future",
+    "changed_science", "changed_rendered_identity", "other_user", "expired", "future",
 ])
 def test_unsigned_or_stale_approval_is_rejected(mutation):
     user = _actor()
@@ -71,6 +71,7 @@ def test_unsigned_or_stale_approval_is_rejected(mutation):
     if mutation == "changed_patient": kwargs["patient_id"] = 102
     if mutation == "changed_revision": kwargs["revision"] = 4
     if mutation == "changed_science": kwargs["source_sha256"] = "b" * 64
+    if mutation == "changed_rendered_identity": kwargs["rendered_identity_sha256"] = "d" * 64
     if mutation == "other_user": user = _actor(user_id=42)
     if mutation == "expired": now = 500 + approval.TOKEN_SECONDS + 1
     if mutation == "future": now = 460
