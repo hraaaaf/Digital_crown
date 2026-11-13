@@ -142,7 +142,16 @@ def rendered_identity_fingerprint(*, patient: models.Patient, user: models.User,
         or not str(cabinet.nom_cabinet or "").strip()
     ):
         raise HTTPException(status_code=409, detail="Identité ou cachet du bilan non vérifiable")
+    # Use *every persisted Document Studio setting*, not a curated subset:
+    # typography, geometry, margins, QR, theme and legal footer fields all
+    # influence the official A4 at render time. Changing any of them after
+    # preview invalidates the practitioner's exact-document approval.
+    studio_config = {
+        column.key: getattr(cabinet, column.key)
+        for column in models.CabinetConfig.__table__.columns
+    }
     identity = {
+        "document_studio_config": studio_config,
         "patient_id": patient.id,
         "nom": patient.nom,
         "prenom": patient.prenom,
@@ -160,13 +169,18 @@ def rendered_identity_fingerprint(*, patient: models.Patient, user: models.User,
         "contacts_json": getattr(cabinet, "contacts_json", None),
         "user_address": getattr(user, "adresse_complete", None),
         "user_phone": getattr(user, "telephone_mobile", None),
+        "user_phone_fixe": getattr(user, "telephone_fixe", None),
+        "user_specialties": getattr(user, "specialites", None),
+        "user_legal_ids": getattr(user, "identifiants_legaux", None),
         "letterhead_path": cabinet.letterhead_path,
         "use_letterhead": cabinet.use_letterhead,
         "logo_path": cabinet.logo_path,
         "selected_template": cabinet.selected_template,
         "selected_theme": cabinet.selected_theme,
     }
-    text = json.dumps(identity, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    text = json.dumps(
+        identity, sort_keys=True, ensure_ascii=False, default=str, separators=(",", ":"),
+    )
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 def require_descriptive_science(study, *, patient_id: int, revision: int) -> None:
