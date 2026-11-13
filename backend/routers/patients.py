@@ -1613,7 +1613,7 @@ def prepare_descriptive_cephalo_a4_v1(
     from backend.services.cephalo_a4_approval_v1 import (
         MAX_PDF_BYTES, make_approval_token, require_dentist,
         require_descriptive_science, scientific_fingerprint,
-        rendered_identity_fingerprint,
+        rendered_identity_fingerprint, require_real_cabinet_letterhead,
     )
 
     require_dentist(current_user)
@@ -1630,8 +1630,7 @@ def prepare_descriptive_cephalo_a4_v1(
     cabinet = db.query(models.CabinetConfig).filter(
         models.CabinetConfig.owner_id == current_user.get_employer_id()
     ).first()
-    if not cabinet or not str(cabinet.nom_cabinet or "").strip():
-        raise HTTPException(status_code=422, detail="Cachet professionnel du cabinet à configurer avant validation")
+    require_real_cabinet_letterhead(cabinet=cabinet, user=current_user)
     rendered_identity_sha256 = rendered_identity_fingerprint(
         patient=patient, cabinet=cabinet, user=current_user,
     )
@@ -1708,7 +1707,7 @@ def archive_descriptive_cephalo_a4_v1(
     from backend.services.cephalo_a4_approval_v1 import (
         VERSION, archive_payload_digest, decode_pdf, require_dentist,
         require_descriptive_science, scientific_fingerprint, verify_approval_token,
-        rendered_identity_fingerprint,
+        rendered_identity_fingerprint, require_real_cabinet_letterhead,
     )
     from backend.services.cephalo_document_lock import (
         already_archived_pdf, lock_selected_cephalo_for_archive,
@@ -1750,6 +1749,7 @@ def archive_descriptive_cephalo_a4_v1(
     if isinstance(current_user, models.User):
         db.refresh(current_user)
     require_dentist(current_user)
+    require_real_cabinet_letterhead(cabinet=current_cabinet, user=current_user)
     rendered_identity_sha256 = rendered_identity_fingerprint(
         patient=current_patient, cabinet=current_cabinet, user=current_user,
     )
