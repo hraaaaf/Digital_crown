@@ -52,6 +52,40 @@ def scientific_fingerprint(study: models.CephaloAnalysis) -> str:
 
 
 
+
+def require_real_cabinet_letterhead(*, cabinet: models.CabinetConfig, user: models.User) -> None:
+    """No 'Dr. Nom Prénom', 'Votre adresse', or 'Contact' in official A4.
+
+    The existing base template falls back to example text when the cabinet
+    setup is incomplete. The descriptive approval candidate must refuse,
+    not silently turn such a template into an official patient archive.
+    """
+    if not cabinet or not str(cabinet.nom_cabinet or "").strip():
+        raise HTTPException(status_code=422, detail="Cachet professionnel du cabinet à configurer")
+    address = str(
+        getattr(cabinet, "footer_address", None)
+        or getattr(user, "adresse_complete", None) or ""
+    ).strip()
+    phone = str(
+        getattr(cabinet, "footer_phones", None)
+        or getattr(user, "telephone_mobile", None) or ""
+    ).strip()
+    contacts = getattr(cabinet, "contacts_json", None)
+    has_contact = bool(phone)
+    if isinstance(contacts, dict):
+        has_contact = has_contact or any(
+            isinstance(row, dict)
+            and row.get("enabled") is True
+            and bool(str(row.get("value") or "").strip())
+            for row in contacts.values()
+        )
+    if not address or not has_contact:
+        raise HTTPException(
+            status_code=422,
+            detail="Papier à en-tête du bilan A4 incomplet : adresse et contact du cabinet requis",
+        )
+
+
 def rendered_identity_fingerprint(*, patient: models.Patient, user: models.User, cabinet: models.CabinetConfig) -> str:
     """Bind the PDF's patient demographics and visible practitioner/cabinet text.
 
