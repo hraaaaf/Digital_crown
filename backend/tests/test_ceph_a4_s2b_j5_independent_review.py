@@ -90,6 +90,8 @@ def s2b_sqlite(tmp_path, monkeypatch):
         db.add(models.CabinetConfig(
             owner_id=44, nom_cabinet="SYNTHETIC J5 CABINET",
             nom_praticien="Dr. Test J5",
+            footer_address="J5 SYNTHETIC TEST ADDRESS",
+            footer_phones="00 00 00 00 J5",
         ))
         db.add(models.CephaloAnalysis(
             id=9001, patient_id=8001,
