@@ -80,6 +80,34 @@ def test_unsigned_or_stale_approval_is_rejected(mutation):
     assert error.value.status_code == 409
 
 
+def test_hmac_base64url_noncanonical_last_character_is_rejected():
+    """Changing unused padding bits must NOT produce an accepted signature."""
+    token, pdf = _ticket(_actor())
+    original_payload, original_mac = token.split(".")
+    assert len(original_mac) == 43  # unpadded SHA-256 is 43 chars
+    alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
+    final = alphabet.index(original_mac[-1])
+    # 32-byte SHA-256 has two unused bits in the final base64url character.
+    replacement = alphabet[(final & ~3) | ((final + 1) & 3)]
+    assert replacement != original_mac[-1]
+    forged = original_payload + "." + original_mac[:-1] + replacement
+    assert base64.urlsafe_b64decode(original_mac + "=") == base64.urlsafe_b64decode(
+        forged.split(".")[1] + "="
+    ), "This probes a byte-identical but noncanonical MAC"
+    assert _verify(token, pdf)["pdf_sha256"] == hashlib.sha256(pdf).hexdigest()
+    with pytest.raises(HTTPException) as error:
+        _verify(forged, pdf)
+    assert error.value.status_code == 409
+
+
+def test_base64url_aliases_and_malformed_padding_fail_closed():
+    """Both the signed claims and MAC use strict canonical unpadded encodings."""
+    assert approval._decode("_w") == b"\\xff"
+    for alternative in ("_x", "_w=", "___", "*", "", "A", "abc!"):
+        with pytest.raises((ValueError, base64.binascii.Error)):
+            approval._decode(alternative)
+
+
 def test_admin_cannot_approve_even_with_valid_pdf():
     with pytest.raises(HTTPException) as error:
         _ticket(_actor(role=models.UserRole.ADMIN))
