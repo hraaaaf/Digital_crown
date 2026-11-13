@@ -98,9 +98,17 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     if projection.get("authority") != _AUTHORITY or projection.get("layout_version") != LAYOUT_VERSION:
         raise ValueError("Four-part report requires authoritative backend projection")
 
+    # The A4 report inherits the SAME persisted Document Studio template
+    # and shared BaseTemplate header/footer pipeline as every cabinet PDF.
+    # Do not rewrite French/Arabic header lines, stamp, logo, theme or footer
+    # for this specific document; only the A4 page and body content differ.
     config = dict(vm.cabinet_config or {})
-    if config.get("qr_code_type") in ("VALIDATION", "PAYMENT"):
-        # No genuine archived document ID is yet available at rendering time.
+    descriptive = projection.get("document_kind") == "CEPH_A4_DESCRIPTIVE_APPROVAL_V1"
+    if not descriptive and config.get("qr_code_type") in ("VALIDATION", "PAYMENT"):
+        # Preserve the historical unsigned draft's refusal to claim a QR
+        # validation or payment before a real archive exists. The descriptive
+        # A4 path is blocked upstream for unsupported dynamic QR modes rather
+        # than silently changing the cabinet's shared document template.
         config["qr_code_enabled"] = False
     generator.update_active_fonts(config)
     from reportlab.pdfbase.pdfmetrics import registerFontFamily
@@ -137,8 +145,10 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
         spaceAfter=0)
 
     elements = [
-        Paragraph("BILAN ORTHODONTIQUE", title),
-        Paragraph("BROUILLON — NON SIGNÉ · Document de travail du praticien", muted),
+        Paragraph("BILAN CÉPHALOMÉTRIQUE DESCRIPTIF" if descriptive else "BILAN ORTHODONTIQUE", title),
+        *([] if descriptive else [
+            Paragraph("BROUILLON — NON SIGNÉ · Document de travail du praticien", muted),
+        ]),
         Paragraph("Patient : <b>" + escape(str(vm.patient_nom)) + " " +
                   escape(str(vm.patient_prenom)) + "</b> · Date : " +
                   escape(str(vm.date_generation)), body),
@@ -189,6 +199,30 @@ def render_four_part_a4(generator, vm, file_path: str, *, projection: dict, user
     selected = select_verified_measurements(projection)
     add_measurements("Analyse dento-alvéolaire", selected["dental"])
     add_measurements("Analyse squelettique", selected["skeletal"])
+
+    if descriptive:
+        # The candidate's bytes are shown BEFORE validation and archived unchanged
+        # AFTER the authenticated clinician explicitly approves them. Therefore
+        # no "signed" or "approved" claim may be printed inside these same bytes.
+        # This strictly descriptive variant never renders diagnosis, treatment
+        # selection, R11-R14, optional free text, or unverified patient media.
+        elements.append(Spacer(1, 0.3 * cm))
+        elements.append(Paragraph(
+            "Périmètre : restitution descriptive de mesures issues de l'étude "
+            "scientifique versionnée, sans diagnostic ni proposition de traitement.", muted,
+        ))
+        elements.append(Paragraph(
+            "Praticien responsable : " + escape(str(vm.doctor_name or "À renseigner")), body,
+        ))
+        elements.append(Paragraph(
+            "Statut d'approbation et intégrité : vérifiables dans le dossier patient "
+            "Digital Crown. Le PDF isolé n'atteste pas à lui seul sa validation.", muted,
+        ))
+        draw = lambda canvas, page: generator.draw_static_elements(
+            canvas, page, config=config, user=user,
+        )
+        doc.build(elements, onFirstPage=draw, onLaterPages=draw)
+        return file_path
 
     elements.append(Paragraph("II — EXAMEN DES MOULAGES ET DES IMAGES", section))
     elements.append(Paragraph(
