@@ -71,8 +71,16 @@ def test_step4_has_no_local_normative_ranges_or_default_appliance():
     assert "Valeur brute · aucune norme locale" in source
     assert "Préférence technique — saisie manuelle" in source
     assert "Ces champs peuvent contenir une saisie manuelle ou un contenu historique dont l'auteur n'est pas vérifié. Ils ne valent pas validation clinique finale." in source
-    assert "Prévisualisation et téléchargement : brouillon non signé, sans valeur de validation clinique." in source
-    assert "Archivage officiel indisponible : le bilan A4 est un brouillon non signé." in source
+    # The unsigned full clinical report remains blocked; the separately
+    # authenticated descriptive A4 pathway may be explicitly approved.
+    # Do not enforce wording that falsely bans *all* archival in V1.
+    assert "Aperçu et impression sont disponibles sans archivage." in source
+    assert "Imprimer n'archive jamais le document." in source
+    assert "Le bilan clinique complet reste bloqué" in source
+    assert "Archivage du bilan clinique complet indisponible" in source
+    assert "L'archivage V1 descriptif exige une approbation traçable" in source
+    assert "Aucune signature électronique avancée n'est requise." in source
+    assert "<CephaloA4ApprovalV1" in source
     assert 'disabled aria-describedby="cephalo-a4-archive-hold"' in source
 
 
