@@ -102,7 +102,7 @@ def test_hmac_base64url_noncanonical_last_character_is_rejected():
 
 def test_base64url_aliases_and_malformed_padding_fail_closed():
     """Both the signed claims and MAC use strict canonical unpadded encodings."""
-    assert approval._decode("_w") == b"\\xff"
+    assert approval._decode("_w") == bytes([255])
     for alternative in ("_x", "_w=", "___", "*", "", "A", "abc!"):
         with pytest.raises((ValueError, base64.binascii.Error)):
             approval._decode(alternative)
