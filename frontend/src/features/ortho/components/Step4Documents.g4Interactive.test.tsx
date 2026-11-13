@@ -91,6 +91,32 @@ describe('Cephalo Step4 G4 document controls',()=>{
     expect(screen.getByText(/0% des points requis placés/i)).toBeTruthy();
   });
 
+  it('enables descriptive A4 review with the 38 canonical landmarks without optional occlusal overlays', async () => {
+    state.local = {
+      landmarks: REQUIRED_LANDMARKS
+        .filter((id: string) => id !== 'Occ_Ant' && id !== 'Occ_Post')
+        .map((id: string, i: number) => ({id, x: i, y: i})),
+    };
+    render(<Step4Documents P={P}/>);
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(/Landmarks complets \(38\/38\)/i)).toBeTruthy();
+    const prepare = screen.getByRole('button', {name:/Préparer l'aperçu A4 à valider/i}) as HTMLButtonElement;
+    await waitFor(() => expect(prepare.disabled).toBe(false));
+    expect((screen.getByRole('button', {name:/Archivage suspendu/i}) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('rejects duplicated points or a missing canonical landmark even if list size is 38', async () => {
+    const core = REQUIRED_LANDMARKS
+      .filter((id: string) => id !== 'Occ_Ant' && id !== 'Occ_Post')
+      .map((id: string, i: number) => ({id, x:i, y:i}));
+    state.local = {landmarks:[...core.slice(0,-1), core[0]]};
+    render(<Step4Documents P={P}/>);
+    await waitFor(() => expect(api.get).toHaveBeenCalledTimes(1));
+    expect(screen.getByText(/Landmarks complets \(37\/38\)/i)).toBeTruthy();
+    const prepare = screen.getByRole('button', {name:/Préparer l'aperçu A4 à valider/i}) as HTMLButtonElement;
+    expect(prepare.disabled).toBe(true);
+  });
+
   it('previews only through the canonical preview boundary',async()=>{
     render(<Step4Documents P={P}/>);
     await waitFor(()=>expect(api.get).toHaveBeenCalled());
