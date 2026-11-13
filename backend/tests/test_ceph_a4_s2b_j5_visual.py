@@ -17,7 +17,7 @@ import pytest
 
 from backend import models
 from backend.tests.test_ceph_a4_descriptive_approval_v1 import (
-    _environment, _cabinet, _calibrated_case, _prepare,
+    _environment, _s2b_cabinet, _calibrated_case, _prepare,
 )
 
 
@@ -37,7 +37,7 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, _points, headers = _calibrated_case(client, db, dentiste)
     revision, candidate_response = _prepare(client, patient, study, headers)
     assert candidate_response.status_code == 200, candidate_response.text[:500]
@@ -66,6 +66,11 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
     assert "PLAN DE TRAITEMENT" not in after_text
     assert "DR. TEST" in after_text
     assert "SYNTHETIC P2BIS ONLY" in after_text
+    assert "DR. NOM PRÉNOM" not in after_text
+    assert "VOTRE ADRESSE DE CABINET" not in after_text
+    assert "D. NOM" not in after_text
+    assert "12 RUE DE TEST SYNTHETIQUE" in after_text
+    assert "00 00 00 00 00" in after_text
     assert "ÉTUDE" in after_text.upper() or "ETUDE" in after_text.upper()
     # Save only synthetic proofs. Run artifacts are uploaded by CI; all local
     # PDF temp files outside ArchiveService are deleted by the test harness.
@@ -102,7 +107,7 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
     )
 
 
-@pytest.mark.parametrize("changed_field", ["patient_nom", "patient_birth", "cabinet_name", "doctor_name"])
+@pytest.mark.parametrize("changed_field", ["patient_nom", "patient_birth", "cabinet_name", "cabinet_address", "cabinet_phone", "doctor_name"])
 def test_a4_approval_rejects_rendered_identity_changed_after_preview(
     client, db, dentiste, monkeypatch, tmp_path, changed_field,
 ):
@@ -112,7 +117,7 @@ def test_a4_approval_rejects_rendered_identity_changed_after_preview(
     this independent document-context mutation before any disk/SQL archive.
     """
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, _points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200, prepared.text[:450]
@@ -122,11 +127,16 @@ def test_a4_approval_rejects_rendered_identity_changed_after_preview(
     elif changed_field == "patient_birth":
         from datetime import datetime
         patient.date_naissance = datetime(1999, 1, 1)
-    elif changed_field == "cabinet_name":
+    elif changed_field in ("cabinet_name", "cabinet_address", "cabinet_phone"):
         config = db.query(models.CabinetConfig).filter(
             models.CabinetConfig.owner_id == dentiste.id
         ).one()
-        config.nom_cabinet = "SYNTHETIC NEW CABINET NAME"
+        if changed_field == "cabinet_name":
+            config.nom_cabinet = "SYNTHETIC NEW CABINET NAME"
+        elif changed_field == "cabinet_address":
+            config.footer_address = "SYNTHETIC NEW ADDRESS"
+        else:
+            config.footer_phones = "00 99 99 99 99"
     else:
         dentiste.nom_complet = "Dr. SYNTHETIC NEW PRACTITIONER NAME"
     db.commit()
