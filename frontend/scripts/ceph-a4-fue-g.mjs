@@ -118,6 +118,33 @@ try {
     await button.waitFor({state:'visible',timeout:20000});
     const until=Date.now()+24000;
     while(await button.isDisabled()&&Date.now()<until)await page.waitForTimeout(400);
+    if (!(await button.isEnabled())) {
+      const checks=await page.locator('div').filter({hasText:'Checklist de cohérence documentaire'}).last().innerText().catch(()=>'?');
+      const serverAnalysis=await api.get('/api/ia/analyses/'+seed.analysis_id,{headers:authHeaders(token)});
+      const analysis=serverAnalysis.status()===200?await serverAnalysis.json():{};
+      const scientific=analysis.angles_data?.scientific_read_path ?? {};
+      const revision=scientific.revision;
+      const validation=Number.isSafeInteger(revision)?await api.get(
+        '/api/patients/'+seed.patient_id+'/cephalo-validation?analysis_id='+seed.analysis_id+'&expected_revision='+revision,
+        {headers:authHeaders(token)}
+      ):null;
+      const val=validation?.status()===200?await validation.json():{};
+      const diagnosis={
+        checks:checks.slice(0,1200),
+        analysis_http:serverAnalysis.status(),
+        is_calibrated:analysis.is_calibrated,
+        mm_per_pixel:analysis.mm_per_pixel,
+        scientific_revision:revision,
+        validation_http:validation?.status()??null,
+        validation_valid:val.valid,
+        fatals:val.fatals,
+        warnings:val.warnings,
+        saveButtonEnabled:await button.isEnabled(),
+      };
+      report.preflight_diagnostics=diagnosis;
+      console.error('CEPH_A4_FUE_G_BLOCKER_DIAGNOSTICS '+JSON.stringify(diagnosis));
+      await snap('02-approval-disabled-diagnostics');
+    }
     assert(await button.isEnabled(),'APPROVAL_PREVIEW_BUTTON_DISABLED_IN_REAL_UI');
     const before=await documents();
     assert(patientArchiveRows(before).length===0,'ARCHIVE_ALREADY_EXISTS_BEFORE_PREVIEW');
