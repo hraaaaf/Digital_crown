@@ -104,7 +104,7 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
         onFirstPage=paint, onLaterPages=paint,
     )
     with fitz.open(baseline_path) as pdf:
-        a5_text = "\\n".join(p.get_text() for p in pdf).upper()
+        a5_text = "\n".join(p.get_text() for p in pdf).upper()
     for model_text in (
         "DOC STUDIO TEST HEAD",
         "12 RUE DE TEST SYNTHETIQUE",
