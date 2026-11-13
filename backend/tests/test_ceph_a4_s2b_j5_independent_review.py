@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import threading
+from datetime import datetime
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from types import SimpleNamespace
@@ -29,7 +30,7 @@ from backend.services.cephalo_document_lock import verified_official_archive_byt
 
 def _practitioner():
     return SimpleNamespace(
-        id=44, role=models.UserRole.DENTISTE, is_active=True,
+        id=44, role=models.UserRole.DENTISTE, nom_complet="Dr. Test J5", is_active=True,
         approval_status=models.ApprovalStatus.APPROVED.value,
         get_employer_id=lambda: 44,
     )
@@ -47,9 +48,16 @@ def _source(engine):
 def _payload(engine, *, pdf: bytes, issued=None):
     actor = _practitioner()
     sha = hashlib.sha256(pdf).hexdigest()
+    with Session(engine) as db:
+        rendered_identity_sha256 = approval.rendered_identity_fingerprint(
+            patient=db.get(models.Patient, 8001),
+            cabinet=db.query(models.CabinetConfig).filter(models.CabinetConfig.owner_id == 44).one(),
+            user=actor,
+        )
     token = approval.make_approval_token(
         user=actor, patient_id=8001, analysis_id=9001,
         revision=3, source_sha256=_source(engine),
+        rendered_identity_sha256=rendered_identity_sha256,
         pdf_sha256=sha, pdf_length=len(pdf), now=issued,
     )
     return patients.CephaloA4ArchiveV1(
@@ -68,11 +76,21 @@ def s2b_sqlite(tmp_path, monkeypatch):
     )
     # P3 provenance is attached by global pytest conftest before schema create.
     for table in (
+        models.Patient.__table__, models.CabinetConfig.__table__,
         models.CephaloAnalysis.__table__, models.DocumentArchive.__table__,
         models.AuditLog.__table__,
     ):
         table.create(engine)
     with Session(engine) as db:
+        db.add(models.Patient(
+            id=8001, employer_id=44, nom="SYNTHETIC-J5",
+            prenom="NEVER-REAL", date_naissance=datetime(1990, 1, 1),
+            sexe="M",
+        ))
+        db.add(models.CabinetConfig(
+            owner_id=44, nom_cabinet="SYNTHETIC J5 CABINET",
+            nom_praticien="Dr. Test J5",
+        ))
         db.add(models.CephaloAnalysis(
             id=9001, patient_id=8001,
             image_original_path="synthetic://j5/test.jpeg",
