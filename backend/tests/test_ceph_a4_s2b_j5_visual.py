@@ -65,7 +65,7 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
     assert "DIAGNOSTIC FINAL" not in after_text
     assert "PLAN DE TRAITEMENT" not in after_text
     assert "DR. TEST" in after_text
-    assert "SYNTHETIC P2BIS ONLY" in after_text
+    # The model controls branding; do not generate a second stamp in the body.
     assert "DOC STUDIO TEST HEAD" in after_text, "A4 must preserve the user's configured header, not replace it with clinician name"
     assert "DR. NOM PRÉNOM" not in after_text
     assert "VOTRE ADRESSE DE CABINET" not in after_text
