@@ -197,3 +197,11 @@ L'artefact synthétique J5 [#14046544433](https://github.com/hraaaaf/Digital_cro
 **Réserve clinique et preuve finale :** aucune prétention de FUE réussi sur ce nouveau HEAD avant que la CI et les artefacts réels ne prouvent chaque point. Aucun patient réel ni test physique (Lot10). Si un test révèle un conflit avec master, correction limitée aux fichiers A4 ou blocage explicite. **Human gate maintenu avant tout merge/activation**.
 
 **PR candidate :** [#1327 DRAFT](https://github.com/hraaaaf/Digital_crown/pull/1327). **Next exact :** contrôle exact HEAD des workflows, tests, FUE/archives, corrections si nécessité, puis bilan d'intégration sans fusion.
+
+### 13.1 Première régression master détectée et corrigée
+
+Le run de régression [CEPH P2ter master bridge FUE-I #43506630345](https://github.com/hraaaaf/Digital_crown/actions/runs/43506630345) a échoué dans `backend/tests/test_dc_dos01_historical_pdf_isolation.py` : l'index historique des PDF céphalométriques attend le lien `static/archives/...`, mais la copie initiale du S2B renvoyait `/api/documents/{id}/download` pour **tous** les `RAPPORT_CEPHALO`. Ce n'est PAS une preuve de FUE-G J6 terminé ; c'est une régression de compatibilité document historique provoquée par un traitement trop large.
+
+**Correction limitée** : dans `backend/routers/patients.py`, seul un `RAPPORT_CEPHALO` dont `clinical_data.document_kind == CEPH_A4_DESCRIPTIVE_APPROVAL_V1` obtient le nouveau lien authentifié vérifié par SHA ; les dossiers céphalo historiques gardent leur URL préexistante, sans changer leur chemin de fichier ou leur politique d'archivage. Aucune nouvelle voie statique n'est exposée pour l'A4 V1. Le workflow FUE-G J6 exécute désormais explicitement l'ancien `backend/tests/test_dc_dos01_historical_pdf_isolation.py` en plus des tests A4/J5, pour garantir les deux contrats au même HEAD.
+
+**État de preuve** : correction en PR #1327 DRAFT ; attendre le nouveau run exact-HEAD, aucune validation ni merge/déploiement sur les anciens tests. Le test historique doit PASS, comme le nouveau téléchargement V1 authentifié dans FUE-G.
