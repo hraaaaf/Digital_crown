@@ -163,3 +163,11 @@ L'artefact synthétique J5 [#14046544433](https://github.com/hraaaaf/Digital_cro
 **Test de non-régression :** la fixture configure expressément un en-tête de Document Studio (« DOC STUDIO TEST HEAD ») *différent du nom du praticien* ; le PDF A4 doit afficher cet en-tête sans le substituer. Un PDF A5 de référence est rendu avec le même `BaseTemplate.draw_static_elements` et les mêmes paramètres du cabinet ; on compare les textes communs en-tête/adresse/contact A5/A4. Capture A4 synthétique et tests autorisation/archivage exact SHA conservés. Aucun test physique (lot 10), aucune migration, merge ou déploiement.
 
 **État :** changements candidats PR #1326 DRAFT, preuves CI exact-HEAD encore à obtenir. Le précédent SUCCESS `2276fe18` ne certifie pas l'héritage strict.
+
+### 12.4 Contre-revue du reçu d'approbation — configuration du modèle Documents (13 novembre 2026)
+
+**Écart détecté :** le S2B liait l'identité patient/praticien, certaines lignes d'en-tête et le SHA du PDF prévisualisé, mais **pas toutes les colonnes du modèle Documents**. Un changement entre aperçu et validation de couleur, police, marge, échelle d'en-tête, disposition/QR/identifiants du cabinet n'était pas systématiquement rejeté. Cette situation n'est pas conforme à la décision stricte A5 → A4 utilisant le même modèle cabinet.
+
+**Correction candidate J5** : `rendered_identity_fingerprint` inclut désormais toutes les colonnes persistées de `CabinetConfig`, ainsi que les données d'affichage professionnel de l'utilisateur, dans son SHA JSON canonique. Les deux routes vérifient ce SHA avec le HMAC avant d'autoriser l'archive exacte. La matrice synthétique `test_ceph_a4_s2b_j5_visual.py` vérifie le refus 409 après édition post-aperçu de couleur, police, marge, QR et échelle, sans création d'archive.
+
+**Limites / human gate** : les assets binaires de logo/letterhead modifiés *sur place au même chemin* et la validité des QR d'archive restent à expertiser par un reviewer humain indépendant ; aucun avis APPROVED d'un autre reviewer enregistré à cette date sur #1324 ou #1326. N'attribuer ni réussite de CI d'un ancien SHA ni « revue indépendante complète » au nouveau code. Aucun merge/déploiement autorisé.
