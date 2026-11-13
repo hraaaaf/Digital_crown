@@ -79,7 +79,35 @@ def require_real_cabinet_letterhead(*, cabinet: models.CabinetConfig, user: mode
             and bool(str(row.get("value") or "").strip())
             for row in contacts.values()
         )
-    if not address or not has_contact:
+    from backend.services.base_template import BaseTemplate
+
+    # Use the SAME stored Document Studio configuration and its existing
+    # letterhead visibility rules; this validation does not inject A4-specific
+    # header/footer content. A real uploaded letterhead can contain both.
+    config = {column.key: getattr(cabinet, column.key)
+              for column in models.CabinetConfig.__table__.columns}
+    base = BaseTemplate()
+    actual_letterhead = bool(
+        base.has_active_letterhead(config)
+        and base._resolve_brand_asset(config.get("letterhead_path"))
+    )
+    draws_header = not actual_letterhead or not bool(config.get("hide_header", True))
+    draws_footer = not actual_letterhead or not bool(config.get("hide_footer", True))
+    if draws_header:
+        fr_lines = [str(v).strip() for v in (cabinet.header_lines_fr or []) if str(v).strip()]
+        ar_lines = [str(v).strip() for v in (cabinet.header_lines_ar or []) if str(v).strip()]
+        placeholders = ("dr. nom prénom", "dr. nom prenom", "د. الإسم الكامل", "d. nom")
+        if (
+            not fr_lines or not ar_lines
+            or any(any(marker in line.casefold() for marker in placeholders)
+                   for line in fr_lines + ar_lines)
+        ):
+            raise HTTPException(
+                status_code=422,
+                detail="En-tête du modèle Documents incomplet : configurez les lignes FR/AR "
+                       "dans les paramètres du cabinet avant l'archivage A4",
+            )
+    if draws_footer and (not address or not has_contact):
         raise HTTPException(
             status_code=422,
             detail="Papier à en-tête du bilan A4 incomplet : adresse et contact du cabinet requis",
