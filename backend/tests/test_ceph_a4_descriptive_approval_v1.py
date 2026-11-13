@@ -93,6 +93,21 @@ def test_pdf_decoder_rejects_garbage_and_oversize():
         approval.decode_pdf("a" * (approval.MAX_PDF_BYTES * 4 // 3 + 100))
 
 
+
+def _s2b_cabinet(db, dentiste):
+    """Configured synthetic letterhead: zero fictitious contact placeholders."""
+    _cabinet(db, dentiste)
+    config = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == dentiste.id
+    ).one()
+    config.footer_address = "12 RUE DE TEST SYNTHETIQUE — AUCUN PATIENT REEL"
+    config.footer_phones = "00 00 00 00 00 — TEST ONLY"
+    config.header_lines_fr = ["Dr. Test", "Chirurgien-dentiste"]
+    # No real Arabic practitioner identity is provided in this fixture.
+    config.header_lines_ar = []
+    db.commit()
+
+
 def _calibrated_case(client, db, dentist):
     patient, study, points = _case(db, dentist)
     headers = _jwt(client, dentist)
@@ -136,7 +151,7 @@ def test_real_authenticated_prepare_archive_replay_and_exact_sqlite_proof(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200, prepared.text[:600]
@@ -225,7 +240,7 @@ def test_authenticated_rejection_without_validation_and_on_pdf_tamper(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -253,7 +268,7 @@ def test_revision_changed_after_preview_fails_closed_no_archive(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -302,7 +317,7 @@ def test_unchanged_revision_but_mutated_science_cannot_archive_stale_preview(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -333,7 +348,7 @@ def test_foreign_cabinet_cannot_use_prepared_pdf_or_stolen_review_proof(
     from backend.tests.conftest import make_user
 
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -361,7 +376,7 @@ def test_immutable_archive_sha_detects_tampering_on_read(
     from backend.services.cephalo_document_lock import verified_official_archive_bytes
 
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
