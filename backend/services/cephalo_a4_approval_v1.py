@@ -93,6 +93,18 @@ def require_real_cabinet_letterhead(*, cabinet: models.CabinetConfig, user: mode
     )
     draws_header = not actual_letterhead or not bool(config.get("hide_header", True))
     draws_footer = not actual_letterhead or not bool(config.get("hide_footer", True))
+    # An unarchived preview cannot render a truthful archive-verification or
+    # payment QR. Never silently drop that element from the user's template:
+    # require choosing a static QR type, or disable QR in Document Studio.
+    if (
+        cabinet.qr_code_enabled is True
+        and cabinet.qr_code_type in (models.QRCodeType.VALIDATION, models.QRCodeType.PAYMENT)
+    ):
+        raise HTTPException(
+            status_code=422,
+            detail="QR de validation/paiement non disponible pour le bilan A4 non encore archivé ; "
+                   "choisissez un QR statique ou désactivez-le dans Documents",
+        )
     if draws_header:
         fr_lines = [str(v).strip() for v in (cabinet.header_lines_fr or []) if str(v).strip()]
         ar_lines = [str(v).strip() for v in (cabinet.header_lines_ar or []) if str(v).strip()]
