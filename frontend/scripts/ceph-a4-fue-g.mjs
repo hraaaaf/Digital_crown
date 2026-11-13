@@ -70,7 +70,7 @@ async function documents(){
 }
 const patientArchiveRows=rows=>rows.filter(item=>
   String(item.analysis_id)===String(seed.analysis_id)
-  && String(item.document_type).includes('RAPPORT_CEPHALO'));
+  && String(item.type).includes('RAPPORT_CEPHALO'));
 
 try {
   api=await request.newContext({baseURL:backend});
@@ -165,7 +165,7 @@ try {
     const before=patientArchiveRows(await documents()).length;
     let archivePosts=0;
     const watcher=r=>{
-      if(r.request().method()==='POST'
+      if(r.method()==='POST'
         &&r.url().includes('/cephalo-a4/archive'))archivePosts++;
     };
     page.on('request',watcher);
