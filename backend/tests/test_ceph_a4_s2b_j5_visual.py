@@ -103,8 +103,15 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
         [Paragraph("SYNTHETIC A5 DOCUMENT STUDIO REFERENCE", getSampleStyleSheet()["Normal"])],
         onFirstPage=paint, onLaterPages=paint,
     )
+    proof = Path(os.environ.get("CEPH_A4_J5_SYNTHETIC_PROOF_DIR", str(tmp_path / "proof")))
+    proof.mkdir(parents=True, exist_ok=True)
     with fitz.open(baseline_path) as pdf:
         a5_text = "\n".join(p.get_text() for p in pdf).upper()
+        # Keep the A5 Studio reference next to the A4 screenshots so the
+        # template's real header/footer/branding can be inspected by a human.
+        pdf[0].get_pixmap(matrix=fitz.Matrix(1.6, 1.6), alpha=False).save(
+            proof / "studio-a5-reference-page1.png"
+        )
     for model_text in (
         "DOC STUDIO TEST HEAD",
         "12 RUE DE TEST SYNTHETIQUE",
@@ -116,7 +123,6 @@ def test_same_page_geometry_before_draft_after_descriptive_and_archive_byte_iden
 
     # Save only synthetic proofs. Run artifacts are uploaded by CI; all local
     # PDF temp files outside ArchiveService are deleted by the test harness.
-    proof = Path(os.environ.get("CEPH_A4_J5_SYNTHETIC_PROOF_DIR", str(tmp_path / "proof")))
     before_image = proof / "before-a4-draft-page1.png"
     after_image = proof / "after-a4-descriptive-page1.png"
     b_w, b_h, b_pixels = _page_pixels(before_pdf, before_image, title="BEFORE")
