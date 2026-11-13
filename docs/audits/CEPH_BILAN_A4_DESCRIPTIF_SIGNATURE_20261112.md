@@ -149,3 +149,17 @@ L'artefact synthétique J5 [#14046544433](https://github.com/hraaaaf/Digital_cro
 - Les tests synthétiques sont configurés avec adresse/contact fictifs mais clairement TEST ONLY, en laissant les lignes d'en-tête initialement vides pour prouver que l'AFTER n'utilise plus « Dr. Nom Prénom ». Nouvelle vérification explicite des textes, refus si adresse/contact absents et mutation de l'adresse/téléphone après l'aperçu. **Repassage CI exact HEAD exigé**.
 
 **Statut :** corrections en branche test #1326, ni mergées ni déployées. Aucun résultat clinique ou score visuel déclaré avant un nouvel artefact AFTER examiné visuellement et les contrôles exact HEAD GREEN.
+
+### 12.3 Décision utilisateur — héritage STRICT du modèle Documents (13 novembre 2026)
+
+**Règle métier :** les PDF de bilan céphalométrique doivent hériter du **même moteur de génération documentaire** que les autres PDF du cabinet : même modèle du Document Studio, mêmes lignes FR/AR d'en-tête, papier à en-tête/logo, typographies, couleurs, échelles, marges, pied de page, coordonnées, watermark et QR statique configuré. **Seuls le format de page A4 (au lieu d'A5) et le corps du bilan diffèrent.** Aucune copie visuelle indépendante du modèle n'est autorisée.
+
+**Correction de la personnalisation J5 précédente :** `render_four_part_a4` utilise déjà `BilanOrthoPDFGenerator(BaseTemplate)` et `generator.draw_static_elements(...config=vm.cabinet_config...)`, mais forçait spécifiquement `header_lines_fr` au nom du praticien et remplaçait une ligne arabe absente par un blanc. Ces exceptions sont retirées ; aucun remplacement de FR/AR dans le rapport A4 descriptif. La ligne secondaire de « cachet imprimé » créée dans le corps est également supprimée : le papier à en-tête et le cachet éventuel appartiennent au modèle du cabinet, pas à une deuxième présentation.
+
+**Sécurité de l'identité :** au lieu d'imprimer des placeholders du moteur commun, le gate A4 officiel demande une configuration réelle des lignes du modèle Documents (FR/AR lorsque l'en-tête dynamique est affiché), ainsi que l'adresse et le contact lorsque le pied de page dynamique est affiché. Si un vrai papier à en-tête est chargé et masque ces zones selon les réglages hérités, le rendu suit les règles du moteur commun. Toute modification du contexte visible invalide le reçu SHA/HMAC. Le PDF brouillon historique ne change pas.
+
+**QR :** le QR statique (vCard, site, etc.) du modèle reste hérité sans suppression silencieuse. Un QR de type validation ou paiement supposant un identifiant définitif inconnu au stade d'aperçu A4 est refusé (422) plutôt que remplacé par une invention ou supprimé en cachette. Ce cas nécessite une décision distincte si le cabinet utilise ce mode.
+
+**Test de non-régression :** la fixture configure expressément un en-tête de Document Studio (« DOC STUDIO TEST HEAD ») *différent du nom du praticien* ; le PDF A4 doit afficher cet en-tête sans le substituer. Un PDF A5 de référence est rendu avec le même `BaseTemplate.draw_static_elements` et les mêmes paramètres du cabinet ; on compare les textes communs en-tête/adresse/contact A5/A4. Capture A4 synthétique et tests autorisation/archivage exact SHA conservés. Aucun test physique (lot 10), aucune migration, merge ou déploiement.
+
+**État :** changements candidats PR #1326 DRAFT, preuves CI exact-HEAD encore à obtenir. Le précédent SUCCESS `2276fe18` ne certifie pas l'héritage strict.
