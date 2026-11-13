@@ -69,7 +69,7 @@ async function documents(){
   return body;
 }
 const patientArchiveRows=rows=>rows.filter(item=>
-  String(item.analysis_id)===String(seed.analysis_id)
+  String(item.clinical_data?.cephalo_analysis_id)===String(seed.analysis_id)
   && String(item.type).includes('RAPPORT_CEPHALO'));
 
 try {
