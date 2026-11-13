@@ -33,8 +33,8 @@ def _ticket(user, pdf=b"%PDF-1.4\nSYNTHETIC\n%%EOF", now=500):
     hash_ = hashlib.sha256(pdf).hexdigest()
     token = approval.make_approval_token(
         user=user, patient_id=101, analysis_id=202, revision=3,
-        source_sha256="a" * 64, pdf_sha256=hash_,
-        pdf_length=len(pdf), now=now,
+        source_sha256="a" * 64, rendered_identity_sha256="c" * 64,
+        pdf_sha256=hash_, pdf_length=len(pdf), now=now,
     )
     return token, pdf
 
@@ -43,7 +43,9 @@ def _verify(token, pdf, user=None, now=500, **extra):
     return approval.verify_approval_token(
         token, user=user or _actor(), patient_id=extra.get("patient_id", 101),
         analysis_id=202, revision=extra.get("revision", 3),
-        source_sha256=extra.get("source_sha256", "a" * 64), pdf=pdf, now=now,
+        source_sha256=extra.get("source_sha256", "a" * 64),
+        rendered_identity_sha256=extra.get("rendered_identity_sha256", "c" * 64),
+        pdf=pdf, now=now,
     )
 
 
@@ -57,7 +59,7 @@ def test_authorized_exact_bytes_and_bound_claims_reusable_in_review_window():
 
 @pytest.mark.parametrize("mutation", [
     "pdf", "tampered_token", "changed_patient", "changed_revision",
-    "changed_science", "other_user", "expired", "future",
+    "changed_science", "changed_rendered_identity", "other_user", "expired", "future",
 ])
 def test_unsigned_or_stale_approval_is_rejected(mutation):
     user = _actor()
@@ -69,6 +71,7 @@ def test_unsigned_or_stale_approval_is_rejected(mutation):
     if mutation == "changed_patient": kwargs["patient_id"] = 102
     if mutation == "changed_revision": kwargs["revision"] = 4
     if mutation == "changed_science": kwargs["source_sha256"] = "b" * 64
+    if mutation == "changed_rendered_identity": kwargs["rendered_identity_sha256"] = "d" * 64
     if mutation == "other_user": user = _actor(user_id=42)
     if mutation == "expired": now = 500 + approval.TOKEN_SECONDS + 1
     if mutation == "future": now = 460
@@ -88,6 +91,22 @@ def test_pdf_decoder_rejects_garbage_and_oversize():
         approval.decode_pdf("not-base64~")
     with pytest.raises(HTTPException):
         approval.decode_pdf("a" * (approval.MAX_PDF_BYTES * 4 // 3 + 100))
+
+
+
+def _s2b_cabinet(db, dentiste):
+    """Configured synthetic letterhead: zero fictitious contact placeholders."""
+    _cabinet(db, dentiste)
+    config = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == dentiste.id
+    ).one()
+    config.footer_address = "12 RUE DE TEST SYNTHETIQUE — AUCUN PATIENT REEL"
+    config.footer_phones = "00 00 00 00 00 — TEST ONLY"
+    # Keep the stored Document Studio model intact. The A4 renderer must
+    # inherit these exact strings, not inject a second A4-specific header.
+    config.header_lines_fr = ["DOC STUDIO TEST HEAD", "Chirurgien-dentiste"]
+    config.header_lines_ar = ["طبيب اختبار", "طبيب جراح للأسنان"]
+    db.commit()
 
 
 def _calibrated_case(client, db, dentist):
@@ -133,7 +152,7 @@ def test_real_authenticated_prepare_archive_replay_and_exact_sqlite_proof(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200, prepared.text[:600]
@@ -157,7 +176,7 @@ def test_real_authenticated_prepare_archive_replay_and_exact_sqlite_proof(
         pages = "\n".join(page.get_text() for page in document)
     assert "DESCRIPTIF" in pages
     assert "Dr. Test" in pages
-    assert "SYNTHETIC P2BIS ONLY" in pages
+    assert "DOC STUDIO TEST HEAD" in pages  # persisted Studio header, not fabricated cachet
     assert "PLAN DE TRAITEMENT" not in pages
     assert "DIAGNOSTIC FINAL" not in pages
     assert "BROUILLON" not in pages
@@ -222,7 +241,7 @@ def test_authenticated_rejection_without_validation_and_on_pdf_tamper(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -250,7 +269,7 @@ def test_revision_changed_after_preview_fails_closed_no_archive(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -299,7 +318,7 @@ def test_unchanged_revision_but_mutated_science_cannot_archive_stale_preview(
     client, db, dentiste, monkeypatch, tmp_path,
 ):
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -330,7 +349,7 @@ def test_foreign_cabinet_cannot_use_prepared_pdf_or_stolen_review_proof(
     from backend.tests.conftest import make_user
 
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -358,7 +377,7 @@ def test_immutable_archive_sha_detects_tampering_on_read(
     from backend.services.cephalo_document_lock import verified_official_archive_bytes
 
     _environment(monkeypatch, tmp_path)
-    _cabinet(db, dentiste)
+    _s2b_cabinet(db, dentiste)
     patient, study, points, headers = _calibrated_case(client, db, dentiste)
     revision, prepared = _prepare(client, patient, study, headers)
     assert prepared.status_code == 200
@@ -386,3 +405,52 @@ def test_immutable_archive_sha_detects_tampering_on_read(
     assert db.query(models.DocumentArchive).filter(
         models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
     ).count() == 1
+
+
+def test_named_cabinet_without_address_or_contact_cannot_prepare_approvable_pdf(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _environment(monkeypatch, tmp_path)
+    # Name-only cabinet: generic renderer would otherwise print
+    # "Votre adresse de cabinet / Contact" on an official medical report.
+    _cabinet(db, dentiste)
+    config = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == dentiste.id
+    ).one()
+    config.header_lines_fr = ["DOC STUDIO TEST HEAD"]
+    config.header_lines_ar = ["طبيب اختبار"]
+    db.commit()
+    patient, study, points, headers = _calibrated_case(client, db, dentiste)
+    revision, denied = _prepare(client, patient, study, headers)
+    assert denied.status_code == 422
+    assert "Papier à en-tête" in denied.json()["detail"]
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO,
+    ).count() == 0
+    assert not list(tmp_path.rglob("*.pdf"))
+
+
+def test_shared_studio_template_requires_configured_header_and_refuses_dynamic_qr(
+    client, db, dentiste, monkeypatch, tmp_path,
+):
+    _environment(monkeypatch, tmp_path)
+    _s2b_cabinet(db, dentiste)
+    patient, study, _, headers = _calibrated_case(client, db, dentiste)
+    cabinet = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == dentiste.id
+    ).one()
+    cabinet.header_lines_fr = []
+    db.commit()
+    _, refused = _prepare(client, patient, study, headers)
+    assert refused.status_code == 422
+    assert "En-tête du modèle Documents" in refused.json()["detail"]
+    cabinet.header_lines_fr = ["DOC STUDIO TEST HEAD"]
+    cabinet.qr_code_enabled = True
+    cabinet.qr_code_type = models.QRCodeType.VALIDATION
+    db.commit()
+    _, refused_qr = _prepare(client, patient, study, headers)
+    assert refused_qr.status_code == 422
+    assert "QR de validation/paiement" in refused_qr.json()["detail"]
+    assert db.query(models.DocumentArchive).filter(
+        models.DocumentArchive.document_type == models.DocumentType.RAPPORT_CEPHALO
+    ).count() == 0

@@ -24,12 +24,16 @@ on:
       - backend/services/document_factory.py
       - backend/routers/patients.py
       - backend/tests/test_ceph_a4_descriptive_approval_v1.py
+      - backend/tests/test_ceph_a4_s2b_j5_independent_review.py
+      - backend/tests/test_ceph_a4_s2b_j5_visual.py
       - frontend/src/features/ortho/components/CephaloA4ApprovalV1.tsx
       - frontend/src/features/ortho/components/CephaloA4ApprovalV1.test.tsx
       - scripts/ceph_calibration_http_t2.py
       - scripts/ceph_odf_gui_sqlite_seed_t2.py
       - scripts/ceph_odf_gui_sqlite_verify_t2.py
       - frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs
+      - frontend/scripts/ceph-a4-fue-g.mjs
+      - scripts/ceph_a4_fue_g_t2.py
       - frontend/src/features/patients/CephaloFocus.css
       - frontend/src/features/patients/PatientDetailsInner.tsx
 permissions:
@@ -68,6 +72,8 @@ jobs:
              '.github/workflows/ceph-odf-gui-sqlite-e2e.yml',
              'scripts/ceph_odf_gui_sqlite_seed_t2.py',
              'frontend/scripts/ceph-odf-gui-sqlite-e2e.mjs',
+             'frontend/scripts/ceph-a4-fue-g.mjs',
+             'scripts/ceph_a4_fue_g_t2.py',
              'frontend/src/features/patients/CephaloFocus.css',
              'frontend/src/features/patients/PatientDetailsInner.tsx',
              '.github/workflows/ceph-manual-calibration-e2e.yml',
@@ -82,6 +88,8 @@ jobs:
              'backend/services/document_factory.py',
              'backend/routers/patients.py',
              'backend/tests/test_ceph_a4_descriptive_approval_v1.py',
+             'backend/tests/test_ceph_a4_s2b_j5_independent_review.py',
+             'backend/tests/test_ceph_a4_s2b_j5_visual.py',
              'frontend/src/features/ortho/components/CephaloA4ApprovalV1.tsx',
              'frontend/src/features/ortho/components/CephaloA4ApprovalV1.test.tsx',
              'scripts/ceph_calibration_http_t2.py',
@@ -133,6 +141,10 @@ jobs:
         run: |
           python -m pytest -q backend/tests/test_document_signature_p3.py
           python -m pytest -q backend/tests/test_ceph_a4_descriptive_approval_v1.py
+          python -m pytest -q -vv backend/tests/test_ceph_a4_s2b_j5_independent_review.py
+          mkdir -p /tmp/ceph-a4-j5-synthetic-visual
+          CEPH_A4_J5_SYNTHETIC_PROOF_DIR=/tmp/ceph-a4-j5-synthetic-visual python -m pytest -q -vv backend/tests/test_ceph_a4_s2b_j5_visual.py
+          echo CEPH_A4_J5_S2B_RACE_RECOVERY_VISUAL_EXACT_BYTES_PASS
           python -m pytest -q backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
           python -m pytest -q -rx backend/tests/test_ceph_a4_descriptive_attestation_s1.py --junitxml=/tmp/ceph-a4-s1-junit.xml
           python - <<'PY'
@@ -155,6 +167,7 @@ jobs:
           npm install --no-save --package-lock=false --legacy-peer-deps playwright@1.55.0
           npx playwright install --with-deps chromium
           node --check scripts/ceph-odf-gui-sqlite-e2e.mjs
+          node --check scripts/ceph-a4-fue-g.mjs
           npx tsc -p tsconfig.app.json --noEmit
           npx vitest run src/features/ortho/CephaloWorkspace.g4Interactive.test.tsx src/features/patients/PatientDetails.g2Interactive.test.tsx src/features/ortho/components/Step4Documents.g4Interactive.test.tsx src/features/ortho/components/CephaloA4ApprovalV1.test.tsx
       - name: Start independent T2 FastAPI and real local SQLite
@@ -202,12 +215,35 @@ jobs:
         run: python -m scripts.ceph_odf_gui_sqlite_verify_t2
       - name: Real authenticated manual calibration HTTP and independent SQLite revisions
         run: python -m scripts.ceph_calibration_http_t2
+      - name: Prepare FUE-G A4 synthetic calibrated clinic and full Document Studio model
+        run: python -m scripts.ceph_a4_fue_g_t2 prepare
+      - name: FUE-G real clinician browser, PDF preview, print without archive, approval and re-open
+        working-directory: frontend
+        run: node scripts/ceph-a4-fue-g.mjs
+      - name: Independent FUE-G final SQLite audit, exact PDF SHA and nonclinical archive oracle
+        run: python -m scripts.ceph_a4_fue_g_t2 verify
       - name: Failure diagnostics without secrets or images
         if: failure()
         shell: bash
         run: |
           grep -E 'Traceback|ERROR|Exception|failed|CEPH_' /tmp/ceph-odf-e2e-backend.log 2>/dev/null | tail -70 || true
           grep -E 'ERROR|error|failed' /tmp/ceph-odf-e2e-frontend.log 2>/dev/null | tail -40 || true
+      - name: Upload J5 A4 identical viewport comparison (SYNTHETIC ONLY)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-a4-s2b-j5-before-after-${{ github.event.pull_request.head.sha }}
+          path: /tmp/ceph-a4-j5-synthetic-visual/
+          retention-days: 7
+          if-no-files-found: ignore
+      - name: Publish FUE-G synthetic First User Experience screenshots and decisions
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ceph-a4-fue-g-${{ github.event.pull_request.head.sha }}
+          path: artifacts/ceph-a4-fue-g/
+          retention-days: 7
+          if-no-files-found: warn
       - name: Publish only synthetic proof screenshots and report
         if: always()
         uses: actions/upload-artifact@v4
@@ -224,9 +260,14 @@ jobs:
             if test -f "$pidfile"; then kill "$(cat "$pidfile")" 2>/dev/null || true; fi
             rm -f "$pidfile"
           done
+          if test -f t2-runtime-cert.db && test -n "${CEPH_ODF_CASE_JSON:-}"; then
+            python -m scripts.ceph_a4_fue_g_t2 cleanup || true
+          fi
           rm -f t2-runtime-cert.db t2-runtime-cert.db-shm t2-runtime-cert.db-wal
           rm -f backend/static/uploads/radios/t2-cephalo-seeded.png
           rm -f /tmp/ceph-odf-e2e-requirements.txt /tmp/ceph-odf-e2e-seed.log /tmp/ceph-a4-s1-junit.xml
           rm -f /tmp/ceph-odf-e2e-backend.log /tmp/ceph-odf-e2e-frontend.log
           rm -rf artifacts/ceph-odf-gui-sqlite-e2e
+          rm -rf artifacts/ceph-a4-fue-g
+          rm -rf /tmp/ceph-a4-j5-synthetic-visual
           echo CEPH_ODF_SYNTHETIC_T2_CLEANED_NO_DEPLOY

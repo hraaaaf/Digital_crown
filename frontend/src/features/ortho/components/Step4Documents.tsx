@@ -16,6 +16,13 @@ interface Step4DocumentsProps {
   P: any;
 }
 
+// SRPose38 has 38 required scientific landmarks. Occ_Ant and Occ_Post
+// belong to the optional occlusal drawing overlay, NOT the persisted
+// canonical 38-evidence graph; never require them for descriptive A4 approval.
+const DESCRIPTIVE_A4_REQUIRED_LANDMARKS = REQUIRED_LANDMARKS.filter(
+  id => id !== 'Occ_Ant' && id !== 'Occ_Post'
+);
+
 const ANGLE_CARDS = [
   { key: 'SNA', label: 'SNA', unit: '°' },
   { key: 'SNB', label: 'SNB', unit: '°' },
@@ -104,10 +111,10 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
 
   const hasImage = Boolean(imageSrc);
   const hasCalibration = isCalibrated;
-  const reqSet = new Set<string>(REQUIRED_LANDMARKS as readonly string[]);
-  const landmarkCount = local.landmarks.filter(l => reqSet.has(l.id)).length;
-  const landmarkPct = Math.round((landmarkCount / REQUIRED_LANDMARKS.length) * 100);
-  const landmarksOk = landmarkPct === 100;
+  const reqSet = new Set<string>(DESCRIPTIVE_A4_REQUIRED_LANDMARKS);
+  const landmarkCount = new Set(local.landmarks.filter(l => reqSet.has(l.id)).map(l => l.id)).size;
+  const landmarkPct = Math.round((landmarkCount / reqSet.size) * 100);
+  const landmarksOk = landmarkCount === reqSet.size;
   const diagOk = Boolean(diag.synthese_diagnostique?.trim());
 
   const fetchValidation = useCallback(async () => {
@@ -331,7 +338,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
             <div className="space-y-0.5 divide-y">
               <CheckItem label="Image céphalométrique chargée" status={hasImage ? 'ok' : 'fail'} detail={hasImage ? undefined : 'Aucune image uploadée'} />
               <CheckItem label="Calibration effectuée" status={hasCalibration ? 'ok' : 'warning'} detail={hasCalibration ? undefined : 'Mesures mm non fiables sans calibration'} />
-              <CheckItem label={`Landmarks complets (${landmarkCount}/${REQUIRED_LANDMARKS.length})`} status={landmarksOk ? 'ok' : landmarkCount > 0 ? 'warning' : 'fail'} detail={landmarksOk ? undefined : `${landmarkPct}% des points requis placés`} />
+              <CheckItem label={`Landmarks complets (${landmarkCount}/${reqSet.size})`} status={landmarksOk ? 'ok' : landmarkCount > 0 ? 'warning' : 'fail'} detail={landmarksOk ? undefined : `${landmarkPct}% des points requis placés`} />
               <CheckItem label="Cohérence des mesures" status={isValidating ? 'loading' : !validation ? 'warning' : hasFatals ? 'fail' : hasWarnings ? 'warning' : 'ok'} detail={!validation ? 'Non vérifiée' : hasFatals ? `${validation.fatals.length} erreur(s)` : hasWarnings ? `${validation.warnings.length} avertissement(s)` : 'Sans erreur bloquante'} />
               <CheckItem label="Note diagnostique libre présente" status={diagOk ? 'ok' : 'warning'} detail={diagOk ? 'Contenu à confirmer par le praticien' : 'Note libre vide'} />
             </div>

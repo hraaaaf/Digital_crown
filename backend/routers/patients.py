@@ -1613,6 +1613,7 @@ def prepare_descriptive_cephalo_a4_v1(
     from backend.services.cephalo_a4_approval_v1 import (
         MAX_PDF_BYTES, make_approval_token, require_dentist,
         require_descriptive_science, scientific_fingerprint,
+        rendered_identity_fingerprint, require_real_cabinet_letterhead,
     )
 
     require_dentist(current_user)
@@ -1629,8 +1630,10 @@ def prepare_descriptive_cephalo_a4_v1(
     cabinet = db.query(models.CabinetConfig).filter(
         models.CabinetConfig.owner_id == current_user.get_employer_id()
     ).first()
-    if not cabinet or not str(cabinet.nom_cabinet or "").strip():
-        raise HTTPException(status_code=422, detail="Cachet professionnel du cabinet à configurer avant validation")
+    require_real_cabinet_letterhead(cabinet=cabinet, user=current_user)
+    rendered_identity_sha256 = rendered_identity_fingerprint(
+        patient=patient, cabinet=cabinet, user=current_user,
+    )
 
     # This private flag can only be supplied by the authorized server route.
     analysis_data = {
@@ -1662,10 +1665,19 @@ def prepare_descriptive_cephalo_a4_v1(
     )
     if fresh_revision != revision or scientific_fingerprint(selected) != source_sha256:
         raise HTTPException(status_code=409, detail="Étude modifiée pendant la préparation du bilan")
+    fresh_patient = db.query(models.Patient).filter(models.Patient.id == patient_id).first()
+    fresh_cabinet = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == current_user.get_employer_id()
+    ).first()
+    if rendered_identity_fingerprint(
+        patient=fresh_patient, cabinet=fresh_cabinet, user=current_user,
+    ) != rendered_identity_sha256:
+        raise HTTPException(status_code=409, detail="Identité du patient ou cachet modifié pendant la préparation")
     digest = hashlib.sha256(pdf).hexdigest()
     token = make_approval_token(
         user=current_user, patient_id=patient_id, analysis_id=req.analysis_id,
         revision=revision, source_sha256=source_sha256,
+        rendered_identity_sha256=rendered_identity_sha256,
         pdf_sha256=digest, pdf_length=len(pdf),
     )
     return {
@@ -1695,6 +1707,7 @@ def archive_descriptive_cephalo_a4_v1(
     from backend.services.cephalo_a4_approval_v1 import (
         VERSION, archive_payload_digest, decode_pdf, require_dentist,
         require_descriptive_science, scientific_fingerprint, verify_approval_token,
+        rendered_identity_fingerprint, require_real_cabinet_letterhead,
     )
     from backend.services.cephalo_document_lock import (
         already_archived_pdf, lock_selected_cephalo_for_archive,
@@ -1718,10 +1731,33 @@ def archive_descriptive_cephalo_a4_v1(
     )
     require_descriptive_science(selected, patient_id=patient_id, revision=revision)
     source_sha256 = scientific_fingerprint(selected)
+    # The PDF displays patient demographics, the doctor's name and the
+    # configured cabinet stamp. Lock those source rows for PostgreSQL and
+    # re-read them within SQLite's already-acquired global writer transaction.
+    patient_query = db.query(models.Patient).filter(models.Patient.id == patient_id).populate_existing()
+    cabinet_query = db.query(models.CabinetConfig).filter(
+        models.CabinetConfig.owner_id == current_user.get_employer_id()
+    ).populate_existing()
+    if db.get_bind().dialect.name != "sqlite":
+        patient_query = patient_query.with_for_update()
+        cabinet_query = cabinet_query.with_for_update()
+    current_patient = patient_query.first()
+    current_cabinet = cabinet_query.first()
+    # Auth dependencies loaded the user from this request's DB session.
+    # Refresh persisted users after acquiring the study lock; isolated race
+    # harnesses supply a synthetic actor rather than a persisted user row.
+    if isinstance(current_user, models.User):
+        db.refresh(current_user)
+    require_dentist(current_user)
+    require_real_cabinet_letterhead(cabinet=current_cabinet, user=current_user)
+    rendered_identity_sha256 = rendered_identity_fingerprint(
+        patient=current_patient, cabinet=current_cabinet, user=current_user,
+    )
     claims = verify_approval_token(
         req.approval_token, user=current_user, patient_id=patient_id,
         analysis_id=req.analysis_id, revision=revision,
-        source_sha256=source_sha256, pdf=pdf,
+        source_sha256=source_sha256,
+        rendered_identity_sha256=rendered_identity_sha256, pdf=pdf,
     )
     digest = claims["pdf_sha256"]
     payload_digest = archive_payload_digest(
@@ -1754,6 +1790,7 @@ def archive_descriptive_cephalo_a4_v1(
         "approved_by_practitioner_id": current_user.id,
         "approved_at_utc": approved_at,
         "scientific_source_sha256": source_sha256,
+        "rendered_identity_sha256": rendered_identity_sha256,
         "approved_pdf_sha256": digest,
         "clinical_diagnosis_validated": False,
     }
