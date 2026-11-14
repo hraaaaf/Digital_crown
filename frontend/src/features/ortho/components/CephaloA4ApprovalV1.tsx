@@ -5,9 +5,7 @@ import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Archive, CheckCircle2, Eye, Loader2, ShieldCheck, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
-import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
 import type { PDFPageProxy } from 'pdfjs-dist';
-import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { cephaloArchiveErrorMessage } from '../cephaloArchiveGate';
 import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -23,8 +21,6 @@ type PreparedA4 = {
   document_kind: 'CEPH_A4_DESCRIPTIVE_APPROVAL_V1';
   clinical_diagnosis_validated: false;
 };
-
-GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
 
 
 /**
@@ -47,7 +43,7 @@ const VerifiedA4PdfCanvas: React.FC<{
     const host = hostRef.current;
     if (!host) return;
     let cancelled = false;
-    let loadingTask: ReturnType<typeof getDocument> | null = null;
+    let loadingTask: { destroy: () => Promise<void> } | null = null;
     let renderTask: ReturnType<PDFPageProxy['render']> | null = null;
     host.replaceChildren();
     setStatus('loading');
@@ -70,8 +66,17 @@ const VerifiedA4PdfCanvas: React.FC<{
         if (actualSha !== expectedSha256) throw Error('A4_PREVIEW_SHA_MISMATCH');
         if (cancelled) return;
 
-        loadingTask = getDocument({ data: bytes, isEvalSupported: false });
-        const pdf = await loadingTask.promise;
+        // Keep PDF.js out of module initialization: jsdom/SSR has no DOMMatrix.
+        // Never bypass renderer in the real browser or weaken the fail-closed gate.
+        const [{ getDocument, GlobalWorkerOptions }, worker] = await Promise.all([
+          import('pdfjs-dist'),
+          import('pdfjs-dist/build/pdf.worker.min.mjs?url'),
+        ]);
+        if (cancelled) return;
+        GlobalWorkerOptions.workerSrc = worker.default;
+        const task = getDocument({ data: bytes, isEvalSupported: false });
+        loadingTask = task;
+        const pdf = await task.promise;
         if (cancelled) return;
         if (pdf.numPages < 1 || pdf.numPages > MAX_A4_PREVIEW_PAGES)
           throw Error('A4_PAGE_COUNT_UNSUPPORTED');
@@ -374,7 +379,10 @@ export const CephaloA4ApprovalV1: React.FC<{
           <p className="mt-2 font-mono text-[10px] break-all" style={{ color: P.textMuted }}>SHA-256 : {prepared.pdf_sha256}</p>
           <label className="mt-3 flex items-start gap-2 text-xs font-semibold" style={{ color: P.text }}>
             <input type="checkbox" checked={acknowledged}
-              onChange={e => setAcknowledged(e.target.checked)}
+              onChange={e => {
+                // HTML disabled is a UX guard; the handler must also fail closed.
+                if (previewVerified && !busy && !disabled) setAcknowledged(e.target.checked);
+              }}
               disabled={!previewVerified || !!busy || disabled} />
             J'ai personnellement vérifié les repères, la calibration, les mesures et ce PDF descriptif exact.
           </label>
