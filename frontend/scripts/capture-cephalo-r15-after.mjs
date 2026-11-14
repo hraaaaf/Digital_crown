@@ -160,7 +160,7 @@ async function metrics(page, viewportName, scene) {
           draft && !draft.disabled &&
           hold?.textContent?.toLowerCase().includes('archivage du bilan clinique complet indisponible') &&
           hold?.textContent?.toLowerCase().includes('archivage v1 descriptif exige une approbation traçable') &&
-          hold?.textContent?.toLowerCase().includes('aucune signature électronique avancée n'est requise'));
+          hold?.textContent?.toLowerCase().includes("aucune signature électronique avancée n\u0027est requise"));
       })(),
       hasTechnicalVocabulary: technicalVocabulary.test(rawText),
       bodyHeight: body.scrollHeight,
