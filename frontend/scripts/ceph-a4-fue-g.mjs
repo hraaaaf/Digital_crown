@@ -181,14 +181,26 @@ try {
       'APPROVAL_CHECKBOX_DID_NOT_ENFORCE_GATING');
     assert(patientArchiveRows(await documents()).length===0,
       'PDF_PREVIEW_SILENTLY_ARCHIVED');
-    const previewFrame=page.locator('iframe[title="Bilan descriptif A4 soumis à validation"]');
-    await previewFrame.waitFor({state:'visible',timeout:25000});
-    assert((await previewFrame.getAttribute('src'))?.startsWith('blob:'),
-      'EXACT_A4_PREVIEW_IFRAME_NOT_LOCAL_PDF');
+    const verifiedPreview=page.locator('[data-ceph-a4-pdf-preview="ready"]');
+    const confirmation=page.getByRole('checkbox',{
+      name:/personnellement vérifié les repères/i,
+    });
+    assert(await confirmation.isDisabled(),
+      'APPROVAL_CHECKBOX_ENABLED_BEFORE_PDF_READY');
+    // Ready = exact SHA matched and every PDF.js page painted on real canvas.
+    await verifiedPreview.waitFor({state:'visible',timeout:60000});
+    const rendered=verifiedPreview.locator('canvas[data-ceph-a4-page-rendered="true"]');
+    const renderedCount=await rendered.count();
+    assert(renderedCount>0,'A4_PDF_NO_RENDERED_CANVAS');
+    assert(await rendered.first().evaluate(el=>el.width>0&&el.height>0),
+      'A4_PDF_RENDERED_CANVAS_EMPTY');
+    assert(await confirmation.isEnabled(),
+      'APPROVAL_CHECKBOX_NOT_AVAILABLE_AFTER_PDF_READY');
     report.preview_sha256=prepared.pdf_sha256;
     report.revision=prepared.expected_revision;
+    report.preapproval_pdf_pages_rendered=renderedCount;
     await snap('03-after-a4-preview-before-approval');
-    await previewFrame.scrollIntoViewIfNeeded();
+    await rendered.first().scrollIntoViewIfNeeded();
     await snap('03b-exact-a4-pdf-review-viewport');
     return {pdf_sha256:prepared.pdf_sha256,bytes:pdf.length,
       revision:prepared.expected_revision,archive_count:0};

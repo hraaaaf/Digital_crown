@@ -1,10 +1,13 @@
 /** Descriptive A4 V1: exact preview -> explicit clinician approval -> archive.
  * No electronic signature, no clinical diagnosis/treatment activation.
  * This component never relies on the generic archive:true PDF route. */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Archive, CheckCircle2, Eye, Loader2, ShieldCheck, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
+import { getDocument, GlobalWorkerOptions } from 'pdfjs-dist';
+import type { PDFPageProxy } from 'pdfjs-dist';
+import pdfWorkerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url';
 import { cephaloArchiveErrorMessage } from '../cephaloArchiveGate';
 import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { useOrthoStore } from '../stores/useOrthoStore';
@@ -21,6 +24,134 @@ type PreparedA4 = {
   clinical_diagnosis_validated: false;
 };
 
+GlobalWorkerOptions.workerSrc = pdfWorkerUrl;
+
+
+/**
+ * Verify the exact PDF SHA-256, then paint ALL pages with PDF.js before the
+ * clinician can acknowledge, print or archive. Local-only, fail-closed.
+ */
+const MAX_A4_PREVIEW_BYTES = 16 * 1024 * 1024;
+const MAX_A4_PREVIEW_PAGES = 20;
+
+const VerifiedA4PdfCanvas: React.FC<{
+  pdfBase64: string;
+  expectedSha256: string;
+  onVerified: (verified: boolean) => void;
+}> = ({ pdfBase64, expectedSha256, onVerified }) => {
+  const hostRef = useRef<HTMLDivElement>(null);
+  const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
+  const [pages, setPages] = useState(0);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    let cancelled = false;
+    let loadingTask: ReturnType<typeof getDocument> | null = null;
+    let renderTask: ReturnType<PDFPageProxy['render']> | null = null;
+    host.replaceChildren();
+    setStatus('loading');
+    setPages(0);
+    onVerified(false);
+
+    const loadAndRender = async () => {
+      try {
+        if (!/^[a-f0-9]{64}$/.test(expectedSha256))
+          throw Error('A4_EXPECTED_SHA_INVALID');
+        const raw = atob(pdfBase64);
+        if (raw.length < 4 || raw.length > MAX_A4_PREVIEW_BYTES ||
+            raw.slice(0, 4) !== '%PDF')
+          throw Error('A4_PDF_BYTES_INVALID');
+        const bytes = new Uint8Array(raw.length);
+        for (let i = 0; i < raw.length; i++) bytes[i] = raw.charCodeAt(i);
+        const hash = await crypto.subtle.digest('SHA-256', bytes);
+        const actualSha = Array.from(new Uint8Array(hash), value =>
+          value.toString(16).padStart(2, '0')).join('');
+        if (actualSha !== expectedSha256) throw Error('A4_PREVIEW_SHA_MISMATCH');
+        if (cancelled) return;
+
+        loadingTask = getDocument({ data: bytes, isEvalSupported: false });
+        const pdf = await loadingTask.promise;
+        if (cancelled) return;
+        if (pdf.numPages < 1 || pdf.numPages > MAX_A4_PREVIEW_PAGES)
+          throw Error('A4_PAGE_COUNT_UNSUPPORTED');
+
+        for (let number = 1; number <= pdf.numPages; number++) {
+          if (cancelled) return;
+          const pdfPage = await pdf.getPage(number);
+          if (cancelled) return;
+          const normal = pdfPage.getViewport({ scale: 1 });
+          const scale = Math.min(1.35, Math.max(1, (host.clientWidth - 32) / normal.width));
+          const viewport = pdfPage.getViewport({ scale });
+          const pixelRatio = Math.min(Math.max(window.devicePixelRatio || 1, 1), 2);
+          const canvas = document.createElement('canvas');
+          canvas.width = Math.ceil(viewport.width * pixelRatio);
+          canvas.height = Math.ceil(viewport.height * pixelRatio);
+          canvas.style.width = Math.ceil(viewport.width) + 'px';
+          canvas.style.height = Math.ceil(viewport.height) + 'px';
+          canvas.className = 'mx-auto mb-4 block max-w-none bg-white shadow-lg';
+          canvas.setAttribute('aria-label', 'Page ' + number + ' du bilan A4');
+          canvas.setAttribute('data-ceph-a4-page-rendered', 'false');
+          const canvasContext = canvas.getContext('2d', { alpha: false });
+          if (!canvasContext) throw Error('A4_CANVAS_UNAVAILABLE');
+          host.appendChild(canvas);
+          renderTask = pdfPage.render({
+            canvas, canvasContext, viewport,
+            transform: pixelRatio === 1
+              ? undefined : [pixelRatio, 0, 0, pixelRatio, 0, 0],
+          });
+          await renderTask.promise;
+          if (cancelled) return;
+          renderTask = null;
+          if (canvas.width < 1 || canvas.height < 1)
+            throw Error('A4_CANVAS_EMPTY');
+          canvas.setAttribute('data-ceph-a4-page-rendered', 'true');
+        }
+        if (cancelled) return;
+        setPages(pdf.numPages);
+        setStatus('ready');
+        onVerified(true);
+      } catch {
+        if (cancelled) return;
+        host.replaceChildren();
+        setStatus('error');
+        onVerified(false);
+      }
+    };
+    void loadAndRender();
+    return () => {
+      cancelled = true;
+      try { renderTask?.cancel(); } catch { /* already completed */ }
+      void loadingTask?.destroy().catch(() => {});
+      host.replaceChildren();
+    };
+  }, [pdfBase64, expectedSha256, onVerified]);
+
+  return (
+    <section data-ceph-a4-pdf-preview={status}
+      aria-label="Aperçu PDF exact vérifié avant approbation"
+      className="mt-3 overflow-hidden rounded-lg border border-slate-300">
+      {status === 'loading' && (
+        <p role="status" className="p-3 text-xs font-semibold text-slate-700">
+          Vérification SHA-256 et rendu de toutes les pages du bilan A4…
+        </p>
+      )}
+      {status === 'error' && (
+        <p role="alert" className="p-3 text-xs font-bold text-red-700">
+          Aperçu PDF non vérifiable ou non affichable : approbation et archivage bloqués.
+        </p>
+      )}
+      {status === 'ready' && (
+        <p role="status" className="p-3 text-xs font-semibold text-emerald-800">
+          PDF exact vérifié (SHA-256) — {pages} page(s) affichée(s).
+          Consultez toutes les pages avant de confirmer.
+        </p>
+      )}
+      <div ref={hostRef} className="h-[55vh] overflow-auto bg-slate-200 p-3" />
+    </section>
+  );
+};
+
 function scienceLocalSnapshot(): string {
   const s = useOrthoStore.getState();
   return JSON.stringify({landmarks: s.local.landmarks, mmPerPixel: s.mmPerPixel});
@@ -34,6 +165,11 @@ export const CephaloA4ApprovalV1: React.FC<{
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [snapshot, setSnapshot] = useState<string | null>(null);
   const [acknowledged, setAcknowledged] = useState(false);
+  const [previewVerified, setPreviewVerified] = useState(false);
+  const [previewGeneration, setPreviewGeneration] = useState(0);
+  const onPreviewVerified = useCallback((verified: boolean) => {
+    setPreviewVerified(verified);
+  }, []);
   const [busy, setBusy] = useState<'prepare' | 'archive' | null>(null);
   const inFlight = useRef(false);
   const objectUrl = useRef<string | null>(null);
@@ -47,6 +183,8 @@ export const CephaloA4ApprovalV1: React.FC<{
     setPreviewUrl(null);
     setSnapshot(null);
     setAcknowledged(false);
+    setPreviewVerified(false);
+    setPreviewGeneration(previous => previous + 1);
   }
 
   useEffect(() => {
@@ -119,7 +257,7 @@ export const CephaloA4ApprovalV1: React.FC<{
   }
 
   function printPrepared() {
-    if (!prepared || !previewUrl || !acknowledged || busy) return;
+    if (!prepared || !previewUrl || !previewVerified || !acknowledged || busy || disabled) return;
     // An explicit click opens a local PDF viewer; NEVER calls /archive.
     const popup = window.open('', '_blank');
     if (!popup) {
@@ -155,7 +293,8 @@ export const CephaloA4ApprovalV1: React.FC<{
   }
 
   async function archive() {
-    if (!patientId || !analysisId || !prepared || !acknowledged || !snapshot || inFlight.current) return;
+    if (!patientId || !analysisId || !prepared || !previewVerified || !acknowledged ||
+        !snapshot || inFlight.current || disabled) return;
     if (prepared.analysis_id !== analysisId || snapshot !== scienceLocalSnapshot()) {
       clearPreview();
       toast.error("Les repères ou la calibration ont changé : prévisualisez à nouveau.");
@@ -226,20 +365,27 @@ export const CephaloA4ApprovalV1: React.FC<{
               <X size={18}/>
             </button>
           </div>
-          <iframe title="Bilan descriptif A4 soumis à validation" src={previewUrl} className="mt-3 h-[55vh] w-full rounded-lg border" />
+          <VerifiedA4PdfCanvas
+            key={previewGeneration}
+            pdfBase64={prepared.pdf_base64}
+            expectedSha256={prepared.pdf_sha256}
+            onVerified={onPreviewVerified}
+          />
           <p className="mt-2 font-mono text-[10px] break-all" style={{ color: P.textMuted }}>SHA-256 : {prepared.pdf_sha256}</p>
           <label className="mt-3 flex items-start gap-2 text-xs font-semibold" style={{ color: P.text }}>
-            <input type="checkbox" checked={acknowledged} onChange={e => setAcknowledged(e.target.checked)} disabled={!!busy} />
+            <input type="checkbox" checked={acknowledged}
+              onChange={e => setAcknowledged(e.target.checked)}
+              disabled={!previewVerified || !!busy || disabled} />
             J'ai personnellement vérifié les repères, la calibration, les mesures et ce PDF descriptif exact.
           </label>
           <div className="flex flex-wrap items-center gap-2">
             <button type="button" onClick={printPrepared}
-              disabled={!acknowledged || !!busy || disabled} className="mt-3 inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-black disabled:opacity-40"
+              disabled={!previewVerified || !acknowledged || !!busy || disabled} className="mt-3 inline-flex items-center gap-2 rounded-xl border px-4 py-3 text-xs font-black disabled:opacity-40"
               style={{ borderColor: P.border, color: P.text }}>
               Imprimer ce bilan A4
             </button>
             <button type="button" onClick={() => void archive()}
-              disabled={!acknowledged || !!busy || disabled} className="mt-3 inline-flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black text-white disabled:opacity-40"
+              disabled={!previewVerified || !acknowledged || !!busy || disabled} className="mt-3 inline-flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-black text-white disabled:opacity-40"
               style={{ background: P.accent }}>
               {busy === 'archive' ? <Loader2 size={16} className="animate-spin" /> : <Archive size={16} />}
               Valider et archiver ce bilan A4
