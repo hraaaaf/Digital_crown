@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Activity, AlertTriangle, Archive, Camera, CheckCircle2, ChevronDown,
-  ChevronUp, Eye, FileText, Loader2, Shield, XCircle,
+  ChevronUp, Eye, FileText, Loader2, Printer, Shield, XCircle,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { api } from '../../../services/api';
@@ -9,11 +9,19 @@ import { REQUIRED_LANDMARKS } from '../cephaloShared';
 import { cephaloRepository } from '../cephaloRepository';
 import { prepareBoundCephaloDocumentSource } from '../cephaloDocumentSource';
 import { type CephaloArchiveValidation } from '../cephaloArchiveGate';
+import { CephaloA4ApprovalV1 } from './CephaloA4ApprovalV1';
 import { useOrthoStore, snapshotCephaloPdfClinicalInputs } from '../stores/useOrthoStore';
 
 interface Step4DocumentsProps {
   P: any;
 }
+
+// SRPose38 has 38 required scientific landmarks. Occ_Ant and Occ_Post
+// belong to the optional occlusal drawing overlay, NOT the persisted
+// canonical 38-evidence graph; never require them for descriptive A4 approval.
+const DESCRIPTIVE_A4_REQUIRED_LANDMARKS = REQUIRED_LANDMARKS.filter(
+  id => id !== 'Occ_Ant' && id !== 'Occ_Post'
+);
 
 const ANGLE_CARDS = [
   { key: 'SNA', label: 'SNA', unit: '°' },
@@ -79,6 +87,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
     photos,
     handlePhotoUpload: onUpload,
     handlePreview: onPreviewPDF,
+    handlePrint: onPrintPDF,
     isPrinting: isGenerating,
     isPreviewLoading,
     etape3Data,
@@ -102,10 +111,10 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
 
   const hasImage = Boolean(imageSrc);
   const hasCalibration = isCalibrated;
-  const reqSet = new Set<string>(REQUIRED_LANDMARKS as readonly string[]);
-  const landmarkCount = local.landmarks.filter(l => reqSet.has(l.id)).length;
-  const landmarkPct = Math.round((landmarkCount / REQUIRED_LANDMARKS.length) * 100);
-  const landmarksOk = landmarkPct === 100;
+  const reqSet = new Set<string>(DESCRIPTIVE_A4_REQUIRED_LANDMARKS);
+  const landmarkCount = new Set(local.landmarks.filter(l => reqSet.has(l.id)).map(l => l.id)).size;
+  const landmarkPct = Math.round((landmarkCount / reqSet.size) * 100);
+  const landmarksOk = landmarkCount === reqSet.size;
   const diagOk = Boolean(diag.synthese_diagnostique?.trim());
 
   const fetchValidation = useCallback(async () => {
@@ -168,6 +177,15 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
       return;
     }
     await onPreviewPDF();
+  };
+
+  const handlePrintBilan = async () => {
+    if (!patientId || !analysisId || draftInFlight.current || isPreviewLoading || isGenerating) return;
+    try {
+      await onPrintPDF();
+    } catch (error: any) {
+      toast.error(error?.message || "Impossible d'ouvrir le PDF pour impression.");
+    }
   };
 
   const handleBrouillon = async () => {
@@ -320,7 +338,7 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
             <div className="space-y-0.5 divide-y">
               <CheckItem label="Image céphalométrique chargée" status={hasImage ? 'ok' : 'fail'} detail={hasImage ? undefined : 'Aucune image uploadée'} />
               <CheckItem label="Calibration effectuée" status={hasCalibration ? 'ok' : 'warning'} detail={hasCalibration ? undefined : 'Mesures mm non fiables sans calibration'} />
-              <CheckItem label={`Landmarks complets (${landmarkCount}/${REQUIRED_LANDMARKS.length})`} status={landmarksOk ? 'ok' : landmarkCount > 0 ? 'warning' : 'fail'} detail={landmarksOk ? undefined : `${landmarkPct}% des points requis placés`} />
+              <CheckItem label={`Landmarks complets (${landmarkCount}/${reqSet.size})`} status={landmarksOk ? 'ok' : landmarkCount > 0 ? 'warning' : 'fail'} detail={landmarksOk ? undefined : `${landmarkPct}% des points requis placés`} />
               <CheckItem label="Cohérence des mesures" status={isValidating ? 'loading' : !validation ? 'warning' : hasFatals ? 'fail' : hasWarnings ? 'warning' : 'ok'} detail={!validation ? 'Non vérifiée' : hasFatals ? `${validation.fatals.length} erreur(s)` : hasWarnings ? `${validation.warnings.length} avertissement(s)` : 'Sans erreur bloquante'} />
               <CheckItem label="Note diagnostique libre présente" status={diagOk ? 'ok' : 'warning'} detail={diagOk ? 'Contenu à confirmer par le praticien' : 'Note libre vide'} />
             </div>
@@ -357,18 +375,23 @@ export const Step4Documents: React.FC<Step4DocumentsProps> = ({ P }) => {
 
           <div className="rounded-2xl p-5 border" style={{ background: P.bgPanel, borderColor: P.border }}>
             <p className="text-[9px] font-black text-center uppercase tracking-widest mb-1" style={{ color: P.textMuted }}>Actions documentaires</p>
-            <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Prévisualisation et téléchargement : brouillon non signé, sans valeur de validation clinique.</p>
+            <p className="mb-4 text-center text-[9px]" style={{ color: P.textDim }}>Aperçu et impression sont disponibles sans archivage. Le document reste un brouillon tant que la validation du praticien n'est pas établie.</p>
             <p role="note" className="mb-3 text-center text-xs font-semibold leading-relaxed" style={{ color: P.textMuted }}>
-              Prévisualiser ou archiver un PDF ne constitue pas une validation clinique.
+              Imprimer n'archive jamais le document. Le bilan clinique complet reste bloqué ; un bilan strictement descriptif peut être validé séparément par le praticien.
             </p>
-            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
               <button onClick={handlePreviewBilan} disabled={isPreviewLoading || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}>{isPreviewLoading ? <Loader2 size={20} className="animate-spin" /> : <Eye size={20} />}Prévisualiser</button>
+              <button onClick={handlePrintBilan} disabled={isPreviewLoading || isBrouillon || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isGenerating ? <Loader2 size={20} className="animate-spin" /> : <Printer size={20} />}Imprimer</button>
               <button onClick={handleBrouillon} disabled={isBrouillon || isPreviewLoading || isGenerating || !analysisId} className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest disabled:opacity-40 border" style={{ background: P.bgCard, borderColor: P.border, color: P.text }}>{isBrouillon ? <Loader2 size={20} className="animate-spin" /> : <FileText size={20} />}Brouillon PDF</button>
               <button type="button" disabled aria-describedby="cephalo-a4-archive-hold" className="flex flex-col items-center justify-center gap-1.5 px-3 py-4 rounded-2xl font-black text-[10px] uppercase tracking-widest border cursor-not-allowed" style={{ background: P.bgCard, borderColor: P.border, color: P.textMuted }}><Archive size={20} />Archivage suspendu</button>
             </div>
             <p id="cephalo-a4-archive-hold" data-testid="unsigned-cephalo-archive-hold" role="status" className="mt-3 text-center text-xs leading-relaxed" style={{ color: P.textMuted }}>
-              Archivage officiel indisponible : le bilan A4 est un brouillon non signé. Utilisez « Brouillon PDF » ; une signature vérifiable du document exact sera nécessaire pour archiver.
+              Archivage du bilan clinique complet indisponible : le bilan A4 reste un brouillon non signé, non validé par le praticien. L'archivage V1 descriptif exige une approbation traçable de la révision exacte du document. Aucune signature électronique avancée n'est requise.
             </p>
+            <CephaloA4ApprovalV1
+              P={P}
+              disabled={isPreviewLoading || isBrouillon || isGenerating || isValidating || !hasCalibration || !landmarksOk || validation?.valid !== true || hasFatals}
+            />
           </div>
         </div>
       </div>
