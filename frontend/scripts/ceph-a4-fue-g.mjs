@@ -95,6 +95,9 @@ try {
     await page.waitForURL(p=>new URL(p).pathname==='/dashboard',{timeout:50000});
     assert(Boolean(await page.evaluate(()=>localStorage.getItem('token'))),
       'FRONTEND_SESSION_MISSING');
+    // A route redirect alone can still display the global splash.
+    await page.getByRole('heading',{name:/^Bonjour,/})
+      .waitFor({state:'visible',timeout:45000});
     await snap('01-before-open-patient');
     return 'real browser login, workstation cookie, local FastAPI';
   });
@@ -178,9 +181,15 @@ try {
       'APPROVAL_CHECKBOX_DID_NOT_ENFORCE_GATING');
     assert(patientArchiveRows(await documents()).length===0,
       'PDF_PREVIEW_SILENTLY_ARCHIVED');
+    const previewFrame=page.locator('iframe[title="Bilan descriptif A4 soumis à validation"]');
+    await previewFrame.waitFor({state:'visible',timeout:25000});
+    assert((await previewFrame.getAttribute('src'))?.startsWith('blob:'),
+      'EXACT_A4_PREVIEW_IFRAME_NOT_LOCAL_PDF');
     report.preview_sha256=prepared.pdf_sha256;
     report.revision=prepared.expected_revision;
     await snap('03-after-a4-preview-before-approval');
+    await previewFrame.scrollIntoViewIfNeeded();
+    await snap('03b-exact-a4-pdf-review-viewport');
     return {pdf_sha256:prepared.pdf_sha256,bytes:pdf.length,
       revision:prepared.expected_revision,archive_count:0};
   });
@@ -260,6 +269,8 @@ try {
 
   if(archived) await checkpoint('PERSISTED_RELOAD_DOWNLOAD_AND_IDEMPOTENT_REPLAY',async()=>{
     await page.reload({waitUntil:'domcontentloaded'});
+    await page.getByRole('heading',{name:'FICTION-ODF E2E',exact:true})
+      .waitFor({state:'visible',timeout:45000});
     const list=patientArchiveRows(await documents());
     assert(list.length===1,'ARCHIVE_MISSING_AFTER_RELOAD');
     const row=list[0];
@@ -282,9 +293,40 @@ try {
     assert(digest(await replay.body())===prepared.pdf_sha256,'REPLAY_BYTES_MISMATCH');
     assert(patientArchiveRows(await documents()).length===1,
       'REPLAY_ADDED_A_DUPLICATE_ARCHIVE');
+    // An actual patient UI reload, not only a backend/SQLite readback.
+    await page.goto(url+'/patients/'+seed.patient_id+'?tab=archives',
+      {waitUntil:'domcontentloaded'});
+    await page.locator('[data-flow-patient-surface="archives"]')
+      .waitFor({state:'visible',timeout:45000});
+    const archiveCard=page.locator('[data-document-kind="canonical"]').filter({
+      has:page.getByRole('button',{
+        name:'Actions du document '+row.name,exact:true,
+      }),
+    });
+    await archiveCard.waitFor({state:'visible',timeout:45000});
+    assert(await archiveCard.count()===1,'ARCHIVE_NOT_UNIQUE_IN_REAL_UI');
+    await archiveCard.scrollIntoViewIfNeeded();
     await snap('07-after-reload-persistent-archive');
+    // The same approved bytes must be rendered by the authenticated PDF.js UI.
+    const uiDownload=page.waitForResponse(res=>
+      res.request().method()==='GET'
+      &&new URL(res.url()).pathname===row.url,
+      {timeout:30000});
+    await archiveCard.getByRole('button',{name:'Voir',exact:true}).click();
+    const uiPdfResponse=await uiDownload;
+    assert(uiPdfResponse.status()===200,
+      'UI_PDF_VIEW_HTTP_'+uiPdfResponse.status());
+    assert(digest(await uiPdfResponse.body())===prepared.pdf_sha256,
+      'UI_VIEWED_PDF_SHA_MISMATCH');
+    const pdfCanvas=page.locator(
+      '[data-document-pdf-preview] [data-pdf-rendered="true"]');
+    await pdfCanvas.waitFor({state:'visible',timeout:45000});
+    assert(await pdfCanvas.evaluate(el=>el.width>0&&el.height>0),
+      'UI_PDF_CANVAS_EMPTY');
+    await snap('08-after-reload-authenticated-pdf-rendered');
     return {authenticated_download:true,exact_sha:true,replay:true,
-      archive_count:1};
+      archive_count:1,visible_archived_card:true,
+      ui_pdf_sha_matches_preview:true,ui_pdf_canvas_rendered:true};
   });
   report.status=report.failures.length===0&&report.checks.length===7
     &&report.checks.every(c=>c.status==='PASS')
