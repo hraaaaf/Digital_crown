@@ -1,5 +1,12 @@
 name: Settings TemplateEngine Reachability Certification
 
+# PR-only deduplication: preserve tests, jobs, events, matrices and check names.
+# Push/manual runs get unique run_id groups and are never auto-cancelled.
+concurrency:
+  group: ${{ github.workflow }}-pr-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+
 on:
   pull_request:
     branches: [master]
