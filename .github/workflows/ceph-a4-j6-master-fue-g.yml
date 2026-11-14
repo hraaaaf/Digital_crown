@@ -12,6 +12,7 @@ on:
       - backend/tests/test_ortho_frontend_fail_closed_contract.py
       - frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs
       - frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs
+      - frontend/scripts/fue-ceph-p2ter-first-value.mjs
       - frontend/scripts/capture-cephalo-r15-after.mjs
       - backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py
       - backend/tests/test_ceph_a4_s2b_j5_independent_review.py
@@ -75,6 +76,7 @@ jobs:
             'backend/tests/test_ortho_frontend_fail_closed_contract.py',
             'frontend/scripts/capture-ceph-unsigned-a4-archive-hold.mjs',
             'frontend/scripts/certify-ceph-p2ter-authenticated-cabinet.mjs',
+            'frontend/scripts/fue-ceph-p2ter-first-value.mjs',
             'frontend/scripts/capture-cephalo-r15-after.mjs',
             'backend/tests/test_ceph_a4_preview_print_archive_v1_contract.py',
             'backend/tests/test_ceph_a4_s2b_j5_independent_review.py',
@@ -160,6 +162,8 @@ jobs:
           npx playwright install --with-deps chromium
           node --check scripts/ceph-odf-gui-sqlite-e2e.mjs
           node --check scripts/ceph-a4-fue-g.mjs
+          node --check scripts/capture-cephalo-r15-after.mjs
+          node --check scripts/fue-ceph-p2ter-first-value.mjs
           npx tsc -p tsconfig.app.json --noEmit
           npx vitest run src/features/ortho/components/Step4Documents.g4Interactive.test.tsx src/features/ortho/components/CephaloA4ApprovalV1.test.tsx
       - name: Start independent T2 FastAPI and real local SQLite
