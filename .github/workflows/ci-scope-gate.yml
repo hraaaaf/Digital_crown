@@ -120,3 +120,18 @@ jobs:
             echo "### Decision rule"
             echo "Run only the manual workflow(s) whose scope is demonstrated above. Full matrices are reserved for explicit closeout/release."
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Smart Gate V2 advisory-only topology and fan-out inventory
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -m unittest discover -s scripts/ci -p 'test_smart_gate_v2.py' -v
+          python3 scripts/ci/smart_gate_v2.py --changed-file /tmp/changed.txt --base master --out "$RUNNER_TEMP/ci-smart-gate-v2.json"
+
+      - name: Retain Smart Gate V2 advisory proof
+        uses: actions/upload-artifact@v4
+        with:
+          name: ci-smart-gate-v2-${{ github.run_id }}
+          path: ${{ runner.temp }}/ci-smart-gate-v2.json
+          if-no-files-found: error
+          retention-days: 14
